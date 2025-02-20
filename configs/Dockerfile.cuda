@@ -17,8 +17,10 @@ LABEL org.opencontainers.image.base.name="https://hub.docker.com/pytorch/pytorch
 LABEL org.opencontainers.image.version="latest"
 
 # minimum install
-RUN ["apt-get", "-y", "update"]
-RUN ["apt-get", "-y", "install", "git", "build-essential", "google-perftools", "curl", "ffmpeg"]
+RUN apt-get -y update && \
+    apt-get -y install git build-essential google-perftools curl ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 # optional if full cuda-dev is required by some downstream library
 # RUN ["apt-get", "-y", "nvidia-cuda-toolkit"]
 RUN ["/usr/sbin/ldconfig"]
