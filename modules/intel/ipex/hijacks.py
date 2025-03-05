@@ -33,13 +33,10 @@ def is_cuda(self):
     return self.device.type == "xpu" or self.device.type == "cuda"
 
 def check_device_type(device, device_type: str) -> bool:
-    if device is None or isinstance(device, torch.dtype): # torch.Tensor.to can get a dtype as input
+    if device is None or type(device) not in {str, int, torch.device}:
         return False
     else:
-        if hasattr(device, "device"): # torch.Tensor.to can get a tensor as input
-            return bool(torch.device(device.device).type == device_type)
-        else:
-            return bool(torch.device(device).type == device_type)
+        return bool(torch.device(device).type == device_type)
 
 def check_cuda(device) -> bool:
     return bool(isinstance(device, int) or check_device_type(device, "cuda"))
