@@ -343,6 +343,13 @@ def torch_cuda_synchronize(device=None):
     else:
         return torch.xpu.synchronize(device)
 
+@wraps(torch.cuda.device)
+def torch_cuda_device(device):
+    if check_cuda(device):
+        return torch.xpu.device(return_xpu(device))
+    else:
+        return torch.xpu.device(device)
+
 
 # Hijack Functions:
 def ipex_hijacks(legacy=True):
@@ -367,6 +374,7 @@ def ipex_hijacks(legacy=True):
     torch.load = torch_load
     torch.Generator = torch_Generator
     torch.cuda.synchronize = torch_cuda_synchronize
+    torch.cuda.device = torch_cuda_device
 
     torch.backends.cuda.sdp_kernel = return_null_context
     torch.nn.DataParallel = DummyDataParallel
