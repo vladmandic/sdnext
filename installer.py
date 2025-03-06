@@ -91,7 +91,6 @@ def install_traceback(suppress: list = []):
         extra_lines=os.environ.get('SD_TRACELINES', 1),
         max_frames=os.environ.get('SD_TRACEFRAMES', 16),
         width=os.environ.get('SD_TRACEWIDTH', console.width),
-        code_width=os.environ.get('SD_TRACEWIDTH', console.width) - 12,
         word_wrap=os.environ.get('SD_TRACEWRAP', False),
         indent_guides=os.environ.get('SD_TRACEINDENT', False),
         show_locals=os.environ.get('SD_TRACELOCALS', False),
