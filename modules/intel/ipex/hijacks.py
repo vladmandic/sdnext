@@ -254,13 +254,13 @@ if float(torch.__version__[:3]) >= 2.4:
         else:
             return original_UntypedStorage_to(self, *args, device=device, **kwargs)
 
-original_UntypedStorage_cuda = torch.UntypedStorage.cuda
-@wraps(torch.UntypedStorage.cuda)
-def UntypedStorage_cuda(self, device=None, non_blocking=False, **kwargs):
-    if device is None or check_cuda(device):
-        return self.to(device=return_xpu(device), non_blocking=non_blocking, **kwargs)
-    else:
-        return original_UntypedStorage_cuda(self, device=device, non_blocking=non_blocking, **kwargs)
+    original_UntypedStorage_cuda = torch.UntypedStorage.cuda
+    @wraps(torch.UntypedStorage.cuda)
+    def UntypedStorage_cuda(self, device=None, non_blocking=False, **kwargs):
+        if device is None or check_cuda(device):
+            return self.to(device=return_xpu(device), non_blocking=non_blocking, **kwargs)
+        else:
+            return original_UntypedStorage_cuda(self, device=device, non_blocking=non_blocking, **kwargs)
 
 original_torch_empty = torch.empty
 @wraps(torch.empty)
@@ -347,16 +347,16 @@ def torch_cuda_synchronize(device=None):
 # Hijack Functions:
 def ipex_hijacks(legacy=True):
     global device_supports_fp64, can_allocate_plus_4gb
-    if legacy and float(torch.__version__[:3]) < 2.5:
+    if float(torch.__version__[:3]) >= 2.4:
+        torch.UntypedStorage.cuda = UntypedStorage_cuda
+        torch.UntypedStorage.to = UntypedStorage_to
+    else: # ipex 2.3 and below
         torch.nn.functional.interpolate = interpolate
     torch.tensor = torch_tensor
     torch.Tensor.to = Tensor_to
     torch.Tensor.cuda = Tensor_cuda
     torch.Tensor.pin_memory = Tensor_pin_memory
     torch.UntypedStorage.__init__ = UntypedStorage_init
-    torch.UntypedStorage.cuda = UntypedStorage_cuda
-    if float(torch.__version__[:3]) >= 2.4:
-        torch.UntypedStorage.to = UntypedStorage_to
     torch.empty = torch_empty
     torch.randn = torch_randn
     torch.ones = torch_ones
