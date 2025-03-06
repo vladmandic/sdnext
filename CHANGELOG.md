@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2025-03-06
+
+- fix installer not starting when older version of rich is installed  
+- ipex, fix untyped_storage and torch.eye  
+
 ## Update for 2025-02-28
 
 Primarily a hotfix/service release plus few UI improvements and one exciting new feature: Remote-VAE!
