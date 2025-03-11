@@ -10,7 +10,7 @@ import gradio as gr
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
-from modules import devices, paths, shared, lowvram, errors, sd_models
+from modules import devices, paths, shared, lowvram, errors
 
 
 caption_models = {
@@ -328,7 +328,8 @@ def interrogate_image(image, clip_model, blip_model, mode):
             lowvram.send_everything_to_cpu()
             devices.torch_gc()
         if shared.native and shared.sd_loaded:
-            sd_models.apply_balanced_offload(shared.sd_model)
+            from modules.sd_models import apply_balanced_offload # prevent circular import
+            apply_balanced_offload(shared.sd_model)
         load_interrogator(clip_model, blip_model)
         image = image.convert('RGB')
         prompt = interrogate(image, mode)
