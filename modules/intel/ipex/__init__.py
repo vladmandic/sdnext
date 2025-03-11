@@ -4,10 +4,12 @@ import contextlib
 import torch
 try:
     import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
-    legacy = True
+    has_ipex = True
 except Exception:
-    legacy = False
+    has_ipex = False
 from .hijacks import ipex_hijacks
+
+torch_version = float(torch.__version__[:3])
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long
 
@@ -45,7 +47,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.Optional = torch.xpu.Optional
             torch.cuda.__cached__ = torch.xpu.__cached__
             torch.cuda.__loader__ = torch.xpu.__loader__
-            torch.cuda.Tuple = torch.xpu.Tuple
             torch.cuda.streams = torch.xpu.streams
             torch.cuda.Any = torch.xpu.Any
             torch.cuda.__doc__ = torch.xpu.__doc__
@@ -58,7 +59,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.__annotations__ = torch.xpu.__annotations__
             torch.cuda.__package__ = torch.xpu.__package__
             torch.cuda.__builtins__ = torch.xpu.__builtins__
-            torch.cuda.List = torch.xpu.List
             torch.cuda._lazy_init = torch.xpu._lazy_init
             torch.cuda.StreamContext = torch.xpu.StreamContext
             torch.cuda._lazy_call = torch.xpu._lazy_call
@@ -70,47 +70,40 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.__file__ = torch.xpu.__file__
             # torch.cuda.is_current_stream_capturing = torch.xpu.is_current_stream_capturing
 
-            if legacy:
-                torch.cuda.os = torch.xpu.os
-                torch.cuda.Device = torch.xpu.Device
-                torch.cuda.warnings = torch.xpu.warnings
-                torch.cuda.classproperty = torch.xpu.classproperty
-                torch.UntypedStorage.cuda = torch.UntypedStorage.xpu
-                if float(ipex.__version__[:3]) < 2.3:
-                    torch.cuda._initialization_lock = torch.xpu.lazy_init._initialization_lock
-                    torch.cuda._initialized = torch.xpu.lazy_init._initialized
-                    torch.cuda._is_in_bad_fork = torch.xpu.lazy_init._is_in_bad_fork
-                    torch.cuda._lazy_seed_tracker = torch.xpu.lazy_init._lazy_seed_tracker
-                    torch.cuda._queued_calls = torch.xpu.lazy_init._queued_calls
-                    torch.cuda._tls = torch.xpu.lazy_init._tls
-                    torch.cuda.threading = torch.xpu.lazy_init.threading
-                    torch.cuda.traceback = torch.xpu.lazy_init.traceback
-                    torch.cuda._lazy_new = torch.xpu._lazy_new
+            if torch_version < 2.3:
+                torch.cuda._initialization_lock = torch.xpu.lazy_init._initialization_lock
+                torch.cuda._initialized = torch.xpu.lazy_init._initialized
+                torch.cuda._is_in_bad_fork = torch.xpu.lazy_init._is_in_bad_fork
+                torch.cuda._lazy_seed_tracker = torch.xpu.lazy_init._lazy_seed_tracker
+                torch.cuda._queued_calls = torch.xpu.lazy_init._queued_calls
+                torch.cuda._tls = torch.xpu.lazy_init._tls
+                torch.cuda.threading = torch.xpu.lazy_init.threading
+                torch.cuda.traceback = torch.xpu.lazy_init.traceback
+                torch.cuda._lazy_new = torch.xpu._lazy_new
 
-                    torch.cuda.FloatTensor = torch.xpu.FloatTensor
-                    torch.cuda.FloatStorage = torch.xpu.FloatStorage
-                    torch.cuda.BFloat16Tensor = torch.xpu.BFloat16Tensor
-                    torch.cuda.BFloat16Storage = torch.xpu.BFloat16Storage
-                    torch.cuda.HalfTensor = torch.xpu.HalfTensor
-                    torch.cuda.HalfStorage = torch.xpu.HalfStorage
-                    torch.cuda.ByteTensor = torch.xpu.ByteTensor
-                    torch.cuda.ByteStorage = torch.xpu.ByteStorage
-                    torch.cuda.DoubleTensor = torch.xpu.DoubleTensor
-                    torch.cuda.DoubleStorage = torch.xpu.DoubleStorage
-                    torch.cuda.ShortTensor = torch.xpu.ShortTensor
-                    torch.cuda.ShortStorage = torch.xpu.ShortStorage
-                    torch.cuda.LongTensor = torch.xpu.LongTensor
-                    torch.cuda.LongStorage = torch.xpu.LongStorage
-                    torch.cuda.IntTensor = torch.xpu.IntTensor
-                    torch.cuda.IntStorage = torch.xpu.IntStorage
-                    torch.cuda.CharTensor = torch.xpu.CharTensor
-                    torch.cuda.CharStorage = torch.xpu.CharStorage
-                    torch.cuda.BoolTensor = torch.xpu.BoolTensor
-                    torch.cuda.BoolStorage = torch.xpu.BoolStorage
-                    torch.cuda.ComplexFloatStorage = torch.xpu.ComplexFloatStorage
-                    torch.cuda.ComplexDoubleStorage = torch.xpu.ComplexDoubleStorage
-
-            if not legacy or float(ipex.__version__[:3]) >= 2.3:
+                torch.cuda.FloatTensor = torch.xpu.FloatTensor
+                torch.cuda.FloatStorage = torch.xpu.FloatStorage
+                torch.cuda.BFloat16Tensor = torch.xpu.BFloat16Tensor
+                torch.cuda.BFloat16Storage = torch.xpu.BFloat16Storage
+                torch.cuda.HalfTensor = torch.xpu.HalfTensor
+                torch.cuda.HalfStorage = torch.xpu.HalfStorage
+                torch.cuda.ByteTensor = torch.xpu.ByteTensor
+                torch.cuda.ByteStorage = torch.xpu.ByteStorage
+                torch.cuda.DoubleTensor = torch.xpu.DoubleTensor
+                torch.cuda.DoubleStorage = torch.xpu.DoubleStorage
+                torch.cuda.ShortTensor = torch.xpu.ShortTensor
+                torch.cuda.ShortStorage = torch.xpu.ShortStorage
+                torch.cuda.LongTensor = torch.xpu.LongTensor
+                torch.cuda.LongStorage = torch.xpu.LongStorage
+                torch.cuda.IntTensor = torch.xpu.IntTensor
+                torch.cuda.IntStorage = torch.xpu.IntStorage
+                torch.cuda.CharTensor = torch.xpu.CharTensor
+                torch.cuda.CharStorage = torch.xpu.CharStorage
+                torch.cuda.BoolTensor = torch.xpu.BoolTensor
+                torch.cuda.BoolStorage = torch.xpu.BoolStorage
+                torch.cuda.ComplexFloatStorage = torch.xpu.ComplexFloatStorage
+                torch.cuda.ComplexDoubleStorage = torch.xpu.ComplexDoubleStorage
+            else:
                 torch.cuda._initialization_lock = torch.xpu._initialization_lock
                 torch.cuda._initialized = torch.xpu._initialized
                 torch.cuda._is_in_bad_fork = torch.xpu._is_in_bad_fork
@@ -120,12 +113,24 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.threading = torch.xpu.threading
                 torch.cuda.traceback = torch.xpu.traceback
 
+            if torch_version < 2.5:
+                torch.cuda.os = torch.xpu.os
+                torch.cuda.Device = torch.xpu.Device
+                torch.cuda.warnings = torch.xpu.warnings
+                torch.cuda.classproperty = torch.xpu.classproperty
+                torch.UntypedStorage.cuda = torch.UntypedStorage.xpu
+
+            if torch_version < 2.7:
+                torch.cuda.Tuple = torch.xpu.Tuple
+                torch.cuda.List = torch.xpu.List
+
+
             # Memory:
             if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
-            if legacy:
+            if has_ipex:
                 torch.cuda.memory_summary = torch.xpu.memory_summary
                 torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
             torch.cuda.memory = torch.xpu.memory
@@ -154,11 +159,11 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.initial_seed = torch.xpu.initial_seed
 
             # AMP:
-            if legacy:
+            if has_ipex:
                 torch.xpu.amp.custom_fwd = torch.cuda.amp.custom_fwd
                 torch.xpu.amp.custom_bwd = torch.cuda.amp.custom_bwd
                 torch.cuda.amp = torch.xpu.amp
-                if float(ipex.__version__[:3]) < 2.3:
+                if torch_version < 2.3:
                     torch.is_autocast_enabled = torch.xpu.is_autocast_xpu_enabled
                     torch.get_autocast_gpu_dtype = torch.xpu.get_autocast_xpu_dtype
 
@@ -177,7 +182,7 @@ def ipex_init(): # pylint: disable=too-many-statements
                         torch.cuda.amp.GradScaler = ipex.cpu.autocast._grad_scaler.GradScaler
 
             # C
-            if legacy and float(ipex.__version__[:3]) < 2.3:
+            if torch_version < 2.3:
                 torch._C._cuda_getCurrentRawStream = ipex._C._getCurrentRawStream
                 ipex._C._DeviceProperties.multi_processor_count = ipex._C._DeviceProperties.gpu_subslice_count
                 ipex._C._DeviceProperties.major = 12
@@ -206,7 +211,7 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.ipc_collect = lambda *args, **kwargs: None
             torch.cuda.utilization = lambda *args, **kwargs: 0
 
-            device_supports_fp64, can_allocate_plus_4gb = ipex_hijacks(legacy=legacy)
+            device_supports_fp64, can_allocate_plus_4gb = ipex_hijacks()
             try:
                 from .diffusers import ipex_diffusers
                 ipex_diffusers(device_supports_fp64=device_supports_fp64, can_allocate_plus_4gb=can_allocate_plus_4gb)

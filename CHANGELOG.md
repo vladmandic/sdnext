@@ -1,9 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-06
+## Update for 2025-03-11
 
 - fix installer not starting when older version of rich is installed  
 - ipex, fix untyped_storage and torch.eye  
+- ipex, fix torch 2.7 compatibility  
 
 ## Update for 2025-02-28
 
