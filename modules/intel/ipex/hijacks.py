@@ -5,7 +5,10 @@ import torch
 import numpy as np
 from modules import devices, errors
 
+
+torch_version = float(torch.__version__[:3])
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
+
 if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0' and (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
     try:
         x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
@@ -57,6 +60,7 @@ def autocast_init(self, device_type, dtype=None, enabled=True, cache_enabled=Non
         return original_autocast_init(self, device_type=device_type, dtype=dtype, enabled=enabled, cache_enabled=cache_enabled)
 
 # Latent Antialias CPU Offload:
+# IPEX 2.5 and above has partial support but doesn't really work most of the time.
 original_interpolate = torch.nn.functional.interpolate
 @wraps(torch.nn.functional.interpolate)
 def interpolate(tensor, size=None, scale_factor=None, mode='nearest', align_corners=None, recompute_scale_factor=None, antialias=False): # pylint: disable=too-many-arguments
@@ -245,7 +249,7 @@ def UntypedStorage_init(*args, device=None, **kwargs):
     else:
         return original_UntypedStorage_init(*args, device=device, **kwargs)
 
-if float(torch.__version__[:3]) >= 2.4:
+if torch_version >= 2.4:
     original_UntypedStorage_to = torch.UntypedStorage.to
     @wraps(torch.UntypedStorage.to)
     def UntypedStorage_to(self, *args, device=None, **kwargs):
@@ -343,15 +347,20 @@ def torch_cuda_synchronize(device=None):
     else:
         return torch.xpu.synchronize(device)
 
+@wraps(torch.cuda.device)
+def torch_cuda_device(device):
+    if check_cuda(device):
+        return torch.xpu.device(return_xpu(device))
+    else:
+        return torch.xpu.device(device)
+
 
 # Hijack Functions:
-def ipex_hijacks(legacy=True):
+def ipex_hijacks():
     global device_supports_fp64, can_allocate_plus_4gb
-    if float(torch.__version__[:3]) >= 2.4:
+    if torch_version >= 2.4:
         torch.UntypedStorage.cuda = UntypedStorage_cuda
         torch.UntypedStorage.to = UntypedStorage_to
-    else: # ipex 2.3 and below
-        torch.nn.functional.interpolate = interpolate
     torch.tensor = torch_tensor
     torch.Tensor.to = Tensor_to
     torch.Tensor.cuda = Tensor_cuda
@@ -367,12 +376,14 @@ def ipex_hijacks(legacy=True):
     torch.load = torch_load
     torch.Generator = torch_Generator
     torch.cuda.synchronize = torch_cuda_synchronize
+    torch.cuda.device = torch_cuda_device
 
     torch.backends.cuda.sdp_kernel = return_null_context
     torch.nn.DataParallel = DummyDataParallel
     torch.UntypedStorage.is_cuda = is_cuda
     torch.amp.autocast_mode.autocast.__init__ = autocast_init
 
+    torch.nn.functional.interpolate = interpolate
     torch.nn.functional.scaled_dot_product_attention = scaled_dot_product_attention
     torch.nn.functional.group_norm = functional_group_norm
     torch.nn.functional.layer_norm = functional_layer_norm

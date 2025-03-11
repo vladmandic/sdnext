@@ -1,9 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-06
+## Update for 2025-03-11
 
 - fix installer not starting when older version of rich is installed  
-- ipex, fix untyped_storage and torch.eye  
+- fix circular imports when debug flags are enabled  
+- fix cuda errors with directml  
+- **ipex**
+  - add xpu to profiler  
+  - fix untyped_storage, torch.eye and torch.cuda.device ops  
+  - fix torch 2.7 compatibility  
+  - fix performance with balanced offload  
 
 ## Update for 2025-02-28
 

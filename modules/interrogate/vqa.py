@@ -7,7 +7,7 @@ import torch
 import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
-from modules import shared, devices, errors, sd_models
+from modules import shared, devices, errors
 
 processor = None
 model = None
@@ -429,7 +429,8 @@ def interrogate(question, prompt, image, model_name, quiet:bool=False):
     if len(question) < 2:
         question = "Describe the image."
     if shared.native and shared.sd_loaded:
-        sd_models.apply_balanced_offload(shared.sd_model)
+        from modules.sd_models import apply_balanced_offload # prevent circular import
+        apply_balanced_offload(shared.sd_model)
     from modules import modelloader
     modelloader.hf_login()
     try:

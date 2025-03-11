@@ -188,6 +188,8 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                 activities=[torch.profiler.ProfilerActivity.CPU]
                 if torch.cuda.is_available():
                     activities.append(torch.profiler.ProfilerActivity.CUDA)
+                if devices.has_xpu() and hasattr(torch.profiler.ProfilerActivity, "XPU"):
+                    activities.append(torch.profiler.ProfilerActivity.XPU)
                 shared.log.debug(f'Torch profile: activities={activities}')
                 if shared.profiler is None:
                     profile_args = {
