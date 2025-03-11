@@ -3,9 +3,11 @@
 ## Update for 2025-03-11
 
 - fix installer not starting when older version of rich is installed  
+- fix circular imports when debug flags are enabled  
 - fix cuda errors with directml  
 - **ipex**
-  - fix untyped_storage and torch.eye  
+  - add xpu to profiler  
+  - fix untyped_storage, torch.eye and torch.cuda.device ops  
   - fix torch 2.7 compatibility  
   - fix performance with balanced offload  
 
