@@ -162,12 +162,13 @@ class OffloadHook(accelerate.hooks.ModelHook):
             if device_map is None or max_memory != getattr(module, "balanced_offload_max_memory", None):
                 device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory)
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
-            keys = device_map.keys()
-            for v in keys:
-                if isinstance(device_map[v], int):
-                    # int implies CUDA device, but it will break DirectML backend.
-                    # Therefore, the type of device should be added.
-                    device_map[v] = f"{devices.device.type}:{device_map[v]}"
+            if devices.backend == "directml":
+                keys = device_map.keys()
+                for v in keys:
+                    if isinstance(device_map[v], int):
+                        # int implies CUDA or XPU device, but it will break DirectML backend.
+                        # Therefore, the type of device should be added.
+                        device_map[v] = f"{devices.device.type}:{device_map[v]}"
             module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
@@ -250,7 +251,8 @@ def apply_balanced_offload(sd_model, exclude=[]):
                 prev_gpu = used_gpu
                 do_offload = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory) and (module.device != devices.cpu)
                 if do_offload:
-                    module = module.to(devices.cpu, non_blocking=True)
+                    non_blocking = devices.backend != "ipex" # non_blocking on ipex causes 2x slowdown
+                    module = module.to(devices.cpu, non_blocking=non_blocking)
                     used_gpu -= module_size
                 cls = module.__class__.__name__
                 quant = getattr(module, "quantization_method", None)

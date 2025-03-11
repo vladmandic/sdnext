@@ -3,8 +3,11 @@
 ## Update for 2025-03-11
 
 - fix installer not starting when older version of rich is installed  
-- ipex, fix untyped_storage and torch.eye  
-- ipex, fix torch 2.7 compatibility  
+- fix cuda errors with directml  
+- **ipex**
+  - fix untyped_storage and torch.eye  
+  - fix torch 2.7 compatibility  
+  - fix performance with balanced offload  
 
 ## Update for 2025-02-28
 
