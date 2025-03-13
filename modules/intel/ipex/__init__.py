@@ -18,7 +18,10 @@ def ipex_init(): # pylint: disable=too-many-statements
         if hasattr(torch, "cuda") and hasattr(torch.cuda, "is_xpu_hijacked") and torch.cuda.is_xpu_hijacked:
             return True, "Skipping IPEX hijack"
         else:
-            try: # force xpu device on torch compile and triton
+            try:
+                # force xpu device on torch compile and triton
+                # import inductor utils to get around lazy import
+                from torch._inductor import utils as torch_inductor_utils # pylint: disable=import-error, unused-import
                 torch._inductor.utils.GPU_TYPES = ["xpu"]
                 torch._inductor.utils.get_gpu_type = lambda *args, **kwargs: "xpu"
                 from triton import backends as triton_backends # pylint: disable=import-error
