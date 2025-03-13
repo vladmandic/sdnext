@@ -4,8 +4,8 @@
 
 - fix installer not starting when older version of rich is installed  
 - fix circular imports when debug flags are enabled  
-- fix cuda errors with directml
-- fix memory stats not displaying RAM usage  
+- fix cuda errors with directml  
+- fix memory stats not displaying the ram usage  
 - **ipex**
   - add xpu to profiler  
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
