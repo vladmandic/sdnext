@@ -77,7 +77,7 @@ def ram_stats():
         process = psutil.Process(os.getpid())
         res = process.memory_info()
         ram_total = 100 * res.rss / process.memory_percent()
-        ram_total = min(ram_total, docker_limit(), runpod_limit())
+        ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
         ram = { 'used': gb(res.rss), 'total': gb(ram_total) }
         return ram
     except Exception:
