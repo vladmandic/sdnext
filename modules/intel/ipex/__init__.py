@@ -190,11 +190,13 @@ def ipex_init(): # pylint: disable=too-many-statements
                 ipex._C._DeviceProperties.multi_processor_count = ipex._C._DeviceProperties.gpu_subslice_count
                 ipex._C._DeviceProperties.major = 12
                 ipex._C._DeviceProperties.minor = 1
+                ipex._C._DeviceProperties.L2_cache_size = 16*1024*1024 # A770 and A750
             else:
                 torch._C._cuda_getCurrentRawStream = torch._C._xpu_getCurrentRawStream
                 torch._C._XpuDeviceProperties.multi_processor_count = torch._C._XpuDeviceProperties.gpu_subslice_count
                 torch._C._XpuDeviceProperties.major = 12
                 torch._C._XpuDeviceProperties.minor = 1
+                torch._C._XpuDeviceProperties.L2_cache_size = 16*1024*1024 # A770 and A750
 
             # Fix functions with ipex:
             # torch.xpu.mem_get_info always returns the total memory as free memory
@@ -211,6 +213,7 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.get_device_capability = lambda *args, **kwargs: (12,1)
             torch.cuda.get_device_properties.major = 12
             torch.cuda.get_device_properties.minor = 1
+            torch.cuda.get_device_properties.L2_cache_size = 16*1024*1024 # A770 and A750
             torch.cuda.ipc_collect = lambda *args, **kwargs: None
             torch.cuda.utilization = lambda *args, **kwargs: 0
 
