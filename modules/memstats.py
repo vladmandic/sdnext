@@ -31,7 +31,7 @@ def get_runpod_limit():
     global runpod_limit # pylint: disable=global-statement
     if runpod_limit is not None:
         return runpod_limit
-    runpod_limit = float(os.environ.get('RUNPOD_MEM_GB', 0))
+    runpod_limit = float(os.environ.get('RUNPOD_MEM_GB', sys.float_info.max))
     if runpod_limit == 0: # RUNPOD_MEM_GB can be set to 0 for no limit
         runpod_limit = sys.float_info.max
     return runpod_limit
