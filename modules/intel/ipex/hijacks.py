@@ -332,14 +332,6 @@ def torch_load(f, map_location=None, *args, **kwargs):
     else:
         return original_torch_load(f, *args, map_location=map_location, **kwargs)
 
-original_torch_Generator = torch.Generator
-@wraps(torch.Generator)
-def torch_Generator(device=None):
-    if check_cuda(device):
-        return original_torch_Generator(return_xpu(device))
-    else:
-        return original_torch_Generator(device)
-
 @wraps(torch.cuda.synchronize)
 def torch_cuda_synchronize(device=None):
     if check_cuda(device):
@@ -353,6 +345,17 @@ def torch_cuda_device(device):
         return torch.xpu.device(return_xpu(device))
     else:
         return torch.xpu.device(device)
+
+
+# torch.Generator has to be a class for isinstance checks
+original_torch_Generator = torch.Generator
+class torch_Generator(original_torch_Generator):
+    def __new__(self, device=None):
+        # can't hijack __init__ because of C override so use return super().__new__
+        if check_cuda(device):
+            return super().__new__(self, return_xpu(device))
+        else:
+            return super().__new__(self, device)
 
 
 # Hijack Functions:
@@ -374,9 +377,11 @@ def ipex_hijacks():
     torch.linspace = torch_linspace
     torch.eye = torch_eye
     torch.load = torch_load
-    torch.Generator = torch_Generator
     torch.cuda.synchronize = torch_cuda_synchronize
     torch.cuda.device = torch_cuda_device
+
+    torch.Generator = torch_Generator
+    torch._C.Generator = torch_Generator
 
     torch.backends.cuda.sdp_kernel = return_null_context
     torch.nn.DataParallel = DummyDataParallel

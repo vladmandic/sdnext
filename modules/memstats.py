@@ -24,6 +24,8 @@ def get_docker_limit():
             docker_limit = float(f.read())
     except Exception:
         docker_limit = sys.float_info.max
+    if docker_limit == 0:
+        docker_limit = sys.float_info.max
     return docker_limit
 
 
@@ -31,7 +33,9 @@ def get_runpod_limit():
     global runpod_limit # pylint: disable=global-statement
     if runpod_limit is not None:
         return runpod_limit
-    runpod_limit = float(os.environ.get('RUNPOD_MEM_GB', sys.float_info.max))
+    runpod_limit = float(os.environ.get('RUNPOD_MEM_GB', 0)) * 1024 * 1024 * 1024
+    if runpod_limit == 0:
+        runpod_limit = sys.float_info.max
     return runpod_limit
 
 

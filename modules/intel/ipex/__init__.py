@@ -18,7 +18,10 @@ def ipex_init(): # pylint: disable=too-many-statements
         if hasattr(torch, "cuda") and hasattr(torch.cuda, "is_xpu_hijacked") and torch.cuda.is_xpu_hijacked:
             return True, "Skipping IPEX hijack"
         else:
-            try: # force xpu device on torch compile and triton
+            try:
+                # force xpu device on torch compile and triton
+                # import inductor utils to get around lazy import
+                from torch._inductor import utils as torch_inductor_utils # pylint: disable=import-error, unused-import
                 torch._inductor.utils.GPU_TYPES = ["xpu"]
                 torch._inductor.utils.get_gpu_type = lambda *args, **kwargs: "xpu"
                 from triton import backends as triton_backends # pylint: disable=import-error
@@ -187,11 +190,13 @@ def ipex_init(): # pylint: disable=too-many-statements
                 ipex._C._DeviceProperties.multi_processor_count = ipex._C._DeviceProperties.gpu_subslice_count
                 ipex._C._DeviceProperties.major = 12
                 ipex._C._DeviceProperties.minor = 1
+                ipex._C._DeviceProperties.L2_cache_size = 16*1024*1024 # A770 and A750
             else:
                 torch._C._cuda_getCurrentRawStream = torch._C._xpu_getCurrentRawStream
                 torch._C._XpuDeviceProperties.multi_processor_count = torch._C._XpuDeviceProperties.gpu_subslice_count
                 torch._C._XpuDeviceProperties.major = 12
                 torch._C._XpuDeviceProperties.minor = 1
+                torch._C._XpuDeviceProperties.L2_cache_size = 16*1024*1024 # A770 and A750
 
             # Fix functions with ipex:
             # torch.xpu.mem_get_info always returns the total memory as free memory
@@ -200,14 +205,15 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch._utils._get_available_device_type = lambda: "xpu"
             torch.has_cuda = True
             torch.cuda.has_half = True
-            torch.cuda.is_bf16_supported = lambda *args, **kwargs: True
+            torch.cuda.is_bf16_supported = getattr(torch.xpu, "is_bf16_supported", lambda *args, **kwargs: True)
             torch.cuda.is_fp16_supported = lambda *args, **kwargs: True
             torch.backends.cuda.is_built = lambda *args, **kwargs: True
             torch.version.cuda = "12.1"
-            torch.cuda.get_arch_list = lambda: ["ats-m150", "pvc"]
+            torch.cuda.get_arch_list = getattr(torch.xpu, "get_arch_list", lambda: ["pvc", "dg2", "ats-m150"])
             torch.cuda.get_device_capability = lambda *args, **kwargs: (12,1)
             torch.cuda.get_device_properties.major = 12
             torch.cuda.get_device_properties.minor = 1
+            torch.cuda.get_device_properties.L2_cache_size = 16*1024*1024 # A770 and A750
             torch.cuda.ipc_collect = lambda *args, **kwargs: None
             torch.cuda.utilization = lambda *args, **kwargs: 0
 
