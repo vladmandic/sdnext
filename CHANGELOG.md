@@ -6,7 +6,7 @@
 - fix circular imports when debug flags are enabled  
 - fix cuda errors with directml  
 - fix memory stats not displaying the ram usage  
-- fix runpod memory limit reporting when limit is set to 0  
+- fix runpod memory limit reporting  
 - fix remote vae not being stored in metadata, thanks @iDeNoh  
 - add --upgrade to torch_command when using --use-nightly for ipex and rocm  
 - **ipex**
