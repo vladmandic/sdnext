@@ -13,6 +13,7 @@
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
   - fix torch 2.7 compatibility  
   - fix performance with balanced offload  
+  - fix triton and torch.compile  
 
 ## Update for 2025-02-28
 
