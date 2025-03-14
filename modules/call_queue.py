@@ -83,14 +83,14 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             vram = {k: v//1048576 for k, v in mem_mon_read.items()}
             peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
             used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
-            if used > 0:
-                gpu += f"| GPU {peak} MB {used}%"
+            if peak > 0:
+                gpu += f"| GPU {peak} MB"
+                gpu += f" {used}%" if used > 0 else ''
                 gpu += f" | retries {retries} oom {ooms}" if retries > 0 or ooms > 0 else ''
         ram = shared.ram_stats()
         if ram['used'] > 0:
             cpu += f"| RAM {ram['used']} GB"
-            if ram['total'] > 0:
-                cpu += f" {round(100.0 * ram['used'] / ram['total'])}%"
+            cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
         if isinstance(res, list):
             res[-1] += f"<div class='performance'><p>Time: {elapsed_text} | {summary} {gpu} {cpu}</p></div>"
         return tuple(res)
