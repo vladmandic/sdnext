@@ -4,6 +4,7 @@
 
 ### TODO
   - Gemma3 requires `git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
+  - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
 
 - **Models**  
   - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
@@ -15,6 +16,10 @@
     download text encoders into folder set in settings -> system paths -> text encoders (default is `models/Text-encoder`)  
     load using *settings -> text encoder*
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Remote VAE**
+  - add support for remote vae encode in addition to remote vae decode  
+  - used by *img2img, inpaint, hires, detailer*  
+  - remote vae encode is disabled by default, you can enable it in *settings -> variable auto-encoder*  
 - **Caption/VLM**  
   - [Google Gemma 3 4B](https://huggingface.co/google/gemma-3-4b-it)  
     simply select from list of available models in caption tab  

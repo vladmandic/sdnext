@@ -1,3 +1,4 @@
+from typing import List
 import io
 import time
 import json
@@ -38,7 +39,6 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     t0 = time.time()
     modelloader.hf_login()
     latents = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
-    from diffusers.utils.remote_utils import remote_decode
 
     for i in range(latents.shape[0]):
         try:
@@ -97,25 +97,40 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     return tensors
 
 
-def remote_encode(image: Image.Image, model_type: str = None) -> torch.Tensor:
+def remote_encode(images: List[Image.Image], model_type: str = None) -> torch.Tensor:
+    from diffusers.utils import remote_utils
     from modules import devices, shared, errors, modelloader
+    if not shared.opts.remote_vae_encode:
+        return images
     tensors = []
     model_type = model_type or shared.sd_model_type
-    url = hf_decode_endpoints.get(model_type, None)
+    url = hf_encode_endpoints.get(model_type, None)
     if url is None:
         shared.log.error(f'Decode: type="remote" type={model_type} unsuppported')
-        return tensors
+        return images
     t0 = time.time()
     modelloader.hf_login()
 
-    try:
-        params = {}
-        content = 0
-        tensor = None
-    except Exception as e:
-        shared.log.error(f'Encode: type="remote" model={model_type} {e}')
-        errors.display(e, 'VAE')
+    if isinstance(images, Image.Image):
+        images = [images]
+    for init_image in images:
+        try:
+            init_latent = remote_utils.remote_encode(
+                endpoint=url,
+                image=init_image,
+                scaling_factor = shared.sd_model.vae.config.get("scaling_factor", None),
+                shift_factor = shared.sd_model.vae.config.get("shift_factor", None),
+            )
+            tensors.append(init_latent)
+        except Exception as e:
+            shared.log.error(f'Encode: type="remote" model={model_type} {e}')
+            errors.display(e, 'VAE')
 
+    if len(tensors) > 0 and torch.is_tensor(tensors[0]):
+        tensors = torch.cat(tensors, dim=0)
+        tensors = tensors.to(dtype=devices.dtype)
+    else:
+        return images
     t1 = time.time()
-    shared.log.debug(f'Encode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} args={params} image={image} bytes={content} time={t1-t0:.3f}s')
-    return tensor
+    shared.log.debug(f'Encode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} image={images} latent={tensors.shape} time={t1-t0:.3f}s')
+    return tensors

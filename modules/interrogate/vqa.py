@@ -150,6 +150,9 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
 
 def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
     global processor, model, loaded # pylint: disable=global-statement
+    if not hasattr(transformers, 'Gemma3ForConditionalGeneration'):
+        shared.log.error(f'Interrogate: vlm="{repo}" gemma is not available')
+        return ''
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = transformers.Gemma3ForConditionalGeneration.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -521,9 +524,7 @@ def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=F
     if shared.opts.interrogate_offload and model is not None:
         model.to(devices.cpu)
     devices.torch_gc()
-    print('HERE1', answer)
     answer = clean(answer, question)
-    print('HERE2', answer)
     t1 = time.time()
     if not quiet:
         shared.log.debug(f'Interrogate: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')

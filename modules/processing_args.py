@@ -38,13 +38,20 @@ def task_specific_kwargs(p, model):
             model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
             p.ops.append('img2img')
+        if p.vae_type == 'Remote':
+            from modules.sd_vae_remote import remote_encode
+            p.init_images = remote_encode(p.init_images)
         task_args = {
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
         if model.__class__.__name__ == 'FluxImg2ImgPipeline': # needs explicit width/height
-            p.width = 8 * math.ceil(p.init_images[0].width / 8)
-            p.height = 8 * math.ceil(p.init_images[0].height / 8)
+            if torch.is_tensor(p.init_images[0]):
+                p.width = p.init_images[0].shape[-1] * 16
+                p.height = p.init_images[0].shape[-2] * 16
+            else:
+                p.width = 8 * math.ceil(p.init_images[0].width / 8)
+                p.height = 8 * math.ceil(p.init_images[0].height / 8)
             task_args['width'], task_args['height'] = p.width, p.height
         if model.__class__.__name__ == 'OmniGenPipeline':
             p.width = 16 * math.ceil(p.init_images[0].width / 16)
@@ -70,9 +77,14 @@ def task_specific_kwargs(p, model):
         else:
             p.ops.append('inpaint')
         width, height = processing_helpers.resize_init_images(p)
+        mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+        if p.vae_type == 'Remote':
+            from modules.sd_vae_remote import remote_encode
+            p.init_images = remote_encode(p.init_images)
+            # mask_image = remote_encode(mask_image)
         task_args = {
             'image': p.init_images,
-            'mask_image': p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None),
+            'mask_image': mask_image,
             'strength': p.denoising_strength,
             'height': height,
             'width': width,
