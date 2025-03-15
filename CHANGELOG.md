@@ -1,15 +1,30 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-14
+## Update for 2025-03-15
 
-- fix installer not starting when older version of rich is installed  
-- fix circular imports when debug flags are enabled  
-- fix cuda errors with directml  
-- fix memory stats not displaying the ram usage  
-- fix runpod memory limit reporting  
-- fix remote vae not being stored in metadata, thanks @iDeNoh  
-- add --upgrade to torch_command when using --use-nightly for ipex and rocm  
-- **ipex**
+- **Models**  
+  - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
+    new foundation model for image generation based o T5-XXL text encoder and a flow-based diffusion transformer  
+    fully supports offloading and on-the-fly quantization  
+    simply select from *networks -> models -> reference*  
+  - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
+    download text encoders into folder set in settings -> system paths -> text encoders (default is `models/Text-encoder`)  
+    load using *settings -> text encoder*
+    *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Wiki/Docs**
+  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
+  - Updated SD3  
+- **Other**
+  - add remote vae info to metadata, thanks @iDeNoh  
+  - add quantization support to **CogView-3Plus**
+- **Fixes**
+  - fix installer not starting when older version of `rich` is installed  
+  - fix circular imports when debug flags are enabled  
+  - fix cuda errors with *directml*  
+  - fix memory stats not displaying the ram usage  
+  - fix **RunPod** memory limit reporting  
+- **IPEX**
+  - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
   - fix torch 2.7 compatibility  

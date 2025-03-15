@@ -37,6 +37,10 @@ def get_model_type(pipe):
         model_type = 'lumina'
     elif "OmniGen" in name:
         model_type = 'omnigen'
+    elif "CogView3" in name:
+        model_type = 'cogview3'
+    elif "CogView4" in name:
+        model_type = 'cogview4'
     elif "CogVideo" in name:
         model_type = 'cogvideox'
     elif "Sana" in name:

@@ -75,8 +75,10 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 guess = 'Kolors'
             if 'auraflow' in f.lower():
                 guess = 'AuraFlow'
-            if 'cogview' in f.lower():
-                guess = 'CogView'
+            if 'cogview3' in f.lower():
+                guess = 'CogView3'
+            if 'cogview4' in f.lower():
+                guess = 'CogView4'
             if 'meissonic' in f.lower():
                 guess = 'Meissonic'
                 pipeline = 'custom'

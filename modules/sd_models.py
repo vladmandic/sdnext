@@ -295,9 +295,13 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
         elif model_type in ['Stable Diffusion 3']:
             from modules.model_sd3 import load_sd3
-            shared.log.debug(f'Load {op}: model="Stable Diffusion 3"')
-            shared.opts.scheduler = 'Default'
             sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
+        elif model_type in ['CogView3']: # forced pipeline
+            from modules.model_cogview import load_cogview3
+            sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
+        elif model_type in ['CogView4']: # forced pipeline
+            from modules.model_cogview import load_cogview4
+            sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
         elif model_type in ['Meissonic']: # forced pipeline
             from modules.model_meissonic import load_meissonic
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)

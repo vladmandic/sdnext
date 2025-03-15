@@ -30,10 +30,10 @@ def get_quant(name):
     return 'none'
 
 
-def create_bnb_config(kwargs = None, allow_bnb: bool = True):
+def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Model'):
     from modules import shared, devices
     if len(shared.opts.bnb_quantization) > 0 and allow_bnb:
-        if 'Model' in shared.opts.bnb_quantization:
+        if 'Model' in shared.opts.bnb_quantization or (module is not None and module in shared.opts.bnb_quantization):
             load_bnb()
             if bnb is None:
                 return kwargs
@@ -53,10 +53,10 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True):
     return kwargs
 
 
-def create_ao_config(kwargs = None, allow_ao: bool = True):
+def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'):
     from modules import shared
     if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'pre' and allow_ao:
-        if 'Model' in shared.opts.torchao_quantization:
+        if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization):
             load_torchao()
             if ao is None:
                 return kwargs

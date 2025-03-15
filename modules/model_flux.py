@@ -110,39 +110,6 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
     return transformer, text_encoder_2
 
 
-"""
-def quant_flux_bnb(checkpoint_info, transformer, text_encoder_2):
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    cache_dir=shared.opts.diffusers_dir
-    if len(shared.opts.bnb_quantization) > 0 and (transformer is None or text_encoder_2 is None):
-        from modules.model_quant import load_bnb
-        load_bnb('Load model: type=FLUX')
-        try:
-            bnb_config = diffusers.BitsAndBytesConfig(
-                load_in_8bit=shared.opts.bnb_quantization_type in ['fp8'],
-                load_in_4bit=shared.opts.bnb_quantization_type in ['nf4', 'fp4'],
-                bnb_4bit_quant_storage=shared.opts.bnb_quantization_storage,
-                bnb_4bit_quant_type=shared.opts.bnb_quantization_type,
-                bnb_4bit_compute_dtype=devices.dtype
-            )
-            if ('Model' in shared.opts.bnb_quantization) and (transformer is None):
-                transformer = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, quantization_config=bnb_config, torch_dtype=devices.dtype)
-                shared.log.debug(f'Quantization: module=transformer type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-            if ('Text Encoder' in shared.opts.bnb_quantization) and (text_encoder_2 is None):
-                if repo_id == 'sayakpaul/flux.1-dev-nf4':
-                    repo_id = 'black-forest-labs/FLUX.1-dev' # workaround since sayakpaul model is missing model_index.json
-                text_encoder_2 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, quantization_config=bnb_config, torch_dtype=devices.dtype)
-                shared.log.debug(f'Quantization: module=t5 type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-        except Exception as e:
-            shared.log.error(f"Load model: type=FLUX failed quantize using BnB: {e}")
-            transformer, text_encoder_2 = None, None
-            if debug:
-                from modules import errors
-                errors.display(e, 'FLUX:')
-    return transformer, text_encoder_2
-"""
-
-
 def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
         if not allow_quant:
