@@ -36,6 +36,8 @@ def create_ui():
                 with gr.Tab("VLM Caption", elem_id="tab_vlm_caption"):
                     from modules.interrogate import vqa
                     with gr.Row():
+                        vlm_system = gr.Textbox(label="System prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
+                    with gr.Row():
                         vlm_question = gr.Dropdown(label="Predefined question", allow_custom_value=False, choices=vqa.vlm_prompts, value=vqa.vlm_prompts[2], elem_id='vlm_question')
                     with gr.Row():
                         vlm_prompt = gr.Textbox(label="Prompt", placeholder="optionally enter custom prompt", lines=2, elem_id='vlm_prompt')
@@ -114,7 +116,7 @@ def create_ui():
                         btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
         with gr.Column(variant='compact', elem_id='interrogate_output'):
             with gr.Row(elem_id='interrogate_output_prompt'):
-                prompt = gr.Textbox(label="Answer", lines=8, placeholder="ai generated image description")
+                prompt = gr.Textbox(label="Answer", lines=12, placeholder="ai generated image description")
             with gr.Row(elem_id='interrogate_output_classes'):
                 medium = gr.Label(elem_id="interrogate_label_medium", label="Medium", num_top_classes=5, visible=False)
                 artist = gr.Label(elem_id="interrogate_label_artist", label="Artist", num_top_classes=5, visible=False)
@@ -127,8 +129,8 @@ def create_ui():
     btn_clip_interrogate_img.click(openclip.interrogate_image, inputs=[image, clip_model, blip_model, clip_mode], outputs=[prompt])
     btn_clip_analyze_img.click(openclip.analyze_image, inputs=[image, clip_model, blip_model], outputs=[medium, artist, movement, trending, flavor])
     btn_clip_interrogate_batch.click(fn=openclip.interrogate_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt])
-    btn_vlm_caption.click(fn=vqa.interrogate, inputs=[vlm_question, vlm_prompt, image, vlm_model], outputs=[prompt])
-    btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive], outputs=[prompt])
+    btn_vlm_caption.click(fn=vqa.interrogate, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model], outputs=[prompt])
+    btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive], outputs=[prompt])
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))

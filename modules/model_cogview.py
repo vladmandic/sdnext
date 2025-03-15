@@ -76,7 +76,7 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     )
 
     diffusers_load_config, quant_args = load_common(diffusers_load_config, module='Text Encoder')
-    text_encoder = transformers.T5EncoderModel.from_pretrained(
+    text_encoder = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         subfolder="text_encoder",
         cache_dir=shared.opts.diffusers_dir,
@@ -91,5 +91,9 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **diffusers_load_config,
     )
+    if shared.opts.diffusers_eval:
+        pipe.text_encoder.eval()
+        pipe.transformer.eval()
+    pipe.enable_model_cpu_offload() # TODO cogview4: balanced offload does not work for GlmModel
     devices.torch_gc()
     return pipe

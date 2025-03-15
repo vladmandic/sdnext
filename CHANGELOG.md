@@ -2,21 +2,30 @@
 
 ## Update for 2025-03-15
 
+### TODO
+  - Gemma3 requires `git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
+
 - **Models**  
   - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
-    new foundation model for image generation based o T5-XXL text encoder and a flow-based diffusion transformer  
+    new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  
     fully supports offloading and on-the-fly quantization  
     simply select from *networks -> models -> reference*  
+    *note* cogview4 is compatible with flowmatching samplers  
   - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
     download text encoders into folder set in settings -> system paths -> text encoders (default is `models/Text-encoder`)  
     load using *settings -> text encoder*
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Caption/VLM**  
+  - [Google Gemma 3 4B](https://huggingface.co/google/gemma-3-4b-it)  
+    simply select from list of available models in caption tab  
+  - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*
 - **Wiki/Docs**
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - Updated SD3  
 - **Other**
   - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
+  - update `diffusers`  
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  

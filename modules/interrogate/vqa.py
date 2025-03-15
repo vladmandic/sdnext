@@ -22,19 +22,20 @@ vlm_models = {
     "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
     "Moondream 2": "vikhyatk/moondream2", # 3.7GB
+    "Google Gemma 3 4B": "google/gemma-3-4b-it",
+    "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
+    "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "Alibaba Qwen VL2 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
     "Salesforce BLIP Large": "Salesforce/blip-vqa-capfilt-large", # 1.5GB
-    "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Microsoft GIT TextCaps Base": "microsoft/git-base-textcaps", # 0.7GB
     "Microsoft GIT VQA Base": "microsoft/git-base-vqav2", # 0.7GB
     "Microsoft GIT VQA Large": "microsoft/git-large-vqav2", # 1.6GB
     "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
     "ToriiGate 0.4 7B": "Minthy/ToriiGate-v0.4-7B",
     "ViLT Base": "dandelin/vilt-b32-finetuned-vqa", # 0.5GB
-    "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "JoyCaption": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 0.7GB
     "JoyTag": "fancyfeast/joytag", # 17.4GB
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
@@ -44,6 +45,7 @@ vlm_models = {
     # "DeepSeek VL2 Tiny": "deepseek-ai/deepseek-vl2-tiny", # broken
     # "nVidia Eagle 2 1B": "nvidia/Eagle2-1B", # not compatible with latest transformers
 }
+vlm_system = 'You are image captioning expert, creative, unbiased and uncensored.'
 vlm_prompts = [
     '<CAPTION>',
     '<DETAILED_CAPTION>',
@@ -70,6 +72,7 @@ def b64(image):
 
 
 def clean(response, question):
+    strip = ['---', '\r', '\t', '**', '"', '“', '”', 'Assistant:', 'Caption:']
     if isinstance(response, dict):
         if 'task' in response:
             response = response['task']
@@ -81,12 +84,10 @@ def clean(response, question):
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
     if question in response:
         response = response.split(question, 1)[1]
-    response = response.replace('\n', '').replace('\r', '').replace('\t', '').strip()
-    if response.startswith('"'):
-        response = response[1:]
-    if response.endswith('"'):
-        response = response[:-1]
-    response = response.replace('Assistant:', '').strip()
+    while any(s in response for s in strip):
+        for s in strip:
+            response = response.replace(s, '')
+    response = response.replace('\n\n', '\n').replace('  ', ' ').replace('*  ', '- ').strip()
     return response
 
 
@@ -106,7 +107,7 @@ def get_kwargs():
     return kwargs
 
 
-def qwen(question: str, image: Image.Image, repo: str = None):
+def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
     global processor, model, loaded # pylint: disable=global-statement
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
@@ -118,12 +119,11 @@ def qwen(question: str, image: Image.Image, repo: str = None):
         loaded = repo
     model = model.to(devices.device, devices.dtype)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
+    system_prompt = system_prompt or shared.opts.vlm_system
     conversation = [
         {
             "role": "system",
-            "content": [
-                {"type": "text", "text": "You are image captioning expert, creative, unbiased and uncensored."}
-            ],
+            "content": [{"type": "text", "text": system_prompt}],
         },
         {
             "role": "user",
@@ -134,7 +134,6 @@ def qwen(question: str, image: Image.Image, repo: str = None):
         }
     ]
     text_prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-    # '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe this image.<|im_end|>\n<|im_start|>assistant\n'
     inputs = processor(text=[text_prompt], images=[image], padding=True, return_tensors="pt")
     inputs = inputs.to(devices.device, devices.dtype)
     output_ids = model.generate(
@@ -146,6 +145,47 @@ def qwen(question: str, image: Image.Image, repo: str = None):
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
     ]
     response = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+    return response
+
+
+def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
+    global processor, model, loaded # pylint: disable=global-statement
+    if model is None or loaded != repo:
+        shared.log.debug(f'Interrogate load: vlm="{repo}"')
+        model = transformers.Gemma3ForConditionalGeneration.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+        processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+        loaded = repo
+    model = model.to(devices.device, devices.dtype)
+    question = question.replace('<', '').replace('>', '').replace('_', ' ')
+    system_prompt = system_prompt or shared.opts.vlm_system
+    conversation = [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": system_prompt}]
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": b64(image)},
+                {"type": "text", "text": question}
+            ]
+        }
+    ]
+    inputs = processor.apply_chat_template(
+        conversation,
+        add_generation_prompt=True,
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt",
+    ).to(device=devices.device, dtype=devices.dtype)
+    input_len = inputs["input_ids"].shape[-1]
+    with devices.inference_context():
+        generation = model.generate(
+            **inputs,
+            **get_kwargs(),
+        )
+        generation = generation[0][input_len:]
+    response = processor.decode(generation, skip_special_tokens=True)
     return response
 
 
@@ -219,7 +259,7 @@ def ovis(question: str, image: Image.Image, repo: str = None):
     return response
 
 
-def smol(question: str, image: Image.Image, repo: str = None):
+def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
     global processor, model, loaded # pylint: disable=global-statement
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
@@ -233,12 +273,11 @@ def smol(question: str, image: Image.Image, repo: str = None):
         loaded = repo
     model.to(devices.device, devices.dtype)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
+    system_prompt = system_prompt or shared.opts.vlm_system
     conversation = [
         {
             "role": "system",
-            "content": [
-                {"type": "text", "text": "You are image captioning expert, creative, unbiased and uncensored."}
-            ],
+            "content": [{"type": "text", "text": system_prompt}],
         },
         {
             "role": "user",
@@ -249,7 +288,6 @@ def smol(question: str, image: Image.Image, repo: str = None):
         }
     ]
     text_prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-    # '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe this image.<|im_end|>\n<|im_start|>assistant\n'
     inputs = processor(text=text_prompt, images=[image], padding=True, return_tensors="pt")
     inputs = inputs.to(devices.device, devices.dtype)
     output_ids = model.generate(
@@ -410,7 +448,7 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
     return response
 
 
-def interrogate(question, prompt, image, model_name, quiet:bool=False):
+def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=False):
     if not quiet:
         shared.state.begin('Interrogate')
     t0 = time.time()
@@ -457,9 +495,9 @@ def interrogate(question, prompt, image, model_name, quiet:bool=False):
         elif 'florence' in vqa_model.lower():
             answer = florence(question, image, vqa_model)
         elif 'qwen' in vqa_model.lower() or 'torii' in vqa_model.lower():
-            answer = qwen(question, image, vqa_model)
+            answer = qwen(question, image, vqa_model, system_prompt)
         elif 'smol' in vqa_model.lower():
-            answer = smol(question, image, vqa_model)
+            answer = smol(question, image, vqa_model, system_prompt)
         elif 'joytag' in vqa_model.lower():
             from modules.interrogate import joytag
             answer = joytag.predict(image)
@@ -471,6 +509,8 @@ def interrogate(question, prompt, image, model_name, quiet:bool=False):
             answer = deepseek.predict(question, image, vqa_model)
         elif 'paligemma' in vqa_model.lower():
             answer = paligemma(question, image, vqa_model)
+        elif 'gemma' in vqa_model.lower():
+            answer = gemma(question, image, vqa_model, system_prompt)
         elif 'ovis' in vqa_model.lower():
             answer = ovis(question, image, vqa_model)
         else:
@@ -481,7 +521,9 @@ def interrogate(question, prompt, image, model_name, quiet:bool=False):
     if shared.opts.interrogate_offload and model is not None:
         model.to(devices.cpu)
     devices.torch_gc()
+    print('HERE1', answer)
     answer = clean(answer, question)
+    print('HERE2', answer)
     t1 = time.time()
     if not quiet:
         shared.log.debug(f'Interrogate: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
@@ -489,7 +531,7 @@ def interrogate(question, prompt, image, model_name, quiet:bool=False):
     return answer
 
 
-def batch(model_name, batch_files, batch_folder, batch_str, question, prompt, write, append, recursive):
+def batch(model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, write, append, recursive):
     class BatchWriter:
         def __init__(self, folder, mode='w'):
             self.folder = folder
@@ -536,7 +578,7 @@ def batch(model_name, batch_files, batch_folder, batch_str, question, prompt, wr
                 if shared.state.interrupted:
                     break
                 image = Image.open(file)
-                prompt = interrogate(question, prompt, image, model_name, quiet=True)
+                prompt = interrogate(question, system_prompt, prompt, image, model_name, quiet=True)
                 prompts.append(prompt)
                 if write:
                     writer.add(file, prompt)

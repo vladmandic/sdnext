@@ -10,8 +10,9 @@ from modules.timer import process as process_timer
 
 
 debug_move = shared.log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
-should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'hunyuanvideo', 'cogvideox', 'mochi']
+should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'hunyuanvideo', 'cogvideox', 'mochi', 'cogview4']
 offload_hook_instance = None
+balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']
 
 
 def get_signature(cls):
@@ -193,8 +194,7 @@ def apply_balanced_offload(sd_model, exclude=[]):
     if sd_model is None:
         return sd_model
     t0 = time.time()
-    excluded = ['OmniGenPipeline']
-    if sd_model.__class__.__name__ in excluded:
+    if sd_model.__class__.__name__ in balanced_offload_exclude:
         return sd_model
     cached = True
     checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else None

@@ -28,7 +28,7 @@ def interrogate(image):
     elif shared.opts.interrogate_default_type == 'VLM':
         shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} vlm="{shared.opts.interrogate_vlm_model}" prompt="{shared.opts.interrogate_vlm_prompt}"')
         from modules.interrogate import vqa
-        prompt = vqa.interrogate(image=image, model_name=shared.opts.interrogate_vlm_model, question=shared.opts.interrogate_vlm_prompt, prompt=None)
+        prompt = vqa.interrogate(image=image, model_name=shared.opts.interrogate_vlm_model, question=shared.opts.interrogate_vlm_prompt, prompt=None, system_prompt=shared.opts.interrogate_vlm_system)
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
     else:

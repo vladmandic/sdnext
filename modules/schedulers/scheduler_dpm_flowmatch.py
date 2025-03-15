@@ -230,6 +230,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         device: Union[str, torch.device] = None,
         sigmas: Optional[List[float]] = None,
         mu: Optional[float] = None,
+        timesteps: Optional[torch.Tensor] = None,
     ):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
@@ -355,12 +356,12 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 sigma_min = sigmas[-1]
                 sigmas = np.linspace(1.0, sigma_min, num_inference_steps)
             sigmas = torch.from_numpy(sigmas).to(dtype=torch.float64, device=device)
-        
+
         if self.config.use_dynamic_shifting:
             sigmas = self.time_shift(mu, 1.0, sigmas)
         else:
             sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
-        
+
         timesteps = sigmas * self.config.num_train_timesteps
         self.timesteps = timesteps.to(device=device)
         self.sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device)])
@@ -517,7 +518,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                     model_output = sample - sigma * model_output
                     d = (sample - model_output) / sigma
                     dt = sigma_next - sigma
-                    sample = sample + d * dt                
+                    sample = sample + d * dt
                 else:
                     # DPM-Solver2
                     sigma_mid = sigma.log().lerp(sigma_next.log(), 0.5).exp()
@@ -596,7 +597,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         elif self.config.algorithm_type == "dpmsolver++2M":
             if self.config.solver_order == 2:
                 t, t_next = t_fn(sigma), t_fn(sigma_next)
-                h = t_next - t 
+                h = t_next - t
                 if self.model_outputs[-2] is None or sigma_next == 0:
                     sample = (sigma_fn(t_next) / sigma_fn(t)) * sample - (-h).expm1() * model_output
                 else:
@@ -703,7 +704,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                     if self.config.use_noise_sampler:
                         sample = sample + self.noise_sampler(sigma_fn(t), sigma_fn(t_next)) * self.config.s_noise * su
                     else:
-                        sample = sample + noise * self.config.s_noise * su                    
+                        sample = sample + noise * self.config.s_noise * su
                     del x_2
                     del denoised_2
                     del d
@@ -745,13 +746,13 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                     t, s = -sigma.log(), -sigma_next.log()
                     h = s - t
                     h_eta = h * 2
-                     
+
                     # 3. Delta timestep
                     dt = sigma_next - sigma
                     sample = sample + model_output * dt
 
                     sample = torch.exp(-h_eta) * sample + (-h_eta).expm1().neg() * model_output
-                
+
                     if self.h_2 is not None:
                         r0 = self.h_1 / h
                         r1 = self.h_2 / h
@@ -780,13 +781,13 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                         sample = sample + self.noise_sampler(sigma, sigma_next) * sigma_next * (-2 * h).expm1().neg().sqrt() * self.config.s_noise
                     else:
                         sample = sample + noise * sigma_next * (-2 * h).expm1().neg().sqrt() * self.config.s_noise
-            
+
                     self.h_2 = self.h_1
                     self.h_1 = h
             if not self.config.use_noise_sampler and noise is not None:
                 del noise
         prev_sample = sample
-     
+
         # Cast sample back to expected dtype
         prev_sample = prev_sample.to(model_output.dtype)
 

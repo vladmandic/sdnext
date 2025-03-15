@@ -139,7 +139,7 @@ def full_vae_decode(latents, model):
     if latents_mean and latents_std:
         latents_mean = (torch.tensor(latents_mean).view(1, 4, 1, 1).to(latents.device, latents.dtype))
         latents_std = (torch.tensor(latents_std).view(1, 4, 1, 1).to(latents.device, latents.dtype))
-        latents = latents * latents_std / scaling_factor + latents_mean
+        latents = ((latents * latents_std) / scaling_factor) + latents_mean
     else:
         latents = latents / scaling_factor
     if shift_factor:

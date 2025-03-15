@@ -79,7 +79,7 @@ def create_sampler(name, model):
         shared.log.debug(f'Sampler: "{name}" config={config.options}')
         return sampler
     elif shared.native:
-        FlowModels = ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'HunyuanVideoPipeline']
+        FlowModels = ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'HunyuanVideoPipeline', 'CogView4Pipeline']
         if 'KDiffusion' in model.__class__.__name__:
             return None
         if not any(x in model.__class__.__name__ for x in FlowModels) and 'FlowMatch' in name:
