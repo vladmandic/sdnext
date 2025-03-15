@@ -107,10 +107,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
         timer.process.record('pipeline')
-        ras.unapply(shared.sd_model)
-        hidiffusion.unapply()
         sd_models_compile.openvino_post_compile(op="base") # only executes on compiled vino models
-        sd_models_compile.check_deepcache(enable=False)
         if shared.cmd_opts.profile:
             t1 = time.time()
             shared.log.debug(f'Profile: pipeline call: {t1-t0:.2f}')
@@ -142,6 +139,10 @@ def process_base(p: processing.StableDiffusionProcessing):
         shared.log.error(f'Processing: step=base args={err_args} {e}')
         errors.display(e, 'Processing')
         modelstats.analyze()
+    finally:
+        ras.unapply(shared.sd_model)
+        hidiffusion.unapply()
+        sd_models_compile.check_deepcache(enable=False)
 
     if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
         p.extra_generation_params['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)

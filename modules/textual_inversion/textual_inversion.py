@@ -421,7 +421,7 @@ class EmbeddingDatabase:
         if self.previously_displayed_embeddings != displayed_embeddings and shared.opts.diffusers_enable_embed:
             self.previously_displayed_embeddings = displayed_embeddings
             t1 = time.time()
-            shared.log.info(f"Load network: type=embeddings loaded={len(self.word_embeddings)} skipped={len(self.skipped_embeddings)} time={t1-t0:.2f}")
+            shared.log.info(f"Network load: type=embeddings loaded={len(self.word_embeddings)} skipped={len(self.skipped_embeddings)} time={t1-t0:.2f}")
 
 
     def find_embedding_at_position(self, tokens, offset):

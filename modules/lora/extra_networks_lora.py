@@ -52,7 +52,7 @@ def prompt(p):
         all_tags = list(set(all_tags))
         all_tags = [t for t in all_tags if t not in p.prompt]
         if len(all_tags) > 0:
-            shared.log.debug(f"Load network: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
+            shared.log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
         all_tags = ', '.join(all_tags)
         p.extra_generation_params["LoRA tags"] = all_tags
         if '_tags_' in p.prompt:
@@ -129,7 +129,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             sd_model.loaded_loras = {}
         key = f'{",".join(include)}:{",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
-        # shared.log.trace(f'Load network: type=LoRA key="{key}" requested={requested} loaded={loaded}')
+        # shared.log.trace(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if (len(requested) == 0) or (len(requested) != len(loaded)):
             sd_model.loaded_loras[key] = requested
             return True
@@ -153,7 +153,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if debug:
             import sys
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            debug_log(f'Load network: type=LoRA include={include} exclude={exclude} requested={requested} fn={fn}')
+            debug_log(f'Network load: type=LoRA include={include} exclude={exclude} requested={requested} fn={fn}')
 
         force_diffusers = network_overrides.check_override()
         if force_diffusers:
@@ -166,18 +166,18 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
-                debug_log(f'Load network: type=LoRA previous={[n.name for n in networks.previously_loaded_networks]} current={[n.name for n in networks.loaded_networks]} changed')
+                debug_log(f'Network load: type=LoRA previous={[n.name for n in networks.previously_loaded_networks]} current={[n.name for n in networks.loaded_networks]} changed')
 
         if len(networks.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or force_diffusers) and step == 0:
             infotext(p)
             prompt(p)
             if (has_changed or force_diffusers) and len(include) == 0: # print only once
-                shared.log.info(f'Load network: type=LoRA apply={[n.name for n in networks.loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={networks.timer.summary}')
+                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in networks.loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={networks.timer.summary}')
 
     def deactivate(self, p):
         if shared.native:
             networks.previously_loaded_networks = networks.loaded_networks.copy()
-            debug_log(f'Load network: type=LoRA active={[n.name for n in networks.previously_loaded_networks]} deactivate')
+            debug_log(f'Network load: type=LoRA active={[n.name for n in networks.previously_loaded_networks]} deactivate')
         if shared.native and len(networks.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 if hasattr(shared.sd_model, "unfuse_lora"):

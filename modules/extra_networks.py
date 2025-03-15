@@ -87,7 +87,7 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         stepwise = stepwise or is_stepwise(extra_network_args)
     functional = shared.opts.lora_functional
     if shared.opts.lora_force_diffusers and stepwise:
-        shared.log.warning("Load network: type=LoRA method=composable loader=diffusers not compatible")
+        shared.log.warning("Network load: type=LoRA method=composable loader=diffusers not compatible")
         stepwise = False
     shared.opts.data['lora_functional'] = stepwise or functional
 

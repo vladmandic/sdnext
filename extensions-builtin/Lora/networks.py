@@ -95,13 +95,13 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
     t0 = time.time()
     name = name.replace(".", "_")
     #cached = lora_cache.get(name, None)
-    shared.log.debug(f'Load network: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_diffusers}')
+    shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_diffusers}')
     # if cached is not None:
     #    return cached
     if not shared.native:
         return None
     if not hasattr(shared.sd_model, 'load_lora_weights'):
-        shared.log.error(f'Load network: type=LoRA class={shared.sd_model.__class__} does not implement load lora')
+        shared.log.error(f'Network load: type=LoRA class={shared.sd_model.__class__} does not implement load lora')
         return None
     try:
         shared.sd_model.load_lora_weights(network_on_disk.filename, adapter_name=name)
@@ -110,9 +110,9 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
             pass
         else:
             if 'The following keys have not been correctly renamed' in str(e):
-                shared.log.error(f'Load network: type=LoRA name="{name}" diffusers unsupported format')
+                shared.log.error(f'Network load: type=LoRA name="{name}" diffusers unsupported format')
             else:
-                shared.log.error(f'Load network: type=LoRA name="{name}" {e}')
+                shared.log.error(f'Network load: type=LoRA name="{name}" {e}')
             if debug:
                 errors.display(e, "LoRA")
             return None
@@ -133,7 +133,7 @@ def load_network(name, network_on_disk) -> network.Network:
     t0 = time.time()
     cached = lora_cache.get(name, None)
     if debug:
-        shared.log.debug(f'Load network: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
+        shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
     if cached is not None:
         return cached
     net = network.Network(name, network_on_disk)
@@ -182,11 +182,11 @@ def load_network(name, network_on_disk) -> network.Network:
         else:
             net.modules[key] = net_module
     if len(keys_failed_to_match) > 0:
-        shared.log.warning(f'Load network: type=LoRA name="{name}" type={set(network_types)} unmatched={len(keys_failed_to_match)} matched={len(matched_networks)}')
+        shared.log.warning(f'Network load: type=LoRA name="{name}" type={set(network_types)} unmatched={len(keys_failed_to_match)} matched={len(matched_networks)}')
         if debug:
-            shared.log.debug(f'Load network: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
+            shared.log.debug(f'Network load: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
     else:
-        shared.log.debug(f'Load network: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)}')
+        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)}')
     if len(matched_networks) == 0:
         return None
     lora_cache[name] = net
@@ -233,7 +233,7 @@ def load_networks(names, te_multipliers=None, unet_multipliers=None, dyn_dims=No
         if network_on_disk is not None:
             shorthash = getattr(network_on_disk, 'shorthash', '').lower()
             if debug:
-                shared.log.debug(f'Load network: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
+                shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
             try:
                 if recompile_model:
                     shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
@@ -245,13 +245,13 @@ def load_networks(names, te_multipliers=None, unet_multipliers=None, dyn_dims=No
                     net.mentioned_name = name
                     network_on_disk.read_hash()
             except Exception as e:
-                shared.log.error(f'Load network: type=LoRA file="{network_on_disk.filename}" {e}')
+                shared.log.error(f'Network load: type=LoRA file="{network_on_disk.filename}" {e}')
                 if debug:
                     errors.display(e, 'LoRA')
                 continue
         if net is None:
             failed_to_load_networks.append(name)
-            shared.log.error(f'Load network: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} failed')
+            shared.log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} failed')
             continue
         if shared.native:
             shared.sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
@@ -265,24 +265,24 @@ def load_networks(names, te_multipliers=None, unet_multipliers=None, dyn_dims=No
         lora_cache.pop(name, None)
 
     if len(diffuser_loaded) > 0:
-        shared.log.debug(f'Load network: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
+        shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
         try:
             shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
             if shared.opts.lora_fuse_diffusers:
                 shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # fuse uses fixed scale since later apply does the scaling
                 shared.sd_model.unload_lora_weights()
         except Exception as e:
-            shared.log.error(f'Load network: type=LoRA {e}')
+            shared.log.error(f'Network load: type=LoRA {e}')
             if debug:
                 errors.display(e, 'LoRA')
 
     if len(loaded_networks) > 0 and debug:
-        shared.log.debug(f'Load network: type=LoRA loaded={len(loaded_networks)} cache={list(lora_cache)}')
+        shared.log.debug(f'Network load: type=LoRA loaded={len(loaded_networks)} cache={list(lora_cache)}')
 
     devices.torch_gc()
 
     if recompile_model:
-        shared.log.info("Load network: type=LoRA recompiling model")
+        shared.log.info("Network load: type=LoRA recompiling model")
         backup_lora_model = shared.compiled_model_state.lora_model
         if 'Model' in shared.opts.cuda_compile:
             shared.sd_model = sd_models_compile.compile_diffusers(shared.sd_model)
@@ -310,7 +310,7 @@ def network_restore_weights_from_backup(self: Union[torch.nn.Conv2d, torch.nn.Li
             self.weight = torch.nn.Parameter(weights_backup.to(self.weight.device, copy=True))
             self.freeze()
         elif getattr(self, "quant_type", None) in ['nf4', 'fp4']:
-            bnb = model_quant.load_bnb('Load network: type=LoRA', silent=True)
+            bnb = model_quant.load_bnb('Network load: type=LoRA', silent=True)
             if bnb is not None:
                 device = self.weight.device
                 self.weight = bnb.nn.Params4bit(weights_backup, quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)
@@ -339,7 +339,7 @@ def maybe_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
         if isinstance(self, torch.nn.MultiheadAttention):
             weights_backup = (self.in_proj_weight.clone().to(devices.cpu), self.out_proj.weight.clone().to(devices.cpu))
         elif getattr(self.weight, "quant_type", None) in ['nf4', 'fp4']:
-            bnb = model_quant.load_bnb('Load network: type=LoRA', silent=True)
+            bnb = model_quant.load_bnb('Network load: type=LoRA', silent=True)
             if bnb is not None:
                 with devices.inference_context():
                     weights_backup = bnb.functional.dequantize_4bit(self.weight, quant_state=self.weight.quant_state, quant_type=self.weight.quant_type, blocksize=self.weight.blocksize,).to(devices.cpu)
@@ -390,7 +390,7 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
                             # inpainting model. zero pad updown to make channel[1]  4 to 9
                             updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5)) # pylint: disable=not-callable
                         if getattr(self.weight, "quant_type", None) in ['nf4', 'fp4']: # or self.weight.numel() != updown.numel():
-                            bnb = model_quant.load_bnb('Load network: type=LoRA', silent=True)
+                            bnb = model_quant.load_bnb('Network load: type=LoRA', silent=True)
                             if bnb is not None:
                                 device = self.weight.device
                                 weight = bnb.functional.dequantize_4bit(self.weight, quant_state=self.weight.quant_state, quant_type=self.weight.quant_type, blocksize=self.weight.blocksize)

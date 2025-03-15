@@ -38,6 +38,7 @@
   - fix cuda errors with *directml*  
   - fix memory stats not displaying the ram usage  
   - fix **RunPod** memory limit reporting  
+  - fix flux ipadapter with start/stop values  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
