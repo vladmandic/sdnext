@@ -7,11 +7,16 @@ from PIL import Image
 from safetensors.torch import _tobytes
 
 
-hf_endpoints = {
+hf_decode_endpoints = {
     'sd': 'https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
     'hunyuanvideo': 'https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud',
+}
+hf_encode_endpoints = {
+    'sd': 'https://qc6479g0aac6qwy9.us-east-1.aws.endpoints.huggingface.cloud',
+    'sdxl': 'https://xjqqhmyn62rog84g.us-east-1.aws.endpoints.huggingface.cloud',
+    'f1': 'https://ptccx55jz97f9zgo.us-east-1.aws.endpoints.huggingface.cloud',
 }
 dtypes = {
     "float16": torch.float16,
@@ -26,18 +31,19 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     tensors = []
     content = 0
     model_type = model_type or shared.sd_model_type
-    url = hf_endpoints.get(model_type, None)
+    url = hf_decode_endpoints.get(model_type, None)
     if url is None:
         shared.log.error(f'Decode: type="remote" type={model_type} unsuppported')
         return tensors
     t0 = time.time()
     modelloader.hf_login()
     latents = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
+    from diffusers.utils.remote_utils import remote_decode
+
     for i in range(latents.shape[0]):
         try:
             latent = latents[i].detach().clone().to(device=devices.cpu, dtype=devices.dtype).unsqueeze(0)
             params = {
-                "do_scaling": True,
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),
                 "dtype": str(latent.dtype).split(".", maxsplit=1)[-1],
@@ -59,6 +65,9 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
             if (model_type == 'f1') and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
+            if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:
+                params['scaling_factor'] = shared.sd_model.vae.config.get("scaling_factor", None)
+                params['shift_factor'] = shared.sd_model.vae.config.get("shift_factor", None)
             response = requests.post(
                 url=url,
                 headers=headers,
@@ -86,3 +95,27 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     t1 = time.time()
     shared.log.debug(f'Decode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} args={params} bytes={content} time={t1-t0:.3f}s')
     return tensors
+
+
+def remote_encode(image: Image.Image, model_type: str = None) -> torch.Tensor:
+    from modules import devices, shared, errors, modelloader
+    tensors = []
+    model_type = model_type or shared.sd_model_type
+    url = hf_decode_endpoints.get(model_type, None)
+    if url is None:
+        shared.log.error(f'Decode: type="remote" type={model_type} unsuppported')
+        return tensors
+    t0 = time.time()
+    modelloader.hf_login()
+
+    try:
+        params = {}
+        content = 0
+        tensor = None
+    except Exception as e:
+        shared.log.error(f'Encode: type="remote" model={model_type} {e}')
+        errors.display(e, 'VAE')
+
+    t1 = time.time()
+    shared.log.debug(f'Encode: type="remote" model={model_type} mode={shared.opts.remote_vae_type} args={params} image={image} bytes={content} time={t1-t0:.3f}s')
+    return tensor
