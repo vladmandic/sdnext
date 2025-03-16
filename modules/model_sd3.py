@@ -5,7 +5,7 @@ from modules import shared, devices, sd_models, sd_unet, model_quant, model_tool
 
 
 def load_overrides(kwargs, cache_dir):
-    if shared.opts.sd_unet != 'None':
+    if shared.opts.sd_unet != 'Default':
         try:
             fn = sd_unet.unet_dict[shared.opts.sd_unet]
             if fn.endswith('.safetensors'):
@@ -20,9 +20,9 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 unet="{shared.opts.sd_unet}" fmt=gguf')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load UNet: {e}")
-            shared.opts.sd_unet = 'None'
+            shared.opts.sd_unet = 'Default'
             sd_unet.failed_unet.append(shared.opts.sd_unet)
-    if shared.opts.sd_text_encoder != 'None':
+    if shared.opts.sd_text_encoder != 'Default':
         try:
             from modules.model_te import load_t5, load_vit_l, load_vit_g
             if 'vit-l' in shared.opts.sd_text_encoder.lower():
@@ -36,7 +36,7 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 variant="t5" te="{shared.opts.sd_text_encoder}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load T5: {e}")
-            shared.opts.sd_text_encoder = 'None'
+            shared.opts.sd_text_encoder = 'Default'
     if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
             from modules import sd_vae

@@ -948,7 +948,7 @@ def get_native(pipe: diffusers.DiffusionPipeline):
 
 
 def reload_text_encoder(initial=False):
-    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'None'):
+    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default'):
         return # dont unload
     signature = get_signature(shared.sd_model)
     t5 = [k for k, v in signature.items() if 'T5EncoderModel' in str(v)]

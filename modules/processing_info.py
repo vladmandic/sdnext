@@ -87,8 +87,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Grid'] = grid
     if shared.native:
         args['Pipeline'] = shared.sd_model.__class__.__name__
-        args['TE'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'None') else shared.opts.sd_text_encoder
-        args['UNet'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_unet is None or shared.opts.sd_unet == 'None') else shared.opts.sd_unet
+        args['TE'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder
+        args['UNet'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet
     if 'txt2img' in p.ops:
         args["Variation seed"] = all_subseeds[index] if p.subseed_strength > 0 else None
         args["Variation strength"] = p.subseed_strength if p.subseed_strength > 0 else None

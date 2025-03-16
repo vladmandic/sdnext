@@ -216,7 +216,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         transformer = diffusers.FluxTransformer2DModel.from_single_file(file_path, **diffusers_load_config)
     if transformer is None:
         shared.log.error('Failed to load UNet model')
-        shared.opts.sd_unet = 'None'
+        shared.opts.sd_unet = 'Default'
     return transformer
 
 
@@ -238,20 +238,20 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     devices.torch_gc(force=True)
 
     # load overrides if any
-    if shared.opts.sd_unet != 'None':
+    if shared.opts.sd_unet != 'Default':
         try:
             debug(f'Load model: type=FLUX unet="{shared.opts.sd_unet}"')
             transformer = load_transformer(sd_unet.unet_dict[shared.opts.sd_unet])
             if transformer is None:
-                shared.opts.sd_unet = 'None'
+                shared.opts.sd_unet = 'Default'
                 sd_unet.failed_unet.append(shared.opts.sd_unet)
         except Exception as e:
             shared.log.error(f"Load model: type=FLUX failed to load UNet: {e}")
-            shared.opts.sd_unet = 'None'
+            shared.opts.sd_unet = 'Default'
             if debug:
                 from modules import errors
                 errors.display(e, 'FLUX UNet:')
-    if shared.opts.sd_text_encoder != 'None':
+    if shared.opts.sd_text_encoder != 'Default':
         try:
             debug(f'Load model: type=FLUX te="{shared.opts.sd_text_encoder}"')
             from modules.model_te import load_t5, load_vit_l
@@ -261,7 +261,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
                 text_encoder_2 = load_t5(name=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
         except Exception as e:
             shared.log.error(f"Load model: type=FLUX failed to load T5: {e}")
-            shared.opts.sd_text_encoder = 'None'
+            shared.opts.sd_text_encoder = 'Default'
             if debug:
                 from modules import errors
                 errors.display(e, 'FLUX T5:')
