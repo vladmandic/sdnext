@@ -13,10 +13,10 @@
     simply select from *networks -> models -> reference*  
     *note* cogview4 is compatible with flowmatching samplers  
   - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
-    download text encoders into folder set in settings -> system paths -> text encoders (default is `models/Text-encoder`)  
-    load using *settings -> text encoder*
+    download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
+    load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
-- **Remote VAE**
+- **Remote VAE**  
   - add support for remote vae encode in addition to remote vae decode  
   - used by *img2img, inpaint, hires, detailer*  
   - remote vae encode is disabled by default, you can enable it in *settings -> variable auto-encoder*  
@@ -24,14 +24,18 @@
   - [Google Gemma 3 4B](https://huggingface.co/google/gemma-3-4b-it)  
     simply select from list of available models in caption tab  
   - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*
-- **Wiki/Docs**
+- **Wiki/Docs**  
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
-  - Updated SD3  
+  - updated SD3 content
+- [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) updates  
+  - add detection of prompt language and alphabet and filter based on those values
+  - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
+    against top-10 standard harmful content categories  
 - **Other**
   - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
-  - update `diffusers`  
-  - remote vae use `scaling_factor` and `shift_factor`
+  - update `diffusers` and other requirements   
+  - remote vae use `scaling_factor` and `shift_factor`  
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
