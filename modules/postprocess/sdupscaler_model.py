@@ -24,15 +24,19 @@ class UpscalerDiffusion(Upscaler):
 
     def load_model(self, path: str):
         from modules.sd_models import set_diffuser_options
-        scaler: UpscalerData = [x for x in self.scalers if x.data_path == path][0]
+        scaler: UpscalerData = [x for x in self.scalers if x.data_path == path or x.name == path]
+        if len(scaler) == 0:
+            shared.log.error(f"Upscaler cannot match model: type={self.name} model={path}")
+            return None
+        scaler = scaler[0]
         if self.models.get(path, None) is not None:
             shared.log.debug(f"Upscaler cached: type={scaler.name} model={path}")
             return self.models[path]
         else:
-            model = diffusers.DiffusionPipeline.from_pretrained(path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype)
+            model = diffusers.DiffusionPipeline.from_pretrained(scaler.data_path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype)
             if hasattr(model, "set_progress_bar_config"):
                 model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + 'Upscale', ncols=80, colour='#327fba')
-            set_diffuser_options(scaler.model, vae=None, op='upscaler')
+            set_diffuser_options(model, vae=None, op='upscaler')
             self.models[path] = model
         return self.models[path]
 

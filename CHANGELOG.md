@@ -50,6 +50,7 @@
   - fix remove vae for flux.1  
   - guard against git returining invalid timestamp  
   - fix hires with latent upscale  
+  - fix legacy diffusion latent upscalers  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
