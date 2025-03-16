@@ -265,7 +265,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             if debug:
                 from modules import errors
                 errors.display(e, 'FLUX T5:')
-    if shared.opts.sd_vae != 'None' and shared.opts.sd_vae != 'Automatic':
+    if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
             debug(f'Load model: type=FLUX vae="{shared.opts.sd_vae}"')
             from modules import sd_vae
@@ -276,7 +276,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
                 vae = diffusers.AutoencoderKL.from_single_file(vae_file, config=vae_config, **diffusers_load_config)
         except Exception as e:
             shared.log.error(f"Load model: type=FLUX failed to load VAE: {e}")
-            shared.opts.sd_vae = 'None'
+            shared.opts.sd_vae = 'Default'
             if debug:
                 from modules import errors
                 errors.display(e, 'FLUX VAE:')

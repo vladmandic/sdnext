@@ -37,6 +37,7 @@
   - add quantization support to **CogView-3Plus**
   - update `diffusers` and other requirements   
   - remote vae use `scaling_factor` and `shift_factor`  
+  - rename vae *None* to *Default* to avoid confusion  
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  

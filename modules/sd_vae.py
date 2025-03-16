@@ -117,7 +117,7 @@ def resolve_vae(checkpoint_file):
         return None, None
     if shared.cmd_opts.vae is not None: # 1st
         return shared.cmd_opts.vae, 'forced'
-    if shared.opts.sd_vae == "None": # 2nd
+    if shared.opts.sd_vae == "Default": # 2nd
         return None, None
     vae_near_checkpoint = find_vae_near_checkpoint(checkpoint_file)
     if vae_near_checkpoint is not None: # 3rd

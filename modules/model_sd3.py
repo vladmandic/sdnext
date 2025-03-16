@@ -37,7 +37,7 @@ def load_overrides(kwargs, cache_dir):
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load T5: {e}")
             shared.opts.sd_text_encoder = 'None'
-    if shared.opts.sd_vae != 'None' and shared.opts.sd_vae != 'Automatic':
+    if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
             from modules import sd_vae
             vae_file = sd_vae.vae_dict[shared.opts.sd_vae]
@@ -47,7 +47,7 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 vae="{shared.opts.sd_vae}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load VAE: {e}")
-            shared.opts.sd_vae = 'None'
+            shared.opts.sd_vae = 'Default'
     return kwargs
 
 

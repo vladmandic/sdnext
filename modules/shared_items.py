@@ -5,7 +5,7 @@ def postprocessing_scripts():
 
 def sd_vae_items():
     import modules.sd_vae
-    return ["Automatic", "None"] + list(modules.sd_vae.vae_dict)
+    return ["Automatic", "Default"] + list(modules.sd_vae.vae_dict)
 
 
 def sd_taesd_items():
