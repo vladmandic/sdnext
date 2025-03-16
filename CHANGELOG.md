@@ -48,6 +48,7 @@
   - fix progress api `eta_relative`  
   - fix `insightface` loader  
   - fix remove vae for flux.1  
+  - guard against git returining invalid timestamp  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  

@@ -1433,14 +1433,16 @@ def check_timestamp():
             if 'Setup complete without errors' in line:
                 setup_time = int(line.split(' ')[-1])
     try:
-        version_time = int(git('log -1 --pretty=format:"%at"'))
+        version_time = git('log -1 --pretty=format:"%at"')
+        version_time = ''.join(filter(str.isdigit, version_time))
+        version_time = int(version_time) if len(version_time) > 0 else -1
+        log.debug(f'Timestamp repository update time: {time.ctime(version_time)}')
     except Exception as e:
         log.error(f'Timestamp local repository version: {e}')
-    log.debug(f'Timestamp repository update time: {time.ctime(int(version_time))}')
     if setup_time == -1:
         return False
     log.debug(f'Timestamp previous setup time: {time.ctime(setup_time)}')
-    if setup_time < version_time:
+    if setup_time < version_time or version_time == -1:
         ok = False
     extension_time = check_extensions()
     log.debug(f'Timestamp latest extensions time: {time.ctime(extension_time)}')
