@@ -98,21 +98,29 @@ class UpscalerAsymmetricVAE(Upscaler):
         super().__init__(False)
         self.name = "Asymmetric VAE"
         self.vae = None
+        self.selected = None
         self.scalers = [
-            UpscalerData("Asymmetric VAE", None, self),
+            UpscalerData("Asymmetric VAE v1", None, self),
+            UpscalerData("Asymmetric VAE v2", None, self),
         ]
 
     def do_upscale(self, img: Image, selected_model=None):
+        if selected_model is None:
+            return img
         import torchvision.transforms.functional as F
         import diffusers
         from modules import shared, devices
-
-        if self.vae is None:
-            self.vae = diffusers.AsymmetricAutoencoderKL.from_pretrained("Heasterian/AsymmetricAutoencoderKLUpscaler", cache_dir=shared.opts.hfcache_dir)
+        if self.vae is None or selected_model != self.selected:
+            if 'v1' in selected_model:
+                repo_id = 'Heasterian/AsymmetricAutoencoderKLUpscaler'
+            else:
+                repo_id = 'Heasterian/AsymmetricAutoencoderKLUpscaler_v2'
+            self.vae = diffusers.AsymmetricAutoencoderKL.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
+            shared.log.debug(f'Upscaler load: vae="{repo_id}"')
             self.vae.requires_grad_(False)
             self.vae = self.vae.to(device=devices.device, dtype=devices.dtype)
             self.vae.eval()
-        img = img.resize((8 * (img.width // 8), 8 * (img.height // 8)), resample=Image.Resampling.BILINEAR).convert('RGB')
+        img = img.resize((8 * (img.width // 8), 8 * (img.height // 8)), resample=Image.Resampling.LANCZOS).convert('RGB')
         tensor = (F.pil_to_tensor(img).unsqueeze(0) / 255.0).to(device=devices.device, dtype=devices.dtype)
         self.vae = self.vae.to(device=devices.device)
         tensor = self.vae(tensor).sample
@@ -140,4 +148,55 @@ class UpscalerDCC(Upscaler):
         upscaled = (upscaled - upscaled.min()) / (upscaled.max() - upscaled.min())
         upscaled = (255.0 * upscaled).astype(np.uint8)
         upscaled = Image.fromarray(upscaled)
+        return upscaled
+
+
+class UpscalerVIPS(Upscaler):
+    def __init__(self, dirname=None): # pylint: disable=unused-argument
+        super().__init__(False)
+        self.name = "VIPS"
+        self.scalers = [
+            UpscalerData("VIPS Lanczos 2", None, self),
+            UpscalerData("VIPS Lanczos 3", None, self),
+            UpscalerData("VIPS Mitchell", None, self),
+            UpscalerData("VIPS MagicKernelSharp 2013", None, self),
+            UpscalerData("VIPS MagicKernelSharp 2021", None, self),
+        ]
+
+    def do_upscale(self, img: Image, selected_model=None):
+        if selected_model is None:
+            return img
+        from installer import install
+        from modules.shared import log
+        install('pyvips')
+        try:
+            import pyvips
+        except Exception as e:
+            log.error(f"Upscaler: vips {e}")
+            return img
+        vips_image = pyvips.Image.new_from_array(img)
+        # import numpy as np
+        # np_image = np.array(img)
+        # h, w, c = np_image.shape
+        # np_linear = np_image.reshape(w * h * c)
+        # vips_image = pyvips.Image.new_from_memory(np_linear.data, w, h, c, 'uchar')
+        try:
+            if selected_model is None:
+                return img
+            elif selected_model == "VIPS Lanczos 2":
+                vips_image = vips_image.resize(2, kernel='lanczos2')
+            elif selected_model == "VIPS Lanczos 3":
+                vips_image = vips_image.resize(2, kernel='lanczos3')
+            elif selected_model == "VIPS Mitchell":
+                vips_image = vips_image.resize(2, kernel='mitchell')
+            elif selected_model == "VIPS MagicKernelSharp 2013":
+                vips_image = vips_image.resize(2, kernel='mks2013')
+            elif selected_model == "VIPS MagicKernelSharp 2021":
+                vips_image = vips_image.resize(2, kernel='mks2021')
+            else:
+                return img
+        except Exception as e:
+            log.error(f"Upscaler: vips {e}")
+            return img
+        upscaled = Image.fromarray(vips_image.numpy())
         return upscaled

@@ -33,6 +33,8 @@
     against top-10 standard harmful content categories  
   - add banned words/expressions check against prompt variations  
 - **Other**
+  - **upscale**: new [asymmetric vae v2](Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method
+  - **upscale**: new experimental support for `libvips` upscaling
   - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
   - update `diffusers` and other requirements   
@@ -51,6 +53,7 @@
   - guard against git returining invalid timestamp  
   - fix hires with latent upscale  
   - fix legacy diffusion latent upscalers  
+  - fix upscaler selection in postprocessing  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
