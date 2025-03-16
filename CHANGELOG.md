@@ -27,10 +27,11 @@
 - **Wiki/Docs**  
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - updated SD3 content
-- [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) updates  
-  - add detection of prompt language and alphabet and filter based on those values
+- [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
+  - add detection of prompt language and alphabet and filter based on those values  
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
     against top-10 standard harmful content categories  
+  - add banned words/expressions check against prompt variations  
 - **Other**
   - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
@@ -44,6 +45,7 @@
   - fix **RunPod** memory limit reporting  
   - fix flux ipadapter with start/stop values  
   - fix progress api `eta_relative`  
+  - fix `insightface` loader
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
