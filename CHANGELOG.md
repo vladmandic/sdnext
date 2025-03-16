@@ -46,7 +46,8 @@
   - fix **RunPod** memory limit reporting  
   - fix flux ipadapter with start/stop values  
   - fix progress api `eta_relative`  
-  - fix `insightface` loader
+  - fix `insightface` loader  
+  - fix remove vae for flux.1  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  

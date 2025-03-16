@@ -42,7 +42,9 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
 
     for i in range(latents.shape[0]):
         try:
-            latent = latents[i].detach().clone().to(device=devices.cpu, dtype=devices.dtype).unsqueeze(0)
+            latent = latents[i].detach().clone().to(device=devices.cpu, dtype=devices.dtype)
+            if model_type != 'f1':
+                latent = latent.unsqueeze(0)
             params = {
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),
@@ -76,7 +78,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 timeout=300,
             )
             if not response.ok:
-                shared.log.error(f'Decode: type="remote" model={model_type} code={response.status_code} headers={response.headers} {response.json()}')
+                shared.log.error(f'Decode: type="remote" model={model_type} code={response.status_code} shape={latent.shape} url="{url}" args={params} headers={response.headers} response={response.json()}')
             else:
                 content += len(response.content)
                 if shared.opts.remote_vae_type == 'raw':
