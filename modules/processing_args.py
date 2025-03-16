@@ -298,6 +298,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             p.init_images = kwargs['image']
         if isinstance(kwargs['image'], Image.Image):
             p.init_images = [kwargs['image']]
+        if isinstance(kwargs['image'], torch.Tensor):
+            p.init_images = kwargs['image']
 
     # handle remaining args
     for arg in kwargs:

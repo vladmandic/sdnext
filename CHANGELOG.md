@@ -49,6 +49,7 @@
   - fix `insightface` loader  
   - fix remove vae for flux.1  
   - guard against git returining invalid timestamp  
+  - fix hires with latent upscale  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
   - add xpu to profiler  
