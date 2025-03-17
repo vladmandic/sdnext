@@ -33,7 +33,7 @@
     against top-10 standard harmful content categories  
   - add banned words/expressions check against prompt variations  
 - **Other**
-  - **upscale**: new [asymmetric vae v2](Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
+  - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
   - **upscale**: new experimental support for `libvips` upscaling  
   - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
     note: previous method for quanto is still valid and is noted in settings as post-load quantization  
@@ -286,7 +286,7 @@ Just one week after latest release and what a week it was with over 50 commits!
     with detailed defaults for each model type also configurable  
   - select between 150+ *OpenCLiP* supported models, 20+ built-in *VLMs*, *DeepDanbooru*  
   - **VLM**: now that we can use VLMs freely, we've also added support for few more out-of-the-box  
-    [Alibaba Qwen VL2](https://huggingface.co/Qwen/Qwen2-VL-2B), [Huggingface Smol VL2](HuggingFaceTB/SmolVLM-Instruct), [ToriiGate 0.4](Minthy/ToriiGate-v0.4-2B)  
+    [Alibaba Qwen VL2](https://huggingface.co/Qwen/Qwen2-VL-2B), [Huggingface Smol VL2](https://huggingface.co/HuggingFaceTB/SmolVLM-Instruct), [ToriiGate 0.4](https://huggingface.co/Minthy/ToriiGate-v0.4-2B)  
 - **Postprocess**  
   - new sota remove background model: [BEN2](https://huggingface.co/PramaLLC/BEN2)  
     select in *process -> remove background* or enable postprocessing for txt2img/img2img operations  
@@ -394,7 +394,7 @@ Two weeks since last release, time for update!
   - piecewise rectified flow as model acceleration  
   - use `perflow` scheduler combined with one of the available pre-trained [models](https://huggingface.co/hansyan)  
 - **Other**:  
-  - **upscale**: new [asymmetric vae](Heasterian/AsymmetricAutoencoderKLUpscaler) upscaling method
+  - **upscale**: new [asymmetric vae](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler) upscaling method
   - **gallery**: add http fallback for slow/unreliable links  
   - **splash**: add legacy mode indicator on splash screen  
   - **network**: extract thumbnail from model metadata if present  
