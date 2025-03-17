@@ -54,10 +54,12 @@ def generate(args): # pylint: disable=redefined-outer-name
         options['hr_sampler_name'] = args.sampler
     data = post('/sdapi/v1/txt2img', options)
     t1 = time.time()
+    images = []
     if 'images' in data:
         for i in range(len(data['images'])):
             b64 = data['images'][i].split(',',1)[0]
             image = Image.open(io.BytesIO(base64.b64decode(b64)))
+            images.append(image)
             info = data['info']
             log.info(f'image received: size={image.size} time={t1-t0:.2f} info="{info}"')
             if args.output:
@@ -65,6 +67,7 @@ def generate(args): # pylint: disable=redefined-outer-name
                 log.info(f'image saved: size={image.size} filename={args.output}')
     else:
         log.warning(f'no images received: {data}')
+    return images
 
 
 if __name__ == "__main__":
