@@ -61,14 +61,7 @@ class Script(scripts.Script):
         if shared.sd_model.__class__ != diffusers.AllegroPipeline:
             sd_models.unload_model_weights()
             t0 = time.time()
-            quant_args = {}
-            quant_args = model_quant.create_bnb_config(quant_args)
-            if quant_args:
-                model_quant.load_bnb(f'Load model: type=Allegro quant={quant_args}')
-            if not quant_args:
-                quant_args = model_quant.create_ao_config(quant_args)
-                if quant_args:
-                    model_quant.load_torchao(f'Load model: type=Allegro quant={quant_args}')
+            quant_args = model_quant.create_config()
             transformer = diffusers.AllegroTransformer3DModel.from_pretrained(
                 repo_id,
                 subfolder="transformer",

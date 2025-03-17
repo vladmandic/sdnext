@@ -16,14 +16,7 @@ repos = {
 
 
 def load_quants(kwargs, repo_id):
-    quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=LTXVideo quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=LTXVideo quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
     model_quant.load_bnb(f'Load model: type=LTX quant={quant_args}')
@@ -119,9 +112,7 @@ class Script(scripts.Script):
             repo_id = model_custom
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
-            kwargs = {}
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config()
             diffusers.LTXVideoTransformer3DModel.forward = teacache_forward
             if os.path.isfile(repo_id):
                 shared.sd_model = cls.from_single_file(

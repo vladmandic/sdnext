@@ -1,3 +1,4 @@
+import os
 import sys
 import copy
 import time
@@ -9,9 +10,9 @@ ao = None
 bnb = None
 intel_nncf = None
 optimum_quanto = None
-
 quant_last_model_name = None
 quant_last_model_device = None
+debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
 
 
 def get_quant(name):
@@ -44,7 +45,7 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
                 bnb_4bit_quant_type=shared.opts.bnb_quantization_type,
                 bnb_4bit_compute_dtype=devices.dtype
             )
-            shared.log.debug(f'Quantization: module=all type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
+            log.debug(f'Quantization: module=all type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
             if kwargs is None:
                 return bnb_config
             else:
@@ -60,14 +61,54 @@ def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'
             load_torchao()
             if ao is None:
                 return kwargs
-            diffusers.utils.import_utils.is_torchao_available = lambda: True
             ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
-            shared.log.debug(f'Quantization: module=all type=torchao dtype={shared.opts.torchao_quantization_type}')
+            log.debug(f'Quantization: module=all type=torchao dtype={shared.opts.torchao_quantization_type}')
             if kwargs is None:
                 return ao_config
             else:
                 kwargs['quantization_config'] = ao_config
                 return kwargs
+    return kwargs
+
+
+def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str = 'Model'):
+    from modules import shared
+    if len(shared.opts.quanto_quantization) > 0 and allow_quanto:
+        if 'Model' in shared.opts.quanto_quantization or (module is not None and module in shared.opts.quanto_quantization):
+            load_quanto(silent=True)
+            if optimum_quanto is None:
+                return kwargs
+            quanto_config = diffusers.QuantoConfig(
+                weights_dtype=shared.opts.quanto_quantization_type,
+            )
+            quanto_config.activations = None # patch so it works with transformers
+            log.debug(f'Quantization: module=all type=quanto dtype={shared.opts.quanto_quantization_type}')
+            if kwargs is None:
+                return quanto_config
+            else:
+                kwargs['quantization_config'] = quanto_config
+                return kwargs
+    return kwargs
+
+
+def create_config(kwargs = None, allow: bool = True, module: str = 'Model'):
+    if kwargs is None:
+        kwargs = {}
+    kwargs = create_bnb_config(kwargs, allow_bnb=allow, module=module)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=bnb config={kwargs.get("quantization_config", None)}')
+        return kwargs
+    kwargs = create_ao_config(kwargs, allow_ao=allow, module=module)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=torchao config={kwargs.get("quantization_config", None)}')
+        return kwargs
+    kwargs = create_quanto_config(kwargs, allow_quanto=allow, module=module)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=quanto config={kwargs.get("quantization_config", None)}')
+        return kwargs
     return kwargs
 
 
@@ -81,6 +122,9 @@ def load_torchao(msg='', silent=False):
         ao = torchao
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=torchao version={ao.__version__} fn={fn}') # pylint: disable=protected-access
+        from diffusers.utils import import_utils
+        import_utils.is_torchao_available = lambda: True
+        import_utils._torchao_available = True # pylint: disable=protected-access
         return ao
     except Exception as e:
         if len(msg) > 0:
@@ -102,9 +146,10 @@ def load_bnb(msg='', silent=False):
     try:
         import bitsandbytes
         bnb = bitsandbytes
-        diffusers.utils.import_utils._bitsandbytes_available = True # pylint: disable=protected-access
-        diffusers.utils.import_utils._bitsandbytes_version = '0.43.3' # pylint: disable=protected-access
-        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        from diffusers.utils import import_utils
+        import_utils._bitsandbytes_available = True # pylint: disable=protected-access
+        import_utils._bitsandbytes_version = '0.43.3' # pylint: disable=protected-access
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=bitsandbytes version={bnb.__version__} fn={fn}') # pylint: disable=protected-access
         return bnb
     except Exception as e:
@@ -117,18 +162,20 @@ def load_bnb(msg='', silent=False):
 
 
 def load_quanto(msg='', silent=False):
-    from modules import shared
     global optimum_quanto # pylint: disable=global-statement
     if optimum_quanto is not None:
         return optimum_quanto
-    install('optimum-quanto==0.2.6', quiet=True)
+    install('optimum-quanto==0.2.7', quiet=True)
     try:
         from optimum import quanto # pylint: disable=no-name-in-module
         optimum_quanto = quanto
-        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=quanto version={quanto.__version__} fn={fn}') # pylint: disable=protected-access
-        if shared.opts.diffusers_offload_mode in {'balanced', 'sequential'}:
-            shared.log.error(f'Quantization: type=quanto offload={shared.opts.diffusers_offload_mode} not supported')
+        from diffusers.utils import import_utils
+        import_utils.is_optimum_quanto_available = lambda: True
+        import_utils._optimum_quanto_available = True # pylint: disable=protected-access
+        import_utils._optimum_quanto_version = quanto.__version__ # pylint: disable=protected-access
+        import_utils._replace_with_quanto_layers = diffusers.quantizers.quanto.utils._replace_with_quanto_layers # pylint: disable=protected-access
         return optimum_quanto
     except Exception as e:
         if len(msg) > 0:
@@ -169,7 +216,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
         storage_dtype = torch.float8_e5m2
     else:
         storage_dtype = None
-        shared.log.warning(f'Quantization: type=layerwise storage={shared.opts.layerwise_quantization_storage} not supported')
+        log.warning(f'Quantization: type=layerwise storage={shared.opts.layerwise_quantization_storage} not supported')
         return
     non_blocking = False
     if not hasattr(quantization_config.QuantizationMethod, 'LAYERWISE'):
@@ -198,7 +245,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
                     m.quantization_method = quantization_config.QuantizationMethod.LAYERWISE # pylint: disable=no-member
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
         except Exception as e:
-            shared.log.error(f'Quantization: type=layerwise {e}')
+            log.error(f'Quantization: type=layerwise {e}')
 
 
 def nncf_send_to_device(model, device):
@@ -244,7 +291,7 @@ def nncf_compress_weights(sd_model):
     try:
         t0 = time.time()
         from modules import shared, devices, sd_models
-        shared.log.info(f"Quantization: type=NNCF modules={shared.opts.nncf_compress_weights}")
+        log.info(f"Quantization: type=NNCF modules={shared.opts.nncf_compress_weights}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
 
         sd_model = sd_models.apply_function_to_model(sd_model, nncf_compress_model, shared.opts.nncf_compress_weights, op="nncf")
@@ -259,9 +306,9 @@ def nncf_compress_weights(sd_model):
         quant_last_model_device = None
 
         t1 = time.time()
-        shared.log.info(f"Quantization: type=NNCF time={t1-t0:.2f}")
+        log.info(f"Quantization: type=NNCF time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.warning(f"Quantization: type=NNCF {e}")
+        log.warning(f"Quantization: type=NNCF {e}")
     return sd_model
 
 
@@ -312,9 +359,9 @@ def optimum_quanto_weights(sd_model):
         t0 = time.time()
         from modules import shared, devices, sd_models
         if shared.opts.diffusers_offload_mode in {"balanced", "sequential"}:
-            shared.log.warning(f"Quantization: type=Optimum.quanto offload={shared.opts.diffusers_offload_mode} not compatible")
+            log.warning(f"Quantization: type=Optimum.quanto offload={shared.opts.diffusers_offload_mode} not compatible")
             return sd_model
-        shared.log.info(f"Quantization: type=Optimum.quanto: modules={shared.opts.optimum_quanto_weights}")
+        log.info(f"Quantization: type=Optimum.quanto: modules={shared.opts.optimum_quanto_weights}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
         quanto = load_quanto()
         quanto.tensor.qbits.QBitsTensor.create = lambda *args, **kwargs: quanto.tensor.qbits.QBitsTensor(*args, **kwargs)
@@ -361,9 +408,9 @@ def optimum_quanto_weights(sd_model):
             devices.torch_gc(force=True)
 
         t1 = time.time()
-        shared.log.info(f"Quantization: type=Optimum.quanto time={t1-t0:.2f}")
+        log.info(f"Quantization: type=Optimum.quanto time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.warning(f"Quantization: type=Optimum.quanto {e}")
+        log.warning(f"Quantization: type=Optimum.quanto {e}")
     return sd_model
 
 
@@ -374,19 +421,19 @@ def torchao_quantization(sd_model):
 
     fn = getattr(q, shared.opts.torchao_quantization_type, None)
     if fn is None:
-        shared.log.error(f"Quantization: type=TorchAO type={shared.opts.torchao_quantization_type} not supported")
+        log.error(f"Quantization: type=TorchAO type={shared.opts.torchao_quantization_type} not supported")
         return sd_model
     def torchao_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
         q.quantize_(model, fn(), device=devices.device)
         return model
 
-    shared.log.info(f"Quantization: type=TorchAO pipe={sd_model.__class__.__name__} quant={shared.opts.torchao_quantization_type} fn={fn} targets={shared.opts.torchao_quantization}")
+    log.info(f"Quantization: type=TorchAO pipe={sd_model.__class__.__name__} quant={shared.opts.torchao_quantization_type} fn={fn} targets={shared.opts.torchao_quantization}")
     try:
         t0 = time.time()
         sd_models.apply_function_to_model(sd_model, torchao_model, shared.opts.torchao_quantization, op="torchao")
         t1 = time.time()
-        shared.log.info(f"Quantization: type=TorchAO time={t1-t0:.2f}")
+        log.info(f"Quantization: type=TorchAO time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.error(f"Quantization: type=TorchAO {e}")
+        log.error(f"Quantization: type=TorchAO {e}")
     setup_logging() # torchao uses dynamo which messes with logging so reset is needed
     return sd_model

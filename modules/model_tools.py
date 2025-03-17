@@ -69,13 +69,11 @@ def load_modules(repo_id: str, params: dict):
             subfolder = 'text_encoder_2'
         if cls == transformers.T5EncoderModel: # t5-xxl
             subfolder = 'text_encoder_3'
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config(kwargs)
             kwargs['variant'] = 'fp16'
         if cls == diffusers.SD3Transformer2DModel:
             subfolder = 'transformer'
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config(kwargs)
         if subfolder is None:
             continue
         shared.log.debug(f'Load: module={name} class={cls.__name__} repo={repo_id} location={subfolder}')

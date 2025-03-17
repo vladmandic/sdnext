@@ -52,14 +52,7 @@ def load_overrides(kwargs, cache_dir):
 
 
 def load_quants(kwargs, repo_id, cache_dir):
-    quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=SD3 quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=SD3 quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
     if 'Model' in shared.opts.bnb_quantization and 'transformer' not in kwargs:
@@ -157,8 +150,7 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
 
     shared.log.debug(f'Load model: type=SD3 kwargs={list(kwargs)} repo="{repo_id}"')
 
-    kwargs = model_quant.create_bnb_config(kwargs)
-    kwargs = model_quant.create_ao_config(kwargs)
+    kwargs = model_quant.create_config(kwargs)
     pipe = loader(
         repo_id,
         torch_dtype=devices.dtype,

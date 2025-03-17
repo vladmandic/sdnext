@@ -42,9 +42,7 @@ class Script(scripts.Script):
         cls = diffusers.MochiPipeline
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
-            kwargs = {}
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config()
             shared.sd_model = cls.from_pretrained(
                 repo_id,
                 cache_dir = shared.opts.hfcache_dir,

@@ -32,9 +32,7 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
     if quant_args:
         model_quant.load_bnb(f'Load model: type=Lumina quant={quant_args}')
     if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=Lumina quant={quant_args}')
+        quant_args = model_quant.create_config()
     kwargs = {}
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     if ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization):

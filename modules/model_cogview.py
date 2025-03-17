@@ -18,11 +18,7 @@ def load_common(diffusers_load_config={}, module=None):
     if 'requires_safety_checker' in diffusers_load_config:
         del diffusers_load_config['requires_safety_checker']
 
-    quant_args = {}
-    if not quant_args:
-        quant_args = model_quant.create_bnb_config(quant_args, module=module)
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args, module=module)
+    quant_args = model_quant.create_config(module=module)
     if quant_args:
         shared.log.debug(f'Load model: type=CogView quantization module="{module}" {quant_args}')
 

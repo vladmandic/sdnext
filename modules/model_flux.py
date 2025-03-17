@@ -5,7 +5,7 @@ import diffusers
 import transformers
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
-from modules import shared, devices, modelloader, sd_models, sd_unet, model_te, model_quant
+from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant
 
 
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -44,7 +44,6 @@ def load_flux_quanto(checkpoint_info):
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto transformer: {e}")
         if debug:
-            from modules import errors
             errors.display(e, 'FLUX Quanto:')
 
     try:
@@ -72,7 +71,6 @@ def load_flux_quanto(checkpoint_info):
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto text encoder: {e}")
         if debug:
-            from modules import errors
             errors.display(e, 'FLUX Quanto:')
 
     return transformer, text_encoder_2
@@ -105,33 +103,25 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
         shared.log.error(f"Load model: type=FLUX failed to load BnB transformer: {e}")
         transformer, text_encoder_2 = None, None
         if debug:
-            from modules import errors
             errors.display(e, 'FLUX:')
     return transformer, text_encoder_2
 
 
 def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
-        if not allow_quant:
-            return kwargs
-        quant_args = {}
-        quant_args = model_quant.create_bnb_config(quant_args)
-        if quant_args:
-            model_quant.load_bnb(f'Load model: type=FLUX quant={quant_args}')
-        if not quant_args:
-            quant_args = model_quant.create_ao_config(quant_args)
-            if quant_args:
-                model_quant.load_torchao(f'Load model: type=FLUX quant={quant_args}')
+        quant_args = model_quant.create_config(allow=allow_quant)
         if not quant_args:
             return kwargs
-        if 'transformer' not in kwargs and ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization):
+        if 'transformer' not in kwargs and ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization):
             kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-            shared.log.debug(f'Quantization: module=transformer type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-        if 'text_encoder_2' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization):
+        quant_args = model_quant.create_config(allow=allow_quant, module='Text Encoder')
+        if not quant_args:
+            return kwargs
+        if 'text_encoder_2' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization or 'Text Encoder' in shared.opts.quanto_quantization):
             kwargs['text_encoder_2'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-            shared.log.debug(f'Quantization: module=t5 type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
     except Exception as e:
         shared.log.error(f'Quantization: {e}')
+        errors.display(e, 'Quantization:')
     return kwargs
 
 
@@ -197,15 +187,13 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
     else:
         quant_args = model_quant.create_bnb_config({})
         if quant_args:
-            model_quant.load_bnb(f'Load model: type=FLUX quant={quant_args}')
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=bnb dtype={devices.dtype}')
             from modules.model_flux_nf4 import load_flux_nf4
             transformer, _text_encoder_2 = load_flux_nf4(file_path, prequantized=False)
             if transformer is not None:
                 return transformer
-        quant_args = model_quant.create_ao_config({})
+        quant_args = model_quant.create_config()
         if quant_args:
-            model_quant.load_torchao(f'Load model: type=FLUX quant={quant_args}')
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
             transformer = diffusers.FluxTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)
             if transformer is not None:
@@ -249,7 +237,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             shared.log.error(f"Load model: type=FLUX failed to load UNet: {e}")
             shared.opts.sd_unet = 'Default'
             if debug:
-                from modules import errors
                 errors.display(e, 'FLUX UNet:')
     if shared.opts.sd_text_encoder != 'Default':
         try:
@@ -263,7 +250,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             shared.log.error(f"Load model: type=FLUX failed to load T5: {e}")
             shared.opts.sd_text_encoder = 'Default'
             if debug:
-                from modules import errors
                 errors.display(e, 'FLUX T5:')
     if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
@@ -278,7 +264,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             shared.log.error(f"Load model: type=FLUX failed to load VAE: {e}")
             shared.opts.sd_vae = 'Default'
             if debug:
-                from modules import errors
                 errors.display(e, 'FLUX VAE:')
 
     # load quantized components if any
@@ -293,7 +278,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         except Exception as e:
             shared.log.error(f"Load model: type=FLUX failed to load NF4 components: {e}")
             if debug:
-                from modules import errors
                 errors.display(e, 'FLUX NF4:')
     if quant == 'qint8' or quant == 'qint4':
         try:
@@ -305,7 +289,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         except Exception as e:
             shared.log.error(f"Load model: type=FLUX failed to load Quanto components: {e}")
             if debug:
-                from modules import errors
                 errors.display(e, 'FLUX Quanto:')
 
     # initialize pipeline with pre-loaded components
@@ -346,8 +329,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     fn = checkpoint_info.path
     if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
         kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
-    kwargs = model_quant.create_bnb_config(kwargs, allow_quant)
-    kwargs = model_quant.create_ao_config(kwargs, allow_quant)
+    # kwargs = model_quant.create_config(kwargs, allow_quant)
     if fn.endswith('.safetensors') and os.path.isfile(fn):
         pipe = diffusers.FluxPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
     else:

@@ -33,8 +33,10 @@
     against top-10 standard harmful content categories  
   - add banned words/expressions check against prompt variations  
 - **Other**
-  - **upscale**: new [asymmetric vae v2](Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method
-  - **upscale**: new experimental support for `libvips` upscaling
+  - **upscale**: new [asymmetric vae v2](Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
+  - **upscale**: new experimental support for `libvips` upscaling  
+  - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
+    note: previous method for quanto is still valid and is noted in settings as post-load quantization  
   - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
   - update `diffusers` and other requirements   

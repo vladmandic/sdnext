@@ -8,13 +8,7 @@ from modules import shared, sd_models, devices, modelloader, model_quant
 
 def load_quants(kwargs, repo_id, cache_dir):
     quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=Sana quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=Sana quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
     load_args = kwargs.copy()
