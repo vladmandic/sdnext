@@ -70,6 +70,7 @@ select = [
 ignore = [
   "B006",   # Do not use mutable data structures for argument defaults
   "B008",   # Do not perform function call in argument defaults
+  "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
   "C408",   # Unnecessary `dict` call
   "I001",   # Import block is un-sorted or un-formatted
   "E402",   # Module level import not at top of file
@@ -84,6 +85,8 @@ ignore = [
   "RUF012", # Mutable class attributes
   "RUF013", # PEP 484 prohibits implicit `Optional`
   "RUF015", # Prefer `next(...)` over single element slice
+  "RUF046", # Value being cast to `int` is already an integer
+  "RUF051", # Prefer pop over del
 ]
 fixable = ["ALL"]
 unfixable = []

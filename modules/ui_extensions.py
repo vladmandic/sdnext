@@ -98,7 +98,7 @@ def apply_changes(disable_list, update_list, disable_all):
 def check_updates(_id_task, disable_list, search_text, sort_column):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
-        return
+        return create_html(search_text, sort_column)
     disabled = json.loads(disable_list)
     assert type(disabled) == list, f"wrong disable_list data for apply_and_restart: {disable_list}"
     exts = [ext for ext in extensions.extensions if ext.remote is not None and ext.name not in disabled]

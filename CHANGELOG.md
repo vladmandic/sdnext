@@ -1,10 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-15
+## Update for 2025-03-17
 
 ### TODO
   - Gemma3 requires `git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
   - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
+
+### Highlights for 2025-03-17
+
+Support for [CogView 4](https://huggingface.co/THUDM/CogView4-6B), new CLiP models, improvements to remote VAE, additional docs/guides.
+
+### Details for 2025-03-17
 
 - **Models**  
   - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
@@ -16,17 +22,21 @@
     download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
     load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Wiki/Docs**  
+  - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
+  - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
+  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
+  - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
 - **Remote VAE**  
   - add support for remote vae encode in addition to remote vae decode  
   - used by *img2img, inpaint, hires, detailer*  
   - remote vae encode is disabled by default, you can enable it in *settings -> variable auto-encoder*  
+  - add remote vae info to metadata, thanks @iDeNoh  
+  - remote vae use `scaling_factor` and `shift_factor`  
 - **Caption/VLM**  
   - [Google Gemma 3 4B](https://huggingface.co/google/gemma-3-4b-it)  
     simply select from list of available models in caption tab  
   - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*
-- **Wiki/Docs**  
-  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
-  - updated SD3 content
 - [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
   - add detection of prompt language and alphabet and filter based on those values  
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
@@ -37,11 +47,16 @@
   - **upscale**: new experimental support for `libvips` upscaling  
   - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
     note: previous method for quanto is still valid and is noted in settings as post-load quantization  
-  - add remote vae info to metadata, thanks @iDeNoh  
   - add quantization support to **CogView-3Plus**
   - update `diffusers` and other requirements   
-  - remote vae use `scaling_factor` and `shift_factor`  
   - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+- **IPEX**
+  - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
+  - add xpu to profiler  
+  - fix untyped_storage, torch.eye and torch.cuda.device ops  
+  - fix torch 2.7 compatibility  
+  - fix performance with balanced offload  
+  - fix triton and torch.compile  
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
@@ -56,13 +71,6 @@
   - fix hires with latent upscale  
   - fix legacy diffusion latent upscalers  
   - fix upscaler selection in postprocessing  
-- **IPEX**
-  - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
-  - add xpu to profiler  
-  - fix untyped_storage, torch.eye and torch.cuda.device ops  
-  - fix torch 2.7 compatibility  
-  - fix performance with balanced offload  
-  - fix triton and torch.compile  
 
 ## Update for 2025-02-28
 
