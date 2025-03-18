@@ -38,7 +38,7 @@ def run_video(*args):
     if selected and 'Hunyuan' in selected.name:
         return hunyuan.generate(*args)
     shared.log.error(f'Video model not found: args={args}')
-    return [], '', '', f'Video model not found: engine={engine} model={model}'
+    return [], None, '', '', f'Video model not found: engine={engine} model={model}'
 
 
 def create_ui():
@@ -85,8 +85,14 @@ def create_ui():
                     video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video')
                 override_settings = ui_common.create_override_inputs('video')
 
-            # output panel with gallery
-            gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
+            # output panel with gallery and video tabs
+            with gr.Column(elem_id='video-output-column', scale=3) as _column_output:
+                with gr.Tabs(elem_classes=['video-output-tabs'], elem_id='video-output-tabs'):
+                    with gr.Tab('Frames', id='out-gallery'):
+                        gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
+                    with gr.Tab('Video', id='out-video'):
+                        video = gr.Video(label="Output", show_label=False, elem_id='control_output_video', elem_classes=['control-image'])
+
             # connect reuse seed button
             ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
             random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
@@ -132,7 +138,7 @@ def create_ui():
             fn=call_queue.wrap_gradio_gpu_call(run_video, extra_outputs=[None, '', ''], name='Video'),
             _js="submit_video",
             inputs=video_args,
-            outputs=[gallery, gen_info, html_info, html_log],
+            outputs=[gallery, video, gen_info, html_info, html_log],
             show_progress=False,
         )
         prompt.submit(**video_dict)

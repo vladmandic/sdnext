@@ -166,14 +166,14 @@ def generate(*args, **kwargs):
     task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         shared.log.error('Video: model not selected')
-        return [], '', '', 'Video model not selected'
+        return [], None, '', '', 'Video model not selected'
     if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
         found = [model.name for model in models.get(engine, [])]
         selected = [m for m in models[engine] if m.name == model][0] if len(found) > 0 else None
         load(selected)
     if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
         shared.log.error('Video: model not loaded')
-        return [], '', '', 'Video model not loaded'
+        return [], None, '', '', 'Video model not loaded'
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 
     p = processing.StableDiffusionProcessingVideo(
@@ -201,7 +201,7 @@ def generate(*args, **kwargs):
     if 'I2V' in model:
         if init_image is None:
             shared.log.error('Video: init image not set')
-            return [], '', '', 'Error: init image not set'
+            return [], None, '', '', 'Error: init image not set'
         p.task_args['image'] = init_image
 
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -251,10 +251,12 @@ def generate(*args, **kwargs):
 
     p.close()
     if processed is None or len(processed.images) == 0:
-        return [], '', '', 'Error: processing failed'
+        return [], None, '', '', 'Error: processing failed'
     shared.log.info(f'Video: frames={len(processed.images)} time={t1-t0:.2f}')
     if video_type != 'None':
-        images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
+        video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
+    else:
+        video_file = None
 
     generation_info_js = processed.js() if processed is not None else ''
-    return processed.images, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)
+    return processed.images, video_file, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)
