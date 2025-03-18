@@ -18,6 +18,7 @@ class Options: # set default parameters here
     negative_prompt: str = ''
     seed: int = -1
     steps: int = 20
+    cfg_scale: float = 6.0
     sampler_name: str = "Default"
     width: int = 1024
     height: int = 1024
@@ -32,6 +33,7 @@ class Server: # set server and save options here or use command line arguments
     user: str = None
     password: str = None
     folder: str = '/tmp'
+    name: str = str(round(time.time()))
     images: bool = False
     grids: bool = False
     labels: bool = False
@@ -56,7 +58,7 @@ def post():
         return { 'error': 0, 'reason': str(e), 'url': server.url }
 
 
-def generate(ts: float, x: int, y: int): # pylint: disable=redefined-outer-name
+def generate(x: int, y: int): # pylint: disable=redefined-outer-name
     t0 = time.time()
     log.info(f'x={x} y={y} {options}')
     data = post()
@@ -68,7 +70,7 @@ def generate(ts: float, x: int, y: int): # pylint: disable=redefined-outer-name
             image = Image.open(io.BytesIO(base64.b64decode(b64)))
             images.append(image)
             info = data['info']
-            fn = os.path.join(server.folder, f'{round(ts)}-{x}-{y}.jpg') if server.images else None
+            fn = os.path.join(server.folder, f'{server.name}-{x}-{y}.jpg') if server.images else None
             log.info(f'image: time={t1-t0:.2f} size={image.size} fn="{fn}" info="{info}"')
             if fn is not None:
                 image.save(fn)
@@ -118,7 +120,7 @@ def grid(x_file: str, y_file: str):
     x = [line for line in x if ':' in line]
     y = [line for line in y if ':' in line]
     t0 = time.time()
-    log.info(f'grid: x={len(x)} y={len(y)} prefix={round(t0)}')
+    log.info(f'grid: x={len(x)} y={len(y)} prefix={server.name}')
     vertical = []
     Image.MAX_IMAGE_PIXELS = None
     for j in range(max(1, len(y))):
@@ -129,7 +131,7 @@ def grid(x_file: str, y_file: str):
                 set_param(x[i])
             if len(y) > i:
                 set_param(y[i])
-            images = generate(t0, i, j)
+            images = generate(i, j)
             if images is not None and len(images) > 0:
                 horizontal.extend(images)
                 labels.append(f'{x[i] if len(x) > i else ""}\n{y[j] if len(y) > j else ""}')
@@ -145,7 +147,7 @@ def grid(x_file: str, y_file: str):
             log.warning('grid: empty grid')
             return
         merged = merge(vertical, horizontal=False)
-        fn = os.path.join(server.folder, f'{round(t0)}.jpg')
+        fn = os.path.join(server.folder, f'{server.name}.jpg')
         merged.save(fn)
         log.info(f'grid: size={merged.size} fn="{fn}"')
     t1 = time.time()
@@ -155,22 +157,40 @@ def grid(x_file: str, y_file: str):
 if __name__ == "__main__":
     log.info(__file__)
     parser = argparse.ArgumentParser(description = 'api-txt2img')
-    parser.add_argument('--x', required=False, default=None, help='file to use for x-axis values')
-    parser.add_argument('--y', required=False, default=None, help='file to use for y-axis values')
-    parser.add_argument('--folder', required=False, default='/tmp', help='folder to use for saving images')
-    parser.add_argument('--image', required=False, default=False, help='save individual images')
-    parser.add_argument('--grid', required=False, default=True, help='save image grids')
-    parser.add_argument('--labels', required=False, default=True, help='draw image labels')
-    parser.add_argument('--url', required=False, default='http://127.0.0.1:7860', help='server url')
-    parser.add_argument('--user', required=False, default=None, help='server user')
-    parser.add_argument('--password', required=False, default=None, help='server password')
+    parser.add_argument('--x', type=str, required=False, default=None, help='file to use for x-axis values')
+    parser.add_argument('--y', type=str, required=False, default=None, help='file to use for y-axis values')
+    parser.add_argument('--folder', type=str, required=False, default='/tmp', help='folder to use for saving images')
+    parser.add_argument('--name', type=str, required=False, default=str(round(time.time())), help='name prefix to use for saving images and grids')
+    parser.add_argument('--image', type=bool, required=False, default=False, help='save individual images')
+    parser.add_argument('--grid', type=bool, required=False, default=True, help='save image grids')
+    parser.add_argument('--labels', type=bool, required=False, default=True, help='draw image labels')
+    parser.add_argument('--url', type=str, required=False, default='http://127.0.0.1:7860', help='server url')
+    parser.add_argument('--user', type=str, required=False, default=None, help='server user')
+    parser.add_argument('--password', type=str, required=False, default=None, help='server password')
+    parser.add_argument('--prompt', type=str, required=False, default='', help='generate prompt')
+    parser.add_argument('--negative', type=str, required=False, default='', help='generate negative prompt')
+    parser.add_argument('--sampler', type=str, required=False, default='Default', help='generate sampler')
+    parser.add_argument('--width', type=int, required=False, default=1024, help='generate width')
+    parser.add_argument('--height', type=int, required=False, default=1024, help='generate height')
+    parser.add_argument('--steps', type=int, required=False, default=20, help='generate steps')
+    parser.add_argument('--cfg', type=float, required=False, default=6.0, help='generate guidance scale')
+    parser.add_argument('--seed', type=int, required=False, default=-1, help='generate seed')
     args = parser.parse_args()
     log.info(args)
     server.folder = args.folder
-    server.images = args.image
-    server.grids = args.grid
-    server.labels = args.labels
+    server.name = args.name
+    server.images = bool(args.image)
+    server.grids = bool(args.grid)
+    server.labels = bool(args.labels)
     server.url = args.url
     server.user = args.user
     server.password = args.password
+    options.prompt = args.prompt
+    options.negative_prompt = args.negative
+    options.width = int(args.width)
+    options.height = int(args.height)
+    options.sampler_name = args.sampler
+    options.seed = int(args.seed)
+    options.steps = int(args.steps)
+    options.cfg_scale = float(args.cfg)
     grid(args.x, args.y)
