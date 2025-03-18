@@ -45,12 +45,15 @@ options = Options()
 
 
 def post():
-    req = requests.post(f'{server.url}{server.api}',
-                        json=vars(options),
-                        timeout=300,
-                        verify=False,
-                        auth=requests.auth.HTTPBasicAuth(server.user, server.password) if (server.user is not None) and (server.password is not None) else None)
-    return { 'error': req.status_code, 'reason': req.reason, 'url': req.url } if req.status_code != 200 else req.json()
+    try:
+        req = requests.post(f'{server.url}{server.api}',
+                            json=vars(options),
+                            timeout=300,
+                            verify=False,
+                            auth=requests.auth.HTTPBasicAuth(server.user, server.password) if (server.user is not None) and (server.password is not None) else None)
+        return { 'error': req.status_code, 'reason': req.reason, 'url': req.url } if req.status_code != 200 else req.json()
+    except Exception as e:
+        return { 'error': 0, 'reason': str(e), 'url': server.url }
 
 
 def generate(ts: float, x: int, y: int): # pylint: disable=redefined-outer-name
@@ -105,8 +108,15 @@ def grid(x_file: str, y_file: str):
             setattr(options, param[0].strip(), param[1].strip())
 
     log.info(server)
-    x = open(x_file, encoding='utf8').read().splitlines() if x_file is not None else []
-    y = open(y_file, encoding='utf8').read().splitlines() if y_file is not None else []
+    os.makedirs(server.folder, exist_ok=True)
+    try:
+        x = open(x_file, encoding='utf8').read().splitlines() if x_file is not None else []
+        y = open(y_file, encoding='utf8').read().splitlines() if y_file is not None else []
+    except Exception as e:
+        log.error(f'read file: x={x_file} y={y_file} {e}')
+        return
+    x = [line for line in x if ':' in line]
+    y = [line for line in y if ':' in line]
     t0 = time.time()
     log.info(f'grid: x={len(x)} y={len(y)} prefix={round(t0)}')
     vertical = []

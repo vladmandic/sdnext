@@ -9,6 +9,7 @@ const getENActiveTab = () => {
   if (gradioApp().getElementById('tab_txt2img').style.display === 'block') tabName = 'txt2img';
   else if (gradioApp().getElementById('tab_img2img').style.display === 'block') tabName = 'img2img';
   else if (gradioApp().getElementById('tab_control').style.display === 'block') tabName = 'control';
+  else if (gradioApp().getElementById('tab_video').style.display === 'block') tabName = 'video';
   // log('getENActiveTab', tabName);
   return tabName;
 };
@@ -491,7 +492,7 @@ function setupExtraNetworksForTab(tabname) {
 }
 
 async function showNetworks() {
-  for (const tabname of ['txt2img', 'img2img', 'control']) {
+  for (const tabname of ['txt2img', 'img2img', 'control', 'video']) {
     if (window.opts.extra_networks_show) gradioApp().getElementById(`${tabname}_extra_networks_btn`).click();
   }
   log('showNetworks');
@@ -501,6 +502,7 @@ async function setupExtraNetworks() {
   setupExtraNetworksForTab('txt2img');
   setupExtraNetworksForTab('img2img');
   setupExtraNetworksForTab('control');
+  setupExtraNetworksForTab('video');
 
   function registerPrompt(tabname, id) {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
@@ -515,6 +517,8 @@ async function setupExtraNetworks() {
   registerPrompt('img2img', 'img2img_neg_prompt');
   registerPrompt('control', 'control_prompt');
   registerPrompt('control', 'control_neg_prompt');
+  registerPrompt('video', 'video_prompt');
+  registerPrompt('video', 'video_neg_prompt');
   log('initNetworks', window.opts.extra_networks_card_size);
   document.documentElement.style.setProperty('--card-size', `${window.opts.extra_networks_card_size}px`);
 }

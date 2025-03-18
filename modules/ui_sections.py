@@ -121,18 +121,18 @@ def create_batch_inputs(tab, accordion=True):
     return batch_count, batch_size
 
 
-def create_seed_inputs(tab, reuse_visible=True):
-    with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]):
+def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=True, seed_resize_visible=False):
+    with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_seed_row", variant="compact"):
             seed = gr.Number(label='Initial seed', value=-1, elem_id=f"{tab}_seed", container=True)
             random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_seed", label='Random seed')
             reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_seed", label='Reuse seed', visible=reuse_visible)
-        with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=True):
+        with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=subseed_visible):
             subseed = gr.Number(label='Variation', value=-1, elem_id=f"{tab}_subseed", container=True)
             random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_subseed")
             reuse_subseed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_subseed", visible=reuse_visible)
             subseed_strength = gr.Slider(label='Variation strength', value=0.0, minimum=0, maximum=1, step=0.01, elem_id=f"{tab}_subseed_strength")
-        with gr.Row(visible=False):
+        with gr.Row(visible=seed_resize_visible):
             seed_resize_from_w = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from width", value=0, elem_id=f"{tab}_seed_resize_from_w")
             seed_resize_from_h = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from height", value=0, elem_id=f"{tab}_seed_resize_from_h")
         random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
@@ -150,7 +150,7 @@ def create_video_inputs(tab:str):
         ]
     with gr.Column():
         video_codecs = ['None', 'GIF', 'PNG', 'MP4/MP4V', 'MP4/AVC1', 'MP4/JVT3', 'MKV/H264', 'AVI/DIVX', 'AVI/RGBA', 'MJPEG/MJPG', 'MPG/MPG1', 'AVR/AVR1']
-        video_type = gr.Dropdown(label='Video type', choices=video_codecs, value='None', elem_id=f"{tab}_video_type")
+        video_type = gr.Dropdown(label='Save video', choices=video_codecs, value='None', elem_id=f"{tab}_video_type")
     with gr.Column():
         video_duration = gr.Slider(label='Duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=False, elem_id=f"{tab}_video_duration")
         video_loop = gr.Checkbox(label='Loop', value=True, visible=False, elem_id=f"{tab}_video_loop")

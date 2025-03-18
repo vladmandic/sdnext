@@ -17,6 +17,7 @@ class SdVersion(enum.Enum):
     SDXL = 4
     SC = 5
     F1 = 6
+    HV = 7
 
 
 class NetworkOnDisk:
@@ -56,6 +57,8 @@ class NetworkOnDisk:
             return 'sd3'
         if base.startswith("flux"):
             return 'f1'
+        if base.startswith("hunyuan_video"):
+            return 'hv'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
@@ -65,6 +68,8 @@ class NetworkOnDisk:
             return 'sc'
         if arch.startswith("flux"):
             return 'f1'
+        if arch.startswith("hunyuan-video"):
+            return 'hv'
 
         if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
             return 'sd1'

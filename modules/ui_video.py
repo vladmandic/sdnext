@@ -1,40 +1,21 @@
-# TODO hunyuanvideo: seed, scheduler, scheduler_shift, guidance_scale=1.0, true_cfg_scale=6.0, num_inference_steps=30, prompt_template, vae, offloading
+# TODO hunyuanvideo: prompt_template, lora
+# TODO hunyuanvideo: teacache, pab, fastercache, paraattention, perflow
 # TODO modernui video tab
 
-from dataclasses import dataclass
 import gradio as gr
-from modules import shared, images, ui_common, ui_sections, sd_models, call_queue, generation_parameters_copypaste
+from modules import shared, sd_models, timer, images, ui_common, ui_sections, ui_symbols, call_queue, generation_parameters_copypaste
+from modules.ui_components import ToolButton
 from modules.video_models import hunyuan
 
 
-@dataclass
-class Model():
-    name: str
-    repo: str
-    dit: str
-
-
-MODELS = {
-    'None': [],
-    'Hunyuan Video': [
-        Model('None', None, None),
-        Model('Hunyuan Video T2V', 'hunyuanvideo-community/HunyuanVideo', None),
-        Model('Hunyuan Video I2V', 'hunyuanvideo-community/HunyuanVideo', 'hunyuanvideo-community/HunyuanVideo-I2V'), # https://github.com/huggingface/diffusers/pull/10983
-        Model('SkyReels Hunyuan T2V', 'hunyuanvideo-community/HunyuanVideo', 'Skywork/SkyReels-V1-Hunyuan-T2V'), # https://github.com/huggingface/diffusers/pull/10837
-        Model('SkyReels Hunyuan I2V', 'hunyuanvideo-community/HunyuanVideo', 'Skywork/SkyReels-V1-Hunyuan-I2V'),
-        Model('Fast Hunyuan T2V', 'hunyuanvideo-community/HunyuanVideo', 'hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt'), # https://github.com/hao-ai-lab/FastVideo/blob/8a77cf22c9b9e7f931f42bc4b35d21fd91d24e45/fastvideo/models/hunyuan/inference.py#L213
-    ]
-}
-
-
 def engine_change(engine):
-    models = [model.name for model in MODELS.get(engine, [])]
-    return gr.update(choices=models, value=models[0] if len(models) > 0 else None)
+    found = [model.name for model in hunyuan.models.get(engine, [])]
+    return gr.update(choices=found, value=found[0] if len(found) > 0 else None)
 
 
 def model_change(engine, model):
-    models = [model.name for model in MODELS.get(engine, [])]
-    selected = [m for m in MODELS[engine] if m.name == model][0] if len(models) > 0 else None
+    found = [model.name for model in hunyuan.models.get(engine, [])]
+    selected = [m for m in hunyuan.models[engine] if m.name == model][0] if len(found) > 0 else None
     if selected:
         if 'None' in selected.name:
             sd_models.unload_model_weights()
@@ -52,8 +33,8 @@ def model_change(engine, model):
 
 def run_video(*args):
     engine, model = args[2], args[3]
-    models = [model.name for model in MODELS.get(engine, [])]
-    selected = [m for m in MODELS[engine] if m.name == model][0] if len(models) > 0 else None
+    found = [model.name for model in hunyuan.models.get(engine, [])]
+    selected = [m for m in hunyuan.models[engine] if m.name == model][0] if len(found) > 0 else None
     if selected and 'Hunyuan' in selected.name:
         return hunyuan.generate(*args)
     shared.log.error(f'Video model not found: args={args}')
@@ -61,38 +42,60 @@ def run_video(*args):
 
 
 def create_ui():
-    shared.log.debug('UI initialize: txt2img')
+    shared.log.debug('UI initialize: video')
     with gr.Blocks(analytics_enabled=False) as _video_interface:
-        prompt, styles, _negative, generate, _reprocess, paste, _networks, _token_counter, _token_button, _token_counter_negative, _token_button_negative = ui_sections.create_toprow(is_img2img=False, id_part="video", negative_visible=False, reprocess_visible=False)
+        prompt, styles, negative, generate, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative = ui_sections.create_toprow(is_img2img=False, id_part="video", negative_visible=True, reprocess_visible=False)
         prompt_image = gr.File(label="", elem_id="video_prompt_image", file_count="single", type="binary", visible=False)
         prompt_image.change(fn=images.image_data, inputs=[prompt_image], outputs=[prompt, prompt_image])
+
+        with gr.Row(variant='compact', elem_id="video_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
+            from modules import ui_extra_networks
+            extra_networks_ui = ui_extra_networks.create_ui(extra_networks_ui, networks_button, 'video', skip_indexing=shared.opts.extra_network_skip_indexing)
+            timer.startup.record('ui-networks')
 
         with gr.Row(elem_id="video_interface", equal_height=False):
             with gr.Column(variant='compact', elem_id="video_settings", scale=1):
 
                 with gr.Row():
-                    engine = gr.Dropdown(label='Engine', choices=list(MODELS), value='None')
-                    model = gr.Dropdown(label='Model', choices=[''], value=None)
+                    engine = gr.Dropdown(label='Engine', choices=list(hunyuan.models), value='None', elem_id="video_engine")
+                    model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
                 with gr.Row():
-                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15)
+                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
+                    seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
+                    random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed", label='Random seed')
+                    reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed", label='Reuse seed')
+                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                 with gr.Row():
-                    with gr.Group(visible=False) as image_group:
+                    sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
+                with gr.Row():
+                    guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
+                    guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
+                with gr.Row():
+                    vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
+                    vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
+                with gr.Row():
+                    with gr.Group(visible=False, elem_id='video_init_image') as image_group:
                         gr.HTML("<br>&nbsp Init image")
-                        image = gr.Image(elem_id="video_image", show_label=False, source="upload", interactive=True, type="pil", tool="select", image_mode="RGB", height=512)
+                        init_image = gr.Image(elem_id="video_image", show_label=False, source="upload", interactive=True, type="pil", tool="select", image_mode="RGB", height=512)
                 with gr.Row():
-                    save_frames = gr.Checkbox(label='Save image frames', value=False)
+                    save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
                 with gr.Row():
-                    cc, duration, loop, pad, interpolate = ui_sections.create_video_inputs(tab='video')
+                    video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video')
                 override_settings = ui_common.create_override_inputs('video')
 
             # output panel with gallery
             gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
+            # connect reuse seed button
+            ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
+            random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
+            # handle engine and model change
+            engine.change(fn=engine_change, inputs=[engine], outputs=[model])
+            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, image_group])
+            # setup extra networks
+            ui_extra_networks.setup_ui(extra_networks_ui, gallery)
 
-        # handle engine and model change
-        engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-        model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, image_group])
         # handle restore fields
         paste_fields = [
             (prompt, "Prompt"),
@@ -101,7 +104,7 @@ def create_ui():
             (height, "Size-2"),
             (frames, "Frames"),
         ]
-        generation_parameters_copypaste.add_paste_fields("txt2img", None, paste_fields, override_settings)
+        generation_parameters_copypaste.add_paste_fields("video", None, paste_fields, override_settings)
         bindings = generation_parameters_copypaste.ParamBinding(paste_button=paste, tabname="video", source_text_component=prompt, source_image_component=None)
         generation_parameters_copypaste.register_paste_params_button(bindings)
         # hidden fields
@@ -111,12 +114,18 @@ def create_ui():
         video_args = [
             task_id, ui_state,
             engine, model,
-            prompt, styles,
+            prompt, negative, styles,
             width, height,
             frames,
-            image,
+            steps, sampler_index,
+            sampler_shift,
+            seed,
+            guidance_scale, guidance_true,
+            init_image,
+            vae_type, vae_tile_frames,
             save_frames,
-            cc, duration, loop, pad, interpolate,
+            video_type, video_duration, video_loop, video_pad, video_interpolate,
+            override_settings,
         ]
         # generate function
         video_dict = dict(

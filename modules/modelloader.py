@@ -64,6 +64,9 @@ def download_civit_meta(model_path: str, model_id):
 def download_civit_preview(model_path: str, preview_url: str):
     ext = os.path.splitext(preview_url)[1]
     preview_file = os.path.splitext(model_path)[0] + ext
+    if preview_file.endswith('.mp4'):
+        shared.log.warning(f'CivitAI download: url="{preview_url}" skip video')
+        return ''
     if os.path.exists(preview_file):
         return ''
     res = f'CivitAI download: url={preview_url} file="{preview_file}"'

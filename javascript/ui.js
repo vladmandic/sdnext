@@ -155,6 +155,11 @@ function switch_to_control(...args) {
   return Array.from(arguments);
 }
 
+function switch_to_video(...args) {
+  switchToTab('Video');
+  return Array.from(arguments);
+}
+
 function switch_to_caption(...args) {
   switchToTab('Caption');
   return Array.from(arguments);

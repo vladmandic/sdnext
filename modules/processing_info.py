@@ -50,7 +50,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
         "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
         "Seed": all_seeds[index],
-        "Seed resize from": None if p.seed_resize_from_w == 0 or p.seed_resize_from_h == 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
+        "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
         "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else None,
         "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,

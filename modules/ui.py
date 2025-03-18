@@ -147,7 +147,7 @@ def create_ui(startup_timer = None):
             timer.startup.record("ui-control")
 
     with gr.Blocks(analytics_enabled=False) as video_interface:
-        if shared.native and shared.cmd_opts.experimental:
+        if shared.native:
             from modules import ui_video
             ui_video.create_ui()
             timer.startup.record("ui-video")
