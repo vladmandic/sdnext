@@ -2,19 +2,19 @@
 # docs: <https://github.com/vladmandic/sdnext/wiki/Docker>
 
 # base image
-FROM ubuntu:noble
+FROM intel/intel-extension-for-pytorch:2.6.10-xpu
 
 # metadata
 LABEL org.opencontainers.image.vendor="SD.Next"
-LABEL org.opencontainers.image.authors="disty0"
+LABEL org.opencontainers.image.authors="disty0,eleiton"
 LABEL org.opencontainers.image.url="https://github.com/vladmandic/sdnext/"
 LABEL org.opencontainers.image.documentation="https://github.com/vladmandic/sdnext/wiki/Docker"
 LABEL org.opencontainers.image.source="https://github.com/vladmandic/sdnext/"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
 LABEL org.opencontainers.image.title="SD.Next IPEX"
 LABEL org.opencontainers.image.description="SD.Next: Advanced Implementation of Stable Diffusion and other Diffusion-based generative image models"
-LABEL org.opencontainers.image.base.name="https://hub.docker.com/_/ubuntu:noble"
-LABEL org.opencontainers.image.version="latest"
+LABEL org.opencontainers.image.base.name="https://hub.docker.com/r/intel/intel-extension-for-pytorch"
+LABEL org.opencontainers.image.version="2.6.10-xpu"
 
 # essentials
 RUN apt-get update && \
@@ -25,29 +25,6 @@ RUN apt-get update && \
     wget \
     gpg \
     git
-
-# intel compute runtime
-RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-RUN echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble client" | tee /etc/apt/sources.list.d/intel-gpu-noble.list
-RUN apt-get update
-
-RUN apt-get install -y --no-install-recommends --fix-missing \
-    intel-opencl-icd \
-    libze-intel-gpu1 \
-    libze1
-
-# required by pytorch / ipex
-RUN apt-get install -y --no-install-recommends --fix-missing \
-    libgl1 \
-    libglib2.0-0 \
-    libgomp1
-
-# python3.12
-RUN apt-get install -y --no-install-recommends --fix-missing \
-    python3 \
-    python3-dev \
-    python3-venv \
-    python3-pip
 
 # jemalloc is not required but it is highly recommended (also used with optional ipexrun)
 RUN apt-get install -y --no-install-recommends --fix-missing libjemalloc-dev
@@ -81,7 +58,7 @@ ENV venv_dir="/mnt/python/venv"
 #ENV IPEXRUN=False
 
 # git clone and run sdnext
-RUN echo '#!/bin/bash\ngit status || git clone https://github.com/vladmandic/sdnext.git .\n/app/webui.sh "$@"' | tee /bin/startup.sh
+RUN echo '#!/bin/bash\ngit status || git clone https://github.com/vladmandic/sdnext.git .\npython /app/launch.py "$@"' | tee /bin/startup.sh
 RUN chmod 755 /bin/startup.sh
 
 # actually run sdnext
