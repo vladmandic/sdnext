@@ -156,7 +156,7 @@ def grid(x_file: str, y_file: str):
 
 if __name__ == "__main__":
     log.info(__file__)
-    parser = argparse.ArgumentParser(description = 'api-txt2img')
+    parser = argparse.ArgumentParser(description = 'api-grid')
     parser.add_argument('--x', type=str, required=False, default=None, help='file to use for x-axis values')
     parser.add_argument('--y', type=str, required=False, default=None, help='file to use for y-axis values')
     parser.add_argument('--folder', type=str, required=False, default='/tmp', help='folder to use for saving images')
