@@ -146,6 +146,12 @@ def create_ui(startup_timer = None):
             ui_control.create_ui()
             timer.startup.record("ui-control")
 
+    with gr.Blocks(analytics_enabled=False) as video_interface:
+        if shared.native and shared.cmd_opts.experimental:
+            from modules import ui_video
+            ui_video.create_ui()
+            timer.startup.record("ui-video")
+
     with gr.Blocks(analytics_enabled=False) as extras_interface:
         from modules import ui_postprocessing
         ui_postprocessing.create_ui()
@@ -398,7 +404,10 @@ def create_ui(startup_timer = None):
     interfaces = []
     interfaces += [(txt2img_interface, "Text", "txt2img")]
     interfaces += [(img2img_interface, "Image", "img2img")]
-    interfaces += [(control_interface, "Control", "control")] if control_interface is not None else []
+    if control_interface is not None:
+        interfaces += [(control_interface, "Control", "control")]
+    if video_interface is not None:
+        interfaces += [(video_interface, "Video", "video")]
     interfaces += [(extras_interface, "Process", "process")]
     interfaces += [(caption_interface, "Caption", "caption")]
     interfaces += [(gallery_interface, "Gallery", "gallery")]

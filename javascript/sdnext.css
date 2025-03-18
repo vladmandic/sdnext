@@ -99,20 +99,20 @@ button.custom-button { border-radius: var(--button-large-radius); padding: var(-
 #txt2img_gallery, #img2img_gallery { height: 50vh; }
 #control-result { background: var(--button-secondary-background-fill); padding: 0.2em; }
 #control-inputs { margin-top: 1em; }
-#txt2img_prompt_container, #img2img_prompt_container, #control_prompt_container { margin-right: var(--layout-gap) }
+#txt2img_prompt_container, #img2img_prompt_container, #control_prompt_container, #video_prompt_container { margin-right: var(--layout-gap) }
 #txt2img_footer, #img2img_footer, #control_footer { height: fit-content; display: none; }
 #txt2img_generate_box, #img2img_generate_box { gap: 0.5em; flex-wrap: unset; min-width: unset; width: 66.6%; }
 #control_generate_box { gap: 0.5em; flex-wrap: unset; min-width: unset; width: 100%; }
 #control_generate_box button:nth-child(1) { flex-grow: 2; }
 #control_generate_box button:nth-child(2) { flex-grow: 1; }
-#txt2img_actions_column, #img2img_actions_column, #control_actions_column { gap: 0.3em; height: fit-content; }
-#txt2img_generate_box>button, #img2img_generate_box>button, #control_generate_box>button, #txt2img_enqueue, #img2img_enqueue, #txt2img_enqueue>button, #img2img_enqueue>button { min-height: 44px !important; max-height: 44px !important; line-height: 1em; white-space: break-spaces; min-width: unset; }
+#txt2img_actions_column, #img2img_actions_column, #control_actions_column, #video_actions_column { gap: 0.3em; height: fit-content; }
+#txt2img_generate_box>button, #img2img_generate_box>button, #control_generate_box>button, #video_generate_box>button, #txt2img_enqueue, #img2img_enqueue, #txt2img_enqueue>button, #img2img_enqueue>button { min-height: 44px !important; max-height: 44px !important; line-height: 1em; white-space: break-spaces; min-width: unset; }
 #txt2img_enqueue_wrapper, #img2img_enqueue_wrapper, #control_enqueue_wrapper { min-width: unset !important; width: 31%; }
 #txt2img_generate_line2, #img2img_generate_line2, #txt2img_tools, #img2img_tools, #control_generate_line2, #control_tools { display: flex; }
 #txt2img_generate_line2>button, #img2img_generate_line2>button, #extras_generate_box>button, #control_generate_line2>button, #txt2img_tools>button, #img2img_tools>button, #control_tools>button { height: 2em; line-height: 0; font-size: var(--text-md);
   min-width: unset; display: block !important; }
-#txt2img_prompt, #txt2img_neg_prompt, #img2img_prompt, #img2img_neg_prompt, #control_prompt, #control_neg_prompt { display: contents; }
-#txt2img_actions_column, #img2img_actions_column, #control_actions { flex-flow: wrap; justify-content: space-between; }
+#txt2img_prompt, #txt2img_neg_prompt, #img2img_prompt, #img2img_neg_prompt, #control_prompt, #control_neg_prompt, #video_prompt, #video_neg_prompt { display: contents; }
+#txt2img_actions_column, #img2img_actions_column, #control_actions, #video_actions { flex-flow: wrap; justify-content: space-between; }
 
 .interrogate { position: absolute; right: 2.8em; top: 0.2em; max-width: fit-content; background: none !important; z-index: 50; font-size: 1.5em !important; }
 .interrogate:hover { background: var(--button-primary-background-fill-hover) !important; }
@@ -139,6 +139,11 @@ div#extras_scale_to_tab div.form { flex-direction: row; }
 #txt2img_hdr_color_row > div { min-width: unset !important; max-width: unset !important; }
 #txt2img_advanced_options, #img2img_advanced_options, #control_advanced_options { min-width: 100%; }
 #txt2img_advanced_options .gradio-checkbox, #img2img_advanced_options .gradio-checkbox, #control_advanced_options .gradio-checkbox { min-width: unset !important; max-width: fit-content; }
+
+#txt2img_prompt, #txt2img_neg_prompt, #img2img_prompt, #img2img_neg_prompt, #control_prompt, #control_neg_prompt, #video_prompt, #video_neg_prompt { background-color: var(--background-color); box-shadow: none !important; }
+#txt2img_prompt > label > textarea, #txt2img_neg_prompt > label > textarea, #img2img_prompt > label > textarea, #img2img_neg_prompt > label > textarea, #control_prompt > label > textarea, #control_neg_prompt > label > textarea, #video_prompt > label > textarea, #video_neg_prompt > label > textarea { font-size: 1.0em; line-height: 1.4em; }
+#txt2img_styles, #img2img_styles, #control_styles, #video_styles { padding: 0; margin-top: 2px; }
+#txt2img_styles_refresh, #img2img_styles_refresh, #control_styles_refresh, #video_styles_refresh { padding: 0; margin-top: 1em; }
 
 /* settings */
 #si-sparkline-memo, #si-sparkline-load { background-color: #111; }
@@ -388,7 +393,7 @@ div:has(>#tab-gallery-folders) { flex-grow: 0 !important; background-color: var(
       #txt2img_results, #extras_results, #txt2im g_footer p { text-wrap: wrap; max-width: 100% !important; } /* maintain side by side split on larger mobile displays for from text */
     }
     #scripts_alwayson_txt2img div, #scripts_alwayson_img2img div { max-width: 100%; }
-    #txt2img_prompt_container, #img2img_prompt_container, #control_prompt_container { resize: vertical !important; }
+    #txt2img_prompt_container, #img2img_prompt_container, #control_prompt_container, #video_prompt_container { resize: vertical !important; }
     #txt2img_generate_box, #txt2img_enqueue_wrapper { min-width: 100% !important;} /* make generate and enqueue buttons take up the entire width of their rows. */
     #img2img_toprow>div.gradio-column { flex-grow: 1 !important;} /*make interrogate buttons take up appropriate space. */
     #img2img_actions_column { display: flex; min-width: fit-content !important; flex-direction: row;justify-content: space-evenly; align-items: center;}

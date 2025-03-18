@@ -240,6 +240,18 @@ function submit_control(...args) {
   return res;
 }
 
+function submit_video(...args) {
+  log('submitVideo');
+  clearGallery('video');
+  const id = randomId();
+  requestProgress(id, null, gradioApp().getElementById('video_gallery'));
+  const res = create_submit_args(args);
+  res[0] = id;
+  res[1] = window.submit_state;
+  window.submit_state = '';
+  return res;
+}
+
 function submit_postprocessing(...args) {
   log('SubmitExtras');
   clearGallery('extras');

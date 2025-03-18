@@ -4,28 +4,23 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- <https://github.com/KohakuBlueleaf/z-tipo-extension/pull/73>
-
 ## Future Candidates
 
 - Redesign postprocessing  
 - Flux NF4 loader: <https://github.com/huggingface/diffusers/issues/9996>  
 - IPAdapter negative: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Control API enhance scripts compatibility  
-- CogView4  
 
 ## Code TODO
 
-- flux: loader for civitai nf4 models (fixme)
-- hypertile: vae breaks when using non-standard sizes (fixme)
-- install: enable ROCm for windows when available (fixme)
-- lora make support quantized flux (fixme)
-- lora: add other quantization types (fixme)
-- model load: force-reloading entire model as loading transformers only leads to massive memory usage (fixme)
-- model loader: implement model in-memory caching (fixme)
-- modernui: monkey-patch for missing tabs.select event (fixme)
-- processing: remove duplicate mask params (fixme)
-- resize image: enable full VAE mode for resize-latent (fixme)
-- sana: fails when quantized (fixme)
-- support scripts via api (fixme)
-- transformer from-single-file with quant (fixme)
+- enable ROCm for windows when available
+- resize image: enable full VAE mode for resize-latent
+- infotext: handle using regex instead
+- processing: remove duplicate mask params
+- model loader: implement model in-memory caching
+- hypertile: vae breaks when using non-standard sizes
+- force-reloading entire model as loading transformers only leads to massive memory usage
+- add other quantization types
+- lora make support quantized flux
+- control: support scripts via api
+- modernui: monkey-patch for missing tabs.select event
