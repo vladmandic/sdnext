@@ -6,6 +6,7 @@
   - Gemma3 requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
   - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
   - HunyuanVideo-I2V: <https://github.com/huggingface/diffusers/issues/11118>
+  - LTXVideo condition input
 
 ### Highlights for 2025-03-17
 

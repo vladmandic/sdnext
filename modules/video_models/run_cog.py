@@ -11,23 +11,25 @@ def generate(*args, **kwargs):
     task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
-    if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
-        found = [model.name for model in models_def.models.get(engine, [])]
-        selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    found = [model.name for model in models_def.models.get(engine, [])]
+    selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    if not shared.sd_loaded or 'Cog' not in shared.sd_model.__class__.__name__:
         video_utils.load_model(selected)
-    if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded or 'Cog' not in shared.sd_model.__class__.__name__:
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 
     p = processing.StableDiffusionProcessingVideo(
         sd_model=shared.sd_model,
+        prompt=prompt,
+        negative_prompt=negative,
         styles=styles,
         seed=int(seed),
         sampler_name = processing.get_sampler_name(sampler_index),
         sampler_shift=float(sampler_shift),
         steps=int(steps),
-        width=16 * int(width // 16),
-        height=16 * int(height // 16),
+        width=8 * int(width // 8),
+        height=8 * int(height // 8),
         frames=int(frames),
         init_image=init_image,
         cfg_scale=float(guidance_scale),
@@ -50,29 +52,16 @@ def generate(*args, **kwargs):
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     devices.torch_gc(force=True)
 
-    # handle sampler and seed
+    # set args
+    processing.fix_seed(p)
+    video_utils.set_vae_params(p.frames, vae_tile_frames)
+    video_utils.set_prompt(p)
+    p.task_args['output_type'] = 'pil'
+    p.ops.append('video')
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift # todo video sampler dynamic shift
     shared.opts.data['schedulers_shift'] = sampler_shift
-
-    # handle vae
-    if vae_tile_frames > p.frames:
-        shared.sd_model.vae.tile_sample_min_num_frames = vae_tile_frames
-        shared.sd_model.vae.use_framewise_decoding = True
-        shared.sd_model.vae.enable_tiling()
-    else:
-        shared.sd_model.vae.use_framewise_decoding = False
-        shared.sd_model.vae.disable_tiling()
-
-    # set args
-    processing.fix_seed(p)
-    p.prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, p.styles)
-    p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(negative, p.styles)
-    p.task_args['prompt'] = p.prompt
-    p.task_args['negative_prompt'] = p.negative_prompt
-    p.task_args['output_type'] = 'pil'
-    p.ops.append('video')
     debug(f'Video: task_args={p.task_args}')
 
     # run processing
@@ -90,15 +79,13 @@ def generate(*args, **kwargs):
     shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
     shared.opts.data['schedulers_shift'] = orig_sampler_shift
     p.close()
+
+    # done
     if err:
         return video_utils.queue_err(err)
     if processed is None or len(processed.images) == 0:
         return video_utils.queue_err('processing failed')
     shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
-    if video_type != 'None':
-        video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
-    else:
-        video_file = None
-
+    video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
     generation_info_js = processed.js() if processed is not None else ''
     return processed.images, video_file, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)

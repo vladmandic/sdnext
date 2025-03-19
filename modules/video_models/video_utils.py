@@ -1,6 +1,6 @@
 import os
 import time
-from modules import shared, timer, sd_models, sd_checkpoint, model_quant, devices
+from modules import shared, errors, timer, sd_models, sd_checkpoint, model_quant, devices
 from modules.video_models import models_def
 
 
@@ -16,6 +16,32 @@ def get_quant(args):
     if args is not None and "quantization_config" in args:
         return args['quantization_config'].__class__.__name__
     return None
+
+
+def get_url(url):
+    return f'&nbsp <a href="{url}" target="_blank" rel="noopener noreferrer" style="color: var(--button-primary-background-fill); font-weight: normal">{url}</a><br>' if url else ''
+
+
+def set_prompt(p):
+    p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
+    p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+    p.task_args['prompt'] = p.prompt
+    p.task_args['negative_prompt'] = p.negative_prompt
+
+
+def set_vae_params(frames, tile_frames):
+    if tile_frames > frames:
+        if hasattr(shared.sd_model.vae, 'tile_sample_min_num_frames'):
+            shared.sd_model.vae.tile_sample_min_num_frames = tile_frames
+        if hasattr(shared.sd_model.vae, 'use_framewise_decoding'):
+            shared.sd_model.vae.use_framewise_decoding = True
+        if hasattr(shared.sd_model.vae, 'enable_tiling'):
+            shared.sd_model.vae.enable_tiling()
+    else:
+        if hasattr(shared.sd_model.vae, 'use_framewise_decoding'):
+            shared.sd_model.vae.use_framewise_decoding = False
+        if hasattr(shared.sd_model.vae, 'disable_tiling'):
+            shared.sd_model.vae.disable_tiling()
 
 
 def hijack_vae_decode(*args, **kwargs):
@@ -62,6 +88,7 @@ def load_model(selected: models_def.Model):
         )
     except Exception as e:
         shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
+        errors.display(e, 'video')
         text_encoder = None
 
     # transformer
@@ -77,6 +104,7 @@ def load_model(selected: models_def.Model):
         )
     except Exception as e:
         shared.log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
+        errors.display(e, 'video')
         transformer = None
 
     # model
@@ -91,6 +119,7 @@ def load_model(selected: models_def.Model):
         )
     except Exception as e:
         shared.log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')
+        errors.display(e, 'video')
 
     t1 = time.time()
     sd_models.set_diffuser_options(shared.sd_model)

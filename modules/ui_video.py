@@ -1,7 +1,7 @@
 import gradio as gr
 from modules import shared, sd_models, timer, images, ui_common, ui_sections, ui_symbols, call_queue, generation_parameters_copypaste
 from modules.ui_components import ToolButton
-from modules.video_models import models_def, video_utils, hunyuan, ltx
+from modules.video_models import models_def, video_utils
 
 
 def engine_change(engine):
@@ -12,6 +12,10 @@ def engine_change(engine):
 def model_change(engine, model):
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    yield ['Video model loading',
+            gr.update(visible='I2V' in selected.name) if selected else gr.update(visible=False),
+            video_utils.get_url(selected.url if selected else None),
+           ]
     if selected:
         if 'None' in selected.name:
             sd_models.unload_model_weights()
@@ -21,7 +25,10 @@ def model_change(engine, model):
     else:
         sd_models.unload_model_weights()
         msg = 'Video model unloaded'
-    return [msg, gr.update(visible='I2V' in selected.name) if selected else gr.update(visible=False)]
+    return [msg,
+            gr.update(visible='I2V' in selected.name) if selected else gr.update(visible=False),
+            video_utils.get_url(selected.url if selected else None),
+           ]
 
 
 def run_video(*args):
@@ -29,10 +36,20 @@ def run_video(*args):
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     if selected and 'Hunyuan' in selected.name:
-        return hunyuan.generate(*args)
+        from modules.video_models import run_hunyuan
+        return run_hunyuan.generate(*args)
     elif selected and 'LTX' in selected.name:
-        pass
-        # return ltx.generate(*args)
+        from modules.video_models import run_ltx
+        return run_ltx.generate(*args)
+    elif selected and 'Mochi' in selected.name:
+        from modules.video_models import run_mochi
+        return run_mochi.generate(*args)
+    elif selected and 'Cog' in selected.name:
+        from modules.video_models import run_cog
+        return run_cog.generate(*args)
+    elif selected and 'Allegro' in selected.name:
+        from modules.video_models import run_allegro
+        return run_allegro.generate(*args)
     shared.log.error(f'Video model not found: args={args}')
     return [], None, '', '', f'Video model not found: engine={engine} model={model}'
 
@@ -56,6 +73,8 @@ def create_ui():
                     engine = gr.Dropdown(label='Engine', choices=list(models_def.models), value='None', elem_id="video_engine")
                     model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
                 with gr.Row():
+                    url = gr.HTML(label='Model URL', elem_id='video_model_url', value='')
+                with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
                 with gr.Row():
                     frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
@@ -65,7 +84,7 @@ def create_ui():
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
-                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
+                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False)
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
@@ -95,7 +114,7 @@ def create_ui():
             random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
             # handle engine and model change
             engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, image_group])
+            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, image_group, url])
             # setup extra networks
             ui_extra_networks.setup_ui(extra_networks_ui, gallery)
 
