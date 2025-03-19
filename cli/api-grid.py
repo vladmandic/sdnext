@@ -131,8 +131,8 @@ def grid(x_file: str, y_file: str):
         for i in range(max(1, len(x))):
             if len(x) > i:
                 set_param(x[i])
-            if len(y) > i:
-                set_param(y[i])
+            if len(y) > j:
+                set_param(y[j])
             images = generate(i, j)
             if images is not None and len(images) > 0:
                 horizontal.extend(images)
