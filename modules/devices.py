@@ -319,9 +319,18 @@ def test_fp16():
     global fp16_ok # pylint: disable=global-statement
     if fp16_ok is not None:
         return fp16_ok
-    if sys.platform == "darwin" or backend == 'openvino': # override
-        fp16_ok = False
-        return fp16_ok
+    if opts.cuda_dtype != 'FP16': # don't override if the user sets it
+        if sys.platform == "darwin" or backend == 'openvino': # override
+            fp16_ok = False
+            return fp16_ok
+        elif backend == 'rocm':
+            # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
+            # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
+            agent = getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000")
+            agent_name = getattr(torch.cuda.get_device_properties(device), "name", "AMD Radeon RX 0000")
+            if agent == "gfx1102" or (agent == "gfx1100" and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):
+                fp16_ok = False
+                return fp16_ok
     try:
         x = torch.tensor([[1.5,.0,.0,.0]]).to(device=device, dtype=torch.float16)
         layerNorm = torch.nn.LayerNorm(4, eps=0.00001, elementwise_affine=True, dtype=torch.float16, device=device)

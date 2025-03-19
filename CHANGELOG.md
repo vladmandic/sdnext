@@ -51,12 +51,15 @@ Support for [CogView 4](https://huggingface.co/THUDM/CogView4-6B), new CLiP mode
   - update `diffusers` and other requirements   
   - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
 - **IPEX**
-  - add `--upgrade` to torch_command when using `--use-nightly` for *ipex* and *rocm*  
+  - add `--upgrade` to torch_command when using `--use-nightly`  
   - add xpu to profiler  
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
   - fix torch 2.7 compatibility  
   - fix performance with balanced offload  
   - fix triton and torch.compile  
+- **ROCm**
+  - add `--upgrade` to torch_command when using `--use-nightly`  
+  - disable fp16 for gfx1102 (rx 7600 and rx 7500 series) gpus  
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
