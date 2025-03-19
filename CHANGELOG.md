@@ -1,12 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-17
+## Update for 2025-03-19
 
 ### TODO
   - Gemma3 requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
   - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
   - HunyuanVideo-I2V: <https://github.com/huggingface/diffusers/issues/11118>
-  - LTXVideo condition input
+  - HunyuanVideo: Remote VAE
+  - HunyuanVideo: Tiny VAE
+  - LTXVideo-095: Condition input
+  - LTXVideo-095: Broken offloading
 
 ### Highlights for 2025-03-17
 
@@ -77,6 +80,7 @@ Support for [CogView 4](https://huggingface.co/THUDM/CogView4-6B), new CLiP mode
   - fix hires with latent upscale  
   - fix legacy diffusion latent upscalers  
   - fix upscaler selection in postprocessing  
+  - fix sd35 with batch processing  
 
 ## Update for 2025-02-28
 
