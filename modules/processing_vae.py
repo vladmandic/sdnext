@@ -293,9 +293,6 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
     if len(latents.shape) == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
-    if latents.shape[0] == 4 and latents.shape[1] != 4: # likely animatediff latent
-        latents = latents.permute(1, 0, 2, 3)
-
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()
     elif vae_type == 'Full' and hasattr(model, "vae"):

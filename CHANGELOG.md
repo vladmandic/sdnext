@@ -3,8 +3,9 @@
 ## Update for 2025-03-17
 
 ### TODO
-  - Gemma3 requires `git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
+  - Gemma3 requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
   - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
+  - HunyuanVideo-I2V: <https://github.com/huggingface/diffusers/issues/11118>
 
 ### Highlights for 2025-03-17
 
@@ -50,6 +51,7 @@ Support for [CogView 4](https://huggingface.co/THUDM/CogView4-6B), new CLiP mode
   - add quantization support to **CogView-3Plus**
   - update `diffusers` and other requirements   
   - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+  - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
 - **IPEX**
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - add xpu to profiler  

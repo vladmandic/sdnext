@@ -63,6 +63,12 @@ def hijack_encode_prompt(*args, **kwargs):
     return res
 
 
+def get_quant(args):
+    if args is not None and "quantization_config" in args:
+        return args['quantization_config'].__class__.__name__
+    return None
+
+
 def load(selected):
     if selected is None:
         return
@@ -75,7 +81,7 @@ def load(selected):
     quant_args = model_quant.create_config(module='Model')
     cls = diffusers.HunyuanVideoTransformer3DModel
     try:
-        debug(f'Video load: module=transofrmer repo="{selected.dit}" subfolder="{selected.subfolder}" cls={cls.__name__} quant={quant_args is not None}')
+        debug(f'Video load: module=transofrmer repo="{selected.dit}" subfolder="{selected.subfolder}" cls={cls.__name__} quant={get_quant(quant_args)}')
         transformer = cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit,
             subfolder=selected.subfolder,
@@ -92,7 +98,7 @@ def load(selected):
     else:
         cls = transformers.LlamaModel
     try:
-        debug(f'Video load: module=te repo="{selected.repo}" cls={cls.__name__} quant={quant_args is not None}')
+        debug(f'Video load: module=te repo="{selected.repo}" cls={cls.__name__} quant={get_quant(quant_args)}')
         text_encoder = cls.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             subfolder="text_encoder",
@@ -107,7 +113,7 @@ def load(selected):
 
     cls = transformers.CLIPTextModel
     try:
-        debug(f'Video load: module=clip repo="{selected.repo}" cls={cls.__name__} quant=False')
+        debug(f'Video load: module=clip repo="{selected.repo}" cls={cls.__name__} quant=None')
         text_encoder_2 = transformers.CLIPTextModel.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             subfolder="text_encoder_2",
@@ -119,7 +125,7 @@ def load(selected):
 
     cls = diffusers.AutoencoderKLHunyuanVideo
     try:
-        debug(f'Video load: module=vae repo="{selected.repo}" cls={cls.__name__} quant=False')
+        debug(f'Video load: module=vae repo="{selected.repo}" cls={cls.__name__} quant=None')
         vae = diffusers.AutoencoderKLHunyuanVideo.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             subfolder="vae",
@@ -136,7 +142,7 @@ def load(selected):
     else:
         cls = diffusers.HunyuanVideoPipeline
     try:
-        debug(f'Video load: module=pipe repo="{selected.repo}" cls={cls.__name__} quant=False')
+        debug(f'Video load: module=pipe repo="{selected.repo}" cls={cls.__name__} quant=None')
         shared.sd_model = cls.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             transformer=transformer,
@@ -205,6 +211,7 @@ def generate(*args, **kwargs):
             shared.log.error('Video: init image not set')
             return [], None, '', '', 'Error: init image not set'
         p.task_args['image'] = init_image
+        # from PIL import Image
         # p.task_args['image'] = init_image.resize((336, 336), Image.Resampling.LANCZOS)
 
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
