@@ -102,12 +102,14 @@ def merge(images: list[Image.Image], horizontal: bool, labels: list[str] = None)
 def grid(x_file: str, y_file: str):
     def set_param(line):
         param = line.split(':', maxsplit=1)
-        if param[0] == 'prompt':
-            options.prompt += f'{param[1]} ' # prompt is appended so its not overwritten
-        elif param[0] == 'lora':
-            options.prompt += f'<lora:{param[1]}> ' # lora is appended to prompt
+        k = param[0].strip()
+        v = param[1].strip() if len(param) > 1 else ''
+        if k == 'prompt':
+            options.prompt += f'{v} ' # prompt is appended so its not overwritten
+        elif k == 'lora':
+            options.prompt += f'<lora:{v}> ' # lora is appended to prompt
         else:
-            setattr(options, param[0].strip(), param[1].strip())
+            setattr(options, k, v)
 
     log.info(server)
     os.makedirs(server.folder, exist_ok=True)

@@ -4,7 +4,7 @@ import time
 import torch
 import transformers
 import diffusers
-from modules import shared, sd_models, sd_checkpoint, sd_samplers, processing, model_quant, devices, images, timer, ui_common
+from modules import shared, errors, sd_models, sd_checkpoint, sd_samplers, processing, model_quant, devices, images, timer, ui_common
 
 
 @dataclass
@@ -49,7 +49,7 @@ def hijack_decode(*args, **kwargs):
     res = shared.sd_model.vae.orig_decode(*args, **kwargs)
     t1 = time.time()
     timer.process.add('vae', t1-t0)
-    shared.log.debug(f'Video: vae={vae.__class__.__name__} tile={vae.tile_sample_min_width}:{vae.tile_sample_min_height}:{vae.tile_sample_min_num_frames} stride={vae.tile_sample_stride_width}:{vae.tile_sample_stride_height}:{vae.tile_sample_stride_num_frames} time={t1-t0:.2f}')
+    debug(f'Video: vae={vae.__class__.__name__} tile={vae.tile_sample_min_width}:{vae.tile_sample_min_height}:{vae.tile_sample_min_num_frames} stride={vae.tile_sample_stride_width}:{vae.tile_sample_stride_height}:{vae.tile_sample_stride_num_frames} time={t1-t0:.2f}')
     return res
 
 
@@ -58,7 +58,7 @@ def hijack_encode_prompt(*args, **kwargs):
     res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     t1 = time.time()
     timer.process.add('te', t1-t0)
-    shared.log.debug(f'Video: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
+    debug(f'Video: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     return res
 
@@ -98,6 +98,8 @@ def load(selected):
             subfolder="text_encoder",
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
+            # torch_dtype='auto', # special case as text and vision nested models have different dtypes
+            # attn_implementation="flash_attention_2", # testing different attention types
             **quant_args
         )
     except Exception as e:
@@ -203,6 +205,7 @@ def generate(*args, **kwargs):
             shared.log.error('Video: init image not set')
             return [], None, '', '', 'Error: init image not set'
         p.task_args['image'] = init_image
+        # p.task_args['image'] = init_image.resize((336, 336), Image.Resampling.LANCZOS)
 
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     devices.torch_gc(force=True)
@@ -234,7 +237,7 @@ def generate(*args, **kwargs):
     p.task_args['generator'] = torch.manual_seed(p.seed)
     p.task_args['guidance_scale'] = p.cfg_scale
     p.task_args['true_cfg_scale'] = p.diffusers_guidance_rescale
-    p.task_args['prompt_template'] = prompt_template
+    # p.task_args['prompt_template'] = prompt_template # t2v and i2v have different templates
     p.task_args['output_type'] = 'pil'
     p.task_args['prompt'] = p.prompt
     p.task_args['negative_prompt'] = p.negative_prompt
@@ -245,13 +248,20 @@ def generate(*args, **kwargs):
     shared.state.disable_preview = True
     shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
     t0 = time.time()
-    processed = processing.process_images(p)
+    try:
+        processed = processing.process_images(p)
+    except Exception as e:
+        shared.log.error(f'Video: exception={e}')
+        errors.display(e, 'video')
+        processed = None
+        shared.state.disable_preview = False
+        return [], None, '', '', str(e)
     t1 = time.time()
     shared.state.disable_preview = False
 
     p.close()
     if processed is None or len(processed.images) == 0:
-        return [], None, '', '', 'Error: processing failed'
+        return [], None, '', '', 'Video: processing failed'
     shared.log.info(f'Video: frames={len(processed.images)} time={t1-t0:.2f}')
     if video_type != 'None':
         video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)

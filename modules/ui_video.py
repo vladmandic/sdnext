@@ -78,7 +78,7 @@ def create_ui():
                 with gr.Row():
                     with gr.Group(visible=False, elem_id='video_init_image') as image_group:
                         gr.HTML("<br>&nbsp Init image")
-                        init_image = gr.Image(elem_id="video_image", show_label=False, source="upload", interactive=True, type="pil", tool="select", image_mode="RGB", height=512)
+                        init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
                 with gr.Row():
                     save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
                 with gr.Row():
@@ -91,7 +91,7 @@ def create_ui():
                     with gr.Tab('Frames', id='out-gallery'):
                         gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
                     with gr.Tab('Video', id='out-video'):
-                        video = gr.Video(label="Output", show_label=False, elem_id='control_output_video', elem_classes=['control-image'])
+                        video = gr.Video(label="Output", show_label=False, elem_id='control_output_video', elem_classes=['control-image'], height=512, autoplay=False)
 
             # connect reuse seed button
             ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
