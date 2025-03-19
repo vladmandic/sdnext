@@ -71,8 +71,10 @@ def process_base(p: processing.StableDiffusionProcessing):
         eta=shared.opts.scheduler_eta,
         guidance_scale=p.cfg_scale,
         guidance_rescale=p.diffusers_guidance_rescale,
+        true_cfg_scale=p.diffusers_guidance_rescale,
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
+        num_frames=getattr(p, 'frames', None),
         output_type='latent',
         clip_skip=p.clip_skip,
         desc='Base',
@@ -364,7 +366,7 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             else:
                 width = getattr(p, 'width', 0)
                 height = getattr(p, 'height', 0)
-            frames = p.task_args.get('num_frames', None)
+            frames = p.task_args.get('num_frames', None) or getattr(p, 'frames', None)
             if isinstance(output.images, list):
                 results = []
                 for i in range(len(output.images)):

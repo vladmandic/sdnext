@@ -1,30 +1,23 @@
-# TODO hunyuanvideo: prompt_template, lora
-# TODO hunyuanvideo: teacache, pab, fastercache, paraattention, perflow
-# TODO modernui video tab
-
 import gradio as gr
 from modules import shared, sd_models, timer, images, ui_common, ui_sections, ui_symbols, call_queue, generation_parameters_copypaste
 from modules.ui_components import ToolButton
-from modules.video_models import hunyuan
+from modules.video_models import models_def, video_utils, hunyuan, ltx
 
 
 def engine_change(engine):
-    found = [model.name for model in hunyuan.models.get(engine, [])]
+    found = [model.name for model in models_def.models.get(engine, [])]
     return gr.update(choices=found, value=found[0] if len(found) > 0 else None)
 
 
 def model_change(engine, model):
-    found = [model.name for model in hunyuan.models.get(engine, [])]
-    selected = [m for m in hunyuan.models[engine] if m.name == model][0] if len(found) > 0 else None
+    found = [model.name for model in models_def.models.get(engine, [])]
+    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     if selected:
         if 'None' in selected.name:
             sd_models.unload_model_weights()
             msg = 'Video model unloaded'
-        elif 'Hunyuan' in selected.name:
-            msg = hunyuan.load(selected)
-        elif model != 'None':
-            msg = f'Video model not found: engine={engine} model={model}'
-            shared.log.error(msg)
+        else:
+            msg = video_utils.load_model(selected)
     else:
         sd_models.unload_model_weights()
         msg = 'Video model unloaded'
@@ -33,10 +26,13 @@ def model_change(engine, model):
 
 def run_video(*args):
     engine, model = args[2], args[3]
-    found = [model.name for model in hunyuan.models.get(engine, [])]
-    selected = [m for m in hunyuan.models[engine] if m.name == model][0] if len(found) > 0 else None
+    found = [model.name for model in models_def.models.get(engine, [])]
+    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     if selected and 'Hunyuan' in selected.name:
         return hunyuan.generate(*args)
+    elif selected and 'LTX' in selected.name:
+        pass
+        # return ltx.generate(*args)
     shared.log.error(f'Video model not found: args={args}')
     return [], None, '', '', f'Video model not found: engine={engine} model={model}'
 
@@ -57,7 +53,7 @@ def create_ui():
             with gr.Column(variant='compact', elem_id="video_settings", scale=1):
 
                 with gr.Row():
-                    engine = gr.Dropdown(label='Engine', choices=list(hunyuan.models), value='None', elem_id="video_engine")
+                    engine = gr.Dropdown(label='Engine', choices=list(models_def.models), value='None', elem_id="video_engine")
                     model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
@@ -69,6 +65,7 @@ def create_ui():
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
+                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
@@ -86,7 +83,7 @@ def create_ui():
                 override_settings = ui_common.create_override_inputs('video')
 
             # output panel with gallery and video tabs
-            with gr.Column(elem_id='video-output-column', scale=3) as _column_output:
+            with gr.Column(elem_id='video-output-column', scale=2) as _column_output:
                 with gr.Tabs(elem_classes=['video-output-tabs'], elem_id='video-output-tabs'):
                     with gr.Tab('Frames', id='out-gallery'):
                         gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
@@ -124,7 +121,7 @@ def create_ui():
             width, height,
             frames,
             steps, sampler_index,
-            sampler_shift,
+            sampler_shift, dynamic_shift,
             seed,
             guidance_scale, guidance_true,
             init_image,

@@ -11,6 +11,7 @@ from modules.teacache.teacache_ltx import teacache_forward
 repos = {
     '0.9.0': 'a-r-r-o-w/LTX-Video-diffusers',
     '0.9.1': 'a-r-r-o-w/LTX-Video-0.9.1-diffusers',
+    '0.9.5': 'Lightricks/LTX-Video-0.9.5',
     'custom': None,
 }
 
@@ -31,7 +32,6 @@ def load_quants(kwargs, repo_id):
 
 def hijack_decode(*args, **kwargs):
     t0 = time.time()
-    # vae: diffusers.AutoencoderKLHunyuanVideo = shared.sd_model.vae
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
     res = shared.sd_model.vae.orig_decode(*args, **kwargs)
     t1 = time.time()

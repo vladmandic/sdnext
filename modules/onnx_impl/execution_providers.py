@@ -107,10 +107,14 @@ def install_execution_provider(ep: ExecutionProvider):
     elif ep == ExecutionProvider.OpenVINO:
         packages.append("openvino")
         packages.append("onnxruntime-openvino")
+    log.info(f'ONNX install: {packages}')
     for package in packages:
         res += install(package)
     res += '</pre><br>'
     res += 'Server restart required'
     log.info("Server restart required")
-    importlib.reload(ort)
+    try:
+        importlib.reload(ort)
+    except Exception:
+        pass
     return res

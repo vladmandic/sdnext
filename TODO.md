@@ -4,6 +4,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- Video tab:
+  - remote vae
+  - tiny vae
+  - lora
+  - accelerators: teacache, pab, fastercache, paraattention, perflow
+  - modernui tab
+- Detailer daemon: https://github.com/muerrilla/sd-webui-detail-daemon/blob/main/scripts/detail_daemon.py
+
 ## Future Candidates
 
 - Redesign postprocessing  
