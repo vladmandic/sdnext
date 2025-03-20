@@ -10,10 +10,10 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 def load_model(selected: models_def.Model):
     if selected is None:
-        return
+        return ''
     global loaded_model # pylint: disable=global-statement
     if loaded_model == selected.name:
-        return
+        return ''
     sd_models.unload_model_weights()
     t0 = time.time()
 

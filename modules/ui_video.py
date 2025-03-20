@@ -50,6 +50,9 @@ def run_video(*args):
     elif selected and 'Allegro' in selected.name:
         from modules.video_models import run_allegro
         return run_allegro.generate(*args)
+    elif selected and 'WAN' in selected.name:
+        from modules.video_models import run_wan
+        return run_wan.generate(*args)
     shared.log.error(f'Video model not found: args={args}')
     return [], None, '', '', f'Video model not found: engine={engine} model={model}'
 

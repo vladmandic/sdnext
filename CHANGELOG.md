@@ -26,7 +26,7 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
     old scripts are still present, but will be removed in the future  
   - support for all latest models:  
     - [Hunyuan](https://huggingface.co/Tencent/HunyuanVideo): *HunyuanVideo, FastHunyuan, SkyReels* | *T2V, I2V*  
-    - [WAN21](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers): *1.3B, 13B* | *T2V, I2V*  
+    - [WAN21](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers): *1.3B, 14B* | *T2V, I2V*  
     - [LTXVideo](https://huggingface.co/Lightricks/LTX-Video): *0.9.0, 0.9.1, 0.9.5* | *T2V, I2V*  
     - [CogVideoX](https://huggingface.co/THUDM/CogVideoX-5b): *2B, 5B* | *T2V, I2V*  
     - [Allegro](https://huggingface.co/rhymes-ai/Allegro): *T2V*  
