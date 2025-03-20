@@ -2,21 +2,49 @@
 
 ## Update for 2025-03-19
 
-### TODO
-  - Gemma3 requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`
-  - Remote VAE encode for SD15 and Flux.1: <https://github.com/huggingface/diffusers/issues/11069>
-  - HunyuanVideo-I2V: <https://github.com/huggingface/diffusers/issues/11118>
-  - HunyuanVideo: Remote VAE
-  - HunyuanVideo: Tiny VAE
-  - LTXVideo-095: Condition input
-  - LTXVideo-095: Broken offloading
+### ToDo/Limitations
 
-### Highlights for 2025-03-17
+  - VLM Gemma3: requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`  
+  - VAE Remote encode: SD15 and Flux.1 issues: <https://github.com/huggingface/diffusers/issues/11069>  
+  - Video: ModernUI support is TBD  
+  - Video: API support is TBD  
+  - Video: Wiki page is TBD  
+  - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
+  - Video: LTXVideo-095 support for conditioned input  
+  - Video: LTXVideo-095 support for offloading  
 
-Support for [CogView 4](https://huggingface.co/THUDM/CogView4-6B), new CLiP models, improvements to remote VAE, additional docs/guides.
+### Highlights for 2025-03-20
 
-### Details for 2025-03-17
+Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1** and more!  
+Plus support for CogView-4, new CLiP models, improvements to remote VAE, additional docs/guides.
 
+### Details for 2025-03-20
+
+- **Video tab**
+  - initial release so consider this as alpha version    
+  - new top-level tab, replaces previous *video* script in text/image tabs  
+    old scripts are still present, but will be removed in the future  
+  - support for all latest models:  
+    - [Hunyuan](https://huggingface.co/Tencent/HunyuanVideo): *HunyuanVideo, FastHunyuan, SkyReels* | *T2V, I2V*  
+    - [WAN21](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers): *1.3B, 13B* | *T2V, I2V*  
+    - [LTXVideo](https://huggingface.co/Lightricks/LTX-Video): *0.9.0, 0.9.1, 0.9.5* | *T2V, I2V*  
+    - [CogVideoX](https://huggingface.co/THUDM/CogVideoX-5b): *2B, 5B* | *T2V, I2V*  
+    - [Allegro](https://huggingface.co/rhymes-ai/Allegro): *T2V*  
+    - [Mochi1](https://huggingface.co/genmo/mochi-1-preview): *T2V*  
+  - decoding:  
+    - **Default**: use vae from model  
+    - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
+    - **Remote VAE**: support for *Hunyuan*  
+  - **LoRA**: support for *Hunyuan, LTX, WAN, Mochi, Cog*  
+  - additional key points:  
+    - all models are auto-downloaded upon first use  
+    - optional video interpolation while creating video files  
+    - optional video preview in ui  
+    - support for balanced offloading and model offloading  
+    - on-the-fly quantization: *BnB, Quanto, TorchAO*  
+    - different video models support different video resolutions, frame counts, etc.  
+      and may require specific settings - see model links for details  
+    - see *ToDo/Limitations* section for additional notes
 - **Models**  
   - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
     new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  

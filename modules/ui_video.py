@@ -1,7 +1,7 @@
 import gradio as gr
 from modules import shared, sd_models, timer, images, ui_common, ui_sections, ui_symbols, call_queue, generation_parameters_copypaste
 from modules.ui_components import ToolButton
-from modules.video_models import models_def, video_utils
+from modules.video_models import models_def, video_utils, video_load
 
 
 def engine_change(engine):
@@ -21,7 +21,7 @@ def model_change(engine, model):
             sd_models.unload_model_weights()
             msg = 'Video model unloaded'
         else:
-            msg = video_utils.load_model(selected)
+            msg = video_load.load_model(selected)
     else:
         sd_models.unload_model_weights()
         msg = 'Video model unloaded'
@@ -84,7 +84,7 @@ def create_ui():
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
-                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False)
+                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False) # TODO video: dynamic shift
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")

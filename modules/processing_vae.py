@@ -239,6 +239,8 @@ def vae_postprocess(tensor, model, output_type='np'):
             if len(tensor.shape) == 3 and tensor.shape[0] == 3:
                 tensor = tensor.unsqueeze(0)
             if hasattr(model, 'video_processor'):
+                if len(tensor.shape) == 6 and tensor.shape[1] == 1:
+                    tensor = tensor.squeeze(0)
                 images = model.video_processor.postprocess_video(tensor, output_type='pil')
             elif hasattr(model, 'image_processor'):
                 images = model.image_processor.postprocess(tensor, output_type=output_type)

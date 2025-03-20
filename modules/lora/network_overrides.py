@@ -30,8 +30,14 @@ force_models = [ # forced always
     'sc',
     'kandinsky',
     'hunyuandit',
-    'hunyuanvideo',
     'auraflow',
+    # video models
+    'hunyuanvideo',
+    'cogvideo',
+    'wanvideo',
+    'ltxvideo',
+    'mochivideo',
+    'allegrovideo',
 ]
 
 force_classes = [ # forced always

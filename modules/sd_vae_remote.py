@@ -38,11 +38,14 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
         return tensors
     t0 = time.time()
     modelloader.hf_login()
-    latents = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
+    latent_copy = latents.detach().clone().to(device=devices.cpu, dtype=devices.dtype)
+    latent_copy = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
+    if model_type == 'hunyuanvideo':
+        latent_copy = latent_copy.unsqueeze(0)
 
-    for i in range(latents.shape[0]):
+    for i in range(latent_copy.shape[0]):
         try:
-            latent = latents[i].detach().clone().to(device=devices.cpu, dtype=devices.dtype)
+            latent = latent_copy[i]
             if model_type != 'f1':
                 latent = latent.unsqueeze(0)
             params = {
@@ -51,7 +54,12 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 "dtype": str(latent.dtype).split(".", maxsplit=1)[-1],
             }
             headers = { "Content-Type": "tensor/binary" }
-            if shared.opts.remote_vae_type == 'png':
+            if 'video' in model_type:
+                params["partial_postprocess"] = False
+                params["output_type"] = "pt"
+                params["output_tensor_type"] = "binary"
+                headers["Accept"] = "tensor/binary"
+            elif shared.opts.remote_vae_type == 'png':
                 params["image_format"] = "png"
                 params["output_type"] = "pil"
                 headers["Accept"] = "image/png"
@@ -81,7 +89,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 shared.log.error(f'Decode: type="remote" model={model_type} code={response.status_code} shape={latent.shape} url="{url}" args={params} headers={response.headers} response={response.json()}')
             else:
                 content += len(response.content)
-                if shared.opts.remote_vae_type == 'raw':
+                if shared.opts.remote_vae_type == 'raw' or 'video' in model_type:
                     shape = json.loads(response.headers["shape"])
                     dtype = response.headers["dtype"]
                     tensor = torch.frombuffer(bytearray(response.content), dtype=dtypes[dtype]).reshape(shape)

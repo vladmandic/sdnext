@@ -10,7 +10,7 @@ from modules.timer import process as process_timer
 
 
 debug_move = shared.log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
-should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'hunyuanvideo', 'cogvideox', 'mochi', 'cogview4']
+should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
 offload_hook_instance = None
 balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']
 
@@ -66,7 +66,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     if not (hasattr(sd_model, "has_accelerate") and sd_model.has_accelerate):
         sd_model.has_accelerate = False
     if shared.opts.diffusers_offload_mode == "none":
-        if shared.sd_model_type in should_offload:
+        if shared.sd_model_type in should_offload or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
         else:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -183,7 +183,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return module
 
 
-def apply_balanced_offload(sd_model, exclude=[]):
+def apply_balanced_offload(sd_model=None, exclude=[]):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model

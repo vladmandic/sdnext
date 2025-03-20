@@ -1,7 +1,7 @@
 import os
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
-from modules.video_models import models_def, video_utils
+from modules.video_models import models_def, video_utils, video_load, video_vae
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -14,7 +14,7 @@ def generate(*args, **kwargs):
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
-        video_utils.load_model(selected)
+        video_load.load_model(selected)
     if not shared.sd_loaded or 'Hunyuan' not in shared.sd_model.__class__.__name__:
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
@@ -38,6 +38,9 @@ def generate(*args, **kwargs):
         vae_tile_frames=int(vae_tile_frames),
         override_settings=override_settings,
     )
+    if p.vae_type == 'Remote' and not selected.vae_remote:
+        shared.log.warning(f'Video: model={selected.name} remote vae not supported')
+        p.vae_type = 'Default'
     p.scripts = None
     p.script_args = None
     p.state = ui_state
@@ -54,13 +57,13 @@ def generate(*args, **kwargs):
 
     # set args
     processing.fix_seed(p)
-    video_utils.set_vae_params(p.frames, vae_tile_frames)
+    video_vae.set_vae_params(p)
     video_utils.set_prompt(p)
-    p.task_args['output_type'] = 'pil'
+    p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
     p.ops.append('video')
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
-    shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift # todo video sampler dynamic shift
+    shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
     shared.opts.data['schedulers_shift'] = sampler_shift
     debug(f'Video: task_args={p.task_args}')
 

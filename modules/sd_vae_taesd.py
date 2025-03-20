@@ -16,6 +16,9 @@ TAESD_MODELS = {
     'TAESD 1.2 Chocolate-Dipped Shortbread': { 'fn': 'taesd_12_', 'uri': 'https://github.com/madebyollin/taesd/raw/8909b44e3befaa0efa79c5791e4fe1c4d4f7884e', 'model': None },
     'TAESD 1.1 Fruit Loops': { 'fn': 'taesd_11_', 'uri': 'https://github.com/madebyollin/taesd/raw/3e8a8a2ab4ad4079db60c1c7dc1379b4cc0c6b31', 'model': None },
     'TAESD 1.0': { 'fn': 'taesd_10_', 'uri': 'https://github.com/madebyollin/taesd/raw/88012e67cf0454e6d90f98911fe9d4aef62add86', 'model': None },
+    'TAE HunyuanVideo': { 'fn': 'taehv.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taehv.pth', 'model': None },
+    'TAE WanVideo': { 'fn': 'taew1.pth', 'uri': 'https://github.com/madebyollin/taehv/raw/refs/heads/main/taew2_1.pth', 'model': None },
+    'TAE MochiVideo': { 'fn': 'taem1.pth', 'uri': 'https://github.com/madebyollin/taem1/raw/refs/heads/main/taem1.pth', 'model': None },
 }
 CQYAN_MODELS = {
     'Hybrid-Tiny SD': {
@@ -35,49 +38,63 @@ prev_model = ''
 lock = threading.Lock()
 
 
-def warn_once(msg):
+def warn_once(msg, variant=None):
     from modules import shared
+    variant = variant or shared.opts.taesd_variant
     global prev_warnings # pylint: disable=global-statement
     if not prev_warnings:
         prev_warnings = True
-        shared.log.error(f'Decode: type="taesd" variant="{shared.opts.taesd_variant}": {msg}')
+        shared.log.error(f'Decode: type="taesd" variant="{variant}": {msg}')
     return Image.new('RGB', (8, 8), color = (0, 0, 0))
 
 
-def get_model(model_type = 'decoder'):
+def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model # pylint: disable=global-statement
     from modules import shared
     cls = shared.sd_model_type
     if cls == 'ldm':
         cls = 'sd'
+    variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)
-    if 'sd' not in cls and 'f1' not in cls:
+    if 'video' in cls:
+        return None
+    if ('sd' not in cls) and ('f1' not in cls):
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
         return None
-    if shared.opts.taesd_variant.startswith('TAESD'):
-        cfg = TAESD_MODELS[shared.opts.taesd_variant]
-        if (cls == prev_cls) and (model_type == prev_type) and (shared.opts.taesd_variant == prev_model) and (cfg['model'] is not None):
+    if variant.startswith('TAESD'):
+        cfg = TAESD_MODELS[variant]
+        if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
         fn = os.path.join(folder, cfg['fn'] + cls + '_' + model_type + '.pth')
         if not os.path.exists(fn):
             uri = cfg['uri'] + '/tae' + cls + '_' + model_type + '.pth'
             try:
-                shared.log.info(f'Decode: type="taesd" variant="{shared.opts.taesd_variant}": uri="{uri}" fn="{fn}" download')
+                shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
                 torch.hub.download_url_to_file(uri, fn)
             except Exception as e:
                 warn_once(f'download uri={uri} {e}')
         if os.path.exists(fn):
             prev_cls = cls
             prev_type = model_type
-            prev_model = shared.opts.taesd_variant
-            shared.log.debug(f'Decode: type="taesd" variant="{shared.opts.taesd_variant}" fn="{fn}" load')
-            from modules.taesd.taesd import TAESD
-            TAESD_MODELS[shared.opts.taesd_variant]['model'] = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
-            return TAESD_MODELS[shared.opts.taesd_variant]['model']
-    elif shared.opts.taesd_variant.startswith('Hybrid'):
-        cfg = CQYAN_MODELS[shared.opts.taesd_variant].get(cls, None)
-        if (cls == prev_cls) and (model_type == prev_type) and (shared.opts.taesd_variant == prev_model) and (cfg['model'] is not None):
+            prev_model = variant
+            shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" load')
+            if 'TAEHV' in variant:
+                from modules.taesd.taehv import TAEHV
+                TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
+            if 'TAEW2' in variant:
+                from modules.taesd.taehv import TAEHV
+                TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
+            elif 'TAEM1' in variant:
+                from modules.taesd.taem1 import TAEM1
+                TAESD_MODELS[variant]['model'] = TAEM1(checkpoint_path=fn)
+            else:
+                from modules.taesd.taesd import TAESD
+                TAESD_MODELS[variant]['model'] = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
+            return TAESD_MODELS[variant]['model']
+    elif variant.startswith('Hybrid'):
+        cfg = CQYAN_MODELS[variant].get(cls, None)
+        if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
         if cfg is None:
             warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
@@ -85,8 +102,8 @@ def get_model(model_type = 'decoder'):
         repo = cfg['repo']
         prev_cls = cls
         prev_type = model_type
-        prev_model = shared.opts.taesd_variant
-        shared.log.debug(f'Decode: type="taesd" variant="{shared.opts.taesd_variant}" id="{repo}" load')
+        prev_model = variant
+        shared.log.debug(f'Decode: type="taesd" variant="{variant}" id="{repo}" load')
         dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
         if 'tiny' in repo:
             from diffusers.models import AutoencoderTiny
@@ -95,7 +112,7 @@ def get_model(model_type = 'decoder'):
             from modules.taesd.hybrid_small import AutoencoderSmall
             vae = AutoencoderSmall.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype)
         vae = vae.to(devices.device, dtype=dtype)
-        CQYAN_MODELS[shared.opts.taesd_variant][cls]['model'] = vae
+        CQYAN_MODELS[variant][cls]['model'] = vae
         return vae
     else:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
