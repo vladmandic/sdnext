@@ -38,10 +38,15 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
   - **LoRA**: support for *Hunyuan, LTX, WAN, Mochi, Cog*  
   - additional key points:  
     - all models are auto-downloaded upon first use  
+      uses *system paths -> huggingface* folder  
+    - support for many video types  
     - optional video interpolation while creating video files  
     - optional video preview in ui  
+      present if video output is selected  
     - support for balanced offloading and model offloading  
+      uses system settings  
     - on-the-fly quantization: *BnB, Quanto, TorchAO*  
+      uses system settings, granular for *transformer* and *text-encoder* separately
     - different video models support different video resolutions, frame counts, etc.  
       and may require specific settings - see model links for details  
     - see *ToDo/Limitations* section for additional notes
