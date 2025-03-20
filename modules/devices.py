@@ -52,7 +52,8 @@ def has_zluda() -> bool:
         return False
     try:
         dev = torch.device("cuda")
-        return torch.cuda.get_device_name(dev).endswith("[ZLUDA]")
+        cc = torch.cuda.get_device_capability(dev)
+        return cc == (8, 8)
     except Exception:
         return False
 
