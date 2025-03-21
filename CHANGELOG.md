@@ -6,12 +6,12 @@
 
   - VLM Gemma3: requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`  
   - VAE Remote encode: SD15 and Flux.1 issues: <https://github.com/huggingface/diffusers/issues/11069>  
-  - Video: ModernUI support is TBD  
   - Video: API support is TBD  
   - Video: Wiki page is TBD  
-  - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
+  - Video: LTXVideo-095 params
   - Video: LTXVideo-095 support for conditioned input  
   - Video: LTXVideo-095 support for offloading  
+  - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
   - Video: FasterCache and PyramidAttentionBroadcast granular config  
   - Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
   - Video: HunyuanVideo-I2V-16ch <https://github.com/huggingface/diffusers/pull/11066>

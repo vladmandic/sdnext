@@ -7,15 +7,20 @@ from modules.video_models import models_def, video_utils, video_load, video_vae,
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def generate(keyword, *args, **kwargs):
+def generate(*args, **kwargs):
     task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, faster_cache, pyramid_attention, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    if not shared.sd_loaded or keyword not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded:
+        debug('Video: model not yet loaded')
         video_load.load_model(selected)
-    if not shared.sd_loaded or keyword not in shared.sd_model.__class__.__name__:
+    if selected.name != video_load.loaded_model:
+        debug('Video: force reload')
+        video_load.load_model(selected)
+    if not shared.sd_loaded:
+        debug('Video: model still not loaded')
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 

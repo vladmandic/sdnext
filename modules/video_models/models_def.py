@@ -20,7 +20,7 @@ import transformers
 - LTXVideo 0.9.0 I2V: pass/pass/tbd
 
 - WAN 2.1 1.3B T2V: pass/pass/pass
-- WAN 2.1 14B T2V: pass/pass/fail, error loading shard
+- WAN 2.1 14B T2V: pass/pass/pass
 - WAN 2.1 14B I2V 480p: pass/pass/tbd
 - WAN 2.1 14B I2V 720p: pass/pass/tbd
 

@@ -50,19 +50,19 @@ def run_video(*args):
     debug(f'Video run: {str(selected)}')
     from modules.video_models import video_run
     if selected and 'Hunyuan' in selected.name:
-        return video_run.generate('Hunyuan', *args)
+        return video_run.generate(*args)
     elif selected and 'LTX' in selected.name:
-        return video_run.generate('LTX', *args)
+        return video_run.generate(*args)
     elif selected and 'Mochi' in selected.name:
-        return video_run.generate('Mochi', *args)
+        return video_run.generate(*args)
     elif selected and 'Cog' in selected.name:
-        return video_run.generate('Cog', *args)
+        return video_run.generate(*args)
     elif selected and 'Allegro' in selected.name:
-        return video_run.generate('Allegro', *args)
+        return video_run.generate(*args)
     elif selected and 'WAN' in selected.name:
-        return video_run.generate('Wan', *args)
+        return video_run.generate(*args)
     elif selected and 'Latte' in selected.name:
-        return video_run.generate('Latte', *args)
+        return video_run.generate(*args)
     return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
 
 
