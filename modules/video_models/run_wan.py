@@ -13,9 +13,9 @@ def generate(*args, **kwargs):
         return video_utils.queue_err('model not selected')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    if not shared.sd_loaded or 'WAN' not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded or 'Wan' not in shared.sd_model.__class__.__name__:
         video_load.load_model(selected)
-    if not shared.sd_loaded or 'WAN' not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded or 'Wan' not in shared.sd_model.__class__.__name__:
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 

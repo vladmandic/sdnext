@@ -26,7 +26,6 @@ def model_change(engine, model):
         sd_models.unload_model_weights()
         msg = 'Video model unloaded'
     return [msg,
-            gr.update(visible='I2V' in selected.name) if selected else gr.update(visible=False),
             video_utils.get_url(selected.url if selected else None),
            ]
 
@@ -84,24 +83,29 @@ def create_ui():
                     seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed", label='Random seed')
                     reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed", label='Reuse seed')
-                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
-                with gr.Row():
-                    sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
-                    dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False) # TODO video: dynamic shift
-                with gr.Row():
-                    guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
-                    guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
-                with gr.Row():
-                    vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
-                    vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
-                with gr.Row():
-                    with gr.Group(visible=False, elem_id='video_init_image') as image_group:
-                        gr.HTML("<br>&nbsp Init image")
-                        init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
-                with gr.Row():
-                    save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
-                with gr.Row():
-                    video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video')
+                with gr.Accordion(open=True, label="Parameters", elem_id='video_parameters_accordion'):
+                    steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
+                    with gr.Row():
+                        sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
+                        dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False) # TODO video: dynamic shift
+                    with gr.Row():
+                        guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
+                        guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
+                with gr.Accordion(open=True, label="Decode", elem_id='video_decode_accordion'):
+                    with gr.Row():
+                        vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
+                        vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
+                with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
+                    gr.HTML("<br>&nbsp Init image")
+                    init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
+                with gr.Accordion(open=False, label="Accelerate", elem_id='video_accelerate_accordion'):
+                    faster_cache = gr.Checkbox(label='FasterCache', value=False, elem_id="video_faster_cache")
+                    pyramid_attention = gr.Checkbox(label='PyramidAttention', value=False, elem_id="video_pyramid_attention")
+                with gr.Accordion(open=True, label="Output", elem_id='video_output_accordion'):
+                    with gr.Row():
+                        save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
+                    with gr.Row():
+                        video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video')
                 override_settings = ui_common.create_override_inputs('video')
 
             # output panel with gallery and video tabs
@@ -117,7 +121,7 @@ def create_ui():
             random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
             # handle engine and model change
             engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, image_group, url])
+            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, url])
             # setup extra networks
             ui_extra_networks.setup_ui(extra_networks_ui, gallery)
 

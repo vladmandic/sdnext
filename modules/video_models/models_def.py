@@ -139,6 +139,15 @@ models = {
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.MochiTransformer3DModel),
     ],
+    'Latte Video': [
+        Model(name='None'),
+        Model(name='Latte 1 T2V',
+              url='https://huggingface.co/maxin-cn/Latte-1',
+              repo='maxin-cn/Latte-1',
+              repo_cls=diffusers.LattePipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.LatteTransformer3DModel),
+    ],
     'Allegro Video': [
         Model(name='None'),
         Model(name='Allegro T2V',

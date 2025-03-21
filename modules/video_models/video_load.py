@@ -73,7 +73,8 @@ def load_model(selected: models_def.Model):
     if selected.te_hijack:
         shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
         shared.sd_model.encode_prompt = video_utils.hijack_encode_prompt
-    shared.sd_model.vae.enable_slicing()
+    if hasattr(shared.sd_model.vae, 'enable_slicing'):
+        shared.sd_model.vae.enable_slicing()
     loaded_model = selected.name
     msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     shared.log.info(msg)

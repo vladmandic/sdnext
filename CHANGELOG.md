@@ -12,6 +12,8 @@
   - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
   - Video: LTXVideo-095 support for conditioned input  
   - Video: LTXVideo-095 support for offloading  
+  - Video: FasterCache: https://github.com/huggingface/diffusers/pull/10163
+  - Video: PyramidAttention: https://github.com/huggingface/diffusers/pull/9562
 
 ### Highlights for 2025-03-20
 
@@ -31,6 +33,7 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
     - [CogVideoX](https://huggingface.co/THUDM/CogVideoX-5b): *2B, 5B* | *T2V, I2V*  
     - [Allegro](https://huggingface.co/rhymes-ai/Allegro): *T2V*  
     - [Mochi1](https://huggingface.co/genmo/mochi-1-preview): *T2V*  
+    - [Latte1](https://huggingface.co/maxin-cn/Latte-1): *T2V
   - decoding:  
     - **Default**: use vae from model  
     - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
