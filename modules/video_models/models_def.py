@@ -4,29 +4,35 @@ import transformers
 
 
 """
-Hunyuan Video T2V: pass/pass/pass
-Hunyuan Video I2V: pass/pass/pass, transformers incompatibility
-SkyReels Hunyuan T2V:
-SkyReels Hunyuan I2V:
-Fast Hunyuan T2V:
-LTXVideo 0.9.5 T2V:
-LTXVideo 0.9.5 I2V:
-LTXVideo 0.9.1 T2V:
-LTXVideo 0.9.1 I2V:
-LTXVideo 0.9.0 T2V:
-LTXVideo 0.9.0 I2V:
-WAN 2.1 1.3B T2V: pass/pass/pass
-WAN 2.1 14B T2V: pass/fail/fail, error loading shard
-WAN 2.1 14B I2V 480p:
-WAN 2.1 14B I2V 720p:
-Mochi 1 T2V: pass/pass/pass
-Latte 1 T2V: pass/fail/fail, float vs bfloat during generate
-Allegro T2V: pass/pass/fail, output is pure gray
-CogVideoX 1.0 2B T2V: pass/pass/pass
-CogVideoX 1.0 5B T2V:
-CogVideoX 1.0 5B I2V:
-CogVideoX 1.5 5B T2V: pass/pass/fail, output is pure black
-CogVideoX 1.5 5B I2V: pass/pass/pass
+# Model tests: download/load/generate
+
+- Hunyuan Video T2V: pass/pass/pass
+- Hunyuan Video I2V: pass/pass/fail, transformers incompatibility
+- SkyReels Hunyuan T2V: pass/pass/pass
+- SkyReels Hunyuan I2V: pass/pass/pass
+- Fast Hunyuan T2V: pass/pass/pass
+
+- LTXVideo 0.9.5 T2V: pass/pass/fail, v095 pipeline is tbd
+- LTXVideo 0.9.5 I2V: pass/pass/fail, v095 pipeline is tbd
+- LTXVideo 0.9.1 T2V: pass/pass/pass
+- LTXVideo 0.9.1 I2V: pass/pass/tbd
+- LTXVideo 0.9.0 T2V: pass/pass/pass
+- LTXVideo 0.9.0 I2V: pass/pass/tbd
+
+- WAN 2.1 1.3B T2V: pass/pass/pass
+- WAN 2.1 14B T2V: pass/pass/fail, error loading shard
+- WAN 2.1 14B I2V 480p: pass/pass/tbd
+- WAN 2.1 14B I2V 720p: pass/pass/tbd
+
+- CogVideoX 1.0 2B T2V: pass/pass/pass
+- CogVideoX 1.0 5B T2V: pass/pass/pass
+- CogVideoX 1.0 5B I2V: pass/pass/pass
+- CogVideoX 1.5 5B T2V: download/load/fail, v15 pipeline is tbd
+- CogVideoX 1.5 5B I2V: download/load/fail, v15 pipeline is tbd
+
+- Mochi 1 T2V: pass/pass/pass
+- Latte 1 T2V: pass/pass/fail, float vs bfloat during generate
+- Allegro T2V: pass/pass/fail, output is pure gray
 """
 
 @dataclass
@@ -80,6 +86,7 @@ models = {
               url='https://huggingface.co/Skywork/SkyReels-V1-Hunyuan-I2V',
               vae_remote=True,
               repo='hunyuanvideo-community/HunyuanVideo',
+              repo_cls=diffusers.HunyuanSkyreelsImageToVideoPipeline,
               te_cls=transformers.LlamaModel,
               dit='Skywork/SkyReels-V1-Hunyuan-I2V',
               dit_folder=None,
