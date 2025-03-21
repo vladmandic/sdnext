@@ -186,6 +186,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     for k, v in args.copy().items():
         if v is None:
             del args[k]
+        if type(v) is float or type(v) is int:
+            if v <= -1:
+                del args[k]
         if isinstance(v, str):
             if len(v) == 0 or v == '0x0':
                 del args[k]

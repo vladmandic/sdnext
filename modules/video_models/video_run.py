@@ -1,21 +1,21 @@
 import os
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
-from modules.video_models import models_def, video_utils, video_load, video_vae
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_cache
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def generate(*args, **kwargs):
-    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, override_settings = args
+def generate(keyword, *args, **kwargs):
+    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, faster_cache, pyramid_attention, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    if not shared.sd_loaded or 'Allegro' not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded or keyword not in shared.sd_model.__class__.__name__:
         video_load.load_model(selected)
-    if not shared.sd_loaded or 'Allegro' not in shared.sd_model.__class__.__name__:
+    if not shared.sd_loaded or keyword not in shared.sd_model.__class__.__name__:
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 
@@ -28,8 +28,8 @@ def generate(*args, **kwargs):
         sampler_name = processing.get_sampler_name(sampler_index),
         sampler_shift=float(sampler_shift),
         steps=int(steps),
-        width=8 * int(width // 8),
-        height=8 * int(height // 8),
+        width=16 * int(width // 16),
+        height=16 * int(height // 16),
         frames=int(frames),
         init_image=init_image,
         cfg_scale=float(guidance_scale),
@@ -38,6 +38,9 @@ def generate(*args, **kwargs):
         vae_tile_frames=int(vae_tile_frames),
         override_settings=override_settings,
     )
+    if p.vae_type == 'Remote' and not selected.vae_remote:
+        shared.log.warning(f'Video: model={selected.name} remote vae not supported')
+        p.vae_type = 'Default'
     p.scripts = None
     p.script_args = None
     p.state = ui_state
@@ -55,8 +58,9 @@ def generate(*args, **kwargs):
     # set args
     processing.fix_seed(p)
     video_vae.set_vae_params(p)
+    video_cache.set_cache(faster_cache=faster_cache, pyramid_attention_broadcast=pyramid_attention)
     video_utils.set_prompt(p)
-    p.task_args['output_type'] = 'pil'
+    p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
     p.ops.append('video')
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift

@@ -1,59 +1,69 @@
+import os
 import gradio as gr
 from modules import shared, sd_models, timer, images, ui_common, ui_sections, ui_symbols, call_queue, generation_parameters_copypaste
 from modules.ui_components import ToolButton
-from modules.video_models import models_def, video_utils, video_load
+from modules.video_models import models_def, video_utils
+
+
+debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def engine_change(engine):
+    debug(f'Video change: engine="{engine}"')
     found = [model.name for model in models_def.models.get(engine, [])]
     return gr.update(choices=found, value=found[0] if len(found) > 0 else None)
 
 
 def model_change(engine, model):
+    debug(f'Video change: engine="{engine}" model="{model}"')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    yield ['Video model loading',
-            gr.update(visible='I2V' in selected.name) if selected else gr.update(visible=False),
-            video_utils.get_url(selected.url if selected else None),
-           ]
+    return video_utils.get_url(selected.url if selected else None)
+
+
+def model_load(engine, model):
+    debug(f'Video load: engine="{engine}" model="{model}"')
+    found = [model.name for model in models_def.models.get(engine, [])]
+    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    yield f'Video model loading: {selected.name}'
     if selected:
         if 'None' in selected.name:
             sd_models.unload_model_weights()
             msg = 'Video model unloaded'
         else:
+            from modules.video_models import video_load
             msg = video_load.load_model(selected)
     else:
         sd_models.unload_model_weights()
         msg = 'Video model unloaded'
-    return [msg,
-            video_utils.get_url(selected.url if selected else None),
-           ]
+    yield msg
+    return msg
 
 
 def run_video(*args):
     engine, model = args[2], args[3]
+    debug(f'Video run: engine="{engine}" model="{model}"')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    if not selected or engine is None or model is None or engine == 'None' or model == 'None':
+        return video_utils.queue_err('model not selected')
+    debug(f'Video run: {str(selected)}')
+    from modules.video_models import video_run
     if selected and 'Hunyuan' in selected.name:
-        from modules.video_models import run_hunyuan
-        return run_hunyuan.generate(*args)
+        return video_run.generate('Hunyuan', *args)
     elif selected and 'LTX' in selected.name:
-        from modules.video_models import run_ltx
-        return run_ltx.generate(*args)
+        return video_run.generate('LTX', *args)
     elif selected and 'Mochi' in selected.name:
-        from modules.video_models import run_mochi
-        return run_mochi.generate(*args)
+        return video_run.generate('Mochi', *args)
     elif selected and 'Cog' in selected.name:
-        from modules.video_models import run_cog
-        return run_cog.generate(*args)
+        return video_run.generate('Cog', *args)
     elif selected and 'Allegro' in selected.name:
-        from modules.video_models import run_allegro
-        return run_allegro.generate(*args)
+        return video_run.generate('Allegro', *args)
     elif selected and 'WAN' in selected.name:
-        from modules.video_models import run_wan
-        return run_wan.generate(*args)
-    shared.log.error(f'Video model not found: args={args}')
-    return [], None, '', '', f'Video model not found: engine={engine} model={model}'
+        return video_run.generate('Wan', *args)
+    elif selected and 'Latte' in selected.name:
+        return video_run.generate('Latte', *args)
+    return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
 
 
 def create_ui():
@@ -74,23 +84,25 @@ def create_ui():
                 with gr.Row():
                     engine = gr.Dropdown(label='Engine', choices=list(models_def.models), value='None', elem_id="video_engine")
                     model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
+                    btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load", label='Load model')
                 with gr.Row():
-                    url = gr.HTML(label='Model URL', elem_id='video_model_url', value='')
-                with gr.Row():
-                    width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
-                with gr.Row():
-                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
-                    seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
-                    random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed", label='Random seed')
-                    reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed", label='Reuse seed')
+                    url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
+                with gr.Accordion(open=True, label="Size", elem_id='video_size_accordion'):
+                    with gr.Row():
+                        width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
+                    with gr.Row():
+                        frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
+                        seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
+                        random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed", label='Random seed')
+                        reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed", label='Reuse seed')
                 with gr.Accordion(open=True, label="Parameters", elem_id='video_parameters_accordion'):
                     steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                     with gr.Row():
-                        sampler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0, elem_id="video_scheduler_shift")
-                        dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift", interactive=False) # TODO video: dynamic shift
+                        sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
+                        dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")
                     with gr.Row():
-                        guidance_scale = gr.Slider(label='Guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=6.0, elem_id="video_guidance_scale")
-                        guidance_true = gr.Slider(label='True guidance', minimum=0.0, maximum=14.0, step=0.1, value=1.0, elem_id="video_guidance_true")
+                        guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
+                        guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
                 with gr.Accordion(open=True, label="Decode", elem_id='video_decode_accordion'):
                     with gr.Row():
                         vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
@@ -121,7 +133,8 @@ def create_ui():
             random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
             # handle engine and model change
             engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-            model.change(fn=model_change, inputs=[engine, model], outputs=[html_log, url])
+            model.change(fn=model_change, inputs=[engine, model], outputs=[url])
+            btn_load.click(fn=model_load, inputs=[engine, model], outputs=[html_log])
             # setup extra networks
             ui_extra_networks.setup_ui(extra_networks_ui, gallery)
 
@@ -154,6 +167,7 @@ def create_ui():
             vae_type, vae_tile_frames,
             save_frames,
             video_type, video_duration, video_loop, video_pad, video_interpolate,
+            faster_cache, pyramid_attention,
             override_settings,
         ]
         # generate function

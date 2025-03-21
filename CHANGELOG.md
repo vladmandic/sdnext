@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-19
+## Update for 2025-03-21
 
 ### ToDo/Limitations
 
@@ -12,15 +12,19 @@
   - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
   - Video: LTXVideo-095 support for conditioned input  
   - Video: LTXVideo-095 support for offloading  
-  - Video: FasterCache: https://github.com/huggingface/diffusers/pull/10163
-  - Video: PyramidAttention: https://github.com/huggingface/diffusers/pull/9562
+  - Video: FasterCache and PyramidAttentionBroadcast granular config  
+  - Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
+  - Video: HunyuanVideo-I2V-16ch <https://github.com/huggingface/diffusers/pull/11066>
+  - Video: CogVideo-15 support
 
-### Highlights for 2025-03-20
+### Highlights for 2025-03-21
 
-Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1** and more!  
-Plus support for CogView-4, new CLiP models, improvements to remote VAE, additional docs/guides.
+Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1**  
+And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
 
-### Details for 2025-03-20
+Plus support for CogView-4, new CLiP models, improvements to remote VAE, additional docs/guides  
+
+### Details for 2025-03-21
 
 - **Video tab**
   - initial release so consider this as alpha version    
@@ -39,6 +43,9 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
     - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
     - **Remote VAE**: support for *Hunyuan*  
   - **LoRA**: support for *Hunyuan, LTX, WAN, Mochi, Cog*  
+  - acceleration:  
+    - [FasterCache](https://huggingface.co/papers/2410.19355): support for *Hunyuan, Mochi, Latte, Allegro, Cog*  
+    - [PyramidAttentionBroadcast](https://huggingface.co/papers/2408.12588): support for *Hunyuan, Mochi, Latte, Allegro, Cog*  
   - additional key points:  
     - all models are auto-downloaded upon first use  
       uses *system paths -> huggingface* folder  

@@ -18,7 +18,7 @@ def get_quant(args):
 
 
 def get_url(url):
-    return f'&nbsp <a href="{url}" target="_blank" rel="noopener noreferrer" style="color: var(--button-primary-background-fill); font-weight: normal">{url}</a><br>' if url else ''
+    return f'&nbsp <a href="{url}" target="_blank" rel="noopener noreferrer" style="color: var(--button-primary-background-fill); font-weight: normal">{url}</a><br><br>' if url else '<br><br>'
 
 
 def set_prompt(p):

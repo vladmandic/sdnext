@@ -236,9 +236,13 @@ class StableDiffusionProcessing:
             self.height = firstphase_height
         self.sampler_name = sampler_name or processing_helpers.get_sampler_name(sampler_index, img=True)
         self.hr_sampler_name: str = hr_sampler_name if hr_sampler_name != 'Same as primary' else self.sampler_name
-        self.override_settings = {k: v for k, v in (override_settings or {}).items() if k not in shared.restricted_opts}
         self.inpaint_full_res = inpaint_full_res if isinstance(inpaint_full_res, bool) else self.inpaint_full_res
         self.inpaint_full_res = inpaint_full_res != 0 if isinstance(inpaint_full_res, int) else self.inpaint_full_res
+        try:
+            self.override_settings = {k: v for k, v in (override_settings or {}).items() if k not in shared.restricted_opts}
+        except Exception as e:
+            shared.log.error(f'Override: {override_settings} {e}')
+            self.override_settings = {}
 
         # null items initialized later
         self.prompts = None

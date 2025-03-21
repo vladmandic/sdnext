@@ -3,6 +3,32 @@ import diffusers
 import transformers
 
 
+"""
+Hunyuan Video T2V: pass/pass/pass
+Hunyuan Video I2V: pass/pass/pass, transformers incompatibility
+SkyReels Hunyuan T2V:
+SkyReels Hunyuan I2V:
+Fast Hunyuan T2V:
+LTXVideo 0.9.5 T2V:
+LTXVideo 0.9.5 I2V:
+LTXVideo 0.9.1 T2V:
+LTXVideo 0.9.1 I2V:
+LTXVideo 0.9.0 T2V:
+LTXVideo 0.9.0 I2V:
+WAN 2.1 1.3B T2V: pass/pass/pass
+WAN 2.1 14B T2V: pass/fail/fail, error loading shard
+WAN 2.1 14B I2V 480p:
+WAN 2.1 14B I2V 720p:
+Mochi 1 T2V: pass/pass/pass
+Latte 1 T2V: pass/fail/fail, float vs bfloat during generate
+Allegro T2V: pass/pass/fail, output is pure gray
+CogVideoX 1.0 2B T2V: pass/pass/pass
+CogVideoX 1.0 5B T2V:
+CogVideoX 1.0 5B I2V:
+CogVideoX 1.5 5B T2V: pass/pass/fail, output is pure black
+CogVideoX 1.5 5B I2V: pass/pass/pass
+"""
+
 @dataclass
 class Model():
     name: str
@@ -18,6 +44,9 @@ class Model():
     te_hijack: bool = True
     vae_hijack: bool = True
     vae_remote: bool = False
+
+    def __str__(self):
+        return f'name="{self.name}" url="{self.url}" repo="{self.repo}" repo_cls="{self.repo_cls}" dit="{self.dit}" dit_cls="{self.dit_cls}" dit_folder="{self.dit_folder}" te="{self.te}" te_cls="{self.te_cls}" te_folder="{self.te_folder}" te_hijack={self.te_hijack} vae_hijack={self.vae_hijack} vae_remote={self.vae_remote}'
 
 
 models = {
@@ -167,7 +196,7 @@ models = {
               dit_cls=diffusers.CogVideoXTransformer3DModel),
         Model(name='CogVideoX 1.0 5B T2V',
               url='https://huggingface.co/THUDM/CogVideoX-5b',
-              repo='THUDM/THUDM/CogVideoX-5b',
+              repo='THUDM/CogVideoX-5b',
               repo_cls=diffusers.CogVideoXPipeline,
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.CogVideoXTransformer3DModel),
