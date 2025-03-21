@@ -58,7 +58,7 @@ class Core(ZLUDALibrary):
         return self.internal.zluda_get_hip_object(zluda_object, 1).value
 
     def get_nightly_flag(self) -> int:
-        return self.internal.zluda_get_nightly_flag().value
+        return self.internal.zluda_get_nightly_flag()
 
 
 core = None
