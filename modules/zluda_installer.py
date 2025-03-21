@@ -17,7 +17,6 @@ DLL_MAPPING = {
     'nvrtc.dll': 'nvrtc64_112_0.dll',
 }
 HIPSDK_TARGETS = ['rocblas.dll', 'rocsolver.dll', 'hipfft.dll',]
-ZLUDA_TARGETS = ('nvcuda.dll', 'nvml.dll',)
 
 hipBLASLt_available = False
 MIOpen_available = False
@@ -27,7 +26,49 @@ default_agent: Union[rocm.Agent, None] = None
 hipBLASLt_enabled = False
 
 nightly = os.environ.get("ZLUDA_NIGHTLY", "0") == "1"
-skip_arch_test = os.environ.get("ZLUDA_SKIP_ARCH_TEST", "0") == "1"
+
+
+class ZLUDAResult(ctypes.Structure):
+    _fields_ = [
+        ('return_code', ctypes.c_int),
+        ('value', ctypes.c_ulonglong),
+    ]
+
+
+class ZLUDALibrary:
+    internal: ctypes.WinDLL
+
+    def __init__(self, internal: ctypes.WinDLL):
+        self.internal = internal
+
+
+class Core(ZLUDALibrary):
+    internal: ctypes.WinDLL
+
+    def __init__(self, internal: ctypes.WinDLL):
+        internal.zluda_get_hip_object.restype = ZLUDAResult
+        internal.zluda_get_hip_object.argtypes = [ctypes.c_void_p, ctypes.c_int]
+
+        internal.zluda_get_nightly_flag.restype = ctypes.c_int
+        internal.zluda_get_nightly_flag.argtypes = []
+
+        super().__init__(internal)
+
+    def to_hip_stream(self, zluda_object: ctypes.c_void_p):
+        return self.internal.zluda_get_hip_object(zluda_object, 1).value
+
+    def get_nightly_flag(self) -> int:
+        return self.internal.zluda_get_nightly_flag().value
+
+
+core = None
+ml = None
+
+
+def load_core_modules():
+    global core, ml # pylint: disable=global-statement
+    core = Core(ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll')))
+    ml = ZLUDALibrary(ctypes.windll.LoadLibrary(os.path.join(path, 'nvml.dll')))
 
 
 def set_default_agent(agent: rocm.Agent):
@@ -36,10 +77,8 @@ def set_default_agent(agent: rocm.Agent):
 
     is_nightly = False
     try:
-        nvcuda = ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll'))
-        nvcuda.zluda_get_nightly_flag.restype = ctypes.c_int
-        nvcuda.zluda_get_nightly_flag.argtypes = []
-        is_nightly = nvcuda.zluda_get_nightly_flag() == 1
+        load_core_modules()
+        is_nightly = core.get_nightly_flag()
     except Exception:
         pass
 
@@ -113,10 +152,9 @@ def load() -> None:
     os.environ["ZLUDA_COMGR_LOG_LEVEL"] = "1"
     os.environ["ZLUDA_NVRTC_LIB"] = os.path.join([v for v in site.getsitepackages() if v.endswith("site-packages")][0], "torch", "lib", "nvrtc64_112_0.dll")
 
+    load_core_modules()
     for v in HIPSDK_TARGETS:
         ctypes.windll.LoadLibrary(os.path.join(rocm.path, 'bin', v))
-    for v in ZLUDA_TARGETS:
-        ctypes.windll.LoadLibrary(os.path.join(path, v))
     for v in DLL_MAPPING.values():
         ctypes.windll.LoadLibrary(os.path.join(path, v))
 

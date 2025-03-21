@@ -3,7 +3,8 @@ from typing import Union
 import torch
 from torch._prims_common import DeviceLikeType
 import onnxruntime as ort
-from modules import shared, devices
+from modules import shared, devices, zluda_installer
+from modules.zluda_installer import core, default_agent # pylint: disable=unused-import
 from modules.onnx_impl.execution_providers import available_execution_providers, ExecutionProvider
 
 
@@ -32,7 +33,6 @@ def initialize_zluda():
     from modules.zluda_hijacks import do_hijack
     do_hijack()
 
-    from modules import zluda_installer
     torch.backends.cudnn.enabled = zluda_installer.MIOpen_available
     if not zluda_installer.MIOpen_available:
         torch.backends.cuda.enable_cudnn_sdp(False)
