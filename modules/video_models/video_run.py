@@ -1,7 +1,7 @@
 import os
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
-from modules.video_models import models_def, video_utils, video_load, video_vae, video_cache
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_cache, video_overrides
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -65,12 +65,15 @@ def generate(*args, **kwargs):
     video_vae.set_vae_params(p)
     video_cache.set_cache(faster_cache=faster_cache, pyramid_attention_broadcast=pyramid_attention)
     video_utils.set_prompt(p)
+    p.task_args['width'] = p.width
+    p.task_args['height'] = p.height
     p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
     p.ops.append('video')
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
     shared.opts.data['schedulers_shift'] = sampler_shift
+    video_overrides.set_overrides(p, selected)
     debug(f'Video: task_args={p.task_args}')
 
     # run processing

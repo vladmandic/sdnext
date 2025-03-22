@@ -56,6 +56,7 @@ def hijack_vae_decode(*args, **kwargs):
     if res is None:
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
         res = shared.sd_model.vae.orig_decode(*args, **kwargs)
+        print('HERE', shared.sd_model.vae.dtype)
     t1 = time.time()
     timer.process.add('vae', t1-t0)
     debug(f'Video decode: type={vae_type} vae={shared.sd_model.vae.__class__.__name__} latents={args[0].shape} time={t1-t0:.2f}')

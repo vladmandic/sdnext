@@ -1,7 +1,7 @@
 import os
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices
-from modules.video_models import models_def, video_utils, video_vae
+from modules.video_models import models_def, video_utils, video_vae, video_overrides
 
 
 loaded_model = None
@@ -49,6 +49,9 @@ def load_model(selected: models_def.Model):
         errors.display(e, 'video')
         transformer = None
 
+    # overrides
+    kwargs = video_overrides.load_override(selected)
+
     # model
     try:
         debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
@@ -58,6 +61,7 @@ def load_model(selected: models_def.Model):
             text_encoder=text_encoder,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
+            **kwargs,
         )
     except Exception as e:
         shared.log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')
