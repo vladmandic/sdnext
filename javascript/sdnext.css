@@ -102,13 +102,13 @@ button.custom-button { border-radius: var(--button-large-radius); padding: var(-
 #txt2img_prompt_container, #img2img_prompt_container, #control_prompt_container, #video_prompt_container { margin-right: var(--layout-gap) }
 #txt2img_footer, #img2img_footer, #control_footer { height: fit-content; display: none; }
 #txt2img_generate_box, #img2img_generate_box { gap: 0.5em; flex-wrap: unset; min-width: unset; width: 66.6%; }
-#control_generate_box { gap: 0.5em; flex-wrap: unset; min-width: unset; width: 100%; }
-#control_generate_box button:nth-child(1) { flex-grow: 2; }
-#control_generate_box button:nth-child(2) { flex-grow: 1; }
+#control_generate_box, #video_generate_box { gap: 0.5em; flex-wrap: unset; min-width: unset; width: 100%; }
+#control_generate_box button:nth-child(1), #video_generate_box button:nth-child(1) { flex-grow: 2; }
+#control_generate_box button:nth-child(2), #video_generate_box button:nth-child(2) { flex-grow: 1; }
 #txt2img_actions_column, #img2img_actions_column, #control_actions_column, #video_actions_column { gap: 0.3em; height: fit-content; }
 #txt2img_generate_box>button, #img2img_generate_box>button, #control_generate_box>button, #video_generate_box>button, #txt2img_enqueue, #img2img_enqueue, #txt2img_enqueue>button, #img2img_enqueue>button { min-height: 44px !important; max-height: 44px !important; line-height: 1em; white-space: break-spaces; min-width: unset; }
 #txt2img_enqueue_wrapper, #img2img_enqueue_wrapper, #control_enqueue_wrapper { min-width: unset !important; width: 31%; }
-#txt2img_generate_line2, #img2img_generate_line2, #txt2img_tools, #img2img_tools, #control_generate_line2, #control_tools { display: flex; }
+#txt2img_generate_line2, #img2img_generate_line2, #txt2img_tools, #img2img_tools, #control_generate_line2, #control_tools, #video_generate_line2, #video_tools { display: flex; }
 #txt2img_generate_line2>button, #img2img_generate_line2>button, #extras_generate_box>button, #control_generate_line2>button, #txt2img_tools>button, #img2img_tools>button, #control_tools>button { height: 2em; line-height: 0; font-size: var(--text-md);
   min-width: unset; display: block !important; }
 #txt2img_prompt, #txt2img_neg_prompt, #img2img_prompt, #img2img_neg_prompt, #control_prompt, #control_neg_prompt, #video_prompt, #video_neg_prompt { display: contents; }

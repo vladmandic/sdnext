@@ -14,7 +14,7 @@
   - Video: HunyuanVideo-I2V incompatible with latest transformers <https://github.com/huggingface/diffusers/issues/11118>  
   - Video: FasterCache and PyramidAttentionBroadcast granular config  
   - Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
-  - Video: HunyuanVideo-I2V-16ch <https://github.com/huggingface/diffusers/pull/11066>
+  - Video: HunyuanVideo-I2V-16/33ch <https://github.com/huggingface/diffusers/pull/11066>
   - Video: CogVideo-15 support
 
 ### Highlights for 2025-03-21

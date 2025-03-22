@@ -15,9 +15,9 @@ import transformers
 - LTXVideo 0.9.5 T2V: pass/pass/fail, v095 pipeline is tbd
 - LTXVideo 0.9.5 I2V: pass/pass/fail, v095 pipeline is tbd
 - LTXVideo 0.9.1 T2V: pass/pass/pass
-- LTXVideo 0.9.1 I2V: pass/pass/tbd
+- LTXVideo 0.9.1 I2V: pass/pass/pass
 - LTXVideo 0.9.0 T2V: pass/pass/pass
-- LTXVideo 0.9.0 I2V: pass/pass/tbd
+- LTXVideo 0.9.0 I2V: pass/pass/pass
 
 - WAN 2.1 1.3B T2V: pass/pass/pass
 - WAN 2.1 14B T2V: pass/pass/pass

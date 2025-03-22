@@ -14,9 +14,11 @@ function checkPaused(state) {
   lastState.paused = state ? !state : !lastState.paused;
   const t_el = document.getElementById('txt2img_pause');
   const i_el = document.getElementById('img2img_pause');
+  const c_el = document.getElementById('control_pause');
   const v_el = document.getElementById('video_pause');
   if (t_el) t_el.innerText = lastState.paused ? 'Resume' : 'Pause';
   if (i_el) i_el.innerText = lastState.paused ? 'Resume' : 'Pause';
+  if (c_el) c_el.innerText = lastState.paused ? 'Resume' : 'Pause';
   if (v_el) v_el.innerText = lastState.paused ? 'Resume' : 'Pause';
 }
 
