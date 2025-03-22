@@ -4,6 +4,24 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+### Issues/Limitations
+
+- VLM Gemma3: requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`  
+- VAE Remote encode: SD15 and Flux.1 issues: <https://github.com/huggingface/diffusers/issues/11069>  
+- Video: API support is TBD  
+- Video: Hunyuan Video I2V: transformers incompatibility <https://github.com/huggingface/diffusers/issues/11118>  
+- Video: Hunyuan Video I2V: 16ch vs 33ch processing <https://github.com/huggingface/diffusers/pull/11066>
+- Video: WAN 2.1 14B I2V 480p: broken offload
+- Video: WAN 2.1 14B I2V 720p: broken offload
+- Video: CogVideoX 1.5 5B T2V/I2V: requires pipeline update
+- Video: CogVideoX 1.5 5B I2V: requires pipeline update
+- Video: LTXVideo 0.9.5 T2V/I2V: broken offload, new pipeline
+- Video: LTXVideo 0.9.5 T2V/I2V: set preset params
+- Video: LTXVideo 0.9.5 T2V/I2V: support for conditioned input  
+- Video: LTXVideo 0.9.1 I2V: generator list mismatch
+- Video: FasterCache and PyramidAttentionBroadcast granular config  
+- Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
+
 ## Future Candidates
 
 - Redesign postprocessing  

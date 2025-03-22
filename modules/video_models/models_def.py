@@ -12,23 +12,23 @@ import transformers
 - SkyReels Hunyuan I2V: pass/pass/pass
 - Fast Hunyuan T2V: pass/pass/pass
 
-- LTXVideo 0.9.5 T2V: pass/pass/fail, v095 pipeline is tbd
-- LTXVideo 0.9.5 I2V: pass/pass/fail, v095 pipeline is tbd
+- LTXVideo 0.9.5 T2V: pass/pass/fail, completely broken offload, new pipeline
+- LTXVideo 0.9.5 I2V: pass/pass/fail, completely broken offload, new pipeline
 - LTXVideo 0.9.1 T2V: pass/pass/pass
-- LTXVideo 0.9.1 I2V: pass/pass/pass
+- LTXVideo 0.9.1 I2V: pass/pass/fail, generator list mismatch
 - LTXVideo 0.9.0 T2V: pass/pass/pass
 - LTXVideo 0.9.0 I2V: pass/pass/pass
 
 - WAN 2.1 1.3B T2V: pass/pass/pass
 - WAN 2.1 14B T2V: pass/pass/pass
-- WAN 2.1 14B I2V 480p: pass/pass/tbd
-- WAN 2.1 14B I2V 720p: pass/pass/tbd
+- WAN 2.1 14B I2V 480p: pass/pass/fail, offloading cpu vs cuda
+- WAN 2.1 14B I2V 720p: pass/pass/fail, offloading cpu vs cuda
 
 - CogVideoX 1.0 2B T2V: pass/pass/pass
 - CogVideoX 1.0 5B T2V: pass/pass/pass
 - CogVideoX 1.0 5B I2V: pass/pass/pass
-- CogVideoX 1.5 5B T2V: download/load/fail, v15 pipeline is tbd
-- CogVideoX 1.5 5B I2V: download/load/fail, v15 pipeline is tbd
+- CogVideoX 1.5 5B T2V: download/load/fail, pipeline is tbd
+- CogVideoX 1.5 5B I2V: download/load/fail, pipeline is tbd
 
 - Mochi 1 T2V: pass/pass/pass
 - Latte 1 T2V: pass/pass/fail, float vs bfloat during generate
