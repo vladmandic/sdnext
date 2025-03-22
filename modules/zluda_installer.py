@@ -43,8 +43,6 @@ class ZLUDALibrary:
 
 
 class Core(ZLUDALibrary):
-    internal: ctypes.WinDLL
-
     def __init__(self, internal: ctypes.WinDLL):
         internal.zluda_get_hip_object.restype = ZLUDAResult
         internal.zluda_get_hip_object.argtypes = [ctypes.c_void_p, ctypes.c_int]
@@ -78,7 +76,7 @@ def set_default_agent(agent: rocm.Agent):
     is_nightly = False
     try:
         load_core_modules()
-        is_nightly = core.get_nightly_flag()
+        is_nightly = core.get_nightly_flag() == 1
     except Exception:
         pass
 
