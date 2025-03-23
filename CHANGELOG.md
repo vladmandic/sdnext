@@ -12,6 +12,7 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
 ### Details for 2025-03-22
 
 - **Video tab**
+  - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
   - new top-level tab, replaces previous *video* script in text/image tabs  
     old scripts are still present, but will be removed in the future  
   - support for all latest models:  

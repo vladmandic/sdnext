@@ -8,7 +8,7 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 
 def generate(*args, **kwargs):
-    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, faster_cache, pyramid_attention, override_settings = args
+    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, init_strength, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, faster_cache, pyramid_attention, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
     found = [model.name for model in models_def.models.get(engine, [])]
@@ -36,6 +36,7 @@ def generate(*args, **kwargs):
         width=16 * int(width // 16),
         height=16 * int(height // 16),
         frames=int(frames),
+        denoising_strength=float(init_strength),
         init_image=init_image,
         cfg_scale=float(guidance_scale),
         diffusers_guidance_rescale=float(guidance_true),

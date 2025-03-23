@@ -1,6 +1,7 @@
 import os
 import time
-from modules import shared, sd_models, devices, timer
+import torch
+from modules import shared, sd_models, devices, timer, errors
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -55,8 +56,17 @@ def hijack_vae_decode(*args, **kwargs):
         pass
     if res is None:
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
-        res = shared.sd_model.vae.orig_decode(*args, **kwargs)
-        print('HERE', shared.sd_model.vae.dtype)
+        try:
+            if torch.is_tensor(args[0]):
+                latent = args[0]
+                latent = latent.to(device=devices.device, dtype=shared.sd_model.vae.dtype) # upcast to vae dtype
+                res = shared.sd_model.vae.orig_decode(latent, *args[1:], **kwargs)
+            else:
+                res = shared.sd_model.vae.orig_decode(*args, **kwargs)
+        except Exception as e:
+            shared.log.error(f'Video VAE: type={vae_type} {e}')
+            errors.display(e, 'Video VAE')
+            res = None
     t1 = time.time()
     timer.process.add('vae', t1-t0)
     debug(f'Video decode: type={vae_type} vae={shared.sd_model.vae.__class__.__name__} latents={args[0].shape} time={t1-t0:.2f}')

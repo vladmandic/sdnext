@@ -3,38 +3,6 @@ import diffusers
 import transformers
 
 
-"""
-# Model tests: download/load/generate
-
-- Hunyuan Video T2V: pass/pass/pass
-- Hunyuan Video I2V: pass/pass/fail, transformers incompatibility
-- SkyReels Hunyuan T2V: pass/pass/pass
-- SkyReels Hunyuan I2V: pass/pass/pass
-- Fast Hunyuan T2V: pass/pass/pass
-
-- LTXVideo 0.9.5 T2V: pass/pass/fail, completely broken offload, new pipeline
-- LTXVideo 0.9.5 I2V: pass/pass/fail, completely broken offload, new pipeline
-- LTXVideo 0.9.1 T2V: pass/pass/pass
-- LTXVideo 0.9.1 I2V: pass/pass/fail, generator list mismatch
-- LTXVideo 0.9.0 T2V: pass/pass/pass
-- LTXVideo 0.9.0 I2V: pass/pass/pass
-
-- WAN 2.1 1.3B T2V: pass/pass/pass
-- WAN 2.1 14B T2V: pass/pass/pass
-- WAN 2.1 14B I2V 480p: pass/pass/fail, offloading cpu vs cuda
-- WAN 2.1 14B I2V 720p: pass/pass/fail, offloading cpu vs cuda
-
-- CogVideoX 1.0 2B T2V: pass/pass/pass
-- CogVideoX 1.0 5B T2V: pass/pass/pass
-- CogVideoX 1.0 5B I2V: pass/pass/pass
-- CogVideoX 1.5 5B T2V: download/load/fail, pipeline is tbd
-- CogVideoX 1.5 5B I2V: download/load/fail, pipeline is tbd
-
-- Mochi 1 T2V: pass/pass/pass
-- Latte 1 T2V: pass/pass/fail, float vs bfloat during generate
-- Allegro T2V: pass/pass/fail, output is pure gray
-"""
-
 @dataclass
 class Model():
     name: str
@@ -104,13 +72,13 @@ models = {
         Model(name='None'),
         Model(name='LTXVideo 0.9.5 T2V', # https://github.com/huggingface/diffusers/pull/10968
               url='https://huggingface.co/Lightricks/LTX-Video-0.9.5',
-              repo='YiYiXu/ltx-95',
+              repo='Lightricks/LTX-Video-0.9.5',
               repo_cls=diffusers.LTXPipeline,
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.LTXVideoTransformer3DModel),
         Model(name='LTXVideo 0.9.5 I2V',
               url='https://huggingface.co/Lightricks/LTX-Video-0.9.5',
-              repo='YiYiXu/ltx-95',
+              repo='Lightricks/LTX-Video-0.9.5',
               repo_cls=diffusers.LTXConditionPipeline,
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.LTXVideoTransformer3DModel),
@@ -214,7 +182,7 @@ models = {
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.CogVideoXTransformer3DModel),
         Model(name='CogVideoX 1.5 5B T2V',
-              url='https://huggingface.co/THUDM/THUDM/CogVideoX1.5-5B',
+              url='https://huggingface.co/THUDM/CogVideoX1.5-5B',
               repo='THUDM/CogVideoX1.5-5B',
               repo_cls=diffusers.CogVideoXPipeline,
               te_cls=transformers.T5EncoderModel,

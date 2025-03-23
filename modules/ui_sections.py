@@ -219,7 +219,7 @@ def create_sampler_and_steps_selection(choices, tabname):
         sd_samplers.set_samplers()
         choices = [x for x in sd_samplers.samplers if not x.name == 'Same as primary']
     with gr.Row(elem_classes=['flex-break']):
-        steps = gr.Slider(minimum=1, maximum=99, step=1, label="Steps", elem_id=f"{tabname}_steps", value=20)
+        steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=20)
         sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value='Default', type="index")
     return steps, sampler_index
 

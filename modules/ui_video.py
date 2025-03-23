@@ -110,6 +110,7 @@ def create_ui():
                 with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
                     gr.HTML("<br>&nbsp Init image")
                     init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
+                    init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
                 with gr.Accordion(open=False, label="Accelerate", elem_id='video_accelerate_accordion'):
                     faster_cache = gr.Checkbox(label='FasterCache', value=False, elem_id="video_faster_cache")
                     pyramid_attention = gr.Checkbox(label='PyramidAttention', value=False, elem_id="video_pyramid_attention")
@@ -163,7 +164,7 @@ def create_ui():
             sampler_shift, dynamic_shift,
             seed,
             guidance_scale, guidance_true,
-            init_image,
+            init_image, init_strength,
             vae_type, vae_tile_frames,
             save_frames,
             video_type, video_duration, video_loop, video_pad, video_interpolate,
