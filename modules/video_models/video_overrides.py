@@ -37,7 +37,6 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if cls == 'LTXImageToVideoPipeline' or cls == 'LTXConditionPipeline':
         p.task_args['generator'] = None
     if cls == 'LTXConditionPipeline':
-        print('HERE2', p.denoising_strength)
         p.task_args['strength'] = p.denoising_strength
     if 'LTX' in shared.sd_model.__class__.__name__:
         p.task_args['width'] = 32 * (p.width // 32)

@@ -21,7 +21,6 @@ disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 def task_specific_kwargs(p, model):
     task_args = {}
     is_img2img_model = bool('Zero123' in shared.sd_model.__class__.__name__)
-    print('HERE', sd_models.get_diffusers_task(model))
     if len(getattr(p, 'init_images', [])) > 0:
         if isinstance(p.init_images[0], str):
             p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
@@ -35,7 +34,6 @@ def task_specific_kwargs(p, model):
                 'height': 8 * math.ceil(p.height / 8),
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
-        print('HERE1', p.denoising_strength)
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
