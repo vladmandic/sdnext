@@ -418,6 +418,9 @@ function setupExtraNetworksForTab(tabname) {
         if (h <= 0) return;
         const vh = opts.logmonitor_show ? '55vh' : '68vh';
         if (window.opts.extra_networks_card_cover === 'sidebar' && window.opts.theme_type === 'Standard') el.style.height = `max(${vh}, ${h - 90}px)`;
+        else if (window.opts.extra_networks_card_cover === 'inline' && window.opts.theme_type === 'Standard') el.style.height = '25vh';
+        else if (window.opts.extra_networks_card_cover === 'cover' && window.opts.theme_type === 'Standard') el.style.height = '50vh';
+        else el.style.height = 'unset';
         // log(`${tabname} height: ${entry.target.id}=${h} ${el.id}=${el.clientHeight}`);
       }
     }
@@ -457,6 +460,8 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'unset';
           en.style.width = 'unset';
           en.style.right = 'unset';
+          en.style.maxWidth = 'unset';
+          en.style.maxHeight = '58vh';
           en.style.top = '13em';
           en.style.transition = '';
           en.style.zIndex = 100;
@@ -466,6 +471,7 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'auto';
           en.style.width = `${window.opts.extra_networks_sidebar_width}vw`;
           en.style.maxWidth = '50vw';
+          en.style.maxHeight = 'unset';
           en.style.right = '0';
           en.style.top = '13em';
           en.style.transition = 'width 0.3s ease';
@@ -477,6 +483,8 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'unset';
           en.style.width = 'unset';
           en.style.right = 'unset';
+          en.style.maxWidth = 'unset';
+          en.style.maxHeight = '33vh';
           en.style.top = 0;
           en.style.transition = '';
           en.style.zIndex = 0;
