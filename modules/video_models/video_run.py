@@ -66,6 +66,7 @@ def generate(*args, **kwargs):
     video_vae.set_vae_params(p)
     video_cache.set_cache(faster_cache=faster_cache, pyramid_attention_broadcast=pyramid_attention)
     video_utils.set_prompt(p)
+    p.task_args['num_inference_steps'] = p.steps
     p.task_args['width'] = p.width
     p.task_args['height'] = p.height
     p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
