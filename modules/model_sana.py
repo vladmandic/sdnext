@@ -33,8 +33,6 @@ def load_sana(checkpoint_info, kwargs={}):
 
     if not repo_id.endswith('_diffusers'):
         repo_id = f'{repo_id}_diffusers'
-    if devices.dtype == torch.bfloat16 and 'BF16' not in repo_id:
-        repo_id = repo_id.replace('_diffusers', '_BF16_diffusers')
 
     if 'Sana_1600M' in repo_id:
         if devices.dtype == torch.bfloat16 or 'BF16' in repo_id:
@@ -47,13 +45,20 @@ def load_sana(checkpoint_info, kwargs={}):
     if 'Sana_600M' in repo_id:
         kwargs['variant'] = 'fp16'
 
-    if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
-        # TODO sana: fails when quantized
-        # kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
-        pass
+    kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
     shared.log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
     t0 = time.time()
-    pipe = diffusers.SanaPipeline.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs)
+    if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
+        kwargs['torch_dtype'] = devices.dtype
+    if 'Sprint' in repo_id:
+        cls = diffusers.SanaSprintPipeline
+    else:
+        cls = diffusers.SanaPipeline
+    pipe = cls.from_pretrained(
+        repo_id,
+        cache_dir=shared.opts.diffusers_dir,
+        **kwargs,
+    )
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
         if 'transformer' not in kwargs:
             pipe.transformer = pipe.transformer.to(dtype=devices.dtype)

@@ -1,15 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-22
+## Update for 2025-03-24
 
-### Highlights for 2025-03-22
+### Highlights for 2025-03-24
 
-Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1**  
+Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
 
-Plus support for CogView-4, new CLiP models, improvements to remote VAE, additional docs/guides  
+Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to remote VAE, additional docs/guides  
 
-### Details for 2025-03-22
+### Details for 2025-03-24
 
 - **Video tab**
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
@@ -46,20 +46,29 @@ Plus support for CogView-4, new CLiP models, improvements to remote VAE, additio
       and may require specific settings - see model links for details  
     - see *ToDo/Limitations* section for additional notes
 - **Models**  
-  - [THUDM CogView 4 6B](https://huggingface.co/THUDM/CogView4-6B)  
+  - [THUDM CogView 4](https://huggingface.co/THUDM/CogView4-6B) **6B** variant  
     new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  
     fully supports offloading and on-the-fly quantization  
     simply select from *networks -> models -> reference*  
     *note* cogview4 is compatible with flowmatching samplers  
+  - [NVLabs SANA 1.5](https://huggingface.co/Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers) in **1.6B**, **4.8B** and [Sprint](https://huggingface.co/Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers) variations  
+    big update to previous SANA model  
+    fully supports offloading and on-the-fly quantization  
+    simply select from *networks -> models -> reference*  
   - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
     download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
     load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
 - **Wiki/Docs**  
+  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
+  - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  
   - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
   - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
-  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
+  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide
+  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide
+  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide
+  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide
 - **Remote VAE**  
   - add support for remote vae encode in addition to remote vae decode  
   - used by *img2img, inpaint, hires, detailer*  

@@ -15,17 +15,19 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: WAN 2.1 14B I2V 480p/720p: broken offload  
 - Video: CogVideoX 1.5 5B T2V/I2V: all-gray output  
 - Video: Allegro T2V: all-gray output
-- Video: FasterCache and PyramidAttentionBroadcast granular config  
-- Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
 
 ## Future Candidates
 
 - Flux: NF4 loader: <https://github.com/huggingface/diffusers/issues/9996>  
 - IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Control: API enhance scripts compatibility  
+- Video: add generate context menu
+- Video: FasterCache and PyramidAttentionBroadcast granular config  
+- Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
 - Video: OponSora v2 https://huggingface.co/hpcai-tech/Open-Sora-v2
 - Video: STG: https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance
-- Video: add generate context menu
+- Video SmoothCache: https://github.com/huggingface/diffusers/issues/11135
+- FasterCache, PyramidAttentionBroadcast, SmoothCache general support
 
 ## Code TODO
 
