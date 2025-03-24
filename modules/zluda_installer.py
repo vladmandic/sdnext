@@ -47,8 +47,11 @@ class Core(ZLUDALibrary):
         internal.zluda_get_hip_object.restype = ZLUDAResult
         internal.zluda_get_hip_object.argtypes = [ctypes.c_void_p, ctypes.c_int]
 
-        internal.zluda_get_nightly_flag.restype = ctypes.c_int
-        internal.zluda_get_nightly_flag.argtypes = []
+        try:
+            internal.zluda_get_nightly_flag.restype = ctypes.c_int
+            internal.zluda_get_nightly_flag.argtypes = []
+        except AttributeError:
+            internal.zluda_get_nightly_flag = lambda: 0
 
         super().__init__(internal)
 
