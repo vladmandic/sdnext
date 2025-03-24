@@ -764,7 +764,6 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         'InstantIRPipeline',
         'FluxFillPipeline',
         'FluxControlPipeline',
-        'StableVideoDiffusionPipeline',
         'PixelSmithXLPipeline',
         'PhotoMakerStableDiffusionXLPipeline',
         'StableDiffusionXLInstantIDPipeline',
@@ -780,6 +779,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     # skip specific pipelines
     cls = pipe.__class__.__name__
     if cls in exclude:
+        return pipe
+    if 'Video' in cls:
         return pipe
     if 'Onnx' in cls:
         return pipe

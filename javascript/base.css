@@ -4,11 +4,11 @@
 .gradio-button.tool { max-width: min-content; min-width: min-content !important; align-self: end; font-size: 1.4em; color: var(--body-text-color) !important; }
 
 /* token counters */
-.block.token-counter { position: absolute; display: inline-block; right: 0; min-width: 0 !important; width: auto; z-index: 100; top: 0; }
-.block.token-counter span { background: var(--input-background-fill) !important; box-shadow: 0 0 0.0 0.3em rgba(192,192,192,0.15), inset 0 0 0.6em rgba(192,192,192,0.075); border: 2px solid rgba(192,192,192,0.4) !important; }
-.block.token-counter.error span{ box-shadow: 0 0 0.0 0.3em rgba(255,0,0,0.15), inset 0 0 0.6em rgba(255,0,0,0.075); border: 2px solid rgba(255,0,0,0.4) !important; }
-.block.token-counter div { display: inline; }
-.block.token-counter span { padding: 0.1em 0.75em; }
+.token-counter { position: absolute; display: inline-block; right: 0; min-width: 0 !important; width: auto; z-index: 100; top: 0; }
+.token-counter span { background: var(--input-background-fill) !important; box-shadow: 0 0 0.0 0.3em rgba(192,192,192,0.15), inset 0 0 0.6em rgba(192,192,192,0.075); border: 2px solid rgba(192,192,192,0.4) !important; }
+.token-counter.error span{ box-shadow: 0 0 0.0 0.3em rgba(255,0,0,0.15), inset 0 0 0.6em rgba(255,0,0,0.075); border: 2px solid rgba(255,0,0,0.4) !important; }
+.token-counter div { display: inline; }
+.token-counter span { padding: 0.1em 0.75em; }
 
 /* tooltips and statuses */ 
 .infotext { overflow-wrap: break-word; }

@@ -119,6 +119,7 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
   - fix upscaler selection in postprocessing  
   - fix sd35 with batch processing  
   - fix extra networks cover and inline views  
+  - fix token counter error style with modernui  
 
 ## Update for 2025-02-28
 

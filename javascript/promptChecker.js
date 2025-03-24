@@ -34,4 +34,6 @@ async function initPromptChecker() {
   setupBracketChecking('img2img_neg_prompt', 'img2img_negative_token_counter');
   setupBracketChecking('control_prompt', 'control_token_counter');
   setupBracketChecking('control_neg_prompt', 'control_negative_token_counter');
+  setupBracketChecking('video_prompt', 'video_token_counter');
+  setupBracketChecking('video_neg_prompt', 'video_negative_token_counter');
 }
