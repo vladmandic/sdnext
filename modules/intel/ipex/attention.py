@@ -61,13 +61,13 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
     if query.device.type != "xpu":
         return original_scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, **kwargs)
     is_unsqueezed = False
-    if len(query.shape) == 3:
+    if query.dim() == 3:
         query = query.unsqueeze(0)
         is_unsqueezed = True
-    if len(key.shape) == 3:
-        key = key.unsqueeze(0)
-    if len(value.shape) == 3:
-        value = value.unsqueeze(0)
+        if key.dim() == 3:
+            key = key.unsqueeze(0)
+        if value.dim() == 3:
+            value = value.unsqueeze(0)
     do_batch_split, do_head_split, do_query_split, split_batch_size, split_head_size, split_query_size = find_sdpa_slice_sizes(query.shape, key.shape, query.element_size(), slice_rate=attention_slice_rate, trigger_rate=sdpa_slice_trigger_rate)
 
     # Slice SDPA
@@ -115,5 +115,5 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
     else:
         hidden_states = original_scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, **kwargs)
     if is_unsqueezed:
-        hidden_states.squeeze(0)
+        hidden_states = hidden_states.squeeze(0)
     return hidden_states
