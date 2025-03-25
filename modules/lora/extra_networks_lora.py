@@ -166,12 +166,12 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model) # TODO lora: required for flux to reapply offload after lora has been applied, but fails with oom
                 debug_log(f'Network load: type=LoRA previous={[n.name for n in networks.previously_loaded_networks]} current={[n.name for n in networks.loaded_networks]} changed')
 
         if len(networks.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or force_diffusers) and step == 0:
             infotext(p)
             prompt(p)
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model) # TODO lora: required for flux to reapply offload after lora has been applied, but fails with oom
             if (has_changed or force_diffusers) and len(include) == 0: # print only once
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in networks.loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={networks.timer.summary}')
 
