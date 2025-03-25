@@ -3,7 +3,7 @@ import os
 import re
 import numpy as np
 from modules.lora import networks, network_overrides
-from modules import extra_networks, shared
+from modules import extra_networks, shared, sd_models
 
 
 debug = os.environ.get('SD_SCRIPT_DEBUG', None) is not None
@@ -171,6 +171,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(networks.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or force_diffusers) and step == 0:
             infotext(p)
             prompt(p)
+            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model) # TODO lora: required for flux to reapply offload after lora has been applied, but fails with oom
             if (has_changed or force_diffusers) and len(include) == 0: # print only once
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in networks.loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={networks.timer.summary}')
 

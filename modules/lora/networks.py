@@ -387,16 +387,20 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
                 weight = self.weight.to(devices.device)
             except Exception:
                 weight = self.weight
+
             updown, ex_bias = module.calc_updown(weight)
-            if batch_updown is not None and updown is not None:
-                batch_updown += updown.to(batch_updown.device)
-            else:
-                batch_updown = updown
-            if batch_ex_bias is not None and ex_bias is not None:
-                batch_ex_bias += ex_bias.to(batch_ex_bias.device)
-            else:
-                batch_ex_bias = ex_bias
+            if updown is not None:
+                if batch_updown is not None:
+                    batch_updown += updown.to(batch_updown.device)
+                else:
+                    batch_updown = updown.to(devices.device)
+            if ex_bias is not None:
+                if batch_ex_bias:
+                    batch_ex_bias += ex_bias.to(batch_ex_bias.device)
+                else:
+                    batch_ex_bias = ex_bias.to(devices.device)
             timer.calc += time.time() - t0
+
             if shared.opts.diffusers_offload_mode == "sequential":
                 t0 = time.time()
                 if batch_updown is not None:
@@ -418,17 +422,18 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
 
 def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], model_weights: Union[None, torch.Tensor] = None, lora_weights: torch.Tensor = None, deactivate: bool = False):
     if lora_weights is None:
-        return self.weight
+        return None
     if deactivate:
         lora_weights *= -1
     if model_weights is None: # weights are used if provided-from-backup else use self.weight
         model_weights = self.weight
     # TODO lora: add other quantization types
+    weight = None
     if self.__class__.__name__ == 'Linear4bit' and bnb is not None:
         try:
             dequant_weight = bnb.functional.dequantize_4bit(model_weights.to(devices.device), quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)
             new_weight = dequant_weight.to(devices.device) + lora_weights.to(devices.device)
-            self.weight = bnb.nn.Params4bit(new_weight, quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)
+            weight = bnb.nn.Params4bit(new_weight, quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
     else:
@@ -436,12 +441,13 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
         except Exception:
             new_weight = model_weights + lora_weights # try without device cast
-        self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
+        weight = torch.nn.Parameter(new_weight, requires_grad=False)
     try:
-        self.weight = self.weight.to(device=devices.device) # required since quantization happens only during .to call, not during params creation
+        # weight = weight.to(device=devices.device) # required since quantization happens only during .to call, not during params creation
+        pass
     except Exception:
         pass # may fail if weights is meta tensor
-    return self.weight
+    return weight
 
 
 def network_apply_direct(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], updown: torch.Tensor, ex_bias: torch.Tensor, deactivate: bool = False):
@@ -452,24 +458,27 @@ def network_apply_direct(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
     if not isinstance(bias_backup, bool):
         bias_backup = True
     if not weights_backup and not bias_backup:
-        return None, None
+        return
     t0 = time.time()
 
     if weights_backup:
-        if updown is not None and len(self.weight.shape) == 4 and self.weight.shape[1] == 9: # inpainting model. zero pad updown to make channel[1]  4 to 9
+        if updown is not None and len(self.weight.shape) == 4 and self.weight.shape[1] == 9: # inpainting model so zero pad updown to make channel 4 to 9
             updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5))  # pylint: disable=not-callable
         if updown is not None:
-            self.weight = network_add_weights(self, lora_weights=updown, deactivate=deactivate)
+            weight = network_add_weights(self, lora_weights=updown, deactivate=deactivate)
+            if weight is not None:
+                self.weight = weight
 
     if bias_backup:
         if ex_bias is not None:
-            self.bias = network_add_weights(self, lora_weights=ex_bias, deactivate=deactivate)
+            bias = network_add_weights(self, lora_weights=ex_bias, deactivate=deactivate)
+            if bias is not None:
+                self.bias = bias
 
     if hasattr(self, "qweight") and hasattr(self, "freeze"):
         self.freeze()
 
     timer.apply += time.time() - t0
-    return self.weight.device, self.weight.dtype
 
 
 def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], updown: torch.Tensor, ex_bias: torch.Tensor, orig_device: torch.device, deactivate: bool = False):
@@ -484,14 +493,18 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
         if updown is not None and len(weights_backup.shape) == 4 and weights_backup.shape[1] == 9: # inpainting model. zero pad updown to make channel[1]  4 to 9
             updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5))  # pylint: disable=not-callable
         if updown is not None:
-            self.weight = network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate)
+            weight = network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate)
+            if weight is not None:
+                self.weight = weight
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device=orig_device), requires_grad=False)
 
     if bias_backup is not None:
         self.bias = None
         if ex_bias is not None:
-            self.weight = network_add_weights(self, model_weights=weights_backup, lora_weights=ex_bias, deactivate=deactivate)
+            bias = network_add_weights(self, model_weights=weights_backup, lora_weights=ex_bias, deactivate=deactivate)
+            if bias:
+                self.weight = bias
         else:
             self.bias = torch.nn.Parameter(bias_backup.to(device=orig_device), requires_grad=False)
 
@@ -499,7 +512,6 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
         self.freeze()
 
     timer.apply += time.time() - t0
-    return self.weight.device, self.weight.dtype
 
 
 def network_deactivate(include=[], exclude=[]):
@@ -529,8 +541,6 @@ def network_deactivate(include=[], exclude=[]):
         pbar = nullcontext()
     with devices.inference_context(), pbar:
         applied_layers.clear()
-        weights_devices = []
-        weights_dtypes = []
         for component in modules.keys():
             orig_device = getattr(sd_model, component, None).device
             for _, module in modules[component]:
@@ -541,11 +551,9 @@ def network_deactivate(include=[], exclude=[]):
                     continue
                 batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True)
                 if shared.opts.lora_fuse_diffusers:
-                    weights_device, weights_dtype = network_apply_direct(module, batch_updown, batch_ex_bias, deactivate=True)
+                    network_apply_direct(module, batch_updown, batch_ex_bias, deactivate=True)
                 else:
-                    weights_device, weights_dtype = network_apply_weights(module, batch_updown, batch_ex_bias, orig_device, deactivate=True)
-                weights_devices.append(weights_device)
-                weights_dtypes.append(weights_dtype)
+                    network_apply_weights(module, batch_updown, batch_ex_bias, orig_device, deactivate=True)
                 if batch_updown is not None or batch_ex_bias is not None:
                     applied_layers.append(network_layer_name)
                 del batch_updown, batch_ex_bias
@@ -555,8 +563,7 @@ def network_deactivate(include=[], exclude=[]):
 
     timer.deactivate = time.time() - t0
     if debug and len(previously_loaded_networks) > 0:
-        weights_devices, weights_dtypes = list(set([x for x in weights_devices if x is not None])), list(set([x for x in weights_dtypes if x is not None]))  # noqa: C403 # pylint: disable=R1718
-        shared.log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} device={weights_devices} dtype={weights_dtypes} fuse={shared.opts.lora_fuse_diffusers} time={timer.summary}')
+        shared.log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={shared.opts.lora_fuse_diffusers} time={timer.summary}')
     modules.clear()
     if shared.opts.diffusers_offload_mode == "sequential":
         sd_models.set_diffuser_offload(sd_model, op="model")
@@ -584,12 +591,12 @@ def network_activate(include=[], exclude=[]):
     else:
         task = None
         pbar = nullcontext()
+    applied_weight = 0
+    applied_bias = 0
     with devices.inference_context(), pbar:
         wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in loaded_networks) if len(loaded_networks) > 0 else ()
         applied_layers.clear()
         backup_size = 0
-        weights_devices = []
-        weights_dtypes = []
         for component in modules.keys():
             orig_device = getattr(sd_model, component, None).device
             for _, module in modules[component]:
@@ -602,24 +609,26 @@ def network_activate(include=[], exclude=[]):
                 backup_size += network_backup_weights(module, network_layer_name, wanted_names)
                 batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name)
                 if shared.opts.lora_fuse_diffusers:
-                    weights_device, weights_dtype = network_apply_direct(module, batch_updown, batch_ex_bias)
+                    network_apply_direct(module, batch_updown, batch_ex_bias)
                 else:
-                    weights_device, weights_dtype = network_apply_weights(module, batch_updown, batch_ex_bias, orig_device)
-                weights_devices.append(weights_device)
-                weights_dtypes.append(weights_dtype)
+                    network_apply_weights(module, batch_updown, batch_ex_bias, orig_device)
                 if batch_updown is not None or batch_ex_bias is not None:
                     applied_layers.append(network_layer_name)
+                    if batch_updown is not None:
+                        applied_weight += 1
+                    if batch_ex_bias is not None:
+                        applied_bias += 1
                 del batch_updown, batch_ex_bias
                 module.network_current_names = wanted_names
                 if task is not None:
-                    pbar.update(task, advance=1, description=f'networks={len(loaded_networks)} modules={active_components} layers={total} apply={len(applied_layers)} backup={backup_size}')
+                    pbar.update(task, advance=1, description=f'networks={len(loaded_networks)} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={backup_size}')
 
         if task is not None and len(applied_layers) == 0:
             pbar.remove_task(task) # hide progress bar for no action
     timer.activate += time.time() - t0
     if debug and len(loaded_networks) > 0:
-        weights_devices, weights_dtypes = list(set([x for x in weights_devices if x is not None])), list(set([x for x in weights_dtypes if x is not None])) # noqa: C403 # pylint: disable=R1718
-        shared.log.debug(f'Network load: type=LoRA networks={[n.name for n in loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} device={weights_devices} dtype={weights_dtypes} backup={backup_size} fuse={shared.opts.lora_fuse_diffusers} time={timer.summary}')
+        shared.log.debug(f'Network load: type=LoRA networks={[n.name for n in loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={backup_size} fuse={shared.opts.lora_fuse_diffusers} time={timer.summary}')
     modules.clear()
-    if shared.opts.diffusers_offload_mode == "sequential":
-        sd_models.set_diffuser_offload(sd_model, op="model")
+    if len(loaded_networks) > 0 and (applied_weight > 0 or applied_bias > 0):
+        if shared.opts.diffusers_offload_mode == "sequential":
+            sd_models.set_diffuser_offload(sd_model, op="model")

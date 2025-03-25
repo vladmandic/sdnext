@@ -67,19 +67,15 @@ def read_state_dict(checkpoint_file, map_location=None, what:str='model'): # pyl
                 return None
             if shared.opts.stream_load:
                 if extension.lower() == ".safetensors":
-                    # shared.log.debug('Model weights loading: type=safetensors mode=buffered')
                     buffer = f.read()
                     pl_sd = safetensors.torch.load(buffer)
                 else:
-                    # shared.log.debug('Model weights loading: type=checkpoint mode=buffered')
                     buffer = io.BytesIO(f.read())
                     pl_sd = torch.load(buffer, map_location='cpu')
             else:
                 if extension.lower() == ".safetensors":
-                    # shared.log.debug('Model weights loading: type=safetensors mode=mmap')
                     pl_sd = safetensors.torch.load_file(checkpoint_file, device='cpu')
                 else:
-                    # shared.log.debug('Model weights loading: type=checkpoint mode=direct')
                     pl_sd = torch.load(f, map_location='cpu')
             sd = get_state_dict_from_checkpoint(pl_sd)
         del pl_sd
