@@ -1302,7 +1302,7 @@ def check_ui(ver):
     def same(ver):
         core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
         ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
-        return core == ui or (core == 'master' and ui == 'main')
+        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev')
 
     t_start = time.time()
     if not same(ver):
