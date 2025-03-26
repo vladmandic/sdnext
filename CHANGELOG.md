@@ -9,6 +9,8 @@ And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE
 
 Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to remote VAE, additional docs/guides  
 
+**Flash Attention 2** and Sage Attention is now available on ZLUDA backend!
+
 ### Details for 2025-03-25
 
 - **Video tab**
@@ -103,6 +105,9 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
 - **ROCm**
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - disable fp16 for gfx1102 (rx 7600 and rx 7500 series) gpus  
+- **ZLUDA**
+  - add `torch.compile` support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)
+  - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)
 - **Fixes**
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
