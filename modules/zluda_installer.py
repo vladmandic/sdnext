@@ -100,7 +100,7 @@ def install() -> None:
         return
 
     platform = "windows"
-    commit = os.environ.get("ZLUDA_HASH", "ae0540beb129ffd140226ce956b386619b38f84c")
+    commit = os.environ.get("ZLUDA_HASH", "dba64c0966df2c71e82255e942c96e2e1cea3a2d")
     if nightly:
         platform = "nightly-" + platform
     urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
