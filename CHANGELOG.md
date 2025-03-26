@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-25
+## Update for 2025-03-26
 
-### Highlights for 2025-03-25
+### Highlights for 2025-03-26
 
 Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
@@ -11,7 +11,7 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
 
 **Flash Attention 2** and Sage Attention is now available on ZLUDA backend!
 
-### Details for 2025-03-25
+### Details for 2025-03-26
 
 - **Video tab**
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
@@ -47,7 +47,7 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
     - different video models support different video resolutions, frame counts, etc.  
       and may require specific settings - see model links for details  
     - see *ToDo/Limitations* section for additional notes
-- **Models**  
+- **Models & Pipelines**  
   - [THUDM CogView 4](https://huggingface.co/THUDM/CogView4-6B) **6B** variant  
     new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  
     fully supports offloading and on-the-fly quantization  
@@ -57,6 +57,11 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
     big update to previous SANA model  
     fully supports offloading and on-the-fly quantization  
     simply select from *networks -> models -> reference*  
+  - [ByteDance InfiniteYou](https://github.com/bytedance/InfiniteYou/): Flexible Photo Recrafting While Preserving Your Identity  
+    face-transfer model for FLUX.1  
+    select from *Scripts -> InfiniteYou*  
+    its large, ~12GB on top of FLUX.1 base model so make sure you have offloading and quantization setup  
+    *note* model will be auto-downloaded on first use  
   - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
     download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
     load using *settings -> text encoder*  

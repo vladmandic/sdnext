@@ -485,7 +485,7 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
     weights_backup = getattr(self, "network_weights_backup", None)
     bias_backup = getattr(self, "network_bias_backup", None)
     if weights_backup is None and bias_backup is None:
-        return None, None
+        return
     t0 = time.time()
 
     if weights_backup is not None:

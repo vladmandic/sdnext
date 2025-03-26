@@ -6,8 +6,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Issues/Limitations
 
-- VLM Gemma3: requires `transformers==git+https://github.com/huggingface/transformers@v4.49.0-Gemma-3`  
-- VAE Remote encode: SD15 and Flux.1 issues: <https://github.com/huggingface/diffusers/issues/11069>  
 - Video: Hunyuan Video I2V: requires `transformers==4.47.1` <https://github.com/huggingface/diffusers/issues/11118>  
 - Video: Latte 1 T2V: dtype mismatch <https://github.com/huggingface/diffusers/issues/11137>  
 - Video: WAN 2.1 14B I2V 480p/720p: broken offload  

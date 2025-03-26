@@ -33,6 +33,8 @@ exclude = [
     "modules/todo",
     "modules/unipc",
     "modules/xadapter",
+    "modules/infiniteyou",
+    "modules/flash_attn_triton_amd",
     "repositories",
     "extensions-builtin/Lora",
     "extensions-builtin/sd-extension-chainner/nodes",
