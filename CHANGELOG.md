@@ -72,10 +72,10 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
   - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
   - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
   - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
-  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide
-  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide
-  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide
-  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide
+  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide  
+  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
+  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
+  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
 - **Remote VAE**  
   - add support for remote vae encode in addition to remote vae decode  
   - used by *img2img, inpaint, hires, detailer*  
@@ -83,9 +83,11 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
   - add remote vae info to metadata, thanks @iDeNoh  
   - remote vae use `scaling_factor` and `shift_factor`  
 - **Caption/VLM**  
-  - [Google Gemma 3 4B](https://huggingface.co/google/gemma-3-4b-it)  
+  - [Google Gemma 3](https://huggingface.co/google/gemma-3-4b-it) 4B  
     simply select from list of available models in caption tab  
-  - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*
+  - [ByteDance/Sa2VA](https://huggingface.co/ByteDance/Sa2VA-1B) 1B, 4B  
+    simply select from list of available models in caption tab  
+  - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*  
 - [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
   - add detection of prompt language and alphabet and filter based on those values  
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  

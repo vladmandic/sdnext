@@ -41,6 +41,8 @@ vlm_models = {
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
     "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
+    "ByteDance Sa2VA 1B": "ByteDance/Sa2VA-1B",
+    "ByteDance Sa2VA 4B": "ByteDance/Sa2VA-4B",
     # "OpenGVLab InternVL 2.5 1B": "OpenGVLab/InternVL2_5-1B"
     # "DeepSeek VL2 Tiny": "deepseek-ai/deepseek-vl2-tiny", # broken
     # "nVidia Eagle 2 1B": "nvidia/Eagle2-1B", # not compatible with latest transformers
@@ -72,7 +74,7 @@ def b64(image):
 
 
 def clean(response, question):
-    strip = ['---', '\r', '\t', '**', '"', '“', '”', 'Assistant:', 'Caption:']
+    strip = ['---', '\r', '\t', '**', '"', '“', '”', 'Assistant:', 'Caption:', '<|im_end|>']
     if isinstance(response, dict):
         if 'task' in response:
             response = response['task']
@@ -451,6 +453,39 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
     return response
 
 
+def sa2(question: str, image: Image.Image, repo: str = None):
+    global processor, model, loaded # pylint: disable=global-statement
+    if model is None or loaded != repo:
+        model = transformers.AutoModel.from_pretrained(
+            repo,
+            torch_dtype=devices.dtype,
+            low_cpu_mem_usage=True,
+            use_flash_attn=False,
+            trust_remote_code=True)
+        model = model.eval()
+        processor = transformers.AutoTokenizer.from_pretrained(
+            repo,
+            trust_remote_code=True,
+            use_fast=False,
+        )
+        loaded = repo
+    model = model.to(devices.device, devices.dtype)
+    if question.startswith('<'):
+        task = question.split('>', 1)[0] + '>'
+    else:
+        task = '<MORE_DETAILED_CAPTION>'
+    input_dict = {
+        'image': image,
+        'text': f'<image>{task}',
+        'past_text': '',
+        'mask_prompts': None,
+        'tokenizer': processor,
+        }
+    return_dict = model.predict_forward(**input_dict)
+    response = return_dict["prediction"] # the text format answer
+    return response
+
+
 def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=False):
     if not quiet:
         shared.state.begin('Interrogate')
@@ -516,6 +551,8 @@ def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=F
             answer = gemma(question, image, vqa_model, system_prompt)
         elif 'ovis' in vqa_model.lower():
             answer = ovis(question, image, vqa_model)
+        elif 'sa2' in vqa_model.lower():
+            answer = sa2(question, image, vqa_model)
         else:
             answer = 'unknown model'
     except Exception as e:
