@@ -52,7 +52,7 @@ numba==0.59.1
 protobuf==4.25.3
 pytorch_lightning==1.9.4
 tokenizers==0.21.1
-transformers==4.50.0
+transformers==4.50.1
 urllib3==1.26.19
 Pillow==10.4.0
 timm==0.9.16
