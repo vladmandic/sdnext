@@ -62,16 +62,6 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
     download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
     load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
-- **Wiki/Docs**  
-  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
-  - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  
-  - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
-  - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
-  - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
-  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide  
-  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
-  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
-  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
 - **Acceleration**  
   - Support for most DiT-based models, for example: *FLUX.1, SD35, Hunyuan, Mochi, Latte, Allegro, Cog*  
   - Enable and configure in *Settings -> Pipeline modifiers*  
@@ -94,16 +84,6 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
     against top-10 standard harmful content categories  
   - add banned words/expressions check against prompt variations  
-- **Other**  
-  - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
-  - **upscale**: new experimental support for `libvips` upscaling  
-  - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
-    note: previous method for quanto is still valid and is noted in settings as post-load quantization  
-  - add quantization support to **CogView-3Plus**  
-  - update `diffusers` and other requirements  
-  - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
-  - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
-  - LoRA enable memory cache by default  
 - **IPEX**  
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - add xpu to profiler  
@@ -118,6 +98,26 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - add `torch.compile` support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
   - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
   - add Sage Attention support  
+- **Other**  
+  - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
+  - **upscale**: new experimental support for `libvips` upscaling  
+  - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
+    note: previous method for quanto is still valid and is noted in settings as post-load quantization  
+  - add quantization support to **CogView-3Plus**  
+  - update `diffusers` and other requirements  
+  - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+  - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
+  - LoRA enable memory cache by default  
+- **Wiki/Docs**  
+  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
+  - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  
+  - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
+  - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
+  - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
+  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide  
+  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
+  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
+  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
 - **Fixes**  
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
