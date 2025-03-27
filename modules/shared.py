@@ -561,9 +561,21 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
 
     "pab_sep": OptionInfo("<h2>PAB: Pyramid attention broadcast </h2>", "", gr.HTML),
     "pab_enabled": OptionInfo(False, "Attention cache enabled"),
-    "pab_block_skip_range": OptionInfo(2, "Block skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
-    "pab_timestep_skip_start": OptionInfo(0.1, "Timestep skip start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
-    "pab_timestep_skip_end": OptionInfo(0.8, "Timestep skip end", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
+    "pab_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
+    "pab_spacial_skip_start": OptionInfo(100, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "pab_spacial_skip_end": OptionInfo(800, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+
+    "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
+    "faster_cache_enabled": OptionInfo(False, "Faster cache enabled"),
+    "fc_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
+    "fc_spacial_skip_start": OptionInfo(0, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "fc_spacial_skip_end": OptionInfo(681, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01}),
+    "fc_uncond_skip_range": OptionInfo(5, "FC uncond skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
+    "fc_uncond_skip_start": OptionInfo(0, "FC uncond skip start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
+    "fc_uncond_skip_end": OptionInfo(781, "FC uncond skip end", gr.Slider, {"minimum": 0, "maximum": 1, "step": 1}),
+    "fc_attention_weight": OptionInfo(0.5, "FC spacial skip range", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
+    "fc_tensor_format": OptionInfo("BCFHW", "FC tensor format", gr.Radio, {"choices": ["BCFHW", "BFCHW", "BCHW"]}),
+    "fc_guidance_distilled": OptionInfo(False, "FC guidance distilled", gr.Checkbox),
 
     "para_sep": OptionInfo("<h2>Para-attention</h2>", "", gr.HTML),
     "para_cache_enabled": OptionInfo(False, "First-block cache enabled"),
@@ -915,7 +927,7 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
     "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models"),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
-    "lora_in_memory_limit": OptionInfo(0, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 24, "step": 1}),
+    "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
     "lora_quant": OptionInfo("NF4","LoRA precision when quantized", gr.Radio, {"choices": ["NF4", "FP4"]}),
 
     "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),

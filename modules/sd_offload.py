@@ -3,7 +3,6 @@ import sys
 import time
 import inspect
 import torch
-import diffusers
 import accelerate.hooks
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
@@ -285,22 +284,8 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         apply_balanced_offload_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         apply_balanced_offload_to_module(sd_model.decoder_pipe)
-
     if shared.opts.layerwise_quantization:
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
-    if shared.opts.pab_enabled and hasattr(sd_model, 'transformer'):
-        pab_config = diffusers.PyramidAttentionBroadcastConfig(
-            spatial_attention_block_skip_range=shared.opts.pab_block_skip_range,
-            spatial_attention_timestep_skip_range=(int(100 * shared.opts.pab_timestep_skip_start), int(100 * shared.opts.pab_timestep_skip_end)),
-            current_timestep_callback=lambda: sd_model.current_timestep, # pylint: disable=protected-access
-        )
-        try:
-            diffusers.apply_pyramid_attention_broadcast(sd_model.transformer, pab_config)
-        except Exception: # hook may already exist
-            pass
-        if not cached:
-            shared.log.info(f'Applying PAB: cls={sd_model.transformer.__class__.__name__} block={shared.opts.pab_block_skip_range} start={shared.opts.pab_timestep_skip_start} end={shared.opts.pab_timestep_skip_end}')
-
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

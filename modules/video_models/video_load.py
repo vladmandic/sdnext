@@ -71,12 +71,17 @@ def load_model(selected: models_def.Model):
     shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(selected.repo)
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model)
-    if selected.vae_hijack:
+    if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
         shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
         shared.sd_model.vae.decode = video_vae.hijack_vae_decode
-    if selected.te_hijack:
+        shared.sd_model.vae.orig_encode = shared.sd_model.vae.encode
+        shared.sd_model.vae.encode = video_vae.hijack_vae_encode
+    if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
         shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
         shared.sd_model.encode_prompt = video_utils.hijack_encode_prompt
+    if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
+        shared.sd_model.orig_encode_image = shared.sd_model.encode_image
+        shared.sd_model.encode_image = video_utils.hijack_encode_image
     if hasattr(shared.sd_model.vae, 'enable_slicing'):
         shared.sd_model.vae.enable_slicing()
     loaded_model = selected.name

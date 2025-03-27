@@ -16,6 +16,7 @@ class Model():
     te_cls: classmethod = None
     te_folder: str = 'text_encoder'
     te_hijack: bool = True
+    image_hijack: bool = True
     vae_hijack: bool = True
     vae_remote: bool = False
 

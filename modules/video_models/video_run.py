@@ -1,14 +1,14 @@
 import os
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
-from modules.video_models import models_def, video_utils, video_load, video_vae, video_cache, video_overrides
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def generate(*args, **kwargs):
-    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, init_strength, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, faster_cache, pyramid_attention, override_settings = args
+    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, init_strength, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
     found = [model.name for model in models_def.models.get(engine, [])]
@@ -64,7 +64,6 @@ def generate(*args, **kwargs):
     # set args
     processing.fix_seed(p)
     video_vae.set_vae_params(p)
-    video_cache.set_cache(faster_cache=faster_cache, pyramid_attention_broadcast=pyramid_attention)
     video_utils.set_prompt(p)
     p.task_args['num_inference_steps'] = p.steps
     p.task_args['width'] = p.width
@@ -83,6 +82,7 @@ def generate(*args, **kwargs):
     shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
     err = None
     t0 = time.time()
+    processed = None
     try:
         processed = processing.process_images(p)
     except Exception as e:

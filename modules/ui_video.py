@@ -89,7 +89,7 @@ def create_ui():
                     url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
                 with gr.Accordion(open=True, label="Size", elem_id='video_size_accordion'):
                     with gr.Row():
-                        width, height = ui_sections.create_resolution_inputs('video', default_width=720, default_height=480)
+                        width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
                     with gr.Row():
                         frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
                         seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
@@ -111,9 +111,6 @@ def create_ui():
                     gr.HTML("<br>&nbsp Init image")
                     init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
                     init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
-                with gr.Accordion(open=False, label="Accelerate", elem_id='video_accelerate_accordion'):
-                    faster_cache = gr.Checkbox(label='FasterCache', value=False, elem_id="video_faster_cache")
-                    pyramid_attention = gr.Checkbox(label='PyramidAttention', value=False, elem_id="video_pyramid_attention")
                 with gr.Accordion(open=True, label="Output", elem_id='video_output_accordion'):
                     with gr.Row():
                         save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
@@ -168,7 +165,6 @@ def create_ui():
             vae_type, vae_tile_frames,
             save_frames,
             video_type, video_duration, video_loop, video_pad, video_interpolate,
-            faster_cache, pyramid_attention,
             override_settings,
         ]
         # generate function

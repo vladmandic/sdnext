@@ -2,18 +2,17 @@
 
 ## Update for 2025-03-26
 
-### Highlights for 2025-03-26
+### Highlights for 2025-03-27
 
 Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
 
 Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to remote VAE, additional docs/guides  
+Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods  
 
-**Flash Attention 2** and Sage Attention is now available on ZLUDA backend!
+### Details for 2025-03-27
 
-### Details for 2025-03-26
-
-- **Video tab**
+- **Video tab**  
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
   - new top-level tab, replaces previous *video* script in text/image tabs  
     old scripts are still present, but will be removed in the future  
@@ -24,15 +23,12 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
     - [CogVideoX](https://huggingface.co/THUDM/CogVideoX-5b): *2B, 5B* | *T2V, I2V*  
     - [Allegro](https://huggingface.co/rhymes-ai/Allegro): *T2V*  
     - [Mochi1](https://huggingface.co/genmo/mochi-1-preview): *T2V*  
-    - [Latte1](https://huggingface.co/maxin-cn/Latte-1): *T2V
+    - [Latte1](https://huggingface.co/maxin-cn/Latte-1): *T2V  
   - decoding:  
     - **Default**: use vae from model  
     - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
     - **Remote VAE**: support for *Hunyuan*  
   - **LoRA**: support for *Hunyuan, LTX, WAN, Mochi, Cog*  
-  - acceleration:  
-    - [FasterCache](https://huggingface.co/papers/2410.19355): support for *Hunyuan, Mochi, Latte, Allegro, Cog*  
-    - [PyramidAttentionBroadcast](https://huggingface.co/papers/2408.12588): support for *Hunyuan, Mochi, Latte, Allegro, Cog*  
   - additional key points:  
     - all models are auto-downloaded upon first use  
       uses *system paths -> huggingface* folder  
@@ -43,10 +39,10 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
     - support for balanced offloading and model offloading  
       uses system settings  
     - on-the-fly quantization: *BnB, Quanto, TorchAO*  
-      uses system settings, granular for *transformer* and *text-encoder* separately
+      uses system settings, granular for *transformer* and *text-encoder* separately  
     - different video models support different video resolutions, frame counts, etc.  
       and may require specific settings - see model links for details  
-    - see *ToDo/Limitations* section for additional notes
+    - see *ToDo/Limitations* section for additional notes  
 - **Models & Pipelines**  
   - [THUDM CogView 4](https://huggingface.co/THUDM/CogView4-6B) **6B** variant  
     new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  
@@ -76,6 +72,11 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
   - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
   - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
   - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
+- **Acceleration**  
+  - Support for most DiT-based models, for example: *FLUX.1, SD35, Hunyuan, Mochi, Latte, Allegro, Cog*  
+  - Enable and configure in *Settings -> Pipeline modifiers*  
+  - [FasterCache](https://huggingface.co/papers/2410.19355)  
+  - [PyramidAttentionBroadcast](https://huggingface.co/papers/2408.12588)  
 - **Remote VAE**  
   - add support for remote vae encode in addition to remote vae decode  
   - used by *img2img, inpaint, hires, detailer*  
@@ -93,16 +94,17 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
     against top-10 standard harmful content categories  
   - add banned words/expressions check against prompt variations  
-- **Other**
+- **Other**  
   - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
   - **upscale**: new experimental support for `libvips` upscaling  
   - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
     note: previous method for quanto is still valid and is noted in settings as post-load quantization  
-  - add quantization support to **CogView-3Plus**
-  - update `diffusers` and other requirements   
+  - add quantization support to **CogView-3Plus**  
+  - update `diffusers` and other requirements  
   - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
   - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
-- **IPEX**
+  - LoRA enable memory cache by default  
+- **IPEX**  
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - add xpu to profiler  
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
@@ -112,10 +114,11 @@ Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to r
 - **ROCm**
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - disable fp16 for gfx1102 (rx 7600 and rx 7500 series) gpus  
-- **ZLUDA**
-  - add `torch.compile` support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)
-  - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)
-- **Fixes**
+- **ZLUDA**  
+  - add `torch.compile` support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
+  - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
+  - add Sage Attention support  
+- **Fixes**  
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  
   - fix cuda errors with *directml*  

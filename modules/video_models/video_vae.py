@@ -65,10 +65,33 @@ def hijack_vae_decode(*args, **kwargs):
             else:
                 res = shared.sd_model.vae.orig_decode(*args, **kwargs)
         except Exception as e:
-            shared.log.error(f'Video VAE: type={vae_type} {e}')
+            shared.log.error(f'Video VAE decode: type={vae_type} {e}')
             errors.display(e, 'Video VAE')
             res = None
     t1 = time.time()
     timer.process.add('vae', t1-t0)
-    debug(f'Video decode: type={vae_type} vae={shared.sd_model.vae.__class__.__name__} latents={args[0].shape} time={t1-t0:.2f}')
+    debug(f'Video VAE decode: type={vae_type} vae={shared.sd_model.vae.__class__.__name__} latents={args[0].shape} time={t1-t0:.2f}')
+    return res
+
+
+def hijack_vae_encode(*args, **kwargs):
+    t0 = time.time()
+    res = None
+    if res is None:
+        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
+        try:
+            sd_models.move_model(shared.sd_model.vae, devices.device)
+            if torch.is_tensor(args[0]):
+                latent = args[0]
+                latent = latent.to(device=devices.device, dtype=shared.sd_model.vae.dtype) # upcast to vae dtype
+                res = shared.sd_model.vae.orig_encode(latent, *args[1:], **kwargs)
+            else:
+                res = shared.sd_model.vae.orig_encode(*args, **kwargs)
+        except Exception as e:
+            shared.log.error(f'Video VAE encode: type={vae_type} {e}')
+            errors.display(e, 'Video VAE')
+            res = None
+    t1 = time.time()
+    timer.process.add('vae', t1-t0)
+    debug(f'Video VAE encode: type={vae_type} vae={shared.sd_model.vae.__class__.__name__} latents={args[0].shape} time={t1-t0:.2f}')
     return res
