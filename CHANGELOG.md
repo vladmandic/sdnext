@@ -135,6 +135,7 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - fix sd35 with batch processing  
   - fix extra networks cover and inline views  
   - fix token counter error style with modernui  
+  - fix sampler metadata when using default sampler  
   - improve lora compatibility with balanced offload  
 
 ## Update for 2025-02-28

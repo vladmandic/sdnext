@@ -159,7 +159,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Embeddings"] = ', '.join(sd_hijack.model_hijack.embedding_db.embeddings_used)
     # samplers
 
-    if getattr(p, 'sampler_name', None) is not None:
+    if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
         args["Sampler eta delta"] = shared.opts.eta_noise_seed_delta if shared.opts.eta_noise_seed_delta != 0 and sd_samplers_common.is_sampler_using_eta_noise_seed_delta(p) else None
         args["Sampler eta multiplier"] = p.initial_noise_multiplier if getattr(p, 'initial_noise_multiplier', 1.0) != 1.0 else None
         args['Sampler timesteps'] = shared.opts.schedulers_timesteps if shared.opts.schedulers_timesteps != shared.opts.data_labels.get('schedulers_timesteps').default else None

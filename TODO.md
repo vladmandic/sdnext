@@ -18,13 +18,11 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Flux: NF4 loader: <https://github.com/huggingface/diffusers/issues/9996>  
 - IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Control: API enhance scripts compatibility  
-- Video: add generate context menu
-- Video: FasterCache and PyramidAttentionBroadcast granular config  
-- Video: FasterCache and PyramidAttentionBroadcast for LTX and WAN <https://github.com/huggingface/diffusers/issues/11134>  
-- Video: API support
-- Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>
-- Video SmoothCache: https://github.com/huggingface/diffusers/issues/11135
-- FasterCache, PyramidAttentionBroadcast, SmoothCache general support
+- Video: add generate context menu  
+- Video: API support  
+- Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
+- Video SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
+- SoftFill: https://github.com/zacheryvaughn/softfill-pipelines
 
 ## Code TODO
 
