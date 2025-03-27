@@ -115,7 +115,7 @@ def create_ui():
                     with gr.Row():
                         save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
                     with gr.Row():
-                        video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video')
+                        video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video', show_always=True)
                 override_settings = ui_common.create_override_inputs('video')
 
             # output panel with gallery and video tabs

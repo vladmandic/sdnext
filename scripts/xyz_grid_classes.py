@@ -119,6 +119,7 @@ axis_options = [
     AxisOptionTxt2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers]),
     AxisOptionImg2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers_for_img2img]),
     AxisOption("[Sampler] Sigma method", str, apply_setting("schedulers_sigma"), choices=lambda: ['default', 'karras', 'betas', 'exponential', 'lambdas']),
+    AxisOption("[Sampler] Sigma adjust", float, apply_setting("schedulers_sigma_adjust")),
     AxisOption("[Sampler] Timestep spacing", str, apply_setting("schedulers_timestep_spacing"), choices=lambda: ['default', 'linspace', 'leading', 'trailing']),
     AxisOption("[Sampler] Timestep range", int, apply_setting("schedulers_timesteps_range")),
     AxisOption("[Sampler] Solver order", int, apply_setting("schedulers_solver_order")),

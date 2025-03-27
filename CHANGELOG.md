@@ -107,7 +107,8 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - update `diffusers` and other requirements  
   - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
   - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
-  - LoRA enable memory cache by default  
+  - **LoRA** enable memory cache by default  
+  - **Samplers** add ability to set sigma adjustment for each sampler  
 - **Wiki/Docs**  
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  

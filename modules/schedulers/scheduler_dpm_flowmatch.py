@@ -509,7 +509,10 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         def t_fn(_sigma: torch.Tensor) -> torch.Tensor:
             return _sigma.log().neg()
         sigma = self.sigmas[self.step_index]
-        sigma_next = self.sigmas[self.step_index + 1]
+        try:
+            sigma_next = self.sigmas[self.step_index + 1]
+        except Exception:
+            sigma_next = self.sigmas[-1]
         sigma_prev = self.sigmas[self.step_index - 1]
         if self.config.algorithm_type == "dpmsolver2":
             if self.config.solver_order == 2:
