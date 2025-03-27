@@ -57,6 +57,7 @@ def hijack_vae_decode(*args, **kwargs):
     if res is None:
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
         try:
+            sd_models.move_model(shared.sd_model.vae, devices.device)
             if torch.is_tensor(args[0]):
                 latent = args[0]
                 latent = latent.to(device=devices.device, dtype=shared.sd_model.vae.dtype) # upcast to vae dtype

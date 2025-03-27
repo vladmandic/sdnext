@@ -1,6 +1,6 @@
 import os
 import time
-from modules import shared, sd_models, timer, errors
+from modules import shared, sd_models, timer, errors, devices
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -31,6 +31,7 @@ def set_prompt(p):
 def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
     try:
+        sd_models.move_model(shared.sd_model.text_encoder, devices.device)
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
         shared.log.error(f'Video encode: {e}')
