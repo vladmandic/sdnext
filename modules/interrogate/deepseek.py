@@ -12,7 +12,7 @@ import os
 import sys
 import importlib
 from transformers import AutoModelForCausalLM
-from modules import shared, devices, paths
+from modules import shared, devices, paths, sd_models
 
 
 # model_path = "deepseek-ai/deepseek-vl2-small"
@@ -73,7 +73,7 @@ def predict(question, image, repo):
     ).to(device=devices.device, dtype=devices.dtype)
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
     inputs_embeds = inputs_embeds.to(device=devices.device, dtype=devices.dtype)
-    vl_gpt = vl_gpt.to(devices.device)
+    sd_models.move_model(vl_gpt, devices.device)
     with devices.inference_context():
         outputs = vl_gpt.language.generate(
             inputs_embeds=inputs_embeds,

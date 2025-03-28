@@ -111,6 +111,8 @@ class StableDiffusionProcessing:
                  refiner_prompt: str = '',
                  refiner_negative: str = '',
                  hr_refiner_start: float = 0,
+                 # prompt enhancer
+                 enhance_prompt: bool = False,
                  # save options
                  outpath_samples=None,
                  outpath_grids=None,
@@ -145,6 +147,7 @@ class StableDiffusionProcessing:
         self.is_refiner_pass = False
         self.is_api = False
         self.scheduled_prompt = False
+        self.enhance_prompt = enhance_prompt
         self.prompt_embeds = []
         self.positive_pooleds = []
         self.negative_embeds = []

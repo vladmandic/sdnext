@@ -83,6 +83,7 @@ ignore = [
   "F401",   # Imported by unused
   "NPY002", # replace legacy random
   "RUF005", # Consider iterable unpacking
+  "RUF008", # Do not use mutable default values for dataclass
   "RUF010", # Use explicit conversion flag
   "RUF012", # Mutable class attributes
   "RUF013", # PEP 484 prohibits implicit `Optional`

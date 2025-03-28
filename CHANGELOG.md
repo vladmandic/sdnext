@@ -79,6 +79,13 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - [ByteDance/Sa2VA](https://huggingface.co/ByteDance/Sa2VA-1B) 1B, 4B  
     simply select from list of available models in caption tab  
   - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*  
+- **Prompt Enhance**  
+  - new built-in extension available in text/image/control tabs  
+  - can be used to manually or automatically enhance prompts using LLM  
+  - supports **Gemma-3, Qwen-2.5, Phi-4, Llama-3.2, SmolLM2**  
+    models are auto-downloaded on first use  
+    also supports custom models that are compatible with `transformers/AutoModelForCausalLM`  
+  - support quantization and offloading  
 - [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
   - add detection of prompt language and alphabet and filter based on those values  
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  

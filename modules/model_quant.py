@@ -45,7 +45,7 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
                 bnb_4bit_quant_type=shared.opts.bnb_quantization_type,
                 bnb_4bit_compute_dtype=devices.dtype
             )
-            log.debug(f'Quantization: module=all type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
+            log.debug(f'Quantization: module="{module}" type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
             if kwargs is None:
                 return bnb_config
             else:
@@ -62,7 +62,7 @@ def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'
             if ao is None:
                 return kwargs
             ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
-            log.debug(f'Quantization: module=all type=torchao dtype={shared.opts.torchao_quantization_type}')
+            log.debug(f'Quantization: module="{module}" type=torchao dtype={shared.opts.torchao_quantization_type}')
             if kwargs is None:
                 return ao_config
             else:
@@ -82,7 +82,7 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
                 weights_dtype=shared.opts.quanto_quantization_type,
             )
             quanto_config.activations = None # patch so it works with transformers
-            log.debug(f'Quantization: module=all type=quanto dtype={shared.opts.quanto_quantization_type}')
+            log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
             if kwargs is None:
                 return quanto_config
             else:
