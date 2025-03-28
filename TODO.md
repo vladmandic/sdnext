@@ -9,7 +9,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: Hunyuan Video I2V: requires `transformers==4.47.1` <https://github.com/huggingface/diffusers/issues/11118>  
 - Video: Latte 1 T2V: dtype mismatch <https://github.com/huggingface/diffusers/issues/11137>  
 - Video: WAN 2.1 14B I2V 480p/720p: broken offload <https://github.com/huggingface/diffusers/issues/11162>  
-- Video: WAN 2.1 14B I2V 480p/720p: custom number of frames <https://github.com/huggingface/diffusers/issues/11163>  
+- Video: WAN 2.1 14B I2V 480p/720p: broken custom number of frames <https://github.com/huggingface/diffusers/issues/11163>  
 - Video: CogVideoX 1.5 5B T2V/I2V: all-gray output  
 - Video: Allegro T2V: all-gray output
 
