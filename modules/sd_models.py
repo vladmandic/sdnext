@@ -130,7 +130,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
                 model.requires_grad_(False)
                 model.eval()
             return model
-        sd_model = apply_function_to_model(sd_model, eval_model, ["Model", "VAE", "Text Encoder"], op="eval")
+        sd_model = apply_function_to_model(sd_model, eval_model, ["Model", "VAE", "TE"], op="eval")
     if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'post':
         sd_model = model_quant.torchao_quantization(sd_model)
 

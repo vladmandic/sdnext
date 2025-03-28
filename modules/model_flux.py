@@ -112,12 +112,12 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
         quant_args = model_quant.create_config(allow=allow_quant)
         if not quant_args:
             return kwargs
-        if 'transformer' not in kwargs and ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization):
+        if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
             kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-        quant_args = model_quant.create_config(allow=allow_quant, module='Text Encoder')
+        quant_args = model_quant.create_config(allow=allow_quant, module='TE')
         if not quant_args:
             return kwargs
-        if 'text_encoder_2' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization or 'Text Encoder' in shared.opts.quanto_quantization):
+        if 'text_encoder_2' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
             kwargs['text_encoder_2'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
     except Exception as e:
         shared.log.error(f'Quantization: {e}')
@@ -192,7 +192,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
             transformer, _text_encoder_2 = load_flux_nf4(file_path, prequantized=False)
             if transformer is not None:
                 return transformer
-        quant_args = model_quant.create_config()
+        quant_args = model_quant.create_config(module='Transformer')
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
             transformer = diffusers.FluxTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)

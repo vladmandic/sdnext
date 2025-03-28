@@ -238,7 +238,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
                     m.quantization_method = 'LayerWise'
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
-            if module.startswith('text_encoder') and ('Model' in shared.opts.layerwise_quantization or 'Text Encoder' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
+            if module.startswith('text_encoder') and ('Model' in shared.opts.layerwise_quantization or 'TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
                 m = getattr(sd_model, module)
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)

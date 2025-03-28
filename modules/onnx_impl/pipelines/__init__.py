@@ -368,7 +368,7 @@ class OnnxRawPipeline(PipelineBase):
         if shared.opts.cuda_compile_backend == "olive-ai":
             submodels_for_olive = []
 
-            if "Text Encoder" in shared.opts.cuda_compile:
+            if "TE" in shared.opts.cuda_compile:
                 if not self.is_refiner:
                     submodels_for_olive.append("text_encoder")
                 if self._is_sdxl:

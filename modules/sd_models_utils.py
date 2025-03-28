@@ -164,7 +164,7 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.prior_pipe.prior = function(sd_model.prior_pipe.prior, op="prior_pipe.prior", sd_model=sd_model)
             if op == "nncf" and "StableCascade" in sd_model.__class__.__name__:
                 sd_model.prior_pipe.prior.clip_txt_pooled_mapper = backup_clip_txt_pooled_mapper
-    if "Text Encoder" in options:
+    if "TE" in options:
         if hasattr(sd_model, 'text_encoder') and hasattr(sd_model.text_encoder, 'config'):
             if hasattr(sd_model, 'decoder_pipe') and hasattr(sd_model.decoder_pipe, 'text_encoder') and hasattr(sd_model.decoder_pipe.text_encoder, 'config'):
                 sd_model.decoder_pipe.text_encoder = function(sd_model.decoder_pipe.text_encoder, op="decoder_pipe.text_encoder", sd_model=sd_model)

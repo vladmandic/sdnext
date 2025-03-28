@@ -19,7 +19,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: add generate context menu  
 - Video: API support  
 - Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
-- Video SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
+- Video: SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
 - SoftFill: https://github.com/zacheryvaughn/softfill-pipelines
 
 ## Code TODO

@@ -38,7 +38,7 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='Text Encoder')
+    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='TE')
     text_encoder = transformers.T5EncoderModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
@@ -71,7 +71,7 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='Text Encoder')
+    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='TE')
     text_encoder = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         subfolder="text_encoder",
