@@ -199,6 +199,8 @@ class Script(scripts.Script):
         apply_auto, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty = args
         if not apply_auto and not p.enhance_prompt:
             return
+        if shared.state.skipped or shared.state.interrupted:
+            return
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
         p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
         shared.prompt_styles.apply_styles_to_extra(p)
