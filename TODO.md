@@ -7,9 +7,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 ### Issues/Limitations
 
 - Video: Hunyuan Video I2V: requires `transformers==4.47.1` <https://github.com/huggingface/diffusers/issues/11118>  
-- Video: Latte 1 T2V: dtype mismatch <https://github.com/huggingface/diffusers/issues/11137>  
 - Video: CogVideoX 1.5 5B T2V/I2V: all-gray output  
 - Video: Allegro T2V: all-gray output
+- Video: Latte1 T2V: garbage output
 
 ## Future Candidates
 

@@ -27,17 +27,19 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
         shared.sd_model.vae.enable_tiling()
     # Latte
     if selected.name == 'Latte 1 T2V':
-        p.task_args['enable_temporal_attentions'] = False
-        p.task_args['video_length'] = p.frames
+        p.task_args['enable_temporal_attentions'] = True
+        p.task_args['video_length'] = 16 * (max(p.frames // 16, 1))
     # LTX
     if cls == 'LTXImageToVideoPipeline' or cls == 'LTXConditionPipeline':
         p.task_args['generator'] = None
     if cls == 'LTXConditionPipeline':
         p.task_args['strength'] = p.denoising_strength
+    # WAN
     if 'Wan' in cls:
         p.task_args['width'] = 16 * (p.width // 16)
         p.task_args['height'] = 16 * (p.height // 16)
-        p.frames = 4 * (p.frames // 4) + 1
+        p.frames = 4 * (max(p.frames // 4, 1)) + 1
+    # LTX
     if 'LTX' in cls:
         p.task_args['width'] = 32 * (p.width // 32)
         p.task_args['height'] = 32 * (p.height // 32)

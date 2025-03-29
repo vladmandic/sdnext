@@ -14,6 +14,14 @@ def engine_change(engine):
     return gr.update(choices=found, value=found[0] if len(found) > 0 else None)
 
 
+def get_selected(engine, model):
+    found = [model.name for model in models_def.models.get(engine, [])]
+    if len(models_def.models[engine]) > 0 and len(found) > 0:
+        selected = [m for m in models_def.models[engine] if m.name == model][0]
+        return selected
+    return None
+
+
 def model_change(engine, model):
     debug(f'Video change: engine="{engine}" model="{model}"')
     found = [model.name for model in models_def.models.get(engine, [])]
@@ -23,8 +31,7 @@ def model_change(engine, model):
 
 def model_load(engine, model):
     debug(f'Video load: engine="{engine}" model="{model}"')
-    found = [model.name for model in models_def.models.get(engine, [])]
-    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    selected = get_selected(engine, model)
     yield f'Video model loading: {selected.name}'
     if selected:
         if 'None' in selected.name:
@@ -43,8 +50,7 @@ def model_load(engine, model):
 def run_video(*args):
     engine, model = args[2], args[3]
     debug(f'Video run: engine="{engine}" model="{model}"')
-    found = [model.name for model in models_def.models.get(engine, [])]
-    selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
+    selected = get_selected(engine, model)
     if not selected or engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
     debug(f'Video run: {str(selected)}')
