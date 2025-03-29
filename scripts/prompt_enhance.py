@@ -55,6 +55,7 @@ class Script(scripts.Script):
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
+                _attn_implementation="eager",
                 **quant_args,
             )
             self.llm.eval()
@@ -66,6 +67,15 @@ class Script(scripts.Script):
             devices.torch_gc()
             t1 = time.time()
             shared.log.debug(f'Prompt enhance: model="{model}" cls={self.llm.__class__.__name__} time={t1-t0:.2f} loaded')
+
+    def unload(self):
+        if self.llm is not None:
+            sd_models.move_model(self.llm, devices.cpu)
+        self.model = None
+        self.llm = None
+        self.tokenizer = None
+        devices.torch_gc()
+        shared.log.debug('Prompt enhance: model unloaded')
 
     def clean(self, response):
         if isinstance(response, list):
@@ -123,8 +133,8 @@ class Script(scripts.Script):
                 if shared.opts.diffusers_offload_mode != 'none':
                     sd_models.move_model(self.llm, devices.cpu)
                     devices.torch_gc()
-            raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            shared.log.trace(f'Prompt enhance: raw="{raw_response}"')
+            # raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+            # shared.log.trace(f'Prompt enhance: raw="{raw_response}"')
             outputs = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
         except Exception as e:
@@ -133,7 +143,6 @@ class Script(scripts.Script):
         t1 = time.time()
         shared.log.debug(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt="{response}"')
         return response
-
 
     def apply(self, prompt, apply_prompt, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty):
         response = self.enhance(
@@ -160,6 +169,11 @@ class Script(scripts.Script):
                 with gr.Row():
                     llm_model = gr.Dropdown(label='LLM model', choices=self.options.models, value=self.options.default, interactive=True, allow_custom_value=True, elem_id='prompt_enhance_model')
                 with gr.Row():
+                    load_btn = gr.Button(value='Load model', elem_id='prompt_enhance_load', variant='secondary')
+                    load_btn.click(fn=self.load, inputs=[llm_model], outputs=[])
+                    unload_btn = gr.Button(value='Unload model', elem_id='prompt_enhance_unload', variant='secondary')
+                    unload_btn.click(fn=self.unload, inputs=[], outputs=[])
+                with gr.Row():
                     prompt_system = gr.Textbox(label='System prompt', value=self.options.system_prompt, interactive=True, lines=4, elem_id='prompt_enhance_system')
                 with gr.Row():
                     max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=1024, step=1, interactive=True)
@@ -169,6 +183,11 @@ class Script(scripts.Script):
                     repetition_penalty = gr.Slider(label='Repetition penalty', value=self.options.repetition_penalty, minimum=0.0, maximum=2.0, step=0.01, interactive=True)
                 with gr.Row():
                     prompt_output = gr.Textbox(label='Output', value='', interactive=True, lines=4)
+                with gr.Row():
+                    clear_btn = gr.Button(value='Clear', elem_id='prompt_enhance_clear', variant='secondary')
+                    clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
+                    copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
+                    copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
             apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty], outputs=[prompt_output, self.prompt])
         return [apply_auto, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty]
 
@@ -181,6 +200,8 @@ class Script(scripts.Script):
         if not apply_auto and not p.enhance_prompt:
             return
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
+        p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+        shared.prompt_styles.apply_styles_to_extra(p)
         p.styles = []
         p.prompt = self.enhance(
             prompt=p.prompt,

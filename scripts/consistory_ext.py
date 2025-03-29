@@ -118,6 +118,8 @@ class Script(scripts.Script):
         settings = [p.strip() for p in prompts.split('\n') if p.strip() != '']
         anchors = [f'{subject} {p}' for p in settings]
         prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
+        shared.prompt_styles.apply_styles_to_extra(p)
+        p.styles = []
         prompts = [p.strip() for p in prompt.split('\n') if p.strip() != '']
         for i, prompt in enumerate(prompts):
             if subject not in prompt:

@@ -24,14 +24,17 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Code TODO
 
-- enable ROCm for windows when available
-- resize image: enable full VAE mode for resize-latent
-- infotext: handle using regex instead
-- processing: remove duplicate mask params
-- model loader: implement model in-memory caching
-- hypertile: vae breaks when using non-standard sizes
-- force-reloading entire model as loading transformers only leads to massive memory usage
-- add other quantization types
-- lora make support quantized flux
 - control: support scripts via api
+- enable ROCm for windows when available
+- fc: autodetect distilled based on model
+- fc: autodetect tensor format based on model
+- hypertile: vae breaks when using non-standard sizes
+- infotext: handle using regex instead
+- lora: add other quantization types
+- lora: force-reloading entire model as loading transformers only leads to massive memory usage
+- lora: required for flux to reapply offload after lora has been applied, but fails with oom
+- lora: support pre-quantized flux
+- model loader: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
+- processing: remove duplicate mask params
+- resize image: enable full VAE mode for resize-latent

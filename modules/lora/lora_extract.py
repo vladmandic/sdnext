@@ -182,7 +182,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             progress.remove_task(task)
         t3 = time.time()
 
-        # TODO: lora make support quantized flux
+        # TODO: lora support pre-quantized flux
         # if 'te' in modules and getattr(shared.sd_model, 'transformer', None) is not None:
         #     for name, module in shared.sd_model.transformer.named_modules():
         #         if "norm" in name and "linear" not in name:

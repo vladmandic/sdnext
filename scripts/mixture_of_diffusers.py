@@ -91,6 +91,8 @@ class Script(scripts.Script):
 
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
         p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+        shared.prompt_styles.apply_styles_to_extra(p)
+        p.styles = []
         p.prompts, guidance = self.get_prompts(x_tiles, y_tiles, prompts, p.prompt, p.cfg_scale)
         p.all_prompts = p.prompts
         p.task_args['prompts'] = p.prompts

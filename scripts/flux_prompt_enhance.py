@@ -89,6 +89,9 @@ class Script(scripts.Script):
     def run(self, p: processing.StableDiffusionProcessing, auto_apply, temperature, repetition_penalty, max_length): # pylint: disable=arguments-differ
         if auto_apply:
             p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
+            p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+            shared.prompt_styles.apply_styles_to_extra(p)
+            p.styles = []
             shared.log.debug(f'Prompt enhance: source="{p.prompt}"')
             prompts = self.enhance(p.prompt, auto_apply, temperature, repetition_penalty, max_length)
             p.prompt = random.choice(prompts)[0]
