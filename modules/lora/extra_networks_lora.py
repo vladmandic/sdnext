@@ -6,7 +6,7 @@ from modules.lora import networks, network_overrides
 from modules import extra_networks, shared, sd_models
 
 
-debug = os.environ.get('SD_SCRIPT_DEBUG', None) is not None
+debug = os.environ.get('SD_LORA_DEBUG', None) is not None
 debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
 
 
@@ -26,6 +26,7 @@ def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-
             if m[1][-1] <= 1.0:
                 step = step / (max_steps - step_offset) if max_steps > 0 else 1.0
             v = np.interp(step, m[1], m[0])
+            debug_log(f"Network load: type=LoRA step={step} steps={max_steps} v={v}")
             return v
         else:
             return m

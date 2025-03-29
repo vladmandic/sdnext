@@ -68,12 +68,15 @@ Plus...
     load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
 - **Prompt Enhance**  
+  - see [Prompt Enhance Wiki](https://github.com/vladmandic/sdnext/wiki/Prompt-Enhance) for details!  
   - new built-in extension available in text/image/control tabs  
   - can be used to manually or automatically enhance prompts using LLM  
   - built-in presets for **Gemma-3, Qwen-2.5, Phi-4, Llama-3.2, SmolLM2, Dolphin-3**  
   - support for custom models  
     load any models hosted on huggingface  
     load either model in huggingface format or `gguf` format  
+    *note*: any hf model in `transformers.AutoModelForCausalLM` standard should work  
+    *note*: not all model architecture are supported for `gguf` format  
   - models are auto-downloaded on first use  
   - support quantization and offloading  
 - **Acceleration**  

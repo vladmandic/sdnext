@@ -22,6 +22,7 @@ class Options:
         'meta-llama/Llama-3.2-3B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
         'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
             'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
             'type': 'llama', # required so gguf loader knows what to do
