@@ -94,7 +94,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
                 ssim = ssim_matlab(I0_small[:, :3], I1_small[:, :3])
                 if ssim > 0.99: # skip duplicate frames
                     duplicate += 1
-                    continue
+                    # continue
                 if ssim < change:
                     output = []
                     for _i in range(pad): # fill frames if change rate is above threshold
