@@ -116,7 +116,7 @@ button.custom-button { border-radius: var(--button-large-radius); padding: var(-
 #txt2img_seed, #img2img_seed, #control_seed, #video_seed { min-width: 90px !important }
 #video_generate_box>button { max-width: unset; }
 #interrogate_output_prompt>textarea { resize: vertical; }
-#prompt_enhance_apply, #prompt_enhance_model { max-width: unset; }
+#prompt_enhance_apply, #prompt_enhance_model, #prompt_enhance_custom_load { max-width: unset; min-width: 100% !important; }
 #prompt_enhance_system textarea { color: var(--body-text-color-subdued) !important }
 
 .interrogate { position: absolute; right: 2.8em; top: 0.2em; max-width: fit-content; background: none !important; z-index: 50; font-size: 1.5em !important; }

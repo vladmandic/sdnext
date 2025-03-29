@@ -67,6 +67,15 @@ Plus...
     download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
     load using *settings -> text encoder*  
     *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Prompt Enhance**  
+  - new built-in extension available in text/image/control tabs  
+  - can be used to manually or automatically enhance prompts using LLM  
+  - built-in presets for **Gemma-3, Qwen-2.5, Phi-4, Llama-3.2, SmolLM2, Dolphin-3**  
+  - support for custom models  
+    load any models hosted on huggingface  
+    load either model in huggingface format or `gguf` format  
+  - models are auto-downloaded on first use  
+  - support quantization and offloading  
 - **Acceleration**  
   - Support for most DiT-based models, for example: *FLUX.1, SD35, Hunyuan, Mochi, Latte, Allegro, Cog*  
   - Enable and configure in *Settings -> Pipeline modifiers*  
@@ -84,13 +93,6 @@ Plus...
   - [ByteDance/Sa2VA](https://huggingface.co/ByteDance/Sa2VA-1B) 1B, 4B  
     simply select from list of available models in caption tab  
   - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*  
-- **Prompt Enhance**  
-  - new built-in extension available in text/image/control tabs  
-  - can be used to manually or automatically enhance prompts using LLM  
-  - supports **Gemma-3, Qwen-2.5, Phi-4, Llama-3.2, SmolLM2**  
-    models are auto-downloaded on first use  
-    also supports custom models that are compatible with `transformers/AutoModelForCausalLM`  
-  - support quantization and offloading  
 - [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
   - add detection of prompt language and alphabet and filter based on those values  
   - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
