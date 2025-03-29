@@ -1,16 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-26
+## Update for 2025-03-28
 
-### Highlights for 2025-03-27
+### Highlights for 2025-03-28
 
 Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
 
-Plus support for **CogView-4**, **SANA 1.5**, new CLiP models, improvements to remote VAE, additional docs/guides  
-Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods  
+Also, support for new models: **CogView-4**, **SANA 1.5**, 
 
-### Details for 2025-03-27
+Plus...
+- New **Prompt Enhance** using LLM,
+- New **CLiP** models, improvements to **remote VAE**, additional wiki/docs/guides  
+- More quantization options and granular control  
+- Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods  
+
+### Details for 2025-03-28
 
 - **Video tab**  
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
@@ -116,6 +121,7 @@ Pretty big performance updates to a) Any model using DiT based architecture: new
   - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
   - **LoRA** enable memory cache by default  
   - **Samplers** add ability to set sigma adjustment for each sampler  
+  - **ModernUI** updates  
 - **Wiki/Docs**  
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  
