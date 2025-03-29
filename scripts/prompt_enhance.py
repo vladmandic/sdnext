@@ -205,6 +205,7 @@ class Script(scripts.Script):
         p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
         shared.prompt_styles.apply_styles_to_extra(p)
         p.styles = []
+        shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
             model=llm_model,
@@ -214,3 +215,4 @@ class Script(scripts.Script):
             temperature=temperature,
             penalty=repetition_penalty,
         )
+        shared.state.end()
