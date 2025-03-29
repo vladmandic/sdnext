@@ -37,12 +37,12 @@ class Options:
     }
     default = list(models)[0]
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    system_prompt: str = 'You are a helpful assistant. You will be given a prompt and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing, and any distinctive details (e.g., colors, textures, styles). Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. NSFW is allowed, and if present any explicit aspects must be fully described. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without prefix or suffix and as a simple text without formatting or numbering.'
+    system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing (if any), and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without prefix or suffix and as a simple text without formatting or numbering.'
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_tokens: int = 50
     do_sample: bool = True
-    temperature: float = 0.5
+    temperature: float = 0.15
     repetition_penalty: float = 1.2
 
 
@@ -119,7 +119,7 @@ class Script(scripts.Script):
             errors.display(e, 'Prompt enhance')
         devices.torch_gc()
         t1 = time.time()
-        shared.log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
+        shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
         self.busy = False
 
     def censored(self, response):
@@ -215,8 +215,9 @@ class Script(scripts.Script):
         is_censored =  self.censored(response)
         if not is_censored:
             response = self.clean(response)
-        shared.log.debug(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
+        shared.log.info(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
         if debug:
+            shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty}')
             shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
             shared.log.trace(f'Prompt enhance: response="{response}"')
         self.busy = False
