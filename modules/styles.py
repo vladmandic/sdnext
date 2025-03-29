@@ -260,6 +260,7 @@ class StyleDatabase:
                 for future in concurrent.futures.as_completed(future_items):
                     future.result()
 
+        self.built_in = shared.opts.extra_networks_styles
         list_folder(self.path)
         t1 = time.time()
         shared.log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')
