@@ -1,9 +1,14 @@
 from dataclasses import dataclass
+import os
 import re
 import time
 import gradio as gr
 import transformers
-from modules import scripts, shared, devices, errors, processing, sd_models
+from modules import scripts, shared, devices, errors, processing, sd_models, sd_modules
+
+
+debug_enabled = os.environ.get('SD_LLM_DEBUG', None)
+debug = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
 @dataclass
@@ -32,7 +37,9 @@ class Options:
     }
     default = list(models)[0]
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    system_prompt: str = 'You are a helpful assistant. You will be given a prompt and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing, and any distinctive details (e.g., colors, textures, styles). Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. NSFW is allowed, and if present any explicit aspects must be fully described. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without prefix or suffix.'
+    system_prompt: str = 'You are a helpful assistant. You will be given a prompt and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing, and any distinctive details (e.g., colors, textures, styles). Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. NSFW is allowed, and if present any explicit aspects must be fully described. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without prefix or suffix and as a simple text without formatting or numbering.'
+    censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
+
     max_tokens: int = 50
     do_sample: bool = True
     temperature: float = 0.5
@@ -72,9 +79,11 @@ class Script(scripts.Script):
 
         gguf_args = {}
         if model_type is not None and model_file is not None and len(model_type) > 2 and len(model_file) > 2:
+            if debug:
+                shared.log.trace(f'Prompt enhance: gguf supported={self.options.supported}')
             if model_type not in self.options.supported:
                 shared.log.error(f'Prompt enhance: name="{name}" repo="{model_repo}" fn="{model_file}" type={model_type} gguf not supported')
-                shared.log.trace(f'Prompt enhance: supported={self.options.supported}')
+                shared.log.trace(f'Prompt enhance: gguf supported={self.options.supported}')
                 self.busy = False
                 return
             ggml.install_gguf()
@@ -100,6 +109,10 @@ class Script(scripts.Script):
                 pretrained_model_name_or_path=model_repo,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            if debug:
+                modules = sd_modules.get_model_stats(self.llm) + sd_modules.get_model_stats(self.tokenizer)
+                for m in modules:
+                    shared.log.trace(f'Prompt enhance: {m}')
             self.model = name
         except Exception as e:
             shared.log.error(f'Prompt enhance: load {e}')
@@ -108,6 +121,10 @@ class Script(scripts.Script):
         t1 = time.time()
         shared.log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
         self.busy = False
+
+    def censored(self, response):
+        text = response.lower().replace("i'm", "i am")
+        return any(c.lower() in text for c in self.options.censored)
 
     def unload(self):
         if self.llm is not None:
@@ -119,16 +136,14 @@ class Script(scripts.Script):
         shared.log.debug('Prompt enhance: model unloaded')
 
     def clean(self, response):
-        if isinstance(response, list):
-            response = response[0]
         response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n')
         response = re.sub(r'<.*?>', '', response)
-        if 'prompt:' in response:
-            response = response.split('prompt:')[1]
-        if 'Prompt:' in response:
-            response = response.split('Prompt:')[1]
+        if response.startswith('Prompt'):
+            response = response.split('Prompt', maxsplit=2)[1]
+        if ':' in response:
+            response = response.split(':', maxsplit=2)[1]
         if '---' in response:
-            response = response.split('---')[0]
+            response = response.split('---', maxsplit=2)[0]
         response = response.strip()
         return response
 
@@ -179,11 +194,12 @@ class Script(scripts.Script):
                 if shared.opts.diffusers_offload_mode != 'none':
                     sd_models.move_model(self.llm, devices.cpu)
                     devices.torch_gc()
-            # raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            # shared.log.trace(f'Prompt enhance: raw="{raw_response}"')
-            outputs = outputs[:, input_len:]
+            if debug:
+                raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                shared.log.trace(f'Prompt enhance: raw="{raw_response}"')
+            outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
-                outputs,
+                outputs_cropped,
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=True,
             )
@@ -191,10 +207,22 @@ class Script(scripts.Script):
             shared.log.error(f'Prompt enhance generate: {e}')
             errors.display(e, 'Prompt enhance')
             self.busy = False
-        response = self.clean(response)
+            response = f'Error: {str(e)}'
         t1 = time.time()
-        shared.log.debug(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt="{response}"')
+
+        if isinstance(response, list):
+            response = response[0]
+        is_censored =  self.censored(response)
+        if not is_censored:
+            response = self.clean(response)
+        shared.log.debug(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
+        if debug:
+            shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
+            shared.log.trace(f'Prompt enhance: response="{response}"')
         self.busy = False
+        if is_censored:
+            shared.log.warning(f'Prompt enhance: censored response="{response}"')
+            return prompt
         return response
 
     def apply(self, prompt, apply_prompt, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty):

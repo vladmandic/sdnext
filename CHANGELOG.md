@@ -79,6 +79,7 @@ Plus...
     *note*: not all model architecture are supported for `gguf` format  
   - models are auto-downloaded on first use  
   - support quantization and offloading  
+  - debug using `SD_LLM_DEBUG=true` env variable  
 - **Acceleration**  
   - Support for most DiT-based models, for example: *FLUX.1, SD35, Hunyuan, Mochi, Latte, Allegro, Cog*  
   - Enable and configure in *Settings -> Pipeline modifiers*  
