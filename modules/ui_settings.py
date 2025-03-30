@@ -9,6 +9,7 @@ text_settings = gr.Textbox(elem_id="settings_json", value=lambda: shared.opts.du
 loadsave = ui_loadsave.UiLoadsave(shared.cmd_opts.ui_config)
 quicksettings_names = {x: i for i, x in enumerate(shared.opts.quicksettings_list) if x != 'quicksettings'}
 quicksettings_list = []
+hidden_list = []
 components = []
 
 
@@ -118,9 +119,7 @@ def create_dirty_indicator(key, keys_to_reset, **kwargs):
 def run_settings(*args):
     changed = []
     for key, value, comp in zip(shared.opts.data_labels.keys(), args, components):
-        if comp == dummy_component or value=='dummy':
-            continue
-        if getattr(comp, 'visible', True) is False:
+        if comp == dummy_component or value=='dummy': # or getattr(comp, 'visible', True) is False or key in hidden_list:
             continue
         if not shared.opts.same_type(value, shared.opts.data_labels[key].default):
             shared.log.error(f'Setting bad value: {key}={value} expecting={type(shared.opts.data_labels[key].default).__name__}')
@@ -202,20 +201,23 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
+            shared.log.debug(f'UI settings: sections={len(sections)} settings={len(list(shared.opts.data_labels))}')
             with gr.Tabs(elem_id="settings"):
                 for (section_id, section_text) in sections:
                     items = [item for item in shared.opts.data_labels.items() if item[1].section[0] == section_id] # find all items in this section
                     hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()
-                    shared.log.trace(f'Settings: section="{section_id}" title="{section_text}" items={len(items)} hidden={hidden}')
+                    # shared.log.trace(f'Settings: section="{section_id}" title="{section_text}" items={len(items)} hidden={hidden}')
                     if hidden:
-                        components.append(dummy_component)
+                        for (key, _item) in items:
+                            hidden_list.append(key)
+                            components.append(dummy_component)
                     else:
                         with gr.TabItem(elem_id=f"settings_section_tab_{section_id}", label=section_text):
                             current_items = []
                             for (key, item) in items:
                                 if key in quicksettings_names:
                                     quicksettings_list.append((key, item))
-                                    components.append(dummy_component) # TODO: quicksettings should clone insetad of move
+                                    components.append(dummy_component)
                                 else:
                                     with gr.Row(elem_id=f"settings_section_row_{section_id}"): # only so we can add dirty indicator at the start of the row
                                         component = create_setting_component(key)
@@ -314,7 +316,6 @@ def create_quicksettings(interfaces):
                     show_progress=info.refresh is not None,
                 )
 
-        dummy_component = gr.Textbox(visible=False, value='dummy')
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
             fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint'),
