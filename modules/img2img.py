@@ -6,8 +6,9 @@ from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageChops, Unidenti
 import modules.scripts
 from modules import shared, processing, images
 from modules.generation_parameters_copypaste import create_override_settings_dict
-from modules.ui import plaintext_to_html
+from modules.ui_common import plaintext_to_html
 from modules.memstats import memory_stats
+
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PROCESS')

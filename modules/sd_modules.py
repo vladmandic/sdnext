@@ -31,7 +31,7 @@ def get_signature(cls):
 
 def get_module_stats(name, module):
     if not isinstance(module, torch.nn.Module):
-        return
+        return None
     try:
         module_size = sum(p.numel() * p.element_size() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
         param_num = sum(p.numel() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
