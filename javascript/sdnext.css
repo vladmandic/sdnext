@@ -168,9 +168,10 @@ div#extras_scale_to_tab div.form { flex-direction: row; }
 #settings .modification-indicator.changed { background: var(--color-accent);  }
 #settings .modification-indicator.changed.unsaved { background: var(--color-warning); }
 #settings .block.gradio-checkbox { margin: 0; width: auto; }
-#settings .block.gradio-number { min-width: 500px; }
-#settings .gradio-slider, #tab_settings .gradio-dropdown { width: 500px !important; max-width: 500px; }
-#settings textarea { width: 500px !important; max-width: 500px; }
+#settings .block.gradio-number { min-width: 500px !important; }
+#settings .gradio-slider, #tab_settings .gradio-dropdown { width: 500px !important; max-width: 500px !important; }
+#settings .gradio-radio { padding: var(--block-padding) !important; }
+#settings textarea { width: 500px !important; max-width: 500px !important; }
 
 .licenses { display: block !important; }
 

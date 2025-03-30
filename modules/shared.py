@@ -409,7 +409,7 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
     "diffusers_eval": OptionInfo(True, "Force model eval", gr.Checkbox, {"visible": False }),
     "diffusers_to_gpu": OptionInfo(False, "Load model directly to GPU"),
     "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
-    "sd_model_dict": OptionInfo('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles()}, refresh=refresh_checkpoints),
+    "sd_model_dict": OptionInfo('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles(), "visible": False}, refresh=refresh_checkpoints),
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": not native }),
 }))
 
@@ -422,7 +422,7 @@ options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"
     "diffusers_vae_tile_size": OptionInfo(0, "VAE tile size", gr.Slider, {"minimum": 0, "maximum": 4096, "step": 8 }),
     "diffusers_vae_tile_overlap": OptionInfo(0.25, "VAE tile overlap", gr.Slider, {"minimum": 0, "maximum": 0.95, "step": 0.05 }),
     "sd_vae_sliced_encode": OptionInfo(False, "VAE sliced encode", gr.Checkbox, {"visible": not native}),
-    "nan_skip": OptionInfo(False, "Skip Generation if NaN found in latents", gr.Checkbox),
+    "nan_skip": OptionInfo(False, "Skip Generation if NaN found in latents", gr.Checkbox, {"visible": False}),
     "remote_vae_type": OptionInfo('raw', "Remote VAE image type", gr.Dropdown, {"choices": ['raw', 'jpg', 'png']}),
     "remote_vae_encode": OptionInfo(False, "Remote VAE for encode"),
     "rollback_vae": OptionInfo(False, "Attempt VAE roll back for NaN values", gr.Checkbox, {"visible": not native}),
@@ -623,7 +623,6 @@ options_templates.update(options_section(('compile', "Model Compile"), {
 }))
 
 options_templates.update(options_section(('system-paths', "System Paths"), {
-    "clean_temp_dir_at_start": OptionInfo(True, "Cleanup temporary folder on startup"),
     "models_paths_sep_options": OptionInfo("<h2>Models Paths</h2>", "", gr.HTML),
     "models_dir": OptionInfo('models', "Root model folder", folder=True),
     "model_paths_sep_options": OptionInfo("<h2>Paths for specific models</h2>", "", gr.HTML),
@@ -651,6 +650,7 @@ options_templates.update(options_section(('system-paths', "System Paths"), {
     "ldsr_models_path": OptionInfo(os.path.join(paths.models_path, 'LDSR'), "Folder with LDSR models", folder=True),
     "clip_models_path": OptionInfo(os.path.join(paths.models_path, 'CLIP'), "Folder with CLIP models", folder=True),
     "other_paths_sep_options": OptionInfo("<h2>Cache folders</h2>", "", gr.HTML),
+    "clean_temp_dir_at_start": OptionInfo(True, "Cleanup temporary folder on startup"),
     "temp_dir": OptionInfo("", "Directory for temporary images; leave empty for default", folder=True),
     "accelerate_offload_path": OptionInfo('cache/accelerate', "Folder for disk offload", folder=True),
     "openvino_cache_path": OptionInfo('cache', "Folder for OpenVINO cache", folder=True),
@@ -659,15 +659,15 @@ options_templates.update(options_section(('system-paths', "System Paths"), {
 }))
 
 options_templates.update(options_section(('saving-images', "Image Options"), {
-    "keep_incomplete": OptionInfo(True, "Keep incomplete images"),
     "samples_save": OptionInfo(True, "Save all generated images"),
+    "keep_incomplete": OptionInfo(False, "Keep incomplete images"),
     "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
     "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
     "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 100, "maximum": 2000, "step": 1}),
     "webp_lossless": OptionInfo(False, "WebP lossless compression"),
-    "save_selected_only": OptionInfo(True, "Save only saves selected image"),
+    "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
     "include_mask": OptionInfo(False, "Include mask in outputs"),
-    "samples_save_zip": OptionInfo(True, "Create ZIP archive"),
+    "samples_save_zip": OptionInfo(False, "Create ZIP archive for multiple images"),
     "image_background": OptionInfo("#000000", "Resize background color", gr.ColorPicker, {}),
 
     "image_sep_metadata": OptionInfo("<h2>Metadata/Logging</h2>", "", gr.HTML),
