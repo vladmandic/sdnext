@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-30
+## Update for 2025-03-31
 
-### Highlights for 2025-03-30
+### Highlights for 2025-03-31
 
 Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
@@ -15,7 +15,7 @@ Plus...
 - More quantization options and granular control  
 - Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods  
 
-### Details for 2025-03-30
+### Details for 2025-03-31
 
 - **Video tab**  
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
