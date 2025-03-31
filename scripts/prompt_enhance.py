@@ -140,7 +140,9 @@ class Script(scripts.Script):
 
     def clean(self, response):
         # remove special characters
-        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '')
+        # remove repeating characters
+        response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
 
         # remove comments between brackets
         response = re.sub(r'<.*?>', '', response)
@@ -159,9 +161,8 @@ class Script(scripts.Script):
             debug(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
         # remove bullets and lists
-        lines = response.splitlines()
-        filtered = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line) for line in lines]
-        response = '\n'.join(filtered)
+        lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()]
+        response = '\n'.join(lines)
 
         response = response.strip()
         return response
