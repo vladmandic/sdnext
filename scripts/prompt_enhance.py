@@ -37,9 +37,10 @@ class Options:
     }
     default = list(models)[0]
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing (if any), and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without prefix or suffix and as a simple text without formatting or numbering.'
+    system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing (if any), and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
+    max_delim_index: int = 60
     max_tokens: int = 50
     do_sample: bool = True
     temperature: float = 0.15
@@ -93,8 +94,10 @@ class Script(scripts.Script):
 
         try:
             t0 = time.time()
+            if self.llm is not None:
+                self.llm = None
+                shared.log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
-            self.llm = None
             self.llm = transformers.AutoModelForCausalLM.from_pretrained(
                 pretrained_model_name_or_path=model_repo if not gguf_args else model_gguf,
                 trust_remote_code=True,
@@ -136,14 +139,17 @@ class Script(scripts.Script):
         shared.log.debug('Prompt enhance: model unloaded')
 
     def clean(self, response):
-        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n')
+        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n').replace('  ', ' ')
         response = re.sub(r'<.*?>', '', response)
+        removed = ''
         if response.startswith('Prompt'):
-            response = response.split('Prompt', maxsplit=2)[1]
-        if ':' in response:
-            response = response.split(':', maxsplit=2)[1]
-        if '---' in response:
-            response = response.split('---', maxsplit=2)[0]
+            removed, response = response.split('Prompt', maxsplit=2)
+        if 0 <= response.find(':') < self.options.max_delim_index:
+            removed, response = response.split(':', maxsplit=2)
+        if 0 <= response.find('---') < self.options.max_delim_index:
+            response, removed = response.split('---', maxsplit=2)
+        if len(removed) > 0:
+            debug(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
         response = response.strip()
         return response
 
@@ -323,4 +329,5 @@ class Script(scripts.Script):
             temperature=temperature,
             penalty=repetition_penalty,
         )
+        p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
