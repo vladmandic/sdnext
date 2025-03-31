@@ -12,6 +12,14 @@ debug_enabled = os.environ.get('SD_HDR_DEBUG', None) is not None
 debug = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 debug('Trace: HDR')
 skip_correction = False
+warned = False
+
+
+def warn_once(message):
+    global warned # pylint: disable=global-statement
+    if not warned:
+        shared.log.warning(f'VAE: {message}')
+        warned = True
 
 
 def sharpen_tensor(tensor, ratio=0):
@@ -121,6 +129,9 @@ def correction_callback(p, timestep, kwargs, initial: bool = False):
         return kwargs
     latents = kwargs["latents"]
     # debug(f'HDR correction: latents={latents.shape}')
+    if len(latents.shape) <= 3: # packed latent
+        warn_once(f'HDR correction: shape={latents.shape} packed latent')
+        return kwargs
     if len(latents.shape) == 4: # standard batched latent
         for i in range(latents.shape[0]):
             latents[i] = correction(p, timestep, latents[i])
@@ -135,6 +146,6 @@ def correction_callback(p, timestep, kwargs, initial: bool = False):
             latents[i] = correction(p, timestep, latents[i])
         latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
     else:
-        shared.log.debug(f'HDR correction: unknown latent shape {latents.shape}')
+        warn_once(f'HDR correction: shape={latents.shape} unknown latent')
     kwargs["latents"] = latents
     return kwargs
