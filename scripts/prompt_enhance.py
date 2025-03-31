@@ -69,7 +69,6 @@ class Script(scripts.Script):
         if self.model is not None and self.model == name:
             return
 
-        t0 = time.time()
         from modules import modelloader, model_quant, ggml
         modelloader.hf_login()
         model_repo = model_repo or self.options.models.get(name, {}).get('repo', None) or name
@@ -93,6 +92,7 @@ class Script(scripts.Script):
         quant_args = model_quant.create_config(module='LLM') if not gguf_args else {}
 
         try:
+            t0 = time.time()
             self.model = None
             self.llm = None
             self.llm = transformers.AutoModelForCausalLM.from_pretrained(
@@ -114,12 +114,12 @@ class Script(scripts.Script):
                 for m in modules:
                     shared.log.trace(f'Prompt enhance: {m}')
             self.model = name
+            t1 = time.time()
+            shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
         except Exception as e:
             shared.log.error(f'Prompt enhance: load {e}')
             errors.display(e, 'Prompt enhance')
         devices.torch_gc()
-        t1 = time.time()
-        shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
         self.busy = False
 
     def censored(self, response):
