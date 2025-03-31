@@ -1,6 +1,7 @@
 import os
 import threading
 import numpy as np
+from PIL import Image
 from modules import shared, errors
 from modules.images_namegen import FilenameGenerator # pylint: disable=unused-import
 
@@ -83,3 +84,25 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
     else:
         save_video_atomic(images, filename, video_type, duration, loop, interpolate, scale, pad, change)
     return filename
+
+
+def get_video_params(filepath: str, capture: bool = False):
+    import cv2
+    from modules.control.util import decode_fourcc
+    video = cv2.VideoCapture(filepath)
+    if not video.isOpened():
+        msg = f'Video open failed: path="{filepath}"'
+        shared.log.error(msg)
+        raise RuntimeError(msg)
+    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = round(video.get(cv2.CAP_PROP_FPS), 2)
+    duration = round(float(frames) / fps, 2)
+    w, h = int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    codec = decode_fourcc(video.get(cv2.CAP_PROP_FOURCC))
+    frame = None
+    if capture:
+        _status, frame = video.read()
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = Image.fromarray(frame)
+    video.release()
+    return frames, fps, duration, w, h, codec, frame

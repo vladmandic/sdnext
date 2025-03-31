@@ -1,7 +1,7 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import shared, scripts, masking # pylint: disable=ungrouped-imports
+from modules import shared, scripts, masking, video # pylint: disable=ungrouped-imports
 
 
 gr_height = None
@@ -82,31 +82,9 @@ def display_units(num_units):
     return (num_units * [gr.update(visible=True)]) + ((max_units - num_units) * [gr.update(visible=False)])
 
 
-def get_video_params(filepath: str, capture: bool = False):
-    import cv2
-    from modules.control.util import decode_fourcc
-    video = cv2.VideoCapture(filepath)
-    if not video.isOpened():
-        msg = f'Control: video open failed: path="{filepath}"'
-        shared.log.error(msg)
-        raise RuntimeError(msg)
-    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = video.get(cv2.CAP_PROP_FPS)
-    duration = float(frames) / fps
-    w, h = int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    codec = decode_fourcc(video.get(cv2.CAP_PROP_FOURCC))
-    frame = None
-    if capture:
-        _status, frame = video.read()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = Image.fromarray(frame)
-    video.release()
-    return frames, fps, duration, w, h, codec, frame
-
-
 def get_video(filepath: str):
     try:
-        frames, fps, duration, w, h, codec, _cap = get_video_params(filepath)
+        frames, fps, duration, w, h, codec, _cap = video.get_video_params(filepath)
         shared.log.debug(f'Control: input video: path={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec}')
         msg = f'Control input | Video | Size {w}x{h} | Frames {frames} | FPS {fps:.2f} | Duration {duration:.2f} | Codec {codec}'
         return msg

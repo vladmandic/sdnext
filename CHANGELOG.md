@@ -36,6 +36,8 @@ Plus...
   - **LoRA**
     - support for *Hunyuan, LTX, WAN, Mochi, Cog*  
     - add option to apply LoRA directly on GPU or use CPU first in low-memory scenarios  
+    - improve metadata and preview parallel fetch  
+    - support for mp4 so first frame is extracted as used as lora preview  
   - additional key points:  
     - all models are auto-downloaded upon first use  
       uses *system paths -> huggingface* folder  
