@@ -42,8 +42,6 @@ def torch__C__cuda_getCurrentRawStream(device):
 
 
 def do_hijack():
-    torch.version.hip = rocm.version
-
     if zluda.default_agent is not None:
         DeviceProperties.PROPERTIES_OVERRIDE["gcnArchName"] = zluda.default_agent.name
     torch.cuda._get_device_properties = torch_cuda__get_device_properties # pylint: disable=protected-access

@@ -6,6 +6,7 @@ import shutil
 import zipfile
 import urllib.request
 from typing import Union
+from installer import args, log
 from modules import rocm
 
 
@@ -24,8 +25,6 @@ MIOpen_available = False
 path = os.path.abspath(os.environ.get('ZLUDA', '.zluda'))
 default_agent: Union[rocm.Agent, None] = None
 hipBLASLt_enabled = False
-
-nightly = os.environ.get("ZLUDA_NIGHTLY", "0") == "1"
 
 
 class ZLUDAResult(ctypes.Structure):
@@ -101,7 +100,10 @@ def install() -> None:
 
     platform = "windows"
     commit = os.environ.get("ZLUDA_HASH", "dba64c0966df2c71e82255e942c96e2e1cea3a2d")
-    if nightly:
+    if os.environ.get("ZLUDA_NIGHTLY", "0") == "1":
+        log.warning("Environment variable 'ZLUDA_NIGHTLY' will be removed. Please use command-line argument '--use-nightly' instead.")
+        args.use_nightly = True
+    if args.use_nightly:
         platform = "nightly-" + platform
     urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
     with zipfile.ZipFile('_zluda', 'r') as archive:
@@ -150,6 +152,8 @@ def make_copy() -> None:
 
 
 def load() -> None:
+    log.info(f"ZLUDA load: path='{path}' nightly={bool(core.get_nightly_flag())}")
+
     os.environ["ZLUDA_COMGR_LOG_LEVEL"] = "1"
     os.environ["ZLUDA_NVRTC_LIB"] = os.path.join([v for v in site.getsitepackages() if v.endswith("site-packages")][0], "torch", "lib", "nvrtc64_112_0.dll")
 
@@ -171,7 +175,8 @@ def load() -> None:
         ctypes.windll.LoadLibrary(os.path.join(path, 'cudnn64_9.dll'))
 
     def conceal():
-        import torch # pylint: disable=unused-import
+        import torch
+        torch.version.hip = rocm.version
         platform = sys.platform
         sys.platform = ""
         from torch.utils import cpp_extension
