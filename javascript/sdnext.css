@@ -151,10 +151,8 @@ div#extras_scale_to_tab div.form { flex-direction: row; }
 #txt2img_styles_refresh, #img2img_styles_refresh, #control_styles_refresh, #video_styles_refresh { padding: 0; margin-top: 1em; }
 
 /* settings */
-#si-sparkline-memo, #si-sparkline-load { background-color: #111; }
 #quicksettings { width: fit-content; }
 #quicksettings>button { padding: 0 1em 0 0; align-self: end; margin-bottom: 6px; }
-
 #settings { display: flex; margin-left: 0.5em; }
 #settings>div.tab-content { margin-top: 1em; }
 #settings>div.tab-content>div>div { gap: 0; }
@@ -172,10 +170,10 @@ div#extras_scale_to_tab div.form { flex-direction: row; }
 #settings .gradio-slider, #tab_settings .gradio-dropdown { width: 500px !important; max-width: 500px !important; }
 #settings .gradio-radio { padding: var(--block-padding) !important; }
 #settings textarea { width: 500px !important; max-width: 500px !important; }
-
 .licenses { display: block !important; }
 
 /* live preview */
+#si-sparkline-memo, #si-sparkline-load { background-color: #111; }
 .progressDiv { position: relative; height: 20px; background: #b4c0cc; margin-bottom: -3px; }
 .dark .progressDiv { background: #424c5b; }
 .progressDiv .progress { width: 0%; height: 20px; background: #0060df; color: white; font-weight: bold; line-height: 20px; padding: 0 8px 0 0; text-align: right; overflow: visible; white-space: nowrap; padding: 0 0.5em; }
