@@ -33,7 +33,9 @@ Plus...
     - **Default**: use vae from model  
     - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
     - **Remote VAE**: support for *Hunyuan*  
-  - **LoRA**: support for *Hunyuan, LTX, WAN, Mochi, Cog*  
+  - **LoRA**
+    - support for *Hunyuan, LTX, WAN, Mochi, Cog*  
+    - add option to apply LoRA directly on GPU or use CPU first in low-memory scenarios  
   - additional key points:  
     - all models are auto-downloaded upon first use  
       uses *system paths -> huggingface* folder  

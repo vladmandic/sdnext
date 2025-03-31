@@ -81,8 +81,12 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             ooms = mem_mon_read.pop("oom")
             retries = mem_mon_read.pop("retries")
             vram = {k: v//1048576 for k, v in mem_mon_read.items()}
-            peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
-            used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
+            if 'active_peak' in vram:
+                peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
+                used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
+            else:
+                peak = 0
+                used = 0
             if peak > 0:
                 gpu += f"| GPU {peak} MB"
                 gpu += f" {used}%" if used > 0 else ''
