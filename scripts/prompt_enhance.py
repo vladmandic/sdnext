@@ -139,8 +139,15 @@ class Script(scripts.Script):
         shared.log.debug('Prompt enhance: model unloaded')
 
     def clean(self, response):
-        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n').replace('  ', ' ')
+        # remove special characters
+        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '').replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+
+        # remove comments between brackets
         response = re.sub(r'<.*?>', '', response)
+        response = re.sub(r'\[.*?\]', '', response)
+        response = re.sub(r'\/.*?\/', '', response)
+
+        # remove llm commentary
         removed = ''
         if response.startswith('Prompt'):
             removed, response = response.split('Prompt', maxsplit=2)
@@ -150,6 +157,12 @@ class Script(scripts.Script):
             response, removed = response.split('---', maxsplit=2)
         if len(removed) > 0:
             debug(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
+
+        # remove bullets and lists
+        lines = response.splitlines()
+        filtered = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line) for line in lines]
+        response = '\n'.join(filtered)
+
         response = response.strip()
         return response
 
