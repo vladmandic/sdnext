@@ -74,6 +74,13 @@ def memory_stats():
     return mem
 
 
+def reset_stats():
+    try:
+        torch.cuda.reset_memory_stats()
+    except Exception:
+        pass
+
+
 def memory_cache():
     return mem
 

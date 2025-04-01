@@ -1056,8 +1056,9 @@ def clear_caches():
         lora_common.loaded_networks.clear()
         lora_common.previously_loaded_networks.clear()
         lora_load.lora_cache.clear()
-    from modules import prompt_parser_diffusers
+    from modules import prompt_parser_diffusers, memstats
     prompt_parser_diffusers.cache.clear()
+    memstats.reset_stats()
 
 
 def unload_model_weights(op='model'):

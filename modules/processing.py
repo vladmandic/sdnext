@@ -81,6 +81,7 @@ class Processed:
         self.all_seeds = all_seeds or p.all_seeds or [self.seed]
         self.all_subseeds = all_subseeds or p.all_subseeds or [self.subseed]
         self.infotexts = infotexts or [self.info]
+        memstats.reset_stats()
 
     def js(self):
         obj = {
