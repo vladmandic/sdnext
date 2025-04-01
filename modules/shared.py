@@ -926,7 +926,7 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "lora_preferred_name": OptionInfo("filename", "LoRA preferred name", gr.Radio, {"choices": ["filename", "alias"], "visible": False}),
     "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     "lora_fuse_diffusers": OptionInfo(True, "LoRA fuse directly to model"),
-    "lora_apply_gpu": OptionInfo(True, "LoRA load directly on GPU"),
+    "lora_apply_gpu": OptionInfo(False, "LoRA load directly on GPU"),
     "lora_legacy": OptionInfo(not native, "LoRA load using legacy method"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
     "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models"),

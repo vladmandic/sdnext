@@ -276,7 +276,8 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
 
     while len(lora_cache) > shared.opts.lora_in_memory_limit:
         name = next(iter(lora_cache))
-        lora_cache.pop(name, None)
+        lora = lora_cache.pop(name, None)
+        del lora
 
     if not skip_lora_load and len(diffuser_loaded) > 0:
         shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
@@ -535,6 +536,10 @@ def network_deactivate(include=[], exclude=[]):
             modules[name] = list(component.named_modules())
             active_components.append(name)
     total = sum(len(x) for x in modules.values())
+    if shared.opts.lora_apply_gpu:
+        device = devices.device
+    else:
+        device = devices.cpu
     if len(previously_loaded_networks) > 0 and debug:
         pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
         task = pbar.add_task(description='', total=total)
@@ -560,6 +565,10 @@ def network_deactivate(include=[], exclude=[]):
                     applied_layers.append(network_layer_name)
                 del batch_updown, batch_ex_bias
                 module.network_current_names = ()
+                try:
+                    module.to(device)
+                except Exception:
+                    pass
                 if task is not None:
                     pbar.update(task, advance=1, description=f'networks={len(previously_loaded_networks)} modules={active_components} layers={total} unapply={len(applied_layers)}')
 
@@ -626,6 +635,10 @@ def network_activate(include=[], exclude=[]):
                         applied_bias += 1
                 del batch_updown, batch_ex_bias
                 module.network_current_names = wanted_names
+                try:
+                    module.to(device)
+                except Exception:
+                    pass
                 if task is not None:
                     pbar.update(task, advance=1, description=f'networks={len(loaded_networks)} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={backup_size}')
 

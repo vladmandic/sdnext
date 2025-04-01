@@ -90,7 +90,7 @@ def download_civit_preview(model_path: str, preview_url: str):
     is_json = preview_file.lower().endswith('.json')
     if is_json:
         shared.log.warning(f'CivitAI download: url="{preview_url}" skip json')
-        return ''
+        return 'CivitAI download error: JSON file'
     if os.path.exists(preview_file):
         return ''
     res = f'CivitAI download: url={preview_url} file="{preview_file}"'
@@ -101,15 +101,15 @@ def download_civit_preview(model_path: str, preview_url: str):
     img = None
     shared.state.begin('CivitAI')
     if pbar is None:
-        pbar = p.Progress(p.TextColumn('[cyan]{task.description}'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), console=shared.console)
+        pbar = p.Progress(p.TextColumn('[cyan]Download'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), p.TextColumn('[yellow]{task.description}'), console=shared.console)
     try:
         with open(preview_file, 'wb') as f:
             with pbar:
-                task = pbar.add_task(description="Download starting", total=total_size)
+                task = pbar.add_task(description=preview_file, total=total_size)
                 for data in r.iter_content(block_size):
                     written = written + len(data)
                     f.write(data)
-                    pbar.update(task, advance=block_size, description="Downloading")
+                    pbar.update(task, advance=block_size)
         if written < 1024: # min threshold
             os.remove(preview_file)
             raise ValueError(f'removed invalid download: bytes={written}')
