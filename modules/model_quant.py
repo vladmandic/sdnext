@@ -3,7 +3,7 @@ import sys
 import copy
 import time
 import diffusers
-from installer import install, log, setup_logging
+from installer import installed, install, log, setup_logging
 
 
 ao = None
@@ -116,7 +116,9 @@ def load_torchao(msg='', silent=False):
     global ao # pylint: disable=global-statement
     if ao is not None:
         return ao
-    install('torchao==0.8.0', quiet=True)
+    if not installed('torchao'):
+        install('torchao==0.8.0', quiet=True)
+        log.warning('Quantization: torchao installed please restart')
     try:
         import torchao
         ao = torchao
@@ -140,9 +142,11 @@ def load_bnb(msg='', silent=False):
     global bnb # pylint: disable=global-statement
     if bnb is not None:
         return bnb
-    if devices.backend == 'cuda':
-        # forcing a version will uninstall the multi-backend-refactor branch of bnb
-        install('bitsandbytes==0.45.1', quiet=True)
+    if not installed('bitsandbytes'):
+        if devices.backend == 'cuda':
+            # forcing a version will uninstall the multi-backend-refactor branch of bnb
+            install('bitsandbytes==0.45.1', quiet=True)
+            log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
         bnb = bitsandbytes
@@ -165,7 +169,9 @@ def load_quanto(msg='', silent=False):
     global optimum_quanto # pylint: disable=global-statement
     if optimum_quanto is not None:
         return optimum_quanto
-    install('optimum-quanto==0.2.7', quiet=True)
+    if not installed('optimum-quanto'):
+        install('optimum-quanto==0.2.7', quiet=True)
+        log.warning('Quantization: optimum-quanto installed please restart')
     try:
         from optimum import quanto # pylint: disable=no-name-in-module
         optimum_quanto = quanto
@@ -190,7 +196,9 @@ def load_nncf(msg='', silent=False):
     global intel_nncf # pylint: disable=global-statement
     if intel_nncf is not None:
         return intel_nncf
-    install('nncf==2.7.0', quiet=True)
+    if not installed('nncf'):
+        install('nncf==2.7.0', quiet=True)
+        log.warning('Quantization: nncf installed please restart')
     try:
         import nncf
         intel_nncf = nncf

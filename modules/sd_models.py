@@ -1051,7 +1051,6 @@ def reload_model_weights(sd_model=None, info=None, reuse_dict=False, op='model',
 
 
 def clear_caches():
-    # shared.log.debug('Cache clear')
     if not shared.opts.lora_legacy:
         from modules.lora import lora_common, lora_load
         lora_common.loaded_networks.clear()

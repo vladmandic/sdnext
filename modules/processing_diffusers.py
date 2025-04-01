@@ -9,7 +9,7 @@ from modules import shared, devices, processing, sd_models, errors, sd_hijack_hy
 from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
-from modules.lora import networks
+from modules.lora import lora_common
 
 
 debug = shared.log.trace if os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -478,8 +478,8 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
             return results
 
     extra_networks.deactivate(p)
-    timer.process.add('lora', networks.timer.total)
-    networks.timer.clear(complete=True)
+    timer.process.add('lora', lora_common.timer.total)
+    lora_common.timer.clear(complete=True)
 
     results = process_decode(p, output)
     timer.process.record('decode')

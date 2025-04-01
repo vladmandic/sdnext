@@ -56,15 +56,17 @@ def memory_stats():
             fail_once = True
         mem.update({ 'ram': { 'error': str(e) } })
     try:
-        s = torch.cuda.mem_get_info()
-        gpu = { 'used': gb(s[1] - s[0]), 'total': gb(s[1]) }
-        s = dict(torch.cuda.memory_stats())
-        if s.get('num_ooms', 0) > 0:
+        free, total = torch.cuda.mem_get_info()
+        gpu = { 'used': gb(total - free), 'total': gb(total) }
+        stats = dict(torch.cuda.memory_stats())
+        if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
         mem.update({
             'gpu': gpu,
-            'retries': s.get('num_alloc_retries', 0),
-            'oom': s.get('num_ooms', 0)
+            'active': gb(stats.get('active_bytes.all.current', 0)),
+            'peak': gb(stats.get('active_bytes.all.peak', 0)),
+            'retries': stats.get('num_alloc_retries', 0),
+            'oom': stats.get('num_ooms', 0),
         })
         return mem
     except Exception:

@@ -122,6 +122,7 @@ Plus...
   - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
   - add Sage Attention support  
 - **Other**  
+  - new command line option `--monitor PERIOD` to monitor CPU and GPU memory ever n seconds  
   - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
   - **upscale**: new experimental support for `libvips` upscaling  
   - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  

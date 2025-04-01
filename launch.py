@@ -150,10 +150,14 @@ def run_extension_installer(ext_dir): # compatbility function
     installer.run_extension_installer(ext_dir)
 
 
-def get_memory_stats():
-    from modules.memstats import ram_stats
-    res = ram_stats()
-    return f'{res["used"]}/{res["total"]}'
+def get_memory_stats(detailed:bool=False):
+    from modules.memstats import ram_stats, memory_stats
+    if not detailed:
+        res = ram_stats()
+        return f'{res["used"]}/{res["total"]}'
+    else:
+        res = memory_stats()
+        return res
 
 
 def start_server(immediate=True, server=None):
@@ -260,6 +264,8 @@ def main():
     get_custom_args()
 
     uv, instance = start_server(immediate=True, server=None)
+    t_server = time.time()
+    t_monitor = time.time()
     while True:
         try:
             alive = uv.thread.is_alive()
@@ -267,8 +273,13 @@ def main():
         except Exception:
             alive = False
             requests = 0
-        if round(time.time()) % 120 == 0:
-            installer.log.debug(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
+        t_current = time.time()
+        if t_current - t_server > 120:
+            installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
+            t_server = t_current
+        if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
+            installer.log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
+            t_monitor = t_current
         if not alive:
             if uv is not None and uv.wants_restart:
                 installer.log.info('Server restarting...')
