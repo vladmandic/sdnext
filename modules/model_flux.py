@@ -109,16 +109,14 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
 
 def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
-        quant_args = model_quant.create_config(allow=allow_quant)
-        if not quant_args:
-            return kwargs
         if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
-            kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-        quant_args = model_quant.create_config(allow=allow_quant, module='TE')
-        if not quant_args:
-            return kwargs
+            quant_args = model_quant.create_config(allow=allow_quant, module='Transformer')
+            if quant_args:
+                kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
         if 'text_encoder_2' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
-            kwargs['text_encoder_2'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
+            quant_args = model_quant.create_config(allow=allow_quant, module='TE')
+            if quant_args:
+                kwargs['text_encoder_2'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
     except Exception as e:
         shared.log.error(f'Quantization: {e}')
         errors.display(e, 'Quantization:')
@@ -209,9 +207,9 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
 
 
 def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_checkpoint change
-    quant = model_quant.get_quant(checkpoint_info.path)
+    prequantized = model_quant.get_quant(checkpoint_info.path)
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={quant} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
+    shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={prequantized} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
     debug(f'Load model: type=FLUX config={diffusers_load_config}')
     modelloader.hf_login()
 
@@ -267,7 +265,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
                 errors.display(e, 'FLUX VAE:')
 
     # load quantized components if any
-    if quant == 'nf4':
+    if prequantized == 'nf4':
         try:
             from modules.model_flux_nf4 import load_flux_nf4
             _transformer, _text_encoder = load_flux_nf4(checkpoint_info)
@@ -279,7 +277,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             shared.log.error(f"Load model: type=FLUX failed to load NF4 components: {e}")
             if debug:
                 errors.display(e, 'FLUX NF4:')
-    if quant == 'qint8' or quant == 'qint4':
+    if prequantized == 'qint8' or prequantized == 'qint4':
         try:
             _transformer, _text_encoder = load_flux_quanto(checkpoint_info)
             if _transformer is not None:
@@ -325,7 +323,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
             except Exception:
                 pass
 
-    allow_quant = 'gguf' not in (sd_unet.loaded_unet or '') and (quant is None or quant == 'none')
+    allow_quant = 'gguf' not in (sd_unet.loaded_unet or '') and (prequantized is None or prequantized == 'none')
     fn = checkpoint_info.path
     if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
         kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
