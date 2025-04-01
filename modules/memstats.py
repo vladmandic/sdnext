@@ -62,6 +62,7 @@ def memory_stats():
         if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
         mem.update({
+            'job': shared.state.job,
             'gpu': gpu,
             'active': gb(stats.get('active_bytes.all.current', 0)),
             'peak': gb(stats.get('active_bytes.all.peak', 0)),
