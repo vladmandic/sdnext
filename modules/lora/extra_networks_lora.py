@@ -2,7 +2,7 @@ from typing import List
 import os
 import re
 import numpy as np
-from modules.lora import networks, network_overrides
+from modules.lora import networks, lora_overrides, lora_load
 from modules import extra_networks, shared, sd_models
 
 
@@ -156,13 +156,13 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
             debug_log(f'Network load: type=LoRA include={include} exclude={exclude} requested={requested} fn={fn}')
 
-        force_diffusers = network_overrides.check_override()
+        force_diffusers = lora_overrides.check_override()
         if force_diffusers:
             has_changed = False # diffusers handle their own loading
             if len(exclude) == 0:
-                networks.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
+                lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
         else:
-            networks.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)
             if has_changed:
                 networks.network_deactivate(include, exclude)
@@ -180,7 +180,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if shared.native:
             networks.previously_loaded_networks = networks.loaded_networks.copy()
             debug_log(f'Network load: type=LoRA active={[n.name for n in networks.previously_loaded_networks]} deactivate')
-        if shared.native and len(networks.diffuser_loaded) > 0:
+        if shared.native and len(lora_load.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 if hasattr(shared.sd_model, "unfuse_lora"):
                     try:

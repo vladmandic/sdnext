@@ -31,7 +31,7 @@ def unquote(text):
 # disabled by default can be enabled if needed
 def check_lora(params):
     try:
-        import modules.lora.networks as networks
+        from modules.lora import lora_load
         from modules.errors import log # pylint: disable=redefined-outer-name
     except Exception:
         return
@@ -39,14 +39,14 @@ def check_lora(params):
     found = []
     missing = []
     for l in loras:
-        lora = networks.available_network_hash_lookup.get(l, None)
+        lora = lora_load.available_network_hash_lookup.get(l, None)
         if lora is not None:
             found.append(lora.name)
         else:
             missing.append(l)
     loras = [s.strip() for s in params.get('LoRA networks', '').split(',')]
     for l in loras:
-        lora = networks.available_network_aliases.get(l, None)
+        lora = lora_load.available_network_aliases.get(l, None)
         if lora is not None:
             found.append(lora.name)
         else:
@@ -54,7 +54,7 @@ def check_lora(params):
     # networks.available_network_aliases.get(name, None)
     loras = re_lora.findall(params.get('Prompt', ''))
     for l in loras:
-        lora = networks.available_network_aliases.get(l, None)
+        lora = lora_load.available_network_aliases.get(l, None)
         if lora is not None:
             found.append(lora.name)
         else:

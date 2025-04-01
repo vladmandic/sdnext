@@ -91,8 +91,10 @@ class NetworkOnDisk:
             self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
 
     def get_alias(self):
-        import modules.lora.networks as networks
-        return self.name if shared.opts.lora_preferred_name == "filename" or self.alias.lower() in networks.forbidden_network_aliases else self.alias
+        if shared.opts.lora_preferred_name == "filename":
+            return self.name
+        else:
+            return self.alias
 
 
 class Network:  # LoraModule

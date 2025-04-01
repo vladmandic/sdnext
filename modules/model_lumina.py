@@ -21,7 +21,7 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
         cache_dir = shared.opts.diffusers_dir,
         **diffusers_load_config,
     )
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe
 
 
@@ -40,4 +40,5 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
     if ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
         kwargs['text_encoder'] = transformers.AutoModel.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, **quant_args)
     sd_model = diffusers.Lumina2Text2ImgPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config, **quant_args, **kwargs)
+    devices.torch_gc(force=True)
     return sd_model

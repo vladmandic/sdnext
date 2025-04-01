@@ -155,6 +155,7 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config):
         latent_dim_scale=sd_model.decoder_pipe.config.latent_dim_scale,
     )
 
+    devices.torch_gc(force=True)
     shared.log.debug(f'StableCascade combined: {sd_model.__class__.__name__}')
     return sd_model
 

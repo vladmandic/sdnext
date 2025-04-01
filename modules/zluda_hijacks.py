@@ -1,7 +1,7 @@
 from functools import wraps
 import torch
 import torch._dynamo.device_interface
-from modules import rocm, zluda, shared
+from modules import shared, rocm, zluda # pylint: disable=unused-import
 
 
 MEM_BUS_WIDTH = {

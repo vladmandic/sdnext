@@ -1,8 +1,8 @@
 import os
 import json
 import concurrent
-import modules.lora.networks as networks
 from modules import shared, ui_extra_networks
+from modules.lora import lora_load
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
@@ -14,7 +14,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         self.list_time = 0
 
     def refresh(self):
-        networks.list_available_networks()
+        lora_load.list_available_networks()
 
     @staticmethod
     def get_tags(l, info):
@@ -78,9 +78,9 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         return clean_tags
 
     def create_item(self, name):
-        l = networks.available_networks.get(name)
+        l = lora_load.available_networks.get(name)
         if l is None:
-            shared.log.warning(f'Networks: type=lora registered={len(list(networks.available_networks))} file="{name}" not registered')
+            shared.log.warning(f'Networks: type=lora registered={len(list(lora_load.available_networks))} file="{name}" not registered')
             return None
         try:
             # path, _ext = os.path.splitext(l.filename)
@@ -111,7 +111,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
     def list_items(self):
         items = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
-            future_items = {executor.submit(self.create_item, net): net for net in networks.available_networks}
+            future_items = {executor.submit(self.create_item, net): net for net in lora_load.available_networks}
             for future in concurrent.futures.as_completed(future_items):
                 item = future.result()
                 if item is not None:

@@ -88,8 +88,8 @@ def initialize():
     timer.startup.record("models")
 
     if not shared.opts.lora_legacy:
-        import modules.lora.networks as lora_networks
-        lora_networks.list_available_networks()
+        from modules.lora import lora_load
+        lora_load.list_available_networks()
         timer.startup.record("lora")
 
     shared.prompt_styles.reload()

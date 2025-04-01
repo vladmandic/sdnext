@@ -73,6 +73,5 @@ def load_sana(checkpoint_info, kwargs={}):
         pipe.transformer.eval()
     t1 = time.time()
     shared.log.debug(f'Load model: type=Sana target={devices.dtype} te={pipe.text_encoder.dtype} transformer={pipe.transformer.dtype} vae={pipe.vae.dtype} time={t1-t0:.2f}')
-
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

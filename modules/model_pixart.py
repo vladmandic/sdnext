@@ -26,5 +26,5 @@ def load_pixart(checkpoint_info, diffusers_load_config={}):
         **kwargs,
         **diffusers_load_config,
     )
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

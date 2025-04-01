@@ -342,6 +342,5 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     vae = None
     for k in kwargs.keys():
         kwargs[k] = None
-    devices.torch_gc()
-
+    devices.torch_gc(force=True)
     return pipe

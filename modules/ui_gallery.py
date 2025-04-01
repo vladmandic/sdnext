@@ -3,7 +3,7 @@ from datetime import datetime
 from urllib.parse import unquote
 import gradio as gr
 from PIL import Image
-from modules import shared, ui_symbols, ui_common, images, ui_control_helpers
+from modules import shared, ui_symbols, ui_common, images, video
 from modules.ui_components import ToolButton
 
 def read_media(fn):
@@ -13,7 +13,7 @@ def read_media(fn):
         return [[], None, '', '', f'Media not found: {fn}']
     stat = os.stat(fn)
     if fn.lower().endswith('.mp4'):
-        frames, fps, duration, w, h, codec, _frame = ui_control_helpers.get_video_params(fn)
+        frames, fps, duration, w, h, codec, _frame = video.get_video_params(fn)
         geninfo = ''
         log = f'''
             <p>Video <b>{w} x {h}</b>
