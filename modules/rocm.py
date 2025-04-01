@@ -172,12 +172,12 @@ else:
         return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
 
     def get_agents() -> List[Agent]:
-        if is_wsl: # WSL does not have 'rocm_agent_enumerator'
-            agents = spawn("rocminfo").split("\n")
-            agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
-        else:
+        try:
             agents = spawn("rocm_agent_enumerator").split("\n")
             agents = [x for x in agents if x and x != 'gfx000']
+        except Exception: # old version of ROCm WSL doesn't have rocm_agent_enumerator
+            agents = spawn("rocminfo").split("\n")
+            agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
     def load_hsa_runtime() -> None:
