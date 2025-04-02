@@ -1,11 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-01
+## Update for 2025-04-02
 
-### Highlights for 2025-04-01
+### Highlights for 2025-04-02
 
-Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both T2V and I2V workflows  
-And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB* and more!  
+Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
+And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
 
 Also, support for new models: **CogView-4**, **SANA 1.5**, 
 
@@ -13,9 +13,9 @@ Plus...
 - New **Prompt Enhance** using LLM,
 - New **CLiP** models, improvements to **remote VAE**, additional wiki/docs/guides  
 - More quantization options and granular control  
-- Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods  
+- Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods, c) much lower LoRA memory usage    
 
-### Details for 2025-04-01
+### Details for 2025-04-02
 
 - **Video tab**  
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
@@ -172,6 +172,7 @@ Plus...
   - fix extra networks cover and inline views  
   - fix token counter error style with modernui  
   - fix sampler metadata when using default sampler  
+  - fix paste incorrect float to int cast  
   - improve lora compatibility with balanced offload  
 
 ## Update for 2025-02-28

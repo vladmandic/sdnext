@@ -218,6 +218,9 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
             else:
                 try:
                     valtype = type(output.value)
+                    if hasattr(output, "step") and type(output.step) == float:
+                        valtype = float
+                    debug(f'Paste: "{key}"="{v}" type={valtype} var={vars(output)}')
                     if valtype == bool and v == "False":
                         val = False
                     else:

@@ -116,6 +116,7 @@ def create_ui():
                 (subseed, "Variation seed"),
                 (subseed_strength, "Variation strength"),
                 # advanced
+                (cfg_scale, "Guidance scale"),
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
                 (clip_skip, "Clip skip"),
