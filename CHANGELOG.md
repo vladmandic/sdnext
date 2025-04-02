@@ -125,9 +125,9 @@ Plus...
   - add `--upgrade` to torch_command when using `--use-nightly`  
   - disable fp16 for gfx1102 (rx 7600 and rx 7500 series) gpus  
 - **ZLUDA**  
-  - add `torch.compile` support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
-  - add Flash Attention 2 support under [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
-  - add Sage Attention support  
+  - [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
+    - `torch.compile` is now available  
+    - Flash Attention 2 is now available  
 - **Other**  
   - new command line option `--monitor PERIOD` to monitor CPU and GPU memory ever n seconds  
   - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
