@@ -4,16 +4,20 @@
 
 ### Highlights for 2025-04-02
 
-Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
+Time for another major release with ~120 commits and [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) that spans several pages!
+
+*Highlights?*  
+Video...Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
+Models...And support for new models: **CogView-4**, **SANA 1.5**, 
 
-Also, support for new models: **CogView-4**, **SANA 1.5**, 
-
-Plus...
+*Plus...*  
 - New **Prompt Enhance** using LLM,
 - New **CLiP** models, improvements to **remote VAE**, additional wiki/docs/guides  
 - More quantization options and granular control  
-- Pretty big performance updates to a) Any model using DiT based architecture: new caching methods, b) ZLUDA: new attention methods, c) much lower LoRA memory usage    
+- Pretty big performance updates to a) Any model using DiT based architecture due to new caching methods, b) ZLUDA with new attention methods, c) LoRA with much lower memory usage  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
 ### Details for 2025-04-02
 
@@ -153,7 +157,7 @@ Plus...
   - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide  
   - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
   - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
-  - upte [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
+  - updated [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
 - **Fixes**  
   - fix installer not starting when older version of `rich` is installed  
   - fix circular imports when debug flags are enabled  

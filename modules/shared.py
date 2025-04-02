@@ -407,7 +407,7 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
     "diffusers_eval": OptionInfo(True, "Force model eval", gr.Checkbox, {"visible": False }),
-    "diffusers_to_gpu": OptionInfo(False, "Load model directly to GPU"),
+    "diffusers_to_gpu": OptionInfo(False, "Model Load model direct to GPU"),
     "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
     "sd_model_dict": OptionInfo('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles(), "visible": False}, refresh=refresh_checkpoints),
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": not native }),
