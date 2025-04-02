@@ -60,7 +60,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: Hunyuan Video'
+        return 'Video: Hunyuan Video (Legacy)'
 
     def show(self, is_img2img):
         return not is_img2img if shared.native else False

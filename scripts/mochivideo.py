@@ -10,7 +10,7 @@ repo_id = 'genmo/mochi-1-preview'
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: Mochi.1 Video'
+        return 'Video: Mochi.1 Video (Legacy)'
 
     def show(self, is_img2img):
         return not is_img2img if shared.native else False

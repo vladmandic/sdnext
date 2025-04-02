@@ -52,7 +52,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: LTX Video'
+        return 'Video: LTX Video (Legacy)'
 
     def show(self, is_img2img):
         return shared.native

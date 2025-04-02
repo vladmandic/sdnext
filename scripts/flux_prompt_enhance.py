@@ -27,7 +27,7 @@ class Script(scripts.Script):
     prompt: gr.Textbox = None
 
     def title(self):
-        return 'Prompt enhance'
+        return 'Flux Prompt enhance (Legacy)'
 
     def show(self, is_img2img):
         return shared.native

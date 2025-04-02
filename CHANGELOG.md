@@ -13,6 +13,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
 
 *Plus...*  
 - New **Prompt Enhance** using LLM,
+- New pipelines such as **InfiniteYou**  
 - New **CLiP** models, improvements to **remote VAE**, additional wiki/docs/guides  
 - More quantization options and granular control  
 - Pretty big performance updates to a) Any model using DiT based architecture due to new caching methods, b) ZLUDA with new attention methods, c) LoRA with much lower memory usage  

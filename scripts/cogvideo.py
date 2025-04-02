@@ -22,7 +22,7 @@ debug = (os.environ.get('SD_LOAD_DEBUG', None) is not None) or (os.environ.get('
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: CogVideoX'
+        return 'Video: CogVideoX (Legacy)'
 
     def show(self, is_img2img):
         return shared.native

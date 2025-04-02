@@ -6,10 +6,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Issues/Limitations
 
-- Video: Hunyuan Video I2V: requires `transformers==4.47.1` <https://github.com/huggingface/diffusers/issues/11118>  
-- Video: CogVideoX 1.5 5B T2V/I2V: all-gray output  
-- Video: Allegro T2V: all-gray output
-- Video: Latte1 T2V: garbage output
+N/A
 
 ## Future Candidates
 
@@ -25,17 +22,19 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Code TODO
 
-- control: support scripts via api
-- enable ROCm for windows when available
-- fc: autodetect distilled based on model
-- fc: autodetect tensor format based on model
-- hypertile: vae breaks when using non-standard sizes
-- infotext: handle using regex instead
-- lora: add other quantization types
-- lora: force-reloading entire model as loading transformers only leads to massive memory usage
-- lora: required for flux to reapply offload after lora has been applied, but fails with oom
-- lora: support pre-quantized flux
-- model loader: implement model in-memory caching
-- modernui: monkey-patch for missing tabs.select event
-- processing: remove duplicate mask params
+> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g'
+ 
+- install: enable ROCm for windows when available
 - resize image: enable full VAE mode for resize-latent
+- infotext: handle using regex instead
+- fc: autodetect tensor format based on model
+- fc: autodetect distilled based on model
+- processing: remove duplicate mask params
+- model loader: implement model in-memory caching
+- hypertile: vae breaks when using non-standard sizes
+- model load: force-reloading entire model as loading transformers only leads to massive memory usage
+- lora: add other quantization types
+- lora: maybe force imediate quantization
+- modules/lora/lora_extract.py:185:9: W0511: TODO: lora support pre-quantized flux
+- control: support scripts via api
+- modernui: monkey-patch for missing tabs.select event
