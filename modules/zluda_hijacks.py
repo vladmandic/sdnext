@@ -1,7 +1,7 @@
 from functools import wraps
 import torch
 import torch._dynamo.device_interface
-from modules import shared, rocm, zluda # pylint: disable=unused-import
+from modules import shared, zluda # pylint: disable=unused-import
 
 
 MEM_BUS_WIDTH = {
@@ -16,6 +16,13 @@ MEM_BUS_WIDTH = {
     "AMD Radeon RX 7600 XT": 128,
     "AMD Radeon RX 7600": 128,
 }
+
+
+_topk = torch.topk
+def topk(input: torch.Tensor, *args, **kwargs): # pylint: disable=redefined-builtin
+    device = input.device
+    values, indices = _topk(input.cpu(), *args, **kwargs)
+    return torch.return_types.topk((values.to(device), indices.to(device),))
 
 
 class DeviceProperties:
@@ -42,6 +49,7 @@ def torch__C__cuda_getCurrentRawStream(device):
 
 
 def do_hijack():
+    torch.topk = topk
     if zluda.default_agent is not None:
         DeviceProperties.PROPERTIES_OVERRIDE["gcnArchName"] = zluda.default_agent.name
     torch.cuda._get_device_properties = torch_cuda__get_device_properties # pylint: disable=protected-access
