@@ -7,7 +7,7 @@ import transformers
 from modules import scripts, shared, devices, errors, processing, sd_models, sd_modules
 
 
-debug_enabled = os.environ.get('SD_LLM_DEBUG', None)
+debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
 debug = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
@@ -37,7 +37,7 @@ class Options:
     }
     default = list(models)[0]
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing (if any), and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
+    system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Do not modify subject or style of the original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing if no nudity, and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present, it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
@@ -152,11 +152,11 @@ class Script(scripts.Script):
         # remove llm commentary
         removed = ''
         if response.startswith('Prompt'):
-            removed, response = response.split('Prompt', maxsplit=2)
+            removed, response = response.split('Prompt', maxsplit=1)
         if 0 <= response.find(':') < self.options.max_delim_index:
-            removed, response = response.split(':', maxsplit=2)
+            removed, response = response.split(':', maxsplit=1)
         if 0 <= response.find('---') < self.options.max_delim_index:
-            response, removed = response.split('---', maxsplit=2)
+            response, removed = response.split('---', maxsplit=1)
         if len(removed) > 0:
             debug(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
@@ -167,9 +167,21 @@ class Script(scripts.Script):
         response = response.strip()
         return response
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None):
+    def preprocess(self, response, prefix, suffix):
+        response = response.strip()
+        prefix = prefix.strip()
+        suffix = suffix.strip()
+        if len(prefix) > 0:
+            response = f'{prefix} {response}'
+        if len(suffix) > 0:
+            response = f'{response} {suffix}'
+        return response
+
+    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None):
         model = model or self.options.default
         prompt = prompt or self.prompt.value
+        prefix = prefix or ''
+        suffix = suffix or ''
         system = system or self.options.system_prompt
         tokens = tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
@@ -235,6 +247,7 @@ class Script(scripts.Script):
         is_censored =  self.censored(response)
         if not is_censored:
             response = self.clean(response)
+            response = self.preprocess(response, prefix, suffix)
         shared.log.info(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
         if debug:
             shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty}')
@@ -246,9 +259,11 @@ class Script(scripts.Script):
             return prompt
         return response
 
-    def apply(self, prompt, apply_prompt, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty):
+    def apply(self, prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty):
         response = self.enhance(
             prompt=prompt,
+            prefix=prompt_prefix,
+            suffix=prompt_suffix,
             model=llm_model,
             system=prompt_system,
             sample=do_sample,
@@ -307,6 +322,10 @@ class Script(scripts.Script):
                     gr.HTML('<br>')
                 with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'):
                     with gr.Row():
+                        prompt_prefix = gr.Textbox(label='Prompt prefix', value='', placeholder='Optional prompt prefix', interactive=True, lines=2, elem_id='prompt_enhance_prefix')
+                    with gr.Row():
+                        prompt_suffix = gr.Textbox(label='Prompt suffix', value='', placeholder='Optional prompt suffix', interactive=True, lines=2, elem_id='prompt_enhance_suffix')
+                    with gr.Row():
                         prompt_system = gr.Textbox(label='System prompt', value=self.options.system_prompt, interactive=True, lines=4, elem_id='prompt_enhance_system')
                 with gr.Accordion('Output', open=True, elem_id='prompt_enhance_system_prompt'):
                     with gr.Row():
@@ -316,15 +335,15 @@ class Script(scripts.Script):
                         clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
                         copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
                         copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty], outputs=[prompt_output, self.prompt])
-        return [apply_auto, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty]
+            apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty], outputs=[prompt_output, self.prompt])
+        return [apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
             self.prompt = component
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        apply_auto, llm_model, prompt_system, max_tokens, do_sample, temperature, repetition_penalty = args
+        apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -336,6 +355,8 @@ class Script(scripts.Script):
         shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
+            prefix=prompt_prefix,
+            suffix=prompt_suffix,
             model=llm_model,
             system=prompt_system,
             sample=do_sample,
