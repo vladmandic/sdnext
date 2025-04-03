@@ -179,6 +179,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
   - fix sampler metadata when using default sampler  
   - fix paste incorrect float to int cast  
   - fix server restart from ui  
+  - fix style apply params  
   - do not allow edit of built-in styles  
   - improve lora compatibility with balanced offload  
 

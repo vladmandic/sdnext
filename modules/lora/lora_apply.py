@@ -101,9 +101,9 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
                 l.timer.move += t1 - t0
         except RuntimeError as e:
             l.extra_network_lora.errors[net.name] = l.extra_network_lora.errors.get(net.name, 0) + 1
+            module_name = net.modules.get(network_layer_name, None)
+            shared.log.error(f'Network: type=LoRA name="{net.name}" module="{module_name}" layer="{network_layer_name}" apply weight: {e}')
             if l.debug:
-                module_name = net.modules.get(network_layer_name, None)
-                shared.log.error(f'LoRA apply weight name="{net.name}" module="{module_name}" layer="{network_layer_name}" {e}')
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
         continue

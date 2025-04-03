@@ -205,5 +205,5 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             shared.log.debug(f"Network end: type=LoRA time={l.timer.summary}")
         if self.errors:
             for k, v in self.errors.items():
-                shared.log.error(f'LoRA: name="{k}" errors={v}')
+                shared.log.error(f'Network: type=LoRA name="{k}" errors={v}')
             self.errors.clear()
