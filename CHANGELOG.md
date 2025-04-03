@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-02
+## Update for 2025-04-03
 
-### Highlights for 2025-04-02
+### Highlights for 2025-04-03
 
 Time for another major release with ~120 commits and [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) that spans several pages!
 
@@ -20,7 +20,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-04-02
+### Details for 2025-04-03
 
 - **Video tab**  
   - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
@@ -178,6 +178,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
   - fix token counter error style with modernui  
   - fix sampler metadata when using default sampler  
   - fix paste incorrect float to int cast  
+  - do not allow edit of built-in styles  
   - improve lora compatibility with balanced offload  
 
 ## Update for 2025-02-28
