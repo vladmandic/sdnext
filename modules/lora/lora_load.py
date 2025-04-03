@@ -58,12 +58,12 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
         return cached
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
-    sd = sd_models.read_state_dict(network_on_disk.filename, what='network')
+    state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
     if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
-        sd = lora_convert._convert_kohya_flux_lora_to_diffusers(sd) or sd # pylint: disable=protected-access
+        state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
     if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
         try:
-            sd = lora_convert._convert_kohya_sd3_lora_to_diffusers(sd) or sd # pylint: disable=protected-access
+            state_dict = lora_convert._convert_kohya_sd3_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
         except ValueError: # EAFP for diffusers PEFT keys
             pass
     lora_convert.assign_network_names_to_compvis_modules(shared.sd_model)
@@ -73,7 +73,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     dtypes = []
     convert = lora_convert.KeyConvert()
     device = devices.device if shared.opts.lora_apply_gpu else devices.cpu
-    for key_network, weight in sd.items():
+    for key_network, weight in state_dict.items():
         parts = key_network.split('.')
         if parts[0] == "bundle_emb":
             emb_name, vec_name = parts[1], key_network.split(".", 2)[-1]
@@ -98,6 +98,8 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
         if weight.dtype not in dtypes:
             dtypes.append(weight.dtype)
     network_types = []
+    state_dict = None
+    del state_dict
     for key, weights in matched_networks.items():
         net_module = None
         for nettype in l.module_types:
