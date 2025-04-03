@@ -54,6 +54,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else None,
         "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
+        "CFG true": p.pag_scale if p.pag_scale > 1 else None,
         "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
         "Model": None if (not shared.opts.add_model_name_to_info) or (not shared.sd_model.sd_checkpoint_info.model_name) else shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', ''),

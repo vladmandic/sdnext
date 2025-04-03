@@ -71,7 +71,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         eta=shared.opts.scheduler_eta,
         guidance_scale=p.cfg_scale,
         guidance_rescale=p.diffusers_guidance_rescale,
-        true_cfg_scale=p.diffusers_guidance_rescale,
+        true_cfg_scale=p.pag_scale,
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
         num_frames=getattr(p, 'frames', 1),

@@ -39,7 +39,7 @@ def generate(*args, **kwargs):
         denoising_strength=float(init_strength),
         init_image=init_image,
         cfg_scale=float(guidance_scale),
-        diffusers_guidance_rescale=float(guidance_true),
+        pag_scale=float(guidance_true),
         vae_type=vae_type,
         vae_tile_frames=int(vae_tile_frames),
         override_settings=override_settings,
