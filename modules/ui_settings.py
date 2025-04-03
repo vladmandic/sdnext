@@ -3,9 +3,9 @@ import gradio as gr
 from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, generation_parameters_copypaste, call_queue, script_callbacks
 
 
+text_settings = None # holds json of entire shared.opts
 ui_system_tabs = None # required for system-info
 dummy_component = gr.Textbox(visible=False, value='dummy')
-text_settings = gr.Textbox(elem_id="settings_json", value=lambda: shared.opts.dumpjson(), visible=False)
 loadsave = ui_loadsave.UiLoadsave(shared.cmd_opts.ui_config)
 quicksettings_names = {x: i for i, x in enumerate(shared.opts.quicksettings_list) if x != 'quicksettings'}
 quicksettings_list = []
@@ -168,6 +168,8 @@ def run_settings_single(value, key, progress=False):
 
 
 def create_ui():
+    global text_settings # pylint: disable=global-statement
+    text_settings = gr.Textbox(elem_id="settings_json", elem_classes=["settings_json"], value=lambda: shared.opts.dumpjson(), visible=False)
     with gr.Row(elem_id="system_row"):
         restart_submit = gr.Button(value="Restart server", variant='primary', elem_id="restart_submit")
         shutdown_submit = gr.Button(value="Shutdown server", variant='primary', elem_id="shutdown_submit")
@@ -203,6 +205,7 @@ def create_ui():
 
             shared.log.debug(f'UI settings: sections={len(sections)} settings={len(list(shared.opts.data_labels))}')
             with gr.Tabs(elem_id="settings"):
+                quicksettings_list.clear()
                 for (section_id, section_text) in sections:
                     items = [item for item in shared.opts.data_labels.items() if item[1].section[0] == section_id] # find all items in this section
                     hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()

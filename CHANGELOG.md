@@ -178,6 +178,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
   - fix token counter error style with modernui  
   - fix sampler metadata when using default sampler  
   - fix paste incorrect float to int cast  
+  - fix server restart from ui  
   - do not allow edit of built-in styles  
   - improve lora compatibility with balanced offload  
 

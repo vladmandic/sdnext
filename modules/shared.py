@@ -1250,7 +1250,7 @@ total_tqdm = TotalTQDM()
 def restart_server(restart=True):
     if demo is None:
         return
-    log.warning('Server shutdown requested')
+    log.critical('Server shutdown requested')
     try:
         sys.tracebacklimit = 0
         stdout = io.StringIO()

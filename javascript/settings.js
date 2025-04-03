@@ -26,7 +26,7 @@ async function updateOpts(json_string) {
     const key = Object.keys(op)[0];
     const callback = op[key];
     if (opts[key] && opts[key] !== settings_data.values[key]) {
-      log('updateOpts', key, opts[key], settings_data.values[key]);
+      log('updateOpt', key, opts[key], settings_data.values[key]);
       if (callback) callback(new_opts[key], opts[key]);
     }
   }
@@ -37,7 +37,8 @@ async function updateOpts(json_string) {
     if (callback) callback(new_opts[key], opts[key]);
   }
 
-  opts = new_opts;
+  window.opts = new_opts;
+  log('updateOpts', Object.keys(new_opts).length);
   Object.entries(opts_metadata).forEach(([opt, meta]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = new Set();

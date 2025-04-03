@@ -13,7 +13,6 @@ class UiLoadsave:
     def __init__(self, filename):
         self.filename = filename
         self.component_mapping = {}
-        self.finalized_ui = False
         self.ui_defaults_view = None # button
         self.ui_defaults_apply = None # button
         self.ui_defaults_review = None # button
@@ -24,8 +23,6 @@ class UiLoadsave:
         self.ui_settings = self.read_from_file()
 
     def add_component(self, path, x):
-        """adds component to the registry of tracked components"""
-        assert not self.finalized_ui
 
         def apply_field(obj, field, condition=None, init_field=None):
             key = f"{path}/{field}"
@@ -253,7 +250,6 @@ class UiLoadsave:
         return "Restored system defaults for user interface"
 
     def create_ui(self):
-        """creates ui elements for editing defaults UI, without adding any logic to them"""
         with gr.Row(elem_id="config_row"):
             self.ui_defaults_apply = gr.Button(value='Set UI defaults', elem_id="ui_defaults_apply", variant="primary")
             self.ui_defaults_submenu = gr.Button(value='Set UI menu states', elem_id="ui_submenu_apply", variant="primary")
@@ -262,9 +258,6 @@ class UiLoadsave:
         self.ui_defaults_review = gr.HTML("", elem_id="ui_defaults_review")
 
     def setup_ui(self):
-        """adds logic to elements created with create_ui; all add_block class must be made before this"""
-        assert not self.finalized_ui
-        self.finalized_ui = True
         self.ui_defaults_view.click(fn=self.ui_view, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
         self.ui_defaults_apply.click(fn=self.ui_apply, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
         self.ui_defaults_restore.click(fn=self.ui_restore, inputs=[], outputs=[self.ui_defaults_review])

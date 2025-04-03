@@ -56,6 +56,9 @@ preview_map = None
 def init_api():
 
     def fetch_file(filename: str = ""):
+        global allowed_dirs # pylint: disable=global-statement
+        if len(allowed_dirs) == 0:
+            allowed_dirs = shared.demo.allowed_paths
         if not os.path.exists(filename):
             return JSONResponse({ "error": f"file {filename}: not found" }, status_code=404)
         if filename.startswith('html/') or filename.startswith('models/'):
@@ -473,6 +476,8 @@ def register_page(page: ExtraNetworksPage):
 
 def register_pages():
     debug('EN register-pages')
+    shared.extra_networks.clear()
+    allowed_dirs.clear()
     from modules.ui_extra_networks_checkpoints import ExtraNetworksPageCheckpoints
     from modules.ui_extra_networks_vae import ExtraNetworksPageVAEs
     from modules.ui_extra_networks_styles import ExtraNetworksPageStyles

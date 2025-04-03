@@ -293,6 +293,8 @@ def start_ui():
     allowed_paths = [os.path.dirname(__file__)]
     if shared.cmd_opts.data_dir is not None and os.path.isdir(shared.cmd_opts.data_dir):
         allowed_paths.append(shared.cmd_opts.data_dir)
+    if shared.cmd_opts.models_dir is not None and os.path.isdir(shared.cmd_opts.models_dir):
+        allowed_paths.append(shared.cmd_opts.models_dir)
     if shared.cmd_opts.allowed_paths is not None:
         allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
     shared.log.debug(f'Root paths: {allowed_paths}')
