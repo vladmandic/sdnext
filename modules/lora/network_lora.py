@@ -57,14 +57,15 @@ class NetworkModuleLora(network.NetworkModule):
         down = self.down_model.weight.to(target.device, dtype=target_dtype)
         output_shape = [up.size(0), down.size(1)]
         if self.mid_model is not None:
-            # cp-decomposition
             mid = self.mid_model.weight.to(target.device, dtype=target_dtype)
-            updown = lyco_helpers.rebuild_cp_decomposition(up, down, mid)
+            updown = lyco_helpers.rebuild_cp_decomposition(up, down, mid) # cp-decomposition
             output_shape += mid.shape[2:]
         else:
+            mid = None
             if len(down.shape) == 4:
                 output_shape += down.shape[2:]
             updown = lyco_helpers.rebuild_conventional(up, down, output_shape, self.network.dyn_dim)
+        del up, down, mid
         return self.finalize_updown(updown, target, output_shape)
 
     def forward(self, x, y):
