@@ -50,10 +50,11 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
         "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
         "Seed": all_seeds[index],
-        "Seed resize from": None if p.seed_resize_from_w == 0 or p.seed_resize_from_h == 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
+        "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
         "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else None,
         "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
+        "CFG true": p.pag_scale if p.pag_scale > 1 else None,
         "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
         "Model": None if (not shared.opts.add_model_name_to_info) or (not shared.sd_model.sd_checkpoint_info.model_name) else shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', ''),
@@ -87,8 +88,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Grid'] = grid
     if shared.native:
         args['Pipeline'] = shared.sd_model.__class__.__name__
-        args['TE'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'None') else shared.opts.sd_text_encoder
-        args['UNet'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_unet is None or shared.opts.sd_unet == 'None') else shared.opts.sd_unet
+        args['TE'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder
+        args['UNet'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet
     if 'txt2img' in p.ops:
         args["Variation seed"] = all_subseeds[index] if p.subseed_strength > 0 else None
         args["Variation strength"] = p.subseed_strength if p.subseed_strength > 0 else None
@@ -159,7 +160,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Embeddings"] = ', '.join(sd_hijack.model_hijack.embedding_db.embeddings_used)
     # samplers
 
-    if getattr(p, 'sampler_name', None) is not None:
+    if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
         args["Sampler eta delta"] = shared.opts.eta_noise_seed_delta if shared.opts.eta_noise_seed_delta != 0 and sd_samplers_common.is_sampler_using_eta_noise_seed_delta(p) else None
         args["Sampler eta multiplier"] = p.initial_noise_multiplier if getattr(p, 'initial_noise_multiplier', 1.0) != 1.0 else None
         args['Sampler timesteps'] = shared.opts.schedulers_timesteps if shared.opts.schedulers_timesteps != shared.opts.data_labels.get('schedulers_timesteps').default else None
@@ -186,6 +187,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     for k, v in args.copy().items():
         if v is None:
             del args[k]
+        if type(v) is float or type(v) is int:
+            if v <= -1:
+                del args[k]
         if isinstance(v, str):
             if len(v) == 0 or v == '0x0':
                 del args[k]

@@ -23,5 +23,5 @@ def load_kolors(_checkpoint_info, diffusers_load_config={}):
         **diffusers_load_config,
     )
     pipe.vae.config.force_upcast = True
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

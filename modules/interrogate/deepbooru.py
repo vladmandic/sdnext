@@ -4,7 +4,7 @@ import threading
 import torch
 import numpy as np
 from PIL import Image
-from modules import modelloader, paths, devices, shared
+from modules import modelloader, paths, devices, shared, sd_models
 
 re_special = re.compile(r'([\\()])')
 load_lock = threading.Lock()
@@ -35,11 +35,11 @@ class DeepDanbooru:
 
     def start(self):
         self.load()
-        self.model.to(devices.device)
+        sd_models.move_model(self.model, devices.device)
 
     def stop(self):
         if shared.opts.interrogate_offload:
-            self.model.to(devices.cpu)
+            sd_models.move_model(self.model, devices.cpu)
         devices.torch_gc()
 
     def tag(self, pil_image):

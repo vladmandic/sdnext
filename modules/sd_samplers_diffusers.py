@@ -50,6 +50,10 @@ try:
     from modules.schedulers.scheduler_bdia import BDIA_DDIMScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_ufogen import UFOGenScheduler # pylint: disable=ungrouped-imports
     from modules.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
+    # from modules.schedulers.scheduler_kohaku import KohakuLoNyuYogScheduler # pylint: disable=ungrouped-imports
+    # from modules.schedulers.scheduler_smea import SMEAScheduler # pylint: disable=ungrouped-imports
+    # from modules.schedulers.scheduler_dy import DYScheduler # pylint: disable=ungrouped-imports
+    # from modules.schedulers.scheduler_negative import EulerNegativeScheduler # pylint: disable=ungrouped-imports
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
@@ -68,6 +72,10 @@ config = {
     'Euler SGM': { 'steps_offset': 0, 'interpolation_type': "linear", 'rescale_betas_zero_snr': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'trailing', 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_karras_sigmas': False, 'prediction_type': "sample" },
     'Euler EDM': { 'sigma_schedule': "karras" },
     'Euler FlowMatch': { 'timestep_spacing': "linspace", 'shift': 1, 'use_dynamic_shifting': False, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False },
+    # 'Euler SMEA': {},
+    # 'Euler DY': {},
+    # 'Euler Negative': {},
+    # 'Kohaku LoNyu': {},
 
     'DPM++': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 1 },
     'DPM++ 2M': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 2 },
@@ -124,6 +132,9 @@ samplers_data_diffusers = [
     SamplerData('Euler SGM', lambda model: DiffusionSampler('Euler SGM', EulerDiscreteScheduler, model), [], {}),
     SamplerData('Euler EDM', lambda model: DiffusionSampler('Euler EDM', EDMEulerScheduler, model), [], {}),
     SamplerData('Euler FlowMatch', lambda model: DiffusionSampler('Euler FlowMatch', FlowMatchEulerDiscreteScheduler, model), [], {}),
+    # SamplerData('Euler SMEA', lambda model: DiffusionSampler('Euler SMEA', SMEAScheduler, model), [], {}),
+    # SamplerData('Euler DY', lambda model: DiffusionSampler('Euler DY', DYScheduler, model), [], {}),
+    # SamplerData('Euler Negative', lambda model: DiffusionSampler('Euler Negative', EulerNegativeScheduler, model), [], {}),
 
     SamplerData('DPM++', lambda model: DiffusionSampler('DPM++', DPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM++ 2M', lambda model: DiffusionSampler('DPM++ 2M', DPMSolverMultistepScheduler, model), [], {}),
@@ -169,6 +180,7 @@ samplers_data_diffusers = [
     SamplerData('TDD', lambda model: DiffusionSampler('TDD', TDDScheduler, model), [], {}),
     SamplerData('PeRFlow', lambda model: DiffusionSampler('PeRFlow', PeRFlowScheduler, model), [], {}),
     SamplerData('UFOGen', lambda model: DiffusionSampler('UFOGen', UFOGenScheduler, model), [], {}),
+    # SamplerData('Kohaku LoNyu', lambda model: DiffusionSampler('Kohaku LoNyu', KohakuLoNyuYogScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]
@@ -181,8 +193,7 @@ class DiffusionSampler:
         self.name = name
         self.config = {}
         self.sampler = None
-        # if not hasattr(model, 'scheduler'):
-        #    return
+
         if getattr(model, "default_scheduler", None) is None and (model is not None): # sanity check
             model.default_scheduler = copy.deepcopy(model.scheduler)
         for key, value in config.get('All', {}).items(): # apply global defaults
@@ -205,6 +216,7 @@ class DiffusionSampler:
         for key, value in kwargs.items(): # apply user args, if any
             if key in self.config:
                 self.config[key] = value
+
         # finally apply user preferences
         if shared.opts.schedulers_prediction_type != 'default':
             self.config['prediction_type'] = shared.opts.schedulers_prediction_type
@@ -271,6 +283,7 @@ class DiffusionSampler:
             del self.config['prediction_type']
         if 'SGM' in name:
             self.config['timestep_spacing'] = 'trailing'
+
         # validate all config params
         signature = inspect.signature(constructor, follow_wrapped=True)
         possible = signature.parameters.keys()
@@ -281,7 +294,8 @@ class DiffusionSampler:
         debug_log(f'Sampler: name="{name}"')
         debug_log(f'Sampler: config={self.config}')
         debug_log(f'Sampler: signature={possible}')
-        # shared.log.debug_log(f'Sampler: sampler="{name}" config={self.config}')
+
+        # finally create the new sampler
         try:
             sampler = constructor(**self.config)
         except Exception as e:
@@ -290,21 +304,25 @@ class DiffusionSampler:
                 errors.display(e, 'Samplers')
             self.sampler = None
             return
-        accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
-        accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
-        accept_scale_noise = hasattr(sampler, "scale_noise")
-        debug_log(f'Sampler: sampler="{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
-        if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
-            shared.log.warning(f'Sampler: sampler="{name}" does not accept sigmas')
-            self.sampler = None
-            return
-        if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
-            shared.log.warning(f'Sampler: sampler="{name}" does not implement scale noise')
-            self.sampler = None
-            return
+
+        if hasattr(sampler, 'set_timesteps'):
+            accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
+            accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
+            accept_scale_noise = hasattr(sampler, "scale_noise")
+            debug_log(f'Sampler: sampler="{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
+            if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
+                shared.log.warning(f'Sampler: sampler="{name}" does not accept sigmas')
+                self.sampler = None
+                return
+            if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
+                shared.log.warning(f'Sampler: sampler="{name}" does not implement scale noise')
+                self.sampler = None
+                return
+
         self.sampler = sampler
         if name == 'DC Solver':
             if not hasattr(self.sampler, 'dc_ratios'):
                 pass
+
         # shared.log.debug_log(f'Sampler: class="{self.sampler.__class__.__name__}" config={self.sampler.config}')
         self.sampler.name = name

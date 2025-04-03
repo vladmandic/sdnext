@@ -25,7 +25,7 @@ def load(model_path: str = 'rife/flownet-v46.pkl'):
         from modules import modelloader
         model_dir = os.path.join(shared.models_path, 'RIFE')
         model_path = modelloader.load_file_from_url(url=model_url, model_dir=model_dir, file_name='flownet-v46.pkl')
-        shared.log.debug(f'RIFE load model: file="{model_path}"')
+        shared.log.debug(f'Video interpolate: model="{model_path}"')
         model = RifeModel()
         model.load_model(model_path, -1)
         model.eval()
@@ -46,7 +46,6 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
         item = buffer.get()
         while item is not None:
             img = item[:, :, ::-1]
-            # image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             image = Image.fromarray(img)
             item = buffer.get()
             interpolated.append(image)
@@ -76,6 +75,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
     pw = ((w - 1) // tmp + 1) * tmp
     padding = (0, pw - w, 0, ph - h)
     buffer = Queue(maxsize=8192)
+    duplicate = 0
     _thread.start_new_thread(write, (buffer,))
 
     frame = cv2.cvtColor(np.array(images[0]), cv2.COLOR_RGB2BGR)
@@ -93,7 +93,8 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
                 I1_small = F.interpolate(I1, (32, 32), mode='bilinear', align_corners=False).to(torch.float32)
                 ssim = ssim_matlab(I0_small[:, :3], I1_small[:, :3])
                 if ssim > 0.99: # skip duplicate frames
-                    continue
+                    duplicate += 1
+                    # continue
                 if ssim < change:
                     output = []
                     for _i in range(pad): # fill frames if change rate is above threshold
@@ -110,8 +111,8 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
 
     for _i in range(pad): # fill ending frames
         buffer.put(frame)
-    while not buffer.empty():
+    while not buffer.qsize() > 0:
         time.sleep(0.1)
     t1 = time.time()
-    shared.log.info(f'RIFE interpolate: input={len(images)} frames={len(interpolated)} width={w} height={h} interpolate={count} scale={scale} pad={pad} change={change} time={round(t1 - t0, 2)}')
+    shared.log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} buffer={buffer.qsize()} duplicate={duplicate} width={w} height={h} interpolate={count} scale={scale} pad={pad} change={change} time={round(t1 - t0, 2)}')
     return interpolated

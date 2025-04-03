@@ -10,7 +10,7 @@ from modules import shared, prompt_parser, devices, sd_models
 from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None)
-debug = shared.log.trace if os.environ.get('SD_PROMPT_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 debug('Trace: PROMPT')
 orig_encode_token_ids_to_embeddings = EmbeddingsProvider._encode_token_ids_to_embeddings # pylint: disable=protected-access
 token_dict = None # used by helper get_tokens

@@ -237,8 +237,8 @@ def interrogate_booru(image): # legacy function
     return gr.update() if prompt is None else prompt
 
 
-def create_output_panel(tabname, preview=True, prompt=None, height=None):
-    with gr.Column(variant='panel', elem_id=f"{tabname}_results"):
+def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1):
+    with gr.Column(variant='panel', elem_id=f"{tabname}_results", scale=scale):
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
             if tabname == "txt2img":
                 gr.HTML(value="", elem_id="main_info", visible=False, elem_classes=["main-info"])
@@ -270,10 +270,13 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None):
                     clip_files.click(fn=None, _js='clip_gallery_urls', inputs=[result_gallery], outputs=[])
                 save = gr.Button('Save', elem_id=f'save_{tabname}')
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
-                if not shared.native:
-                    buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
+                if transfer:
+                    if not shared.native:
+                        buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
+                    else:
+                        buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
                 else:
-                    buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
+                    buttons = None
 
             download_files = gr.File(None, file_count="multiple", interactive=False, show_label=False, visible=False, elem_id=f'download_files_{tabname}')
             with gr.Group():
@@ -309,17 +312,18 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None):
             else:
                 paste_field_names = []
             debug(f'Paste field: tab={tabname} fields={paste_field_names}')
-            for paste_tabname, paste_button in buttons.items():
-                debug(f'Create output panel: source={tabname} target={paste_tabname} button={paste_button}')
-                bindings = generation_parameters_copypaste.ParamBinding(
-                    paste_button=paste_button,
-                    tabname=paste_tabname,
-                    source_tabname=tabname,
-                    source_image_component=result_gallery,
-                    paste_field_names=paste_field_names,
-                    source_text_component=prompt or generation_info
-                )
-                generation_parameters_copypaste.register_paste_params_button(bindings)
+            if buttons is not None:
+                for paste_tabname, paste_button in buttons.items():
+                    debug(f'Create output panel: source={tabname} target={paste_tabname} button={paste_button}')
+                    bindings = generation_parameters_copypaste.ParamBinding(
+                        paste_button=paste_button,
+                        tabname=paste_tabname,
+                        source_tabname=tabname,
+                        source_image_component=result_gallery,
+                        paste_field_names=paste_field_names,
+                        source_text_component=prompt or generation_info
+                    )
+                    generation_parameters_copypaste.register_paste_params_button(bindings)
             return result_gallery, generation_info, html_info, html_info_formatted, html_log
 
 

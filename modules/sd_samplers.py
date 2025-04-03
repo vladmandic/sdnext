@@ -12,6 +12,8 @@ samplers = all_samplers
 samplers_for_img2img = all_samplers
 samplers_map = {}
 loaded_config = None
+flow_models =  ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogView4']
+flow_models += ['Hunyuan', 'LTX', 'Mochi']
 
 
 def list_samplers():
@@ -79,10 +81,9 @@ def create_sampler(name, model):
         shared.log.debug(f'Sampler: "{name}" config={config.options}')
         return sampler
     elif shared.native:
-        FlowModels = ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'HunyuanVideoPipeline']
         if 'KDiffusion' in model.__class__.__name__:
             return None
-        if not any(x in model.__class__.__name__ for x in FlowModels) and 'FlowMatch' in name:
+        if not any(x in model.__class__.__name__ for x in flow_models) and 'FlowMatch' in name:
             shared.log.warning(f'Sampler: default={current} target="{name}" class={model.__class__.__name__} flow-match scheduler unsupported')
             return None
         sampler = config.constructor(model)

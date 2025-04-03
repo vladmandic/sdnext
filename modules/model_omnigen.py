@@ -20,12 +20,5 @@ def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=u
     if shared.opts.diffusers_eval:
         pipe.model.eval()
     pipe.vae.to(devices.device, dtype=devices.dtype)
-    devices.torch_gc()
-
-    # register
-    # from diffusers import pipelines
-    # pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["omnigen"] = pipe.__class__
-    # pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["omnigen"] = pipe.__class__
-    # pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen"] = pipe.__class__
-
+    devices.torch_gc(force=True)
     return pipe

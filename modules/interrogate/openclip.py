@@ -10,7 +10,7 @@ import gradio as gr
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
-from modules import devices, paths, shared, lowvram, errors
+from modules import devices, paths, shared, lowvram, errors, sd_models
 
 
 caption_models = {
@@ -125,7 +125,7 @@ class InterrogateModels:
             else:
                 model, preprocess = clip.load(clip_model_name, download_root=shared.opts.clip_models_path)
             model.eval()
-            model = model.to(devices.device)
+            sd_models.move_model(model, devices.device)
             return model, preprocess
 
     def load(self):
@@ -133,23 +133,23 @@ class InterrogateModels:
             self.blip_model = self.load_blip_model()
             if not shared.opts.no_half and not self.running_on_cpu:
                 self.blip_model = self.blip_model.half()
-        self.blip_model = self.blip_model.to(devices.device)
         if self.clip_model is None:
             self.clip_model, self.clip_preprocess = self.load_clip_model()
             if not shared.opts.no_half and not self.running_on_cpu:
                 self.clip_model = self.clip_model.half()
-        self.clip_model = self.clip_model.to(devices.device)
         self.dtype = next(self.clip_model.parameters()).dtype
+        sd_models.move_model(self.blip_model, devices.device)
+        sd_models.move_model(self.clip_model, devices.device)
 
     def send_clip_to_ram(self):
         if shared.opts.interrogate_offload:
             if self.clip_model is not None:
-                self.clip_model = self.clip_model.to(devices.cpu)
+                sd_models.move_model(self.blip_model, devices.cpu)
 
     def send_blip_to_ram(self):
         if shared.opts.interrogate_offload:
             if self.blip_model is not None:
-                self.blip_model = self.blip_model.to(devices.cpu)
+                sd_models.move_model(self.blip_model, devices.cpu)
 
     def unload(self):
         self.send_clip_to_ram()
@@ -291,8 +291,8 @@ def load_interrogator(clip_model, blip_model):
 
 def unload_clip_model():
     if ci is not None and shared.opts.interrogate_offload:
-        ci.caption_model = ci.caption_model.to(devices.cpu)
-        ci.clip_model = ci.clip_model.to(devices.cpu)
+        sd_models.move_model(ci.caption_model, devices.cpu)
+        sd_models.move_model(ci.clip_model, devices.cpu)
         ci.caption_offloaded = True
         ci.clip_offloaded = True
         devices.torch_gc()

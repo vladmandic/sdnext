@@ -47,7 +47,7 @@ def _replace_with_bnb_linear(
                         in_features,
                         out_features,
                         module.bias is not None,
-                        compute_dtype=torch.bfloat16,
+                        compute_dtype=devices.dtype,
                         compress_statistics=False,
                         quant_type="nf4",
                     )

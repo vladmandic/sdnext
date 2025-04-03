@@ -54,7 +54,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
             info["Postprocess upscale to"] = f"{upscale_to_width}x{upscale_to_height}"
         else:
             info["Postprocess upscale by"] = upscale_by
-        image = upscaler.scaler.upscale(image, upscale_by, upscaler.data_path)
+        image = upscaler.scaler.upscale(image, upscale_by, upscaler.name)
         if upscale_mode == 1 and upscale_crop:
             cropped = Image.new("RGB", (upscale_to_width, upscale_to_height))
             cropped.paste(image, box=(upscale_to_width // 2 - image.width // 2, upscale_to_height // 2 - image.height // 2))

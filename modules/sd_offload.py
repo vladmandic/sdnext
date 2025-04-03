@@ -3,15 +3,15 @@ import sys
 import time
 import inspect
 import torch
-import diffusers
 import accelerate.hooks
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
 
 
 debug_move = shared.log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
-should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'hunyuanvideo', 'cogvideox', 'mochi']
+should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
 offload_hook_instance = None
+balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']
 
 
 def get_signature(cls):
@@ -65,7 +65,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     if not (hasattr(sd_model, "has_accelerate") and sd_model.has_accelerate):
         sd_model.has_accelerate = False
     if shared.opts.diffusers_offload_mode == "none":
-        if shared.sd_model_type in should_offload:
+        if shared.sd_model_type in should_offload or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
         else:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -126,7 +126,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.cpu = int(shared.cpu_memory * shared.opts.diffusers_offload_max_cpu_memory * 1024*1024*1024)
         self.offload_map = {}
         self.param_map = {}
-        gpu = f'{shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory:.3f}-{shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory}:{shared.gpu_memory}'
+        gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
         shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f}')
         self.validate()
         super().__init__()
@@ -166,9 +166,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 keys = device_map.keys()
                 for v in keys:
                     if isinstance(device_map[v], int):
-                        # int implies CUDA or XPU device, but it will break DirectML backend.
-                        # Therefore, the type of device should be added.
-                        device_map[v] = f"{devices.device.type}:{device_map[v]}"
+                        device_map[v] = f"{devices.device.type}:{device_map[v]}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
             module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
@@ -182,7 +180,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return module
 
 
-def apply_balanced_offload(sd_model, exclude=[]):
+def apply_balanced_offload(sd_model=None, exclude=[]):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model
@@ -193,8 +191,7 @@ def apply_balanced_offload(sd_model, exclude=[]):
     if sd_model is None:
         return sd_model
     t0 = time.time()
-    excluded = ['OmniGenPipeline']
-    if sd_model.__class__.__name__ in excluded:
+    if sd_model.__class__.__name__ in balanced_offload_exclude:
         return sd_model
     cached = True
     checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else None
@@ -285,22 +282,8 @@ def apply_balanced_offload(sd_model, exclude=[]):
         apply_balanced_offload_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         apply_balanced_offload_to_module(sd_model.decoder_pipe)
-
     if shared.opts.layerwise_quantization:
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
-    if shared.opts.pab_enabled and hasattr(sd_model, 'transformer'):
-        pab_config = diffusers.PyramidAttentionBroadcastConfig(
-            spatial_attention_block_skip_range=shared.opts.pab_block_skip_range,
-            spatial_attention_timestep_skip_range=(int(100 * shared.opts.pab_timestep_skip_start), int(100 * shared.opts.pab_timestep_skip_end)),
-            current_timestep_callback=lambda: sd_model.current_timestep, # pylint: disable=protected-access
-        )
-        try:
-            diffusers.apply_pyramid_attention_broadcast(sd_model.transformer, pab_config)
-        except Exception: # hook may already exist
-            pass
-        if not cached:
-            shared.log.info(f'Applying PAB: cls={sd_model.transformer.__class__.__name__} block={shared.opts.pab_block_skip_range} start={shared.opts.pab_timestep_skip_start} end={shared.opts.pab_timestep_skip_end}')
-
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

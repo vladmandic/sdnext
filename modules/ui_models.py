@@ -573,6 +573,8 @@ def create_ui():
 
                 def atomic_civit_search_metadata(item, res, rehash):
                     from modules.modelloader import download_civit_preview, download_civit_meta
+                    if item is None:
+                        return
                     meta = os.path.splitext(item['filename'])[0] + '.json'
                     has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
                     if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
@@ -629,6 +631,7 @@ def create_ui():
                     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                         for fn in candidates:
                             executor.submit(atomic_civit_search_metadata, fn, res, rehash)
+                    atomic_civit_search_metadata(None, res, rehash)
                     t1 = time.time()
                     log.debug(f'CivitAI search metadata: items={i} time={t1-t0:.2f}')
                     txt = '<br>'.join([r for r in res if len(r) > 0])

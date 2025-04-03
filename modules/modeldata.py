@@ -29,20 +29,31 @@ def get_model_type(pipe):
         model_type = 'auraflow'
     elif "Flux" in name:
         model_type = 'f1'
-    elif "Mochi" in name:
-        model_type = 'mochi'
     elif "Lumina2" in name:
         model_type = 'lumina2'
     elif "Lumina" in name:
         model_type = 'lumina'
     elif "OmniGen" in name:
         model_type = 'omnigen'
-    elif "CogVideo" in name:
-        model_type = 'cogvideox'
+    elif "CogView3" in name:
+        model_type = 'cogview3'
+    elif "CogView4" in name:
+        model_type = 'cogview4'
     elif "Sana" in name:
         model_type = 'sana'
-    elif 'HunyuanVideoPipeline' in name:
+    # video models
+    elif "CogVideo" in name:
+        model_type = 'cogvideo'
+    elif 'HunyuanVideoPipeline' in name or 'HunyuanSkyreels' in name:
         model_type = 'hunyuanvideo'
+    elif 'Wan' in name:
+        model_type = 'wanvideo'
+    elif 'LTX' in name:
+        model_type = 'ltxvideo'
+    elif "Mochi" in name:
+        model_type = 'mochivideo'
+    elif "Allegro" in name:
+        model_type = 'allegrovideo'
     else:
         model_type = name
     return model_type

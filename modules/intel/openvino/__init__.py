@@ -479,8 +479,8 @@ def openvino_fx(subgraph, example_inputs, options=None):
         subgraph_type[3] is torch.nn.modules.linear.Linear):
 
         dont_use_faketensors = True
-        dont_use_nncf = bool("Text Encoder" not in shared.opts.nncf_compress_weights)
-        dont_use_quant = bool("Text Encoder" not in shared.opts.nncf_quantize)
+        dont_use_nncf = bool("TE" not in shared.opts.nncf_compress_weights)
+        dont_use_quant = bool("TE" not in shared.opts.nncf_quantize)
 
     # Create a hash to be used for caching
     shared.compiled_model_state.model_hash_str = ""

@@ -17,5 +17,5 @@ def load_auraflow(checkpoint_info, diffusers_load_config={}):
         cache_dir = shared.opts.diffusers_dir,
         **diffusers_load_config,
     )
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

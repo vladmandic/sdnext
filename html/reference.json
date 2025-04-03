@@ -187,25 +187,43 @@
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
 
-  "NVLabs Sana 1.6B 4k": {
+  "NVLabs Sana 1.5 1.6B 1k": {
+    "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
+    "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
+    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "skip": true
+  }, 
+  "NVLabs Sana 1.5 4.8B 1k": {
+    "path": "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers",
+    "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
+    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "skip": true
+  }, 
+  "NVLabs Sana 1.5 1.6B 1k Sprint": {
+    "path": "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
+    "desc": "SANA-Sprint is an ultra-efficient diffusion model for text-to-image (T2I) generation, reducing inference steps from 20 to 1-4 while achieving state-of-the-art performance.",
+    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "skip": true
+  }, 
+  "NVLabs Sana 1.0 1.6B 4k": {
     "path": "Efficient-Large-Model/Sana_1600M_4Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
   }, 
-  "NVLabs Sana 1.6B 2k": {
+  "NVLabs Sana 1.0 1.6B 2k": {
     "path": "Efficient-Large-Model/Sana_1600M_2Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
   }, 
-  "NVLabs Sana 1.6B 1k": {
+  "NVLabs Sana 1.0 1.6B 1k": {
     "path": "Efficient-Large-Model/Sana_1600M_1024px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
   }, 
-  "NVLabs Sana 0.6B 0.5k": {
+  "NVLabs Sana 1.0 0.6B 0.5k": {
     "path": "Efficient-Large-Model/Sana_600M_512px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
@@ -376,9 +394,15 @@
     "extras": "sampler: DPM++ 2M EDM"
   },
 
+  "CogView 4": {
+    "path": "THUDM/CogView4-6B",
+    "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
+    "preview": "THUDM--CogView4-6B.jpg",
+    "skip": true
+  },
   "CogView 3 Plus": {
     "path": "THUDM/CogView3-Plus-3B",
-    "desc": "This model is the DiT version of CogView3, a text-to-image generation model, supporting image generation from 512 to 2048px. Resolution: Width and height must meet the range from 512px to 2048px and must be divisible by 32.",
+    "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
     "preview": "THUDM--CogView3-Plus-3B.jpg",
     "skip": true
   },

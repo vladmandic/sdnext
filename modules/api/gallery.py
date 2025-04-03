@@ -74,7 +74,7 @@ def register_api(app: FastAPI): # register api
     manager = ConnectionManager()
 
     def get_video_thumbnail(filepath):
-        from modules.ui_control_helpers import get_video_params
+        from modules.video import get_video_params
         try:
             stat = os.stat(filepath)
             frames, fps, duration, width, height, codec, frame = get_video_params(filepath, capture=True)

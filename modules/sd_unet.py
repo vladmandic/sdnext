@@ -10,7 +10,7 @@ debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 def load_unet(model):
     global loaded_unet # pylint: disable=global-statement
-    if shared.opts.sd_unet == 'None':
+    if shared.opts.sd_unet == 'Default':
         return
     if shared.opts.sd_unet not in list(unet_dict):
         shared.log.error(f'UNet model not found: {shared.opts.sd_unet}')

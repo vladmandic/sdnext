@@ -139,7 +139,7 @@ def full_vae_decode(latents, model):
     if latents_mean and latents_std:
         latents_mean = (torch.tensor(latents_mean).view(1, 4, 1, 1).to(latents.device, latents.dtype))
         latents_std = (torch.tensor(latents_std).view(1, 4, 1, 1).to(latents.device, latents.dtype))
-        latents = latents * latents_std / scaling_factor + latents_mean
+        latents = ((latents * latents_std) / scaling_factor) + latents_mean
     else:
         latents = latents / scaling_factor
     if shift_factor:
@@ -239,6 +239,8 @@ def vae_postprocess(tensor, model, output_type='np'):
             if len(tensor.shape) == 3 and tensor.shape[0] == 3:
                 tensor = tensor.unsqueeze(0)
             if hasattr(model, 'video_processor'):
+                if len(tensor.shape) == 6 and tensor.shape[1] == 1:
+                    tensor = tensor.squeeze(0)
                 images = model.video_processor.postprocess_video(tensor, output_type='pil')
             elif hasattr(model, 'image_processor'):
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
@@ -293,9 +295,6 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
     if len(latents.shape) == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
-    if latents.shape[0] == 4 and latents.shape[1] != 4: # likely animatediff latent
-        latents = latents.permute(1, 0, 2, 3)
-
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()
     elif vae_type == 'Full' and hasattr(model, "vae"):

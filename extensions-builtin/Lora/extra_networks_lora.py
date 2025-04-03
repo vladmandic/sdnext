@@ -55,7 +55,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 loaded.tags = loaded.tags[:shared.opts.lora_apply_tags]
             all_tags.extend(loaded.tags)
         if len(all_tags) > 0:
-            shared.log.debug(f"Load network: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
+            shared.log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
             all_tags = ', '.join(all_tags)
             p.extra_generation_params["LoRA tags"] = all_tags
             if '_tags_' in p.prompt:
@@ -129,7 +129,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(networks.loaded_networks) > 0 and step == 0:
             self.infotext(p)
             self.prompt(p)
-            shared.log.info(f'Load network: type=LoRA apply={[n.name for n in networks.loaded_networks]} method=legacy te={te_multipliers} unet={unet_multipliers} dims={dyn_dims} load={t1-t0:.2f}')
+            shared.log.info(f'Network load: type=LoRA apply={[n.name for n in networks.loaded_networks]} method=legacy te={te_multipliers} unet={unet_multipliers} dims={dyn_dims} load={t1-t0:.2f}')
 
     def deactivate(self, p):
         t0 = time.time()

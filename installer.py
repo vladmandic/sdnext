@@ -517,7 +517,7 @@ def check_python(supported_minors=[9, 10, 11, 12], reason=None):
         log.error(f"Python version incompatible: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
         if reason is not None:
             log.error(reason)
-        if not args.ignore:
+        if not args.ignore and not args.experimental:
             sys.exit(1)
     if int(sys.version_info.minor) == 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
@@ -536,9 +536,9 @@ def check_python(supported_minors=[9, 10, 11, 12], reason=None):
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
-    if args.skip_all or args.skip_git:
+    if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = 'b75b204a584e29ebf4e80a61be11458e9ed56e3e' # diffusers commit hash
+    sha = 'e5c6027ef89ec1a2800c0421599da89d4820f2e4' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -652,7 +652,6 @@ def install_rocm_zluda():
                 zluda_installer.make_copy()
                 zluda_installer.load()
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
-                log.info(f'Using ZLUDA in {zluda_installer.path}')
             except Exception as e:
                 error = e
                 log.warning(f'Failed to load ZLUDA: {e}')
@@ -1302,7 +1301,7 @@ def check_ui(ver):
     def same(ver):
         core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
         ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
-        return core == ui or (core == 'master' and ui == 'main')
+        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev')
 
     t_start = time.time()
     if not same(ver):
@@ -1433,14 +1432,16 @@ def check_timestamp():
             if 'Setup complete without errors' in line:
                 setup_time = int(line.split(' ')[-1])
     try:
-        version_time = int(git('log -1 --pretty=format:"%at"'))
+        version_time = git('log -1 --pretty=format:"%at"')
+        version_time = ''.join(filter(str.isdigit, version_time))
+        version_time = int(version_time) if len(version_time) > 0 else -1
+        log.debug(f'Timestamp repository update time: {time.ctime(version_time)}')
     except Exception as e:
         log.error(f'Timestamp local repository version: {e}')
-    log.debug(f'Timestamp repository update time: {time.ctime(int(version_time))}')
     if setup_time == -1:
         return False
     log.debug(f'Timestamp previous setup time: {time.ctime(setup_time)}')
-    if setup_time < version_time:
+    if setup_time < version_time or version_time == -1:
         ok = False
     extension_time = check_extensions()
     log.debug(f'Timestamp latest extensions time: {time.ctime(extension_time)}')
@@ -1491,6 +1492,7 @@ def add_args(parser):
     group_log.add_argument("--log", type=str, default=os.environ.get("SD_LOG", None), help="Set log file, default: %(default)s")
     group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run installer with debug logging, default: %(default)s")
     group_log.add_argument("--profile", default=os.environ.get("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
+    group_log.add_argument("--monitor", default=os.environ.get("SD_PROFILE", 0), help="Run memory monitor, default: %(default)s")
     group_log.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
     group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", True), action='store_true', help="Log all API requests")
 

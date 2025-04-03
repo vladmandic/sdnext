@@ -26,7 +26,7 @@ async function updateOpts(json_string) {
     const key = Object.keys(op)[0];
     const callback = op[key];
     if (opts[key] && opts[key] !== settings_data.values[key]) {
-      log('updateOpts', key, opts[key], settings_data.values[key]);
+      log('updateOpt', key, opts[key], settings_data.values[key]);
       if (callback) callback(new_opts[key], opts[key]);
     }
   }
@@ -37,7 +37,8 @@ async function updateOpts(json_string) {
     if (callback) callback(new_opts[key], opts[key]);
   }
 
-  opts = new_opts;
+  window.opts = new_opts;
+  log('updateOpts', Object.keys(new_opts).length);
   Object.entries(opts_metadata).forEach(([opt, meta]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = new Set();
@@ -49,8 +50,8 @@ async function updateOpts(json_string) {
 
 function showAllSettings() {
   // Try to ensure that the show all settings tab is opened by clicking on its tab button
-  const tab_dirty_indicator = gradioApp().getElementById('modification_indicator_show_all_pages');
-  if (tab_dirty_indicator && tab_dirty_indicator.nextSibling) tab_dirty_indicator.nextSibling.click();
+  // const tab_dirty_indicator = gradioApp().getElementById('modification_indicator_show_all_pages');
+  // if (tab_dirty_indicator && tab_dirty_indicator.nextSibling) tab_dirty_indicator.nextSibling.click();
   getSettingsTabs().forEach((elem) => {
     if (elem.id === 'settings_tab_licenses' || elem.id === 'settings_show_all_pages') return;
     elem.style.display = 'block';
@@ -192,9 +193,12 @@ async function initSettings() {
   tabContentWrapper.className = 'tab-content';
   tabNavElements.parentElement.insertBefore(tabContentWrapper, tabNavElements.nextSibling);
   tabElements.forEach((elem, index) => {
-    const tabName = elem.id.replace('settings_', '');
+    const tabName = elem.id.replace('settings_section_tab_', '');
     const indicator = gradioApp().getElementById(`modification_indicator_${tabName}`);
-    tabNavElements.insertBefore(indicator, tabNavButtons[index]);
+    if (indicator) {
+      tabNavElements.insertBefore(document.createElement('br'), tabNavButtons[index]);
+      tabNavElements.insertBefore(indicator, tabNavButtons[index]);
+    }
     tabContentWrapper.appendChild(elem);
     observer.observe(elem, { attributes: true, attributeFilter: ['style'] });
   });

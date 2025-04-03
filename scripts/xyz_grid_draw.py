@@ -128,6 +128,6 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
         processed_result.infotexts.insert(0, processed_result.infotexts[0])
 
     t2 = time.time()
-    shared.log.info(f'XYZ grid complete: images={list_size} results={len(processed_result.images)}size={grid.size if grid is not None else None} time={t1-t0:.2f} save={t2-t1:.2f}')
+    shared.log.info(f'XYZ grid complete: images={list_size} results={len(processed_result.images)} size={grid.size if grid is not None else None} time={t1-t0:.2f} save={t2-t1:.2f}')
     p.skip_processing = True
     return processed_result

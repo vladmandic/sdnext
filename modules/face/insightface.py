@@ -20,13 +20,14 @@ def get_app(mp_name, threshold=0.5, resolution=640):
         install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=False)
 
     if insightface_app is None or mp_name != instightface_mp:
+        import insightface
         from insightface.model_zoo import model_zoo
         from insightface.app import face_analysis
         model_zoo.print = lambda *args, **kwargs: None
         face_analysis.print = lambda *args, **kwargs: None
         import huggingface_hub as hf
         import zipfile
-        log.debug(f"InsightFace: mp={mp_name} provider={devices.onnx}")
+        log.debug(f"InsightFace: version={insightface.__version__} mp={mp_name} provider={devices.onnx}")
         root_dir = os.path.join(opts.diffusers_dir, 'models--vladmandic--insightface-faceanalysis')
         local_dir = os.path.join(root_dir, 'models')
         extract_dir = os.path.join(local_dir, mp_name)

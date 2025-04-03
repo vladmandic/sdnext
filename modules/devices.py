@@ -52,7 +52,8 @@ def has_zluda() -> bool:
         return False
     try:
         dev = torch.device("cuda")
-        return torch.cuda.get_device_name(dev).endswith("[ZLUDA]")
+        cc = torch.cuda.get_device_capability(dev)
+        return cc == (8, 8)
     except Exception:
         return False
 
@@ -319,9 +320,18 @@ def test_fp16():
     global fp16_ok # pylint: disable=global-statement
     if fp16_ok is not None:
         return fp16_ok
-    if sys.platform == "darwin" or backend == 'openvino': # override
-        fp16_ok = False
-        return fp16_ok
+    if opts.cuda_dtype != 'FP16': # don't override if the user sets it
+        if sys.platform == "darwin" or backend == 'openvino': # override
+            fp16_ok = False
+            return fp16_ok
+        elif backend == 'rocm':
+            # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
+            # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
+            agent = getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000")
+            agent_name = getattr(torch.cuda.get_device_properties(device), "name", "AMD Radeon RX 0000")
+            if agent == "gfx1102" or (agent == "gfx1100" and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):
+                fp16_ok = False
+                return fp16_ok
     try:
         x = torch.tensor([[1.5,.0,.0,.0]]).to(device=device, dtype=torch.float16)
         layerNorm = torch.nn.LayerNorm(4, eps=0.00001, elementwise_affine=True, dtype=torch.float16, device=device)
@@ -377,8 +387,6 @@ def set_cudnn_params():
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = True
         torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = True
-        if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
-            torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
     except Exception as e:
         log.warning(f'Torch matmul: {e}')
     if torch.backends.cudnn.is_available():
@@ -401,6 +409,7 @@ def override_ipex_math():
         try:
             if hasattr(torch.xpu, "set_fp32_math_mode"): # not available with pure torch+xpu, requires ipex
                 torch.xpu.set_fp32_math_mode(mode=torch.xpu.FP32MathMode.TF32)
+            torch.backends.mkldnn.allow_tf32 = True
         except Exception as e:
             log.warning(f'Torch ipex: {e}')
 
@@ -422,6 +431,8 @@ def set_sdpa_params():
             torch.backends.cuda.enable_flash_sdp('Flash attention' in opts.sdp_options)
             torch.backends.cuda.enable_mem_efficient_sdp('Memory attention' in opts.sdp_options)
             torch.backends.cuda.enable_math_sdp('Math attention' in opts.sdp_options)
+            if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
+                torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
             log.debug(f'Torch attention: type="sdpa" flash={"Flash attention" in opts.sdp_options} memory={"Memory attention" in opts.sdp_options} math={"Math attention" in opts.sdp_options}')
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
@@ -452,7 +463,21 @@ def set_sdpa_params():
                 @wraps(sdpa_pre_flash_atten)
                 def sdpa_flash_atten(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None):
                     if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
-                        return flash_attn_func(q=query.transpose(1, 2), k=key.transpose(1, 2), v=value.transpose(1, 2), dropout_p=dropout_p, causal=is_causal, softmax_scale=scale).transpose(1, 2)
+                        is_unsqueezed = False
+                        if query.dim() == 3:
+                            query = query.unsqueeze(0)
+                            is_unsqueezed = True
+                            if key.dim() == 3:
+                                key = key.unsqueeze(0)
+                            if value.dim() == 3:
+                                value = value.unsqueeze(0)
+                        query = query.transpose(1, 2)
+                        key = key.transpose(1, 2)
+                        value = value.transpose(1, 2)
+                        attn_output = flash_attn_func(q=query, k=key, v=value, dropout_p=dropout_p, causal=is_causal, softmax_scale=scale).transpose(1, 2)
+                        if is_unsqueezed:
+                            attn_output = attn_output.squeeze(0)
+                        return attn_output
                     else:
                         return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
                 torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten

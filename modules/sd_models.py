@@ -130,7 +130,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
                 model.requires_grad_(False)
                 model.eval()
             return model
-        sd_model = apply_function_to_model(sd_model, eval_model, ["Model", "VAE", "Text Encoder"], op="eval")
+        sd_model = apply_function_to_model(sd_model, eval_model, ["Model", "VAE", "TE"], op="eval")
     if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'post':
         sd_model = model_quant.torchao_quantization(sd_model)
 
@@ -295,9 +295,13 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
         elif model_type in ['Stable Diffusion 3']:
             from modules.model_sd3 import load_sd3
-            shared.log.debug(f'Load {op}: model="Stable Diffusion 3"')
-            shared.opts.scheduler = 'Default'
             sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
+        elif model_type in ['CogView3']: # forced pipeline
+            from modules.model_cogview import load_cogview3
+            sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
+        elif model_type in ['CogView4']: # forced pipeline
+            from modules.model_cogview import load_cogview4
+            sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
         elif model_type in ['Meissonic']: # forced pipeline
             from modules.model_meissonic import load_meissonic
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
@@ -571,7 +575,7 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         prompt_parser_diffusers.cache.clear()
 
         set_diffuser_options(sd_model, vae, op, offload=False)
-        if shared.opts.nncf_compress_weights and not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+        if 'Model' in shared.opts.nncf_compress_weights and not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
             sd_model = model_quant.nncf_compress_weights(sd_model) # run this before move model so it can be compressed in CPU
         if shared.opts.optimum_quanto_weights:
             sd_model = model_quant.optimum_quanto_weights(sd_model) # run this before move model so it can be compressed in CPU
@@ -627,9 +631,12 @@ class DiffusersTaskType(Enum):
 
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
-    if pipe.__class__.__name__ in ["StableVideoDiffusionPipeline", "LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL", "OmniGenPipeline"]:
+    cls = pipe.__class__.__name__
+    if cls in ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL", "OmniGenPipeline"]: # special case
         return DiffusersTaskType.IMAGE_2_IMAGE
-    elif pipe.__class__.__name__ == "StableDiffusionXLInstructPix2PixPipeline":
+    elif 'ImageToVideo' in cls or cls in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
+        return DiffusersTaskType.IMAGE_2_IMAGE
+    elif 'Instruct' in cls:
         return DiffusersTaskType.INSTRUCT
     elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
         return DiffusersTaskType.IMAGE_2_IMAGE
@@ -757,7 +764,6 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         'InstantIRPipeline',
         'FluxFillPipeline',
         'FluxControlPipeline',
-        'StableVideoDiffusionPipeline',
         'PixelSmithXLPipeline',
         'PhotoMakerStableDiffusionXLPipeline',
         'StableDiffusionXLInstantIDPipeline',
@@ -773,6 +779,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     # skip specific pipelines
     cls = pipe.__class__.__name__
     if cls in exclude:
+        return pipe
+    if 'Video' in cls:
         return pipe
     if 'Onnx' in cls:
         return pipe
@@ -944,7 +952,7 @@ def get_native(pipe: diffusers.DiffusionPipeline):
 
 
 def reload_text_encoder(initial=False):
-    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'None'):
+    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default'):
         return # dont unload
     signature = get_signature(shared.sd_model)
     t5 = [k for k, v in signature.items() if 'T5EncoderModel' in str(v)]
@@ -1043,14 +1051,14 @@ def reload_model_weights(sd_model=None, info=None, reuse_dict=False, op='model',
 
 
 def clear_caches():
-    # shared.log.debug('Cache clear')
     if not shared.opts.lora_legacy:
-        from modules.lora import networks
-        networks.loaded_networks.clear()
-        networks.previously_loaded_networks.clear()
-        networks.lora_cache.clear()
-    from modules import prompt_parser_diffusers
+        from modules.lora import lora_common, lora_load
+        lora_common.loaded_networks.clear()
+        lora_common.previously_loaded_networks.clear()
+        lora_load.lora_cache.clear()
+    from modules import prompt_parser_diffusers, memstats
     prompt_parser_diffusers.cache.clear()
+    memstats.reset_stats()
 
 
 def unload_model_weights(op='model'):

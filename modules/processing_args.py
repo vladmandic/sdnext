@@ -26,7 +26,7 @@ def task_specific_kwargs(p, model):
             p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
         if isinstance(p.init_images[0], Image.Image):
             p.init_images = [i.convert('RGB') if i.mode != 'RGB' else i for i in p.init_images if i is not None]
-    if (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE or len(getattr(p, 'init_images', [])) == 0) and not is_img2img_model:
+    if (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE or len(getattr(p, 'init_images', [])) == 0) and not is_img2img_model and 'video' not in p.ops:
         p.ops.append('txt2img')
         if hasattr(p, 'width') and hasattr(p, 'height'):
             task_args = {
@@ -38,13 +38,20 @@ def task_specific_kwargs(p, model):
             model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
             p.ops.append('img2img')
+        if p.vae_type == 'Remote':
+            from modules.sd_vae_remote import remote_encode
+            p.init_images = remote_encode(p.init_images)
         task_args = {
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
         if model.__class__.__name__ == 'FluxImg2ImgPipeline': # needs explicit width/height
-            p.width = 8 * math.ceil(p.init_images[0].width / 8)
-            p.height = 8 * math.ceil(p.init_images[0].height / 8)
+            if torch.is_tensor(p.init_images[0]):
+                p.width = p.init_images[0].shape[-1] * 16
+                p.height = p.init_images[0].shape[-2] * 16
+            else:
+                p.width = 8 * math.ceil(p.init_images[0].width / 8)
+                p.height = 8 * math.ceil(p.init_images[0].height / 8)
             task_args['width'], task_args['height'] = p.width, p.height
         if model.__class__.__name__ == 'OmniGenPipeline':
             p.width = 16 * math.ceil(p.init_images[0].width / 16)
@@ -70,9 +77,14 @@ def task_specific_kwargs(p, model):
         else:
             p.ops.append('inpaint')
         width, height = processing_helpers.resize_init_images(p)
+        mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+        if p.vae_type == 'Remote':
+            from modules.sd_vae_remote import remote_encode
+            p.init_images = remote_encode(p.init_images)
+            # mask_image = remote_encode(mask_image)
         task_args = {
             'image': p.init_images,
-            'mask_image': p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None),
+            'mask_image': mask_image,
             'strength': p.denoising_strength,
             'height': height,
             'width': width,
@@ -107,16 +119,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     t0 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     apply_circular(p.tiling, model)
-    if hasattr(model, "set_progress_bar_config"):
-        if disable_pbar:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
-        else:
-            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
     args = {}
     has_vae = hasattr(model, 'vae') or (hasattr(model, 'pipe') and hasattr(model.pipe, 'vae'))
     if hasattr(model, 'pipe') and not hasattr(model, 'no_recurse'): # recurse
         model = model.pipe
         has_vae = has_vae or hasattr(model, 'vae')
+    if hasattr(model, "set_progress_bar_config"):
+        if disable_pbar:
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
+        else:
+            model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
     signature = inspect.signature(type(model).__call__, follow_wrapped=True)
     possible = list(signature.parameters)
 
@@ -226,13 +238,13 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if hasattr(model, 'scheduler') and hasattr(model.scheduler, 'noise_sampler_seed') and hasattr(model.scheduler, 'noise_sampler'):
         model.scheduler.noise_sampler = None # noise needs to be reset instead of using cached values
         model.scheduler.noise_sampler_seed = p.seeds # some schedulers have internal noise generator and do not use pipeline generator
-    if 'seed' in possible:
+    if 'seed' in possible and p.seed is not None:
         args['seed'] = p.seed
-    if 'noise_sampler_seed' in possible:
+    if 'noise_sampler_seed' in possible and p.seeds is not None:
         args['noise_sampler_seed'] = p.seeds
-    if 'guidance_scale' in possible:
+    if 'guidance_scale' in possible and p.cfg_scale is not None and p.cfg_scale > 0:
         args['guidance_scale'] = p.cfg_scale
-    if 'img_guidance_scale' in possible and hasattr(p, 'image_cfg_scale'):
+    if 'img_guidance_scale' in possible and hasattr(p, 'image_cfg_scale') and p.image_cfg_scale is not None and p.image_cfg_scale > 0:
         args['img_guidance_scale'] = p.image_cfg_scale
     if 'generator' in possible:
         generator = get_generator(p)
@@ -286,13 +298,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             p.init_images = kwargs['image']
         if isinstance(kwargs['image'], Image.Image):
             p.init_images = [kwargs['image']]
+        if isinstance(kwargs['image'], torch.Tensor):
+            p.init_images = kwargs['image']
 
     # handle remaining args
     for arg in kwargs:
         if arg in possible: # add kwargs
+            if type(kwargs[arg]) == float or type(kwargs[arg]) == int:
+                if kwargs[arg] <= -1: # skip -1 as default value
+                    continue
             args[arg] = kwargs[arg]
-        else:
-            pass
 
     task_kwargs = task_specific_kwargs(p, model)
     for arg in task_kwargs:
@@ -321,6 +336,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
                 args['width'] = 8 * args['image'].shape[-1]
                 args['height'] = 8 * args['image'].shape[-2]
+            elif isinstance(args['image'], Image.Image):
+                args['width'] = args['image'].width
+                args['height'] = args['image'].height
             elif isinstance(args['image'][0], torch.Tensor) or isinstance(args['image'][0], np.ndarray):
                 args['width'] = 8 * args['image'][0].shape[-1]
                 args['height'] = 8 * args['image'][0].shape[-2]

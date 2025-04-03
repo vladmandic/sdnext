@@ -10,7 +10,7 @@ repo_id = 'genmo/mochi-1-preview'
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: Mochi.1 Video'
+        return 'Video: Mochi.1 Video (Legacy)'
 
     def show(self, is_img2img):
         return not is_img2img if shared.native else False
@@ -42,9 +42,7 @@ class Script(scripts.Script):
         cls = diffusers.MochiPipeline
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
-            kwargs = {}
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config()
             shared.sd_model = cls.from_pretrained(
                 repo_id,
                 cache_dir = shared.opts.hfcache_dir,

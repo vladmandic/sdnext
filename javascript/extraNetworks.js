@@ -9,6 +9,7 @@ const getENActiveTab = () => {
   if (gradioApp().getElementById('tab_txt2img').style.display === 'block') tabName = 'txt2img';
   else if (gradioApp().getElementById('tab_img2img').style.display === 'block') tabName = 'img2img';
   else if (gradioApp().getElementById('tab_control').style.display === 'block') tabName = 'control';
+  else if (gradioApp().getElementById('tab_video').style.display === 'block') tabName = 'video';
   // log('getENActiveTab', tabName);
   return tabName;
 };
@@ -417,6 +418,9 @@ function setupExtraNetworksForTab(tabname) {
         if (h <= 0) return;
         const vh = opts.logmonitor_show ? '55vh' : '68vh';
         if (window.opts.extra_networks_card_cover === 'sidebar' && window.opts.theme_type === 'Standard') el.style.height = `max(${vh}, ${h - 90}px)`;
+        else if (window.opts.extra_networks_card_cover === 'inline' && window.opts.theme_type === 'Standard') el.style.height = '25vh';
+        else if (window.opts.extra_networks_card_cover === 'cover' && window.opts.theme_type === 'Standard') el.style.height = '50vh';
+        else el.style.height = 'unset';
         // log(`${tabname} height: ${entry.target.id}=${h} ${el.id}=${el.clientHeight}`);
       }
     }
@@ -456,6 +460,8 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'unset';
           en.style.width = 'unset';
           en.style.right = 'unset';
+          en.style.maxWidth = 'unset';
+          en.style.maxHeight = '58vh';
           en.style.top = '13em';
           en.style.transition = '';
           en.style.zIndex = 100;
@@ -465,6 +471,7 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'auto';
           en.style.width = `${window.opts.extra_networks_sidebar_width}vw`;
           en.style.maxWidth = '50vw';
+          en.style.maxHeight = 'unset';
           en.style.right = '0';
           en.style.top = '13em';
           en.style.transition = 'width 0.3s ease';
@@ -476,6 +483,8 @@ function setupExtraNetworksForTab(tabname) {
           en.style.height = 'unset';
           en.style.width = 'unset';
           en.style.right = 'unset';
+          en.style.maxWidth = 'unset';
+          en.style.maxHeight = '33vh';
           en.style.top = 0;
           en.style.transition = '';
           en.style.zIndex = 0;
@@ -491,7 +500,7 @@ function setupExtraNetworksForTab(tabname) {
 }
 
 async function showNetworks() {
-  for (const tabname of ['txt2img', 'img2img', 'control']) {
+  for (const tabname of ['txt2img', 'img2img', 'control', 'video']) {
     if (window.opts.extra_networks_show) gradioApp().getElementById(`${tabname}_extra_networks_btn`).click();
   }
   log('showNetworks');
@@ -501,6 +510,7 @@ async function setupExtraNetworks() {
   setupExtraNetworksForTab('txt2img');
   setupExtraNetworksForTab('img2img');
   setupExtraNetworksForTab('control');
+  setupExtraNetworksForTab('video');
 
   function registerPrompt(tabname, id) {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
@@ -515,6 +525,8 @@ async function setupExtraNetworks() {
   registerPrompt('img2img', 'img2img_neg_prompt');
   registerPrompt('control', 'control_prompt');
   registerPrompt('control', 'control_neg_prompt');
+  registerPrompt('video', 'video_prompt');
+  registerPrompt('video', 'video_neg_prompt');
   log('initNetworks', window.opts.extra_networks_card_size);
   document.documentElement.style.setProperty('--card-size', `${window.opts.extra_networks_card_size}px`);
 }

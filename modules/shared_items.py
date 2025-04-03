@@ -5,7 +5,7 @@ def postprocessing_scripts():
 
 def sd_vae_items():
     import modules.sd_vae
-    return ["Automatic", "None"] + list(modules.sd_vae.vae_dict)
+    return ["Automatic", "Default"] + list(modules.sd_vae.vae_dict)
 
 
 def sd_taesd_items():
@@ -89,7 +89,8 @@ def get_pipelines():
         'SegMoE': getattr(diffusers, 'StableDiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
         'Kolors': getattr(diffusers, 'KolorsPipeline', None),
         'AuraFlow': getattr(diffusers, 'AuraFlowPipeline', None),
-        'CogView': getattr(diffusers, 'CogView3PlusPipeline', None),
+        'CogView3': getattr(diffusers, 'CogView3PlusPipeline', None),
+        'CogView4': getattr(diffusers, 'CogView4Pipeline', None),
         'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
         'PixArt-Sigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
         'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),

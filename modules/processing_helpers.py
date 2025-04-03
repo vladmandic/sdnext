@@ -401,24 +401,24 @@ def resize_init_images(p):
 def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler else latent
     if not torch.is_tensor(latents):
         shared.log.warning('Hires: input is not tensor')
-        first_pass_images = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-        return first_pass_images
+        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
+        return decoded
 
     if (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0) and hasattr(p, 'init_hr'):
         shared.log.error('Hires: missing upscaling dimensions')
-        return first_pass_images
+        return decoded
 
     if p.hr_upscaler.lower().startswith('latent'):
-        resized_image = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        return resized_image
+        resized = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
+        return resized
 
-    first_pass_images = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-    resized_images = []
-    for img in first_pass_images:
-        resized_image = images.resize_image(p.hr_resize_mode, img, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        resized_images.append(resized_image)
+    decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
+    resized = []
+    for image in decoded:
+        resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
+        resized.append(resize)
     devices.torch_gc()
-    return resized_images
+    return resized
 
 
 def fix_prompts(p, prompts, negative_prompts, prompts_2, negative_prompts_2):

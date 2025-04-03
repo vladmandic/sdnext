@@ -60,7 +60,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: Hunyuan Video'
+        return 'Video: Hunyuan Video (Legacy)'
 
     def show(self, is_img2img):
         return not is_img2img if shared.native else False
@@ -91,14 +91,7 @@ class Script(scripts.Script):
         if shared.sd_model.__class__ != diffusers.HunyuanVideoPipeline or model != loaded_model:
             sd_models.unload_model_weights()
             t0 = time.time()
-            quant_args = {}
-            quant_args = model_quant.create_bnb_config(quant_args)
-            if quant_args:
-                model_quant.load_bnb(f'Load model: type=HunyuanVideo quant={quant_args}')
-            if not quant_args:
-                quant_args = model_quant.create_ao_config(quant_args)
-                if quant_args:
-                    model_quant.load_torchao(f'Load model: type=HunyuanVideo quant={quant_args}')
+            quant_args = model_quant.create_config()
             transformer = diffusers.HunyuanVideoTransformer3DModel.from_pretrained(
                 pretrained_model_name_or_path='tencent/HunyuanVideo',
                 subfolder="transformer",

@@ -1,20 +1,187 @@
 # Change Log for SD.Next
 
-## Update for 2025-03-14
+## Update for 2025-04-03
 
-- fix installer not starting when older version of rich is installed  
-- fix circular imports when debug flags are enabled  
-- fix cuda errors with directml  
-- fix memory stats not displaying the ram usage  
-- fix runpod memory limit reporting  
-- fix remote vae not being stored in metadata, thanks @iDeNoh  
-- add --upgrade to torch_command when using --use-nightly for ipex and rocm  
-- **ipex**
+### Highlights for 2025-04-03
+
+Time for another major release with ~120 commits and [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) that spans several pages!
+
+*Highlights?*  
+Video...Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
+And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
+Models...And support for new models: **CogView-4**, **SANA 1.5**, 
+
+*Plus...*  
+- New **Prompt Enhance** using LLM,
+- New pipelines such as **InfiniteYou**  
+- New **CLiP** models, improvements to **remote VAE**, additional wiki/docs/guides  
+- More quantization options and granular control  
+- Pretty big performance updates to a) Any model using DiT based architecture due to new caching methods, b) ZLUDA with new attention methods, c) LoRA with much lower memory usage  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-04-03
+
+- **Video tab**  
+  - see [Video Wiki](https://github.com/vladmandic/sdnext/wiki/Video) for details!  
+  - new top-level tab, replaces previous *video* script in text/image tabs  
+    old scripts are still present, but will be removed in the future  
+  - support for all latest models:  
+    - [Hunyuan](https://huggingface.co/Tencent/HunyuanVideo): *HunyuanVideo, FastHunyuan, SkyReels* | *T2V, I2V*  
+    - [WAN21](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers): *1.3B, 14B* | *T2V, I2V*  
+    - [LTXVideo](https://huggingface.co/Lightricks/LTX-Video): *0.9.0, 0.9.1, 0.9.5* | *T2V, I2V*  
+    - [CogVideoX](https://huggingface.co/THUDM/CogVideoX-5b): *2B, 5B* | *T2V, I2V*  
+    - [Allegro](https://huggingface.co/rhymes-ai/Allegro): *T2V*  
+    - [Mochi1](https://huggingface.co/genmo/mochi-1-preview): *T2V*  
+    - [Latte1](https://huggingface.co/maxin-cn/Latte-1): *T2V  
+  - decoding:  
+    - **Default**: use vae from model  
+    - **Tiny VAE**: support for *Hunyuan, WAN, Mochi*  
+    - **Remote VAE**: support for *Hunyuan*  
+  - **LoRA**
+    - support for *Hunyuan, LTX, WAN, Mochi, Cog*  
+    - add option to apply LoRA directly on GPU or use CPU first in low-memory scenarios  
+    - improve metadata and preview parallel fetch  
+    - support for mp4 so first frame is extracted as used as lora preview  
+  - additional key points:  
+    - all models are auto-downloaded upon first use  
+      uses *system paths -> huggingface* folder  
+    - support for many video types  
+    - optional video interpolation while creating video files  
+    - optional video preview in ui  
+      present if video output is selected  
+    - support for balanced offloading and model offloading  
+      uses system settings  
+    - on-the-fly quantization: *BnB, Quanto, TorchAO*  
+      uses system settings, granular for *transformer* and *text-encoder* separately  
+    - different video models support different video resolutions, frame counts, etc.  
+      and may require specific settings - see model links for details  
+    - see *ToDo/Limitations* section for additional notes  
+- **Models & Pipelines**  
+  - [THUDM CogView 4](https://huggingface.co/THUDM/CogView4-6B) **6B** variant  
+    new foundation model for image generation based o GLM-4 text encoder and a flow-based diffusion transformer  
+    fully supports offloading and on-the-fly quantization  
+    simply select from *networks -> models -> reference*  
+    *note* cogview4 is compatible with flowmatching samplers  
+  - [NVLabs SANA 1.5](https://huggingface.co/Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers) in **1.6B**, **4.8B** and [Sprint](https://huggingface.co/Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers) variations  
+    big update to previous SANA model  
+    fully supports offloading and on-the-fly quantization  
+    simply select from *networks -> models -> reference*  
+  - [ByteDance InfiniteYou](https://github.com/bytedance/InfiniteYou/): Flexible Photo Recrafting While Preserving Your Identity  
+    face-transfer model for FLUX.1  
+    select from *Scripts -> InfiniteYou*  
+    its large, ~12GB on top of FLUX.1 base model so make sure you have offloading and quantization setup  
+    *note* model will be auto-downloaded on first use  
+  - New [zer0int CLiP-L](https://huggingface.co/zer0int/CLIP-Registers-Gated_MLP-ViT-L-14) models:  
+    download text encoders into folder set in settings -> system paths -> text encoders (default is *models/Text-encoder*)  
+    load using *settings -> text encoder*  
+    *tip*: add *sd_text_encoder* to your *settings -> user interface -> quicksettings* list to have it appear at the top of the ui  
+- **Prompt Enhance**  
+  - see [Prompt Enhance Wiki](https://github.com/vladmandic/sdnext/wiki/Prompt-Enhance) for details!  
+  - new built-in extension available in text/image/control tabs  
+  - can be used to manually or automatically enhance prompts using LLM  
+  - built-in presets for **Gemma-3, Qwen-2.5, Phi-4, Llama-3.2, SmolLM2, Dolphin-3**  
+  - support for custom models  
+    load any models hosted on huggingface  
+    load either model in huggingface format or `gguf` format  
+    *note*: any hf model in `transformers.AutoModelForCausalLM` standard should work  
+    *note*: not all model architecture are supported for `gguf` format  
+  - models are auto-downloaded on first use  
+  - support quantization and offloading  
+  - auto-detect censored output  
+  - debug using `SD_LLM_DEBUG=true` env variable  
+- **Acceleration**  
+  - Support for most DiT-based models, for example: *FLUX.1, SD35, Hunyuan, Mochi, Latte, Allegro, Cog*  
+  - Enable and configure in *Settings -> Pipeline modifiers*  
+  - [FasterCache](https://huggingface.co/papers/2410.19355)  
+  - [PyramidAttentionBroadcast](https://huggingface.co/papers/2408.12588)  
+- **Remote VAE**  
+  - add support for remote vae encode in addition to remote vae decode  
+  - used by *img2img, inpaint, hires, detailer*  
+  - remote vae encode is disabled by default, you can enable it in *settings -> variable auto-encoder*  
+  - add remote vae info to metadata, thanks @iDeNoh  
+  - remote vae use `scaling_factor` and `shift_factor`  
+- **Caption/VLM**  
+  - [Google Gemma 3](https://huggingface.co/google/gemma-3-4b-it) 4B  
+    simply select from list of available models in caption tab  
+  - [ByteDance/Sa2VA](https://huggingface.co/ByteDance/Sa2VA-1B) 1B, 4B  
+    simply select from list of available models in caption tab  
+  - add option to set system prompt for vlm models that support it: *Gemma, Smol, Qwen*  
+- [NudeNet](https://github.com/vladmandic/sd-extension-nudenet/) extension updates  
+  - add detection of prompt language and alphabet and filter based on those values  
+  - add image policy checks using `LlavaGuard` VLM to detect policy violations (and reasons)  
+    against top-10 standard harmful content categories  
+  - add banned words/expressions check against prompt variations  
+- **LoRA**
+  - enable memory cache by default  
+  - significantly reduce memory usage  
+  - improve performance  
+  - improve detection of lora changes  
+  - unload lora only when changes are detected  
+  - refactor code for modularity  
+- **IPEX**  
+  - add `--upgrade` to torch_command when using `--use-nightly`  
   - add xpu to profiler  
   - fix untyped_storage, torch.eye and torch.cuda.device ops  
   - fix torch 2.7 compatibility  
   - fix performance with balanced offload  
   - fix triton and torch.compile  
+- **ROCm**
+  - add `--upgrade` to torch_command when using `--use-nightly`  
+  - disable fp16 for gfx1102 (rx 7600 and rx 7500 series) gpus  
+- **ZLUDA**  
+  - [triton for ZLUDA v3.9.2](https://github.com/vladmandic/sdnext/wiki/ZLUDA#how-to-enable-triton)  
+    - `torch.compile` is now available  
+    - Flash Attention 2 is now available  
+- **Other**  
+  - new command line option `--monitor PERIOD` to monitor CPU and GPU memory ever n seconds  
+  - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
+  - **upscale**: new experimental support for `libvips` upscaling  
+  - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
+    note: previous method for quanto is still valid and is noted in settings as post-load quantization  
+  - add quantization support to **CogView-3Plus**  
+  - update `diffusers` and other requirements  
+  - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+  - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
+  - **Samplers** add ability to set sigma adjustment for each sampler  
+  - **ModernUI** updates  
+  - **CSS** updates  
+  - settings vertiocal/dirty indicator restores to default setting instead to previous value  
+  - video interpolate do not skip duplicate frames  
+  - **settings UI** full refactor  
+- **Wiki/Docs**  
+  - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
+  - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  
+  - new [Caption](https://github.com/vladmandic/sdnext/wiki/Caption) guide  
+  - new [VAE](https://github.com/vladmandic/sdnext/wiki/VAE) guide  
+  - updated [SD3](https://github.com/vladmandic/sdnext/wiki/SD3) guide  
+  - updated [ZLUDA](https://github.com/vladmandic/sdnext/wiki/ZLUDA) guide  
+  - updated [OpenVINO](https://github.com/vladmandic/sdnext/wiki/OpenVINO) guide  
+  - updated [AMD-ROCm](https://github.com/vladmandic/sdnext/wiki/AMD-ROCm) guide  
+  - updated [Intel-ARC](https://github.com/vladmandic/sdnext/wiki/Intel-ARC) guide  
+- **Fixes**  
+  - fix installer not starting when older version of `rich` is installed  
+  - fix circular imports when debug flags are enabled  
+  - fix cuda errors with *directml*  
+  - fix memory stats not displaying the ram usage  
+  - fix **RunPod** memory limit reporting  
+  - fix flux ipadapter with start/stop values  
+  - fix progress api `eta_relative`  
+  - fix `insightface` loader  
+  - fix remove vae for flux.1  
+  - guard against git returining invalid timestamp  
+  - fix hires with latent upscale  
+  - fix legacy diffusion latent upscalers  
+  - fix upscaler selection in postprocessing  
+  - fix sd35 with batch processing  
+  - fix extra networks cover and inline views  
+  - fix token counter error style with modernui  
+  - fix sampler metadata when using default sampler  
+  - fix paste incorrect float to int cast  
+  - fix server restart from ui  
+  - fix style apply params  
+  - do not allow edit of built-in styles  
+  - improve lora compatibility with balanced offload  
 
 ## Update for 2025-02-28
 
@@ -238,7 +405,7 @@ Just one week after latest release and what a week it was with over 50 commits!
     with detailed defaults for each model type also configurable  
   - select between 150+ *OpenCLiP* supported models, 20+ built-in *VLMs*, *DeepDanbooru*  
   - **VLM**: now that we can use VLMs freely, we've also added support for few more out-of-the-box  
-    [Alibaba Qwen VL2](https://huggingface.co/Qwen/Qwen2-VL-2B), [Huggingface Smol VL2](HuggingFaceTB/SmolVLM-Instruct), [ToriiGate 0.4](Minthy/ToriiGate-v0.4-2B)  
+    [Alibaba Qwen VL2](https://huggingface.co/Qwen/Qwen2-VL-2B), [Huggingface Smol VL2](https://huggingface.co/HuggingFaceTB/SmolVLM-Instruct), [ToriiGate 0.4](https://huggingface.co/Minthy/ToriiGate-v0.4-2B)  
 - **Postprocess**  
   - new sota remove background model: [BEN2](https://huggingface.co/PramaLLC/BEN2)  
     select in *process -> remove background* or enable postprocessing for txt2img/img2img operations  
@@ -346,7 +513,7 @@ Two weeks since last release, time for update!
   - piecewise rectified flow as model acceleration  
   - use `perflow` scheduler combined with one of the available pre-trained [models](https://huggingface.co/hansyan)  
 - **Other**:  
-  - **upscale**: new [asymmetric vae](Heasterian/AsymmetricAutoencoderKLUpscaler) upscaling method
+  - **upscale**: new [asymmetric vae](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler) upscaling method
   - **gallery**: add http fallback for slow/unreliable links  
   - **splash**: add legacy mode indicator on splash screen  
   - **network**: extract thumbnail from model metadata if present  

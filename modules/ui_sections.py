@@ -4,7 +4,7 @@ from modules.ui_components import ToolButton
 from modules.interrogate import interrogate
 
 
-def create_toprow(is_img2img: bool = False, id_part: str = None):
+def create_toprow(is_img2img: bool = False, id_part: str = None, negative_visible: bool = True, reprocess_visible: bool = True):
     def apply_styles(prompt, prompt_neg, styles):
         prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
@@ -21,19 +21,20 @@ def create_toprow(is_img2img: bool = False, id_part: str = None):
             with gr.Row():
                 with gr.Column(scale=80):
                     with gr.Row(elem_id=f"{id_part}_prompt_row"):
-                        prompt = gr.Textbox(elem_id=f"{id_part}_prompt", label="Prompt", show_label=False, lines=3, placeholder="Prompt", elem_classes=["prompt"])
+                        prompt = gr.Textbox(elem_id=f"{id_part}_prompt", label="Prompt", show_label=False, lines=3 if negative_visible else 5, placeholder="Prompt", elem_classes=["prompt"])
             with gr.Row():
                 with gr.Column(scale=80):
                     with gr.Row(elem_id=f"{id_part}_negative_row"):
-                        negative_prompt = gr.Textbox(elem_id=f"{id_part}_neg_prompt", label="Negative prompt", show_label=False, lines=3, placeholder="Negative prompt", elem_classes=["prompt"])
+                        negative_prompt = gr.Textbox(elem_id=f"{id_part}_neg_prompt", label="Negative prompt", show_label=False, lines=3, placeholder="Negative prompt", elem_classes=["prompt"], visible=negative_visible)
         with gr.Column(scale=1, elem_id=f"{id_part}_actions_column"):
             with gr.Row(elem_id=f"{id_part}_generate_box"):
                 reprocess = []
                 submit = gr.Button('Generate', elem_id=f"{id_part}_generate", variant='primary')
-                reprocess.append(gr.Button('Reprocess', elem_id=f"{id_part}_reprocess", variant='primary', visible=True))
-                reprocess.append(gr.Button('Reprocess decode', elem_id=f"{id_part}_reprocess_decode", variant='primary', visible=False))
-                reprocess.append(gr.Button('Reprocess refine', elem_id=f"{id_part}_reprocess_refine", variant='primary', visible=False))
-                reprocess.append(gr.Button('Reprocess face', elem_id=f"{id_part}_reprocess_detail", variant='primary', visible=False))
+                if reprocess_visible:
+                    reprocess.append(gr.Button('Reprocess', elem_id=f"{id_part}_reprocess", variant='primary', visible=True))
+                    reprocess.append(gr.Button('Reprocess decode', elem_id=f"{id_part}_reprocess_decode", variant='primary', visible=False))
+                    reprocess.append(gr.Button('Reprocess refine', elem_id=f"{id_part}_reprocess_refine", variant='primary', visible=False))
+                    reprocess.append(gr.Button('Reprocess face', elem_id=f"{id_part}_reprocess_detail", variant='primary', visible=False))
             with gr.Row(elem_id=f"{id_part}_generate_line2"):
                 interrupt = gr.Button('Stop', elem_id=f"{id_part}_interrupt")
                 interrupt.click(fn=lambda: shared.state.interrupt(), _js="requestInterrupt", inputs=[], outputs=[])
@@ -79,9 +80,9 @@ def ar_change(ar, width, height):
         return gr.update(), gr.update()
 
 
-def create_resolution_inputs(tab):
-    width = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=1024, elem_id=f"{tab}_width")
-    height = gr.Slider(minimum=64, maximum=4096, step=8, label="Height", value=1024, elem_id=f"{tab}_height")
+def create_resolution_inputs(tab, default_width=1024, default_height=1024):
+    width = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=default_width, elem_id=f"{tab}_width")
+    height = gr.Slider(minimum=64, maximum=4096, step=8, label="Height", value=default_height, elem_id=f"{tab}_height")
     ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
     ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])
     for c in [ar_dropdown, width, height]:
@@ -120,18 +121,18 @@ def create_batch_inputs(tab, accordion=True):
     return batch_count, batch_size
 
 
-def create_seed_inputs(tab, reuse_visible=True):
-    with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]):
+def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=True, seed_resize_visible=False):
+    with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_seed_row", variant="compact"):
             seed = gr.Number(label='Initial seed', value=-1, elem_id=f"{tab}_seed", container=True)
             random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_seed", label='Random seed')
             reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_seed", label='Reuse seed', visible=reuse_visible)
-        with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=True):
+        with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=subseed_visible):
             subseed = gr.Number(label='Variation', value=-1, elem_id=f"{tab}_subseed", container=True)
             random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_subseed")
             reuse_subseed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_subseed", visible=reuse_visible)
             subseed_strength = gr.Slider(label='Variation strength', value=0.0, minimum=0, maximum=1, step=0.01, elem_id=f"{tab}_subseed_strength")
-        with gr.Row(visible=False):
+        with gr.Row(visible=seed_resize_visible):
             seed_resize_from_w = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from width", value=0, elem_id=f"{tab}_seed_resize_from_w")
             seed_resize_from_h = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from height", value=0, elem_id=f"{tab}_seed_resize_from_h")
         random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
@@ -139,22 +140,22 @@ def create_seed_inputs(tab, reuse_visible=True):
     return seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w
 
 
-def create_video_inputs(tab:str):
+def create_video_inputs(tab:str, show_always:bool=False):
     def video_type_change(video_type):
         return [
-            gr.update(visible=video_type != 'None'),
-            gr.update(visible=video_type in ['GIF', 'PNG']),
-            gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
-            gr.update(visible=video_type not in ['None', 'GIF', 'PNG']),
+            gr.update(visible=video_type != 'None' or show_always),
+            gr.update(visible=video_type in ['GIF', 'PNG'] or show_always),
+            gr.update(visible=video_type not in ['None', 'GIF', 'PNG'] or show_always),
+            gr.update(visible=video_type not in ['None', 'GIF', 'PNG'] or show_always),
         ]
     with gr.Column():
         video_codecs = ['None', 'GIF', 'PNG', 'MP4/MP4V', 'MP4/AVC1', 'MP4/JVT3', 'MKV/H264', 'AVI/DIVX', 'AVI/RGBA', 'MJPEG/MJPG', 'MPG/MPG1', 'AVR/AVR1']
-        video_type = gr.Dropdown(label='Video type', choices=video_codecs, value='None', elem_id=f"{tab}_video_type")
+        video_type = gr.Dropdown(label='Save video', choices=video_codecs, value='None', elem_id=f"{tab}_video_type")
     with gr.Column():
-        video_duration = gr.Slider(label='Duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=False, elem_id=f"{tab}_video_duration")
-        video_loop = gr.Checkbox(label='Loop', value=True, visible=False, elem_id=f"{tab}_video_loop")
-        video_pad = gr.Slider(label='Pad frames', minimum=0, maximum=24, step=1, value=1, visible=False, elem_id=f"{tab}_video_pad")
-        video_interpolate = gr.Slider(label='Interpolate frames', minimum=0, maximum=24, step=1, value=0, visible=False, elem_id=f"{tab}_video_interpolate")
+        video_duration = gr.Slider(label='Duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=show_always, elem_id=f"{tab}_video_duration")
+        video_loop = gr.Checkbox(label='Loop', value=True, visible=show_always, elem_id=f"{tab}_video_loop")
+        video_pad = gr.Slider(label='Pad frames', minimum=0, maximum=24, step=1, value=1, visible=show_always, elem_id=f"{tab}_video_pad")
+        video_interpolate = gr.Slider(label='Interpolate frames', minimum=0, maximum=24, step=1, value=0, visible=show_always, elem_id=f"{tab}_video_interpolate")
     video_type.change(fn=video_type_change, inputs=[video_type], outputs=[video_duration, video_loop, video_pad, video_interpolate])
     return video_type, video_duration, video_loop, video_pad, video_interpolate
 
@@ -218,7 +219,7 @@ def create_sampler_and_steps_selection(choices, tabname):
         sd_samplers.set_samplers()
         choices = [x for x in sd_samplers.samplers if not x.name == 'Same as primary']
     with gr.Row(elem_classes=['flex-break']):
-        steps = gr.Slider(minimum=1, maximum=99, step=1, label="Steps", elem_id=f"{tabname}_steps", value=20)
+        steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=20)
         sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value='Default', type="index")
     return steps, sampler_index
 
@@ -273,6 +274,13 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_shift = sampler_shift
         shared.opts.save(shared.config_filename, silent=True)
 
+    def set_sigma_ajust(val, start, end):
+        shared.log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
+        shared.opts.schedulers_sigma_adjust = val
+        shared.opts.schedulers_sigma_adjust_min = start
+        shared.opts.schedulers_sigma_adjust_max = end
+        shared.opts.save(shared.config_filename, silent=True)
+
     # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
         if preset == 'AYS SD15':
@@ -305,6 +313,10 @@ def create_sampler_options(tabname):
             sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')
             sampler_timesteps = gr.Textbox(label='Timesteps override', elem_id=f"{tabname}_sampler_timesteps", value=shared.opts.schedulers_timesteps)
         with gr.Row(elem_classes=['flex-break']):
+            sampler_sigma_adjust_val = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Sigma adjust', value=shared.opts.schedulers_sigma_adjust, elem_id=f"{tabname}_sampler_sigma_adjust")
+            sampler_sigma_adjust_min = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust start', value=shared.opts.schedulers_sigma_adjust_min, elem_id=f"{tabname}_sampler_sigma_adjust_min")
+            sampler_sigma_adjust_max = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust end', value=shared.opts.schedulers_sigma_adjust_max, elem_id=f"{tabname}_sampler_sigma_adjust_max")
+        with gr.Row(elem_classes=['flex-break']):
             sampler_order = gr.Slider(minimum=0, maximum=5, step=1, label="Sampler order", value=shared.opts.schedulers_solver_order, elem_id=f"{tabname}_sampler_order")
             sampler_shift = gr.Slider(minimum=0, maximum=10, step=0.1, label="Flow shift", value=shared.opts.schedulers_shift, elem_id=f"{tabname}_sampler_shift")
         with gr.Row(elem_classes=['flex-break']):
@@ -325,6 +337,9 @@ def create_sampler_options(tabname):
         sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
         sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift], outputs=[])
         sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
+        sampler_sigma_adjust_val.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+        sampler_sigma_adjust_min.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+        sampler_sigma_adjust_max.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
 
 
 def create_hires_inputs(tab):

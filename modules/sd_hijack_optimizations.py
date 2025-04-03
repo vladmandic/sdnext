@@ -315,7 +315,7 @@ def get_xformers_flash_attention_op(q, k, v):
     if 'Flash attention' not in shared.opts.xformers_options:
         return None
     try:
-        flash_attention_op = xformers.ops.MemoryEfficientAttentionFlashAttentionOp # pylint: disable=used-before-assignment
+        flash_attention_op = xformers.ops.MemoryEfficientAttentionFlashAttentionOp # pylint: disable=possibly-used-before-assignment, used-before-assignment
         fw, _bw = flash_attention_op
         if fw.supports(xformers.ops.fmha.Inputs(query=q, key=k, value=v, attn_bias=None)):
             return flash_attention_op

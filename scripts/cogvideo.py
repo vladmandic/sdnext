@@ -22,7 +22,7 @@ debug = (os.environ.get('SD_LOAD_DEBUG', None) is not None) or (os.environ.get('
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: CogVideoX'
+        return 'Video: CogVideoX (Legacy)'
 
     def show(self, is_img2img):
         return shared.native
@@ -50,7 +50,7 @@ class Script(scripts.Script):
         return [model, sampler, frames, guidance, offload, override, video_type, duration, loop, pad, interpolate, image, video]
 
     def load(self, model):
-        if (shared.sd_model_type != 'cogvideox' or shared.sd_model.sd_model_checkpoint != model) and model != 'None':
+        if (shared.sd_model_type != 'cogvideo' or shared.sd_model.sd_model_checkpoint != model) and model != 'None':
             sd_models.unload_model_weights('model')
             shared.log.info(f'CogVideoX load: model="{model}"')
             try:
@@ -64,7 +64,7 @@ class Script(scripts.Script):
                 shared.log.error(f'Load CogVideoX: {e}')
                 if debug:
                     errors.display(e, 'CogVideoX')
-        if shared.sd_model_type == 'cogvideox' and model != 'None':
+        if shared.sd_model_type == 'cogvideo' and model != 'None':
             shared.sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m', ncols=80, colour='#327fba')
             shared.log.debug(f'CogVideoX load: class="{shared.sd_model.__class__.__name__}"')
         if shared.sd_model is not None and model == 'None':
@@ -74,7 +74,7 @@ class Script(scripts.Script):
         devices.torch_gc()
 
     def offload(self, offload):
-        if shared.sd_model_type != 'cogvideox':
+        if shared.sd_model_type != 'cogvideo':
             return
         if offload == 'none':
             sd_models.move_model(shared.sd_model, devices.device)
@@ -131,7 +131,7 @@ class Script(scripts.Script):
         return img
 
     def generate(self, p: processing.StableDiffusionProcessing, model: str):
-        if shared.sd_model_type != 'cogvideox':
+        if shared.sd_model_type != 'cogvideo':
             return []
         shared.log.info(f'CogVideoX: sampler={p.sampler} steps={p.steps} frames={p.frames} width={p.width} height={p.height} seed={p.seed} guidance={p.guidance}')
         if p.sampler == 'DDIM':

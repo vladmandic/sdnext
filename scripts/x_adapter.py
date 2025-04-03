@@ -110,6 +110,8 @@ class Script(scripts.Script):
             shared.opts.data['prompt_attention'] = 'fixed'
             prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
             negative = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+            shared.prompt_styles.apply_styles_to_extra(p)
+            p.styles = []
             p.task_args['prompt'] = prompt
             p.task_args['negative_prompt'] = negative
             p.task_args['prompt_sd1_5'] = prompt

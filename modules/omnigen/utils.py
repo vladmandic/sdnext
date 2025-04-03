@@ -28,8 +28,6 @@ def update_ema(ema_model, model, decay=0.9999):
         ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
 
 
-
-
 def requires_grad(model, flag=True):
     """
     Set requires_grad flag for all parameters in a model.
@@ -57,7 +55,6 @@ def center_crop_arr(pil_image, image_size):
     crop_y = (arr.shape[0] - image_size) // 2
     crop_x = (arr.shape[1] - image_size) // 2
     return Image.fromarray(arr[crop_y: crop_y + image_size, crop_x: crop_x + image_size])
-
 
 
 def crop_arr(pil_image, max_image_size):
@@ -89,7 +86,6 @@ def crop_arr(pil_image, max_image_size):
     return Image.fromarray(arr)
 
 
-
 def vae_encode(vae, x, weight_dtype):
     if x is not None:
         if vae.config.shift_factor is not None:
@@ -99,6 +95,7 @@ def vae_encode(vae, x, weight_dtype):
             x = vae.encode(x).latent_dist.sample().mul_(vae.config.scaling_factor)
         x = x.to(weight_dtype)
     return x
+
 
 def vae_encode_list(vae, x, weight_dtype):
     latents = []

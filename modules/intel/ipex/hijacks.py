@@ -118,7 +118,7 @@ original_torch_bmm = torch.bmm
 @wraps(torch.bmm)
 def torch_bmm(input, mat2, *, out=None):
     if input.dtype != mat2.dtype:
-        mat2 = mat2.to(input.dtype)
+        mat2 = mat2.to(dtype=input.dtype)
     return original_torch_bmm(input, mat2, out=out)
 
 # Diffusers FreeU

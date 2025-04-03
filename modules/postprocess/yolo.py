@@ -265,6 +265,7 @@ class YoloRestorer(Detailer):
                 'inpaint_full_res_padding': shared.opts.detailer_padding,
                 'width': resolution,
                 'height': resolution,
+                'vae_type': orig_p.get('vae_type', 'Full'),
             }
             if args['denoising_strength'] == 0:
                 shared.log.debug(f'Detailer: model="{name}" strength=0 skip')

@@ -140,6 +140,8 @@ def set_scheduler(p, model, override: bool = False):
 def set_prompt(p):
     p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
     p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
+    shared.prompt_styles.apply_styles_to_extra(p)
+    p.styles = []
     prompts = p.prompt.split('\n')
     try:
         prompt = {}

@@ -59,8 +59,6 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
     if debug:
         debug_callback(f'Callback: step={step} timestep={timestep} latents={latents.shape if latents is not None else None} kwargs={list(kwargs)}')
     shared.state.step()
-    # order = getattr(pipe.scheduler, "order", 1) if hasattr(pipe, 'scheduler') else 1
-    # shared.state.sampling_step = step // order
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:
@@ -80,10 +78,13 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
         ip_adapter_starts = list(p.ip_adapter_starts)
         ip_adapter_ends = list(p.ip_adapter_ends)
         if any(end != 1 for end in ip_adapter_ends) or any(start != 0 for start in ip_adapter_starts):
-            for i in range(len(ip_adapter_scales)):
-                ip_adapter_scales[i] *= float(step >= pipe.num_timesteps * ip_adapter_starts[i])
-                ip_adapter_scales[i] *= float(step <= pipe.num_timesteps * ip_adapter_ends[i])
-                debug_callback(f"Callback: IP Adapter scales={ip_adapter_scales}")
+            if 'Flux' in pipe.__class__.__name__:
+                ip_adapter_scales = [(ip_adapter_starts[0] + (ip_adapter_ends[0] - ip_adapter_starts[0]) * (i / (19 - 1))) for i in range(19)]
+            else:
+                for i in range(len(ip_adapter_scales)):
+                    ip_adapter_scales[i] *= float(step >= pipe.num_timesteps * ip_adapter_starts[i])
+                    ip_adapter_scales[i] *= float(step <= pipe.num_timesteps * ip_adapter_ends[i])
+            debug_callback(f"Callback: IP Adapter scales={ip_adapter_scales}")
             pipe.set_ip_adapter_scale(ip_adapter_scales)
     if step != getattr(pipe, 'num_timesteps', 0):
         kwargs = processing_correction.correction_callback(p, timestep, kwargs, initial=step == 0)
@@ -122,6 +123,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
             try:
                 shared.state.current_sigma = pipe.scheduler.sigmas[pipe.scheduler.step_index-1]
                 shared.state.current_sigma_next = pipe.scheduler.sigmas[pipe.scheduler.step_index]
+                if (shared.opts.schedulers_sigma_adjust != 1.0) and (timestep > 1000 * shared.opts.schedulers_sigma_adjust_min) and (timestep < 1000 * shared.opts.schedulers_sigma_adjust_max):
+                    pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * shared.opts.schedulers_sigma_adjust
             except Exception:
                 pass
     except Exception as e:

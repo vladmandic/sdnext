@@ -155,6 +155,11 @@ function switch_to_control(...args) {
   return Array.from(arguments);
 }
 
+function switch_to_video(...args) {
+  switchToTab('Video');
+  return Array.from(arguments);
+}
+
 function switch_to_caption(...args) {
   switchToTab('Caption');
   return Array.from(arguments);
@@ -236,6 +241,18 @@ function submit_control(...args) {
   res[0] = id;
   res[1] = window.submit_state;
   res[2] = gradioApp().querySelector('#control-tabs > .tab-nav > .selected')?.innerText.toLowerCase() || ''; // selected tab name
+  window.submit_state = '';
+  return res;
+}
+
+function submit_video(...args) {
+  log('submitVideo');
+  clearGallery('video');
+  const id = randomId();
+  requestProgress(id, null, gradioApp().getElementById('video_gallery'));
+  const res = create_submit_args(args);
+  res[0] = id;
+  res[1] = window.submit_state;
   window.submit_state = '';
   return res;
 }

@@ -65,7 +65,7 @@ class ScriptPostprocessingRunner:
         script.args_from = len(inputs)
         script.args_to = len(inputs)
         script.controls = wrap_call(script.ui, script.filename, "ui")
-        for control in script.controls.values():
+        for control in script.controls.values() if script.controls is not None else []:
             control.custom_script_source = os.path.basename(script.filename)
         inputs += list(script.controls.values())
         script.args_to = len(inputs)

@@ -11,26 +11,20 @@ from modules.teacache.teacache_ltx import teacache_forward
 repos = {
     '0.9.0': 'a-r-r-o-w/LTX-Video-diffusers',
     '0.9.1': 'a-r-r-o-w/LTX-Video-0.9.1-diffusers',
+    '0.9.5': 'Lightricks/LTX-Video-0.9.5',
     'custom': None,
 }
 
 
 def load_quants(kwargs, repo_id):
-    quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=LTXVideo quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=LTXVideo quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
     model_quant.load_bnb(f'Load model: type=LTX quant={quant_args}')
     if 'transformer' not in kwargs and ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization):
         kwargs['transformer'] = diffusers.LTXVideoTransformer3DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=shared.opts.hfcache_dir, torch_dtype=devices.dtype, **quant_args)
         shared.log.debug(f'Quantization: module=transformer type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-    if 'text_encoder' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization):
+    if 'text_encoder' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization):
         kwargs['text_encoder'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=shared.opts.hfcache_dir, torch_dtype=devices.dtype, **quant_args)
         shared.log.debug(f'Quantization: module=t5 type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
     return kwargs
@@ -38,7 +32,6 @@ def load_quants(kwargs, repo_id):
 
 def hijack_decode(*args, **kwargs):
     t0 = time.time()
-    # vae: diffusers.AutoencoderKLHunyuanVideo = shared.sd_model.vae
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
     res = shared.sd_model.vae.orig_decode(*args, **kwargs)
     t1 = time.time()
@@ -59,7 +52,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 class Script(scripts.Script):
     def title(self):
-        return 'Video: LTX Video'
+        return 'Video: LTX Video (Legacy)'
 
     def show(self, is_img2img):
         return shared.native
@@ -119,9 +112,7 @@ class Script(scripts.Script):
             repo_id = model_custom
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
-            kwargs = {}
-            kwargs = model_quant.create_bnb_config(kwargs)
-            kwargs = model_quant.create_ao_config(kwargs)
+            kwargs = model_quant.create_config()
             diffusers.LTXVideoTransformer3DModel.forward = teacache_forward
             if os.path.isfile(repo_id):
                 shared.sd_model = cls.from_single_file(

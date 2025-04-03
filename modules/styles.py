@@ -154,6 +154,7 @@ def apply_styles_to_extra(p, style: Style):
         p.original_negative = p.negative_prompt
 
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True)
+    style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
     extra.pop('Negative prompt', None)
@@ -162,14 +163,15 @@ def apply_styles_to_extra(p, style: Style):
     for k, v in extra.items():
         k = k.lower()
         k = k.replace(' ', '_')
-        if k in name_exclude: # exclude some fields
-            continue
         if k in name_map: # rename some fields
             k = name_map[k]
+        if k in name_exclude: # exclude some fields
+            continue
         if hasattr(p, k):
             orig = getattr(p, k)
-            if type(orig) != type(v) and orig is not None:
-                v = type(orig)(v)
+            if (type(orig) != type(v)) and (orig is not None):
+                if not (type(orig) == int and type(v) == float): # dont convert float to int
+                    v = type(orig)(v)
             setattr(p, k, v)
             fields.append(f'{k}={v}')
         else:
@@ -260,6 +262,7 @@ class StyleDatabase:
                 for future in concurrent.futures.as_completed(future_items):
                     future.result()
 
+        self.built_in = shared.opts.extra_networks_styles
         list_folder(self.path)
         t1 = time.time()
         shared.log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')

@@ -9,6 +9,7 @@ async function initDragDrop() {
     if (tab === 0) promptTarget = 'txt2img_prompt_image';
     else if (tab === 1) promptTarget = 'img2img_prompt_image';
     else if (tab === 2) promptTarget = 'control_prompt_image';
+    else if (tab === 3) promptTarget = 'video_prompt_image';
     else return;
     const imgParent = gradioApp().getElementById(promptTarget);
     const fileInput = imgParent.querySelector('input[type="file"]');

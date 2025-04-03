@@ -5,7 +5,8 @@ import errno
 import html
 from datetime import datetime, timedelta
 import gradio as gr
-from modules import extensions, shared, paths, errors, ui_symbols
+from modules import extensions, shared, paths, errors, ui_symbols, call_queue
+
 
 debug = shared.log.debug if os.environ.get('SD_EXT_DEBUG', None) is not None else lambda *args, **kwargs: None
 extensions_index = "https://vladmandic.github.io/sd-data/pages/extensions.json"
@@ -98,7 +99,7 @@ def apply_changes(disable_list, update_list, disable_all):
 def check_updates(_id_task, disable_list, search_text, sort_column):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
-        return
+        return create_html(search_text, sort_column)
     disabled = json.loads(disable_list)
     assert type(disabled) == list, f"wrong disable_list data for apply_and_restart: {disable_list}"
     exts = [ext for ext in extensions.extensions if ext.remote is not None and ext.name not in disabled]
@@ -436,87 +437,84 @@ def create_html(search_text, sort_column):
 
 
 def create_ui():
-    import modules.ui
-    with gr.Blocks(analytics_enabled=False) as ui:
-        extensions_disable_all = gr.Radio(label="Disable all extensions", choices=["none", "user", "all"], value=shared.opts.disable_all_extensions, elem_id="extensions_disable_all", visible=False)
-        extensions_disabled_list = gr.Text(elem_id="extensions_disabled_list", visible=False, container=False)
-        extensions_update_list = gr.Text(elem_id="extensions_update_list", visible=False, container=False)
-        with gr.Tabs(elem_id="tabs_extensions"):
-            with gr.TabItem("Manage extensions", id="manage"):
-                with gr.Row(elem_id="extensions_installed_top"):
-                    extension_to_install = gr.Text(elem_id="extension_to_install", visible=False)
-                    install_extension_button = gr.Button(elem_id="install_extension_button", visible=False)
-                    uninstall_extension_button = gr.Button(elem_id="uninstall_extension_button", visible=False)
-                    update_extension_button = gr.Button(elem_id="update_extension_button", visible=False)
-                    with gr.Column(scale=4):
-                        search_text = gr.Text(label="Search")
-                    with gr.Column(scale=1):
-                        sort_column = gr.Dropdown(value="default", label="Sort by", choices=list(sort_ordering.keys()), multiselect=False)
-                    with gr.Column(scale=1):
-                        refresh_extensions_button = gr.Button(value="Refresh extension list", variant="primary")
-                        check = gr.Button(value="Update all installed", variant="primary")
-                        apply = gr.Button(value="Apply changes", variant="primary")
-                list_extensions()
-                gr.HTML('''<span style="color: var(--body-text-color)">
-                            <h2>Extension list</h2>
-                            - Refesh extension list to download latest list with status<br>
-                            - Check status of an extension by looking at status icon before installing it<br>
-                            - After any operation such as install/uninstall or enable/disable, please restart the server<br>
-                        </span>''')
-                gr.HTML('')
-                info = gr.HTML('')
-                extensions_table = gr.HTML(create_html(search_text.value, sort_column.value))
-                check.click(
-                    fn=modules.ui.wrap_gradio_call(check_updates, extra_outputs=[gr.update()]),
-                    _js="extensions_check",
-                    inputs=[info, extensions_disabled_list, search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                apply.click(
-                    fn=apply_changes,
-                    _js="extensions_apply",
-                    inputs=[extensions_disabled_list, extensions_update_list, extensions_disable_all],
-                    outputs=[],
-                )
-                refresh_extensions_button.click(
-                    fn=modules.ui.wrap_gradio_call(refresh_extensions_list, extra_outputs=[gr.update(), gr.update()]),
-                    inputs=[search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                install_extension_button.click(
-                    fn=modules.ui.wrap_gradio_call(install_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
-                    inputs=[extension_to_install, search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                uninstall_extension_button.click(
-                    fn=modules.ui.wrap_gradio_call(uninstall_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
-                    inputs=[extension_to_install, search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                update_extension_button.click(
-                    fn=modules.ui.wrap_gradio_call(update_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
-                    inputs=[extension_to_install, search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                search_text.change(
-                    fn=modules.ui.wrap_gradio_call(search_extensions, extra_outputs=[gr.update(), gr.update()]),
-                    inputs=[search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-                sort_column.change(
-                    fn=modules.ui.wrap_gradio_call(search_extensions, extra_outputs=[gr.update(), gr.update()]),
-                    inputs=[search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-            with gr.TabItem("Manual install", id="install_from_url"):
-                install_url = gr.Text(label="Extension GIT repository URL")
-                install_branch = gr.Text(label="Specific branch name", placeholder="Leave empty for default main branch")
-                install_dirname = gr.Text(label="Local directory name", placeholder="Leave empty for auto")
-                install_button = gr.Button(value="Install", variant="primary")
-                info = gr.HTML(elem_id="extension_info")
-                install_button.click(
-                    fn=modules.ui.wrap_gradio_call(install_extension_from_url, extra_outputs=[gr.update()]),
-                    inputs=[install_dirname, install_url, install_branch, search_text, sort_column],
-                    outputs=[extensions_table, info],
-                )
-    return ui
+    extensions_disable_all = gr.Radio(label="Disable all extensions", choices=["none", "user", "all"], value=shared.opts.disable_all_extensions, elem_id="extensions_disable_all", visible=False)
+    extensions_disabled_list = gr.Text(elem_id="extensions_disabled_list", visible=False, container=False)
+    extensions_update_list = gr.Text(elem_id="extensions_update_list", visible=False, container=False)
+    with gr.Tabs(elem_id="tabs_extensions"):
+        with gr.TabItem("Manage extensions", id="manage"):
+            with gr.Row(elem_id="extensions_installed_top"):
+                extension_to_install = gr.Text(elem_id="extension_to_install", visible=False)
+                install_extension_button = gr.Button(elem_id="install_extension_button", visible=False)
+                uninstall_extension_button = gr.Button(elem_id="uninstall_extension_button", visible=False)
+                update_extension_button = gr.Button(elem_id="update_extension_button", visible=False)
+                with gr.Column(scale=4):
+                    search_text = gr.Text(label="Search")
+                with gr.Column(scale=1):
+                    sort_column = gr.Dropdown(value="default", label="Sort by", choices=list(sort_ordering.keys()), multiselect=False)
+                with gr.Column(scale=1):
+                    refresh_extensions_button = gr.Button(value="Refresh extension list", variant="primary")
+                    check = gr.Button(value="Update all installed", variant="primary")
+                    apply = gr.Button(value="Apply changes", variant="primary")
+            list_extensions()
+            gr.HTML('''<span style="color: var(--body-text-color)">
+                        <h2>Extension list</h2>
+                        - Refesh extension list to download latest list with status<br>
+                        - Check status of an extension by looking at status icon before installing it<br>
+                        - After any operation such as install/uninstall or enable/disable, please restart the server<br>
+                    </span>''')
+            gr.HTML('')
+            info = gr.HTML('')
+            extensions_table = gr.HTML(create_html(search_text.value, sort_column.value))
+            check.click(
+                fn=call_queue.wrap_gradio_call(check_updates, extra_outputs=[gr.update()]),
+                _js="extensions_check",
+                inputs=[info, extensions_disabled_list, search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            apply.click(
+                fn=apply_changes,
+                _js="extensions_apply",
+                inputs=[extensions_disabled_list, extensions_update_list, extensions_disable_all],
+                outputs=[],
+            )
+            refresh_extensions_button.click(
+                fn=call_queue.wrap_gradio_call(refresh_extensions_list, extra_outputs=[gr.update(), gr.update()]),
+                inputs=[search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            install_extension_button.click(
+                fn=call_queue.wrap_gradio_call(install_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
+                inputs=[extension_to_install, search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            uninstall_extension_button.click(
+                fn=call_queue.wrap_gradio_call(uninstall_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
+                inputs=[extension_to_install, search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            update_extension_button.click(
+                fn=call_queue.wrap_gradio_call(update_extension, extra_outputs=[gr.update(), gr.update(), gr.update()]),
+                inputs=[extension_to_install, search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            search_text.change(
+                fn=call_queue.wrap_gradio_call(search_extensions, extra_outputs=[gr.update(), gr.update()]),
+                inputs=[search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+            sort_column.change(
+                fn=call_queue.wrap_gradio_call(search_extensions, extra_outputs=[gr.update(), gr.update()]),
+                inputs=[search_text, sort_column],
+                outputs=[extensions_table, info],
+            )
+        with gr.TabItem("Manual install", id="install_from_url"):
+            install_url = gr.Text(label="Extension GIT repository URL")
+            install_branch = gr.Text(label="Specific branch name", placeholder="Leave empty for default main branch")
+            install_dirname = gr.Text(label="Local directory name", placeholder="Leave empty for auto")
+            install_button = gr.Button(value="Install", variant="primary")
+            info = gr.HTML(elem_id="extension_info")
+            install_button.click(
+                fn=call_queue.wrap_gradio_call(install_extension_from_url, extra_outputs=[gr.update()]),
+                inputs=[install_dirname, install_url, install_branch, search_text, sort_column],
+                outputs=[extensions_table, info],
+            )

@@ -19,8 +19,9 @@ def register_default_extra_networks():
     from modules.ui_extra_networks_styles import ExtraNetworkStyles
     register_extra_network(ExtraNetworkStyles())
     if not shared.opts.lora_legacy:
-        from modules.lora.networks import extra_network_lora
-        register_extra_network(extra_network_lora)
+        from modules.lora import lora_common, extra_networks_lora
+        lora_common.extra_network_lora = extra_networks_lora.ExtraNetworkLora()
+        register_extra_network(lora_common.extra_network_lora)
     if shared.opts.hypernetwork_enabled:
         from modules.ui_extra_networks_hypernet import ExtraNetworkHypernet
         register_extra_network(ExtraNetworkHypernet())
@@ -87,7 +88,7 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         stepwise = stepwise or is_stepwise(extra_network_args)
     functional = shared.opts.lora_functional
     if shared.opts.lora_force_diffusers and stepwise:
-        shared.log.warning("Load network: type=LoRA method=composable loader=diffusers not compatible")
+        shared.log.warning("Network load: type=LoRA method=composable loader=diffusers not compatible")
         stepwise = False
     shared.opts.data['lora_functional'] = stepwise or functional
 

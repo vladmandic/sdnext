@@ -17,6 +17,7 @@ class SdVersion(enum.Enum):
     SDXL = 4
     SC = 5
     F1 = 6
+    HV = 7
 
 
 class NetworkOnDisk:
@@ -56,6 +57,8 @@ class NetworkOnDisk:
             return 'sd3'
         if base.startswith("flux"):
             return 'f1'
+        if base.startswith("hunyuan_video"):
+            return 'hv'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
@@ -65,6 +68,8 @@ class NetworkOnDisk:
             return 'sc'
         if arch.startswith("flux"):
             return 'f1'
+        if arch.startswith("hunyuan-video"):
+            return 'hv'
 
         if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
             return 'sd1'
@@ -86,8 +91,10 @@ class NetworkOnDisk:
             self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
 
     def get_alias(self):
-        import modules.lora.networks as networks
-        return self.name if shared.opts.lora_preferred_name == "filename" or self.alias.lower() in networks.forbidden_network_aliases else self.alias
+        if shared.opts.lora_preferred_name == "filename":
+            return self.name
+        else:
+            return self.alias
 
 
 class Network:  # LoraModule

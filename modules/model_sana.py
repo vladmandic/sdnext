@@ -1,4 +1,3 @@
-import os
 import time
 import torch
 import diffusers
@@ -8,22 +7,14 @@ from modules import shared, sd_models, devices, modelloader, model_quant
 
 def load_quants(kwargs, repo_id, cache_dir):
     quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=Sana quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=Sana quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
     load_args = kwargs.copy()
-    if 'transformer' not in kwargs and ('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization):
+    if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
         kwargs['transformer'] = diffusers.models.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
-        shared.log.debug(f'Quantization: module=transformer type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-    if 'text_encoder' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization):
+    if 'text_encoder' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
         kwargs['text_encoder'] = transformers.AutoModelForCausalLM.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
-        shared.log.debug(f'Quantization: module=t5 type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
     return kwargs
 
 
@@ -39,8 +30,6 @@ def load_sana(checkpoint_info, kwargs={}):
 
     if not repo_id.endswith('_diffusers'):
         repo_id = f'{repo_id}_diffusers'
-    if devices.dtype == torch.bfloat16 and 'BF16' not in repo_id:
-        repo_id = repo_id.replace('_diffusers', '_BF16_diffusers')
 
     if 'Sana_1600M' in repo_id:
         if devices.dtype == torch.bfloat16 or 'BF16' in repo_id:
@@ -53,13 +42,20 @@ def load_sana(checkpoint_info, kwargs={}):
     if 'Sana_600M' in repo_id:
         kwargs['variant'] = 'fp16'
 
-    if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
-        # TODO sana: fails when quantized
-        # kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
-        pass
+    kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
     shared.log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
     t0 = time.time()
-    pipe = diffusers.SanaPipeline.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs)
+    if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
+        kwargs['torch_dtype'] = devices.dtype
+    if 'Sprint' in repo_id:
+        cls = diffusers.SanaSprintPipeline
+    else:
+        cls = diffusers.SanaPipeline
+    pipe = cls.from_pretrained(
+        repo_id,
+        cache_dir=shared.opts.diffusers_dir,
+        **kwargs,
+    )
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
         if 'transformer' not in kwargs:
             pipe.transformer = pipe.transformer.to(dtype=devices.dtype)
@@ -77,6 +73,5 @@ def load_sana(checkpoint_info, kwargs={}):
         pipe.transformer.eval()
     t1 = time.time()
     shared.log.debug(f'Load model: type=Sana target={devices.dtype} te={pipe.text_encoder.dtype} transformer={pipe.transformer.dtype} vae={pipe.vae.dtype} time={t1-t0:.2f}')
-
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

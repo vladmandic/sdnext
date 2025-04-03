@@ -5,11 +5,11 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as TF
 from PIL import Image
-from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, hidiffusion, timer, modelstats, extra_networks, ras
+from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, hidiffusion, timer, modelstats, extra_networks, ras, transformer_cache
 from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
-from modules.lora import networks
+from modules.lora import lora_common
 
 
 debug = shared.log.trace if os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -71,8 +71,10 @@ def process_base(p: processing.StableDiffusionProcessing):
         eta=shared.opts.scheduler_eta,
         guidance_scale=p.cfg_scale,
         guidance_rescale=p.diffusers_guidance_rescale,
+        true_cfg_scale=p.pag_scale,
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
+        num_frames=getattr(p, 'frames', 1),
         output_type='latent',
         clip_skip=p.clip_skip,
         desc='Base',
@@ -85,6 +87,7 @@ def process_base(p: processing.StableDiffusionProcessing):
     try:
         t0 = time.time()
         sd_models_compile.check_deepcache(enable=True)
+        transformer_cache.set_cache()
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         sd_models.move_model(shared.sd_model, devices.device)
         if hasattr(shared.sd_model, 'unet'):
@@ -107,10 +110,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
         timer.process.record('pipeline')
-        ras.unapply(shared.sd_model)
-        hidiffusion.unapply()
         sd_models_compile.openvino_post_compile(op="base") # only executes on compiled vino models
-        sd_models_compile.check_deepcache(enable=False)
         if shared.cmd_opts.profile:
             t1 = time.time()
             shared.log.debug(f'Profile: pipeline call: {t1-t0:.2f}')
@@ -142,6 +142,10 @@ def process_base(p: processing.StableDiffusionProcessing):
         shared.log.error(f'Processing: step=base args={err_args} {e}')
         errors.display(e, 'Processing')
         modelstats.analyze()
+    finally:
+        ras.unapply(shared.sd_model)
+        hidiffusion.unapply()
+        sd_models_compile.check_deepcache(enable=False)
 
     if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
         p.extra_generation_params['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
@@ -363,7 +367,7 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             else:
                 width = getattr(p, 'width', 0)
                 height = getattr(p, 'height', 0)
-            frames = p.task_args.get('num_frames', None)
+            frames = p.task_args.get('num_frames', None) or getattr(p, 'frames', None)
             if isinstance(output.images, list):
                 results = []
                 for i in range(len(output.images)):
@@ -474,8 +478,8 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
             return results
 
     extra_networks.deactivate(p)
-    timer.process.add('lora', networks.timer.total)
-    networks.timer.clear(complete=True)
+    timer.process.add('lora', lora_common.timer.total)
+    lora_common.timer.clear(complete=True)
 
     results = process_decode(p, output)
     timer.process.record('decode')

@@ -25,26 +25,56 @@ class AxisOptionTxt2Img(AxisOption):
 
 
 class SharedSettingsStackHelper(object):
-    vae = None
-    schedulers_solver_order = None
-    tome_ratio = None
-    todo_ratio = None
     sd_model_checkpoint = None
     sd_model_refiner = None
     sd_model_dict = None
     sd_vae = None
     sd_unet = None
     sd_text_encoder = None
+    prompt_attention = None
+    freeu_b1 = None
+    freeu_b2 = None
+    freeu_s1 = None
+    freeu_s2 = None
+    schedulers_sigma_adjust = None
+    schedulers_beta_schedule = None
+    schedulers_beta_start = None
+    schedulers_beta_end = None
+    schedulers_shift = None
+    schedulers_sigma = None
+    schedulers_timestep_spacing = None
+    schedulers_timesteps_range = None
+    schedulers_beta_schedule = None
+    schedulers_beta_start = None
+    schedulers_beta_end = None
+    schedulers_shift = None
+    scheduler_eta = None
+    schedulers_solver_order = None
+    eta_noise_seed_delta = None
+    tome_ratio = None
+    todo_ratio = None
     extra_networks_default_multiplier = None
     disable_weights_auto_swap = None
-    prompt_attention = None
 
     def __enter__(self):
-        #Save overridden settings so they can be restored later.
-        self.vae = shared.opts.sd_vae
+        # Save overridden settings so they can be restored later
+        self.prompt_attention = shared.opts.prompt_attention
+        self.schedulers_sigma_adjust = shared.opts.schedulers_sigma_adjust
+        self.schedulers_timestep_spacing = shared.opts.schedulers_timestep_spacing
+        self.schedulers_timesteps_range = shared.opts.schedulers_timesteps_range
         self.schedulers_solver_order = shared.opts.schedulers_solver_order
+        self.schedulers_beta_schedule = shared.opts.schedulers_beta_schedule
+        self.schedulers_beta_start = shared.opts.schedulers_beta_start
+        self.schedulers_beta_end = shared.opts.schedulers_beta_end
+        self.schedulers_shift = shared.opts.schedulers_shift
+        self.scheduler_eta = shared.opts.scheduler_eta
+        self.eta_noise_seed_delta = shared.opts.eta_noise_seed_delta
         self.tome_ratio = shared.opts.tome_ratio
         self.todo_ratio = shared.opts.todo_ratio
+        self.freeu_b1 = shared.opts.freeu_b1
+        self.freeu_b2 = shared.opts.freeu_b2
+        self.freeu_s1 = shared.opts.freeu_s1
+        self.freeu_s2 = shared.opts.freeu_s2
         self.sd_model_checkpoint = shared.opts.sd_model_checkpoint
         self.sd_model_refiner = shared.opts.sd_model_refiner
         self.sd_model_dict = shared.opts.sd_model_dict
@@ -53,18 +83,30 @@ class SharedSettingsStackHelper(object):
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
         self.disable_weights_auto_swap = shared.opts.disable_weights_auto_swap
-        self.prompt_attention = shared.opts.prompt_attention
         shared.opts.data["disable_weights_auto_swap"] = False
 
     def __exit__(self, exc_type, exc_value, tb):
-        #Restore overriden settings after plot generation.
+        # Restore overriden settings after plot generation
         shared.opts.data["disable_weights_auto_swap"] = self.disable_weights_auto_swap
-        shared.opts.data["sd_vae"] = self.vae
-        shared.opts.data["schedulers_solver_order"] = self.schedulers_solver_order
-        shared.opts.data["tome_ratio"] = self.tome_ratio
-        shared.opts.data["todo_ratio"] = self.todo_ratio
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
         shared.opts.data["prompt_attention"] = self.prompt_attention
+        shared.opts.data["schedulers_solver_order"] = self.schedulers_solver_order
+        shared.opts.data["schedulers_sigma_adjust"] = self.schedulers_sigma_adjust
+        shared.opts.data["schedulers_timestep_spacing"] = self.schedulers_timestep_spacing
+        shared.opts.data["schedulers_timesteps_range"] = self.schedulers_timesteps_range
+        shared.opts.data["schedulers_beta_schedule"] = self.schedulers_beta_schedule
+        shared.opts.data["schedulers_beta_start"] = self.schedulers_beta_start
+        shared.opts.data["schedulers_beta_end"] = self.schedulers_beta_end
+        shared.opts.data["schedulers_shift"] = self.schedulers_shift
+        shared.opts.data["scheduler_eta"] = self.scheduler_eta
+        shared.opts.data["eta_noise_seed_delta"] = self.eta_noise_seed_delta
+        shared.opts.data["freeu_b1"] = self.freeu_b1
+        shared.opts.data["freeu_b2"] = self.freeu_b2
+        shared.opts.data["freeu_s1"] = self.freeu_s1
+        shared.opts.data["freeu_s2"] = self.freeu_s2
+        shared.opts.data["tome_ratio"] = self.tome_ratio
+        shared.opts.data["todo_ratio"] = self.todo_ratio
+
         if self.sd_model_checkpoint != shared.opts.sd_model_checkpoint:
             shared.opts.data["sd_model_checkpoint"] = self.sd_model_checkpoint
             sd_models.reload_model_weights(op='model')
@@ -119,6 +161,7 @@ axis_options = [
     AxisOptionTxt2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers]),
     AxisOptionImg2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers_for_img2img]),
     AxisOption("[Sampler] Sigma method", str, apply_setting("schedulers_sigma"), choices=lambda: ['default', 'karras', 'betas', 'exponential', 'lambdas']),
+    AxisOption("[Sampler] Sigma adjust", float, apply_setting("schedulers_sigma_adjust")),
     AxisOption("[Sampler] Timestep spacing", str, apply_setting("schedulers_timestep_spacing"), choices=lambda: ['default', 'linspace', 'leading', 'trailing']),
     AxisOption("[Sampler] Timestep range", int, apply_setting("schedulers_timesteps_range")),
     AxisOption("[Sampler] Solver order", int, apply_setting("schedulers_solver_order")),

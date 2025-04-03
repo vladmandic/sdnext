@@ -18,6 +18,7 @@ from modules.paths import script_path, models_path
 loggedin = None
 diffuser_repos = []
 debug = shared.log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
+pbar = None
 
 
 def hf_login(token=None):
@@ -61,9 +62,35 @@ def download_civit_meta(model_path: str, model_id):
     return f'CivitAI download error: id={model_id} url={url} code={r.status_code}'
 
 
+def save_video_frame(filepath: str):
+    from modules import video
+    try:
+        frames, fps, duration, w, h, codec, frame = video.get_video_params(filepath, capture=True)
+    except Exception as e:
+        shared.log.error(f'Video: file={filepath} {e}')
+        return None
+    if frame is not None:
+        basename = os.path.splitext(filepath)
+        thumb = f'{basename[0]}.thumb.jpg'
+        shared.log.debug(f'Video: file={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec} duration={duration} thumb={thumb}')
+        frame.save(thumb)
+    else:
+        shared.log.error(f'Video: file={filepath} no frames found')
+    return frame
+
+
 def download_civit_preview(model_path: str, preview_url: str):
+    global pbar # pylint: disable=global-statement
+    if model_path is None:
+        pbar = None
+        return ''
     ext = os.path.splitext(preview_url)[1]
     preview_file = os.path.splitext(model_path)[0] + ext
+    is_video = preview_file.lower().endswith('.mp4')
+    is_json = preview_file.lower().endswith('.json')
+    if is_json:
+        shared.log.warning(f'CivitAI download: url="{preview_url}" skip json')
+        return 'CivitAI download error: JSON file'
     if os.path.exists(preview_file):
         return ''
     res = f'CivitAI download: url={preview_url} file="{preview_file}"'
@@ -73,20 +100,25 @@ def download_civit_preview(model_path: str, preview_url: str):
     written = 0
     img = None
     shared.state.begin('CivitAI')
+    if pbar is None:
+        pbar = p.Progress(p.TextColumn('[cyan]Download'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), p.TextColumn('[yellow]{task.description}'), console=shared.console)
     try:
         with open(preview_file, 'wb') as f:
-            with p.Progress(p.TextColumn('[cyan]{task.description}'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), console=shared.console) as progress:
-                task = progress.add_task(description="Download starting", total=total_size)
+            with pbar:
+                task = pbar.add_task(description=preview_file, total=total_size)
                 for data in r.iter_content(block_size):
                     written = written + len(data)
                     f.write(data)
-                    progress.update(task, advance=block_size, description="Downloading")
+                    pbar.update(task, advance=block_size)
         if written < 1024: # min threshold
             os.remove(preview_file)
             raise ValueError(f'removed invalid download: bytes={written}')
-        img = Image.open(preview_file)
+        if is_video:
+            img = save_video_frame(preview_file)
+        else:
+            img = Image.open(preview_file)
     except Exception as e:
-        os.remove(preview_file)
+        # os.remove(preview_file)
         res += f' error={e}'
         shared.log.error(f'CivitAI download error: url={preview_url} file="{preview_file}" written={written} {e}')
     shared.state.end()

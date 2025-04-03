@@ -41,10 +41,10 @@ def get_embeddings():
     return {"loaded": convert_embeddings(db.word_embeddings), "skipped": convert_embeddings(db.skipped_embeddings)}
 
 def get_loras():
-    from modules.lora import network, networks
+    from modules.lora import network, lora_load
     def create_lora_json(obj: network.NetworkOnDisk):
         return { "name": obj.name, "alias": obj.alias, "path": obj.filename, "metadata": obj.metadata }
-    return [create_lora_json(obj) for obj in networks.available_networks.values()]
+    return [create_lora_json(obj) for obj in lora_load.available_networks.values()]
 
 def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, filename: Optional[str] = None, title: Optional[str] = None, fullname: Optional[str] = None, hash: Optional[str] = None): # pylint: disable=redefined-builtin
     res = []
@@ -113,7 +113,7 @@ def post_vqa(req: models.ReqVQA):
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
     from modules.interrogate import vqa
-    answer = vqa.interrogate(req.question, '', image, req.model)
+    answer = vqa.interrogate(req.question, req.system, '', image, req.model)
     return models.ResVQA(answer=answer)
 
 def post_unload_checkpoint():
@@ -134,8 +134,8 @@ def post_refresh_vae():
     return shared.refresh_vaes()
 
 def post_refresh_loras():
-    from modules.lora import networks
-    return networks.list_available_networks()
+    from modules.lora import lora_load
+    return lora_load.list_available_networks()
 
 def get_extensions_list():
     from modules import extensions

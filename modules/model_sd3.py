@@ -5,7 +5,7 @@ from modules import shared, devices, sd_models, sd_unet, model_quant, model_tool
 
 
 def load_overrides(kwargs, cache_dir):
-    if shared.opts.sd_unet != 'None':
+    if shared.opts.sd_unet != 'Default':
         try:
             fn = sd_unet.unet_dict[shared.opts.sd_unet]
             if fn.endswith('.safetensors'):
@@ -20,9 +20,9 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 unet="{shared.opts.sd_unet}" fmt=gguf')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load UNet: {e}")
-            shared.opts.sd_unet = 'None'
+            shared.opts.sd_unet = 'Default'
             sd_unet.failed_unet.append(shared.opts.sd_unet)
-    if shared.opts.sd_text_encoder != 'None':
+    if shared.opts.sd_text_encoder != 'Default':
         try:
             from modules.model_te import load_t5, load_vit_l, load_vit_g
             if 'vit-l' in shared.opts.sd_text_encoder.lower():
@@ -36,8 +36,8 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 variant="t5" te="{shared.opts.sd_text_encoder}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load T5: {e}")
-            shared.opts.sd_text_encoder = 'None'
-    if shared.opts.sd_vae != 'None' and shared.opts.sd_vae != 'Automatic':
+            shared.opts.sd_text_encoder = 'Default'
+    if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
             from modules import sd_vae
             vae_file = sd_vae.vae_dict[shared.opts.sd_vae]
@@ -47,27 +47,18 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 vae="{shared.opts.sd_vae}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load VAE: {e}")
-            shared.opts.sd_vae = 'None'
+            shared.opts.sd_vae = 'Default'
     return kwargs
 
 
 def load_quants(kwargs, repo_id, cache_dir):
-    quant_args = {}
-    quant_args = model_quant.create_bnb_config(quant_args)
-    if quant_args:
-        model_quant.load_bnb(f'Load model: type=SD3 quant={quant_args}')
-    if not quant_args:
-        quant_args = model_quant.create_ao_config(quant_args)
-        if quant_args:
-            model_quant.load_torchao(f'Load model: type=SD3 quant={quant_args}')
+    quant_args = model_quant.create_config()
     if not quant_args:
         return kwargs
-    if 'Model' in shared.opts.bnb_quantization and 'transformer' not in kwargs:
+    if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
         kwargs['transformer'] = diffusers.SD3Transformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-        shared.log.debug(f'Quantization: module=transformer type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
-    if 'text_encoder_3' not in kwargs and ('Text Encoder' in shared.opts.bnb_quantization or 'Text Encoder' in shared.opts.torchao_quantization):
+    if 'text_encoder_3' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
         kwargs['text_encoder_3'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_3", variant='fp16', cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-        shared.log.debug(f'Quantization: module=t5 type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
     return kwargs
 
 
@@ -157,8 +148,7 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
 
     shared.log.debug(f'Load model: type=SD3 kwargs={list(kwargs)} repo="{repo_id}"')
 
-    kwargs = model_quant.create_bnb_config(kwargs)
-    kwargs = model_quant.create_ao_config(kwargs)
+    kwargs = model_quant.create_config(kwargs)
     pipe = loader(
         repo_id,
         torch_dtype=devices.dtype,
@@ -166,5 +156,5 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
         config=config,
         **kwargs,
     )
-    devices.torch_gc()
+    devices.torch_gc(force=True)
     return pipe

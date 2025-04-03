@@ -111,6 +111,8 @@ class StableDiffusionProcessing:
                  refiner_prompt: str = '',
                  refiner_negative: str = '',
                  hr_refiner_start: float = 0,
+                 # prompt enhancer
+                 enhance_prompt: bool = False,
                  # save options
                  outpath_samples=None,
                  outpath_grids=None,
@@ -145,6 +147,7 @@ class StableDiffusionProcessing:
         self.is_refiner_pass = False
         self.is_api = False
         self.scheduled_prompt = False
+        self.enhance_prompt = enhance_prompt
         self.prompt_embeds = []
         self.positive_pooleds = []
         self.negative_embeds = []
@@ -236,9 +239,13 @@ class StableDiffusionProcessing:
             self.height = firstphase_height
         self.sampler_name = sampler_name or processing_helpers.get_sampler_name(sampler_index, img=True)
         self.hr_sampler_name: str = hr_sampler_name if hr_sampler_name != 'Same as primary' else self.sampler_name
-        self.override_settings = {k: v for k, v in (override_settings or {}).items() if k not in shared.restricted_opts}
         self.inpaint_full_res = inpaint_full_res if isinstance(inpaint_full_res, bool) else self.inpaint_full_res
         self.inpaint_full_res = inpaint_full_res != 0 if isinstance(inpaint_full_res, int) else self.inpaint_full_res
+        try:
+            self.override_settings = {k: v for k, v in (override_settings or {}).items() if k not in shared.restricted_opts}
+        except Exception as e:
+            shared.log.error(f'Override: {override_settings} {e}')
+            self.override_settings = {}
 
         # null items initialized later
         self.prompts = None
@@ -359,6 +366,15 @@ class StableDiffusionProcessing:
         self.sampler = None
         self.scripts = None
 
+
+class StableDiffusionProcessingVideo(StableDiffusionProcessing):
+    def __init__(self, **kwargs):
+        self.prompt_template: str = None
+        self.frames: int = 1
+        self.scheduler_shift: float = 0.0
+        self.vae_tile_frames: int = 0
+        debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
+        super().__init__(**kwargs)
 
 class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
     def __init__(self, **kwargs):
@@ -592,9 +608,6 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
             self.hr_upscale_to_x, self.hr_upscale_to_y = 8 * int(self.width * scale / 8), 8 * int(self.height * scale / 8)
         else:
             self.hr_upscale_to_x, self.hr_upscale_to_y = self.hr_resize_x, self.hr_resize_y
-        # hypertile_set(self, hr=True)
-        # shared.state.job_count = 2 * self.n_iter
-        # shared.log.debug(f'Control refine: upscaler="{self.hr_upscaler}" scale={scale} fixed={not use_scale} size={self.hr_upscale_to_x}x{self.hr_upscale_to_y}')
 
 
 def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None):

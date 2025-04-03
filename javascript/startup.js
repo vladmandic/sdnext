@@ -3,6 +3,7 @@ window.api = '/sdapi/v1';
 window.subpath = '';
 
 async function initStartup() {
+  const t0 = performance.now();
   log('initStartup');
   if (window.setupLogger) await setupLogger();
 
@@ -24,7 +25,11 @@ async function initStartup() {
   await reconnectUI();
 
   // make sure all of the ui is ready and options are loaded
-  while (Object.keys(window.opts).length === 0) await sleep(50);
+  let t1 = performance.now();
+  while ((Object.keys(window.opts).length === 0) && (t1 - t0 < 10000)) {
+    t1 = performance.now();
+    await sleep(50);
+  }
   log('mountURL', window.opts.subpath);
   if (window.opts.subpath?.length > 0) {
     window.subpath = window.opts.subpath;
@@ -43,6 +48,8 @@ async function initStartup() {
   setHints();
   applyStyles();
   initIndexDB();
+  t1 = performance.now();
+  log('initStartup', Math.round(1000 * (t1 - t0) / 1000000));
 }
 
 onUiLoaded(initStartup);

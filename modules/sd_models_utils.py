@@ -67,19 +67,15 @@ def read_state_dict(checkpoint_file, map_location=None, what:str='model'): # pyl
                 return None
             if shared.opts.stream_load:
                 if extension.lower() == ".safetensors":
-                    # shared.log.debug('Model weights loading: type=safetensors mode=buffered')
                     buffer = f.read()
                     pl_sd = safetensors.torch.load(buffer)
                 else:
-                    # shared.log.debug('Model weights loading: type=checkpoint mode=buffered')
                     buffer = io.BytesIO(f.read())
                     pl_sd = torch.load(buffer, map_location='cpu')
             else:
                 if extension.lower() == ".safetensors":
-                    # shared.log.debug('Model weights loading: type=safetensors mode=mmap')
                     pl_sd = safetensors.torch.load_file(checkpoint_file, device='cpu')
                 else:
-                    # shared.log.debug('Model weights loading: type=checkpoint mode=direct')
                     pl_sd = torch.load(f, map_location='cpu')
             sd = get_state_dict_from_checkpoint(pl_sd)
         del pl_sd
@@ -168,7 +164,7 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.prior_pipe.prior = function(sd_model.prior_pipe.prior, op="prior_pipe.prior", sd_model=sd_model)
             if op == "nncf" and "StableCascade" in sd_model.__class__.__name__:
                 sd_model.prior_pipe.prior.clip_txt_pooled_mapper = backup_clip_txt_pooled_mapper
-    if "Text Encoder" in options:
+    if "TE" in options:
         if hasattr(sd_model, 'text_encoder') and hasattr(sd_model.text_encoder, 'config'):
             if hasattr(sd_model, 'decoder_pipe') and hasattr(sd_model.decoder_pipe, 'text_encoder') and hasattr(sd_model.decoder_pipe.text_encoder, 'config'):
                 sd_model.decoder_pipe.text_encoder = function(sd_model.decoder_pipe.text_encoder, op="decoder_pipe.text_encoder", sd_model=sd_model)
