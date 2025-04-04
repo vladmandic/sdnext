@@ -249,8 +249,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
                 prev_gpu = used_gpu
                 do_offload = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory) and (module.device != devices.cpu)
                 if do_offload:
-                    non_blocking = devices.backend != "ipex" # non_blocking on ipex causes 2x slowdown
-                    module = module.to(devices.cpu, non_blocking=non_blocking)
+                    module = module.to(devices.cpu)
                     used_gpu -= module_size
                 cls = module.__class__.__name__
                 quant = getattr(module, "quantization_method", None)
