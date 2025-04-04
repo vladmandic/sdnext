@@ -4,11 +4,12 @@ import time
 import inspect
 import torch
 import accelerate.hooks
+from installer import log
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
 
 
-debug_move = shared.log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
 should_offload = ['sc', 'sd3', 'f1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
 offload_hook_instance = None
 balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']

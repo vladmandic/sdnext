@@ -255,7 +255,6 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                         elem_id=f"{tabname}_gallery",
                                         elem_classes=["gallery_main"],
                                        )
-            print('HERE', shared.opts.ui_columns)
             if prompt is not None:
                 ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt)
 
