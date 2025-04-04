@@ -19,6 +19,8 @@ class State:
     job = ""
     job_no = 0
     job_count = 0
+    batch_no = 0
+    batch_count = 0
     frame_count = 0
     total_jobs = 0
     job_timestamp = '0'
@@ -145,6 +147,8 @@ class State:
         self.job = title
         self.job_count = 0
         self.frame_count = 0
+        self.batch_no = 0
+        self.batch_count = 0
         self.job_no = 0
         self.job_timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         self.paused = False

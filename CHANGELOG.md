@@ -1,5 +1,12 @@
 # Change Log for SD.Next
 
+## Update for 2025-04-04
+
+- LoRA: obey configured device when performing calculations  
+- Video: add FasterCache and PAB support to WanDB and LTX models  
+- Progress: add additional fields to progress API  
+- Progress: use batch-count for progress  
+
 ## Update for 2025-04-03
 
 ### Highlights for 2025-04-03
