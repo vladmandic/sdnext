@@ -6,6 +6,9 @@
 - Video: add FasterCache and PAB support to WanDB and LTX models  
 - Progress: add additional fields to progress API  
 - Progress: use batch-count for progress  
+- Grid: add of max-rows and max-columns in settings to control grid format  
+- Gallery: add max-columns in settings for gradio gallery components  
+- Styles: resize and bring quick-ui to forward on hover  
 
 ## Update for 2025-04-03
 

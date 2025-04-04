@@ -242,7 +242,6 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
             if tabname == "txt2img":
                 gr.HTML(value="", elem_id="main_info", visible=False, elem_classes=["main-info"])
-            # columns are for <576px, <768px, <992px, <1200px, <1400px, >1400px
             result_gallery = gr.Gallery(value=[],
                                         label='Output',
                                         show_label=False,
@@ -250,12 +249,13 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                         allow_preview=True,
                                         container=False,
                                         preview=preview,
-                                        columns=4,
+                                        columns=shared.opts.ui_columns,
                                         object_fit='scale-down',
                                         height=height,
                                         elem_id=f"{tabname}_gallery",
                                         elem_classes=["gallery_main"],
                                        )
+            print('HERE', shared.opts.ui_columns)
             if prompt is not None:
                 ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt)
 

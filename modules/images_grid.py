@@ -19,24 +19,40 @@ def check_grid_size(imgs):
     return ok
 
 
-def get_grid_size(imgs, batch_size=1, rows=None):
-    if rows is None:
+def get_grid_size(imgs, batch_size=1, rows=None, cols=None):
+    if rows and rows > len(imgs):
+        rows = len(imgs)
+    if cols and cols > len(imgs):
+        cols = len(imgs)
+    if rows is None and cols is None:
         if shared.opts.n_rows > 0:
             rows = shared.opts.n_rows
+            cols = math.ceil(len(imgs) / rows)
         elif shared.opts.n_rows == 0:
             rows = batch_size
+            cols = math.ceil(len(imgs) / rows)
+        elif shared.opts.n_cols > 0:
+            cols = shared.opts.n_cols
+            rows = math.ceil(len(imgs) / cols)
+        elif shared.opts.n_cols == 0:
+            cols = batch_size
+            rows = math.ceil(len(imgs) / cols)
         else:
             rows = math.floor(math.sqrt(len(imgs)))
             while len(imgs) % rows != 0:
                 rows -= 1
-    if rows > len(imgs):
-        rows = len(imgs)
-    cols = math.ceil(len(imgs) / rows)
+            cols = math.ceil(len(imgs) / rows)
+    elif cols is None:
+        cols = math.ceil(len(imgs) / rows)
+    elif rows is None:
+        rows = math.ceil(len(imgs) / cols)
+    else:
+        pass
     return rows, cols
 
 
-def image_grid(imgs, batch_size=1, rows=None):
-    rows, cols = get_grid_size(imgs, batch_size, rows=rows)
+def image_grid(imgs, batch_size:int=1, rows:int=None, cols:int=None):
+    rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
     params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
     script_callbacks.image_grid_callback(params)
     imgs = [i for i in imgs if i is not None] if imgs is not None else []
