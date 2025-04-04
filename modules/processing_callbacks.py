@@ -125,6 +125,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
                 shared.state.current_sigma_next = pipe.scheduler.sigmas[pipe.scheduler.step_index]
                 if (shared.opts.schedulers_sigma_adjust != 1.0) and (timestep > 1000 * shared.opts.schedulers_sigma_adjust_min) and (timestep < 1000 * shared.opts.schedulers_sigma_adjust_max):
                     pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * shared.opts.schedulers_sigma_adjust
+                    p.extra_generation_params["Sigma adjust"] = shared.opts.schedulers_sigma_adjust
             except Exception:
                 pass
     except Exception as e:
