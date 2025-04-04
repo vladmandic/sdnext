@@ -13,8 +13,23 @@ MEM_BUS_WIDTH = {
     "AMD Radeon RX 7900 GRE": 256,
     "AMD Radeon RX 7800 XT": 256,
     "AMD Radeon RX 7700 XT": 192,
+    "AMD Radeon RX 7700": 192,
+    "AMD Radeon RX 7650 GRE": 128,
     "AMD Radeon RX 7600 XT": 128,
     "AMD Radeon RX 7600": 128,
+    "AMD Radeon RX 7500 XT": 96,
+    "AMD Radeon RX 6950 XT": 256,
+    "AMD Radeon RX 6900 XT": 256,
+    "AMD Radeon RX 6800 XT": 256,
+    "AMD Radeon RX 6800": 256,
+    "AMD Radeon RX 6750 XT": 192,
+    "AMD Radeon RX 6700 XT": 192,
+    "AMD Radeon RX 6700": 160,
+    "AMD Radeon RX 6650 XT": 128,
+    "AMD Radeon RX 6600 XT": 128,
+    "AMD Radeon RX 6600": 128,
+    "AMD Radeon RX 6500 XT": 64,
+    "AMD Radeon RX 6400": 64,
 }
 
 

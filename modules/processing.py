@@ -294,14 +294,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     ema_scope_context = p.sd_model.ema_scope if not shared.native else nullcontext
     if not shared.native:
         shared.state.job_count = p.n_iter
+    shared.state.batch_count = p.n_iter
     with devices.inference_context(), ema_scope_context():
         t0 = time.time()
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
         for n in range(p.n_iter):
-            # if hasattr(p, 'skip_processing'):
-            #     continue
+            shared.state.batch_no = n + 1
             pag.apply(p)
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n
@@ -455,7 +455,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
         p.color_corrections = None
         index_of_first_image = 0
-        if (shared.opts.return_grid or shared.opts.grid_save) and not p.do_not_save_grid and len(output_images) > 1:
+        if (shared.opts.return_grid or shared.opts.grid_save) and (not p.do_not_save_grid) and (len(output_images) > 1):
             if images.check_grid_size(output_images):
                 r, c = images.get_grid_size(output_images, p.batch_size)
                 grid = images.image_grid(output_images, p.batch_size)

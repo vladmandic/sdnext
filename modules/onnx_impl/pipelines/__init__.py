@@ -47,7 +47,7 @@ class PipelineBase(TorchCompatibleModule, diffusers.DiffusionPipeline, metaclass
 
             if "optimum.onnxruntime" in sys.modules:
                 import optimum.onnxruntime
-                if isinstance(module, optimum.onnxruntime.modeling_diffusion._ORTDiffusionModelPart): # pylint: disable=protected-access
+                if isinstance(module, optimum.onnxruntime.modeling_diffusion._ORTDiffusionModelPart): # pylint: disable=protected-access, no-member
                     device = extract_device(args, kwargs)
                     if device is None:
                         return self

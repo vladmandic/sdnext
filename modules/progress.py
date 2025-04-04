@@ -47,44 +47,80 @@ class ProgressRequest(BaseModel):
 
 class InternalProgressResponse(BaseModel):
     job: str = Field(default=None, title="Job name", description="Internal job name")
+    textinfo: str = Field(default=None, title="Info text", description="Info text used by WebUI.")
+    # status fields
     active: bool = Field(title="Whether the task is being worked on right now")
     queued: bool = Field(title="Whether the task is in queue")
     paused: bool = Field(title="Whether the task is paused")
     completed: bool = Field(title="Whether the task has already finished")
     debug: bool = Field(title="Debug logging level")
+    # raw fields
+    step: int = Field(default=None, title="Current step", description="Current step of the task")
+    steps: int = Field(default=None, title="Total steps", description="Total number of steps")
+    batch_no: int = Field(default=None, title="Current batch", description="Current batch")
+    batch_count: int = Field(default=None, title="Total batches", description="Total number of batches")
+    # calculated fields
     progress: float = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
     eta: float = Field(default=None, title="ETA in secs")
+    # image fields
     live_preview: str = Field(default=None, title="Live preview image", description="Current live preview; a data: uri")
     id_live_preview: int = Field(default=None, title="Live preview image ID", description="Send this together with next request to prevent receiving same image")
-    textinfo: str = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 
-def progressapi(req: ProgressRequest):
+def api_progress(req: ProgressRequest):
     active = req.id_task == current_task
     queued = req.id_task in pending_tasks
     completed = req.id_task in finished_tasks
     paused = shared.state.paused
     step = max(shared.state.sampling_step, 0)
     steps = max(shared.state.sampling_steps, 1)
-    progress = round(min(1, abs(step / steps) if steps > 0 else 0), 2)
+    batch_no = max(shared.state.batch_no, 0)
+    batch_count = max(shared.state.batch_count, 0)
+
+    current = step / steps if step > 0 and steps > 0 else 0
+    batch = batch_no / batch_count if batch_no > 0 and batch_count > 0 else 1
+    progress = round(min(1, current * batch), 2)
+
     elapsed = time.time() - shared.state.time_start if shared.state.time_start is not None else 0
     predicted = elapsed / progress if progress > 0 else None
     eta = predicted - elapsed if predicted is not None else None
     id_live_preview = req.id_live_preview
     live_preview = None
+    textinfo = shared.state.textinfo
     updated = shared.state.set_current_image()
-    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} enabled={shared.opts.live_previews_enable} job={shared.state.preview_job} updated={updated} image={shared.state.current_image} elapsed={elapsed:.3f}')
     if not active:
-        return InternalProgressResponse(job=shared.state.job, active=active, queued=queued, paused=paused, completed=completed, id_live_preview=-1, debug=debug, textinfo="Queued..." if queued else "Waiting...")
-    if shared.opts.live_previews_enable and (shared.state.id_live_preview != id_live_preview) and (shared.state.current_image is not None):
+        id_live_preview = -1
+        textinfo = "Queued..." if queued else "Waiting..."
+
+    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} enabled={shared.opts.live_previews_enable} job={shared.state.preview_job} updated={updated} image={shared.state.current_image} elapsed={elapsed:.3f}')
+
+    if shared.opts.live_previews_enable and active and (shared.state.id_live_preview != req.id_live_preview) and (shared.state.current_image is not None):
         buffered = io.BytesIO()
         shared.state.current_image.save(buffered, format='jpeg')
         live_preview = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
+
     id_live_preview = shared.state.id_live_preview
 
-    res = InternalProgressResponse(job=shared.state.job, active=active, queued=queued, paused=paused, completed=completed, progress=progress, eta=eta, live_preview=live_preview, id_live_preview=id_live_preview, debug=debug, textinfo=shared.state.textinfo)
+    res = InternalProgressResponse(
+        job=shared.state.job,
+        textinfo=textinfo,
+        active=active,
+        queued=queued,
+        paused=paused,
+        completed=completed,
+        debug=debug,
+        progress=progress,
+        step=step,
+        steps=steps,
+        batch_no=batch_no,
+        batch_count=batch_count,
+        job_timestamp=shared.state.time_start,
+        eta=eta,
+        live_preview=live_preview,
+        id_live_preview=id_live_preview,
+    )
     return res
 
 
 def setup_progress_api():
-    shared.api.add_api_route("/internal/progress", progressapi, methods=["POST"], response_model=InternalProgressResponse)
+    shared.api.add_api_route("/internal/progress", api_progress, methods=["POST"], response_model=InternalProgressResponse)

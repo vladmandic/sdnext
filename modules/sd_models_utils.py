@@ -19,12 +19,14 @@ class NoWatermark:
 
 
 def get_signature(cls):
+    if cls is None or not hasattr(cls, '__init__'):
+        return {}
     signature = inspect.signature(cls.__init__, follow_wrapped=True)
     return signature.parameters
 
 
 def get_call(cls):
-    if cls is None:
+    if cls is None or not hasattr(cls, '__call__'): # noqa: B004
         return []
     signature = inspect.signature(cls.__call__, follow_wrapped=True)
     return signature.parameters

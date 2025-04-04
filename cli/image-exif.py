@@ -4,6 +4,7 @@ import os
 import io
 import re
 import sys
+import json
 import importlib.util
 from PIL import Image, ExifTags, TiffImagePlugin, PngImagePlugin
 from rich import print # pylint: disable=redefined-builtin
@@ -95,6 +96,14 @@ class Exif: # pylint: disable=single-string-used-for-slots
         return raw
 
 
+def print_json(data):
+    try:
+        for k, v in data.items():
+            print(f'json: k={k}', json.loads(v))
+    except Exception:
+        pass
+
+
 def read_exif(filename: str):
     if filename.lower().endswith('.heic'):
         from pi_heif import register_heif_opener
@@ -103,8 +112,10 @@ def read_exif(filename: str):
         image = Image.open(filename)
         exif = Exif(image)
         print('image:', filename, 'format:', image)
-        print('exif:', vars(exif.exif)['_data'])
+        data = vars(exif.exif)['_data']
+        print('exif:', data)
         print('info:', exif.parse())
+        print_json(data)
     except Exception as e:
         print('metadata error reading:', filename, e)
 

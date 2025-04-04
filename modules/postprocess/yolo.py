@@ -293,6 +293,12 @@ class YoloRestorer(Detailer):
             p.state = ''
             prev_state = shared.state.job
             pc = copy(p)
+
+            orig_sigma_adjust: float = shared.opts.schedulers_sigma_adjust
+            orig_sigma_end: float = shared.opts.schedulers_sigma_adjust_max
+            shared.opts.schedulers_sigma_adjust = shared.opts.detailer_sigma_adjust
+            shared.opts.schedulers_sigma_adjust_max = shared.opts.detailer_sigma_adjust_max
+
             for item in items:
                 if item.mask is None:
                     continue
@@ -307,6 +313,9 @@ class YoloRestorer(Detailer):
                     image = pp.images[0] # update image to be reused for next item
                     if len(pp.images) > 1:
                         mask_all.append(pp.images[1])
+
+            shared.opts.schedulers_sigma_adjust = orig_sigma_adjust
+            shared.opts.schedulers_sigma_adjust_max = orig_sigma_end
 
             # restore pipeline
             if control_pipeline is not None:
@@ -330,7 +339,7 @@ class YoloRestorer(Detailer):
         return np_image
 
     def ui(self, tab: str):
-        def ui_settings_change(detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps):
+        def ui_settings_change(detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end):
             shared.opts.detailer_models = detailers
             shared.opts.detailer_classes = classes
             shared.opts.detailer_padding = padding
@@ -340,6 +349,8 @@ class YoloRestorer(Detailer):
             shared.opts.detailer_min_size = min_size
             shared.opts.detailer_max_size = max_size
             shared.opts.detailer_iou = iou
+            shared.opts.detailer_sigma_adjust = renoise_value
+            shared.opts.detailer_sigma_adjust_max = renoise_end
             shared.opts.save(shared.config_filename, silent=True)
             shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps}')
 
@@ -371,15 +382,18 @@ class YoloRestorer(Detailer):
                 min_size = gr.Slider(label="Min size", elem_id=f"{tab}_detailer_min_size", value=min_size, minimum=0.0, maximum=1.0, step=0.05)
                 max_size = shared.opts.detailer_max_size if shared.opts.detailer_max_size < 1 and shared.opts.detailer_max_size > 0 else 1.0
                 max_size = gr.Slider(label="Max size", elem_id=f"{tab}_detailer_max_size", value=max_size, minimum=0.0, maximum=1.0, step=0.05)
-            detailers.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            classes.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            padding.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            blur.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            min_confidence.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            max_detected.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            min_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            max_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
-            iou.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps], outputs=[])
+            with gr.Row(elem_classes=['flex-break']):
+                renoise_value = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Renoiose', value=shared.opts.detailer_sigma_adjust, elem_id=f"{tab}_detailer_renoise")
+                renoise_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Renoise end', value=shared.opts.detailer_sigma_adjust_max, elem_id=f"{tab}_detailer_renoise_end")
+            detailers.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            classes.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            padding.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            blur.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            min_confidence.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            max_detected.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            min_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            max_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            iou.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
             return enabled, prompt, negative, steps, strength
 
 

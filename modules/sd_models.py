@@ -9,6 +9,7 @@ import diffusers
 import diffusers.loaders.single_file_utils
 import torch
 
+from installer import log
 from modules import paths, shared, shared_state, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
 from modules.timer import Timer, process as process_timer
 from modules.memstats import memory_stats
@@ -25,9 +26,9 @@ sd_metadata_file = os.path.join(paths.data_path, "metadata.json")
 sd_metadata = None
 sd_metadata_pending = 0
 sd_metadata_timer = 0
-debug_move = shared.log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
-debug_process = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
 checkpoint_tiles = checkpoint_titles # legacy compatibility
 

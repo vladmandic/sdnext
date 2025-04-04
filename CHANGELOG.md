@@ -1,5 +1,17 @@
 # Change Log for SD.Next
 
+## Update for 2025-04-04
+
+- Video: add FasterCache and PAB support to WanDB and LTX models  
+- ZLUDA: add more GPUs to recognized list  
+- LoRA: obey configured device when performing calculations  
+- Progress: add additional fields to progress API  
+- Progress: use batch-count for progress  
+- Grid: add of max-rows and max-columns in settings to control grid format  
+- Gallery: add max-columns in settings for gradio gallery components  
+- Styles: resize and bring quick-ui to forward on hover  
+- Logging: fix debug logging  
+
 ## Update for 2025-04-03
 
 ### Highlights for 2025-04-03
@@ -134,21 +146,23 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
     - `torch.compile` is now available  
     - Flash Attention 2 is now available  
 - **Other**  
-  - new command line option `--monitor PERIOD` to monitor CPU and GPU memory ever n seconds  
-  - **upscale**: new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
-  - **upscale**: new experimental support for `libvips` upscaling  
-  - **quantization**: add support for `optimum-quanto` on-the-fly quantization during load for all models  
+  - **Command line** new option `--monitor PERIOD` to monitor CPU and GPU memory ever n seconds  
+  - **Upscale** new [asymmetric vae v2](https://huggingface.co/Heasterian/AsymmetricAutoencoderKLUpscaler_v2) upscaling method  
+  - **Upscale** new experimental support for `libvips` upscaling  
+  - **Quantization** add support for `optimum-quanto` on-the-fly quantization during load for all models  
     note: previous method for quanto is still valid and is noted in settings as post-load quantization  
-  - add quantization support to **CogView-3Plus**  
-  - update `diffusers` and other requirements  
-  - rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+  - **Quantization** add support to **CogView-3Plus**  
+  - **Default values** rename vae, unet and text-encoder settings *None* to *Default* to avoid confusion  
+  - **Detailer**: add *renoise* option to increase/decrease noise during detailer pass  
+    which can help with improving level of details
   - **CLI**: add `cli/api-grid.py` which can generate grids using params-from-file for x/y axis  
   - **Samplers** add ability to set sigma adjustment for each sampler  
   - **ModernUI** updates  
   - **CSS** updates  
-  - settings vertiocal/dirty indicator restores to default setting instead to previous value  
-  - video interpolate do not skip duplicate frames  
-  - **settings UI** full refactor  
+  - **Video** interpolate do not skip duplicate frames  
+  - **Settings UI** full refactor  
+  - **Settings UI** vertical/dirty indicator restores to default setting instead to previous value  
+  - update `diffusers` and other requirements  
 - **Wiki/Docs**  
   - updated [Models](https://github.com/vladmandic/sdnext/wiki/Models) info  
   - new [Video](https://github.com/vladmandic/sdnext/wiki/Video) guide  

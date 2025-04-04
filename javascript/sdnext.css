@@ -148,6 +148,7 @@ div#extras_scale_to_tab div.form { flex-direction: row; }
 #txt2img_prompt, #txt2img_neg_prompt, #img2img_prompt, #img2img_neg_prompt, #control_prompt, #control_neg_prompt, #video_prompt, #video_neg_prompt { background-color: var(--background-color); box-shadow: none !important; }
 #txt2img_prompt > label > textarea, #txt2img_neg_prompt > label > textarea, #img2img_prompt > label > textarea, #img2img_neg_prompt > label > textarea, #control_prompt > label > textarea, #control_neg_prompt > label > textarea, #video_prompt > label > textarea, #video_neg_prompt > label > textarea { font-size: 1.0em; line-height: 1.4em; }
 #txt2img_styles, #img2img_styles, #control_styles, #video_styles { padding: 0; margin-top: 2px; }
+#txt2img_styles:hover, #img2img_styles:hover, #control_styles:hover, #video_styles:hover { z-index: 1000; }
 #txt2img_styles_refresh, #img2img_styles_refresh, #control_styles_refresh, #video_styles_refresh { padding: 0; margin-top: 1em; }
 
 /* settings */
