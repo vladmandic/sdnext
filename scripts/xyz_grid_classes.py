@@ -1,4 +1,4 @@
-from scripts.xyz_grid_shared import apply_field, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
+from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
 
 
@@ -209,7 +209,7 @@ axis_options = [
     AxisOption("[PAG] Attention scale", float, apply_field('pag_scale')),
     AxisOption("[PAG] Adaptive scaling", float, apply_field('pag_adaptive')),
     AxisOption("[PAG] Applied layers", str, apply_setting('pag_apply_layers')),
-    AxisOption("[IY] Scale", str, apply_task_args('infusenet_conditioning_scale')),
-    AxisOption("[IY] Start", str, apply_task_args('infusenet_guidance_start')),
-    AxisOption("[IY] End", str, apply_task_args('infusenet_guidance_end')),
+    AxisOption("[IY] Scale", float, apply_task_arg('infusenet_conditioning_scale')),
+    AxisOption("[IY] Start", float, apply_task_arg('infusenet_guidance_start')),
+    AxisOption("[IY] End", float, apply_task_arg('infusenet_guidance_end')),
 ]

@@ -13,6 +13,7 @@
 - Logging: fix debug logging  
 - Logging: logging cleanup  
 - Params: Reset default guidance-rescale from 0.7 to 0.0  
+- Diag: add get-server-status to ui generate context menu  
 
 ## Update for 2025-04-03
 

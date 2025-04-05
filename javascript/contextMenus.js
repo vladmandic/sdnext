@@ -117,11 +117,35 @@ const reprocessClick = (tabId, state) => {
   if (btn) btn.click();
 };
 
+const getStatus = async () => {
+  const headers = new Headers();
+  const body = JSON.stringify({ id_task: -1, id_live_preview: false });
+  headers.set('Content-Type', 'application/json');
+  const tab = getUICurrentTabContent()?.id.replace('tab_', '') || '';
+  const el = gradioApp().querySelector(`#html_log_${tab} .performance p`);
+
+  let res;
+  let data;
+  res = await fetch('./internal/progress', { method: 'POST', headers, body });
+  if (res?.ok) {
+    data = await res.json();
+    log('progressInternal:', data);
+    if (el) el.innerText += '\nProgress internal:\n' + JSON.stringify(data, null, 2); // eslint-disable-line prefer-template
+  }
+  res = await fetch('./sdapi/v1/progress?skip_current_image=true', { method: 'GET', headers });
+  if (res?.ok) {
+    data = await res.json();
+    log('progressAPI:', data);
+    if (el) el.innerText += '\nProgress API:\n' + JSON.stringify(data, null, 2); // eslint-disable-line prefer-template
+  }
+};
+
 async function initContextMenu() {
   let id = '';
-  for (const tab of ['txt2img', 'img2img', 'control']) {
+  for (const tab of ['txt2img', 'img2img', 'control', 'video']) {
     id = `#${tab}_generate`;
-    appendContextMenuOption(id, 'Copy to clipboard', () => navigator.clipboard.writeText(document.querySelector(`#${tab}_prompt > label > textarea`).value));
+    appendContextMenuOption(id, 'Get server status', getStatus);
+    appendContextMenuOption(id, 'Copy prompt to clipboard', () => navigator.clipboard.writeText(document.querySelector(`#${tab}_prompt > label > textarea`).value));
     appendContextMenuOption(id, 'Generate forever', () => generateForever(`#${tab}_generate`));
     appendContextMenuOption(id, 'Apply selected style', quickApplyStyle);
     appendContextMenuOption(id, 'Quick save style', quickSaveStyle);

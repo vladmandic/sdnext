@@ -174,21 +174,23 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if force_diffusers:
             has_changed = False # diffusers handle their own loading
             if len(exclude) == 0:
-                shared.state.begin('LoRA')
+                job = shared.state.job
+                shared.state.job = 'LoRA'
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
-                shared.state.end()
+                shared.state.job = job
         else:
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)
             if has_changed:
-                shared.state.begin('LoRA')
+                job = shared.state.job
+                shared.state.job = 'LoRA'
                 if len(l.previously_loaded_networks) > 0:
                     shared.log.info(f'Network unload: type=LoRA apply={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
                 if len(exclude) > 0: # only update on last activation
                     l.previously_loaded_networks = l.loaded_networks.copy()
-                shared.state.end()
+                shared.state.job = job
                 debug_log(f'Network load: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]} changed')
 
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or force_diffusers) and step == 0:

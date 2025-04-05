@@ -17,6 +17,13 @@ def apply_field(field):
     return fun
 
 
+def apply_task_arg(field):
+    def fun(p, x, xs):
+        shared.log.debug(f'XYZ grid apply task-arg: {field}={x}')
+        p.task_args[field] = x
+    return fun
+
+
 def apply_task_args(p, x, xs):
     for section in x.split(';'):
         k, v = section.split('=')
