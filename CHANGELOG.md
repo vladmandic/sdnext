@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-04
+## Update for 2025-04-05
 
 - Video: add FasterCache and PAB support to WanDB and LTX models  
 - ZLUDA: add more GPUs to recognized list  
@@ -11,6 +11,8 @@
 - Gallery: add max-columns in settings for gradio gallery components  
 - Styles: resize and bring quick-ui to forward on hover  
 - Logging: fix debug logging  
+- Logging: logging cleanup  
+- Params: Reset default guidance-rescale from 0.7 to 0.0  
 
 ## Update for 2025-04-03
 
