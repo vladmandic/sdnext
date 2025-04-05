@@ -27,6 +27,7 @@ if __name__ == '__main__':
     sys.path.append(os.getcwd())
 
     from modules import zluda_installer
+    zluda_installer.load_core_modules()
     zluda_installer.install()
     zluda_installer.make_copy()
     zluda_installer.load()
