@@ -209,4 +209,7 @@ axis_options = [
     AxisOption("[PAG] Attention scale", float, apply_field('pag_scale')),
     AxisOption("[PAG] Adaptive scaling", float, apply_field('pag_adaptive')),
     AxisOption("[PAG] Applied layers", str, apply_setting('pag_apply_layers')),
+    AxisOption("[IY] Scale", str, apply_task_args('infusenet_conditioning_scale')),
+    AxisOption("[IY] Start", str, apply_task_args('infusenet_guidance_start')),
+    AxisOption("[IY] End", str, apply_task_args('infusenet_guidance_end')),
 ]

@@ -80,6 +80,8 @@ class Script(scripts.Script):
         if shared.sd_model_type != 'f1':
             shared.log.error(f'{prefix}: invalid model type: {shared.sd_model_type}')
             return None
+        if scale <= 0:
+            return None
 
         global orig_pipeline, orig_prompt_attention # pylint: disable=global-statement
         orig_pipeline = shared.sd_model
@@ -92,9 +94,9 @@ class Script(scripts.Script):
         processing.fix_seed(p)
         p.task_args['id_image'] = id_image
         p.task_args['control_image'] = control_image
-        p.task_args['infusenet_conditioning_scale'] = scale
-        p.task_args['infusenet_guidance_start'] = start
-        p.task_args['infusenet_guidance_end'] = end
+        p.task_args['infusenet_conditioning_scale'] = p.task_args.get('infusenet_conditioning_scale', scale)
+        p.task_args['infusenet_guidance_start'] = p.task_args.get('infusenet_guidance_start', start)
+        p.task_args['infusenet_guidance_end'] = p.task_args.get('infusenet_guidance_end', end)
         p.task_args['seed'] = p.seed
         p.task_args['negative_prompt'] = None
         p.task_args['guidance_scale'] = id_guidance
