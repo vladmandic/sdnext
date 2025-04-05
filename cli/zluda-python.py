@@ -28,7 +28,6 @@ if __name__ == '__main__':
 
     from modules import zluda_installer
     zluda_installer.install()
-    zluda_installer.make_copy()
     zluda_installer.load()
 
     import torch

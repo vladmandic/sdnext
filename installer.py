@@ -649,7 +649,6 @@ def install_rocm_zluda():
                 if device is not None and zluda_installer.get_blaslt_enabled():
                     log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
                     zluda_installer.set_blaslt_enabled(device.blaslt_supported)
-                zluda_installer.make_copy()
                 zluda_installer.load()
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
