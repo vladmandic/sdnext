@@ -128,8 +128,8 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
       lastState = res;
       const elapsedFromStart = (new Date() - dateStart) / 1000;
       hasStarted |= res.active;
-      if (res.completed || (!res.active && (hasStarted || once)) || (elapsedFromStart > 30 && !res.queued && res.progress === prevProgress)) {
-        if (res?.debug) debug('livePreview end:', res);
+      if (res.completed || (!res.active && (hasStarted || once)) || (elapsedFromStart > 120 && !res.queued && res.progress === prevProgress)) {
+        debug('livePreview end:', res);
         done();
         return;
       }
