@@ -31,6 +31,20 @@ debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
 checkpoint_tiles = checkpoint_titles # legacy compatibility
+pipe_switch_task_exclude = [
+    'StableDiffusionReferencePipeline',
+    'StableDiffusionAdapterPipeline',
+    'AnimateDiffPipeline',
+    'AnimateDiffSDXLPipeline',
+    'OmniGenPipeline',
+    'StableDiffusion3ControlNetPipeline',
+    'InstantIRPipeline',
+    'FluxFillPipeline',
+    'FluxControlPipeline',
+    'PixelSmithXLPipeline',
+    'PhotoMakerStableDiffusionXLPipeline',
+    'StableDiffusionXLInstantIDPipeline',
+]
 
 
 def change_backend():
@@ -755,21 +769,6 @@ def clean_diffuser_pipe(pipe):
 
 
 def set_diffuser_pipe(pipe, new_pipe_type):
-    exclude = [
-        'StableDiffusionReferencePipeline',
-        'StableDiffusionAdapterPipeline',
-        'AnimateDiffPipeline',
-        'AnimateDiffSDXLPipeline',
-        'OmniGenPipeline',
-        'StableDiffusion3ControlNetPipeline',
-        'InstantIRPipeline',
-        'FluxFillPipeline',
-        'FluxControlPipeline',
-        'PixelSmithXLPipeline',
-        'PhotoMakerStableDiffusionXLPipeline',
-        'StableDiffusionXLInstantIDPipeline',
-    ]
-
     has_errors = False
     if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
         clean_diffuser_pipe(pipe)
@@ -779,7 +778,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     # skip specific pipelines
     cls = pipe.__class__.__name__
-    if cls in exclude:
+    if cls in pipe_switch_task_exclude:
         return pipe
     if 'Video' in cls:
         return pipe

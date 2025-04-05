@@ -14,6 +14,8 @@
 - Logging: logging cleanup  
 - Params: Reset default guidance-rescale from 0.7 to 0.0  
 - Diag: add get-server-status to ui generate context menu  
+- Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
+  select in scripts, available for sdxl in inpaint model  
 
 ## Update for 2025-04-03
 
