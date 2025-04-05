@@ -212,4 +212,5 @@ axis_options = [
     AxisOption("[IY] Scale", float, apply_task_arg('infusenet_conditioning_scale')),
     AxisOption("[IY] Start", float, apply_task_arg('infusenet_guidance_start')),
     AxisOption("[IY] End", float, apply_task_arg('infusenet_guidance_end')),
+    AxisOption("[TeaCache] Threshold", float, apply_setting('teacache_thresh')),
 ]

@@ -4,18 +4,22 @@
 
 - Video: add FasterCache and PAB support to WanDB and LTX models  
 - ZLUDA: add more GPUs to recognized list  
-- LoRA: obey configured device when performing calculations  
 - Progress: add additional fields to progress API  
 - Progress: use batch-count for progress  
 - Grid: add of max-rows and max-columns in settings to control grid format  
+- LoRA: add option to force-reload LoRA on every generate  
 - Gallery: add max-columns in settings for gradio gallery components  
 - Styles: resize and bring quick-ui to forward on hover  
-- Logging: fix debug logging  
 - Logging: logging cleanup  
 - Params: Reset default guidance-rescale from 0.7 to 0.0  
-- Diag: add get-server-status to ui generate context menu  
+- Diag: add get-server-status to UI generate context menu  
 - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
   select in scripts, available for sdxl in inpaint model  
+- Flux: TeaCache for Flux.1  
+- Fix: LoRA obey configured device when performing calculations  
+- Fix: ZLUDA startup
+- Fix: balanced offload remove non-blocking move op  
+- Fix: debug logging  
 
 ## Update for 2025-04-03
 

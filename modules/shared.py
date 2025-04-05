@@ -560,13 +560,13 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "pag_apply_layers": OptionInfo("m0", "PAG layer names"),
 
     "pab_sep": OptionInfo("<h2>PAB: Pyramid attention broadcast </h2>", "", gr.HTML),
-    "pab_enabled": OptionInfo(False, "Attention cache enabled"),
-    "pab_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
-    "pab_spacial_skip_start": OptionInfo(100, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
-    "pab_spacial_skip_end": OptionInfo(800, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "pab_enabled": OptionInfo(False, "PAB cache enabled"),
+    "pab_spacial_skip_range": OptionInfo(2, "PAB spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
+    "pab_spacial_skip_start": OptionInfo(100, "PAB spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "pab_spacial_skip_end": OptionInfo(800, "PAB spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
 
     "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
-    "faster_cache_enabled": OptionInfo(False, "Faster cache enabled"),
+    "faster_cache_enabled": OptionInfo(False, "FC cache enabled"),
     "fc_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
     "fc_spacial_skip_start": OptionInfo(0, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
     "fc_spacial_skip_end": OptionInfo(681, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01}),
@@ -580,6 +580,10 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "para_sep": OptionInfo("<h2>Para-attention</h2>", "", gr.HTML),
     "para_cache_enabled": OptionInfo(False, "First-block cache enabled"),
     "para_diff_threshold": OptionInfo(0.1, "Residual diff threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
+
+    "teacache_sep": OptionInfo("<h2>TeaCache</h2>", "", gr.HTML),
+    "teacache_enabled": OptionInfo(False, "TC cache enabled"),
+    "teacache_thresh": OptionInfo(0.6, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
 
     "hypertile_sep": OptionInfo("<h2>HyperTile</h2>", "", gr.HTML),
     "hypertile_unet_enabled": OptionInfo(False, "UNet Enabled"),
@@ -932,6 +936,7 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "lora_fuse_diffusers": OptionInfo(True, "LoRA fuse directly to model"),
     "lora_apply_gpu": OptionInfo(False, "LoRA load directly on GPU"),
     "lora_legacy": OptionInfo(not native, "LoRA load using legacy method"),
+    "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
     "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models"),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),

@@ -139,6 +139,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers)]
 
     def changed(self, requested: List[str], include: List[str], exclude: List[str]):
+        if shared.opts.lora_force_reload:
+            return True
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if not hasattr(sd_model, 'loaded_loras'):
             sd_model.loaded_loras = {}

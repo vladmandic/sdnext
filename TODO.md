@@ -17,6 +17,7 @@ N/A
 - Video: API support  
 - Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
 - Video: SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
+- TeaCache: https://github.com/ali-vilab/TeaCache
 
 ## Code TODO
 
