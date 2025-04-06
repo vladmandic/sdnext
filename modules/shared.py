@@ -341,7 +341,7 @@ def temp_disable_extensions():
 
 def get_default_modes():
     default_offload_mode = "none"
-    default_diffusers_offload_min_gpu_memory = 0.25
+    default_diffusers_offload_min_gpu_memory = 0.2
     if not (cmd_opts.lowvram or cmd_opts.medvram):
         if "gpu" in mem_stat:
             if gpu_memory <= 4:
@@ -356,7 +356,7 @@ def get_default_modes():
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
             else:
                 default_offload_mode = "balanced"
-                default_diffusers_offload_min_gpu_memory = 0.25
+                default_diffusers_offload_min_gpu_memory = 0.2
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced")
     elif cmd_opts.medvram:
         default_offload_mode = "balanced"
