@@ -33,7 +33,7 @@ def network_activate(include=[], exclude=[]):
         pbar = nullcontext()
     applied_weight = 0
     applied_bias = 0
-    device = devices.device if shared.opts.lora_apply_gpu or shared.opts.diffusers_offload_mode == 'none' else devices.cpu
+    device = devices.device if shared.opts.lora_apply_gpu or (shared.opts.diffusers_offload_mode == 'none') or (shared.sd_model_type == 'sd') else devices.cpu
     with devices.inference_context(), pbar:
         wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
         applied_layers.clear()
@@ -95,7 +95,7 @@ def network_deactivate(include=[], exclude=[]):
             modules[name] = list(component.named_modules())
             active_components.append(name)
     total = sum(len(x) for x in modules.values())
-    device = devices.device if shared.opts.lora_apply_gpu else devices.cpu
+    device = devices.device if shared.opts.lora_apply_gpu or (shared.opts.diffusers_offload_mode == 'none') or (shared.sd_model_type == 'sd') else devices.cpu
     if len(l.previously_loaded_networks) > 0 and l.debug:
         pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
         task = pbar.add_task(description='', total=total)
