@@ -34,10 +34,10 @@ pipelines = {
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
 
     # dynamically imported and redefined later
-    'Meissonic': getattr(diffusers, 'StableDiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'OmniGenPipeline': getattr(diffusers, 'StableDiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'InstaFlow': getattr(diffusers, 'StableDiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'SegMoE': getattr(diffusers, 'StableDiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'OmniGenPipeline': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
 }
 onnx_pipelines = {
     'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
@@ -116,3 +116,16 @@ def get_pipelines():
         if k != 'Autodetect' and v is None:
             log.error(f'Not available: pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__}')
     return pipelines
+
+
+def get_repo(model):
+    if model == 'StableDiffusionPipeline' or model == 'Stable Diffusion 1.5':
+        return 'stable-diffusion-v1-5/stable-diffusion-v1-5'
+    elif model == 'StableDiffusionXLPipeline' or model == 'Stable Diffusion XL':
+        return 'stabilityai/stable-diffusion-xl-base-1.0'
+    elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3.x':
+        return 'stabilityai/stable-diffusion-3.5-medium'
+    elif model == 'FluxPipeline' or model == 'FLUX':
+        return 'black-forest-labs/FLUX.1-dev'
+    else:
+        return None

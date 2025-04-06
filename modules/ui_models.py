@@ -44,12 +44,16 @@ def create_ui():
                     model_desc = gr.HTML(value="", elem_id="model_desc")
                 with gr.Row():
                     module_headers = ['Module', 'Class', 'Device', 'DType', 'Params', 'Modules', 'Config']
-                    model_types = ['str', 'str', 'str', 'str', 'number', 'number', 'str']
-                    model_modules = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=module_headers, datatype=model_types, type='array')
+                    module_types = ['str', 'str', 'str', 'str', 'number', 'number', 'str']
+                    model_modules = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=module_headers, datatype=module_types, type='array')
                 with gr.Row():
                     model_meta = gr.JSON(label="Metadata", value={}, elem_id="model_meta")
 
                 model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_modules, model_meta])
+
+            with gr.Tab(label="Load custom"):
+                from modules import ui_models_load
+                ui_models_load.create_ui()
 
             with gr.Tab(label="Merge"):
                 def sd_model_choices():

@@ -291,7 +291,8 @@ table.settings-value-table td { padding: 0.4em; border: 1px solid #ccc; max-widt
 #pnginfo_html_info .gradio-html > div { margin: 0.5em; }
 #models_image, #models_image > div { min-height: 0; }
 #models_error { font-family: monospace; color: var(--body-text-color-subdued) }
-
+#model_loader_md li { margin-left: -2em; color: var(--body-text-color-subdued); }
+#model_loader_df button { display: none !important; }
 
 /* log monitor */
 .log-monitor { display: none; justify-content: unset !important; overflow: hidden; padding: 0; margin-top: auto; font-family: monospace; font-size: var(--text-xxs); }
