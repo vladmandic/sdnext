@@ -1,14 +1,14 @@
 from typing import Any, Dict, Optional, Union
-from diffusers.models.modeling_outputs import Transformer2DModelOutput
-from diffusers.utils import USE_PEFT_BACKEND, is_torch_version, logging, scale_lora_layers, unscale_lora_layers
 import torch
 import numpy as np
+from diffusers.models.modeling_outputs import Transformer2DModelOutput
+from diffusers.utils import USE_PEFT_BACKEND, is_torch_version, logging, scale_lora_layers, unscale_lora_layers
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def teacache_forward(
+def teacache_flux_forward(
         self,
         hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor = None,
@@ -306,17 +306,3 @@ def teacache_forward(
         return (output,)
 
     return Transformer2DModelOutput(sample=output)
-
-
-def apply_teacache(p):
-    from modules import shared
-    if not shared.native or not shared.opts.teacache_enabled or not shared.sd_model.__class__.__name__.startswith('Flux'):
-        return
-    shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
-    shared.sd_model.transformer.__class__.cnt = 0
-    shared.sd_model.transformer.__class__.num_steps = p.steps
-    shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
-    shared.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
-    shared.sd_model.transformer.__class__.previous_modulated_input = None
-    shared.sd_model.transformer.__class__.previous_residual = None
-    shared.log.info(f'Transformers cache: type=teacache thresh={shared.opts.teacache_thresh} cls={shared.sd_model.__class__.__name__}')

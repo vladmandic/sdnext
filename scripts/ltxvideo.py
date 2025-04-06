@@ -5,7 +5,6 @@ import gradio as gr
 import diffusers
 import transformers
 from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer
-from modules.teacache.teacache_ltx import teacache_forward
 
 
 repos = {
@@ -113,7 +112,6 @@ class Script(scripts.Script):
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
             kwargs = model_quant.create_config()
-            diffusers.LTXVideoTransformer3DModel.forward = teacache_forward
             if os.path.isfile(repo_id):
                 shared.sd_model = cls.from_single_file(
                     repo_id,

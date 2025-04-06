@@ -87,17 +87,22 @@ def api_progress(req: ProgressRequest):
     id_live_preview = req.id_live_preview
     live_preview = None
     textinfo = shared.state.textinfo
-    updated = shared.state.set_current_image()
     if not active:
         id_live_preview = -1
         textinfo = "Queued..." if queued else "Waiting..."
 
-    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} enabled={shared.opts.live_previews_enable} job={shared.state.preview_job} updated={updated} image={shared.state.current_image} elapsed={elapsed:.3f}')
+    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} enabled={shared.opts.live_previews_enable} job={shared.state.preview_job} elapsed={elapsed:.3f}')
 
-    if shared.opts.live_previews_enable and active and (shared.state.id_live_preview != req.id_live_preview) and (shared.state.current_image is not None):
-        buffered = io.BytesIO()
-        shared.state.current_image.save(buffered, format='jpeg')
-        live_preview = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
+    print('HERE1', req.id_live_preview, shared.state.id_live_preview)
+
+    if shared.opts.live_previews_enable and active and (req.id_live_preview != -1) (shared.state.id_live_preview != req.id_live_preview) and (shared.state.current_image is not None):
+        shared.state.set_current_image()
+        if shared.state.current_image is not None:
+            buffered = io.BytesIO()
+            shared.state.current_image.save(buffered, format='jpeg')
+            live_preview = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
+        else:
+            live_preview = None
 
     id_live_preview = shared.state.id_live_preview
 

@@ -1,7 +1,7 @@
 import os
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices
-from modules.video_models import models_def, video_utils, video_vae, video_overrides
+from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
 
 
 loaded_model = None
@@ -16,6 +16,8 @@ def load_model(selected: models_def.Model):
         return ''
     sd_models.unload_model_weights()
     t0 = time.time()
+
+    video_cache.apply_teacache_patch(selected.dit_cls)
 
     # text encoder
     try:

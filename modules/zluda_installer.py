@@ -119,13 +119,11 @@ def link_or_copy(src: os.PathLike, dst: os.PathLike):
 
 
 def load():
-    global core, ml # pylint: disable=global-statement
+    global core, ml, hipBLASLt_enabled, MIOpen_enabled # pylint: disable=global-statement
     core = Core(ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll')))
     ml = ZLUDALibrary(ctypes.windll.LoadLibrary(os.path.join(path, 'nvml.dll')))
-
     is_nightly = core.get_nightly_flag() == 1
     hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.path, "bin", "hipblaslt.dll"))
-    global MIOpen_enabled # pylint: disable=global-statement
     MIOpen_enabled = is_nightly and os.path.exists(os.path.join(rocm.path, "bin", "MIOpen.dll"))
 
     for k, v in DLL_MAPPING.items():

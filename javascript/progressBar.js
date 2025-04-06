@@ -1,4 +1,15 @@
 let lastState = {};
+let refreshInterval = 10000;
+
+function setRefreshInterval() {
+  refreshInterval = opts.live_preview_refresh_period || 500;
+  log('refreshInterval', document.visibilityState, refreshInterval);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) refreshInterval = Math.max(2500, opts.live_preview_refresh_period || 1000);
+    else refreshInterval = opts.live_preview_refresh_period || 1000;
+    log('refreshInterval', document.visibilityState, refreshInterval);
+  });
+}
 
 function pad2(x) {
   return x < 10 ? `0${x}` : x;
@@ -152,7 +163,8 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
       done();
     };
 
-    xhrPost('./internal/progress', { id_task, id_live_preview }, onProgressHandler, onProgressErrorHandler, false, 30000);
+    const request_id = document.hidden ? -1 : id_live_preview;
+    xhrPost('./internal/progress', { id_task, request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
   };
   debug('livePreview start:', dateStart);
   start(id_task, 0);

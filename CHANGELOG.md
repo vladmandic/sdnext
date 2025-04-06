@@ -3,10 +3,13 @@
 ## Update for 2025-04-05
 
 - **Features**
-  - Flux: TeaCache for Flux.1  
-  - Video: add `FasterCache` and `PAB` support to WanDB and LTX models  
-  - ZLUDA: add more GPUs to recognized list  
   - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
+- **Caching**
+  - add `TeaCache` support to *Flux, CogVideoX, Mochi, LTX*  
+  - add `FasterCache` support to *WanAI, LTX* (other video models already supported)  
+  - add `PyramidAttentionBroadcast` support to *WanAI, LTX* (other video models already supported)  
+- **Other**
+  - ZLUDA: add more GPUs to recognized list  
     select in scripts, available for sdxl in inpaint model  
   - LoRA: add option to force-reload LoRA on every generate  
   - Grid: add of max-rows and max-columns in settings to control grid format  
