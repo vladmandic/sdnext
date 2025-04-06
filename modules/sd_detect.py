@@ -56,7 +56,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             if 'hunyuandit' in f.lower():
                 guess = 'HunyuanDiT'
             if 'pixart-xl' in f.lower():
-                guess = 'PixArt-Alpha'
+                guess = 'PixArt Alpha'
             if 'stable-diffusion-3' in f.lower():
                 guess = 'Stable Diffusion 3'
             if 'stable-cascade' in f.lower() or 'stablecascade' in f.lower() or 'wuerstchen3' in f.lower() or ('sotediffusion' in f.lower() and "v2" in f.lower()):
@@ -64,7 +64,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                     warn('Stable Cascade does not support Float16')
                 guess = 'Stable Cascade'
             if 'pixart-sigma' in f.lower():
-                guess = 'PixArt-Sigma'
+                guess = 'PixArt Sigma'
             if 'sana' in f.lower():
                 guess = 'Sana'
             if 'lumina-next' in f.lower():
@@ -76,9 +76,9 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             if 'auraflow' in f.lower():
                 guess = 'AuraFlow'
             if 'cogview3' in f.lower():
-                guess = 'CogView3'
+                guess = 'CogView 3'
             if 'cogview4' in f.lower():
-                guess = 'CogView4'
+                guess = 'CogView 4'
             if 'meissonic' in f.lower():
                 guess = 'Meissonic'
                 pipeline = 'custom'

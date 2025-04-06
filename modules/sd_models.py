@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 
 from installer import log
-from modules import paths, shared, shared_state, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
+from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
 from modules.timer import Timer, process as process_timer
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
@@ -282,12 +282,14 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
         elif model_type in ['InstaFlow']: # forced pipeline
             pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
+            shared_items.pipelines['InstaFlow'] = pipeline
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
         elif model_type in ['SegMoE']: # forced pipeline
             from modules.segmoe.segmoe_model import SegMoEPipeline
             sd_model = SegMoEPipeline(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model = sd_model.pipe # segmoe pipe does its stuff in __init__ and __call__ is the original pipeline
-        elif model_type in ['PixArt-Sigma']: # forced pipeline
+            shared_items.pipelines['SegMoE'] = SegMoEPipeline
+        elif model_type in ['PixArt Sigma']: # forced pipeline
             from modules.model_pixart import load_pixart
             sd_model = load_pixart(checkpoint_info, diffusers_load_config)
         elif model_type in ['Sana']: # forced pipeline
@@ -311,10 +313,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['Stable Diffusion 3']:
             from modules.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
-        elif model_type in ['CogView3']: # forced pipeline
+        elif model_type in ['CogView 3']: # forced pipeline
             from modules.model_cogview import load_cogview3
             sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
-        elif model_type in ['CogView4']: # forced pipeline
+        elif model_type in ['CogView 4']: # forced pipeline
             from modules.model_cogview import load_cogview4
             sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
         elif model_type in ['Meissonic']: # forced pipeline

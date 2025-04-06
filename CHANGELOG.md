@@ -24,13 +24,14 @@
   - params: Reset default guidance-rescale from 0.7 to 0.0  
   - progress: add additional fields to progress API  
 - **Fixes**  
-  - Logging: logging cleanup  
-  - Styles: resize and bring quick-ui to forward on hover  
-  - LoRA obey configured device when performing calculations  
-  - ZLUDA startup issues  
-  - balanced offload remove non-blocking move op  
-  - debug logging causes invalid import  
-  - UI progress allow for longer timeouts  
+  - styles: resize and bring quick-ui to forward on hover  
+  - LoRA: obey configured device when performing calculations  
+  - ZLUDA: startup issues  
+  - offload: balanced offload remove non-blocking move op  
+  - logging: debug causes invalid import  
+  - logging: cleanup  
+  - ui: progress allow for longer timeouts  
+  - internal: cleanup defined pipelines
 
 ## Update for 2025-04-03
 

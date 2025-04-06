@@ -3,12 +3,13 @@ import diffusers
 
 
 def load_meissonic(checkpoint_info, diffusers_load_config={}):
-    from modules import shared, devices, modelloader, sd_models
+    from modules import shared, devices, modelloader, sd_models, shared_items
     from modules.meissonic.transformer import Transformer2DModel as TransformerMeissonic
     from modules.meissonic.scheduler import Scheduler as MeissonicScheduler
     from modules.meissonic.pipeline import Pipeline as PipelineMeissonic
     from modules.meissonic.pipeline_img2img import Img2ImgPipeline as PipelineMeissonicImg2Img
     from modules.meissonic.pipeline_inpaint import InpaintPipeline as PipelineMeissonicInpaint
+    shared_items.pipelines['Meissonic'] = PipelineMeissonic
 
     modelloader.hf_login()
     fn = sd_models.path_to_repo(checkpoint_info.path)
