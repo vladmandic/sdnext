@@ -133,9 +133,10 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
 
   const start = (id_task, id_live_preview) => { // eslint-disable-line no-shadow
     if (!opts.live_previews_enable || opts.live_preview_refresh_period === 0 || opts.show_progress_every_n_steps === 0) return;
+    const request_id = document.hidden ? -1 : id_live_preview;
 
     const onProgressHandler = (res) => {
-      if (res?.debug) debug('livePreview:', dateStart, res);
+      if (res?.debug) debug('livePreview:', dateStart, request_id, res);
       lastState = res;
       const elapsedFromStart = (new Date() - dateStart) / 1000;
       hasStarted |= res.active;
@@ -163,8 +164,7 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
       done();
     };
 
-    const request_id = document.hidden ? -1 : id_live_preview;
-    xhrPost('./internal/progress', { id_task, request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
+    xhrPost('./internal/progress', { id_task, id_live_preview: request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
   };
   debug('livePreview start:', dateStart);
   start(id_task, 0);

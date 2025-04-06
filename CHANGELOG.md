@@ -2,23 +2,27 @@
 
 ## Update for 2025-04-05
 
-- **Features**
+- **Features**  
   - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
-- **Caching**
+- **Caching**  
   - add `TeaCache` support to *Flux, CogVideoX, Mochi, LTX*  
   - add `FasterCache` support to *WanAI, LTX* (other video models already supported)  
   - add `PyramidAttentionBroadcast` support to *WanAI, LTX* (other video models already supported)  
-- **Other**
+- **UI**  
+  - client polling speeds up and slows down depending if client page is visible or not  
+    client polling does not ask for live preview if page is not visible  
+    significantly reduces server load if you hide or minimize the page  
+  - progress: use batch-count for progress  
+  - grid: add of max-rows and max-columns in settings to control grid format  
+  - gallery: add max-columns in settings for gradio gallery components  
+- **Other**  
   - ZLUDA: add more GPUs to recognized list  
     select in scripts, available for sdxl in inpaint model  
   - LoRA: add option to force-reload LoRA on every generate  
-  - Grid: add of max-rows and max-columns in settings to control grid format  
-  - Gallery: add max-columns in settings for gradio gallery components  
-  - Diag: add get-server-status to UI generate context menu  
-- **Changes**
-  - Params: Reset default guidance-rescale from 0.7 to 0.0  
-  - Progress: add additional fields to progress API  
-  - Progress: use batch-count for progress  
+  - diag: add get-server-status to UI generate context menu  
+- **Changes**  
+  - params: Reset default guidance-rescale from 0.7 to 0.0  
+  - progress: add additional fields to progress API  
 - **Fixes**  
   - Logging: logging cleanup  
   - Styles: resize and bring quick-ui to forward on hover  
