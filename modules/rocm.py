@@ -204,7 +204,9 @@ else:
     def get_flash_attention_command(agent: Agent):
         default = "git+https://github.com/ROCm/flash-attention"
         if agent.gfx_version >= 0x1100 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
-            default = "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
+            # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
+            # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
+            default = "https://github.com/Disty0/flash-attention@navi_rotary_fix"
         return os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
