@@ -136,10 +136,10 @@ class OffloadHook(accelerate.hooks.ModelHook):
         if shared.opts.diffusers_offload_mode != 'balanced':
             return
         if shared.opts.diffusers_offload_min_gpu_memory < 0 or shared.opts.diffusers_offload_min_gpu_memory > 1:
-            shared.opts.diffusers_offload_min_gpu_memory = 0.25
+            shared.opts.diffusers_offload_min_gpu_memory = 0.2
             shared.log.warning(f'Offload: type=balanced op=validate: watermark low={shared.opts.diffusers_offload_min_gpu_memory} invalid value')
         if shared.opts.diffusers_offload_max_gpu_memory < 0.1 or shared.opts.diffusers_offload_max_gpu_memory > 1:
-            shared.opts.diffusers_offload_max_gpu_memory = 0.75
+            shared.opts.diffusers_offload_max_gpu_memory = 0.7
             shared.log.warning(f'Offload: type=balanced op=validate: watermark high={shared.opts.diffusers_offload_max_gpu_memory} invalid value')
         if shared.opts.diffusers_offload_min_gpu_memory > shared.opts.diffusers_offload_max_gpu_memory:
             shared.opts.diffusers_offload_min_gpu_memory = shared.opts.diffusers_offload_max_gpu_memory
@@ -228,15 +228,15 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         return modules
 
     def apply_balanced_offload_to_module(pipe):
+        # shared.log.trace(f'Offload: type=balanced op=apply pipe={pipe.__class__.__name__}')
         used_gpu, used_ram = devices.torch_gc(fast=True)
-        if hasattr(pipe, "pipe"):
-            apply_balanced_offload_to_module(pipe.pipe)
         if hasattr(pipe, "_internal_dict"):
             keys = pipe._internal_dict.keys() # pylint: disable=protected-access
         else:
             keys = get_signature(pipe).keys()
         keys = [k for k in keys if k not in exclude and not k.startswith('_')]
         for module_name, module_size in get_pipe_modules(pipe): # pylint: disable=protected-access
+            # shared.log.trace(f'Offload: type=balanced op=apply pipe={pipe.__class__.__name__} module={module_name} size={module_size:.3f}')
             module = getattr(pipe, module_name, None)
             if module is None:
                 continue

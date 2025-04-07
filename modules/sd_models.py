@@ -44,6 +44,7 @@ pipe_switch_task_exclude = [
     'PixelSmithXLPipeline',
     'PhotoMakerStableDiffusionXLPipeline',
     'StableDiffusionXLInstantIDPipeline',
+    'LTXConditionPipeline',
 ]
 
 

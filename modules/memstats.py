@@ -69,6 +69,7 @@ def memory_stats():
             'retries': stats.get('num_alloc_retries', 0),
             'oom': stats.get('num_ooms', 0),
         })
+        mem['swap'] = round(mem['active'] - mem['gpu']['used'], 2) if mem['active'] > mem['gpu']['used'] else 0
         return mem
     except Exception:
         pass

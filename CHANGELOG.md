@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-05
+## Update for 2025-04-07
 
 - **Features**  
   - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
@@ -20,6 +20,8 @@
     select in scripts, available for sdxl in inpaint model  
   - LoRA: add option to force-reload LoRA on every generate  
   - diag: add get-server-status to UI generate context menu  
+  - diag: memory monitor detect gpu swapping  
+  - vide: update LTXVideo-0.9.5 pipeline  
 - **Changes**  
   - params: Reset default guidance-rescale from 0.7 to 0.0  
   - progress: add additional fields to progress API  
