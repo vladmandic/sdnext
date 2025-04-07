@@ -33,13 +33,12 @@ def network_activate(include=[], exclude=[]):
         pbar = nullcontext()
     applied_weight = 0
     applied_bias = 0
-    device = devices.device if shared.opts.lora_apply_gpu or (shared.opts.diffusers_offload_mode == 'none') or (shared.sd_model_type == 'sd') else devices.cpu
     with devices.inference_context(), pbar:
         wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
         applied_layers.clear()
         backup_size = 0
         for component in modules.keys():
-            orig_device = getattr(sd_model, component, None).device
+            device = getattr(sd_model, component, None).device
             for _, module in modules[component]:
                 network_layer_name = getattr(module, 'network_layer_name', None)
                 current_names = getattr(module, "network_current_names", ())
@@ -52,7 +51,7 @@ def network_activate(include=[], exclude=[]):
                 if shared.opts.lora_fuse_diffusers:
                     network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                 else:
-                    network_apply_weights(module, batch_updown, batch_ex_bias, device=orig_device)
+                    network_apply_weights(module, batch_updown, batch_ex_bias, device=device)
                 if batch_updown is not None or batch_ex_bias is not None:
                     applied_layers.append(network_layer_name)
                     applied_weight += 1 if batch_updown is not None else 0
@@ -95,7 +94,6 @@ def network_deactivate(include=[], exclude=[]):
             modules[name] = list(component.named_modules())
             active_components.append(name)
     total = sum(len(x) for x in modules.values())
-    device = devices.device if shared.opts.lora_apply_gpu or (shared.opts.diffusers_offload_mode == 'none') or (shared.sd_model_type == 'sd') else devices.cpu
     if len(l.previously_loaded_networks) > 0 and l.debug:
         pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
         task = pbar.add_task(description='', total=total)
@@ -105,7 +103,7 @@ def network_deactivate(include=[], exclude=[]):
     with devices.inference_context(), pbar:
         applied_layers.clear()
         for component in modules.keys():
-            orig_device = getattr(sd_model, component, None).device
+            device = getattr(sd_model, component, None).device
             for _, module in modules[component]:
                 network_layer_name = getattr(module, 'network_layer_name', None)
                 if shared.state.interrupted or network_layer_name is None:
@@ -116,7 +114,7 @@ def network_deactivate(include=[], exclude=[]):
                 if shared.opts.lora_fuse_diffusers:
                     network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                 else:
-                    network_apply_weights(module, batch_updown, batch_ex_bias, device=orig_device, deactivate=True)
+                    network_apply_weights(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                 if batch_updown is not None or batch_ex_bias is not None:
                     applied_layers.append(network_layer_name)
                 del batch_updown, batch_ex_bias
