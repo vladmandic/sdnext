@@ -4,7 +4,7 @@ import re
 import numpy as np
 from modules.lora import networks, lora_overrides, lora_load
 from modules.lora import lora_common as l
-from modules import extra_networks, shared
+from modules import extra_networks, shared, sd_models
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
@@ -179,6 +179,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 job = shared.state.job
                 shared.state.job = 'LoRA'
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
+                sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.job = job
         else:
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load

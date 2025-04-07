@@ -34,7 +34,7 @@ pi-heif
 rich==13.9.4
 safetensors==0.5.3
 tensordict==0.1.2
-peft==0.14.0
+peft==0.15.1
 httpx==0.24.1
 compel==2.0.3
 torchsde==0.2.6
@@ -52,7 +52,7 @@ numba==0.59.1
 protobuf==4.25.3
 pytorch_lightning==1.9.4
 tokenizers==0.21.1
-transformers==4.50.3
+transformers==4.51.0
 urllib3==1.26.19
 Pillow==10.4.0
 timm==0.9.16

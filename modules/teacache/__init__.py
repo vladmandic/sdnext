@@ -9,6 +9,8 @@ supported_models = ['Flux', 'CogVideoX', 'Mochi', 'LTX']
 
 def apply_teacache(p):
     from modules import shared
+    if not shared.opts.teacache_enabled:
+        return
     if not any(shared.sd_model.__class__.__name__.startswith(x) for x in supported_models):
         return
     if not hasattr(shared.sd_model, 'transformer'):
