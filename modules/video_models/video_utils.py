@@ -11,12 +11,6 @@ def queue_err(msg):
     return [], None, '', '', f'Error: {msg}'
 
 
-def get_quant(args):
-    if args is not None and "quantization_config" in args:
-        return args['quantization_config'].__class__.__name__
-    return None
-
-
 def get_url(url):
     return f'&nbsp <a href="{url}" target="_blank" rel="noopener noreferrer" style="color: var(--button-primary-background-fill); font-weight: normal">{url}</a><br><br>' if url else '<br><br>'
 

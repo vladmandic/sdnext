@@ -15,6 +15,12 @@ quant_last_model_device = None
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
 
 
+def get_quant_type(args):
+    if args is not None and "quantization_config" in args:
+        return args['quantization_config'].__class__.__name__
+    return None
+
+
 def get_quant(name):
     if "qint8" in name.lower():
         return 'qint8'
@@ -34,7 +40,7 @@ def get_quant(name):
 def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Model'):
     from modules import shared, devices
     if len(shared.opts.bnb_quantization) > 0 and allow_bnb:
-        if 'Model' in shared.opts.bnb_quantization or (module is not None and module in shared.opts.bnb_quantization):
+        if 'Model' in shared.opts.bnb_quantization or (module is not None and module in shared.opts.bnb_quantization) or module == 'any':
             load_bnb()
             if bnb is None:
                 return kwargs
@@ -56,8 +62,8 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
 
 def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'):
     from modules import shared
-    if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'pre' and allow_ao:
-        if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization):
+    if len(shared.opts.torchao_quantization) > 0 and (shared.opts.torchao_quantization_mode == 'pre') and allow_ao:
+        if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization) or module == 'any':
             load_torchao()
             if ao is None:
                 return kwargs
@@ -74,7 +80,7 @@ def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'
 def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str = 'Model'):
     from modules import shared
     if len(shared.opts.quanto_quantization) > 0 and allow_quanto:
-        if 'Model' in shared.opts.quanto_quantization or (module is not None and module in shared.opts.quanto_quantization):
+        if 'Model' in shared.opts.quanto_quantization or (module is not None and module in shared.opts.quanto_quantization) or module == 'any':
             load_quanto(silent=True)
             if optimum_quanto is None:
                 return kwargs

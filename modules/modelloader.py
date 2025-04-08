@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from PIL import Image
 import rich.progress as p
 import huggingface_hub as hf
+from installer import install
 from modules import shared, errors, files_cache
 from modules.upscaler import Upscaler
 from modules.paths import script_path, models_path
@@ -42,6 +43,7 @@ def hf_login(token=None):
         line = [l for l in text.split('\n') if 'Token' in l]
         shared.log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         loggedin = token
+    install('hf_xet', quiet=True)
 
 
 def download_civit_meta(model_path: str, model_id):

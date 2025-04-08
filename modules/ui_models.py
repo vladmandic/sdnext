@@ -51,9 +51,9 @@ def create_ui():
 
                 model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_modules, model_meta])
 
-            with gr.Tab(label="Load custom"):
+            with gr.Tab(label="Custom"):
                 from modules import ui_models_load
-                ui_models_load.create_ui()
+                ui_models_load.create_ui(models_outcome)
 
             with gr.Tab(label="Merge"):
                 def sd_model_choices():

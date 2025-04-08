@@ -3,6 +3,10 @@
 ## Update for 2025-04-08
 
 - **Features**  
+  - Custom model loader  
+    can be used to load any known diffusion model with default or custom model components  
+    in models -> custom tab  
+    see docs for details: <https://vladmandic.github.io/sdnext-docs/Loader/>  
   - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
 - **Caching**  
   - add `TeaCache` support to *Flux, CogVideoX, Mochi, LTX*  
