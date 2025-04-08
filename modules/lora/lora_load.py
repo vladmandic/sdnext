@@ -2,7 +2,7 @@ from typing import Union
 import os
 import time
 import concurrent
-from modules import shared, errors, devices, sd_models, sd_models_compile, files_cache
+from modules import shared, errors, sd_models, sd_models_compile, files_cache
 from modules.lora import network, lora_overrides, lora_convert
 from modules.lora import lora_common as l
 

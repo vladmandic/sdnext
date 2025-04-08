@@ -30,6 +30,8 @@ N/A
 - fc: autodetect distilled based on model
 - processing: remove duplicate mask params
 - model loader: implement model in-memory caching
+- custom: load receipe
+- custom: save receipe
 - hypertile: vae breaks when using non-standard sizes
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - lora: add other quantization types

@@ -248,8 +248,7 @@ def create_ui(status):
             c = [x for x in components if x.id == df[0]]
             if len(c) != 1:
                 continue
-            else:
-                c = c[0]
+            c = c[0]
             c.local = df[5].strip()
             c.remote = df[6].strip()
             c.dtype = df[7]
