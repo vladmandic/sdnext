@@ -39,6 +39,8 @@ def create_ui():
                     return [desc, components, meta]
 
                 with gr.Row():
+                    gr.HTML('<h2>&nbspAnalyze currently loaded model<br></h2>')
+                with gr.Row():
                     model_analyze = gr.Button(value="Analyze", variant='primary')
                 with gr.Row():
                     model_desc = gr.HTML(value="", elem_id="model_desc")
@@ -59,6 +61,8 @@ def create_ui():
                 def sd_model_choices():
                     return ['None'] + sd_models.checkpoint_titles()
 
+                with gr.Row():
+                    gr.HTML('<h2>&nbspMerge multiple models<br></h2>')
                 with gr.Row(equal_height=False):
                     with gr.Column(variant='compact'):
                         with gr.Row():
@@ -295,6 +299,8 @@ def create_ui():
 
             with gr.Tab(label="Modules"):
                 with gr.Row():
+                    gr.HTML('<h2>&nbspReplace model components<br></h2>')
+                with gr.Row():
                     with gr.Column(scale=3):
                         model_type = gr.Dropdown(label="Model type", choices=['sd15', 'sdxl', 'sd21', 'sd35', 'flux.1'], value='sdxl', interactive=False)
                     with gr.Column(scale=5):
@@ -368,6 +374,8 @@ def create_ui():
                 model_data = []
 
                 with gr.Row():
+                    gr.HTML('<h2>&nbspList all models <br></h2>')
+                with gr.Row():
                     model_list_btn = gr.Button(value="List model details", variant='primary')
                     model_checkhash_btn = gr.Button(value="Calculate hash for all models", variant='primary')
                     model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
@@ -438,7 +446,8 @@ def create_ui():
                     opts.save()
 
                 with gr.Column(scale=6):
-                    gr.HTML('<h2>Search for models</h2>Select a model from the search results to download<br><br>')
+                    with gr.Row():
+                        gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
                     with gr.Row():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
                         hf_search_btn = ToolButton(value=ui_symbols.search, label="Search")
@@ -650,7 +659,8 @@ def create_ui():
                     opts.save()
 
                 with gr.Row():
-                    gr.HTML('<h2>Fetch information</h2>Fetches preview and metadata information for all models with missing information<br>Models with existing previews and information are not updated<br>')
+                    gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
+                    gr.HTML('Fetches preview and metadata information for all models with missing information<br>Models with existing previews and information are not updated<br>')
                 with gr.Row():
                     civit_previews_btn = gr.Button(value="Start", variant='primary')
                 with gr.Row():
@@ -669,7 +679,7 @@ def create_ui():
                         with gr.Row():
                             civit_search_res = gr.HTML('')
                 with gr.Row():
-                    gr.HTML('<h2>Download model</h2>')
+                    gr.HTML('<h2>&nbspCivitAI download model<br></h2>')
                 with gr.Row():
                     civit_download_model_btn = gr.Button(value="Download", variant='primary')
                     gr.HTML('<span style="line-height: 2em">Select a model, model version and and model variant from the search results to download or enter model URL manually</span><br>')
@@ -723,7 +733,7 @@ def create_ui():
 
             with gr.Tab(label="Update"):
                 with gr.Row():
-                    gr.HTML('Fetch most recent information about all installed models<br>')
+                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
                 with gr.Row():
                     civit_update_btn = gr.Button(value="Update", variant='primary')
                 with gr.Row():
