@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-07
+## Update for 2025-04-08
 
 - **Features**  
   - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
@@ -32,6 +32,8 @@
   - offload: balanced offload remove non-blocking move op  
   - logging: debug causes invalid import  
   - logging: cleanup  
+  - ROCm: flash attention repo with navi rotary fix  
+  - prompt: prompt scheduling with te caching  
   - ui: progress allow for longer timeouts  
   - internal: cleanup defined pipelines
 

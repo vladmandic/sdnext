@@ -297,7 +297,7 @@ def get_prompt_schedule(prompt, steps):
         for s in range(steps):
             if len(temp) < s + 1 <= chunk[0]:
                 temp.append(chunk[1])
-    debug(f'Prompt: schedule={temp} time={(time.time() - t0):.3f}')
+    # debug(f'Prompt: schedule={temp} time={(time.time() - t0):.3f}')
     return temp, len(schedule) > 1
 
 
