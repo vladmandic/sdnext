@@ -85,8 +85,12 @@ class PromptEmbedder:
     def checkcache(self, p):
         if shared.opts.sd_textencoder_cache_size == 0:
             return False
+        if self.scheduled_prompt:
+            debug("Prompt cache: scheduled prompt")
+            cache.clear()
+            return False
         if self.attention != shared.opts.prompt_attention:
-            debug(f"Prompt change: parser={shared.opts.prompt_attention}")
+            debug(f"Prompt cache: parser={shared.opts.prompt_attention} changed")
             cache.clear()
             return False
 
