@@ -1,5 +1,6 @@
 import os
 import re
+import json # pylint: disable=unused-import
 import inspect
 import gradio as gr
 import torch
@@ -13,17 +14,7 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 components = []
 
 
-def load_receipe():
-    # TODO custom: load receipe
-    return 'Load receipe not implemented yet'
-
-
-def save_receipe():
-    # TODO custom: save receipe
-    return 'Save receipe not implemented yet'
-
-
-def load_model(model, cls, repo, dataframes):
+def load_model(model: str, cls: str, repo: str, dataframes: list):
     if cls is None:
         shared.log.error('Model load: class is None')
         return 'Model load: class is None'
@@ -157,6 +148,9 @@ class Component():
     def __str__(self):
         return f'id={self.id} name="{self.name}" cls={self.cls} type={self.type} loadable={self.loadable} val="{self.val}" str="{self.str}" enum="{self.enum}" local="{self.local}" remote="{self.remote}" repo="{self.repo}" subfolder="{self.subfolder}" dtype={self.dtype} quant={self.quant} revision={self.revision}'
 
+    def save(self):
+        return [self.name, self.local, self.remote, self.dtype, self.quant]
+
     def dataframe(self):
         return [self.id, self.name, self.loadable, self.val, self.str, self.local, self.remote, self.dtype, self.quant]
 
@@ -192,10 +186,14 @@ class Component():
                     self.download = False
             if self.local is not None and len(self.local) > 0:
                 if not os.path.exists(self.local):
-                    debug_log(f'Model load component: local="{self.local}" does not exist')
-                if hasattr(self.cls, 'from_single_file') and os.path.isfile(self.local):
+                    debug_log(f'Model load component: local="{self.local}" file not found')
+                elif hasattr(self.cls, 'from_single_file') and os.path.isfile(self.local) and self.local.endswith('.safetensors'):
                     debug_log(f'Model load component: local="{self.local}" type=file args={load_args} quant={quant_type}')
                     return self.cls.from_single_file(self.local, **load_args, **quant_args, cache_dir=shared.opts.hfcache_dir)
+                elif os.path.isfile(self.local) and self.local.endswith('.gguf'):
+                    debug_log(f'Model load component: local="{self.local}" type=gguf args={load_args} quant={quant_type}')
+                    from modules import ggml
+                    return ggml.load_gguf(self.local, cls=self.cls, compute_dtype=self.dtype)
                 else:
                     debug_log(f'Model load component: local="{self.local}" type=folder args={load_args} quant={quant_type}')
                     return self.cls.from_pretrained(self.local, **load_args, **quant_args, cache_dir=shared.opts.hfcache_dir)
@@ -214,7 +212,7 @@ class Component():
         return None
 
 
-def create_ui(status):
+def create_ui(gr_status, gr_file):
     def get_components(cls):
         if cls is None:
             return []
@@ -256,6 +254,27 @@ def create_ui(status):
             if c.remote and len(c.remote) > 0:
                 c.repo, c.subfolder, c.local, c.download = process_huggingface_url(c.remote)
 
+    # TODO loader: load receipe
+    def load_receipe(file_select):
+        if file_select is not None and 'name' in file_select:
+            fn = file_select['name']
+            shared.log.debug(f'Load receipe: fn={fn}')
+        return ['Load receipe not implemented yet', gr.update(label='Receipe .json file', file_types=['json'], visible=True)]
+
+    # TODO loader: save receipe
+    def save_receipe(model: str, repo: str):
+        receipe = {
+            'model': model,
+            'repo': repo,
+            'components': []
+        }
+        for c in components:
+            if c.loadable:
+                receipe['components'].append(c.save())
+        # with open('/tmp/receipe.json', 'w', encoding='utf8') as f:
+        #    json.dump(receipe, f, indent=2)
+        return 'Save receipe not implemented yet'
+
     with gr.Row():
         gr.HTML('<h2>&nbsp<a href="https://vladmandic.github.io/sdnext-docs/Loader" target="_blank">Custom model loader</a><br></h2>')
     with gr.Row():
@@ -293,7 +312,7 @@ def create_ui(status):
         btn_load_model = gr.Button(value="Load model")
         btn_unload_model = gr.Button(value="Unload model")
 
-    btn_load_receipe.click(fn=load_receipe, inputs=[], outputs=[status])
-    btn_save_receipe.click(fn=save_receipe, inputs=[], outputs=[status])
-    btn_load_model.click(fn=load_model, inputs=[model, cls, repo, dataframes], outputs=[status])
-    btn_unload_model.click(fn=unload_model, inputs=[], outputs=[status])
+    btn_load_receipe.click(fn=load_receipe, inputs=[gr_file], outputs=[gr_status, gr_file])
+    btn_save_receipe.click(fn=save_receipe, inputs=[model, repo], outputs=[gr_status])
+    btn_load_model.click(fn=load_model, inputs=[model, cls, repo, dataframes], outputs=[gr_status])
+    btn_unload_model.click(fn=unload_model, inputs=[], outputs=[gr_status])

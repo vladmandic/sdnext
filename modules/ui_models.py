@@ -26,6 +26,7 @@ def create_ui():
             gr.HTML(elem_id="models_progress", value="")
             models_image = gr.Image(elem_id="models_image", show_label=False, interactive=False, type='pil')
             models_outcome = gr.HTML(elem_id="models_error", value="")
+            models_file = gr.File(label='', type='file', help='', visible=False)
 
         with gr.Column(elem_id='models_input_container', scale=3):
 
@@ -53,9 +54,9 @@ def create_ui():
 
                 model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_modules, model_meta])
 
-            with gr.Tab(label="Custom"):
+            with gr.Tab(label="Loader"):
                 from modules import ui_models_load
-                ui_models_load.create_ui(models_outcome)
+                ui_models_load.create_ui(models_outcome, models_file)
 
             with gr.Tab(label="Merge"):
                 def sd_model_choices():
