@@ -5,7 +5,8 @@
 - HiDream requires sidebranch:  
   > `pip install git+https://github.com/hlky/diffusers@hidream`  
   > `./webui.sh --debug --experimental`  
-- FlashAttn wiki  
+- HiDream make `LLama` optional  
+- `FlashAttn` wiki  
 
 ## Update for 2025-04-10
 
