@@ -29,16 +29,16 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     shared.log.debug(f'Load model: type=CogView3 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='Model')
+    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
     transformer = diffusers.CogView3PlusTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
         cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
+        **load_args,
         **quant_args,
     )
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='TE')
+    load_args, quant_args = load_common(diffusers_load_config, module='TE')
     text_encoder = transformers.T5EncoderModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
@@ -47,12 +47,13 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
+    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
     pipe = diffusers.CogView3PlusPipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,
         transformer=transformer,
         cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
+        **load_args,
     )
     devices.torch_gc()
     return pipe
@@ -62,7 +63,7 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     shared.log.debug(f'Load model: type=CogView4 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='Model')
+    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
     transformer = diffusers.CogView4Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
@@ -71,21 +72,22 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    diffusers_load_config, quant_args = load_common(diffusers_load_config, module='TE')
+    load_args, quant_args = load_common(diffusers_load_config, module='TE')
     text_encoder = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         subfolder="text_encoder",
         cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
+        **load_args,
         **quant_args,
     )
 
+    load_args, quant_args = load_common(diffusers_load_config, module='Model')
     pipe = diffusers.CogView4Pipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,
         transformer=transformer,
         cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
+        **load_args,
     )
     if shared.opts.diffusers_eval:
         pipe.text_encoder.eval()

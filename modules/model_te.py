@@ -78,6 +78,10 @@ def load_t5(name=None, cache_dir=None):
                 dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
             )
         t5 = nncf_compress_model(t5)
+    elif '/' in name:
+        shared.log.debug(f'Load model: type=T5 repo={name}')
+        quant_config = model_quant.create_config(module='TE')
+        t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
     else:
         t5 = None
     if t5 is not None:

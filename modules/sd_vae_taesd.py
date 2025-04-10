@@ -52,8 +52,10 @@ def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model # pylint: disable=global-statement
     from modules import shared
     cls = shared.sd_model_type
-    if cls == 'ldm':
+    if cls == 'ldm': # original backend
         cls = 'sd'
+    if cls == 'h1': # hidream uses flux vae
+        cls = 'f1'
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)

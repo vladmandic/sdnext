@@ -90,6 +90,8 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 pipeline = 'custom'
             if 'sd3' in f.lower():
                 guess = 'Stable Diffusion 3'
+            if 'hidream' in f.lower():
+                guess = 'HiDream'
             if 'flux' in f.lower() or 'flex.1' in f.lower():
                 guess = 'FLUX'
                 if size > 11000 and size < 16000:

@@ -326,6 +326,9 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['OmniGen']: # forced pipeline
             from modules.model_omnigen import load_omnigen
             sd_model = load_omnigen(checkpoint_info, diffusers_load_config)
+        elif model_type in ['HiDream']:
+            from modules.model_hidream import load_hidream
+            sd_model = load_hidream(checkpoint_info, diffusers_load_config)
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:

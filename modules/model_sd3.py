@@ -1,7 +1,7 @@
 import os
 import diffusers
 import transformers
-from modules import shared, devices, sd_models, sd_unet, model_quant, model_tools
+from modules import shared, devices, errors, sd_models, sd_unet, model_quant, model_tools
 
 
 def load_overrides(kwargs, cache_dir):
@@ -20,6 +20,7 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 unet="{shared.opts.sd_unet}" fmt=gguf')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load UNet: {e}")
+            errors.display(e, 'UNet')
             shared.opts.sd_unet = 'Default'
             sd_unet.failed_unet.append(shared.opts.sd_unet)
     if shared.opts.sd_text_encoder != 'Default':
@@ -36,6 +37,7 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 variant="t5" te="{shared.opts.sd_text_encoder}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load T5: {e}")
+            errors.display(e, 'TE')
             shared.opts.sd_text_encoder = 'Default'
     if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
@@ -47,6 +49,7 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 vae="{shared.opts.sd_vae}"')
         except Exception as e:
             shared.log.error(f"Load model: type=SD3 failed to load VAE: {e}")
+            errors.display(e, 'VAE')
             shared.opts.sd_vae = 'Default'
     return kwargs
 
@@ -86,33 +89,6 @@ def load_missing(kwargs, fn, cache_dir):
     return kwargs
 
 
-"""
-def load_gguf(kwargs, fn):
-    ggml.install_gguf()
-    from accelerate import init_empty_weights
-    from diffusers.loaders.single_file_utils import convert_sd3_transformer_checkpoint_to_diffusers
-    from modules import ggml, sd_hijack_accelerate
-    with init_empty_weights():
-        config = diffusers.SD3Transformer2DModel.load_config(os.path.join('configs', 'flux'), subfolder="transformer")
-        transformer = diffusers.SD3Transformer2DModel.from_config(config).to(devices.dtype)
-        expected_state_dict_keys = list(transformer.state_dict().keys())
-    state_dict, stats = ggml.load_gguf_state_dict(fn, devices.dtype)
-    state_dict = convert_sd3_transformer_checkpoint_to_diffusers(state_dict)
-    applied, skipped = 0, 0
-    for param_name, param in state_dict.items():
-        if param_name not in expected_state_dict_keys:
-            skipped += 1
-            continue
-        applied += 1
-        sd_hijack_accelerate.hijack_set_module_tensor_simple(transformer, tensor_name=param_name, value=param, device=0)
-        transformer.gguf = 'gguf'
-        state_dict[param_name] = None
-    shared.log.debug(f'Load model: type=Unet/Transformer applied={applied} skipped={skipped} stats={stats} compute={devices.dtype}')
-    kwargs['transformer'] = transformer
-    return kwargs
-"""
-
-
 def load_sd3(checkpoint_info, cache_dir=None, config=None):
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     fn = checkpoint_info.path
@@ -149,6 +125,10 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
     shared.log.debug(f'Load model: type=SD3 kwargs={list(kwargs)} repo="{repo_id}"')
 
     kwargs = model_quant.create_config(kwargs)
+    if shared.opts.model_sd3_disable_te5:
+        shared.log.debug('Load model: type=SD3 option="disable-te5"')
+        kwargs['text_encoder_3'] = None
+
     pipe = loader(
         repo_id,
         torch_dtype=devices.dtype,

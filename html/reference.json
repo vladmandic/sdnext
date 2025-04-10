@@ -333,7 +333,29 @@
     "preview": "Alpha-VLLM--Lumina-Image-2.0.jpg",
     "skip": true,
     "extras": "sampler: Default"
-  }, 
+  },
+
+  "HiDream-I1 Fast": {
+    "path": "HiDream-ai/HiDream-I1-Fast",
+    "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
+    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "HiDream-I1 Dev": {
+    "path": "HiDream-ai/HiDream-I1-Dev",
+    "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
+    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "HiDream-I1 Full": {
+    "path": "HiDream-ai/HiDream-I1-Full",
+    "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
+    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
 
   "Kwai Kolors": {
     "path": "Kwai-Kolors/Kolors-diffusers",

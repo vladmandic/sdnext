@@ -403,14 +403,18 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
     "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Balanced offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
 
     "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
-    "sd_checkpoint_autoload": OptionInfo(True, "Model autoload on start"),
+    "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
     "diffusers_eval": OptionInfo(True, "Force model eval", gr.Checkbox, {"visible": False }),
-    "diffusers_to_gpu": OptionInfo(False, "Model Load model direct to GPU"),
+    "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
     "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
     "sd_model_dict": OptionInfo('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles(), "visible": False}, refresh=refresh_checkpoints),
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": not native }),
+}))
+
+options_templates.update(options_section(('model_options', "Models Options"), {
+    "model_sd3_disable_te5": OptionInfo(False, "SD3 disable T5 encoder"),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {
@@ -429,7 +433,7 @@ options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"
 }))
 
 options_templates.update(options_section(('text_encoder', "Text Encoder"), {
-    "sd_text_encoder": OptionInfo('Default', "Text encoder model", gr.Dropdown, lambda: {"choices": shared_items.sd_te_items()}, refresh=shared_items.refresh_te_list),
+    "sd_text_encoder": OptionInfo('Default', "Text encoder model", DropdownEditable, lambda: {"choices": shared_items.sd_te_items()}, refresh=shared_items.refresh_te_list),
     "prompt_attention": OptionInfo("native", "Prompt attention parser", gr.Radio, {"choices": ["native", "compel", "xhinker", "a1111", "fixed"] }),
     "prompt_mean_norm": OptionInfo(False, "Prompt attention normalization", gr.Checkbox),
     "sd_textencoder_cache": OptionInfo(True, "Cache text encoder results", gr.Checkbox, {"visible": False}),

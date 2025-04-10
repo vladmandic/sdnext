@@ -32,6 +32,7 @@ pipelines = {
     'CogView 4': getattr(diffusers, 'CogView4Pipeline', None),
     'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
+    'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
@@ -78,7 +79,7 @@ def refresh_unet_list():
 
 def sd_te_items():
     import modules.model_te
-    predefined = ['None', 'T5 FP4', 'T5 FP8', 'T5 INT8', 'T5 QINT8', 'T5 FP16']
+    predefined = ['None']
     return predefined + list(modules.model_te.te_dict)
 
 
