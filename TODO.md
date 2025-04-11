@@ -4,6 +4,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- HiDream: configurable LLM
+
 ### Issues/Limitations
 
 N/A
