@@ -1,3 +1,4 @@
+import os
 import time
 import transformers
 import diffusers
@@ -35,6 +36,10 @@ def get_args(load_config:dict={}, module:str=None, device_map:bool=False):
             config['device_map'] = 'cpu'
         if shared.opts.device_map == 'gpu':
             config['device_map'] = devices.device
+        if devices.backend == "ipex" and os.environ.get('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '0') != '1' and module in {'TE', 'LLM'}:
+            # Alchemis GPUs hits the 4GB allocation limit with transformers
+            # UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS emulates above 4GB allocations
+            config['device_map'] = 'cpu'
     quant_args = model_quant.create_config(module=module)
     return config, quant_args
 
