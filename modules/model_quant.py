@@ -183,6 +183,8 @@ def load_quanto(msg='', silent=False):
         log.warning('Quantization: optimum-quanto installed please restart')
     try:
         from optimum import quanto # pylint: disable=no-name-in-module
+        # disable device specific tensors because the model can't be moved between cpu and gpu with them
+        quanto.tensor.weights.qbits.WeightQBitsTensor.create = lambda *args, **kwargs: quanto.tensor.weights.qbits.WeightQBitsTensor(*args, **kwargs)
         optimum_quanto = quanto
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=quanto version={quanto.__version__} fn={fn}') # pylint: disable=protected-access
@@ -381,7 +383,6 @@ def optimum_quanto_weights(sd_model):
         log.info(f"Quantization: type=Optimum.quanto: modules={shared.opts.optimum_quanto_weights}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
         quanto = load_quanto()
-        quanto.tensor.qbits.QBitsTensor.create = lambda *args, **kwargs: quanto.tensor.qbits.QBitsTensor(*args, **kwargs)
 
         sd_model = sd_models.apply_function_to_model(sd_model, optimum_quanto_model, shared.opts.optimum_quanto_weights, op="optimum-quanto")
         if quant_last_model_name is not None:
