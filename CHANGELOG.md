@@ -1,14 +1,6 @@
 # Change Log for SD.Next
 
-## TODO for 2025-04-10
-
-- HiDream requires sidebranch:  
-  > `pip install git+https://github.com/hlky/diffusers@hidream`  
-  > `./webui.sh --debug --experimental`  
-- HiDream make `LLama` optional  
-- `FlashAttn` wiki  
-
-## Update for 2025-04-10
+## Update for 2025-04-11
 
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
@@ -17,9 +9,8 @@
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
     difference between variants is recommended number of steps: *fast=16, dev=28, full=50*  
-    hidream is compatible with flowmatching samplers and with taesd live-preview  
-    *note* HiDream-I1 requires `flash-attn` to be installed  
-    > REQUIRES SIDE-BRANCH
+    hidream supportability: *offloading, quantization, taesd live-preview, remote-vae*  
+    hidream compatibility: *flowmatching samplers*  
 - **Features**  
   - Custom model loader  
       can be used to load any known diffusion model with default or custom model components  
@@ -47,6 +38,10 @@
   - diag: add get-server-status to UI generate context menu  
   - diag: memory monitor detect gpu swapping  
   - use [hf-xet](https://huggingface.co/blog/xet-on-the-hub) for huggingface downloads where possible  
+  - quant: update & fix `optimum-quanto` for transformers  
+  - quant: update & fix `torchao`  
+  - model load: new setting for model load initial device map  
+    can be used to force gpu vs cpu when loading model to avoid oom before model offloading is even activated after load  
 - **Changes**  
   - params: Reset default guidance-rescale from 0.7 to 0.0  
   - progress: add additional fields to progress API  

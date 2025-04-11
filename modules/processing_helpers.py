@@ -371,7 +371,7 @@ def validate_sample(tensor):
         shared.log.error(f'Decode: sample={sample.shape} invalid={nans} dtype={dtype} vae={vae} upcast={upcast} failed to validate')
         if upcast is not None and not upcast:
             setattr(shared.sd_model.vae.config, 'force_upcast', True) # noqa: B010
-            shared.log.warning('Decode: upcast=True set, retry operation')
+            shared.log.info('Decode: set upcast=True and attempt to retry operation')
     t1 = time.time()
     timer.process.add('validate', t1 - t0)
     return cast
