@@ -3,6 +3,7 @@ import sys
 import copy
 import time
 import diffusers
+import transformers
 from installer import installed, install, log, setup_logging
 
 
@@ -64,10 +65,13 @@ def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'
     from modules import shared
     if len(shared.opts.torchao_quantization) > 0 and (shared.opts.torchao_quantization_mode == 'pre') and allow_ao:
         if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization) or module == 'any':
-            load_torchao()
-            if ao is None:
+            torchao = load_torchao()
+            if torchao is None:
                 return kwargs
-            ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
+            if module in {'TE', 'LLM'}:
+                ao_config = transformers.TorchAoConfig(quant_type=shared.opts.torchao_quantization_type)
+            else:
+                ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
             log.debug(f'Quantization: module="{module}" type=torchao dtype={shared.opts.torchao_quantization_type}')
             if kwargs is None:
                 return ao_config
@@ -84,9 +88,7 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
             load_quanto(silent=True)
             if optimum_quanto is None:
                 return kwargs
-            quanto_config = diffusers.QuantoConfig(
-                weights_dtype=shared.opts.quanto_quantization_type,
-            )
+            quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
             quanto_config.activations = None # patch so it works with transformers
             quanto_config.weights = quanto_config.weights_dtype
             log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
@@ -124,7 +126,7 @@ def load_torchao(msg='', silent=False):
     if ao is not None:
         return ao
     if not installed('torchao'):
-        install('torchao==0.8.0', quiet=True)
+        install('torchao==0.10.0', quiet=True)
         log.warning('Quantization: torchao installed please restart')
     try:
         import torchao

@@ -785,7 +785,11 @@ def install_torch_addons():
     if opts.get('nncf_compress_weights', False) and not args.use_openvino:
         install('nncf==2.7.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
-        install('optimum-quanto==0.2.6', 'optimum-quanto')
+        install('optimum-quanto==0.2.7', 'optimum-quanto')
+    if opts.get('torchao_quantization', False):
+        install('torchao==0.10.0', 'torchao')
+    if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
+        install('pillow-jxl-plugin==1.3.2', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
     ts('addons', t_start)
@@ -1136,8 +1140,9 @@ def install_optional():
     install('basicsr')
     install('gfpgan')
     install('clean-fid')
-    install('pillow-jxl-plugin==1.3.1', ignore=True)
-    install('optimum-quanto==0.2.6', ignore=True)
+    install('pillow-jxl-plugin==1.3.2', ignore=True)
+    install('optimum-quanto==0.2.7', ignore=True)
+    install('torchao==0.10.0', ignore=True)
     install('bitsandbytes==0.45.1', ignore=True)
     install('pynvml', ignore=True)
     install('ultralytics==8.3.40', ignore=True)
