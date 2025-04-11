@@ -88,6 +88,7 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
                 weights_dtype=shared.opts.quanto_quantization_type,
             )
             quanto_config.activations = None # patch so it works with transformers
+            quanto_config.weights = quanto_config.weights_dtype
             log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
             if kwargs is None:
                 return quanto_config
