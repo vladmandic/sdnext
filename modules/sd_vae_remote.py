@@ -55,11 +55,11 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
         params = {}
         try:
             latent = latent_copy[i]
-            if model_type != 'f1' and model_type != 'h1':
+            if model_type != 'f1':
                 latent = latent.unsqueeze(0)
-            if model_type == 'h1':
-                num_channels_latents = shared.sd_model.transformer.config.in_channels
-                latent = h1_pack_latents(latent, 1, num_channels_latents, height, width) # pylint: disable=protected-access
+            # if model_type == 'h1':
+            #     num_channels_latents = shared.sd_model.transformer.config.in_channels
+            #     latent = h1_pack_latents(latent, 1, num_channels_latents, height, width) # pylint: disable=protected-access
             params = {
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),

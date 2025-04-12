@@ -4,15 +4,10 @@
 
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
-    new absolutely massive image generative foundation model with **17B** parameters  
-    and 4 (!?) text-encoders: *clip-l, clip-g, t5-1.1-xxl, llama-3.1-8b-instruct* for total of **8.3B** parameters  
+    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
-    custom `llama` model can be set in *settings -> model options*  
-    implementation differens from reference as it bumps up default max token length from 128 to 256  
-    max token length can be further configured using env variable `HIDREAM_MAX_SEQUENCE_LENGTH`  
-    difference between variants is recommended number of steps: *fast=16, dev=28, full=50*  
-    compatible with: *flowmatching samplers*, *offloading, quantization, taesd live-preview*  
+    see [HiDream Wiki page](https://github.com/vladmandic/sdnext/wiki/HiDream) for details  
 - **Features**  
   - Custom model loader  
       can be used to load any known diffusion model with default or custom model components  
