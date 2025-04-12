@@ -2,6 +2,15 @@
 
 ## Update for 2025-04-12
 
+### Highlights for 2025-04-12
+
+Last release was just over a week ago and here we are again with another update as a new high-end image model, [HiDream-I1](https://github.com/vladmandic/sdnext/wiki/HiDream) jumped out and generated a lot of buzz!  
+There are quite a few other performance and quality-of-life improvements in this release and ~85 commits, so please take a look at the full [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-04-12
+
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
     new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
