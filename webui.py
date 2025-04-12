@@ -156,7 +156,7 @@ def initialize():
 
 def load_model():
     if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
-        log.info('Model auto load disabled')
+        log.info('Model: autoload=False')
     else:
         shared.state.begin('Load')
         thread_model = Thread(target=lambda: shared.sd_model)
@@ -333,8 +333,8 @@ def start_ui():
         if public_ip is not None:
             shared.log.info(f'Public URL: {proto}://{public_ip}:{shared.cmd_opts.port}')
     if shared.cmd_opts.docs:
-        shared.log.info(f'API Docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
-        shared.log.info(f'API ReDocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
+        shared.log.info(f'API docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
+        shared.log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
         shared.log.info(f'Share URL: {share_url}')
     # shared.log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')

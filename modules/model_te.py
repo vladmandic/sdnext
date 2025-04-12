@@ -20,12 +20,14 @@ def load_t5(name=None, cache_dir=None):
     modelloader.hf_login()
     repo_id = 'stabilityai/stable-diffusion-3-medium-diffusers'
     fn = te_dict.get(name) if name in te_dict else None
+
     if fn is not None and name.lower().endswith('gguf'):
         from modules import ggml
         ggml.install_gguf()
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             t5_config = transformers.T5Config(**json.load(f))
         t5 = transformers.T5EncoderModel.from_pretrained(None, gguf_file=fn, config=t5_config, device_map="auto", cache_dir=cache_dir, torch_dtype=devices.dtype)
+
     elif fn is not None and 'fp8' in name.lower():
         from accelerate.utils import set_module_tensor_to_device
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
@@ -45,28 +47,34 @@ def load_t5(name=None, cache_dir=None):
             try:
                 t5 = t5.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"FLUX: Failed to cast text encoder to {devices.dtype}, set dtype to {t5.dtype}")
+                shared.log.error(f"T5: Failed to cast text encoder to {devices.dtype}, set dtype to {t5.dtype}")
                 raise
+
     elif fn is not None:
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             t5_config = transformers.T5Config(**json.load(f))
         state_dict = load_file(fn)
         t5 = transformers.T5EncoderModel.from_pretrained(None, state_dict=state_dict, config=t5_config)
+
     elif 'fp16' in name.lower():
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
+
     elif 'fp4' in name.lower():
         model_quant.load_bnb('Load model: type=T5')
         quantization_config = transformers.BitsAndBytesConfig(load_in_4bit=True)
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
     elif 'fp8' in name.lower():
         model_quant.load_bnb('Load model: type=T5')
         quantization_config = transformers.BitsAndBytesConfig(load_in_8bit=True)
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
     elif 'qint8' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
         from modules.model_quant import optimum_quanto_model
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
         t5 = optimum_quanto_model(t5, weights="qint8", activations="none")
+
     elif 'int8' in name.lower():
         install('nncf==2.7.0', quiet=True)
         from modules.model_quant import nncf_compress_model
@@ -78,8 +86,15 @@ def load_t5(name=None, cache_dir=None):
                 dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
             )
         t5 = nncf_compress_model(t5)
+
+    elif '/' in name:
+        shared.log.debug(f'Load model: type=T5 repo={name}')
+        quant_config = model_quant.create_config(module='TE')
+        t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
+
     else:
         t5 = None
+
     if t5 is not None:
         loaded_te = name
     return t5
@@ -120,8 +135,8 @@ def load_vit_l():
     config = transformers.PretrainedConfig.from_json_file('configs/sdxl/text_encoder/config.json')
     state_dict = load_file(os.path.join(shared.opts.te_dir, f'{shared.opts.sd_text_encoder}.safetensors'))
     te = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config)
-    loaded_te = shared.opts.sd_text_encoder
     te = te.to(dtype=devices.dtype)
+    loaded_te = shared.opts.sd_text_encoder
     return te
 
 
@@ -130,8 +145,8 @@ def load_vit_g():
     config = transformers.PretrainedConfig.from_json_file('configs/sdxl/text_encoder_2/config.json')
     state_dict = load_file(os.path.join(shared.opts.te_dir, f'{shared.opts.sd_text_encoder}.safetensors'))
     te = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config)
-    loaded_te = shared.opts.sd_text_encoder
     te = te.to(dtype=devices.dtype)
+    loaded_te = shared.opts.sd_text_encoder
     return te
 
 

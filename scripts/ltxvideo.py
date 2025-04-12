@@ -5,7 +5,6 @@ import gradio as gr
 import diffusers
 import transformers
 from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer
-from modules.teacache.teacache_ltx import teacache_forward
 
 
 repos = {
@@ -42,7 +41,7 @@ def hijack_decode(*args, **kwargs):
 
 def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
-    res = shared.sd_model.vae.orig_encode_prompt(*args, **kwargs)
+    res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     t1 = time.time()
     timer.process.add('te', t1-t0)
     shared.log.debug(f'Video: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
@@ -113,7 +112,6 @@ class Script(scripts.Script):
         if shared.sd_model.__class__ != cls:
             sd_models.unload_model_weights()
             kwargs = model_quant.create_config()
-            diffusers.LTXVideoTransformer3DModel.forward = teacache_forward
             if os.path.isfile(repo_id):
                 shared.sd_model = cls.from_single_file(
                     repo_id,
@@ -131,7 +129,7 @@ class Script(scripts.Script):
                 )
             sd_models.set_diffuser_options(shared.sd_model)
             shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
-            shared.sd_model.vae.orig_encode_prompt = shared.sd_model.encode_prompt
+            shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
             shared.sd_model.vae.decode = hijack_decode
             shared.sd_model.encode_prompt = hijack_encode_prompt
             shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(repo_id)

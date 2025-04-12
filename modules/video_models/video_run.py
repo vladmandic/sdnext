@@ -56,6 +56,10 @@ def generate(*args, **kwargs):
         if init_image is None:
             return video_utils.queue_err('init image not set')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
+        shared.log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
+    elif 'T2V' in model:
+        if init_image is not None:
+            shared.log.debug('Video: op=T2V init image not supported')
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)

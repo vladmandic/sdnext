@@ -274,7 +274,7 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if t_current - t_server > 120:
+        if float(args.status) > 0 and t_current - t_server > float(args.status):
             installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
             t_server = t_current
         if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):

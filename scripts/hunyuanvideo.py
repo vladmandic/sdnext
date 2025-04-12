@@ -50,7 +50,7 @@ def hijack_decode(*args, **kwargs):
 
 def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
-    res = shared.sd_model.vae.orig_encode_prompt(*args, **kwargs)
+    res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     t1 = time.time()
     timer.process.add('te', t1-t0)
     shared.log.debug(f'Video: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
@@ -133,7 +133,7 @@ class Script(scripts.Script):
             shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(models.get(model)['repo'])
             shared.sd_model.sd_model_hash = None
             shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
-            shared.sd_model.vae.orig_encode_prompt = shared.sd_model.encode_prompt
+            shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
             shared.sd_model.vae.decode = hijack_decode
             shared.sd_model.encode_prompt = hijack_encode_prompt
             shared.sd_model.vae.enable_slicing()

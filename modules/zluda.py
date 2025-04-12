@@ -33,8 +33,8 @@ def initialize_zluda():
     from modules.zluda_hijacks import do_hijack
     do_hijack()
 
-    torch.backends.cudnn.enabled = zluda_installer.MIOpen_available
-    if not zluda_installer.MIOpen_available:
+    torch.backends.cudnn.enabled = zluda_installer.MIOpen_enabled
+    if not zluda_installer.MIOpen_enabled:
         torch.backends.cuda.enable_cudnn_sdp(False)
         torch.backends.cuda.enable_cudnn_sdp = do_nothing
     torch.backends.cuda.enable_flash_sdp(False)

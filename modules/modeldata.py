@@ -41,6 +41,8 @@ def get_model_type(pipe):
         model_type = 'cogview4'
     elif "Sana" in name:
         model_type = 'sana'
+    elif "HiDream" in name:
+        model_type = 'h1'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

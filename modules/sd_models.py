@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 
 from installer import log
-from modules import paths, shared, shared_state, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
+from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
 from modules.timer import Timer, process as process_timer
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
@@ -31,6 +31,21 @@ debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
 checkpoint_tiles = checkpoint_titles # legacy compatibility
+pipe_switch_task_exclude = [
+    'StableDiffusionReferencePipeline',
+    'StableDiffusionAdapterPipeline',
+    'AnimateDiffPipeline',
+    'AnimateDiffSDXLPipeline',
+    'OmniGenPipeline',
+    'StableDiffusion3ControlNetPipeline',
+    'InstantIRPipeline',
+    'FluxFillPipeline',
+    'FluxControlPipeline',
+    'PixelSmithXLPipeline',
+    'PhotoMakerStableDiffusionXLPipeline',
+    'StableDiffusionXLInstantIDPipeline',
+    'LTXConditionPipeline',
+]
 
 
 def change_backend():
@@ -262,18 +277,22 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
 
 def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='model'):
     sd_model = None
+    unload_model_weights()
+    shared.sd_model = None
     try:
         if model_type in ['Stable Cascade']: # forced pipeline
             from modules.model_stablecascade import load_cascade_combined
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
         elif model_type in ['InstaFlow']: # forced pipeline
             pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
+            shared_items.pipelines['InstaFlow'] = pipeline
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
         elif model_type in ['SegMoE']: # forced pipeline
             from modules.segmoe.segmoe_model import SegMoEPipeline
             sd_model = SegMoEPipeline(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model = sd_model.pipe # segmoe pipe does its stuff in __init__ and __call__ is the original pipeline
-        elif model_type in ['PixArt-Sigma']: # forced pipeline
+            shared_items.pipelines['SegMoE'] = SegMoEPipeline
+        elif model_type in ['PixArt Sigma']: # forced pipeline
             from modules.model_pixart import load_pixart
             sd_model = load_pixart(checkpoint_info, diffusers_load_config)
         elif model_type in ['Sana']: # forced pipeline
@@ -297,10 +316,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['Stable Diffusion 3']:
             from modules.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
-        elif model_type in ['CogView3']: # forced pipeline
+        elif model_type in ['CogView 3']: # forced pipeline
             from modules.model_cogview import load_cogview3
             sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
-        elif model_type in ['CogView4']: # forced pipeline
+        elif model_type in ['CogView 4']: # forced pipeline
             from modules.model_cogview import load_cogview4
             sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
         elif model_type in ['Meissonic']: # forced pipeline
@@ -309,6 +328,9 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['OmniGen']: # forced pipeline
             from modules.model_omnigen import load_omnigen
             sd_model = load_omnigen(checkpoint_info, diffusers_load_config)
+        elif model_type in ['HiDream']:
+            from modules.model_hidream import load_hidream
+            sd_model = load_hidream(checkpoint_info, diffusers_load_config)
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
@@ -755,21 +777,6 @@ def clean_diffuser_pipe(pipe):
 
 
 def set_diffuser_pipe(pipe, new_pipe_type):
-    exclude = [
-        'StableDiffusionReferencePipeline',
-        'StableDiffusionAdapterPipeline',
-        'AnimateDiffPipeline',
-        'AnimateDiffSDXLPipeline',
-        'OmniGenPipeline',
-        'StableDiffusion3ControlNetPipeline',
-        'InstantIRPipeline',
-        'FluxFillPipeline',
-        'FluxControlPipeline',
-        'PixelSmithXLPipeline',
-        'PhotoMakerStableDiffusionXLPipeline',
-        'StableDiffusionXLInstantIDPipeline',
-    ]
-
     has_errors = False
     if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
         clean_diffuser_pipe(pipe)
@@ -779,7 +786,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     # skip specific pipelines
     cls = pipe.__class__.__name__
-    if cls in exclude:
+    if cls in pipe_switch_task_exclude:
         return pipe
     if 'Video' in cls:
         return pipe

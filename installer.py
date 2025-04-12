@@ -538,7 +538,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = 'f10775b1b55cbebc58655b966b4ba3a6fc259ca3' # diffusers commit hash
+    sha = '0ef29355c9d65b78eabb6a4ac5bee73aa685e9a6' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -649,7 +649,6 @@ def install_rocm_zluda():
                 if device is not None and zluda_installer.get_blaslt_enabled():
                     log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
                     zluda_installer.set_blaslt_enabled(device.blaslt_supported)
-                zluda_installer.make_copy()
                 zluda_installer.load()
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
@@ -786,7 +785,11 @@ def install_torch_addons():
     if opts.get('nncf_compress_weights', False) and not args.use_openvino:
         install('nncf==2.7.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
-        install('optimum-quanto==0.2.6', 'optimum-quanto')
+        install('optimum-quanto==0.2.7', 'optimum-quanto')
+    if opts.get('torchao_quantization', False):
+        install('torchao==0.10.0', 'torchao')
+    if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
+        install('pillow-jxl-plugin==1.3.2', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
     ts('addons', t_start)
@@ -1137,8 +1140,9 @@ def install_optional():
     install('basicsr')
     install('gfpgan')
     install('clean-fid')
-    install('pillow-jxl-plugin==1.3.1', ignore=True)
-    install('optimum-quanto==0.2.6', ignore=True)
+    install('pillow-jxl-plugin==1.3.2', ignore=True)
+    install('optimum-quanto==0.2.7', ignore=True)
+    install('torchao==0.10.0', ignore=True)
     install('bitsandbytes==0.45.1', ignore=True)
     install('pynvml', ignore=True)
     install('ultralytics==8.3.40', ignore=True)
@@ -1487,12 +1491,13 @@ def add_args(parser):
     group_diag.add_argument('--test', default=os.environ.get("SD_TEST",False), action='store_true', help="Run test only and exit")
     group_diag.add_argument('--version', default=False, action='store_true', help="Print version information")
     group_diag.add_argument('--ignore', default=os.environ.get("SD_IGNORE",False), action='store_true', help="Ignore any errors and attempt to continue")
+    group_diag.add_argument("--monitor", default=os.environ.get("SD_MONITOR", 0), help="Run memory monitor, default: %(default)s")
+    group_diag.add_argument("--status", default=os.environ.get("SD_STATUS", 120), help="Run server is-alive status, default: %(default)s")
 
     group_log = parser.add_argument_group('Logging')
     group_log.add_argument("--log", type=str, default=os.environ.get("SD_LOG", None), help="Set log file, default: %(default)s")
     group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run installer with debug logging, default: %(default)s")
     group_log.add_argument("--profile", default=os.environ.get("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
-    group_log.add_argument("--monitor", default=os.environ.get("SD_PROFILE", 0), help="Run memory monitor, default: %(default)s")
     group_log.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
     group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", True), action='store_true', help="Log all API requests")
 

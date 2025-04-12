@@ -76,6 +76,8 @@ class OptionInfo:
                 value = [value]
             for v in value:
                 if v not in choices:
+                    if isinstance(choices, list) and ('All' in choices or 'all' in choices): # may be added dynamically
+                        continue
                     log.debug(f'Setting validation: "{opt}"="{v}" default="{self.default}" choices={choices}')
                     # return False
         minimum = args.get("minimum", None)

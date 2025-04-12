@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from PIL import Image
 import rich.progress as p
 import huggingface_hub as hf
+from installer import install
 from modules import shared, errors, files_cache
 from modules.upscaler import Upscaler
 from modules.paths import script_path, models_path
@@ -42,6 +43,7 @@ def hf_login(token=None):
         line = [l for l in text.split('\n') if 'Token' in l]
         shared.log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         loggedin = token
+    install('hf_xet', quiet=True)
 
 
 def download_civit_meta(model_path: str, model_id):
@@ -363,7 +365,7 @@ def find_diffuser(name: str, full=False):
     if len(models) == 0:
         models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads", direction=-1)) # widen search
     models = [m for m in models if m.id.startswith(name)] # filter exact
-    shared.log.debug(f'Searching diffusers models: {name} {len(models) > 0}')
+    shared.log.debug(f'Search model: repo="{name}" {len(models) > 0}')
     if len(models) > 0:
         if not full:
             return models[0].id

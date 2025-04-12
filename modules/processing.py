@@ -169,9 +169,10 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
         shared.prompt_styles.extract_comments(p)
         if shared.opts.cuda_compile_backend == 'none':
             token_merge.apply_token_merging(p.sd_model)
-            from modules import sd_hijack_freeu, para_attention
+            from modules import sd_hijack_freeu, para_attention, teacache
             sd_hijack_freeu.apply_freeu(p, not shared.native)
-            para_attention.apply_first_block_cache(p)
+            para_attention.apply_first_block_cache()
+            teacache.apply_teacache(p)
 
         if p.width is not None:
             p.width = 8 * int(p.width / 8)

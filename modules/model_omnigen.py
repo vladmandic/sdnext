@@ -1,9 +1,10 @@
 def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
-    from modules import shared, devices, sd_models
+    from modules import shared, devices, sd_models, shared_items
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
 
     # load
     from modules.omnigen import OmniGenPipeline
+    shared_items.pipelines['OmniGen'] = OmniGenPipeline
     pipe = OmniGenPipeline.from_pretrained(
         model_name=repo_id,
         vae_path='madebyollin/sdxl-vae-fp16-fix',

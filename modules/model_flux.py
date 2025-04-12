@@ -223,6 +223,11 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     shared.sd_model = None
     devices.torch_gc(force=True)
 
+    if shared.opts.teacache_enabled:
+        from modules import teacache
+        shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.FluxTransformer2DModel.__name__}')
+        diffusers.FluxTransformer2DModel.forward = teacache.teacache_flux_forward
+
     # load overrides if any
     if shared.opts.sd_unet != 'Default':
         try:

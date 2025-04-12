@@ -341,7 +341,7 @@ def temp_disable_extensions():
 
 def get_default_modes():
     default_offload_mode = "none"
-    default_diffusers_offload_min_gpu_memory = 0.25
+    default_diffusers_offload_min_gpu_memory = 0.2
     if not (cmd_opts.lowvram or cmd_opts.medvram):
         if "gpu" in mem_stat:
             if gpu_memory <= 4:
@@ -356,7 +356,7 @@ def get_default_modes():
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
             else:
                 default_offload_mode = "balanced"
-                default_diffusers_offload_min_gpu_memory = 0.25
+                default_diffusers_offload_min_gpu_memory = 0.2
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced")
     elif cmd_opts.medvram:
         default_offload_mode = "balanced"
@@ -403,14 +403,20 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
     "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Balanced offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
 
     "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
-    "sd_checkpoint_autoload": OptionInfo(True, "Model autoload on start"),
+    "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
     "diffusers_eval": OptionInfo(True, "Force model eval", gr.Checkbox, {"visible": False }),
-    "diffusers_to_gpu": OptionInfo(False, "Model Load model direct to GPU"),
+    "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
+    "device_map": OptionInfo('default', "Model load device map", gr.Radio, {"choices": ['default', 'gpu', 'cpu'] }),
     "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
     "sd_model_dict": OptionInfo('None', "Use separate base dict", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles(), "visible": False}, refresh=refresh_checkpoints),
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": not native }),
+}))
+
+options_templates.update(options_section(('model_options', "Models Options"), {
+    "model_sd3_disable_te5": OptionInfo(False, "StableDiffusion3: T5 disable encoder"),
+    "model_h1_llama_repo": OptionInfo("meta-llama/Meta-Llama-3.1-8B-Instruct", "HiDream: LLama repo", gr.Textbox),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {
@@ -429,7 +435,7 @@ options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"
 }))
 
 options_templates.update(options_section(('text_encoder', "Text Encoder"), {
-    "sd_text_encoder": OptionInfo('Default', "Text encoder model", gr.Dropdown, lambda: {"choices": shared_items.sd_te_items()}, refresh=shared_items.refresh_te_list),
+    "sd_text_encoder": OptionInfo('Default', "Text encoder model", DropdownEditable, lambda: {"choices": shared_items.sd_te_items()}, refresh=shared_items.refresh_te_list),
     "prompt_attention": OptionInfo("native", "Prompt attention parser", gr.Radio, {"choices": ["native", "compel", "xhinker", "a1111", "fixed"] }),
     "prompt_mean_norm": OptionInfo(False, "Prompt attention normalization", gr.Checkbox),
     "sd_textencoder_cache": OptionInfo(True, "Cache text encoder results", gr.Checkbox, {"visible": False}),
@@ -509,12 +515,12 @@ options_templates.update(options_section(('backends', "Backend Settings"), {
 
 options_templates.update(options_section(('quantization', "Quantization Settings"), {
     "bnb_quantization_sep": OptionInfo("<h2>BitsAndBytes</h2>", "", gr.HTML),
-    "bnb_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM"], "visible": native}),
+    "bnb_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "bnb_quantization_type": OptionInfo("nf4", "Quantization type", gr.Dropdown, {"choices": ['nf4', 'fp8', 'fp4'], "visible": native}),
     "bnb_quantization_storage": OptionInfo("uint8", "Backend storage", gr.Dropdown, {"choices": ["float16", "float32", "int8", "uint8", "float64", "bfloat16"], "visible": native}),
 
     "quanto_quantization_sep": OptionInfo("<h2>Optimum Quanto</h2>", "", gr.HTML),
-    "quanto_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM"], "visible": native}),
+    "quanto_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "quanto_quantization_type": OptionInfo("int8", "Quantization weights type", gr.Dropdown, {"choices": ["float8", "int8", "int4", "int2"], "visible": native}),
 
     "optimum_quanto_sep": OptionInfo("<h2>Optimum Quanto: post-load</h2>", "", gr.HTML),
@@ -560,13 +566,13 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "pag_apply_layers": OptionInfo("m0", "PAG layer names"),
 
     "pab_sep": OptionInfo("<h2>PAB: Pyramid attention broadcast </h2>", "", gr.HTML),
-    "pab_enabled": OptionInfo(False, "Attention cache enabled"),
-    "pab_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
-    "pab_spacial_skip_start": OptionInfo(100, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
-    "pab_spacial_skip_end": OptionInfo(800, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "pab_enabled": OptionInfo(False, "PAB cache enabled"),
+    "pab_spacial_skip_range": OptionInfo(2, "PAB spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
+    "pab_spacial_skip_start": OptionInfo(100, "PAB spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+    "pab_spacial_skip_end": OptionInfo(800, "PAB spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
 
     "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
-    "faster_cache_enabled": OptionInfo(False, "Faster cache enabled"),
+    "faster_cache_enabled": OptionInfo(False, "FC cache enabled"),
     "fc_spacial_skip_range": OptionInfo(2, "FC spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
     "fc_spacial_skip_start": OptionInfo(0, "FC spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
     "fc_spacial_skip_end": OptionInfo(681, "FC spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01}),
@@ -580,6 +586,10 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "para_sep": OptionInfo("<h2>Para-attention</h2>", "", gr.HTML),
     "para_cache_enabled": OptionInfo(False, "First-block cache enabled"),
     "para_diff_threshold": OptionInfo(0.1, "Residual diff threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
+
+    "teacache_sep": OptionInfo("<h2>TeaCache</h2>", "", gr.HTML),
+    "teacache_enabled": OptionInfo(False, "TC cache enabled"),
+    "teacache_thresh": OptionInfo(0.6, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
 
     "hypertile_sep": OptionInfo("<h2>HyperTile</h2>", "", gr.HTML),
     "hypertile_unet_enabled": OptionInfo(False, "UNet Enabled"),
@@ -930,8 +940,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "lora_preferred_name": OptionInfo("filename", "LoRA preferred name", gr.Radio, {"choices": ["filename", "alias"], "visible": False}),
     "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     "lora_fuse_diffusers": OptionInfo(True, "LoRA fuse directly to model"),
-    "lora_apply_gpu": OptionInfo(False, "LoRA load directly on GPU"),
     "lora_legacy": OptionInfo(not native, "LoRA load using legacy method"),
+    "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
     "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models"),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),

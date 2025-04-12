@@ -103,6 +103,7 @@
     // progressbar.js
     "randomId": "readonly",
     "requestProgress": "readonly",
+    "setRefreshInterval": "readonly",
     // imageviewer.js
     "modalPrevImage": "readonly",
     "modalNextImage": "readonly",

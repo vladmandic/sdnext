@@ -41,7 +41,7 @@ class StableDiffusionProcessing:
                  # guidance
                  cfg_scale: float = 6.0,
                  cfg_end: float = 1,
-                 diffusers_guidance_rescale: float = 0.7,
+                 diffusers_guidance_rescale: float = 0.0,
                  pag_scale: float = 0.0,
                  pag_adaptive: float = 0.5,
                  # styles

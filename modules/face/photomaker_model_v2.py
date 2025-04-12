@@ -323,7 +323,7 @@ class PhotoMakerIDEncoder_CLIPInsightfaceExtendtoken(CLIPVisionModelWithProjecti
                                     self.num_tokens,
                                 )
 
-    def forward(self, id_pixel_values, prompt_embeds, class_tokens_mask, id_embeds): # pylint: disable=arguments-differ
+    def forward(self, id_pixel_values, prompt_embeds, class_tokens_mask, id_embeds): # pylint: disable=arguments-differ, arguments-renamed
         b, num_inputs, c, h, w = id_pixel_values.shape
         id_pixel_values = id_pixel_values.view(b * num_inputs, c, h, w)
 

@@ -3,6 +3,7 @@ import sys
 import copy
 import time
 import diffusers
+import transformers
 from installer import installed, install, log, setup_logging
 
 
@@ -13,6 +14,12 @@ optimum_quanto = None
 quant_last_model_name = None
 quant_last_model_device = None
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
+
+
+def get_quant_type(args):
+    if args is not None and "quantization_config" in args:
+        return args['quantization_config'].__class__.__name__
+    return None
 
 
 def get_quant(name):
@@ -34,7 +41,7 @@ def get_quant(name):
 def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Model'):
     from modules import shared, devices
     if len(shared.opts.bnb_quantization) > 0 and allow_bnb:
-        if 'Model' in shared.opts.bnb_quantization or (module is not None and module in shared.opts.bnb_quantization):
+        if 'Model' in shared.opts.bnb_quantization or (module is not None and module in shared.opts.bnb_quantization) or module == 'any':
             load_bnb()
             if bnb is None:
                 return kwargs
@@ -56,12 +63,15 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
 
 def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'):
     from modules import shared
-    if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'pre' and allow_ao:
-        if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization):
-            load_torchao()
-            if ao is None:
+    if len(shared.opts.torchao_quantization) > 0 and (shared.opts.torchao_quantization_mode == 'pre') and allow_ao:
+        if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization) or module == 'any':
+            torchao = load_torchao()
+            if torchao is None:
                 return kwargs
-            ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
+            if module in {'TE', 'LLM'}:
+                ao_config = transformers.TorchAoConfig(quant_type=shared.opts.torchao_quantization_type)
+            else:
+                ao_config = diffusers.TorchAoConfig(shared.opts.torchao_quantization_type)
             log.debug(f'Quantization: module="{module}" type=torchao dtype={shared.opts.torchao_quantization_type}')
             if kwargs is None:
                 return ao_config
@@ -74,14 +84,13 @@ def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model'
 def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str = 'Model'):
     from modules import shared
     if len(shared.opts.quanto_quantization) > 0 and allow_quanto:
-        if 'Model' in shared.opts.quanto_quantization or (module is not None and module in shared.opts.quanto_quantization):
+        if 'Model' in shared.opts.quanto_quantization or (module is not None and module in shared.opts.quanto_quantization) or module == 'any':
             load_quanto(silent=True)
             if optimum_quanto is None:
                 return kwargs
-            quanto_config = diffusers.QuantoConfig(
-                weights_dtype=shared.opts.quanto_quantization_type,
-            )
+            quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
             quanto_config.activations = None # patch so it works with transformers
+            quanto_config.weights = quanto_config.weights_dtype
             log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
             if kwargs is None:
                 return quanto_config
@@ -117,7 +126,7 @@ def load_torchao(msg='', silent=False):
     if ao is not None:
         return ao
     if not installed('torchao'):
-        install('torchao==0.8.0', quiet=True)
+        install('torchao==0.10.0', quiet=True)
         log.warning('Quantization: torchao installed please restart')
     try:
         import torchao
@@ -174,6 +183,8 @@ def load_quanto(msg='', silent=False):
         log.warning('Quantization: optimum-quanto installed please restart')
     try:
         from optimum import quanto # pylint: disable=no-name-in-module
+        # disable device specific tensors because the model can't be moved between cpu and gpu with them
+        quanto.tensor.weights.qbits.WeightQBitsTensor.create = lambda *args, **kwargs: quanto.tensor.weights.qbits.WeightQBitsTensor(*args, **kwargs)
         optimum_quanto = quanto
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=quanto version={quanto.__version__} fn={fn}') # pylint: disable=protected-access
@@ -372,7 +383,6 @@ def optimum_quanto_weights(sd_model):
         log.info(f"Quantization: type=Optimum.quanto: modules={shared.opts.optimum_quanto_weights}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
         quanto = load_quanto()
-        quanto.tensor.qbits.QBitsTensor.create = lambda *args, **kwargs: quanto.tensor.qbits.QBitsTensor(*args, **kwargs)
 
         sd_model = sd_models.apply_function_to_model(sd_model, optimum_quanto_model, shared.opts.optimum_quanto_weights, op="optimum-quanto")
         if quant_last_model_name is not None:
@@ -445,3 +455,32 @@ def torchao_quantization(sd_model):
         log.error(f"Quantization: type=TorchAO {e}")
     setup_logging() # torchao uses dynamo which messes with logging so reset is needed
     return sd_model
+
+
+def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, allow_quant:bool=True):
+    from modules import shared, devices
+    config = load_config.copy()
+    if 'torch_dtype' not in config:
+        config['torch_dtype'] = devices.dtype
+    if 'low_cpu_mem_usage' in config:
+        del config['low_cpu_mem_usage']
+    if 'load_connected_pipeline' in config:
+        del config['load_connected_pipeline']
+    if 'safety_checker' in config:
+        del config['safety_checker']
+    if 'requires_safety_checker' in config:
+        del config['requires_safety_checker']
+    if 'variant' in config:
+        del config['variant']
+    if device_map:
+        if shared.opts.device_map == 'cpu':
+            config['device_map'] = 'cpu'
+        if shared.opts.device_map == 'gpu':
+            config['device_map'] = devices.device
+        if devices.backend == "ipex" and os.environ.get('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '0') != '1' and module in {'TE', 'LLM'}:
+            config['device_map'] = 'cpu' # alchemist gpus hits the 4GB allocation limit with transformers, UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS emulates above 4GB allocations
+    if allow_quant:
+        quant_args = create_config(module=module)
+    else:
+        quant_args = {}
+    return config, quant_args

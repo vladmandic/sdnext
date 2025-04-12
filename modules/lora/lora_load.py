@@ -2,7 +2,7 @@ from typing import Union
 import os
 import time
 import concurrent
-from modules import shared, errors, devices, sd_models, sd_models_compile, files_cache
+from modules import shared, errors, sd_models, sd_models_compile, files_cache
 from modules.lora import network, lora_overrides, lora_convert
 from modules.lora import lora_common as l
 
@@ -72,7 +72,6 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     bundle_embeddings = {}
     dtypes = []
     convert = lora_convert.KeyConvert()
-    device = devices.device if shared.opts.lora_apply_gpu else devices.cpu
     for key_network, weight in state_dict.items():
         parts = key_network.split('.')
         if parts[0] == "bundle_emb":
@@ -116,7 +115,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
         if l.debug:
             shared.log.debug(f'Network load: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
     else:
-        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} device={device} dtypes={dtypes} direct={shared.opts.lora_fuse_diffusers}')
+        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} direct={shared.opts.lora_fuse_diffusers}')
     if len(matched_networks) == 0:
         return None
     lora_cache[name] = net

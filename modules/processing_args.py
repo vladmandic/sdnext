@@ -14,7 +14,7 @@ from modules.api import helpers
 
 
 debug_enabled = os.environ.get('SD_DIFFUSERS_DEBUG', None)
-debug_log = shared.log.trace if os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 

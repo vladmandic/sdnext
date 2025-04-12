@@ -24,29 +24,29 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 elif (size >= 316 and size <= 324) or (size >= 156 and size <= 164): # 320 or 160
                     warn(f'Model detected as VAE model, but attempting to load as model: {op}={f} size={size} MB')
                     guess = 'VAE'
-                elif (size >= 4970 and size <= 4976): # 4973
-                    guess = 'Stable Diffusion 2' # SD v2 but could be eps or v-prediction
-                # elif size < 0: # unknown
-                #    guess = 'Stable Diffusion 2B'
-                elif (size >= 5791 and size <= 5799): # 5795
-                    if op == 'model':
-                        warn(f'Model detected as SD-XL refiner model, but attempting to load a base model: {op}={f} size={size} MB')
-                    guess = 'Stable Diffusion XL Refiner'
-                elif (size >= 6611 and size <= 7220): # 6617, HassakuXL is 6776, monkrenRealisticINT_v10 is 7217
+                elif (size >= 2002 and size <= 2038): # 2032
+                    guess = 'Stable Diffusion 1.5'
+                elif (size >= 3138 and size <= 3142): #3140
                     guess = 'Stable Diffusion XL'
                 elif (size >= 3361 and size <= 3369): # 3368
                     guess = 'Stable Diffusion Upscale'
                 elif (size >= 4891 and size <= 4899): # 4897
                     guess = 'Stable Diffusion XL Inpaint'
-                elif (size >= 9791 and size <= 9799): # 9794
-                    guess = 'Stable Diffusion XL Instruct'
-                elif (size > 3138 and size < 3142): #3140
-                    guess = 'Stable Diffusion XL'
+                elif (size >= 4970 and size <= 4976): # 4973
+                    guess = 'Stable Diffusion 2' # SD v2 but could be eps or v-prediction
+                elif (size >= 5791 and size <= 5799): # 5795
+                    if op == 'model':
+                        warn(f'Model detected as SD-XL refiner model, but attempting to load a base model: {op}={f} size={size} MB')
+                    guess = 'Stable Diffusion XL Refiner'
                 elif (size > 5692 and size < 5698) or (size > 4134 and size < 4138) or (size > 10362 and size < 10366) or (size > 15028 and size < 15228):
                     guess = 'Stable Diffusion 3'
-                elif (size > 18414 and size < 18420): # sd35-large aio
+                elif (size >= 6611 and size <= 7220): # 6617, HassakuXL is 6776, monkrenRealisticINT_v10 is 7217
+                    guess = 'Stable Diffusion XL'
+                elif (size >= 9791 and size <= 9799): # 9794
+                    guess = 'Stable Diffusion XL Instruct'
+                elif (size >= 18414 and size <= 18420): # sd35-large aio
                     guess = 'Stable Diffusion 3'
-                elif (size > 20000 and size < 40000):
+                elif (size >= 20000 and size <= 40000):
                     guess = 'FLUX'
             # guess by name
             if 'instaflow' in f.lower():
@@ -56,7 +56,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             if 'hunyuandit' in f.lower():
                 guess = 'HunyuanDiT'
             if 'pixart-xl' in f.lower():
-                guess = 'PixArt-Alpha'
+                guess = 'PixArt Alpha'
             if 'stable-diffusion-3' in f.lower():
                 guess = 'Stable Diffusion 3'
             if 'stable-cascade' in f.lower() or 'stablecascade' in f.lower() or 'wuerstchen3' in f.lower() or ('sotediffusion' in f.lower() and "v2" in f.lower()):
@@ -64,7 +64,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                     warn('Stable Cascade does not support Float16')
                 guess = 'Stable Cascade'
             if 'pixart-sigma' in f.lower():
-                guess = 'PixArt-Sigma'
+                guess = 'PixArt Sigma'
             if 'sana' in f.lower():
                 guess = 'Sana'
             if 'lumina-next' in f.lower():
@@ -76,9 +76,9 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             if 'auraflow' in f.lower():
                 guess = 'AuraFlow'
             if 'cogview3' in f.lower():
-                guess = 'CogView3'
+                guess = 'CogView 3'
             if 'cogview4' in f.lower():
-                guess = 'CogView4'
+                guess = 'CogView 4'
             if 'meissonic' in f.lower():
                 guess = 'Meissonic'
                 pipeline = 'custom'
@@ -90,6 +90,8 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 pipeline = 'custom'
             if 'sd3' in f.lower():
                 guess = 'Stable Diffusion 3'
+            if 'hidream' in f.lower():
+                guess = 'HiDream'
             if 'flux' in f.lower() or 'flex.1' in f.lower():
                 guess = 'FLUX'
                 if size > 11000 and size < 16000:

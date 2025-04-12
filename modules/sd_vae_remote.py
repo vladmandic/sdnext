@@ -12,6 +12,7 @@ hf_decode_endpoints = {
     'sd': 'https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
+    'h1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
     'hunyuanvideo': 'https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud',
 }
 hf_encode_endpoints = {
@@ -25,6 +26,13 @@ dtypes = {
     "bfloat16": torch.bfloat16,
     "uint8": torch.uint8,
 }
+
+
+def h1_pack_latents(latents, _batch_size, _num_channels_latents, _height, _width): # TODO hidream: pack latents for remote vae
+    # latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
+    # latents = latents.permute(0, 2, 4, 1, 3, 5)
+    # latents = latents.reshape(batch_size, (height // 2) * (width // 2) // (num_channels_latents * 4), num_channels_latents * 4)
+    return latents
 
 
 def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str = None) -> Image.Image:
@@ -44,10 +52,14 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
         latent_copy = latent_copy.unsqueeze(0)
 
     for i in range(latent_copy.shape[0]):
+        params = {}
         try:
             latent = latent_copy[i]
             if model_type != 'f1':
                 latent = latent.unsqueeze(0)
+            # if model_type == 'h1':
+            #     num_channels_latents = shared.sd_model.transformer.config.in_channels
+            #     latent = h1_pack_latents(latent, 1, num_channels_latents, height, width) # pylint: disable=protected-access
             params = {
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),
@@ -72,7 +84,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-            if (model_type == 'f1') and (width > 0) and (height > 0):
+            if (model_type == 'f1' or model_type == 'h1') and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:

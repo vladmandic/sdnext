@@ -34,7 +34,7 @@ def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-
     elif detect.is_f1(cls):
         p.task_args['true_cfg_scale'] = p.pag_scale
     else:
-        shared.log.warning(f'PAG: pipeline={cls.__name__} required={StableDiffusionPipeline.__name__}')
+        # shared.log.warning(f'PAG: pipeline={cls.__name__} required={StableDiffusionPipeline.__name__}')
         return None
 
     p.task_args['pag_scale'] = p.pag_scale

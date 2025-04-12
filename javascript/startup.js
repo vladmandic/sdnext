@@ -35,6 +35,7 @@ async function initStartup() {
     window.subpath = window.opts.subpath;
     window.api = `${window.subpath}/sdapi/v1`;
   }
+  setRefreshInterval();
   executeCallbacks(uiReadyCallbacks);
   initLogMonitor();
   setupExtraNetworks();

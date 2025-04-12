@@ -1,16 +1,67 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-04
+## Update for 2025-04-12
 
-- Video: add FasterCache and PAB support to WanDB and LTX models  
-- ZLUDA: add more GPUs to recognized list  
-- LoRA: obey configured device when performing calculations  
-- Progress: add additional fields to progress API  
-- Progress: use batch-count for progress  
-- Grid: add of max-rows and max-columns in settings to control grid format  
-- Gallery: add max-columns in settings for gradio gallery components  
-- Styles: resize and bring quick-ui to forward on hover  
-- Logging: fix debug logging  
+### Highlights for 2025-04-12
+
+Last release was just over a week ago and here we are again with another update as a new high-end image model, [HiDream-I1](https://github.com/vladmandic/sdnext/wiki/HiDream) jumped out and generated a lot of buzz!  
+There are quite a few other performance and quality-of-life improvements in this release and 40 commits, so please take a look at the full [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-04-12
+
+- **Models**  
+  - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
+    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
+    simply select from *networks -> models -> reference*  
+    due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
+    see [HiDream Wiki page](https://github.com/vladmandic/sdnext/wiki/HiDream) for details  
+- **Features**  
+  - Custom model loader  
+      can be used to load any known diffusion model with default or custom model components  
+      in models -> custom tab  
+      see docs for details: <https://vladmandic.github.io/sdnext-docs/Loader/>  
+    - Pipe: [SoftFill](https://github.com/zacheryvaughn/softfill-pipelines)  
+- **Caching**  
+  - add `TeaCache` support to *Flux, CogVideoX, Mochi, LTX*  
+  - add `FasterCache` support to *WanAI, LTX* (other video models already supported)  
+  - add `PyramidAttentionBroadcast` support to *WanAI, LTX* (other video models already supported)  
+- **UI**  
+  - client polling speeds up and slows down depending if client page is visible or not  
+    client polling does not ask for live preview if page is not visible  
+    significantly reduces server load if you hide or minimize the page  
+  - progress: use batch-count for progress  
+  - grid: add of max-rows and max-columns in settings to control grid format  
+  - gallery: add max-columns in settings for gradio gallery components  
+- **Other**  
+  - ZLUDA: add more GPUs to recognized list  
+    select in scripts, available for sdxl in inpaint model  
+  - LoRA: add option to force-reload LoRA on every generate  
+  - settings: add **Model options** sections as placeholder for per-model settings
+  - video: update *LTXVideo-0.9.5* pipeline  
+  - te loader: allow free-form input in which case sdnext will attempt to load it as hf repo  
+  - diag: add get-server-status to UI generate context menu  
+  - diag: memory monitor detect gpu swapping  
+  - use [hf-xet](https://huggingface.co/blog/xet-on-the-hub) for huggingface downloads where possible  
+  - quant: update & fix `optimum-quanto` for transformers  
+  - quant: update & fix `torchao`  
+  - model load: new setting for model load initial device map  
+    can be used to force gpu vs cpu when loading model to avoid oom before model offloading is even activated after load  
+- **Changes**  
+  - params: Reset default guidance-rescale from 0.7 to 0.0  
+  - progress: add additional fields to progress API  
+- **Fixes**  
+  - styles: resize and bring quick-ui to forward on hover  
+  - LoRA: obey configured device when performing calculations  
+  - ZLUDA: startup issues  
+  - offload: balanced offload remove non-blocking move op  
+  - logging: debug causes invalid import  
+  - logging: cleanup  
+  - ROCm: flash attention repo with navi rotary fix  
+  - prompt: prompt scheduling with te caching  
+  - ui: progress allow for longer timeouts  
+  - internal: cleanup defined pipelines
 
 ## Update for 2025-04-03
 

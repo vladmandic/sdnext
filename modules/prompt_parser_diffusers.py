@@ -85,8 +85,12 @@ class PromptEmbedder:
     def checkcache(self, p):
         if shared.opts.sd_textencoder_cache_size == 0:
             return False
+        if self.scheduled_prompt:
+            debug("Prompt cache: scheduled prompt")
+            cache.clear()
+            return False
         if self.attention != shared.opts.prompt_attention:
-            debug(f"Prompt change: parser={shared.opts.prompt_attention}")
+            debug(f"Prompt cache: parser={shared.opts.prompt_attention} changed")
             cache.clear()
             return False
 
@@ -284,7 +288,6 @@ class DiffusersTextualInversionManager(BaseTextualInversionManager):
 
 
 def get_prompt_schedule(prompt, steps):
-    t0 = time.time()
     temp = []
     schedule = prompt_parser.get_learned_conditioning_prompt_schedules([prompt], steps)[0]
     if all(x == schedule[0] for x in schedule):
@@ -293,7 +296,6 @@ def get_prompt_schedule(prompt, steps):
         for s in range(steps):
             if len(temp) < s + 1 <= chunk[0]:
                 temp.append(chunk[1])
-    debug(f'Prompt: schedule={temp} time={(time.time() - t0):.3f}')
     return temp, len(schedule) > 1
 
 

@@ -118,7 +118,6 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
     if model_weights is None: # weights are used if provided-from-backup else use self.weight
         model_weights = self.weight
     weight, new_weight = None, None
-    device = device or devices.device
     # TODO lora: add other quantization types
     if self.__class__.__name__ == 'Linear4bit' and bnb is not None:
         try:
@@ -134,7 +133,11 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
         except Exception as e:
             shared.log.warning(f'Network load: {e}')
-            new_weight = model_weights + lora_weights # try without device cast
+            if 'The size of tensor' in str(e):
+                shared.log.error(f'Network load: type=LoRA model={shared.sd_model.__class__.__name__} incompatible lora shape')
+                new_weight = model_weights
+            else:
+                new_weight = model_weights + lora_weights # try without device cast
         weight = torch.nn.Parameter(new_weight.to(device), requires_grad=False)
     if weight is not None:
         if not bias:
@@ -147,7 +150,6 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
 def network_apply_direct(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], updown: torch.Tensor, ex_bias: torch.Tensor, deactivate: bool = False, device: torch.device = devices.device):
     weights_backup = getattr(self, "network_weights_backup", False)
     bias_backup = getattr(self, "network_bias_backup", False)
-    device = device or devices.device
     if not isinstance(weights_backup, bool): # remove previous backup if we switched settings
         weights_backup = True
     if not isinstance(bias_backup, bool):

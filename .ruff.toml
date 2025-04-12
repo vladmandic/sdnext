@@ -35,6 +35,7 @@ exclude = [
     "modules/xadapter",
     "modules/infiniteyou",
     "modules/flash_attn_triton_amd",
+    "scripts/softfill.py",
     "repositories",
     "extensions-builtin/Lora",
     "extensions-builtin/sd-extension-chainner/nodes",

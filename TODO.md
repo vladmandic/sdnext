@@ -4,21 +4,20 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- ModernUI for custom model loader
+
 ### Issues/Limitations
 
 N/A
 
 ## Future Candidates
 
-- Flux: NF4 loader: <https://github.com/huggingface/diffusers/issues/9996>  
 - IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Control: API enhance scripts compatibility  
 - Video: add generate context menu  
 - Video: API support  
 - Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
 - Video: SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
-- SoftFill: https://github.com/zacheryvaughn/softfill-pipelines
-- SISO: https://github.com/yairshp/SISO
 
 ## Code TODO
 
@@ -31,6 +30,8 @@ N/A
 - fc: autodetect distilled based on model
 - processing: remove duplicate mask params
 - model loader: implement model in-memory caching
+- custom: load receipe
+- custom: save receipe
 - hypertile: vae breaks when using non-standard sizes
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - lora: add other quantization types

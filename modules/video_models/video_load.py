@@ -1,7 +1,7 @@
 import os
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices
-from modules.video_models import models_def, video_utils, video_vae, video_overrides
+from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
 
 
 loaded_model = None
@@ -17,10 +17,12 @@ def load_model(selected: models_def.Model):
     sd_models.unload_model_weights()
     t0 = time.time()
 
+    video_cache.apply_teacache_patch(selected.dit_cls)
+
     # text encoder
     try:
         quant_args = model_quant.create_config(module='TE')
-        debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={video_utils.get_quant(quant_args)}')
+        debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         text_encoder = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
@@ -36,7 +38,7 @@ def load_model(selected: models_def.Model):
     # transformer
     try:
         quant_args = model_quant.create_config(module='Video')
-        debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={video_utils.get_quant(quant_args)}')
+        debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         transformer = selected.dit_cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit or selected.repo,
             subfolder=selected.dit_folder,

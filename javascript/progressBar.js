@@ -1,4 +1,15 @@
 let lastState = {};
+let refreshInterval = 10000;
+
+function setRefreshInterval() {
+  refreshInterval = opts.live_preview_refresh_period || 500;
+  log('refreshInterval', document.visibilityState, refreshInterval);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) refreshInterval = Math.max(2500, opts.live_preview_refresh_period || 1000);
+    else refreshInterval = opts.live_preview_refresh_period || 1000;
+    log('refreshInterval', document.visibilityState, refreshInterval);
+  });
+}
 
 function pad2(x) {
   return x < 10 ? `0${x}` : x;
@@ -122,14 +133,15 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
 
   const start = (id_task, id_live_preview) => { // eslint-disable-line no-shadow
     if (!opts.live_previews_enable || opts.live_preview_refresh_period === 0 || opts.show_progress_every_n_steps === 0) return;
+    const request_id = document.hidden ? -1 : id_live_preview;
 
     const onProgressHandler = (res) => {
-      if (res?.debug) debug('livePreview:', dateStart, res);
+      if (res?.debug) debug('livePreview:', dateStart, request_id, res);
       lastState = res;
       const elapsedFromStart = (new Date() - dateStart) / 1000;
       hasStarted |= res.active;
-      if (res.completed || (!res.active && (hasStarted || once)) || (elapsedFromStart > 30 && !res.queued && res.progress === prevProgress)) {
-        if (res?.debug) debug('livePreview end:', res);
+      if (res.completed || (!res.active && (hasStarted || once)) || (elapsedFromStart > 120 && !res.queued && res.progress === prevProgress)) {
+        debug('livePreview end:', res);
         done();
         return;
       }
@@ -152,7 +164,7 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
       done();
     };
 
-    xhrPost('./internal/progress', { id_task, id_live_preview }, onProgressHandler, onProgressErrorHandler, false, 30000);
+    xhrPost('./internal/progress', { id_task, id_live_preview: request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
   };
   debug('livePreview start:', dateStart);
   start(id_task, 0);
