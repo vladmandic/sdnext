@@ -30,7 +30,7 @@ card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
         <div class='overlay'>
             <div class='tags'></div>
-            <div class='name'>{title}</div>
+            <div class='name {reference}'>{title}</div>
         </div>
         <div class='version'>{version}</div>
         <div class='actions'>
@@ -44,7 +44,7 @@ card_list = '''
     <div class='card card-list' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
         <div style='display: flex'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>&nbsp;
-            <div class='name' style='flex-flow: column'>{title}&nbsp;
+            <div class='name {rerefence}' style='flex-flow: column'>{title}&nbsp;
                 <div class='tags tags-list'></div>
             </div>
         </div>
@@ -330,7 +330,9 @@ class ExtraNetworksPage:
                 "size": item.get("size", 0),
                 "version": item.get("version", ''),
                 "color": random_bright_color(),
+                "reference": "reference" if 'Reference' in item.get('name', '') else "",
             }
+            print('HERE', args['name'], args['reference'])
             alias = item.get("alias", None)
             if alias is not None:
                 args['title'] += f'\nAlias: {alias}'

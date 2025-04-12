@@ -2,6 +2,11 @@
 
 ## Update for 2025-04-12
 
+- Cleanup CogView3 and CogView4 model loader  
+- UI display reference models with subdued color  
+
+## Update for 2025-04-12
+
 ### Highlights for 2025-04-12
 
 Last release was just over a week ago and here we are again with another update as a new high-end image model, [HiDream-I1](https://github.com/vladmandic/sdnext/wiki/HiDream) jumped out and generated a lot of buzz!  
