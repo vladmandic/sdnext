@@ -5,7 +5,7 @@
 ### Highlights for 2025-04-12
 
 Last release was just over a week ago and here we are again with another update as a new high-end image model, [HiDream-I1](https://github.com/vladmandic/sdnext/wiki/HiDream) jumped out and generated a lot of buzz!  
-There are quite a few other performance and quality-of-life improvements in this release and ~85 commits, so please take a look at the full [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+There are quite a few other performance and quality-of-life improvements in this release and 40 commits, so please take a look at the full [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
