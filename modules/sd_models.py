@@ -277,6 +277,8 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
 
 def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='model'):
     sd_model = None
+    unload_model_weights()
+    shared.sd_model = None
     try:
         if model_type in ['Stable Cascade']: # forced pipeline
             from modules.model_stablecascade import load_cascade_combined

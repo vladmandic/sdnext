@@ -14,7 +14,6 @@ def load_overrides(kwargs, cache_dir):
                 shared.log.debug(f'Load model: type=SD3 unet="{shared.opts.sd_unet}" fmt=safetensors')
             elif fn.endswith('.gguf'):
                 from modules import ggml
-                # kwargs = load_gguf(kwargs, fn)
                 kwargs['transformer'] = ggml.load_gguf(fn, cls=diffusers.SD3Transformer2DModel, compute_dtype=devices.dtype)
                 sd_unet.loaded_unet = shared.opts.sd_unet
                 shared.log.debug(f'Load model: type=SD3 unet="{shared.opts.sd_unet}" fmt=gguf')
@@ -23,6 +22,7 @@ def load_overrides(kwargs, cache_dir):
             errors.display(e, 'UNet')
             shared.opts.sd_unet = 'Default'
             sd_unet.failed_unet.append(shared.opts.sd_unet)
+
     if shared.opts.sd_text_encoder != 'Default':
         try:
             from modules.model_te import load_t5, load_vit_l, load_vit_g
@@ -39,6 +39,7 @@ def load_overrides(kwargs, cache_dir):
             shared.log.error(f"Load model: type=SD3 failed to load T5: {e}")
             errors.display(e, 'TE')
             shared.opts.sd_text_encoder = 'Default'
+
     if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
         try:
             from modules import sd_vae
@@ -55,12 +56,11 @@ def load_overrides(kwargs, cache_dir):
 
 
 def load_quants(kwargs, repo_id, cache_dir):
-    quant_args = model_quant.create_config()
-    if not quant_args:
-        return kwargs
-    if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
+    quant_args = model_quant.create_config(module='Transformer')
+    if quant_args and 'quantization_config' in quant_args:
         kwargs['transformer'] = diffusers.SD3Transformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-    if 'text_encoder_3' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
+    quant_args = model_quant.create_config(module='TE')
+    if quant_args and 'quantization_config' in quant_args:
         kwargs['text_encoder_3'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_3", variant='fp16', cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
     return kwargs
 
@@ -79,24 +79,18 @@ def load_missing(kwargs, fn, cache_dir):
         kwargs['text_encoder_2'] = transformers.CLIPTextModelWithProjection.from_pretrained(repo_id, subfolder='text_encoder_2', cache_dir=cache_dir, torch_dtype=devices.dtype)
         shared.log.debug(f'Load model: type=SD3 missing=te2 repo="{repo_id}"')
     if 'text_encoder_3' not in kwargs and 'text_encoder_3' not in keys:
-        kwargs['text_encoder_3'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_3", variant='fp16', cache_dir=cache_dir, torch_dtype=devices.dtype)
+        load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
+        kwargs['text_encoder_3'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_3", variant='fp16', cache_dir=cache_dir, **load_args, **quant_args)
         shared.log.debug(f'Load model: type=SD3 missing=te3 repo="{repo_id}"')
     if 'vae' not in kwargs and 'vae' not in keys:
         kwargs['vae'] = diffusers.AutoencoderKL.from_pretrained(repo_id, subfolder='vae', cache_dir=cache_dir, torch_dtype=devices.dtype)
         shared.log.debug(f'Load model: type=SD3 missing=vae repo="{repo_id}"')
-    # if 'transformer' not in kwargs and 'transformer' not in keys:
-    #    kwargs['transformer'] = diffusers.SD3Transformer2DModel.from_pretrained(default_repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype)
     return kwargs
 
 
 def load_sd3(checkpoint_info, cache_dir=None, config=None):
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     fn = checkpoint_info.path
-
-    # unload current model
-    sd_models.unload_model_weights()
-    shared.sd_model = None
-    devices.torch_gc(force=True)
 
     kwargs = {}
     kwargs = load_overrides(kwargs, cache_dir)
@@ -107,16 +101,10 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
     if fn is not None and os.path.exists(fn) and os.path.isfile(fn):
         if fn.endswith('.safetensors'):
             loader = diffusers.StableDiffusion3Pipeline.from_single_file
-            # required_modules = model_tools.get_modules(diffusers.StableDiffusion3Pipeline)
-            # have_modules = model_tools.get_safetensor_keys(fn)
-            # loaded_modules = model_tools.load_modules('stabilityai/stable-diffusion-3.5-medium', required_modules)
-            # kwargs = {**kwargs, **loaded_modules}
-            # kwargs = load_missing(kwargs, fn, cache_dir)
             repo_id = fn
         elif fn.endswith('.gguf'):
             from modules import ggml
             kwargs['transformer'] = ggml.load_gguf(fn, cls=diffusers.SD3Transformer2DModel, compute_dtype=devices.dtype)
-            # kwargs = load_gguf(kwargs, fn)
             kwargs = load_missing(kwargs, fn, cache_dir)
             kwargs['variant'] = 'fp16'
     else:
@@ -124,7 +112,6 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
 
     shared.log.debug(f'Load model: type=SD3 kwargs={list(kwargs)} repo="{repo_id}"')
 
-    kwargs = model_quant.create_config(kwargs)
     if shared.opts.model_sd3_disable_te5:
         shared.log.debug('Load model: type=SD3 option="disable-te5"')
         kwargs['text_encoder_3'] = None

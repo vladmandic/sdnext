@@ -4,7 +4,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- HiDream: configurable LLM
+- Simplify Flux.1 loader
 
 ### Issues/Limitations
 

@@ -1,4 +1,3 @@
-import os
 import time
 import transformers
 import diffusers
@@ -15,37 +14,11 @@ def hijack_encode_prompt(*args, **kwargs):
     return res
 
 
-def get_args(load_config:dict={}, module:str=None, device_map:bool=False):
-    config = load_config.copy()
-    modelloader.hf_login()
-    if 'torch_dtype' not in config:
-        config['torch_dtype'] = devices.dtype
-    if 'low_cpu_mem_usage' in config:
-        del config['low_cpu_mem_usage']
-    if 'load_connected_pipeline' in config:
-        del config['load_connected_pipeline']
-    if 'safety_checker' in config:
-        del config['safety_checker']
-    if 'requires_safety_checker' in config:
-        del config['requires_safety_checker']
-    if device_map:
-        if shared.opts.device_map == 'cpu':
-            config['device_map'] = 'cpu'
-        if shared.opts.device_map == 'gpu':
-            config['device_map'] = devices.device
-        if devices.backend == "ipex" and os.environ.get('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '0') != '1' and module in {'TE', 'LLM'}:
-            # Alchemis GPUs hits the 4GB allocation limit with transformers
-            # UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS emulates above 4GB allocations
-            config['device_map'] = 'cpu'
-    quant_args = model_quant.create_config(module=module)
-    return config, quant_args
-
-
 def load_hidream(checkpoint_info, diffusers_load_config={}):
+    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    load_args, quant_args = get_args(diffusers_load_config, module='Transformer', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer', device_map=True)
     shared.log.debug(f'Load model: type=HiDream transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     transformer = diffusers.HiDreamImageTransformer2DModel.from_pretrained(
         repo_id,
@@ -57,7 +30,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     if shared.opts.diffusers_offload_mode != 'none':
         transformer = transformer.to(devices.cpu)
 
-    load_args, quant_args = get_args(diffusers_load_config, module='TE', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te3="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     text_encoder_3 = transformers.T5EncoderModel.from_pretrained(
         repo_id,
@@ -69,7 +42,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     if shared.opts.diffusers_offload_mode != 'none':
         text_encoder_3 = text_encoder_3.to(devices.cpu)
 
-    load_args, quant_args = get_args(diffusers_load_config, module='LLM', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     tokenizer_4 = transformers.PreTrainedTokenizerFast.from_pretrained(
         shared.opts.model_h1_llama_repo,
@@ -87,7 +60,8 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     if shared.opts.diffusers_offload_mode != 'none':
         text_encoder_4 = text_encoder_4.to(devices.cpu)
 
-    load_args, quant_args = get_args(diffusers_load_config, module='Model')
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
     pipe = diffusers.HiDreamImagePipeline.from_pretrained(
         repo_id,
         text_encoder_3=text_encoder_3,

@@ -1,30 +1,36 @@
+import transformers
 import diffusers
 
 
 def load_pixart(checkpoint_info, diffusers_load_config={}):
-    from modules import shared, devices, modelloader, model_te
+    from modules import shared, devices, modelloader, sd_models, model_quant
     modelloader.hf_login()
-    # shared.opts.data['cuda_dtype'] = 'FP32' # override
-    # shared.opts.data['diffusers_offload_mode}'] = "model" # override
-    # devices.set_cuda_params()
-    fn = checkpoint_info.path.replace('huggingface/', '')
-    t5 = model_te.load_t5(name=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
+    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
     transformer = diffusers.PixArtTransformer2DModel.from_pretrained(
-        fn,
-        subfolder = 'transformer',
-        cache_dir = shared.opts.diffusers_dir,
-        **diffusers_load_config,
+        repo_id,
+        subfolder='transformer',
+        cache_dir=shared.opts.hfcache_dir,
+        **load_args,
+        **quant_args,
     )
-    transformer.to(devices.device)
-    kwargs = { 'transformer': transformer }
-    if t5 is not None:
-        kwargs['text_encoder'] = t5
-    diffusers_load_config.pop('variant', None)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
+    text_encoder = transformers.T5EncoderModel.from_pretrained(
+        repo_id,
+        subfolder="text_encoder",
+        cache_dir=shared.opts.hfcache_dir,
+        **load_args,
+        **quant_args,
+    )
+
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     pipe = diffusers.PixArtSigmaPipeline.from_pretrained(
         'PixArt-alpha/PixArt-Sigma-XL-2-1024-MS',
-        cache_dir = shared.opts.diffusers_dir,
-        **kwargs,
-        **diffusers_load_config,
+        cache_dir=shared.opts.diffusers_dir,
+        transformer=transformer,
+        text_encoder=text_encoder,
+        **load_args,
     )
     devices.torch_gc(force=True)
     return pipe

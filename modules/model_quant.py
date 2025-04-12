@@ -455,3 +455,32 @@ def torchao_quantization(sd_model):
         log.error(f"Quantization: type=TorchAO {e}")
     setup_logging() # torchao uses dynamo which messes with logging so reset is needed
     return sd_model
+
+
+def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, allow_quant:bool=True):
+    from modules import shared, devices
+    config = load_config.copy()
+    if 'torch_dtype' not in config:
+        config['torch_dtype'] = devices.dtype
+    if 'low_cpu_mem_usage' in config:
+        del config['low_cpu_mem_usage']
+    if 'load_connected_pipeline' in config:
+        del config['load_connected_pipeline']
+    if 'safety_checker' in config:
+        del config['safety_checker']
+    if 'requires_safety_checker' in config:
+        del config['requires_safety_checker']
+    if 'variant' in config:
+        del config['variant']
+    if device_map:
+        if shared.opts.device_map == 'cpu':
+            config['device_map'] = 'cpu'
+        if shared.opts.device_map == 'gpu':
+            config['device_map'] = devices.device
+        if devices.backend == "ipex" and os.environ.get('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '0') != '1' and module in {'TE', 'LLM'}:
+            config['device_map'] = 'cpu' # alchemist gpus hits the 4GB allocation limit with transformers, UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS emulates above 4GB allocations
+    if allow_quant:
+        quant_args = create_config(module=module)
+    else:
+        quant_args = {}
+    return config, quant_args
