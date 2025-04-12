@@ -9,6 +9,8 @@
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
     custom `llama` model can be set in *settings -> model options*  
+    implementation differens from reference as it bumps up default max token length from 128 to 256  
+    max token length can be further configured using env variable `HIDREAM_MAX_SEQUENCE_LENGTH`  
     difference between variants is recommended number of steps: *fast=16, dev=28, full=50*  
     compatible with: *flowmatching samplers*, *offloading, quantization, taesd live-preview*  
 - **Features**  

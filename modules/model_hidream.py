@@ -1,3 +1,4 @@
+import os
 import time
 import transformers
 import diffusers
@@ -6,6 +7,8 @@ from modules import shared, devices, sd_models, timer, model_quant, modelloader
 
 def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
+    if 'max_sequence_length' in kwargs:
+        kwargs['max_sequence_length'] = os.environ.get('HIDREAM_MAX_SEQUENCE_LENGTH', 256)
     res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     t1 = time.time()
     timer.process.add('te', t1-t0)
