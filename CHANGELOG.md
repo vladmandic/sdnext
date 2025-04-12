@@ -8,6 +8,7 @@
     and 4 (!?) text-encoders: *clip-l, clip-g, t5-1.1-xxl, llama-3.1-8b-instruct* for total of **8.3B** parameters  
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
+    custom `llama` model can be set in *settings -> model options*
     difference between variants is recommended number of steps: *fast=16, dev=28, full=50*  
     hidream supportability: *offloading, quantization, taesd live-preview, remote-vae*  
     hidream compatibility: *flowmatching samplers*  

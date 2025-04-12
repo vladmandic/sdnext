@@ -416,6 +416,7 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
 
 options_templates.update(options_section(('model_options', "Models Options"), {
     "model_sd3_disable_te5": OptionInfo(False, "SD3 disable T5 encoder"),
+    "model_h1_llama_repo": OptionInfo("meta-llama/Meta-Llama-3.1-8B-Instruct", "LLama repo", gr.Textbox),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {

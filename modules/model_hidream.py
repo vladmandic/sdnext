@@ -5,9 +5,6 @@ import diffusers
 from modules import shared, devices, sd_models, timer, model_quant, modelloader
 
 
-llama_repo = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-
-
 def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
     res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
@@ -57,6 +54,8 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **load_args,
         **quant_args,
     )
+    if shared.opts.diffusers_offload_mode != 'none':
+        transformer = transformer.to(devices.cpu)
 
     load_args, quant_args = get_args(diffusers_load_config, module='TE', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te3="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -67,22 +66,27 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **load_args,
         **quant_args,
     )
+    if shared.opts.diffusers_offload_mode != 'none':
+        text_encoder_3 = text_encoder_3.to(devices.cpu)
 
     load_args, quant_args = get_args(diffusers_load_config, module='LLM', device_map=True)
-    shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    shared.log.debug(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     tokenizer_4 = transformers.PreTrainedTokenizerFast.from_pretrained(
-        llama_repo,
+        shared.opts.model_h1_llama_repo,
         cache_dir=shared.opts.hfcache_dir,
         **load_args,
     )
     text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
-        llama_repo,
+        shared.opts.model_h1_llama_repo,
         output_hidden_states=True,
         output_attentions=True,
         cache_dir=shared.opts.hfcache_dir,
         **load_args,
         **quant_args,
     )
+    if shared.opts.diffusers_offload_mode != 'none':
+        text_encoder_4 = text_encoder_4.to(devices.cpu)
+
     load_args, quant_args = get_args(diffusers_load_config, module='Model')
     pipe = diffusers.HiDreamImagePipeline.from_pretrained(
         repo_id,
