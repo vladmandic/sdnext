@@ -32,6 +32,7 @@ exclude = [
     "modules/teacache",
     "modules/todo",
     "modules/unipc",
+    "modules/cfgzero",
     "modules/xadapter",
     "modules/infiniteyou",
     "modules/flash_attn_triton_amd",

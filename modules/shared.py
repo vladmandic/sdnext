@@ -609,11 +609,14 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "hidiffusion_t1": OptionInfo(-1, "Override T1 ratio", gr.Slider, {"minimum": -1, "maximum": 1.0, "step": 0.05}),
     "hidiffusion_t2": OptionInfo(-1, "Override T2 ratio", gr.Slider, {"minimum": -1, "maximum": 1.0, "step": 0.05}),
 
-    "linfusion_sep": OptionInfo("<h2>Batch</h2>", "", gr.HTML),
+    "linfusion_sep": OptionInfo("<h2>LinFusion</h2>", "", gr.HTML),
     "enable_linfusion": OptionInfo(False, "Apply LinFusion distillation on load"),
 
     "ras_sep": OptionInfo("<h2>RAS: Region-Adaptive Sampling</h2>", "", gr.HTML),
     "ras_enable": OptionInfo(False, "RAS enabled"),
+
+    "cfgzero_sep": OptionInfo("<h2>CFG-Zero</h2>", "", gr.HTML),
+    "cfgzero_enabled": OptionInfo(False, "CFG-Zero enabled"),
 
     "inference_batch_sep": OptionInfo("<h2>Batch</h2>", "", gr.HTML),
     "sequential_seed": OptionInfo(True, "Batch mode uses sequential seeds"),

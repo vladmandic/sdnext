@@ -2,8 +2,11 @@
 
 ## Update for 2025-04-12
 
-- Cleanup CogView3 and CogView4 model loader  
-- UI display reference models with subdued color  
+- [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) yet-another guidance method optimized for flow-matching models   
+  implemented for `FLUX.1`, if there is interest/demand, i'll add it for other models  
+  enable in *settings -> pipeline modifiers -> cfg zero*
+- cleanup `CogView3` and `CogView4` model loader  
+- ui display reference models with subdued color  
 
 ## Update for 2025-04-12
 
