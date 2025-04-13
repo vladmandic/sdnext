@@ -40,6 +40,7 @@ def apply(p: processing.StableDiffusionProcessing):
         from modules.cfgzero.hunyuan_t2v_pipeline import HunyuanVideoCFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(HunyuanVideoCFGZeroPipeline, shared.sd_model)
 
+    shared.log.debug(f'Apply CFGZero: cls={cls} init={shared.opts.cfgzero_enabled} star={shared.opts.cfgzero_star} steps={shared.opts.cfgzero_steps}')
     p.task_args['use_zero_init'] = shared.opts.cfgzero_enabled
     p.task_args['use_cfg_zero_star'] = shared.opts.cfgzero_star
     p.task_args['zero_steps'] = int(shared.opts.cfgzero_steps)

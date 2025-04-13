@@ -58,7 +58,13 @@ def apply_options(p, x, xs):
 
 def apply_setting(field):
     def fun(p, x, xs):
-        shared.log.debug(f'XYZ grid apply setting: {field}={x}')
+        t = type(shared.opts.get(field))
+        if t == bool:
+            if isinstance(x, str):
+                x = x.lower() in ['true', 't', 'yes', 'y']
+            if isinstance(x, int) or isinstance(x, float):
+                x = x > 0
+        shared.log.debug(f'XYZ grid apply setting: {field}={t}:{x}')
         shared.opts.data[field] = x
     return fun
 
@@ -288,15 +294,19 @@ def apply_override(field):
     return fun
 
 
+def format_bool(p, opt, x):
+    return f"{opt.label}: {x}"
+
+
 def format_value_add_label(p, opt, x):
     if type(x) == float:
-        x = round(x, 8)
+        x = round(x, 4)
     return f"{opt.label}: {x}"
 
 
 def format_value(p, opt, x):
     if type(x) == float:
-        x = round(x, 8)
+        x = round(x, 4)
     return x
 
 

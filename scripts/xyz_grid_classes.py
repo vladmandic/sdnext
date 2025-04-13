@@ -1,4 +1,4 @@
-from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
+from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_bool, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
 
 
@@ -213,4 +213,5 @@ axis_options = [
     AxisOption("[IY] Start", float, apply_task_arg('infusenet_guidance_start')),
     AxisOption("[IY] End", float, apply_task_arg('infusenet_guidance_end')),
     AxisOption("[TeaCache] Threshold", float, apply_setting('teacache_thresh')),
+    AxisOption("[CFGZero] Enabled", bool, apply_setting('cfgzero_enabled'), fmt=format_bool, choices=lambda: [False, True]),
 ]
