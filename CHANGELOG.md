@@ -3,10 +3,11 @@
 ## Update for 2025-04-13
 
 - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
-  implemented for `FLUX.1`, `SD3.x`, `CogView4`, `HunyuanVideo`, `WanAI`  
+  implemented for **FLUX.1, SD3.x, CogView4, HunyuanVideo, WanAI**  
   enable and configure in *settings -> pipeline modifiers -> cfg zero*  
   experiment with CFGZero support in XYZ-grid  
-- cleanup `CogView3` and `CogView4` model loader  
+- **HiDream** add HF gated access auth check  
+- **CogView3** and **CogView4** cleanup model loader  
 - ui display reference models with subdued color  
 - xyz grid support bool  
 - networks: set which networks to skip when scanning civitai  
