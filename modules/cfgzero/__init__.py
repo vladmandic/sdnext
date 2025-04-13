@@ -18,7 +18,9 @@ def apply(p: processing.StableDiffusionProcessing):
         return None
     if not shared.opts.cfgzero_enabled:
         return None
-    cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else None
+    cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else 'None'
+    if 'CFGZero' in cls:
+        unapply()
     if cls not in supported:
         return None
     global orig_pipeline # pylint: disable=global-statement

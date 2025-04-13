@@ -9,6 +9,9 @@
 - cleanup `CogView3` and `CogView4` model loader  
 - ui display reference models with subdued color  
 - xyz grid support bool  
+- networks: set which networks to skip when scanning civitai  
+  in *settings -> networks -> network scan*
+  comma-separate list of regex patterns to skip  
 
 ## Update for 2025-04-12
 

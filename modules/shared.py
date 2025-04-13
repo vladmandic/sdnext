@@ -936,6 +936,9 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_fetch": OptionInfo(True, "UI fetch network info on mouse-over"),
     "extra_network_skip_indexing": OptionInfo(False, "Build info on first access", gr.Checkbox),
 
+    "extra_networks_scan_sep": OptionInfo("<h2>Networks Scan</h2>", "", gr.HTML),
+    "extra_networks_scan_skip": OptionInfo("", "Skip CivitAI scan for regex pattern(s)", gr.Textbox),
+
     "extra_networks_model_sep": OptionInfo("<h2>Rerefence models</h2>", "", gr.HTML),
     "extra_network_reference_enable": OptionInfo(True, "Enable use of reference models", gr.Checkbox),
     "extra_network_reference_values": OptionInfo(False, "Use reference values when available", gr.Checkbox),
