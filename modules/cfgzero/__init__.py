@@ -1,22 +1,49 @@
-from diffusers.pipelines import FluxPipeline
- # pylint: disable=unused-import
+# reference: <https://github.com/WeichenFan/CFG-Zero-star>
+
 from modules import shared, processing, sd_models
-from modules.cfgzero.flux_pipeline import FluxCFGZeroPipeline
 
 
 orig_pipeline = None
+supported = [
+    'FluxPipeline',
+    'CogView4Pipeline',
+    'StableDiffusion3Pipeline',
+    'WanPipeline',
+    'HunyuanVideoPipeline',
+]
 
 
-def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-differ
+def apply(p: processing.StableDiffusionProcessing):
     if not shared.native:
         return None
-    cls = shared.sd_model.__class__ if shared.sd_loaded else None
-    if cls == FluxPipeline and shared.opts.cfgzero_enabled:
-        global orig_pipeline # pylint: disable=global-statement
-        orig_pipeline = shared.sd_model
+    if not shared.opts.cfgzero_enabled:
+        return None
+    cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else None
+    if cls not in supported:
+        return None
+    global orig_pipeline # pylint: disable=global-statement
+    orig_pipeline = shared.sd_model
+
+    if cls == 'FluxPipeline':
+        from modules.cfgzero.flux_pipeline import FluxCFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(FluxCFGZeroPipeline, shared.sd_model)
-        p.task_args['use_zero_init'] = True
-        p.extra_generation_params["CFGZero"] = True
+    if cls == 'CogView4Pipeline':
+        from modules.cfgzero.cogview4_pipeline import CogView4CFGZeroPipeline
+        shared.sd_model = sd_models.switch_pipe(CogView4CFGZeroPipeline, shared.sd_model)
+    if cls == 'StableDiffusion3Pipeline':
+        from modules.cfgzero.sd3_pipeline import StableDiffusion3CFGZeroPipeline
+        shared.sd_model = sd_models.switch_pipe(StableDiffusion3CFGZeroPipeline, shared.sd_model)
+    if cls == 'WanPipeline':
+        from modules.cfgzero.wan_t2v_pipeline import WanCFGZeroPipeline
+        shared.sd_model = sd_models.switch_pipe(WanCFGZeroPipeline, shared.sd_model)
+    if cls == 'HunyuanVideoPipeline':
+        from modules.cfgzero.hunyuan_t2v_pipeline import HunyuanVideoCFGZeroPipeline
+        shared.sd_model = sd_models.switch_pipe(HunyuanVideoCFGZeroPipeline, shared.sd_model)
+
+    p.task_args['use_zero_init'] = shared.opts.cfgzero_enabled
+    p.task_args['use_cfg_zero_star'] = shared.opts.cfgzero_star
+    p.task_args['zero_steps'] = int(shared.opts.cfgzero_steps)
+    p.extra_generation_params['CFGZero'] = True
 
 
 def unapply():

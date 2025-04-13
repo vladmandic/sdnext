@@ -1,9 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-12
+## Update for 2025-04-13
 
 - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) yet-another guidance method optimized for flow-matching models   
-  implemented for `FLUX.1`, if there is interest/demand, i'll add it for other models  
+  implemented for `FLUX.1`, `SD3.x`, `CogView4`, `HunyuanVideo`, `WanAI`
   enable in *settings -> pipeline modifiers -> cfg zero*
 - cleanup `CogView3` and `CogView4` model loader  
 - ui display reference models with subdued color  

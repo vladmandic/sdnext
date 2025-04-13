@@ -617,6 +617,8 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
 
     "cfgzero_sep": OptionInfo("<h2>CFG-Zero</h2>", "", gr.HTML),
     "cfgzero_enabled": OptionInfo(False, "CFG-Zero enabled"),
+    "cfgzero_star": OptionInfo(False, "CFG-Zero star"),
+    "cfgzero_steps": OptionInfo(0, "CFG-Zero steps", gr.Slider, {"minimum": 0, "maximum": 3, "step": 1}),
 
     "inference_batch_sep": OptionInfo("<h2>Batch</h2>", "", gr.HTML),
     "sequential_seed": OptionInfo(True, "Batch mode uses sequential seeds"),
