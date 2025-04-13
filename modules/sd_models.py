@@ -549,6 +549,9 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         # load with custom loader
         if sd_model is None:
             sd_model = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
+            if sd_model is not None and not sd_model:
+                shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
+                return
 
         # load from hf folder-style
         if sd_model is None:
