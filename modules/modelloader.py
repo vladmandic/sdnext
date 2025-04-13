@@ -25,9 +25,10 @@ pbar = None
 def hf_login(token=None):
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
+    install('hf_xet', quiet=True)
     if token is None or len(token) <= 2:
         shared.log.debug('HF login: no token provided')
-        return
+        return False
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
         shared.log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
         del os.environ['HUGGING_FACE_HUB_TOKEN']
@@ -43,7 +44,7 @@ def hf_login(token=None):
         line = [l for l in text.split('\n') if 'Token' in l]
         shared.log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         loggedin = token
-    install('hf_xet', quiet=True)
+    return True
 
 
 def download_civit_meta(model_path: str, model_id):

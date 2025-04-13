@@ -18,7 +18,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 
 def load_hidream(checkpoint_info, diffusers_load_config={}):
-    modelloader.hf_login()
+    login = modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer', device_map=True)
@@ -47,21 +47,25 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    tokenizer_4 = transformers.PreTrainedTokenizerFast.from_pretrained(
-        shared.opts.model_h1_llama_repo,
-        cache_dir=shared.opts.hfcache_dir,
-        **load_args,
-    )
-    text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
-        shared.opts.model_h1_llama_repo,
-        output_hidden_states=True,
-        output_attentions=True,
-        cache_dir=shared.opts.hfcache_dir,
-        **load_args,
-        **quant_args,
-    )
-    if shared.opts.diffusers_offload_mode != 'none':
-        text_encoder_4 = text_encoder_4.to(devices.cpu)
+    try:
+        text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
+            shared.opts.model_h1_llama_repo,
+            output_hidden_states=True,
+            output_attentions=True,
+            cache_dir=shared.opts.hfcache_dir,
+            **load_args,
+            **quant_args,
+        )
+        tokenizer_4 = transformers.PreTrainedTokenizerFast.from_pretrained(
+            shared.opts.model_h1_llama_repo,
+            cache_dir=shared.opts.hfcache_dir,
+            **load_args,
+        )
+        if shared.opts.diffusers_offload_mode != 'none':
+            text_encoder_4 = text_encoder_4.to(devices.cpu)
+    except Exception as e:
+        shared.log.error(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" {e}')
+        shared.log.warning(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" login={login} verify access to gated model')
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
