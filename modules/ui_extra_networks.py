@@ -44,7 +44,7 @@ card_list = '''
     <div class='card card-list' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
         <div style='display: flex'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>&nbsp;
-            <div class='name {rerefence}' style='flex-flow: column'>{title}&nbsp;
+            <div class='name {reference}' style='flex-flow: column'>{title}&nbsp;
                 <div class='tags tags-list'></div>
             </div>
         </div>
