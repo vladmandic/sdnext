@@ -443,6 +443,7 @@ options_templates.update(options_section(('text_encoder', "Text Encoder"), {
     "comma_padding_backtrack": OptionInfo(20, "Prompt padding", gr.Slider, {"minimum": 0, "maximum": 74, "step": 1, "visible": not native }),
     "sd_textencder_linebreak": OptionInfo(True, "Use line break as prompt segment marker", gr.Checkbox),
     "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
+    "te_hijack": OptionInfo(True, "Offload after prompt encode", gr.Checkbox),
     "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
     "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),
     "te_complex_human_instruction": OptionInfo(True, "Sana: Use complex human instructions"),

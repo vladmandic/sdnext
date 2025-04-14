@@ -28,8 +28,12 @@ def apply(p: processing.StableDiffusionProcessing):
     orig_pipeline = shared.sd_model
 
     if cls == 'FluxPipeline':
+        from diffusers import pipelines
         from modules.cfgzero.flux_pipeline import FluxCFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(FluxCFGZeroPipeline, shared.sd_model)
+        pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["fluxcfgzero"] = FluxCFGZeroPipeline
+        pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["fluxcfgzero"] = pipelines.FluxImg2ImgPipeline
+        pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["fluxcfgzero"] = pipelines.FluxInpaintPipeline
     if cls == 'CogView4Pipeline':
         from modules.cfgzero.cogview4_pipeline import CogView4CFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(CogView4CFGZeroPipeline, shared.sd_model)
@@ -44,9 +48,7 @@ def apply(p: processing.StableDiffusionProcessing):
         shared.sd_model = sd_models.switch_pipe(WanCFGZeroPipeline, shared.sd_model)
     if cls == 'HunyuanVideoPipeline':
         from modules.cfgzero.hunyuan_t2v_pipeline import HunyuanVideoCFGZeroPipeline
-        from modules.model_hidream import init_hijack
         shared.sd_model = sd_models.switch_pipe(HunyuanVideoCFGZeroPipeline, shared.sd_model)
-        init_hijack(shared.sd_model)
 
     shared.log.debug(f'Apply CFGZero: cls={cls} init={shared.opts.cfgzero_enabled} star={shared.opts.cfgzero_star} steps={shared.opts.cfgzero_steps}')
     p.task_args['use_zero_init'] = shared.opts.cfgzero_enabled

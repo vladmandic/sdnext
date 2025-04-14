@@ -20,7 +20,7 @@ def hijack_encode_prompt(*args, **kwargs):
 
 
 def init_hijack(pipe):
-    if pipe is not None and not hasattr(pipe, 'orig_encode_prompt') and hasattr(pipe, 'encode_prompt'):
+    if shared.opts.te_hijack and pipe is not None and not hasattr(pipe, 'orig_encode_prompt') and hasattr(pipe, 'encode_prompt'):
         shared.log.debug(f'Model: cls={pipe.__class__.__name__} hijack encode')
         pipe.orig_encode_prompt = pipe.encode_prompt
         pipe.encode_prompt = hijack_encode_prompt
