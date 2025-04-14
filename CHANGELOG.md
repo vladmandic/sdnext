@@ -3,7 +3,7 @@
 ## Update for 2025-04-14
 
 - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
-  implemented for **FLUX.1, HiDream, SD3.x, CogView4, HunyuanVideo, WanAI**  
+  implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
   enable and configure in *settings -> pipeline modifiers -> cfg zero*  
   experiment with CFGZero support in XYZ-grid  
 - add **UniPC FlowMatch** scheduler  
