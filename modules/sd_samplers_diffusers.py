@@ -284,6 +284,8 @@ class DiffusionSampler:
             del self.config['beta_end']
             del self.config['beta_schedule']
             del self.config['prediction_type']
+        if 'prediction_type' in self.config and 'Flow' in name:
+            self.config['prediction_type'] = 'flow_prediction'
         if 'SGM' in name:
             self.config['timestep_spacing'] = 'trailing'
 
