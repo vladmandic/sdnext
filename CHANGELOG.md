@@ -15,6 +15,7 @@
   in *settings -> networks -> network scan*  
   comma-separate list of regex patterns to skip  
 - fix debug logging  
+- add explicit offload after encode prompt  
 
 ## Update for 2025-04-12
 

@@ -24,22 +24,6 @@ def set_prompt(p):
     p.task_args['negative_prompt'] = p.negative_prompt
 
 
-def hijack_encode_prompt(*args, **kwargs):
-    t0 = time.time()
-    try:
-        sd_models.move_model(shared.sd_model.text_encoder, devices.device)
-        res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
-    except Exception as e:
-        shared.log.error(f'Video encode prompt: {e}')
-        errors.display(e, 'Video encode prompt')
-        res = None
-    t1 = time.time()
-    timer.process.add('te', t1-t0)
-    debug(f'Video encode prompt: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    return res
-
-
 def hijack_encode_image(*args, **kwargs):
     t0 = time.time()
     try:

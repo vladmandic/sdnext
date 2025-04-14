@@ -1,6 +1,6 @@
 import os
 import time
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te
 from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
 
 
@@ -80,7 +80,7 @@ def load_model(selected: models_def.Model):
         shared.sd_model.vae.encode = video_vae.hijack_vae_encode
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
         shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
-        shared.sd_model.encode_prompt = video_utils.hijack_encode_prompt
+        sd_hijack_te.init_hijack(shared.sd_model)
     if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image
         shared.sd_model.encode_image = video_utils.hijack_encode_image

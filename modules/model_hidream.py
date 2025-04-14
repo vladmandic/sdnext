@@ -1,20 +1,6 @@
-import os
-import time
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, timer, model_quant, modelloader
-
-
-def hijack_encode_prompt(*args, **kwargs):
-    t0 = time.time()
-    if 'max_sequence_length' in kwargs:
-        kwargs['max_sequence_length'] = os.environ.get('HIDREAM_MAX_SEQUENCE_LENGTH', 256)
-    res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
-    t1 = time.time()
-    timer.process.add('te', t1-t0)
-    # shared.log.debug(f'Hijack: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    return res
+from modules import shared, devices, sd_models, model_quant, modelloader, sd_hijack_te
 
 
 def load_hidream(checkpoint_info, diffusers_load_config={}):
@@ -82,9 +68,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-
-    pipe.orig_encode_prompt = pipe.encode_prompt
-    pipe.encode_prompt = hijack_encode_prompt
+    sd_hijack_te.init_hijack(pipe)
 
     devices.torch_gc()
     return pipe

@@ -44,7 +44,9 @@ def apply(p: processing.StableDiffusionProcessing):
         shared.sd_model = sd_models.switch_pipe(WanCFGZeroPipeline, shared.sd_model)
     if cls == 'HunyuanVideoPipeline':
         from modules.cfgzero.hunyuan_t2v_pipeline import HunyuanVideoCFGZeroPipeline
+        from modules.model_hidream import init_hijack
         shared.sd_model = sd_models.switch_pipe(HunyuanVideoCFGZeroPipeline, shared.sd_model)
+        init_hijack(shared.sd_model)
 
     shared.log.debug(f'Apply CFGZero: cls={cls} init={shared.opts.cfgzero_enabled} star={shared.opts.cfgzero_star} steps={shared.opts.cfgzero_steps}')
     p.task_args['use_zero_init'] = shared.opts.cfgzero_enabled

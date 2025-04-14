@@ -5,7 +5,7 @@ import diffusers
 import transformers
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
-from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant
+from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -121,34 +121,6 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
         shared.log.error(f'Quantization: {e}')
         errors.display(e, 'Quantization:')
     return kwargs
-
-
-"""
-def load_flux_gguf(file_path):
-    transformer = None
-    ggml.install_gguf()
-    from accelerate import init_empty_weights
-    from diffusers.loaders.single_file_utils import convert_flux_transformer_checkpoint_to_diffusers
-    from modules import ggml, sd_hijack_accelerate
-    with init_empty_weights():
-        config = diffusers.FluxTransformer2DModel.load_config(os.path.join('configs', 'flux'), subfolder="transformer")
-        transformer = diffusers.FluxTransformer2DModel.from_config(config).to(devices.dtype)
-        expected_state_dict_keys = list(transformer.state_dict().keys())
-    state_dict, stats = ggml.load_gguf_state_dict(file_path, devices.dtype)
-    state_dict = convert_flux_transformer_checkpoint_to_diffusers(state_dict)
-    applied, skipped = 0, 0
-    for param_name, param in state_dict.items():
-        if param_name not in expected_state_dict_keys:
-            # shared.log.warning(f'Load model: type=Unet/Transformer param={param_name} unexpected')
-            skipped += 1
-            continue
-        applied += 1
-        sd_hijack_accelerate.hijack_set_module_tensor_simple(transformer, tensor_name=param_name, value=param, device=0)
-        transformer.gguf = 'gguf'
-        state_dict[param_name] = None
-    shared.log.debug(f'Load model: type=Unet/Transformer applied={applied} skipped={skipped} stats={stats}')
-    return transformer, None
-"""
 
 
 def load_transformer(file_path): # triggered by opts.sd_unet change
@@ -345,5 +317,6 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     vae = None
     for k in kwargs.keys():
         kwargs[k] = None
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True)
     return pipe
