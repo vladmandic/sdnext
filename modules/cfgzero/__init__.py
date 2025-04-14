@@ -8,6 +8,7 @@ supported = [
     'FluxPipeline',
     'CogView4Pipeline',
     'StableDiffusion3Pipeline',
+    'HiDreamImagePipeline',
     'WanPipeline',
     'HunyuanVideoPipeline',
 ]
@@ -35,6 +36,9 @@ def apply(p: processing.StableDiffusionProcessing):
     if cls == 'StableDiffusion3Pipeline':
         from modules.cfgzero.sd3_pipeline import StableDiffusion3CFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(StableDiffusion3CFGZeroPipeline, shared.sd_model)
+    if cls == 'HiDreamImagePipeline':
+        from modules.cfgzero.hidream_pipeline import HiDreamImageCFGZeroPipeline
+        shared.sd_model = sd_models.switch_pipe(HiDreamImageCFGZeroPipeline, shared.sd_model)
     if cls == 'WanPipeline':
         from modules.cfgzero.wan_t2v_pipeline import WanCFGZeroPipeline
         shared.sd_model = sd_models.switch_pipe(WanCFGZeroPipeline, shared.sd_model)
