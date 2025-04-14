@@ -9,7 +9,7 @@ from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile
 from modules.processing_class import StableDiffusionProcessing, StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, StableDiffusionProcessingControl, StableDiffusionProcessingVideo # pylint: disable=unused-import
 from modules.processing_info import create_infotext
 from modules.modeldata import model_data
-from modules import pag
+from modules import pag, cfgzero
 
 
 opt_C = 4
@@ -217,6 +217,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
     finally:
         pag.unapply()
+        cfgzero.unapply()
         if shared.opts.cuda_compile_backend == 'none':
             token_merge.remove_token_merging(p.sd_model)
 
@@ -304,6 +305,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         for n in range(p.n_iter):
             shared.state.batch_no = n + 1
             pag.apply(p)
+            cfgzero.apply(p)
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n
             if shared.state.skipped:

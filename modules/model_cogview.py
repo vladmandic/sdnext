@@ -1,35 +1,14 @@
 import transformers
 import diffusers
-from modules import shared, devices, sd_models
-
-
-def load_common(diffusers_load_config={}, module=None):
-    from modules import model_quant, modelloader
-    modelloader.hf_login()
-
-    if 'torch_dtype' not in diffusers_load_config:
-        diffusers_load_config['torch_dtype'] = 'torch.float16'
-    if 'low_cpu_mem_usage' in diffusers_load_config:
-        del diffusers_load_config['low_cpu_mem_usage']
-    if 'load_connected_pipeline' in diffusers_load_config:
-        del diffusers_load_config['load_connected_pipeline']
-    if 'safety_checker' in diffusers_load_config:
-        del diffusers_load_config['safety_checker']
-    if 'requires_safety_checker' in diffusers_load_config:
-        del diffusers_load_config['requires_safety_checker']
-
-    quant_args = model_quant.create_config(module=module)
-    if quant_args:
-        shared.log.debug(f'Load model: type=CogView quantization module="{module}" {quant_args}')
-
-    return diffusers_load_config, quant_args
+from modules import shared, devices, sd_models, model_quant, modelloader
 
 
 def load_cogview3(checkpoint_info, diffusers_load_config={}):
+    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    shared.log.debug(f'Load model: type=CogView3 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    shared.log.debug(f'Load model: type=CogView3 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     transformer = diffusers.CogView3PlusTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
@@ -38,7 +17,8 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    load_args, quant_args = load_common(diffusers_load_config, module='TE')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
+    shared.log.debug(f'Load model: type=CogView3 te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     text_encoder = transformers.T5EncoderModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
@@ -47,7 +27,8 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    shared.log.debug(f'Load model: type=CogView3 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
     pipe = diffusers.CogView3PlusPipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,
@@ -60,10 +41,11 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
 
 
 def load_cogview4(checkpoint_info, diffusers_load_config={}):
+    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    shared.log.debug(f'Load model: type=CogView4 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    load_args, quant_args = load_common(diffusers_load_config, module='Transformer')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    shared.log.debug(f'Load model: type=CogView4 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     transformer = diffusers.CogView4Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
@@ -72,7 +54,8 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    load_args, quant_args = load_common(diffusers_load_config, module='TE')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
+    shared.log.debug(f'Load model: type=CogView4 te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     text_encoder = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         subfolder="text_encoder",
@@ -81,7 +64,8 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
 
-    load_args, quant_args = load_common(diffusers_load_config, module='Model')
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    shared.log.debug(f'Load model: type=CogView4 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
     pipe = diffusers.CogView4Pipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,

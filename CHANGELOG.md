@@ -1,5 +1,23 @@
 # Change Log for SD.Next
 
+## Update for 2025-04-14
+
+- [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
+  implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
+  enable and configure in *settings -> pipeline modifiers -> cfg zero*  
+  experiment with CFGZero support in XYZ-grid  
+- add **UniPC FlowMatch** scheduler  
+- **HiDream** add HF gated access auth check  
+- clenup **CogView3** and **CogView4** model loader  
+- add explicit offload after encode prompt  
+  configure in *settings -> text encoder -> offload*  
+- networks: set which networks to skip when scanning civitai  
+  in *settings -> networks -> network scan*  
+  comma-separate list of regex patterns to skip  
+- ui display reference models with subdued color  
+- xyz grid support bool  
+- fix debug logging  
+
 ## Update for 2025-04-12
 
 ### Highlights for 2025-04-12

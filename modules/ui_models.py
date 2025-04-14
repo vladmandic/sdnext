@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import json
 import inspect
@@ -625,12 +626,14 @@ def create_ui():
                                             break
 
                 def civit_search_metadata(rehash, title):
-                    log.debug(f'CivitAI search metadata: {title if type(title) == str else "all"}')
+                    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"}')
                     from modules.ui_extra_networks import get_pages
                     res = []
-                    i = 0
+                    scanned, skipped = 0, 0
                     t0 = time.time()
                     candidates = []
+                    re_skip = [r.strip() for r in opts.extra_networks_scan_skip.split(',') if len(r.strip()) > 0]
+                    log.debug(f'CivitAI search metadata: skip={re_skip}')
                     for page in get_pages():
                         if type(title) == str:
                             if page.title != title:
@@ -638,7 +641,12 @@ def create_ui():
                         if page.name == 'style':
                             continue
                         for item in page.list_items():
-                            i += 1
+                            if item is None:
+                                continue
+                            if any(re.search(re_str, item.get('name', '') + item.get('filename', '')) for re_str in re_skip):
+                                skipped += 1
+                                continue
+                            scanned += 1
                             candidates.append(item)
                             # atomic_civit_search_metadata(item, res, rehash)
                     import concurrent
@@ -647,7 +655,7 @@ def create_ui():
                             executor.submit(atomic_civit_search_metadata, fn, res, rehash)
                     atomic_civit_search_metadata(None, res, rehash)
                     t1 = time.time()
-                    log.debug(f'CivitAI search metadata: items={i} time={t1-t0:.2f}')
+                    log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
                     txt = '<br>'.join([r for r in res if len(r) > 0])
                     return txt
 

@@ -49,6 +49,7 @@ try:
     from modules.schedulers.scheduler_dpm_flowmatch import FlowMatchDPMSolverMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_bdia import BDIA_DDIMScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_ufogen import UFOGenScheduler # pylint: disable=ungrouped-imports
+    from modules.schedulers.scheduler_unipc_flowmatch import FlowUniPCMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
     # from modules.schedulers.scheduler_kohaku import KohakuLoNyuYogScheduler # pylint: disable=ungrouped-imports
     # from modules.schedulers.scheduler_smea import SMEAScheduler # pylint: disable=ungrouped-imports
@@ -91,6 +92,7 @@ config = {
     'DPM++ 2M Inverse': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 2 },
     'DPM++ 3M Inverse': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 3 },
 
+    'UniPC FlowMatch': { 'predict_x0': True, 'sample_max_value': 1.0, 'solver_order': 2, 'solver_type': 'bh2', 'thresholding': False, 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_karras_sigmas': False, 'lower_order_final': True, 'timestep_spacing': 'linspace', 'final_sigmas_type': 'zero', 'rescale_betas_zero_snr': False },
     'DPM2 FlowMatch': { 'shift': 1, 'use_dynamic_shifting': False, 'solver_order': 2, 'sigma_schedule': None, 'use_beta_sigmas': False, 'algorithm_type': 'dpmsolver2', 'use_noise_sampler': True, 'beta_start': 0.00085, 'beta_end': 0.012 },
     'DPM2a FlowMatch': { 'shift': 1, 'use_dynamic_shifting': False, 'solver_order': 2, 'sigma_schedule': None, 'use_beta_sigmas': False, 'algorithm_type': 'dpmsolver2A', 'use_noise_sampler': True, 'beta_start': 0.00085, 'beta_end': 0.012 },
     'DPM2++ 2M FlowMatch': { 'shift': 1, 'use_dynamic_shifting': False, 'solver_order': 2, 'sigma_schedule': None, 'use_beta_sigmas': False, 'algorithm_type': 'dpmsolver++2M', 'use_noise_sampler': True, 'beta_start': 0.00085, 'beta_end': 0.012 },
@@ -150,6 +152,7 @@ samplers_data_diffusers = [
     SamplerData('DPM++ 2M Inverse', lambda model: DiffusionSampler('DPM++ 2M Inverse', DPMSolverMultistepInverseScheduler, model), [], {}),
     SamplerData('DPM++ 3M Inverse', lambda model: DiffusionSampler('DPM++ 3M Inverse', DPMSolverMultistepInverseScheduler, model), [], {}),
 
+    SamplerData('UniPC FlowMatch', lambda model: DiffusionSampler('UniPC FlowMatch', FlowUniPCMultistepScheduler, model), [], {}),
     SamplerData('DPM2 FlowMatch', lambda model: DiffusionSampler('DPM2 FlowMatch', FlowMatchDPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM2a FlowMatch', lambda model: DiffusionSampler('DPM2a FlowMatch', FlowMatchDPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM2++ 2M FlowMatch', lambda model: DiffusionSampler('DPM2++ 2M FlowMatch', FlowMatchDPMSolverMultistepScheduler, model), [], {}),
@@ -281,6 +284,8 @@ class DiffusionSampler:
             del self.config['beta_end']
             del self.config['beta_schedule']
             del self.config['prediction_type']
+        if 'prediction_type' in self.config and 'Flow' in name:
+            self.config['prediction_type'] = 'flow_prediction'
         if 'SGM' in name:
             self.config['timestep_spacing'] = 'trailing'
 

@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from PIL import Image
 import rich.progress as p
 import huggingface_hub as hf
-from installer import install
+from installer import install, log
 from modules import shared, errors, files_cache
 from modules.upscaler import Upscaler
 from modules.paths import script_path, models_path
@@ -18,21 +18,22 @@ from modules.paths import script_path, models_path
 
 loggedin = None
 diffuser_repos = []
-debug = shared.log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 pbar = None
 
 
 def hf_login(token=None):
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
+    install('hf_xet', quiet=True)
     if token is None or len(token) <= 2:
-        shared.log.debug('HF login: no token provided')
-        return
+        log.debug('HF login: no token provided')
+        return False
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
-        shared.log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
+        log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
         del os.environ['HUGGING_FACE_HUB_TOKEN']
     if os.environ.get('HF_TOKEN', None) is not None:
-        shared.log.warning('HF login: removing existing env variable: HF_TOKEN')
+        log.warning('HF login: removing existing env variable: HF_TOKEN')
         del os.environ['HF_TOKEN']
     if loggedin != token:
         stdout = io.StringIO()
@@ -41,9 +42,9 @@ def hf_login(token=None):
             hf.login(token=token, add_to_git_credential=False, write_permission=False)
         text = stdout.getvalue() or ''
         line = [l for l in text.split('\n') if 'Token' in l]
-        shared.log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
+        log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         loggedin = token
-    install('hf_xet', quiet=True)
+    return True
 
 
 def download_civit_meta(model_path: str, model_id):

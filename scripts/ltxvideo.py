@@ -4,7 +4,7 @@ import torch
 import gradio as gr
 import diffusers
 import transformers
-from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer
+from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer, sd_hijack_te
 
 
 repos = {
@@ -36,16 +36,6 @@ def hijack_decode(*args, **kwargs):
     t1 = time.time()
     timer.process.add('vae', t1-t0)
     shared.log.debug(f'Video: vae={shared.sd_model.vae.__class__.__name__} time={t1-t0:.2f}')
-    return res
-
-
-def hijack_encode_prompt(*args, **kwargs):
-    t0 = time.time()
-    res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
-    t1 = time.time()
-    timer.process.add('te', t1-t0)
-    shared.log.debug(f'Video: te={shared.sd_model.text_encoder.__class__.__name__} time={t1-t0:.2f}')
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     return res
 
 
@@ -131,9 +121,10 @@ class Script(scripts.Script):
             shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
             shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
             shared.sd_model.vae.decode = hijack_decode
-            shared.sd_model.encode_prompt = hijack_encode_prompt
             shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(repo_id)
             shared.sd_model.sd_model_hash = None
+            sd_hijack_te.init_hijack(shared.sd_model)
+
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         shared.sd_model.vae.enable_slicing()
         shared.sd_model.vae.enable_tiling()

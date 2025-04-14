@@ -8,9 +8,8 @@ from enum import Enum
 import diffusers
 import diffusers.loaders.single_file_utils
 import torch
-
 from installer import log
-from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant
+from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.timer import Timer, process as process_timer
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
@@ -549,6 +548,9 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         # load with custom loader
         if sd_model is None:
             sd_model = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
+            if sd_model is not None and not sd_model:
+                shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
+                return
 
         # load from hf folder-style
         if sd_model is None:
@@ -751,6 +753,7 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
                     components_skipped.append(k)
         if new_pipe is not None:
             copy_diffuser_options(new_pipe, pipeline)
+            sd_hijack_te.init_hijack(new_pipe)
             if hasattr(new_pipe, "watermark"):
                 new_pipe.watermark = NoWatermark()
             if switch_mode == 'auto':

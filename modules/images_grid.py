@@ -118,7 +118,7 @@ def combine_grid(grid):
 
 class GridAnnotation:
     def __init__(self, text='', is_active=True):
-        self.text = text
+        self.text = str(text)
         self.is_active = is_active
         self.size = None
 

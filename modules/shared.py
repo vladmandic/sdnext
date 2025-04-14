@@ -443,6 +443,7 @@ options_templates.update(options_section(('text_encoder', "Text Encoder"), {
     "comma_padding_backtrack": OptionInfo(20, "Prompt padding", gr.Slider, {"minimum": 0, "maximum": 74, "step": 1, "visible": not native }),
     "sd_textencder_linebreak": OptionInfo(True, "Use line break as prompt segment marker", gr.Checkbox),
     "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
+    "te_hijack": OptionInfo(True, "Offload after prompt encode", gr.Checkbox),
     "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
     "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),
     "te_complex_human_instruction": OptionInfo(True, "Sana: Use complex human instructions"),
@@ -609,11 +610,16 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "hidiffusion_t1": OptionInfo(-1, "Override T1 ratio", gr.Slider, {"minimum": -1, "maximum": 1.0, "step": 0.05}),
     "hidiffusion_t2": OptionInfo(-1, "Override T2 ratio", gr.Slider, {"minimum": -1, "maximum": 1.0, "step": 0.05}),
 
-    "linfusion_sep": OptionInfo("<h2>Batch</h2>", "", gr.HTML),
+    "linfusion_sep": OptionInfo("<h2>LinFusion</h2>", "", gr.HTML),
     "enable_linfusion": OptionInfo(False, "Apply LinFusion distillation on load"),
 
     "ras_sep": OptionInfo("<h2>RAS: Region-Adaptive Sampling</h2>", "", gr.HTML),
     "ras_enable": OptionInfo(False, "RAS enabled"),
+
+    "cfgzero_sep": OptionInfo("<h2>CFG-Zero</h2>", "", gr.HTML),
+    "cfgzero_enabled": OptionInfo(False, "CFG-Zero enabled"),
+    "cfgzero_star": OptionInfo(False, "CFG-Zero star"),
+    "cfgzero_steps": OptionInfo(0, "CFG-Zero steps", gr.Slider, {"minimum": 0, "maximum": 3, "step": 1}),
 
     "inference_batch_sep": OptionInfo("<h2>Batch</h2>", "", gr.HTML),
     "sequential_seed": OptionInfo(True, "Batch mode uses sequential seeds"),
@@ -930,6 +936,9 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_card_square": OptionInfo(True, "UI disable variable aspect ratio"),
     "extra_networks_fetch": OptionInfo(True, "UI fetch network info on mouse-over"),
     "extra_network_skip_indexing": OptionInfo(False, "Build info on first access", gr.Checkbox),
+
+    "extra_networks_scan_sep": OptionInfo("<h2>Networks Scan</h2>", "", gr.HTML),
+    "extra_networks_scan_skip": OptionInfo("", "Skip CivitAI scan for regex pattern(s)", gr.Textbox),
 
     "extra_networks_model_sep": OptionInfo("<h2>Rerefence models</h2>", "", gr.HTML),
     "extra_network_reference_enable": OptionInfo(True, "Enable use of reference models", gr.Checkbox),
