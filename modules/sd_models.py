@@ -600,7 +600,7 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         prompt_parser_diffusers.cache.clear()
 
         set_diffuser_options(sd_model, vae, op, offload=False)
-        if 'Model' in shared.opts.nncf_compress_weights and not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+        if shared.opts.nncf_compress_weights and not (shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
             sd_model = model_quant.nncf_compress_weights(sd_model) # run this before move model so it can be compressed in CPU
         if shared.opts.optimum_quanto_weights:
             sd_model = model_quant.optimum_quanto_weights(sd_model) # run this before move model so it can be compressed in CPU
