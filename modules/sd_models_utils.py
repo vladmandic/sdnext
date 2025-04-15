@@ -197,6 +197,15 @@ def apply_function_to_model(sd_model, function, options, op=None):
                         dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
                     )
             sd_model.text_encoder_3 = function(sd_model.text_encoder_3, op="text_encoder_3", sd_model=sd_model)
+        if hasattr(sd_model, 'text_encoder_4') and hasattr(sd_model.text_encoder_4, 'config'):
+            if op == "nncf" and sd_model.text_encoder_4.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
+                from modules.sd_hijack import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
+                for i in range(len(sd_model.text_encoder_4.encoder.block)):
+                    sd_model.text_encoder_4.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
+                        sd_model.text_encoder_4.encoder.block[i].layer[1].DenseReluDense,
+                        dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
+                    )
+            sd_model.text_encoder_4 = function(sd_model.text_encoder_4, op="text_encoder_4", sd_model=sd_model)
         if hasattr(sd_model, 'prior_pipe') and hasattr(sd_model.prior_pipe, 'text_encoder') and hasattr(sd_model.prior_pipe.text_encoder, 'config'):
             sd_model.prior_pipe.text_encoder = function(sd_model.prior_pipe.text_encoder, op="prior_pipe.text_encoder", sd_model=sd_model)
     if "VAE" in options:
