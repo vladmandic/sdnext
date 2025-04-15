@@ -548,6 +548,10 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "layerwise_quantization": OptionInfo([], "Layerwise casting enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "TE"], "visible": native}),
     "layerwise_quantization_storage": OptionInfo("float8_e4m3fn", "Layerwise casting storage", gr.Dropdown, {"choices": ["float8_e4m3fn", "float8_e5m2"], "visible": native}),
     "layerwise_quantization_nonblocking": OptionInfo(False, "Layerwise non-blocking operations", gr.Checkbox, {"visible": native}),
+
+    "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
+    "nunchaku_quantization": OptionInfo([], "SVDQuant enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
+    "nunchaku_attention": OptionInfo(False, "Nunchaku attention", gr.Checkbox, {"visible": native}),
 }))
 
 options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {

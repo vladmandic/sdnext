@@ -191,32 +191,36 @@ class PromptEmbedder:
     def __call__(self, key, step=0):
         batch = getattr(self, key)
         res = []
-        if isinstance(batch[0][0], list) and len(batch[0][0]) == 2 and isinstance(batch[0][0][1], torch.Tensor) and batch[0][0][1].shape[0] == 32:
-            # hidream uses a list of t5 + llama prompt embeds: [t5_embeds, llama_embeds]
-            # t5_embeds shape: [batch_size, seq_len, dim]
-            # llama_embeds shape: [number_of_hidden_states, batch_size, seq_len, dim]
-            res2 = []
-            for i in range(self.batchsize):
-                if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
-                    return None
-                try:
-                    res.append(batch[i][step][0])
-                    res2.append(batch[i][step][1])
-                except IndexError:
-                    # if not scheduled, return default
-                    res.append(batch[i][0][0])
-                    res2.append(batch[i][0][1])
-            res = [torch.cat(res, dim=0), torch.cat(res2, dim=1)]
-            return res
-        else:
-            for i in range(self.batchsize):
-                if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
-                    return None
-                try:
-                    res.append(batch[i][step])
-                except IndexError:
-                    res.append(batch[i][0])  # if not scheduled, return default
-            return torch.cat(res)
+        try:
+            if isinstance(batch[0][0], list) and len(batch[0][0]) == 2 and isinstance(batch[0][0][1], torch.Tensor) and batch[0][0][1].shape[0] == 32:
+                # hidream uses a list of t5 + llama prompt embeds: [t5_embeds, llama_embeds]
+                # t5_embeds shape: [batch_size, seq_len, dim]
+                # llama_embeds shape: [number_of_hidden_states, batch_size, seq_len, dim]
+                res2 = []
+                for i in range(self.batchsize):
+                    if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
+                        return None
+                    try:
+                        res.append(batch[i][step][0])
+                        res2.append(batch[i][step][1])
+                    except IndexError:
+                        # if not scheduled, return default
+                        res.append(batch[i][0][0])
+                        res2.append(batch[i][0][1])
+                res = [torch.cat(res, dim=0), torch.cat(res2, dim=1)]
+                return res
+            else:
+                for i in range(self.batchsize):
+                    if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
+                        return None
+                    try:
+                        res.append(batch[i][step])
+                    except IndexError:
+                        res.append(batch[i][0])  # if not scheduled, return default
+                return torch.cat(res)
+        except Exception:
+            pass
+        return None
 
 
 def compel_hijack(self, token_ids: torch.Tensor, attention_mask: typing.Optional[torch.Tensor] = None) -> torch.Tensor:
