@@ -24,7 +24,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
     if shared.opts.diffusers_offload_mode != 'none':
-        transformer = transformer.to(devices.cpu)
+        sd_models.move_model(transformer, devices.cpu)
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te3="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -36,7 +36,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **quant_args,
     )
     if shared.opts.diffusers_offload_mode != 'none':
-        text_encoder_3 = text_encoder_3.to(devices.cpu)
+        sd_models.move_model(text_encoder_3, devices.cpu)
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -55,7 +55,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
     if shared.opts.diffusers_offload_mode != 'none':
-        text_encoder_4 = text_encoder_4.to(devices.cpu)
+        sd_models.move_model(text_encoder_4, devices.cpu)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
@@ -69,6 +69,10 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
     sd_hijack_te.init_hijack(pipe)
+    del text_encoder_3
+    del text_encoder_4
+    del tokenizer_4
+    del transformer
 
     devices.torch_gc()
     return pipe

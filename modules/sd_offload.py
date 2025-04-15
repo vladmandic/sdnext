@@ -9,8 +9,10 @@ from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
 
 
-debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
-should_offload = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
+debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
+debug_move = log.trace if debug else lambda *args, **kwargs: None
+offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
+offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']
 
@@ -66,7 +68,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     if not (hasattr(sd_model, "has_accelerate") and sd_model.has_accelerate):
         sd_model.has_accelerate = False
     if shared.opts.diffusers_offload_mode == "none":
-        if shared.sd_model_type in should_offload or 'video' in shared.sd_model_type:
+        if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
         else:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -175,19 +177,20 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return args, kwargs
 
     def post_forward(self, module, output):
-        if getattr(module, "do_offload", False) and shared.opts.te_hijack and module.device != devices.cpu:
+        if getattr(module, "offload_post", False) and module.device != devices.cpu:
             used_gpu, used_ram = devices.torch_gc(fast=True)
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 module_size = self.model_size()
                 prev_gpu = used_gpu
-                do_offload = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory)
-                if do_offload:
+                offload_now = perc_gpu > shared.opts.diffusers_offload_min_gpu_memory
+                if offload_now:
                     module = module.to(devices.cpu)
                     used_gpu -= module_size
-                cls = module.__class__.__name__
-                quant = getattr(module, "quantization_method", None)
-                debug_move(f'Offload: type=balanced op={"move post forward" if do_offload else "skip post forward"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
+                if debug:
+                    cls = module.__class__.__name__
+                    quant = getattr(module, "quantization_method", None)
+                    debug_move(f'Offload: type=balanced op={"post" if offload_now else "skip"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
             except Exception as e:
                 if 'out of memory' in str(e):
                     devices.torch_gc(fast=True, force=True, reason='oom')
@@ -269,15 +272,16 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 prev_gpu = used_gpu
-                do_offload = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory) and (module.device != devices.cpu)
-                if do_offload:
+                offload_now = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory) and (module.device != devices.cpu)
+                if offload_now:
                     module = module.to(devices.cpu)
                     used_gpu -= module_size
                 cls = module.__class__.__name__
                 quant = getattr(module, "quantization_method", None)
                 if not cached:
                     shared.log.debug(f'Model module={module_name} type={cls} dtype={module.dtype} quant={quant} params={offload_hook_instance.param_map[module_name]:.3f} size={offload_hook_instance.offload_map[module_name]:.3f}')
-                debug_move(f'Offload: type=balanced op={"move" if do_offload else "skip"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
+                if debug:
+                    debug_move(f'Offload: type=balanced op={"move" if offload_now else "skip"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
             except Exception as e:
                 if 'out of memory' in str(e):
                     devices.torch_gc(fast=True, force=True, reason='oom')
@@ -295,7 +299,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             if device_map and max_memory:
                 module.balanced_offload_device_map = device_map
                 module.balanced_offload_max_memory = max_memory
-            module.do_offload = bool("HiDreamImage" in sd_model.__class__.__name__ and module_name.startswith("text_encoder"))
+            module.offload_post = shared.sd_model_type in [offload_post] and shared.opts.te_hijack and module_name.startswith("text_encoder")
         devices.torch_gc(fast=True, force=True, reason='offload')
 
     apply_balanced_offload_to_module(sd_model)

@@ -1,5 +1,9 @@
 # Change Log for SD.Next
 
+## Update for 2025-04-15
+
+- **HiDream** optimized offloading, now works in 12GB VRAM / 26GB RAM
+
 ## Update for 2025-04-14
 
 - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  

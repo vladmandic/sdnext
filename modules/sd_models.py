@@ -225,6 +225,8 @@ def move_model(model, device=None, force=False):
                 pass # ignore model move if sequential offload is enabled
             elif 'Params4bit' in str(e0) or 'Params8bit' in str(e0):
                 pass # ignore model move if quantization is enabled
+            elif 'already been set to the correct devices' in str(e0):
+                pass # ignore errors on pre-quant models
             else:
                 raise e0
         t1 = time.time()
