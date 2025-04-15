@@ -175,6 +175,28 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return args, kwargs
 
     def post_forward(self, module, output):
+        if getattr(module, "do_offload", False) and shared.opts.te_hijack and module.device != devices.cpu:
+            used_gpu, used_ram = devices.torch_gc(fast=True)
+            perc_gpu = used_gpu / shared.gpu_memory
+            try:
+                module_size = self.model_size()
+                prev_gpu = used_gpu
+                do_offload = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory)
+                if do_offload:
+                    module = module.to(devices.cpu)
+                    used_gpu -= module_size
+                cls = module.__class__.__name__
+                quant = getattr(module, "quantization_method", None)
+                debug_move(f'Offload: type=balanced op={"move post forward" if do_offload else "skip post forward"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
+            except Exception as e:
+                if 'out of memory' in str(e):
+                    devices.torch_gc(fast=True, force=True, reason='oom')
+                elif 'bitsandbytes' in str(e):
+                    pass
+                else:
+                    shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} {e}')
+                if os.environ.get('SD_MOVE_DEBUG', None):
+                    errors.display(e, f'Offload: type=balanced op=apply module={module.__name__}')
         return output
 
     def detach_hook(self, module):
@@ -273,6 +295,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             if device_map and max_memory:
                 module.balanced_offload_device_map = device_map
                 module.balanced_offload_max_memory = max_memory
+            module.do_offload = bool("HiDreamImage" in sd_model.__class__.__name__ and module_name.startswith("text_encoder"))
         devices.torch_gc(fast=True, force=True, reason='offload')
 
     apply_balanced_offload_to_module(sd_model)
