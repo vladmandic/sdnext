@@ -4,7 +4,7 @@
 
 - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
   highly experimental and with limited support, but when it works, its magic: **Flux.1 at 5.90 it/s** *(not sec/it)*!  
-  see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/Nunchaku) for details  
+  see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for details  
 - **HiDream** optimized offloading and prompt-encode caching  
   it now works in 12GB VRAM / 26GB RAM!  
 - fix: NNCF for TE-only quant  
