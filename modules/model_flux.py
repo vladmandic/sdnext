@@ -150,7 +150,6 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
     if quant is not None and quant != 'none':
         shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} prequant={quant} dtype={devices.dtype}')
     if 'gguf' in file_path.lower():
-        # _transformer, _text_encoder_2 = load_flux_gguf(file_path)
         from modules import ggml
         _transformer = ggml.load_gguf(file_path, cls=diffusers.FluxTransformer2DModel, compute_dtype=devices.dtype)
         if _transformer is not None:

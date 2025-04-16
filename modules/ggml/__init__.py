@@ -47,7 +47,8 @@ def load_gguf_state_dict(path: str, compute_dtype: torch.dtype) -> dict:
 
 def load_gguf(path, cls, compute_dtype: torch.dtype):
     _gguf = install_gguf()
-    module = cls.from_single_file(
+    loader = cls.from_single_file if hasattr(cls, 'from_single_file') else cls.from_pretrained
+    module = loader(
         path,
         quantization_config = diffusers.GGUFQuantizationConfig(compute_dtype=compute_dtype),
         torch_dtype=compute_dtype,
