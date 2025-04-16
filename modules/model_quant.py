@@ -88,9 +88,13 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
             load_quanto(silent=True)
             if optimum_quanto is None:
                 return kwargs
-            quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
-            quanto_config.activations = None # patch so it works with transformers
-            quanto_config.weights = quanto_config.weights_dtype
+            if module in {'TE', 'LLM'}:
+                quanto_config = transformers.QuantoConfig(weights=shared.opts.quanto_quantization_type)
+                quanto_config.weights_dtype = quanto_config.weights
+            else:
+                quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
+                quanto_config.activations = None # patch so it works with transformers
+                quanto_config.weights = quanto_config.weights_dtype
             log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
             if kwargs is None:
                 return quanto_config
@@ -98,6 +102,26 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
                 kwargs['quantization_config'] = quanto_config
                 return kwargs
     return kwargs
+
+
+def check_quant(module: str = ''):
+    from modules import shared
+    if 'Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization:
+        return True
+    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization:
+        return True
+    return False
+
+
+def check_nunchaku(module: str = ''):
+    from modules import shared
+    if 'Model' not in shared.opts.nunchaku_quantization and module not in shared.opts.nunchaku_quantization:
+        return False
+    from modules import mit_nunchaku
+    mit_nunchaku.install_nunchaku()
+    if not mit_nunchaku.ok:
+        return False
+    return True
 
 
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model'):

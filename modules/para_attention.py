@@ -12,9 +12,13 @@ def apply_first_block_cache():
     from installer import install
     install('para_attn')
     try:
-        from para_attn.first_block_cache import diffusers_adapters
-        diffusers_adapters.apply_cache_on_pipe(shared.sd_model, residual_diff_threshold=shared.opts.para_diff_threshold)
-        shared.log.info(f'Transformers cache: type=paraattn rdt={shared.opts.para_diff_threshold} cls={shared.sd_model.__class__.__name__}')
+        if 'Nunchaku' in shared.sd_model.transformer.__class__.__name__:
+            from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
+            shared.log.info(f'Transformers cache: type=nunchaku rdt={shared.opts.para_diff_threshold} cls={shared.sd_model.transformer.__class__.__name__}')
+        else:
+            from para_attn.first_block_cache.diffusers_adapters import apply_cache_on_pipe
+            shared.log.info(f'Transformers cache: type=paraattn rdt={shared.opts.para_diff_threshold} cls={shared.sd_model.transformer.__class__.__name__}')
+        apply_cache_on_pipe(shared.sd_model, residual_diff_threshold=shared.opts.para_diff_threshold)
     except Exception as e:
         shared.log.error(f'Transformers cache: type=paraattn {e}')
         return

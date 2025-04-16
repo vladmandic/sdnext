@@ -69,7 +69,7 @@ def refresh_vae_list():
 
 def sd_unet_items():
     import modules.sd_unet
-    return ["None"] + list(modules.sd_unet.unet_dict)
+    return ['Default'] + list(modules.sd_unet.unet_dict)
 
 
 def refresh_unet_list():
@@ -79,7 +79,7 @@ def refresh_unet_list():
 
 def sd_te_items():
     import modules.model_te
-    predefined = ['None']
+    predefined = ['Default']
     return predefined + list(modules.model_te.te_dict)
 
 

@@ -109,11 +109,25 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
 
 def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
-        if 'transformer' not in kwargs and (('Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization) or ('Transformer' in shared.opts.bnb_quantization or 'Transformer' in shared.opts.torchao_quantization or 'Transformer' in shared.opts.quanto_quantization)):
+        if 'transformer' not in kwargs and model_quant.check_nunchaku('Transformer'):
+            import nunchaku
+            nunchaku_precision = nunchaku.utils.get_precision()
+            nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-dev" if 'dev' in repo_id else f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-schnell"
+            shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
+            kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+            if shared.opts.nunchaku_attention:
+                kwargs['transformer'].set_attention_impl("nunchaku-fp16")
+        elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
             quant_args = model_quant.create_config(allow=allow_quant, module='Transformer')
             if quant_args:
                 kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-        if 'text_encoder_2' not in kwargs and ('TE' in shared.opts.bnb_quantization or 'TE' in shared.opts.torchao_quantization or 'TE' in shared.opts.quanto_quantization):
+        if 'text_encoder_2' not in kwargs and model_quant.check_nunchaku('TE'):
+            import nunchaku
+            nunchaku_precision = nunchaku.utils.get_precision()
+            nunchaku_repo = 'mit-han-lab/svdq-flux.1-t5'
+            shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
+            kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+        elif 'text_encoder_2' not in kwargs and model_quant.check_quant('TE'):
             quant_args = model_quant.create_config(allow=allow_quant, module='TE')
             if quant_args:
                 kwargs['text_encoder_2'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder_2", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
@@ -136,7 +150,6 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
     if quant is not None and quant != 'none':
         shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} prequant={quant} dtype={devices.dtype}')
     if 'gguf' in file_path.lower():
-        # _transformer, _text_encoder_2 = load_flux_gguf(file_path)
         from modules import ggml
         _transformer = ggml.load_gguf(file_path, cls=diffusers.FluxTransformer2DModel, compute_dtype=devices.dtype)
         if _transformer is not None:
@@ -198,7 +211,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     if shared.opts.teacache_enabled:
         from modules import teacache
         shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.FluxTransformer2DModel.__name__}')
-        diffusers.FluxTransformer2DModel.forward = teacache.teacache_flux_forward
+        diffusers.FluxTransformer2DModel.forward = teacache.teacache_flux_forward # patch must be done before transformer is loaded
 
     # load overrides if any
     if shared.opts.sd_unet != 'Default':
@@ -309,6 +322,10 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         pipe = diffusers.FluxPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
     else:
         pipe = cls.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
+
+    if shared.opts.teacache_enabled and model_quant.check_nunchaku('Transformer'):
+        from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
+        apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
 
     # release memory
     transformer = None

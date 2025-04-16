@@ -225,6 +225,8 @@ def move_model(model, device=None, force=False):
                 pass # ignore model move if sequential offload is enabled
             elif 'Params4bit' in str(e0) or 'Params8bit' in str(e0):
                 pass # ignore model move if quantization is enabled
+            elif 'already been set to the correct devices' in str(e0):
+                pass # ignore errors on pre-quant models
             else:
                 raise e0
         t1 = time.time()
@@ -945,7 +947,11 @@ def add_noise_pred_to_diffusers_callback(pipe):
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
     elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction":
+        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     elif hasattr(pipe, "default_scheduler") and "flow" in pipe.default_scheduler.__class__.__name__.lower():
+        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction":
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     return pipe
 
