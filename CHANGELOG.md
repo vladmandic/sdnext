@@ -27,6 +27,8 @@
   - xyz grid support bool  
 - **Fixes**
   - NNCF with TE-only quant  
+  - Quanto with TE/LLM quant  
+  - HiDream live preview  
   - **HunyuanVideo-I2V** with latest transformers  
   - trace logging  
 
