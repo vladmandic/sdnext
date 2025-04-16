@@ -26,9 +26,9 @@
   - ui display reference models with subdued color  
   - xyz grid support bool  
 - **Fixes**
-  - NNCF for TE-only quant  
-  - HunyuanVideo-I2V with latest transformers
-  - debug logging  
+  - NNCF with TE-only quant  
+  - **HunyuanVideo-I2V** with latest transformers  
+  - trace logging  
 
 ## Update for 2025-04-12
 

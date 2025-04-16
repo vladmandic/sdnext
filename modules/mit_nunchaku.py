@@ -29,7 +29,7 @@ def check():
 
 def install_nunchaku():
     if devices.backend is None:
-        return # too early
+        return False # too early
     if not check():
         import sys
         import platform
@@ -39,14 +39,14 @@ def install_nunchaku():
         python_ver = f'{sys.version_info.major}{sys.version_info.minor}'
         if python_ver not in ['311', '312', '313']:
             log.error(f'Nunchaku: python={sys.version_info} unsupported')
-            return
+            return False
         arch = platform.system().lower()
         if arch not in ['linux', 'windows']:
             log.error(f'Nunchaku: platform={arch} unsupported')
             return
         if devices.backend not in ['cuda']:
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
-            return
+            return False
         torch_ver = torch.__version__[:3]
         if torch_ver not in ['2.5', '2.6', '2.7', '2.8']:
             log.error(f'Nunchaku: torch={torch.__version__} unsupported')
@@ -61,3 +61,4 @@ def install_nunchaku():
     if not check():
         log.error('Nunchaku: install failed')
         return False
+    return True
