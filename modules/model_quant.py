@@ -100,6 +100,26 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
     return kwargs
 
 
+def check_quant(module: str = ''):
+    from modules import shared
+    if 'Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization:
+        return True
+    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization:
+        return True
+    return False
+
+
+def check_nunchaku(module: str = ''):
+    from modules import shared
+    if 'Model' not in shared.opts.nunchaku_quantization and module not in shared.opts.nunchaku_quantization:
+        return False
+    from modules import mit_nunchaku
+    mit_nunchaku.install_nunchaku()
+    if not mit_nunchaku.ok:
+        return False
+    return True
+
+
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model'):
     if kwargs is None:
         kwargs = {}

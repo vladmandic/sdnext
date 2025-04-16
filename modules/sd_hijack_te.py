@@ -15,6 +15,8 @@ def hijack_encode_prompt(*args, **kwargs):
         res = None
     t1 = time.time()
     timer.process.add('te', t1-t0)
+    if hasattr(shared.sd_model, "maybe_free_model_hooks"):
+        shared.sd_model.maybe_free_model_hooks()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     return res
 

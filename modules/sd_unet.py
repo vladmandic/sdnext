@@ -10,10 +10,10 @@ debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 def load_unet(model):
     global loaded_unet # pylint: disable=global-statement
-    if shared.opts.sd_unet == 'Default':
+    if shared.opts.sd_unet == 'Default' or shared.opts.sd_unet == 'None':
         return
     if shared.opts.sd_unet not in list(unet_dict):
-        shared.log.error(f'UNet model not found: {shared.opts.sd_unet}')
+        shared.log.error(f'Load module: type=UNet not found: {shared.opts.sd_unet}')
         return
     config_file = os.path.splitext(unet_dict[shared.opts.sd_unet])[0] + '.json'
     if os.path.exists(config_file):
@@ -34,7 +34,7 @@ def load_unet(model):
             if prior_text_encoder is not None:
                 model.prior_pipe.text_encoder = None # Prevent OOM
                 model.prior_pipe.text_encoder = prior_text_encoder.to(devices.device, dtype=devices.dtype)
-        elif "Flux" in model.__class__.__name__ or "StableDiffusion3" in model.__class__.__name__:
+        elif "Flux" in model.__class__.__name__ or "StableDiffusion3" in model.__class__.__name__ or "HiDream" in model.__class__.__name__:
             loaded_unet = shared.opts.sd_unet
             sd_models.load_diffuser() # TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
             """
@@ -51,7 +51,7 @@ def load_unet(model):
             """
         else:
             if not hasattr(model, 'unet') or model.unet is None:
-                shared.log.error('UNet not found in current model')
+                shared.log.error('Load module: type=UNET not found in current model')
                 return
             shared.log.info(f'Load module: type=UNet name="{shared.opts.sd_unet}" file="{unet_dict[shared.opts.sd_unet]}" config="{config_file}"')
             from diffusers import UNet2DConditionModel

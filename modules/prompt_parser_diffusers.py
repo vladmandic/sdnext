@@ -26,7 +26,8 @@ def prompt_compatible(pipe = None):
         'StableDiffusion' not in pipe.__class__.__name__ and
         'DemoFusion' not in pipe.__class__.__name__ and
         'StableCascade' not in pipe.__class__.__name__ and
-        'Flux' not in pipe.__class__.__name__
+        'Flux' not in pipe.__class__.__name__ and
+        'HiDreamImage' not in pipe.__class__.__name__
     ):
         shared.log.warning(f"Prompt parser not supported: {pipe.__class__.__name__}")
         return False
@@ -190,14 +191,36 @@ class PromptEmbedder:
     def __call__(self, key, step=0):
         batch = getattr(self, key)
         res = []
-        for i in range(self.batchsize):
-            if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
-                return None
-            try:
-                res.append(batch[i][step])
-            except IndexError:
-                res.append(batch[i][0])  # if not scheduled, return default
-        return torch.cat(res)
+        try:
+            if isinstance(batch[0][0], list) and len(batch[0][0]) == 2 and isinstance(batch[0][0][1], torch.Tensor) and batch[0][0][1].shape[0] == 32:
+                # hidream uses a list of t5 + llama prompt embeds: [t5_embeds, llama_embeds]
+                # t5_embeds shape: [batch_size, seq_len, dim]
+                # llama_embeds shape: [number_of_hidden_states, batch_size, seq_len, dim]
+                res2 = []
+                for i in range(self.batchsize):
+                    if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
+                        return None
+                    try:
+                        res.append(batch[i][step][0])
+                        res2.append(batch[i][step][1])
+                    except IndexError:
+                        # if not scheduled, return default
+                        res.append(batch[i][0][0])
+                        res2.append(batch[i][0][1])
+                res = [torch.cat(res, dim=0), torch.cat(res2, dim=1)]
+                return res
+            else:
+                for i in range(self.batchsize):
+                    if len(batch[i]) == 0:  # if asking for a null key, ie pooled on SD1.5
+                        return None
+                    try:
+                        res.append(batch[i][step])
+                    except IndexError:
+                        res.append(batch[i][0])  # if not scheduled, return default
+                return torch.cat(res)
+        except Exception:
+            pass
+        return None
 
 
 def compel_hijack(self, token_ids: torch.Tensor, attention_mask: typing.Optional[torch.Tensor] = None) -> torch.Tensor:
@@ -457,21 +480,43 @@ def split_prompts(pipe, prompt, SD3 = False):
     else:
         prompt3 = prompt
 
+    if prompt.find("TE4:") != -1:
+        prompt, prompt4 = prompt.split("TE4:")
+    elif prompt2.find("TE4:") != -1:
+        prompt2, prompt4 = prompt2.split("TE4:")
+    elif prompt3.find("TE4:") != -1:
+        prompt3, prompt4 = prompt3.split("TE4:")
+    else:
+        prompt4 = prompt
+
     prompt = prompt.strip()
     prompt2 = " " if prompt2.strip() == "" else prompt2.strip()
     prompt3 = " " if prompt3.strip() == "" else prompt3.strip()
+    prompt4 = " " if prompt4.strip() == "" else prompt4.strip()
 
     if SD3 and prompt3 != " ":
         ps, _ws = get_prompts_with_weights(pipe, prompt3)
         prompt3 = " ".join(ps)
-    return prompt, prompt2, prompt3
+    return prompt, prompt2, prompt3, prompt4
 
 
 def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
     device = devices.device
-    SD3 = hasattr(pipe, 'text_encoder_3')
-    prompt, prompt_2, prompt_3 = split_prompts(pipe, prompt, SD3)
-    neg_prompt, neg_prompt_2, neg_prompt_3 = split_prompts(pipe, neg_prompt, SD3)
+    SD3 = bool(hasattr(pipe, 'text_encoder_3') and not hasattr(pipe, 'text_encoder_4'))
+    prompt, prompt_2, prompt_3, prompt_4 = split_prompts(pipe, prompt, SD3)
+    neg_prompt, neg_prompt_2, neg_prompt_3, neg_prompt_4 = split_prompts(pipe, neg_prompt, SD3)
+
+    if "Flux" in pipe.__class__.__name__: # clip is only used for the pooled embeds
+        prompt_embeds, pooled_prompt_embeds, _ = pipe.encode_prompt(prompt=prompt, prompt_2=prompt_2, device=device, num_images_per_prompt=1)
+        return prompt_embeds, pooled_prompt_embeds, None, None # no negative support
+
+    if "HiDreamImage" in pipe.__class__.__name__: # clip is only used for the pooled embeds
+        prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds = pipe.encode_prompt(
+            prompt=prompt, prompt_2=prompt_2, prompt_3=prompt_3, prompt_4=prompt_4,
+            negative_prompt=neg_prompt, negative_prompt_2=neg_prompt_2, negative_prompt_3=neg_prompt_3, negative_prompt_4=neg_prompt_4,
+            device=device, num_images_per_prompt=1,
+        )
+        return prompt_embeds, pooled_prompt_embeds, negative_prompt_embeds, negative_pooled_prompt_embeds
 
     if prompt != prompt_2:
         ps = [get_prompts_with_weights(pipe, p) for p in [prompt, prompt_2]]
@@ -487,10 +532,6 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         positive_weights.pop(0)
         negatives.pop(0)
         negative_weights.pop(0)
-
-    if "Flux" in pipe.__class__.__name__: # clip is only used for the pooled embeds
-        prompt_embeds, pooled_prompt_embeds, _ = pipe.encode_prompt(prompt=prompt, prompt_2=prompt_2, device=device, num_images_per_prompt=1)
-        return prompt_embeds, pooled_prompt_embeds, None, None # no negative support
 
     embedding_providers = prepare_embedding_providers(pipe, clip_skip)
     empty_embedding_providers = None
@@ -593,8 +634,8 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
 
 def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
     is_sd3 = hasattr(pipe, 'text_encoder_3')
-    prompt, prompt_2, _prompt_3 = split_prompts(pipe, prompt, is_sd3)
-    neg_prompt, neg_prompt_2, _neg_prompt_3 = split_prompts(pipe, neg_prompt, is_sd3)
+    prompt, prompt_2, _prompt_3, _ = split_prompts(pipe, prompt, is_sd3)
+    neg_prompt, neg_prompt_2, _neg_prompt_3, _ = split_prompts(pipe, neg_prompt, is_sd3)
     try:
         prompt = pipe.maybe_convert_prompt(prompt, pipe.tokenizer)
         neg_prompt = pipe.maybe_convert_prompt(neg_prompt, pipe.tokenizer)

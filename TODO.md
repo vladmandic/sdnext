@@ -39,3 +39,6 @@ N/A
 - modules/lora/lora_extract.py:185:9: W0511: TODO: lora support pre-quantized flux
 - control: support scripts via api
 - modernui: monkey-patch for missing tabs.select event
+- nunchaku: cache-dir for transformer and t5 loader
+- nunchaku: batch support
+- nunchaku: LoRA support
