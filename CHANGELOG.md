@@ -1,31 +1,34 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-15
+## Update for 2025-04-16
 
-- [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
-  highly experimental and with limited support, but when it works, its magic: **Flux.1 at 5.90 it/s** *(not sec/it)*!  
-  see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for details  
-- **HiDream** optimized offloading and prompt-encode caching  
-  it now works in 12GB VRAM / 26GB RAM!  
-- fix: NNCF for TE-only quant  
-
-## Update for 2025-04-14
-
-- [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
-  implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
-  enable and configure in *settings -> pipeline modifiers -> cfg zero*  
-  experiment with CFGZero support in XYZ-grid  
-- add **UniPC FlowMatch** scheduler  
-- **HiDream** add HF gated access auth check  
-- clenup **CogView3** and **CogView4** model loader  
-- add explicit offload after encode prompt  
-  configure in *settings -> text encoder -> offload*  
-- networks: set which networks to skip when scanning civitai  
-  in *settings -> networks -> network scan*  
-  comma-separate list of regex patterns to skip  
-- ui display reference models with subdued color  
-- xyz grid support bool  
-- fix debug logging  
+- **Features**
+  - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
+    highly experimental and with limited support, but when it works, its magic: **Flux.1 at 5.90 it/s** *(not sec/it)*!  
+    see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for details  
+  - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
+    implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
+    enable and configure in *settings -> pipeline modifiers -> cfg zero*  
+    experiment with CFGZero support in XYZ-grid  
+- **Optimizations**
+  - **HiDream** optimized offloading and prompt-encode caching  
+    it now works in 12GB VRAM / 26GB RAM!  
+  - **CogView3** and **CogView4** model loader optimizations  
+  - add explicit offload after encode prompt  
+    configure in *settings -> text encoder -> offload*  
+- **Other**
+  - **HiDream** add HF gated access auth check  
+  - add **UniPC FlowMatch** scheduler  
+  - add **LCM FlowMatch** scheduler  
+  - networks: set which networks to skip when scanning civitai  
+    in *settings -> networks -> network scan*  
+    comma-separate list of regex patterns to skip  
+  - ui display reference models with subdued color  
+  - xyz grid support bool  
+- **Fixes**
+  - NNCF for TE-only quant  
+  - HunyuanVideo-I2V with latest transformers
+  - debug logging  
 
 ## Update for 2025-04-12
 
