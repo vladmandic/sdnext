@@ -88,9 +88,13 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
             load_quanto(silent=True)
             if optimum_quanto is None:
                 return kwargs
-            quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
-            quanto_config.activations = None # patch so it works with transformers
-            quanto_config.weights = quanto_config.weights_dtype
+            if module in {'TE', 'LLM'}:
+                quanto_config = transformers.QuantoConfig(weights=shared.opts.quanto_quantization_type)
+                quanto_config.weights_dtype = quanto_config.weights
+            else:
+                quanto_config = diffusers.QuantoConfig(weights_dtype=shared.opts.quanto_quantization_type)
+                quanto_config.activations = None # patch so it works with transformers
+                quanto_config.weights = quanto_config.weights_dtype
             log.debug(f'Quantization: module="{module}" type=quanto dtype={shared.opts.quanto_quantization_type}')
             if kwargs is None:
                 return quanto_config
