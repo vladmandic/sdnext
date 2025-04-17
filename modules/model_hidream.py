@@ -54,7 +54,8 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
         sd_models.move_model(text_encoder_3, devices.cpu)
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
-    shared.log.debug(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
+    shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
 
     text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
         shared.opts.model_h1_llama_repo,

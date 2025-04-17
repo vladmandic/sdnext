@@ -494,8 +494,8 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
         del config['safety_checker']
     if 'requires_safety_checker' in config:
         del config['requires_safety_checker']
-    if 'variant' in config:
-        del config['variant']
+    # if 'variant' in config:
+    #     del config['variant']
     if device_map:
         if shared.opts.device_map == 'cpu':
             config['device_map'] = 'cpu'

@@ -7,10 +7,6 @@ from modules.processing_class import StableDiffusionProcessing
 args = {} # maintain history
 infotext = '' # maintain history
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
-if not shared.native:
-    from modules import sd_hijack
-else:
-    sd_hijack = None
 
 
 def get_last_args():
@@ -62,11 +58,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Refiner prompt": p.refiner_prompt if len(p.refiner_prompt) > 0 else None,
         "Refiner negative": p.refiner_negative if len(p.refiner_negative) > 0 else None,
         "Styles": "; ".join(p.styles) if p.styles is not None and len(p.styles) > 0 else None,
-        # sdnext
         "App": 'SD.Next',
         "Version": git_commit,
         "Backend": 'Legacy' if not shared.native else None,
-        "Pipeline": 'LDM' if not shared.native else None,
         "Parser": shared.opts.prompt_attention if shared.opts.prompt_attention != 'native' else None,
         "Comment": comment,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
@@ -77,9 +71,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["VAE"] = 'TAESD'
     elif p.vae_type == 'Remote':
         args["VAE"] = 'Remote'
-    if shared.opts.add_model_name_to_info and getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
+    if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
         args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-    if shared.opts.add_model_hash_to_info and getattr(shared.sd_model, 'sd_model_hash', None) is not None:
+    if getattr(shared.sd_model, 'sd_model_hash', None) is not None:
         args["Model hash"] = shared.sd_model.sd_model_hash
     # native
     if grid is None and (p.n_iter > 1 or p.batch_size > 1) and index >= 0:
@@ -88,8 +82,10 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Grid'] = grid
     if shared.native:
         args['Pipeline'] = shared.sd_model.__class__.__name__
-        args['TE'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder
-        args['UNet'] = None if (not shared.opts.add_model_name_to_info or shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet
+        args['TE'] = None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder
+        args['UNet'] = None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet
+    else:
+        args['Pipeline'] = 'LDM'
     if 'txt2img' in p.ops:
         args["Variation seed"] = all_subseeds[index] if p.subseed_strength > 0 else None
         args["Variation strength"] = p.subseed_strength if p.subseed_strength > 0 else None
@@ -155,11 +151,14 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Detailer negative"] = p.detailer_negative if len(p.detailer_negative) > 0 else None
     if 'color' in p.ops:
         args["Color correction"] = True
-    # embeddings
-    if sd_hijack is not None and hasattr(sd_hijack.model_hijack, 'embedding_db') and len(sd_hijack.model_hijack.embedding_db.embeddings_used) > 0: # this is for original hijaacked models only, diffusers are handled separately
-        args["Embeddings"] = ', '.join(sd_hijack.model_hijack.embedding_db.embeddings_used)
-    # samplers
+    if shared.opts.token_merging_method == 'ToMe': # tome/todo
+        args['ToMe'] = shared.opts.tome_ratio if shared.opts.tome_ratio != 0 else None
+    else:
+        args['ToDo'] = shared.opts.todo_ratio if shared.opts.todo_ratio != 0 else None
+    if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
+        args['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
 
+    # samplers
     if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
         args["Sampler eta delta"] = shared.opts.eta_noise_seed_delta if shared.opts.eta_noise_seed_delta != 0 and sd_samplers_common.is_sampler_using_eta_noise_seed_delta(p) else None
         args["Sampler eta multiplier"] = p.initial_noise_multiplier if getattr(p, 'initial_noise_multiplier', 1.0) != 1.0 else None
@@ -177,11 +176,10 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Sampler range'] = shared.opts.schedulers_timesteps_range if shared.opts.schedulers_timesteps_range != shared.opts.data_labels.get('schedulers_timesteps_range').default else None
         args['Sampler shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift != shared.opts.data_labels.get('schedulers_shift').default else None
         args['Sampler dynamic shift'] = shared.opts.schedulers_dynamic_shift if shared.opts.schedulers_dynamic_shift != shared.opts.data_labels.get('schedulers_dynamic_shift').default else None
-    # tome/todo
-    if shared.opts.token_merging_method == 'ToMe':
-        args['ToMe'] = shared.opts.tome_ratio if shared.opts.tome_ratio != 0 else None
-    else:
-        args['ToDo'] = shared.opts.todo_ratio if shared.opts.todo_ratio != 0 else None
+
+    # model specific
+    if shared.sd_model_type == 'h1':
+        args['LLM'] =  None if shared.opts.model_h1_llama_repo == 'Default' else shared.opts.model_h1_llama_repo
 
     args.update(p.extra_generation_params)
     for k, v in args.copy().items():

@@ -5,7 +5,7 @@
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
     highly experimental and with limited support, but when it works, its magic: **Flux.1 at 5.90 it/s** *(not sec/it)*!  
-    see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for details  
+    see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
@@ -14,10 +14,12 @@
   - **HiDream** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
+  - **Sana** model loader optimizations
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
 - **Other**
   - **HiDream** add HF gated access auth check  
+  - **HiDream** add LLM into to metadata  
   - add **UniPC FlowMatch** scheduler  
   - add **LCM FlowMatch** scheduler  
   - networks: set which networks to skip when scanning civitai  
