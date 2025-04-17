@@ -167,20 +167,23 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         names, te_multipliers, unet_multipliers, dyn_dims = parse(p, params_list, step)
         requested = self.signature(names, te_multipliers, unet_multipliers)
 
+        load_method = lora_overrides.get_method()
         if debug:
             import sys
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            debug_log(f'Network load: type=LoRA include={include} exclude={exclude} requested={requested} fn={fn}')
+            debug_log(f'Network load: type=LoRA include={include} exclude={exclude} method={load_method} requested={requested} fn={fn}')
 
-        force_diffusers = lora_overrides.check_override()
-        if force_diffusers:
-            has_changed = False # diffusers handle their own loading
+        if load_method == 'diffusers':
+            has_changed = False # diffusers handles its own loading
             if len(exclude) == 0:
                 job = shared.state.job
                 shared.state.job = 'LoRA'
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.job = job
+        elif load_method == 'nunchaku':
+            from modules.lora import lora_nunchaku
+            has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
         else:
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)
@@ -196,11 +199,11 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 shared.state.job = job
                 debug_log(f'Network load: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]} changed')
 
-        if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or force_diffusers) and step == 0:
+        if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)
             prompt(p)
-            if (has_changed or force_diffusers) and len(include) == 0: # print only once
-                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
+            if has_changed and len(include) == 0: # print only once
+                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p):
         if shared.native and len(lora_load.diffuser_loaded) > 0:

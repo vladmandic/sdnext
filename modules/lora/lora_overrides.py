@@ -25,7 +25,7 @@ force_diffusers = [ # forced always
     '22c8339e7666', # spo-sdxl-10ep
 ]
 
-force_models = [ # forced always
+force_models_diffusers = [ # forced always
     # 'sd3',
     'sc',
     'h1',
@@ -41,7 +41,7 @@ force_models = [ # forced always
     'allegrovideo',
 ]
 
-force_classes = [ # forced always
+force_classes_diffusers = [ # forced always
 ]
 
 fuse_ignore = [
@@ -49,17 +49,16 @@ fuse_ignore = [
 ]
 
 
-def check_override(shorthash=''):
-    force = False
-    force = force or (shared.sd_model_type in force_models)
-    force = force or (shared.sd_model.__class__.__name__ in force_classes)
-    if len(shorthash) < 4:
-        return force
-    force = force or (any(x.startswith(shorthash) for x in maybe_diffusers) if shared.opts.lora_maybe_diffusers else False)
-    force = force or any(x.startswith(shorthash) for x in force_diffusers)
-    if force and shared.opts.lora_maybe_diffusers:
-        shared.log.debug('LoRA override: force diffusers')
-    return force
+def get_method(shorthash=''):
+    use_diffusers = len(shorthash) < 4 or (shared.sd_model_type in force_models_diffusers) or (shared.sd_model.__class__.__name__ in force_classes_diffusers)
+    use_diffusers = use_diffusers or (any(x.startswith(shorthash) for x in maybe_diffusers) if shared.opts.lora_maybe_diffusers else False) or any(x.startswith(shorthash) for x in force_diffusers)
+    use_nunchaku = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
+    if use_nunchaku:
+        return 'nunchaku'
+    elif use_diffusers:
+        return 'diffusers'
+    else:
+        return 'native'
 
 def check_fuse():
     return shared.sd_model_type in fuse_ignore

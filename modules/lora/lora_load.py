@@ -205,7 +205,7 @@ def network_download(name):
     return None
 
 
-def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None):
+def gather_networks(names):
     networks_on_disk: list[network.NetworkOnDisk] = [available_network_aliases.get(name, None) for name in names]
     if any(x is None for x in networks_on_disk):
         list_available_networks()
@@ -213,6 +213,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
     for i in range(len(names)):
         if names[i].startswith('/'):
             networks_on_disk[i] = network_download(names[i])
+    return networks_on_disk
+
+
+def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None):
+    networks_on_disk = gather_networks(names)
     failed_to_load_networks = []
     recompile_model, skip_lora_load = maybe_recompile_model(names, te_multipliers)
 
@@ -230,8 +235,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             try:
                 if recompile_model:
                     shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
-                if shared.opts.lora_force_diffusers or lora_overrides.check_override(shorthash): # OpenVINO only works with Diffusers LoRa loading
+                lora_method = lora_overrides.get_method(shorthash)
+                if shared.opts.lora_force_diffusers or lora_method == 'diffusers': # OpenVINO only works with Diffusers LoRa loading
                     net = load_diffusers(name, network_on_disk, lora_scale=te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier)
+                elif lora_method == 'nunchaku':
+                    pass # handled directly from extra_networks_lora.load_nunchaku
                 else:
                     net = load_safetensors(name, network_on_disk)
                 if net is not None:
@@ -260,12 +268,12 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
     if not skip_lora_load and len(diffuser_loaded) > 0:
         shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
         try:
-            t0 = time.time()
+            t1 = time.time()
             shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
             if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
                 shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
                 shared.sd_model.unload_lora_weights()
-            l.timer.activate += time.time() - t0
+            l.timer.activate += time.time() - t1
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA {e}')
             if l.debug:
