@@ -27,6 +27,7 @@
     comma-separate list of regex patterns to skip  
   - ui display reference models with subdued color  
   - xyz grid support bool  
+  - do not force gc at end of processing  
 - **Wiki**  
   - new Nunchaku page  
   - updated HiDream, Quantization, NNCF pages  
@@ -37,6 +38,7 @@
   - SD35 InstantX IP-adapter  
   - **HunyuanVideo-I2V** with latest transformers  
   - trace logging  
+  - xyz grid restore settings  
 
 ## Update for 2025-04-12
 

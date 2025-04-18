@@ -502,5 +502,5 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if not p.disable_extra_networks:
         shared.log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
 
-    devices.torch_gc(force=True, reason='final')
+    devices.torch_gc(force=False, reason='final')
     return processed

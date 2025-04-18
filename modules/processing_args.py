@@ -153,7 +153,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             shared.log.error(f'Prompt parser encode: {e}')
             if os.environ.get('SD_PROMPT_DEBUG', None) is not None:
                 errors.display(e, 'Prompt parser encode')
-        timer.process.record('encode', reset=False)
+        timer.process.record('prompt', reset=False)
     else:
         prompt_parser_diffusers.embedder = None
 

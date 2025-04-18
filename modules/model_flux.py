@@ -122,8 +122,9 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
             else:
                 shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
             if nunchaku_repo is not None:
-                shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
-                kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+                shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} offload={shared.opts.nunchaku_offload} attention={shared.opts.nunchaku_attention}')
+                kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, offload=shared.opts.nunchaku_offload, torch_dtype=devices.dtype)
+                kwargs['transformer'].quantization_method = 'SVDQuant'
                 if shared.opts.nunchaku_attention:
                     kwargs['transformer'].set_attention_impl("nunchaku-fp16")
         elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
