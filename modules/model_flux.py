@@ -4,7 +4,7 @@ import torch
 import diffusers
 import transformers
 from safetensors.torch import load_file
-from huggingface_hub import hf_hub_download
+from huggingface_hub import hf_hub_download, auth_check
 from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 
@@ -202,11 +202,17 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
 
 
 def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_checkpoint change
-    prequantized = model_quant.get_quant(checkpoint_info.path)
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    login = modelloader.hf_login()
+    try:
+        auth_check(repo_id)
+    except Exception as e:
+        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
+        return False
+
+    prequantized = model_quant.get_quant(checkpoint_info.path)
     shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={prequantized} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
     debug(f'Load model: type=FLUX config={diffusers_load_config}')
-    modelloader.hf_login()
 
     transformer = None
     text_encoder_1 = None

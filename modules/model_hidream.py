@@ -1,6 +1,7 @@
 import os
 import transformers
 import diffusers
+from huggingface_hub import auth_check
 from modules import shared, devices, sd_models, model_quant, modelloader, sd_hijack_te
 
 
@@ -76,14 +77,12 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
 
 
 def load_hidream(checkpoint_info, diffusers_load_config={}):
-    login = modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
-
-    from huggingface_hub import auth_check
+    login = modelloader.hf_login()
     try:
-        auth_check(shared.opts.model_h1_llama_repo)
+        auth_check(repo_id)
     except Exception as e:
-        shared.log.error(f'Load model: type=HiDream te4="{shared.opts.model_h1_llama_repo}" login={login} {e}')
+        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
         return False
 
     transformer = load_transformer(repo_id, diffusers_load_config)

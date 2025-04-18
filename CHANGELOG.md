@@ -7,7 +7,7 @@
     highly experimental and with limited support, but when it works, its magic: **Flux.1 at 6.0 it/s** *(not sec/it)*!  
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
   - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) T2V and I2V  
-    in both standard and distilled variants  
+    in both **Standard** and **Distilled** variants  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
@@ -20,7 +20,7 @@
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
 - **Other**
-  - **HiDream** add HF gated access auth check  
+  - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
   - **HiDream** add LLM into to metadata  
   - add **UniPC FlowMatch** scheduler  
   - add **LCM FlowMatch** scheduler  

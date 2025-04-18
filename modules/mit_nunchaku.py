@@ -44,7 +44,7 @@ def install_nunchaku():
         arch = platform.system().lower()
         if arch not in ['linux', 'windows']:
             log.error(f'Nunchaku: platform={arch} unsupported')
-            return
+            return False
         if devices.backend not in ['cuda']:
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
             return False
