@@ -14,7 +14,7 @@ def load_override(selected: Model):
         kwargs['vae'] = diffusers.AutoencoderKLAllegro.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
     if selected.name == 'LTXVideo 0.9.5 I2V':
         kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
-    if selected.name == 'WAN 2.1 14B I2V 480p' or selected.name == 'WAN 2.1 14B I2V 720p':
+    if 'WAN 2.1 14B' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
     debug(f'Video overrides: model="{selected.name}" kwargs={list(kwargs)}')
     return kwargs

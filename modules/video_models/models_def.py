@@ -158,6 +158,12 @@ models = {
               repo_cls=diffusers.WanImageToVideoPipeline,
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.WanTransformer3DModel),
+        Model(name='WAN 2.1 14B FLF2V 720p',
+              url='https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P',
+              repo='Wan-AI/Wan2.1-FLF2V-14B-720P-diffusers',
+              repo_cls=diffusers.WanImageToVideoPipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.WanTransformer3DModel),
     ],
     'Mochi Video': [
         Model(name='None'),

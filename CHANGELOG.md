@@ -8,6 +8,8 @@
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
   - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) T2V and I2V  
     in both **Standard** and **Distilled** variants  
+  - [WAN 2.1 FLF2V 14B 720P](https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P)  
+    new first-to-last image video model from WAN-AI  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  

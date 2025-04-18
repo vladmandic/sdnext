@@ -114,9 +114,11 @@ def create_ui():
                         vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
                         vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
                 with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
+                    init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
                     gr.HTML("<br>&nbsp Init image")
                     init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
-                    init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
+                    gr.HTML("<br>&nbsp Last image")
+                    last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", height=512)
                 with gr.Accordion(open=True, label="Output", elem_id='video_output_accordion'):
                     with gr.Row():
                         save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
@@ -167,7 +169,7 @@ def create_ui():
             sampler_shift, dynamic_shift,
             seed,
             guidance_scale, guidance_true,
-            init_image, init_strength,
+            init_image, init_strength, last_image,
             vae_type, vae_tile_frames,
             save_frames,
             video_type, video_duration, video_loop, video_pad, video_interpolate,
