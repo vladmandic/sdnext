@@ -36,6 +36,7 @@ class SharedSettingsStackHelper(object):
     freeu_b2 = None
     freeu_s1 = None
     freeu_s2 = None
+    cfgzero_enabled = None
     schedulers_sigma_adjust = None
     schedulers_beta_schedule = None
     schedulers_beta_start = None
@@ -53,6 +54,7 @@ class SharedSettingsStackHelper(object):
     eta_noise_seed_delta = None
     tome_ratio = None
     todo_ratio = None
+    teacache_thresh = None
     extra_networks_default_multiplier = None
     disable_weights_auto_swap = None
 
@@ -75,6 +77,7 @@ class SharedSettingsStackHelper(object):
         self.freeu_b2 = shared.opts.freeu_b2
         self.freeu_s1 = shared.opts.freeu_s1
         self.freeu_s2 = shared.opts.freeu_s2
+        self.cfgzero_enabled = shared.opts.cfgzero_enabled
         self.sd_model_checkpoint = shared.opts.sd_model_checkpoint
         self.sd_model_refiner = shared.opts.sd_model_refiner
         self.sd_model_dict = shared.opts.sd_model_dict
@@ -83,6 +86,7 @@ class SharedSettingsStackHelper(object):
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
         self.disable_weights_auto_swap = shared.opts.disable_weights_auto_swap
+        self.teacache_thresh = shared.opts.teacache_thresh
         shared.opts.data["disable_weights_auto_swap"] = False
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -100,12 +104,14 @@ class SharedSettingsStackHelper(object):
         shared.opts.data["schedulers_shift"] = self.schedulers_shift
         shared.opts.data["scheduler_eta"] = self.scheduler_eta
         shared.opts.data["eta_noise_seed_delta"] = self.eta_noise_seed_delta
+        shared.opts.data["cfgzero_enabled"] = self.cfgzero_enabled
         shared.opts.data["freeu_b1"] = self.freeu_b1
         shared.opts.data["freeu_b2"] = self.freeu_b2
         shared.opts.data["freeu_s1"] = self.freeu_s1
         shared.opts.data["freeu_s2"] = self.freeu_s2
         shared.opts.data["tome_ratio"] = self.tome_ratio
         shared.opts.data["todo_ratio"] = self.todo_ratio
+        shared.opts.data["teacache_thresh"] = self.teacache_thresh
 
         if self.sd_model_checkpoint != shared.opts.sd_model_checkpoint:
             shared.opts.data["sd_model_checkpoint"] = self.sd_model_checkpoint

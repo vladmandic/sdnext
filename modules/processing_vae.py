@@ -2,7 +2,6 @@ import os
 import time
 import numpy as np
 import torch
-import torchvision.transforms.functional as TF
 from modules import shared, devices, sd_models, sd_vae, sd_vae_taesd, errors
 
 
@@ -316,6 +315,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
 
 
 def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
+    import torchvision.transforms.functional as f
     if shared.state.interrupted or shared.state.skipped:
         return []
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
@@ -323,7 +323,7 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     if not hasattr(model, 'vae'):
         shared.log.error('VAE not found in model')
         return []
-    tensor = TF.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
+    tensor = f.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
     if vae_type == 'Full':
         tensor = tensor * 2 - 1
         latents = full_vae_encode(image=tensor, model=shared.sd_model)

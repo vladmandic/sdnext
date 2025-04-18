@@ -416,7 +416,7 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
 
 options_templates.update(options_section(('model_options', "Models Options"), {
     "model_sd3_disable_te5": OptionInfo(False, "StableDiffusion3: T5 disable encoder"),
-    "model_h1_llama_repo": OptionInfo("meta-llama/Meta-Llama-3.1-8B-Instruct", "HiDream: LLama repo", gr.Textbox),
+    "model_h1_llama_repo": OptionInfo("Default", "HiDream: LLama repo", gr.Textbox),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {
@@ -552,6 +552,7 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
     "nunchaku_quantization": OptionInfo([], "SVDQuant enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "nunchaku_attention": OptionInfo(False, "Nunchaku attention", gr.Checkbox, {"visible": native}),
+    "nunchaku_offload": OptionInfo(False, "Nunchaku offloading", gr.Checkbox, {"visible": native}),
 }))
 
 options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {

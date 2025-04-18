@@ -147,9 +147,6 @@ def process_base(p: processing.StableDiffusionProcessing):
         hidiffusion.unapply()
         sd_models_compile.check_deepcache(enable=False)
 
-    if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
-        p.extra_generation_params['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
-
     shared.state.nextjob()
     return output
 

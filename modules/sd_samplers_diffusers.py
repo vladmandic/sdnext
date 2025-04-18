@@ -268,7 +268,7 @@ class DiffusionSampler:
         if 'shift' in self.config:
             self.config['shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift > 0 else 3
         if 'use_dynamic_shifting' in self.config:
-            self.config['use_dynamic_shifting'] = True if shared.opts.schedulers_shift <= 0 else shared.opts.schedulers_dynamic_shift
+            self.config['use_dynamic_shifting'] = True if shared.opts.schedulers_shift == 0 else shared.opts.schedulers_dynamic_shift
         if 'use_beta_sigmas' in self.config and 'sigma_schedule' in self.config:
             self.config['use_beta_sigmas'] = 'StableDiffusion3' in model.__class__.__name__
         if 'rescale_betas_zero_snr' in self.config:
