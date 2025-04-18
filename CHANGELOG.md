@@ -41,6 +41,7 @@
   - **HunyuanVideo-I2V** with latest transformers  
   - trace logging  
   - xyz grid restore settings  
+  - extension installer handling of PYTHONPATH
 
 ## Update for 2025-04-12
 
