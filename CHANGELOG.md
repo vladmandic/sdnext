@@ -1,11 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-17
+## Update for 2025-04-18
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
     highly experimental and with limited support, but when it works, its magic: **Flux.1 at 6.0 it/s** *(not sec/it)*!  
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
+  - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) T2V and I2V  
+    in both standard and distilled variants  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
