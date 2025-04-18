@@ -1498,7 +1498,7 @@ def add_args(parser):
     group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run installer with debug logging, default: %(default)s")
     group_log.add_argument("--profile", default=os.environ.get("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
     group_log.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
-    group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", True), action='store_true', help="Log all API requests")
+    group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", False), action='store_true', help="Log all API requests")
 
     group_nargs = parser.add_argument_group('Other')
     group_nargs.add_argument('args', type=str, nargs='*')

@@ -36,14 +36,15 @@
   - new Nunchaku page  
   - updated HiDream, Quantization, NNCF pages  
 - **Fixes**
+  - HunyuanVideo-I2V with latest transformers  
   - NNCF with TE-only quant  
   - Quanto with TE/LLM quant  
   - HiDream live preview  
   - SD35 InstantX IP-adapter  
-  - **HunyuanVideo-I2V** with latest transformers  
-  - trace logging  
   - xyz grid restore settings  
-  - extension installer handling of PYTHONPATH
+  - extension installer handling of PYTHONPATH  
+  - trace logging  
+  - api logging  
 
 ## Update for 2025-04-12
 
