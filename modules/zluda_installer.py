@@ -123,8 +123,13 @@ def load():
     core = Core(ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll')))
     ml = ZLUDALibrary(ctypes.windll.LoadLibrary(os.path.join(path, 'nvml.dll')))
     is_nightly = core.get_nightly_flag() == 1
-    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.path, "bin", "hipblaslt.dll"))
+    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.path, "bin", "hipblaslt.dll")) and default_agent is not None
     MIOpen_enabled = is_nightly and os.path.exists(os.path.join(rocm.path, "bin", "MIOpen.dll"))
+
+    if hipBLASLt_enabled:
+        if not default_agent.blaslt_supported:
+            hipBLASLt_enabled = False
+        log.debug(f'ROCm hipBLASLt: arch={default_agent.name} available={hipBLASLt_enabled}')
 
     for k, v in DLL_MAPPING.items():
         if not os.path.exists(os.path.join(path, v)):
