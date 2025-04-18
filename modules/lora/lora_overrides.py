@@ -50,8 +50,11 @@ fuse_ignore = [
 
 
 def get_method(shorthash=''):
-    use_diffusers = len(shorthash) < 4 or (shared.sd_model_type in force_models_diffusers) or (shared.sd_model.__class__.__name__ in force_classes_diffusers)
-    use_diffusers = use_diffusers or (any(x.startswith(shorthash) for x in maybe_diffusers) if shared.opts.lora_maybe_diffusers else False) or any(x.startswith(shorthash) for x in force_diffusers)
+    use_diffusers = (shared.sd_model_type in force_models_diffusers) or (shared.sd_model.__class__.__name__ in force_classes_diffusers)
+    if shared.opts.lora_maybe_diffusers and len(shorthash) > 4:
+        use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in maybe_diffusers)
+    if shared.opts.lora_force_diffusers and len(shorthash) > 4:
+        use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in force_diffusers)
     use_nunchaku = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
     if use_nunchaku:
         return 'nunchaku'

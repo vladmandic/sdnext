@@ -146,7 +146,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             sd_model.loaded_loras = {}
         key = f'{",".join(include)}:{",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
-        # shared.log.trace(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
+        debug_log(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if len(requested) != len(loaded):
             sd_model.loaded_loras[key] = requested
             return True
@@ -184,7 +184,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         elif load_method == 'nunchaku':
             from modules.lora import lora_nunchaku
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
-        else:
+        else: # native
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)
             if has_changed:
