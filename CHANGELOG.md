@@ -6,9 +6,14 @@
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
     highly experimental and with limited support, but when it works, its magic: **Flux.1 at 6.0 it/s** *(not sec/it)*!  
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
-  - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) T2V and I2V  
+  - [FramePack](https://github.com/vladmandic/sd-extension-framepack) based on **HunyuanVideo-I2V**  
+    full support (and more) for **Lllyasviel** [FramePack](https://lllyasviel.github.io/frame_pack_gitpage/)  
+    implemented as an extension for SD.Next (for the moment while dev is ongoing)  
+    allows pretty generation of high-quality videos with pretty much unlimited duration and with limited VRAM!  
+    install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
+  - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) **T2V** and **I2V**  
     in both **Standard** and **Distilled** variants  
-  - [WAN 2.1 FLF2V 14B 720P](https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P)  
+  - [WAN 2.1 14B 720P](https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P) **FLF2V**  
     new first-to-last image video model from WAN-AI  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
