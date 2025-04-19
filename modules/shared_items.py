@@ -1,4 +1,5 @@
 import diffusers
+from modules.onnx_impl import initialize_onnx
 
 
 pipelines = {
@@ -40,6 +41,8 @@ pipelines = {
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
 }
+
+initialize_onnx()
 onnx_pipelines = {
     'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
     'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),
