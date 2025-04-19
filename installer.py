@@ -975,7 +975,7 @@ def run_extension_installer(folder):
         env = os.environ.copy()
         env['PYTHONPATH'] = os.path.abspath(".")
         if os.environ.get('PYTHONPATH', None) is not None:
-            env['PYTHONPATH'] += f';{os.environ.get('PYTHONPATH', None)}'
+            env['PYTHONPATH'] += f";{os.environ.get('PYTHONPATH', None)}"
         result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder)
         txt = result.stdout.decode(encoding="utf8", errors="ignore")
         debug(f'Extension installer: file="{path_installer}" {txt}')
