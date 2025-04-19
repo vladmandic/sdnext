@@ -4,14 +4,15 @@ import json
 import shutil
 import tempfile
 from abc import ABCMeta
-from typing import Type, Tuple, List, Any, Dict
+from typing import Type, Tuple, List, Any, Dict, TYPE_CHECKING
 import torch
 import diffusers
 from installer import log, install
 from modules import shared
 from modules.paths import sd_configs_path, models_path
 from modules.sd_models import CheckpointInfo
-from modules.processing import StableDiffusionProcessing
+if TYPE_CHECKING:
+    from modules.processing import StableDiffusionProcessing
 from modules.olive_script import config
 from modules.onnx_impl import DynamicSessionOptions, TorchCompatibleModule, VAE
 from modules.onnx_impl.utils import extract_device, move_inference_session, check_diffusers_cache, check_pipeline_sdxl, check_cache_onnx, load_init_dict, load_submodel, load_submodels, patch_kwargs, load_pipeline, get_base_constructor, get_io_config
@@ -105,7 +106,7 @@ class OnnxRawPipeline(PipelineBase):
     constructor: Type[PipelineBase]
     init_dict: Dict[str, Tuple[str]] = {}
 
-    scheduler: Any = None # for Img2Img
+    default_scheduler: Any = None # for Img2Img
 
     def __init__(self, constructor: Type[PipelineBase], path: os.PathLike): # pylint: disable=super-init-not-called
         self._is_sdxl = check_pipeline_sdxl(constructor)
@@ -115,12 +116,12 @@ class OnnxRawPipeline(PipelineBase):
 
         if os.path.isdir(path):
             self.init_dict = load_init_dict(constructor, path)
-            self.scheduler = load_submodel(self.path, None, "scheduler", self.init_dict["scheduler"])
+            self.default_scheduler = load_submodel(self.path, None, "scheduler", self.init_dict["scheduler"])
         else:
             cls = diffusers.StableDiffusionXLPipeline if self._is_sdxl else diffusers.StableDiffusionPipeline
             try:
                 pipeline = cls.from_single_file(path)
-                self.scheduler = pipeline.scheduler
+                self.default_scheduler = pipeline.scheduler
                 path = shared.opts.onnx_temp_dir
                 if os.path.isdir(path):
                     shutil.rmtree(path)
@@ -146,7 +147,7 @@ class OnnxRawPipeline(PipelineBase):
         pipeline.sd_model_hash = self.sd_model_hash
         pipeline.sd_checkpoint_info = self.sd_checkpoint_info
         pipeline.sd_model_checkpoint = self.sd_model_checkpoint
-        pipeline.scheduler = self.scheduler
+        pipeline.scheduler = self.default_scheduler
         return pipeline
 
     def convert(self, submodels: List[str], in_dir: os.PathLike, out_dir: os.PathLike):
@@ -319,7 +320,7 @@ class OnnxRawPipeline(PipelineBase):
         with open(os.path.join(out_dir, "model_index.json"), 'w', encoding="utf-8") as file:
             json.dump(model_index, file)
 
-    def preprocess(self, p: StableDiffusionProcessing):
+    def preprocess(self, p: 'StableDiffusionProcessing'):
         disable_classifier_free_guidance = p.cfg_scale < 0.01
 
         config.from_diffusers_cache = self.from_diffusers_cache
