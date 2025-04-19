@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-18
+## Update for 2025-04-19
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -38,6 +38,7 @@
 - **Fixes**
   - HunyuanVideo-I2V with latest transformers  
   - NNCF with TE-only quant  
+  - ONNX init fix  
   - Quanto with TE/LLM quant  
   - HiDream live preview  
   - SD35 InstantX IP-adapter  
