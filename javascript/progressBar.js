@@ -34,7 +34,7 @@ function checkPaused(state) {
 }
 
 function setProgress(res) {
-  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate'];
+  const elements = ['txt2img_generate', 'img2img_generate', 'extras_generate', 'control_generate', 'video_generate', 'framepack_generate'];
   const progress = res?.progress || 0;
   const job = res?.job || '';
   let perc = '';

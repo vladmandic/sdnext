@@ -95,7 +95,7 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
         if ram['used'] > 0:
             cpu += f"| RAM {ram['used']} GB"
             cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
-        if isinstance(res, list):
+        if isinstance(res, list) and isinstance(res[-1], str):
             res[-1] += f"<div class='performance'><p>Time: {elapsed_text} | {summary} {gpu} {cpu}</p></div>"
         return tuple(res)
     return f

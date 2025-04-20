@@ -178,7 +178,7 @@ def create_ui():
         # generate function
         video_dict = dict(
             fn=call_queue.wrap_gradio_gpu_call(run_video, extra_outputs=[None, '', ''], name='Video'),
-            _js="submit_video",
+            _js="submit_framepack",
             inputs=video_args,
             outputs=[gallery, video, gen_info, html_info, html_log],
             show_progress=False,
