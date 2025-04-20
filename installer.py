@@ -589,7 +589,6 @@ def install_rocm_zluda():
         return os.environ.get('TORCH_COMMAND', 'torch torchvision')
 
     log.info('ROCm: AMD toolkit detected')
-    os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', 'garbage_collection_threshold:0.8,max_split_size_mb:512')
     # if not is_windows:
     #    os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow-rocm')
 
@@ -1226,6 +1225,7 @@ def set_environment():
     if opts.get("torch_expandable_segments", False):
         allocator += ',expandable_segments:True'
     os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', allocator)
+    os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', allocator)
     log.debug(f'Torch allocator: "{allocator}"')
     if sys.platform == 'darwin':
         os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
