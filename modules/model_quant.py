@@ -508,3 +508,16 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
     else:
         quant_args = {}
     return config, quant_args
+
+
+def do_post_load_quant(sd_model):
+    from modules import shared
+    if shared.opts.nncf_compress_weights and not (shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+        sd_model = nncf_compress_weights(sd_model)
+    if shared.opts.optimum_quanto_weights:
+        sd_model = optimum_quanto_weights(sd_model)
+    if shared.opts.torchao_quantization and shared.opts.torchao_quantization_mode == 'post':
+        sd_model = torchao_quantization(sd_model)
+    if shared.opts.layerwise_quantization:
+        apply_layerwise(sd_model)
+    return sd_model
