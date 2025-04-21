@@ -234,7 +234,7 @@ def move_model(model, device=None, force=False):
     if 'move' not in process_timer.records:
         process_timer.records['move'] = 0
     process_timer.records['move'] += t1 - t0
-    if os.environ.get('SD_MOVE_DEBUG', None) or (t1-t0) > 2:
+    if os.environ.get('SD_MOVE_DEBUG', None) is not None or (t1-t0) > 2:
         shared.log.debug(f'Model move: device={device} class={model.__class__.__name__} accelerate={getattr(model, "has_accelerate", False)} fn={fn} time={t1-t0:.2f}') # pylint: disable=protected-access
     devices.torch_gc()
 
