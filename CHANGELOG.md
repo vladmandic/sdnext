@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-19
+## Update for 2025-04-20
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
