@@ -69,23 +69,20 @@ def load_t5(name=None, cache_dir=None):
         quantization_config = transformers.BitsAndBytesConfig(load_in_8bit=True)
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
+    elif 'int8' in name.lower():
+        from modules.model_quant import create_nncf_config
+        quantization_config = create_nncf_config(kwargs=None, allow_nncf=True, module="any")
+        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
+    elif 'qint4' in name.lower():
+        model_quant.load_quanto('Load model: type=T5')
+        quantization_config = transformers.QuantoConfig(weights='int4')
+        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
     elif 'qint8' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
-        from modules.model_quant import optimum_quanto_model
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
-        t5 = optimum_quanto_model(t5, weights="qint8", activations="none")
-
-    elif 'int8' in name.lower():
-        install('nncf==2.7.0', quiet=True)
-        from modules.model_quant import nncf_compress_model
-        from modules.sd_hijack import NNCF_T5DenseGatedActDense
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
-        for i in range(len(t5.encoder.block)):
-            t5.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                t5.encoder.block[i].layer[1].DenseReluDense,
-                dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-            )
-        t5 = nncf_compress_model(t5)
+        quantization_config = transformers.QuantoConfig(weights='int8')
+        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif '/' in name:
         shared.log.debug(f'Load model: type=T5 repo={name}')

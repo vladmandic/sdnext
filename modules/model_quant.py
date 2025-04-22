@@ -104,11 +104,35 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
     return kwargs
 
 
+def create_nncf_config(kwargs = None, allow_nncf: bool = True, module: str = 'Model'):
+    from modules import shared
+    if len(shared.opts.nncf_compress_weights) > 0 and (shared.opts.nncf_compress_mode == 'pre') and allow_nncf:
+        if 'Model' in shared.opts.nncf_compress_weights or (module is not None and module in shared.opts.nncf_compress_weights) or module == 'any':
+            load_nncf(silent=True)
+            if intel_nncf is None:
+                return kwargs
+
+            from modules.model_quant_nncf import NNCFQuantizer, NNCFConfig
+            diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
+            transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
+            diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["nncf"] = NNCFConfig
+            transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["nncf"] = NNCFConfig
+
+            nncf_config = NNCFConfig(weights_dtype=shared.opts.nncf_compress_weights_mode.lower())
+            log.debug(f'Quantization: module="{module}" type=nncf dtype={shared.opts.nncf_compress_weights_mode}')
+            if kwargs is None:
+                return nncf_config
+            else:
+                kwargs['quantization_config'] = nncf_config
+                return kwargs
+    return kwargs
+
+
 def check_quant(module: str = ''):
     from modules import shared
-    if 'Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization:
+    if 'Model' in shared.opts.bnb_quantization or 'Model' in shared.opts.torchao_quantization or 'Model' in shared.opts.quanto_quantization or 'Model' in shared.opts.nncf_compress_weights:
         return True
-    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization:
+    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization or module in shared.opts.nncf_compress_weights:
         return True
     return False
 
@@ -141,6 +165,11 @@ def create_config(kwargs = None, allow: bool = True, module: str = 'Model'):
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=quanto config={kwargs.get("quantization_config", None)}')
+        return kwargs
+    kwargs = create_nncf_config(kwargs, allow_nncf=allow, module=module)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=nncf config={kwargs.get("quantization_config", None)}')
         return kwargs
     return kwargs
 
@@ -299,16 +328,25 @@ def nncf_send_to_device(model, device):
         nncf_send_to_device(child, device)
 
 
-def nncf_compress_model(model, op=None, sd_model=None):
+def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_gc=True):
     from modules import devices, shared
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     nncf = load_nncf('Quantize model: type=NNCF')
     model.eval()
+    if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
+        import torch
+        from modules.model_quant_nncf import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
+        for i in range(len(model.encoder.block)):
+            model.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
+                model.encoder.block[i].layer[1].DenseReluDense,
+                dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
+            )
     backup_embeddings = None
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
     model = nncf.compress_weights(model)
-    nncf_send_to_device(model, devices.device)
+    if send_to_device:
+        nncf_send_to_device(model, devices.device)
     if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:
         model.set_input_embeddings(backup_embeddings)
     if op is not None and shared.opts.nncf_quantize_shuffle_weights:
@@ -318,7 +356,8 @@ def nncf_compress_model(model, op=None, sd_model=None):
                 getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
-            devices.torch_gc(force=True)
+            if do_gc:
+                devices.torch_gc(force=True)
         if shared.cmd_opts.medvram or shared.cmd_opts.lowvram or shared.opts.diffusers_offload_mode != "none":
             quant_last_model_name = op
             quant_last_model_device = model.device
@@ -326,7 +365,8 @@ def nncf_compress_model(model, op=None, sd_model=None):
             quant_last_model_name = None
             quant_last_model_device = None
         model.to(devices.device)
-    devices.torch_gc(force=True)
+    if do_gc:
+        devices.torch_gc(force=True)
     return model
 
 
@@ -512,7 +552,7 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
 
 def do_post_load_quant(sd_model):
     from modules import shared
-    if shared.opts.nncf_compress_weights and not (shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+    if shared.opts.nncf_compress_weights and shared.opts.nncf_compress_mode == 'post' and not (shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
         sd_model = nncf_compress_weights(sd_model)
     if shared.opts.optimum_quanto_weights:
         sd_model = optimum_quanto_weights(sd_model)

@@ -283,26 +283,6 @@ class EmbeddingsWithFixes(torch.nn.Module):
         return torch.stack(vecs)
 
 
-class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
-    def __init__(self, T5DenseGatedActDense, dtype):
-        super().__init__()
-        self.wi_0 = T5DenseGatedActDense.wi_0
-        self.wi_1 = T5DenseGatedActDense.wi_1
-        self.wo = T5DenseGatedActDense.wo
-        self.dropout = T5DenseGatedActDense.dropout
-        self.act = T5DenseGatedActDense.act
-        self.torch_dtype = dtype
-
-    def forward(self, hidden_states):
-        hidden_gelu = self.act(self.wi_0(hidden_states))
-        hidden_linear = self.wi_1(hidden_states)
-        hidden_states = hidden_gelu * hidden_linear
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = hidden_states.to(self.torch_dtype) # this line needs to be forced
-        hidden_states = self.wo(hidden_states)
-        return hidden_states
-
-
 def add_circular_option_to_conv_2d():
     conv2d_constructor = torch.nn.Conv2d.__init__
 
