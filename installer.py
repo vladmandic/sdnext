@@ -747,7 +747,7 @@ def install_openvino(torch_command):
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cpu torchvision==0.21.0+cpu --index-url https://download.pytorch.org/whl/cpu')
 
     install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.0.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.15.0'), 'nncf')
+    install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
         os.environ.setdefault('NEOReadDebugKeys', '1')
@@ -779,7 +779,7 @@ def install_torch_addons():
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
     if opts.get('nncf_compress_weights', False) and not args.use_openvino:
-        install('nncf==2.7.0', 'nncf')
+        install('nncf==2.16.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
     if opts.get('torchao_quantization', False):
@@ -1149,7 +1149,7 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic')
-    install('nncf==2.7.0', ignore=True, no_deps=True) # requires older pandas
+    install('nncf==2.16.0', ignore=True, no_deps=True) # requires older pandas
     # install('flash-attn', ignore=True) # requires cuda and nvcc to be installed
     install('gguf', ignore=True)
     try:

@@ -261,7 +261,7 @@ def load_nncf(msg='', silent=False):
     if intel_nncf is not None:
         return intel_nncf
     if not installed('nncf'):
-        install('nncf==2.7.0', quiet=True)
+        install('nncf==2.16.0', quiet=True)
         log.warning('Quantization: nncf installed please restart')
     try:
         import nncf
@@ -320,19 +320,17 @@ def apply_layerwise(sd_model, quiet:bool=False):
             log.error(f'Quantization: type=layerwise {e}')
 
 
-def nncf_send_to_device(model, device):
-    for child in model.children():
-        if child.__class__.__name__ == "WeightsDecompressor":
-            child.scale = child.scale.to(device)
-            child.zero_point = child.zero_point.to(device)
-        nncf_send_to_device(child, device)
-
-
 def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_gc=True):
-    from modules import devices, shared
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
-    nncf = load_nncf('Quantize model: type=NNCF')
+    from modules import devices, shared
+    from accelerate import init_empty_weights
+
+    load_nncf('Quantize model: type=NNCF')
+    from modules.model_quant_nncf import apply_nncf_to_module, nncf_send_to_device
+    from nncf.torch.nncf_module_replacement import replace_modules_by_nncf_modules # get around lazy import
+
     model.eval()
+
     if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
         import torch
         from modules.model_quant_nncf import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
@@ -341,14 +339,23 @@ def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_g
                 model.encoder.block[i].layer[1].DenseReluDense,
                 dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
             )
+
     backup_embeddings = None
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
-    model = nncf.compress_weights(model)
+
+    with init_empty_weights():
+        model, _ = replace_modules_by_nncf_modules(model)
+
+    num_bits = 8 if shared.opts.nncf_compress_weights_mode in {"INT8", "INT8_SYM", "INT8_ASYM"} else 4
+    is_asym_mode = shared.opts.nncf_compress_weights_mode in {"INT8", "INT4", "INT8_ASYM", "INT4_ASYM"}
+    model = apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=shared.opts.nncf_quantize_conv_layers)
     if send_to_device:
         nncf_send_to_device(model, devices.device)
+
     if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:
         model.set_input_embeddings(backup_embeddings)
+
     if op is not None and shared.opts.nncf_quantize_shuffle_weights:
         if quant_last_model_name is not None:
             if "." in quant_last_model_name:
@@ -371,7 +378,8 @@ def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_g
 
 
 def nncf_compress_weights(sd_model):
-    try:
+    #try:
+    if True:
         t0 = time.time()
         from modules import shared, devices, sd_models
         log.info(f"Quantization: type=NNCF modules={shared.opts.nncf_compress_weights}")
@@ -390,8 +398,8 @@ def nncf_compress_weights(sd_model):
 
         t1 = time.time()
         log.info(f"Quantization: type=NNCF time={t1-t0:.2f}")
-    except Exception as e:
-        log.warning(f"Quantization: type=NNCF {e}")
+    #except Exception as e:
+    #    log.warning(f"Quantization: type=NNCF {e}")
     return sd_model
 
 
