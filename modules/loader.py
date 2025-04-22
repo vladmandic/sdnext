@@ -139,5 +139,16 @@ except ImportError:
     except ImportError:
         pass  # shrug...
 
+
+deprecate_diffusers = diffusers.utils.deprecation_utils.deprecate
+def deprecate_warn(*args, **kwargs):
+    try:
+        deprecate_diffusers(*args, **kwargs)
+    except Exception as e:
+        errors.log.warning(f'Deprecation: {e}')
+diffusers.utils.deprecation_utils.deprecate = deprecate_warn
+diffusers.utils.deprecate = deprecate_warn
+
+
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
 errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__}')

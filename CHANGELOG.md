@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-21
+## Update for 2025-04-22
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -22,7 +22,7 @@
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
     experiment with CFGZero support in XYZ-grid  
 - **Optimizations**
-  - **HiDream** optimized offloading and prompt-encode caching  
+  - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
   - **Sana** model loader optimizations
@@ -30,7 +30,10 @@
     configure in *settings -> text encoder -> offload*  
 - **Other**
   - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
-  - **HiDream** add LLM into to metadata  
+  - **HiDream-I1** LoRA support  
+    currently limited to diffusers-only LoRAs, CivitAI LoRA support is TBD  
+  - **HiDream-I1** add LLM info to image metadata  
+  - add `model_type` as option for image filename pattern  
   - add **UniPC FlowMatch** scheduler  
   - add **LCM FlowMatch** scheduler  
   - networks: set which networks to skip when scanning civitai  

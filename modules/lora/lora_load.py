@@ -39,8 +39,13 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
                 errors.display(e, "LoRA")
             return None
     if name not in diffuser_loaded:
-        diffuser_loaded.append(name)
-        diffuser_scales.append(lora_scale)
+        list_adapters = shared.sd_model.get_list_adapters()
+        list_adapters = {adapter for adapters in list_adapters.values() for adapter in adapters}
+        if name not in list_adapters:
+            shared.log.error(f'Network load: type=LoRA name="{name}" adapters={list_adapters} not loaded')
+        else:
+            diffuser_loaded.append(name)
+            diffuser_scales.append(lora_scale)
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     l.timer.activate += time.time() - t0
@@ -269,6 +274,9 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
         try:
             t1 = time.time()
+            if l.debug:
+                shared.log.trace(f'Network load: type=LoRA list={shared.sd_model.get_list_adapters()}')
+                shared.log.trace(f'Network load: type=LoRA active={shared.sd_model.get_active_adapters()}')
             shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
             if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
                 shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling

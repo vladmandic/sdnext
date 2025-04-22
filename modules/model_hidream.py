@@ -58,8 +58,9 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
 
+    auth_check(llama_repo)
     text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
-        shared.opts.model_h1_llama_repo,
+        llama_repo,
         output_hidden_states=True,
         output_attentions=True,
         cache_dir=shared.opts.hfcache_dir,
@@ -67,7 +68,7 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
         **quant_args,
     )
     tokenizer_4 = transformers.PreTrainedTokenizerFast.from_pretrained(
-        shared.opts.model_h1_llama_repo,
+        llama_repo,
         cache_dir=shared.opts.hfcache_dir,
         **load_args,
     )
