@@ -42,7 +42,7 @@ class QuantizationMethod(str, Enum):
     NNCF = "nncf"
 
 
-# de-abstracted and modified slghtly from the actual quant functions of nncf 2.16.0:
+# de-abstracted and modified slightly from the actual quant functions of nncf 2.16.0:
 def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=True, param_name=None):
     if layer.__class__.__name__ in allowed_types:
         if torch_dtype is None:
@@ -235,7 +235,9 @@ class NNCFQuantizer(DiffusersQuantizer):
         if not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
 
-        self.modules_to_not_convert.extend(keep_in_fp32_modules)
+        if keep_in_fp32_modules is not None:
+            self.modules_to_not_convert.extend(keep_in_fp32_modules)
+
         model.config.quantization_config = self.quantization_config
 
         if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
@@ -509,4 +511,3 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         result = decompress_symmetric(result, self.scale)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
         x.weight = result.type(self.result_dtype)
-
