@@ -187,13 +187,6 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "Lodestones Chroma": {
-    "path": "lodestones/Chroma",
-    "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell (technical report coming soon!). It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
 
   "NVLabs Sana 1.5 1.6B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",

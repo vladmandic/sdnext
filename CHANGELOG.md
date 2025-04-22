@@ -17,9 +17,6 @@
   - [WAN 2.1 14B 720P](https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P) **FLF2V**  
     new first-to-last image video model from WAN-AI  
     available in *video tab*
-  - [Chroma](https://huggingface.co/lodestones/Chroma)  
-    new variation of *FLUX.1-Schnell* with different DiT size slightly different architecture  
-    select from *networks -> models -> reference*  
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
