@@ -35,15 +35,6 @@ class QuantizationMethod(str, Enum):
     NNCF = "nncf"
 
 
-class ConvertToModule(torch.nn.Module):
-    def __init__(self, module):
-        super().__init__()
-        self.module = module
-
-    def forward(self, *args, **kwargs):
-        return self.module(*args, **kwargs)
-
-
 class NNCFQuantizer(DiffusersQuantizer):
     r"""
     Diffusers Quantizer for NNCF
@@ -187,7 +178,7 @@ class NNCFQuantizer(DiffusersQuantizer):
 class NNCFConfig(QuantizationConfigMixin):
     """
     This is a wrapper class about all possible attributes and features that you can play with a model that has been
-    loaded using `quanto`.
+    loaded using `nncf`.
 
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
