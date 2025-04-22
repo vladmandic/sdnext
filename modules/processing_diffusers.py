@@ -414,9 +414,24 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
     return sd_model
 
 
+def validate_pipeline(p: processing.StableDiffusionProcessing):
+    is_video_model = 'video' in shared.sd_model_type.lower() or 'video' in shared.sd_model.__class__.__name__.lower()
+    is_video_pipeline = 'video' in p.__class__.__name__.lower()
+    if is_video_model and not is_video_pipeline:
+        shared.log.error(f'Mismatch: loaded={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')
+        return False
+    elif not is_video_model and is_video_pipeline:
+        shared.log.error(f'Mismatch: loaded={shared.sd_model.__class__.__name__} request={p.__class__.__name__} non-video model with video pipeline')
+        return False
+    return True
+
+
 def process_diffusers(p: processing.StableDiffusionProcessing):
-    debug(f'Process diffusers args: {vars(p)}')
     results = []
+    debug(f'Process diffusers args: {vars(p)}')
+    if not validate_pipeline(p):
+        return results
+
     p = restore_state(p)
     global orig_pipeline # pylint: disable=global-statement
     orig_pipeline = shared.sd_model
