@@ -8,9 +8,14 @@
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
   - [FramePack](https://github.com/vladmandic/sd-extension-framepack) based on **HunyuanVideo-I2V**  
     full support and much more for **Lllyasviel** [FramePack](https://lllyasviel.github.io/frame_pack_gitpage/)  
-    implemented as an extension for SD.Next (for the moment while dev is ongoing)  
-    allows pretty generation of high-quality videos with pretty much unlimited duration and with limited VRAM!  
+    implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
+    generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
+    - I2V & FLF2V support  
+    - complex actions with multi-prompts  
+    - custom models: e.g. replace llama with one of your choice  
+    - multiple video codecs and with hw acceleration, raw export, frame export, frame interpolation  
+    - quantization support, new offloading, more configuration options, cross-platform, etc.
   - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) **T2V** and **I2V**  
     in both **Standard** and **Distilled** variants  
     available in *video tab*
@@ -22,6 +27,9 @@
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
     experiment with CFGZero support in XYZ-grid  
 - **Optimizations**
+  - **NNCF** update to 2.16.0  
+    major refactoring of NNCF quantization code  
+    new quant types: `INT8_SYM` (new default), `INT4` and `INT4_SYM`  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
@@ -29,6 +37,7 @@
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
 - **Other**
+  - text/image/control/video pipeline vs task compatibility check  
   - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
   - **HiDream-I1** LoRA support  
     currently limited to diffusers-only LoRAs, CivitAI LoRA support is TBD  
