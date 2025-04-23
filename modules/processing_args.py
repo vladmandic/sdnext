@@ -299,7 +299,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     elif 'callback_on_step_end' in possible:
         args['callback_on_step_end'] = diffusers_callback
         if 'callback_on_step_end_tensor_inputs' in possible:
-            if 'prompt_embeds' in possible and 'negative_prompt_embeds' in possible and hasattr(model, '_callback_tensor_inputs'):
+            if 'HiDreamImage' in model.__class__.__name__: # uses prompt_embeds_t5 and prompt_embeds_llama3 instead
+                args['callback_on_step_end_tensor_inputs'] = model._callback_tensor_inputs # pylint: disable=protected-access
+            elif 'prompt_embeds' in possible and 'negative_prompt_embeds' in possible and hasattr(model, '_callback_tensor_inputs'):
                 args['callback_on_step_end_tensor_inputs'] = model._callback_tensor_inputs # pylint: disable=protected-access
             else:
                 args['callback_on_step_end_tensor_inputs'] = ['latents']

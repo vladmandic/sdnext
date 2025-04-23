@@ -30,6 +30,7 @@
   - **NNCF** update to 2.16.0  
     major refactoring of NNCF quantization code  
     new quant types: `INT8_SYM` (new default), `INT4` and `INT4_SYM`  
+    pre-load quantization support  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
