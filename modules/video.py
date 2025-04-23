@@ -73,7 +73,7 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
         filename = os.path.join(shared.opts.outdir_video, filename)
         filename = namegen.sequence(filename, shared.opts.outdir_video, '')
     else:
-        if os.pathsep not in filename:
+        if os.path.sep not in filename:
             filename = os.path.join(shared.opts.outdir_video, filename)
     ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
     if not filename.lower().endswith(ext):

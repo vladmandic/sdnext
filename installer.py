@@ -1256,7 +1256,7 @@ def check_extensions():
                 mtime = os.path.getmtime(os.path.join(extension_dir, f))
                 newest = max(newest, mtime)
             newest_all = max(newest_all, newest)
-            # log.debug(f'Extension version: {time.ctime(newest)} {folder}{os.pathsep}{ext}')
+            # log.debug(f'Extension version: {time.ctime(newest)} {folder}{os.path.sep}{ext}')
     return round(newest_all)
 
 
