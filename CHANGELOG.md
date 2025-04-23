@@ -32,7 +32,7 @@
     new quant types: `INT8_SYM` (new default), `INT4` and `INT4_SYM`  
     quantization support for the convolutional layers on unet models with sym methods  
     pre-load quantization support  
-    lora support  
+    LoRA support  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
