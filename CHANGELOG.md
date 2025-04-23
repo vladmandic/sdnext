@@ -66,6 +66,7 @@
   - SD35 InstantX IP-adapter  
   - xyz grid restore settings  
   - config save unnecessary keys  
+  - recursive wildcards  
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  

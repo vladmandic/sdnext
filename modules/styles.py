@@ -59,7 +59,7 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)
-                            shared.log.debug(f'Wildcards apply: wildcard="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
+                            shared.log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
                             replaced.append(wildcard)
                             return prompt, True
                 except Exception as e:
@@ -68,18 +68,22 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
             return prompt, False
         return check_wildcard_files(prompt, wildcard, files, file_only=False)
 
+    def get_wildcards(prompt):
+        matches = re.findall(r'__(.*?)__', prompt, re.DOTALL)
+        matches = [m for m in matches if m not in not_found]
+        # matches = [m for m in matches if m not in replaced]
+        return matches
+
     recursion += 1
     if not shared.opts.wildcards_enabled or recursion >= 10 or not isinstance(prompt, str) or len(prompt) == 0:
         return prompt, replaced, not_found
-    matches = re.findall(r'__(.*?)__', prompt, re.DOTALL)
-    matches = [m for m in matches if m not in not_found]
-    matches = [m for m in matches if m not in replaced]
-    if len(matches) == 0:
+    wildcards = get_wildcards(prompt)
+    if len(wildcards) == 0:
         return prompt, replaced, not_found
     files = list(files_cache.list_files(shared.opts.wildcards_dir, ext_filter=[".txt"], recursive=True))
     if len(files) == 0:
         return prompt, replaced, not_found
-    for wildcard in matches:
+    for wildcard in wildcards:
         prompt, found = check_wildcard_files(prompt, wildcard, files)
         if found and wildcard in not_found:
             not_found.remove(wildcard)
@@ -116,7 +120,7 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
     if replaced and not silent:
         shared.log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
     if (len(replaced_file) > 0 or len(not_found) > 0) and not silent:
-        shared.log.debug(f'Apply wildcards: {replaced_file} missing: {not_found} path="{shared.opts.wildcards_dir}" type=file time={t2-t2:.2f} ')
+        shared.log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file time={t2-t2:.2f} ')
     if old_state is not None:
         random.setstate(old_state)
     return prompt
