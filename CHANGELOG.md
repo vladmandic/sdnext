@@ -33,6 +33,7 @@
     quantization support for the convolutional layers on unet models with sym methods  
     pre-load quantization support  
     LoRA support  
+    *if you're low on VRAM, NNCF is as close as a catch-all solution*  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
@@ -63,6 +64,7 @@
   - ONNX init fix  
   - Quanto with TE/LLM quant  
   - HiDream live preview  
+  - FLUX.1 controlnet i2i  
   - SD35 InstantX IP-adapter  
   - xyz grid restore settings  
   - config save unnecessary keys  
