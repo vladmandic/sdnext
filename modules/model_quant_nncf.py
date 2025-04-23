@@ -10,7 +10,7 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 from accelerate.utils import CustomDtype
 
-from modules import devices
+from modules import devices, shared
 
 
 torch_dtype_dict = {
@@ -59,7 +59,11 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
         else:
             reduction_axes = [layer.weight.ndim - 1]
 
-        layer.weight.data = layer.weight.data.float()
+        if shared.opts.diffusers_offload_mode != "none":
+            return_device = layer.weight.data.device
+        else:
+            return_device = devices.device
+        layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
 
         if is_asym_mode:
             level_low = 0
@@ -127,8 +131,11 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     result_dtype=torch_dtype
                 )
 
-        layer.register_pre_forward_operation(decompressor)
         compressed_weight = decompressor.pack_weight(compressed_weight)
+        compressed_weight = compressed_weight.to(return_device)
+
+        decompressor = decompressor.to(return_device)
+        layer.register_pre_forward_operation(decompressor)
 
         layer.weight.requires_grad = False
         layer.weight.data = compressed_weight
