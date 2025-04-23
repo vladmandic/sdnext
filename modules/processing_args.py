@@ -161,7 +161,12 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
             prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
-        if hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
+        if 'HiDreamImage' in model.__class__.__name__:
+            args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
+            args['prompt_embeds_t5'] = prompt_embeds[0]
+            args['prompt_embeds_llama3'] = prompt_embeds[1]
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
             if prompt_parser_diffusers.embedder is not None:
                 if 'StableCascade' in model.__class__.__name__:
@@ -172,12 +177,15 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
                 elif 'Flux' in model.__class__.__name__:
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'HiDreamImage' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
-        if hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
+        if 'HiDreamImage' in model.__class__.__name__:
+            args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            negative_prompt_embeds = prompt_parser_diffusers.embedder('negative_prompt_embeds')
+            args['negative_prompt_embeds_t5'] = negative_prompt_embeds[0]
+            args['negative_prompt_embeds_llama3'] = negative_prompt_embeds[1]
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['negative_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_prompt_embeds')
             if prompt_parser_diffusers.embedder is not None:
                 if 'StableCascade' in model.__class__.__name__:
@@ -185,8 +193,6 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 elif 'XL' in model.__class__.__name__:
                     args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
                 elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
-                elif 'HiDreamImage' in model.__class__.__name__:
                     args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
