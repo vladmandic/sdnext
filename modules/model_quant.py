@@ -378,8 +378,7 @@ def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_g
 
 
 def nncf_compress_weights(sd_model):
-    #try:
-    if True:
+    try:
         t0 = time.time()
         from modules import shared, devices, sd_models
         log.info(f"Quantization: type=NNCF modules={shared.opts.nncf_compress_weights}")
@@ -398,8 +397,8 @@ def nncf_compress_weights(sd_model):
 
         t1 = time.time()
         log.info(f"Quantization: type=NNCF time={t1-t0:.2f}")
-    #except Exception as e:
-    #    log.warning(f"Quantization: type=NNCF {e}")
+    except Exception as e:
+        log.warning(f"Quantization: type=NNCF {e}")
     return sd_model
 
 
