@@ -43,7 +43,7 @@ class QuantizationMethod(str, Enum):
 
 
 # de-abstracted and modified slightly from the actual quant functions of nncf 2.16.0:
-def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=True, param_name=None):
+def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, param_name=None):
     if layer.__class__.__name__ in allowed_types:
         if torch_dtype is None:
             torch_dtype = devices.dtype
@@ -134,7 +134,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
     return layer
 
 
-def apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=True):
+def apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=False):
     has_children = list(model.children())
     if not has_children:
         return model
