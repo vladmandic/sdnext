@@ -397,8 +397,12 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_dtype = result_dtype
 
     @property
+    def num_bits(self):
+        return 8
+
+    @property
     def quantization_mode(self):
-        return"asymmetric"
+        return "asymmetric"
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if torch.is_floating_point(weight):
@@ -409,9 +413,13 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
             raise ValueError(msg)
         return weight.type(torch.uint8)
 
-    def forward(self, x, *args):
+    def forward(self, x, *args, return_decompressed_only=False):
         result = decompress_asymmetric(x.weight, self.scale, self.zero_point)
-        x.weight = result.type(self.result_dtype)
+        result = result.type(self.result_dtype)
+        if return_decompressed_only:
+            return result
+        else:
+            x.weight = result
 
 
 class INT8SymmetricWeightsDecompressor(torch.nn.Module):
@@ -421,8 +429,12 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         self.result_dtype = result_dtype
 
     @property
+    def num_bits(self):
+        return 8
+
+    @property
     def quantization_mode(self):
-        return"symmetric"
+        return "symmetric"
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if torch.any((weight < -128) | (weight > 127)):
@@ -430,9 +442,13 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
             raise ValueError(msg)
         return weight.type(torch.int8)
 
-    def forward(self, x, *args):
+    def forward(self, x, *args, return_decompressed_only=False):
         result = decompress_symmetric(x.weight, self.scale)
-        x.weight = result.type(self.result_dtype)
+        result = result.type(self.result_dtype)
+        if return_decompressed_only:
+            return result
+        else:
+            x.weight = result
 
 
 class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -455,8 +471,12 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_dtype = result_dtype
 
     @property
+    def num_bits(self):
+        return 4
+
+    @property
     def quantization_mode(self):
-        return"asymmetric"
+        return "asymmetric"
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if torch.any((weight < 0) | (weight > 15)):
@@ -464,7 +484,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
             raise ValueError(msg)
         return pack_uint4(weight.type(torch.uint8))
 
-    def forward(self, x, *args):
+    def forward(self, x, *args, return_decompressed_only=False):
         result = unpack_uint4(x.weight)
         result = result.reshape(self.compressed_weight_shape)
 
@@ -473,7 +493,11 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
 
         result = decompress_asymmetric(result, self.scale, zero_point)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
-        x.weight = result.type(self.result_dtype)
+        result = result.type(self.result_dtype)
+        if return_decompressed_only:
+            return result
+        else:
+            x.weight = result
 
 
 class INT4SymmetricWeightsDecompressor(torch.nn.Module):
@@ -492,8 +516,12 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         self.result_dtype = result_dtype
 
     @property
+    def num_bits(self):
+        return 4
+
+    @property
     def quantization_mode(self):
-        return"symmetric"
+        return "symmetric"
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if torch.is_floating_point(weight):
@@ -504,10 +532,14 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
             raise ValueError(msg)
         return pack_int4(weight.type(torch.int8))
 
-    def forward(self, x, *args):
+    def forward(self, x, *arg, return_decompressed_only=False):
         result = unpack_int4(x.weight)
         result = result.reshape(self.compressed_weight_shape)
 
         result = decompress_symmetric(result, self.scale)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
-        x.weight = result.type(self.result_dtype)
+        result = result.type(self.result_dtype)
+        if return_decompressed_only:
+            return result
+        else:
+            x.weight = result
