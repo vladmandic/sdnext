@@ -40,7 +40,7 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
             return None
     if name not in diffuser_loaded:
         list_adapters = shared.sd_model.get_list_adapters()
-        list_adapters = {adapter for adapters in list_adapters.values() for adapter in adapters}
+        list_adapters = [adapter for adapters in list_adapters.values() for adapter in adapters]
         if name not in list_adapters:
             shared.log.error(f'Network load: type=LoRA name="{name}" adapters={list_adapters} not loaded')
         else:

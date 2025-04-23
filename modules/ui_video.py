@@ -26,7 +26,9 @@ def model_change(engine, model):
     debug(f'Video change: engine="{engine}" model="{model}"')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    return video_utils.get_url(selected.url if selected else None)
+    url = video_utils.get_url(selected.url if selected else None)
+    i2v = 'i2v' in selected.name.lower() if selected else False
+    return url, gr.update(visible=i2v)
 
 
 def model_load(engine, model):
@@ -113,7 +115,7 @@ def create_ui():
                     with gr.Row():
                         vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
                         vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
-                with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
+                with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion', visible=False) as init_accordion:
                     init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
                     gr.HTML("<br>&nbsp Init image")
                     init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", height=512)
@@ -139,7 +141,7 @@ def create_ui():
             random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
             # handle engine and model change
             engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-            model.change(fn=model_change, inputs=[engine, model], outputs=[url])
+            model.change(fn=model_change, inputs=[engine, model], outputs=[url, init_accordion])
             btn_load.click(fn=model_load, inputs=[engine, model], outputs=[html_log])
             # setup extra networks
             ui_extra_networks.setup_ui(extra_networks_ui, gallery)
@@ -147,7 +149,6 @@ def create_ui():
         # handle restore fields
         paste_fields = [
             (prompt, "Prompt"),
-            # main
             (width, "Size-1"),
             (height, "Size-2"),
             (frames, "Frames"),
