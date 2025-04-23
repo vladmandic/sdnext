@@ -47,7 +47,6 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
     if layer.__class__.__name__ in allowed_types:
         if torch_dtype is None:
             torch_dtype = devices.dtype
-        layer.weight.data = layer.weight.data.float()
 
         if layer.__class__.__name__ in conv_types:
             if is_asym_mode or not quant_conv: # don't quant convs with asym mode
@@ -59,6 +58,8 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             reduction_axes = [i for i in range(layer.weight.ndim) if i != 1]
         else:
             reduction_axes = [layer.weight.ndim - 1]
+
+        layer.weight.data = layer.weight.data.float()
 
         if is_asym_mode:
             level_low = 0
