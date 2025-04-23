@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-22
+## Update for 2025-04-23
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -65,6 +65,7 @@
   - HiDream live preview  
   - SD35 InstantX IP-adapter  
   - xyz grid restore settings  
+  - config save unnecessary keys  
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  

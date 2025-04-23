@@ -1112,25 +1112,36 @@ class Options:
             diff = {}
             unused_settings = []
 
+            # if self.debug:
+            #     log.debug('Settings: user')
+            #     for k, v in self.data.items():
+            #         log.trace(f'  Config: item={k} value={v} default={self.data_labels[k].default if k in self.data_labels else None}')
+
             if self.debug:
-                log.debug('Settings: user')
-                for k, v in self.data.items():
-                    log.trace(f'  Config: item={k} value={v} default={self.data_labels[k].default if k in self.data_labels else None}')
+                log.debug(f'Settings: total={len(self.data.keys())} known={len(self.data_labels.keys())}')
 
             for k, v in self.data.items():
                 if k in self.data_labels:
-                    if type(v) is list:
+                    default = self.data_labels[k].default
+                    if isinstance(v, list):
+                        if (len(default) != len(v) or set(default) != set(v)): # list order is non-deterministic
+                            diff[k] = v
+                            if self.debug:
+                                log.trace(f'Settings changed: {k}={v} default={default}')
+                    elif self.data_labels[k].default != v:
                         diff[k] = v
-                    if self.data_labels[k].default != v:
-                        diff[k] = v
+                        if self.debug:
+                            log.trace(f'Settings changed: {k}={v} default={default}')
                 else:
                     if k not in compatibility_opts:
                         diff[k] = v
                         if not k.startswith('uiux_'):
                             unused_settings.append(k)
+                        if self.debug:
+                            log.trace(f'Settings unknown: {k}={v}')
             writefile(diff, filename, silent=silent)
             if self.debug:
-                log.trace(f'Settings save: {diff}')
+                log.trace(f'Settings save: count={len(diff.keys())} {diff}')
             if len(unused_settings) > 0:
                 log.debug(f"Settings: unused={unused_settings}")
         except Exception as err:

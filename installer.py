@@ -538,7 +538,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = 'e30d3bf5442fbdbee899e8a5da0b11b621d54f1b' # diffusers commit hash
+    sha = '026507c06cdabfb0c13ddeb1ac33f5d8e244361f' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -1401,7 +1401,9 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
                         git_reset()
                         check_version(offline=offline, reset=False)
             else:
-                log.info(f'Repository latest available {commits["commit"]["sha"]} {commits["commit"]["commit"]["author"]["date"]}')
+                dt = commits["commit"]["commit"]["author"]["date"]
+                commit = commits["commit"]["sha"][:8]
+                log.info(f'Version: check latest available hash={commit} updated={dt}')
     except Exception as e:
         log.error(f'Repository failed to check version: {e} {commits}')
     ts('latest', t_start)
