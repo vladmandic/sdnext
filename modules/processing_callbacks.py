@@ -9,11 +9,13 @@ from modules import shared, devices, processing_correction, extra_networks, time
 p = None
 debug = os.environ.get('SD_CALLBACK_DEBUG', None) is not None
 debug_callback = shared.log.trace if debug else lambda *args, **kwargs: None
+warned = False
 
 
 def set_callbacks_p(processing):
-    global p # pylint: disable=global-statement
+    global p, warned # pylint: disable=global-statement
     p = processing
+    warned = False
 
 
 def prompt_callback(step, kwargs):
@@ -129,7 +131,10 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
             except Exception:
                 pass
     except Exception as e:
-        shared.log.error(f'Callback: {e}')
+        global warned # pylint: disable=global-statement
+        if not warned:
+            shared.log.error(f'Callback: {e}')
+            warned = True
         # from modules import errors
         # errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:

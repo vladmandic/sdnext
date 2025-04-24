@@ -75,8 +75,11 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['control_guidance_start'] = control_guidance_start
         p.task_args['control_guidance_end'] = control_guidance_end
         p.task_args['guess_mode'] = p.guess_mode
-        instance = controlnet.ControlNetPipeline(selected_models, shared.sd_model, p=p)
-        pipe = instance.pipeline
+        if 'Flex' not in shared.sd_model.__class__.__name__:
+            instance = controlnet.ControlNetPipeline(selected_models, shared.sd_model, p=p)
+            pipe = instance.pipeline
+        else:
+            pipe = shared.sd_model
     elif unit_type == 'xs' and has_models:
         p.extra_generation_params["Control type"] = 'ControlNet-XS'
         p.controlnet_conditioning_scale = control_conditioning
@@ -189,7 +192,11 @@ def check_enabled(p, unit_type, units, active_model, active_strength, active_sta
     control_conditioning = None
     control_guidance_start = None
     control_guidance_end = None
-    if unit_type == 't2i adapter' or unit_type == 'controlnet' or unit_type == 'xs' or unit_type == 'lite':
+    if 'Flex' in p.sd_model.__class__.__name__:
+        has_models = True
+        selected_models = [None]
+        p.guess_mode = False
+    elif unit_type == 't2i adapter' or unit_type == 'controlnet' or unit_type == 'xs' or unit_type == 'lite':
         if len(active_model) == 0:
             selected_models = None
         elif len(active_model) == 1:
@@ -609,18 +616,30 @@ def control_run(state: str = '',
                                 p.task_args['strength'] = p.denoising_strength
                             p.init_images = None
                         elif input_type == 1: # Init image same as control
-                            if 'control_image' in possible:
+                            p.init_images = [p.override or input_image] * max(1, len(active_model))
+                            if 'inpaint_image' in possible: # flex
+                                p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+                                p.task_args['inpaint_mask'] = Image.new('L', p.task_args['inpaint_image'].size, int(p.denoising_strength * 255))
+                                p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+                                p.task_args['width'] = p.width
+                                p.task_args['height'] = p.height
+                            elif 'control_image' in possible:
                                 p.task_args['control_image'] = p.init_images # switch image and control_image
                             if 'control_mode' in possible:
                                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)
                             if 'strength' in possible:
                                 p.task_args['strength'] = p.denoising_strength
-                            p.init_images = [p.override or input_image] * len(active_model)
                         elif input_type == 2: # Separate init image
                             if init_image is None:
                                 shared.log.warning('Control: separate init image not provided')
                                 init_image = input_image
-                            if 'control_image' in possible:
+                            if 'inpaint_image' in possible: # flex
+                                p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+                                p.task_args['inpaint_mask'] = Image.new('L', p.task_args['inpaint_image'].size, int(p.denoising_strength * 255))
+                                p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+                                p.task_args['width'] = p.width
+                                p.task_args['height'] = p.height
+                            elif 'control_image' in possible:
                                 p.task_args['control_image'] = p.init_images # switch image and control_image
                             if 'control_mode' in possible:
                                 p.task_args['control_mode'] = getattr(p, 'control_mode', None)

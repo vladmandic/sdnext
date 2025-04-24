@@ -81,6 +81,10 @@ def load_flex(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
     sd_hijack_te.init_hijack(pipe)
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flex2"] = Flex2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["fluxcfgzero"] = Flex2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["fluxcfgzero"] = Flex2Pipeline
+
     del text_encoder_2
     del transformer
 

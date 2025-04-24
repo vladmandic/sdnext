@@ -284,7 +284,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args["prior_guidance_scale"] = p.cfg_scale
         if 'decoder_guidance_scale' in possible:
             args["decoder_guidance_scale"] = p.image_cfg_scale
-
+    if 'Flex' in model.__class__.__name__:
+        if p.init_images is not None and len(p.init_images) > 0:
+            args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, 1)
+            args['control_image'] = args['inpaint_image'].convert('L').convert('RGB') # will be interpreted as depth
+            args['control_strength'] = p.denoising_strength
+            args['width'] = p.width
+            args['height'] = p.height
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1
