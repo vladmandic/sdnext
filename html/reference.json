@@ -180,6 +180,13 @@
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
 
+  "Ostris Flex.2 Preview": {
+    "path": "ostris/Flex.2-preview",
+    "preview": "ostris--Flex.2-preview.jpg",
+    "desc": "Open Source 8B parameter Text to Image Diffusion Model with universal control and inpainting support built in. Early access preview release. The next version of Flex.1-alpha",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
   "Ostris Flex.1 Alpha": {
     "path": "ostris/Flex.1-alpha",
     "preview": "ostris--Flex.1-alpha.jpg",

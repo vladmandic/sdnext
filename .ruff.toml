@@ -8,6 +8,7 @@ exclude = [
     "modules/control/proc",
     "modules/control/units",
     "modules/freescale",
+    "modules/flex2",
     "modules/ggml",
     "modules/hidiffusion",
     "modules/hijack",

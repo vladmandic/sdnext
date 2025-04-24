@@ -309,6 +309,9 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['FLUX']:
             from modules.model_flux import load_flux
             sd_model = load_flux(checkpoint_info, diffusers_load_config)
+        elif model_type in ['FLEX']:
+            from modules.model_flex import load_flex
+            sd_model = load_flex(checkpoint_info, diffusers_load_config)
         elif model_type in ['Lumina 2']:
             from modules.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)

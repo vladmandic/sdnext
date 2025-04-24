@@ -20,6 +20,7 @@ pipelines = {
     'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
     'DeepFloyd IF': getattr(diffusers, 'IFPipeline', None),
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
+    'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Text2ImgPipeline', None),

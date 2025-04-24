@@ -379,12 +379,16 @@ def get_reference_opts(name: str, quiet=False):
     model_opts = {}
     name = name.replace('Diffusers/', 'huggingface/')
     for k, v in shared.reference_models.items():
-        model_name = os.path.splitext(v.get('path', '').split('@')[0])[0]
+        model_name = v.get('path', '')
         if k == name or model_name == name:
             model_opts = v
             break
-        model_name = model_name.replace('huggingface/', '')
-        if k == name or model_name == name:
+        model_name_split = os.path.splitext(model_name.split('@')[0])[0]
+        if k == name or model_name_split == name:
+            model_opts = v
+            break
+        model_name_replace = model_name.replace('huggingface/', '')
+        if k == name or model_name_replace == name:
             model_opts = v
             break
     if not model_opts:

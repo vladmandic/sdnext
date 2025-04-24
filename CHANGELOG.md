@@ -1,10 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-23
+## Update for 2025-04-24
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
     highly experimental and with limited support, but when it works, its magic: **Flux.1 at 6.0 it/s** *(not sec/it)*!  
+    basically, it can speed up supported models by 2-5x by using custom quantization and execution engine  
     see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
   - [FramePack](https://github.com/vladmandic/sd-extension-framepack) based on **HunyuanVideo-I2V**  
     full support and much more for **Lllyasviel** [FramePack](https://lllyasviel.github.io/frame_pack_gitpage/)  
@@ -16,6 +17,10 @@
     - custom models: e.g. replace llama with one of your choice  
     - multiple video codecs and with hw acceleration, raw export, frame export, frame interpolation  
     - quantization support, new offloading, more configuration options, cross-platform, etc.
+  - [Ostris Flex.2 Preview](https://huggingface.co/ostris/Flex.2-preview)  
+    more than a FLUX.1 finetune, FLEX.2 is created from *Flux.1 Schnell -> OpenFlux.1 -> Flex.1-alpha -> Flex.2-preview*  
+    and it has universal control and inpainting support built in!  
+    available via  *networks -> models -> reference*  
   - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) **T2V** and **I2V**  
     in both **Standard** and **Distilled** variants  
     available in *video tab*
