@@ -296,20 +296,33 @@ class ReqPostLog(BaseModel):
     debug: Optional[str] = Field(title="Debug message", description="The debug message to log")
     error: Optional[str] = Field(title="Error message", description="The error message to log")
 
+class ReqHistory(BaseModel):
+    id: str = Field(default=None, title="Task ID", description="Task ID")
+
 class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
 
 class ResProgress(BaseModel):
+    id: str = Field(title="TaskID", description="Task ID")
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
     current_image: str = Field(default=None, title="Current image", description="The current image in base64 format. opts.show_progress_every_n_steps is required for this to work.")
     textinfo: str = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
+class ResHistory(BaseModel):
+    id: str = Field(title="ID", description="Task ID")
+    job: str = Field(title="Job", description="Job name")
+    op: str = Field(title="Operation", description="Operation name")
+    start: Union[float, None] = Field(title="Start", description="Start time")
+    end: Union[float, None] = Field(title="End", description="End time")
+    outputs: List[str] = Field(title="Outputs", description="List of filenames")
+
 class ResStatus(BaseModel):
     status: str = Field(title="Status", description="Current status")
-    task: str = Field(title="Task", description="Current task")
+    task: str = Field(title="Task", description="Current job")
     timestamp: Optional[str] = Field(title="Timestamp", description="Timestamp of the current job")
+    current: str = Field(title="Task", description="Current job")
     id: str = Field(title="ID", description="ID of the current task")
     job: int = Field(title="Job", description="Current job")
     jobs: int = Field(title="Jobs", description="Total jobs")
@@ -343,7 +356,7 @@ class ReqVQA(BaseModel):
     model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
     question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
 
-class ReqHistory(BaseModel):
+class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
 class ResVQA(BaseModel):

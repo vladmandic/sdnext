@@ -198,6 +198,7 @@ def save_image(image,
     exifinfo += params.pnginfo.get(pnginfo_section_name, '')
     filename, extension = os.path.splitext(params.filename)
     filename_txt = f"{filename}.txt" if shared.opts.save_txt and len(exifinfo) > 0 else None
+    shared.state.outputs(params.filename)
     save_queue.put((params.image, filename, extension, params, exifinfo, filename_txt)) # actual save is executed in a thread that polls data from queue
     save_queue.join()
     if not hasattr(params.image, 'already_saved_as'):

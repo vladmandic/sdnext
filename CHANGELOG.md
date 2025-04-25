@@ -48,6 +48,13 @@
   - **Sana** model loader optimizations
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
+- **API**  
+  - new [API Wiki](https://github.com/vladmandic/sdnext/wiki/API)  
+  - server will now maintain job history which can be queried via API  
+    so you can check previous jobs as well as request any previously generated images/videos  
+  - history endpoint: `/sdapi/v1/history?id={id}`  
+  - download endpoint: `/file={filename}`  
+  - progress api `/sdapi/v1/progress` now also include task id in the response  
 - **Other**
   - text/image/control/video pipeline vs task compatibility check  
   - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
@@ -65,7 +72,7 @@
   - do not force gc at end of processing  
   - add `SD_LORA_DUMP` env variable for dev/diag to dump lora/model keys  
 - **Wiki**  
-  - new *Nunchaku* page  
+  - new *Nunchaku*, *API* pages  
   - updated *HiDream, Quantization, NNCF, Video, Docker, WSL* pages  
 - **Fixes**
   - HunyuanVideo-I2V with latest transformers  

@@ -79,6 +79,7 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
     if not filename.lower().endswith(ext):
         filename += f'.{ext}'
     filename = namegen.sanitize(filename)
+    shared.state.outputs(filename)
     if not sync:
         threading.Thread(target=save_video_atomic, args=(images, filename, video_type, duration, loop, interpolate, scale, pad, change)).start()
     else:

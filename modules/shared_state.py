@@ -1,18 +1,24 @@
 import os
+import re
 import sys
+import uuid
 import time
 import datetime
 from modules.errors import log, display
 
 
 debug_output = os.environ.get('SD_STATE_DEBUG', None)
+debug_history = debug_output or os.environ.get('SD_STATE_HISTORY', None)
 
 
 class State:
     job_history = []
     task_history = []
+    state_history = []
     image_history = 0
     latent_history = 0
+    id = 0
+    results = []
     skipped = False
     interrupted = False
     paused = False
@@ -39,6 +45,7 @@ class State:
     disable_preview = False
     preview_job = -1
     time_start = None
+    time_end = None
     need_restart = False
     server_start = time.time()
     oom = False
@@ -104,7 +111,8 @@ class State:
         from modules.api import models
         res = models.ResStatus(
             task=self.job,
-            id=progress.current_task or '',
+            current=progress.current_task or '',
+            id=self.id,
             job=max(self.job_no, 0),
             jobs=max(self.frame_count, self.job_count, self.job_no),
             total=self.total_jobs,
@@ -131,7 +139,30 @@ class State:
             res.status = 'running' if self.job != '' else 'idle'
         return res
 
-    def begin(self, title="", api=None):
+    def history(self, op:str):
+        job = { 'id': self.id, 'job': self.job.lower(), 'op': op.lower(), 'start': self.time_start, 'end': self.time_end, 'outputs': self.results }
+        self.state_history.append(job)
+        l = len(self.state_history)
+        if l > 10000:
+            del self.state_history[0]
+        if debug_history:
+            log.trace(f'State history: jobs={l} {job}')
+
+    def outputs(self, results):
+        if isinstance(results, list):
+            self.results += results
+        else:
+            self.results.append(results)
+
+    def get_id(self, task_id):
+        if task_id is None or task_id == 0:
+            task_id = uuid.uuid4().hex[:15]
+        if not isinstance(task_id, str):
+            task_id = str(task_id)
+        match = re.search(r'\((.*?)\)', task_id)
+        return match.group(1) if match else task_id
+
+    def begin(self, title="", task_id=0, api=None):
         import modules.devices
         self.job_history.append(title)
         self.total_jobs += 1
@@ -144,6 +175,8 @@ class State:
         self.id_live_preview = 0
         self.interrupted = False
         self.preview_job = -1
+        self.results = []
+        self.id = self.get_id(task_id)
         self.job = title
         self.job_count = 0
         self.frame_count = 0
@@ -159,6 +192,7 @@ class State:
         self.prediction_type = "epsilon"
         self.api = api or self.api
         self.time_start = time.time()
+        self.history('begin')
         if debug_output:
             log.trace(f'State begin: {self}')
         modules.devices.torch_gc()
@@ -171,6 +205,8 @@ class State:
             self.time_start = time.time()
         if debug_output:
             log.trace(f'State end: {self}')
+        self.time_end = time.time()
+        self.history('end')
         self.job = ""
         self.job_count = 0
         self.job_no = 0
@@ -197,6 +233,7 @@ class State:
             self.sampling_steps += steps * jobs
             self.job_count += jobs
         self.job = job
+        self.history('update')
         if debug_output:
             log.trace(f'State update: {self} steps={steps} jobs={jobs}')
 

@@ -46,7 +46,11 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
     def f(*args, extra_outputs_array=extra_outputs, **kwargs):
         t = time.perf_counter()
         shared.mem_mon.reset()
-        shared.state.begin(job_name)
+        if len(args) > 0 and type(args[0]) == str and args[0][0:5] == "task(" and args[0][-1] == ")":
+            task_id = args[0]
+        else:
+            task_id = 0
+        shared.state.begin(job_name, task_id=task_id)
         try:
             if shared.cmd_opts.profile:
                 pr = cProfile.Profile()
