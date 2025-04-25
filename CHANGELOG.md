@@ -42,12 +42,18 @@
     pre-load quantization support  
     LoRA support  
     *if you're low on VRAM, NNCF is as close as a catch-all solution*  
+  - **OpenVINO** update to 2025.1.0 and Torch to 2.7  
+  - **ROCm** update to Torch 2.7  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
   - **Sana** model loader optimizations
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
+- **UI**  
+  - new History tab where you can see all jobs since the server startup  
+    and optionally download any of the previously generated images/videos  
+    access via *system -> history*  
 - **API**  
   - new [API Wiki](https://github.com/vladmandic/sdnext/wiki/API)  
   - server will now maintain job history which can be queried via API  

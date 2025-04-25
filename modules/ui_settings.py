@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, ui_history, generation_parameters_copypaste, call_queue, script_callbacks
 
 
 text_settings = None # holds json of entire shared.opts
@@ -241,6 +241,9 @@ def create_ui():
         with gr.TabItem("User interface", id="system_config", elem_id="tab_config"):
             loadsave.create_ui()
             create_dirty_indicator("tab_defaults", [], interactive=False)
+
+        with gr.TabItem("History", id="system_history", elem_id="tab_history"):
+            ui_history.create_ui()
 
         with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
             from modules.onnx_impl import ui as ui_onnx

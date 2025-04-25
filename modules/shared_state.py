@@ -192,6 +192,7 @@ class State:
         self.prediction_type = "epsilon"
         self.api = api or self.api
         self.time_start = time.time()
+        self.time_end = None
         self.history('begin')
         if debug_output:
             log.trace(f'State begin: {self}')
