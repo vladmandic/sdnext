@@ -72,12 +72,12 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             max_values = torch.amax(layer.weight, dim=reduction_axes, keepdims=True)  # [a1, r, a2] -> [a1, 1, a2]
 
             levels = level_high - level_low + 1
-            scale = ((max_values - min_values) / (levels - 1)).type(torch.float32)
+            scale = ((max_values - min_values) / (levels - 1)).to(dtype=torch.float32)
             eps = torch.finfo(scale.dtype).eps
 
             scale = torch.where(torch.abs(scale) < eps, eps, scale)
             zero_point = level_low - torch.round(min_values / scale)
-            zero_point = torch.clip(zero_point.type(torch.int32), level_low, level_high)
+            zero_point = torch.clip(zero_point.to(dtype=torch.int32), level_low, level_high)
         else:
             factor = 2 ** (num_bits - 1)
 
@@ -97,7 +97,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
 
         compressed_weight = layer.weight.data / scale
         if zero_point is not None:
-            compressed_weight += zero_point.type(layer.weight.dtype)
+            compressed_weight += zero_point.to(dtype=layer.weight.dtype)
 
         compressed_weight = torch.round(compressed_weight)
         compressed_weight = torch.clip(compressed_weight, level_low, level_high).to(dtype)
@@ -358,14 +358,14 @@ class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self
 # WeightsDecompressor classes and functions are modified from NNCF 2.16.0
 
 def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor) -> torch.Tensor:
-    input = input.type(scale.dtype)
-    zero_point = zero_point.type(scale.dtype)
+    input = input.to(dtype=scale.dtype)
+    zero_point = zero_point.to(dtype=scale.dtype)
     decompressed_input = (input - zero_point) * scale
     return decompressed_input
 
 
 def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
-    input = input.type(scale.dtype)
+    input = input.to(dtype=scale.dtype)
     decompressed_input = input * scale
     return decompressed_input
 
@@ -376,7 +376,7 @@ def unpack_uint4(packed_tensor: torch.Tensor) -> torch.Tensor:
 
 def unpack_int4(packed_tensor: torch.Tensor) -> torch.Tensor:
     t = unpack_uint4(packed_tensor)
-    return t.type(torch.int8) - 8
+    return t.to(dtype=torch.int8) - 8
 
 
 def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
@@ -394,7 +394,7 @@ def pack_int4(tensor: torch.Tensor) -> torch.Tensor:
         msg = f"Invalid tensor dtype {tensor.type}. torch.int8 type is supported."
         raise RuntimeError(msg)
     tensor = tensor + 8
-    return pack_uint4(tensor.type(torch.uint8))
+    return pack_uint4(tensor.to(dtype=torch.uint8))
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -419,11 +419,11 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         if torch.any((weight < 0) | (weight > 255)):
             msg = "Weight values are not in [0, 255]."
             raise ValueError(msg)
-        return weight.type(torch.uint8)
+        return weight.to(dtype=torch.uint8)
 
     def forward(self, x, *args, return_decompressed_only=False):
         result = decompress_asymmetric(x.weight, self.scale, self.zero_point)
-        result = result.type(self.result_dtype)
+        result = result.to(dtype=self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -448,11 +448,11 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         if torch.any((weight < -128) | (weight > 127)):
             msg = "Weight values are not in [-128, 127]."
             raise ValueError(msg)
-        return weight.type(torch.int8)
+        return weight.to(dtype=torch.int8)
 
     def forward(self, x, *args, return_decompressed_only=False):
         result = decompress_symmetric(x.weight, self.scale)
-        result = result.type(self.result_dtype)
+        result = result.to(dtype=self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -490,7 +490,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         if torch.any((weight < 0) | (weight > 15)):
             msg = "Weight values are not in [0, 15]."
             raise ValueError(msg)
-        return pack_uint4(weight.type(torch.uint8))
+        return pack_uint4(weight.to(dtype=torch.uint8))
 
     def forward(self, x, *args, return_decompressed_only=False):
         result = unpack_uint4(x.weight)
@@ -501,7 +501,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
 
         result = decompress_asymmetric(result, self.scale, zero_point)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
-        result = result.type(self.result_dtype)
+        result = result.to(dtype=self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -538,7 +538,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         if torch.any((weight < -8) | (weight > 7)):
             msg = "Tensor values are not in [-8, 7]."
             raise ValueError(msg)
-        return pack_int4(weight.type(torch.int8))
+        return pack_int4(weight.to(dtype=torch.int8))
 
     def forward(self, x, *arg, return_decompressed_only=False):
         result = unpack_int4(x.weight)
@@ -546,7 +546,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
 
         result = decompress_symmetric(result, self.scale)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
-        result = result.type(self.result_dtype)
+        result = result.to(dtype=self.result_dtype)
         if return_decompressed_only:
             return result
         else:
