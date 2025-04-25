@@ -14,6 +14,7 @@ available_networks = {}
 available_network_aliases = {}
 forbidden_network_aliases = {}
 available_network_hash_lookup = {}
+dump_lora_keys = os.environ.get('SD_LORA_DUMP', None) is not None
 
 
 def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_default_multiplier) -> Union[network.Network, None]:
@@ -52,6 +53,26 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
     return net
 
 
+def lora_dump(lora, dct):
+    import tempfile
+    ty = shared.sd_model_type
+    cn = shared.sd_model.__class__.__name__
+    shared.log.trace(f'LoRA dump: type={ty} model={cn} fn="{lora}"')
+    bn = os.path.splitext(os.path.basename(lora))[0]
+    fn = os.path.join(tempfile.gettempdir(), f'LoRA-{ty}-{cn}-{bn}.txt')
+    with open(fn, 'w', encoding='utf8') as f:
+        keys = sorted(dct.keys())
+        shared.log.trace(f'LoRA dump: type=LoRA fn="{fn}" keys={len(keys)}')
+        for line in keys:
+            f.write(line + "\n")
+    fn = os.path.join(tempfile.gettempdir(), f'Model-{ty}-{cn}.txt')
+    with open(fn, 'w', encoding='utf8') as f:
+        keys = shared.sd_model.network_layer_mapping.keys()
+        shared.log.trace(f'LoRA dump: type=Mapping fn="{fn}" keys={len(keys)}')
+        for line in keys:
+            f.write(line + "\n")
+
+
 def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     if not shared.sd_loaded:
         return None
@@ -77,6 +98,9 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     bundle_embeddings = {}
     dtypes = []
     convert = lora_convert.KeyConvert()
+    if dump_lora_keys:
+        lora_dump(network_on_disk.filename, state_dict)
+
     for key_network, weight in state_dict.items():
         parts = key_network.split('.')
         if parts[0] == "bundle_emb":
@@ -104,6 +128,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     network_types = []
     state_dict = None
     del state_dict
+    module_errors = 0
     for key, weights in matched_networks.items():
         net_module = None
         for nettype in l.module_types:
@@ -111,10 +136,15 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
             if net_module is not None:
                 network_types.append(nettype.__class__.__name__)
                 break
+            else:
+                module_errors += 1
         if net_module is None:
-            shared.log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')
+            if l.debug:
+                shared.log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')
         else:
             net.modules[key] = net_module
+    if module_errors > 0:
+        shared.log.error(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" errors={module_errors} empty modules')
     if len(keys_failed_to_match) > 0:
         shared.log.warning(f'Network load: type=LoRA name="{name}" type={set(network_types)} unmatched={len(keys_failed_to_match)} matched={len(matched_networks)}')
         if l.debug:

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-24
+## Update for 2025-04-25
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -12,11 +12,11 @@
     implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
     generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
-    - I2V & FLF2V support  
-    - complex actions with multi-prompts  
+    - I2V & FLF2V support with explicit strength controls   
+    - complex actions: modify prompts for each section of the video  
     - custom models: e.g. replace llama with one of your choice  
-    - multiple video codecs and with hw acceleration, raw export, frame export, frame interpolation  
-    - quantization support, new offloading, more configuration options, cross-platform, etc.
+    - video: multiple codecs and with hw acceleration, raw export, frame export, frame interpolation  
+    - compute: quantization support, new offloading, more configuration options, cross-platform, etc.
   - [Ostris Flex.2 Preview](https://huggingface.co/ostris/Flex.2-preview)  
     more than a FLUX.1 finetune, FLEX.2 is created from *Flux.1 Schnell -> OpenFlux.1 -> Flex.1-alpha -> Flex.2-preview*  
     and it has universal control and inpainting support built in!  
@@ -63,9 +63,10 @@
   - ui display reference models with subdued color  
   - xyz grid support bool  
   - do not force gc at end of processing  
+  - add `SD_LORA_DUMP` env variable for dev/diag to dump lora/model keys  
 - **Wiki**  
-  - new Nunchaku page  
-  - updated HiDream, Quantization, NNCF, Video, Docker pages  
+  - new *Nunchaku* page  
+  - updated *HiDream, Quantization, NNCF, Video, Docker, WSL* pages  
 - **Fixes**
   - HunyuanVideo-I2V with latest transformers  
   - NNCF with TE-only quant  
