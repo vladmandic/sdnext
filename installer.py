@@ -742,11 +742,11 @@ def install_openvino(torch_command):
     check_python(supported_minors=[9, 10, 11, 12], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision==0.21.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision==0.22.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cpu torchvision==0.21.0+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cpu torchvision==0.22.0+cpu --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.0.0'), 'openvino')
+    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
     install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
