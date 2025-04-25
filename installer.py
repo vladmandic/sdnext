@@ -662,14 +662,14 @@ def install_rocm_zluda():
         if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
-            elif rocm.version == "6.2": # use rocm 6.2.4 instead of 6.2 as torch+rocm6.2 doesn't exists
+            else: # oldest rocm version on nightly is 6.2.4
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')
-            else: # oldest rocm version on nightly is 6.1
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.1')
         else:
-            if rocm.version is None or float(rocm.version) >= 6.2: # assume the latest if version check fails
-                # use rocm 6.2.4 instead of 6.2 as torch==2.6.0+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.2.4 torchvision==0.21.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+            if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.3 torchvision==0.22.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+            elif rocm.version == "6.2":
+                # use rocm 6.2.4 instead of 6.2 as torch==2.7.0+rocm6.2 doesn't exists
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.2.4 torchvision==0.22.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
             elif rocm.version == "6.1":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             elif rocm.version == "6.0":
