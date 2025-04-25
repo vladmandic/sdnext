@@ -731,7 +731,7 @@ def install_ipex(torch_command):
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+xpu torchvision==0.21.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+xpu torchvision==0.22.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
