@@ -82,7 +82,8 @@ def get_device():
     if hasattr(shared, "opts") and len(shared.opts.openvino_devices) > 1:
         device = ""
         available_devices = shared.opts.openvino_devices.copy()
-        available_devices.remove("CPU")
+        if "CPU" in shared.opts.openvino_devices:
+            available_devices.remove("CPU")
         for hetero_device in available_devices:
             device = f"{device},{hetero_device}"
         if "CPU" in shared.opts.openvino_devices:
