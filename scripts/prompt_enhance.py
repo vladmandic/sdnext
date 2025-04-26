@@ -104,9 +104,11 @@ class Script(scripts.Script):
                 self.llm = None
                 shared.log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
+            load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
+            if model_subfolder:
+                load_args['subfolder'] = model_subfolder,
             self.llm = transformers.AutoModelForCausalLM.from_pretrained(
-                pretrained_model_name_or_path=model_repo if not gguf_args else model_gguf,
-                subfolder=model_subfolder,
+                **load_args,
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
