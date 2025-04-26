@@ -14,10 +14,11 @@
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
     - I2V & FLF2V support with explicit strength controls   
     - complex actions: modify prompts for each section of the video  
+    - LoRA support: use normal **HunyuanVideo** LoRAs  
     - decode: use local, tiny or remote VAE  
     - custom models: e.g. replace llama with one of your choice  
     - video: multiple codecs and with hw acceleration, raw export, frame export, frame interpolation  
-    - compute: quantization support, new offloading, more configuration options, cross-platform, etc.
+    - compute: quantization support, new offloading, more configuration options, cross-platform, etc.  
   - [Ostris Flex.2 Preview](https://huggingface.co/ostris/Flex.2-preview)  
     more than a FLUX.1 finetune, FLEX.2 is created from *Flux.1 Schnell -> OpenFlux.1 -> Flex.1-alpha -> Flex.2-preview*  
     and it has universal control and inpainting support built in!  
