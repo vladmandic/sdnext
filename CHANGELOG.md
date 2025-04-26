@@ -56,6 +56,8 @@
   - new History tab where you can see all jobs since the server startup  
     and optionally download any of the previously generated images/videos  
     access via *system -> history*  
+  - configurable restore metadata from image to settings and to params  
+    in *settings -> image metadata*  
 - **API**  
   - new [API Wiki](https://github.com/vladmandic/sdnext/wiki/API)  
   - server will now maintain job history which can be queried via API  
@@ -96,6 +98,7 @@
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  
+  - settings list display only visible items  
   - checkpoint match when searching for model to load  
   - video vae selection load correct vae
 

@@ -20,7 +20,7 @@ from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models, category_types
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system
-from modules.ui_components import DropdownEditable
+from modules.ui_components import DropdownEditable, DropdownMulti
 from modules.options import OptionInfo
 import modules.memmon
 import modules.styles
@@ -693,10 +693,6 @@ options_templates.update(options_section(('saving-images', "Image Options"), {
     "samples_save_zip": OptionInfo(False, "Create ZIP archive for multiple images"),
     "image_background": OptionInfo("#000000", "Resize background color", gr.ColorPicker, {}),
 
-    "image_sep_metadata": OptionInfo("<h2>Metadata/Logging</h2>", "", gr.HTML),
-    "image_metadata": OptionInfo(True, "Include metadata"),
-    "save_txt": OptionInfo(False, "Create image info text file"),
-    "save_log_fn": OptionInfo("", "Append image info JSON file", component_args=hide_dirs),
     "image_sep_grid": OptionInfo("<h2>Grid Options</h2>", "", gr.HTML),
     "grid_save": OptionInfo(True, "Save all generated image grids"),
     "grid_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
@@ -755,6 +751,15 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
 }))
 
+options_templates.update(options_section(('image-metadata', "Image Metadata"), {
+    "image_metadata": OptionInfo(True, "Include metadata"),
+    "save_txt": OptionInfo(False, "Create image info text file"),
+    "save_log_fn": OptionInfo("", "Append image info JSON file", component_args=hide_dirs),
+    "disable_apply_params": OptionInfo('', "Restore from metadata skip params", gr.Textbox),
+    "disable_apply_metadata": OptionInfo(['sd_model_checkpoint', 'sd_vae', 'sd_unet', 'sd_text_encoder'], "Restore from metadata skip settings", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
+    "disable_weights_auto_swap": OptionInfo(True, "Do not change selected model when reading generation parameters", gr.Checkbox, {"visible": False}),
+}))
+
 options_templates.update(options_section(('ui', "User Interface"), {
     "theme_type": OptionInfo("Standard", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
     "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
@@ -773,10 +778,9 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "return_grid": OptionInfo(True, "Show grid in results"),
     "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
     "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
-    "disable_weights_auto_swap": OptionInfo(True, "Do not change selected model when reading generation parameters"),
     "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
     "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
-    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": list(opts.data_labels.keys())}),
+    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {
@@ -979,8 +983,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
 options_templates.update(options_section((None, "Hidden options"), {
     "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
-    "disabled_extensions": OptionInfo([], "Disable these extensions"),
-    "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint"),
+    "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
+    "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
     "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
 }))
 
@@ -1098,6 +1102,11 @@ class Options:
         """returns the default value for the key"""
         data_label = self.data_labels.get(key)
         return data_label.default if data_label is not None else None
+
+    def list(self):
+        """list all visible options"""
+        components = [k for k, v in self.data_labels.items() if v.visible]
+        return components
 
     def save_atomic(self, filename=None, silent=False):
         if self.filename is None:
@@ -1229,6 +1238,7 @@ class Options:
         else:
             value = expected_type(value)
         return value
+
 
 profiler = None
 opts = Options()

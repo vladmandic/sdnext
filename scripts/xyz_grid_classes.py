@@ -56,7 +56,8 @@ class SharedSettingsStackHelper(object):
     todo_ratio = None
     teacache_thresh = None
     extra_networks_default_multiplier = None
-    disable_weights_auto_swap = None
+    disable_apply_metadata = None
+    disable_apply_params = None
 
     def __enter__(self):
         # Save overridden settings so they can be restored later
@@ -85,13 +86,16 @@ class SharedSettingsStackHelper(object):
         self.sd_unet = shared.opts.sd_unet
         self.sd_text_encoder = shared.opts.sd_text_encoder
         self.extra_networks_default_multiplier = shared.opts.extra_networks_default_multiplier
-        self.disable_weights_auto_swap = shared.opts.disable_weights_auto_swap
         self.teacache_thresh = shared.opts.teacache_thresh
-        shared.opts.data["disable_weights_auto_swap"] = False
+        self.disable_apply_metadata = shared.opts.disable_apply_metadata
+        self.disable_apply_params = shared.opts.disable_apply_params
+        shared.opts.data["disable_apply_metadata"] = []
+        shared.opts.data["disable_apply_params"] = ''
 
     def __exit__(self, exc_type, exc_value, tb):
         # Restore overriden settings after plot generation
-        shared.opts.data["disable_weights_auto_swap"] = self.disable_weights_auto_swap
+        shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
+        shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
         shared.opts.data["prompt_attention"] = self.prompt_attention
         shared.opts.data["schedulers_solver_order"] = self.schedulers_solver_order

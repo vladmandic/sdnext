@@ -20,8 +20,8 @@ def apply_setting(key, value):
         return gr.update()
     if key == 'sd_backend':
         return gr.update()
-    if shared.opts.disable_weights_auto_swap and key in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_model_dict', 'sd_vae', 'sd_unet', 'sd_text_encoder']:
-        return gr.update()
+    if key in shared.opts.disable_apply_metadata:
+        gr.update()
     if key == "sd_model_checkpoint":
         ckpt_info = sd_models.get_closet_checkpoint_match(value)
         if ckpt_info is not None:
@@ -203,7 +203,7 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
-            shared.log.debug(f'UI settings: sections={len(sections)} settings={len(list(shared.opts.data_labels))}')
+            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))}')
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:

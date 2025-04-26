@@ -10,11 +10,13 @@ from modules.infotext import parse, mapping, quote, unquote # pylint: disable=un
 
 type_of_gr_update = type(gr.update())
 paste_fields = {}
+field_names = {}
 registered_param_bindings = []
 debug = shared.log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
 parse_generation_parameters = parse # compatibility
 infotext_to_setting_name_mapping = mapping # compatibility
+
 
 class ParamBinding:
     def __init__(self, paste_button, tabname, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None):
@@ -25,11 +27,12 @@ class ParamBinding:
         self.source_tabname = source_tabname
         self.override_settings_component = override_settings_component
         self.paste_field_names = paste_field_names or []
-        debug(f'ParamBinding: {vars(self)}')
+        # debug(f'ParamBinding: {vars(self)}')
 
 
 def reset():
     paste_fields.clear()
+    field_names.clear()
 
 
 def image_from_url_text(filedata):
@@ -77,14 +80,31 @@ def image_from_url_text(filedata):
 
 def add_paste_fields(tabname, init_img, fields, override_settings_component=None):
     paste_fields[tabname] = {"init_img": init_img, "fields": fields, "override_settings_component": override_settings_component}
+    try:
+        field_names[tabname] = [f[1] for f in fields if f[1] is not None and not callable(f[1])] if fields is not None else [] # tuple (component, label)
+    except Exception as e:
+        shared.log.error(f"Paste fields: tab={tabname} fields={fields} {e}")
+        field_names[tabname] = []
     # backwards compatibility for existing extensions
+    debug(f'Paste fields: tab={tabname} fields={field_names[tabname]}')
+    debug(f'All fields: {get_all_fields()}')
     import modules.ui
     if tabname == 'txt2img':
-        modules.ui.txt2img_paste_fields = fields
+        modules.ui.txt2img_paste_fields = fields # compatibility
     elif tabname == 'img2img':
-        modules.ui.img2img_paste_fields = fields
+        modules.ui.img2img_paste_fields = fields # compatibility
     elif tabname == 'control':
         modules.ui.control_paste_fields = fields
+
+
+def get_all_fields():
+    all_fields = []
+    for _tab, fields in field_names.items():
+        for field in fields:
+            field = field.replace('-1', '').replace('-2', '').lower()
+            if field not in all_fields:
+                all_fields.append(field)
+    return all_fields
 
 
 def create_buttons(tabs_list):
@@ -105,6 +125,15 @@ def create_buttons(tabs_list):
             name = 'Caption'
         buttons[tab] = gr.Button(f"➠ {name}", elem_id=f"{tab}_tab")
     return buttons
+
+
+def should_skip(param):
+    skip_params = [p.strip().lower() for p in shared.opts.disable_apply_params.split(",")]
+    all_params = [p.lower() for p in get_all_fields()]
+    valid = any(p in all_params for p in skip_params)
+    skip = param.lower() in skip_params
+    debug(f'Check: param="{param}" valid={valid} skip={skip}')
+    return skip
 
 
 def bind_buttons(buttons, image_component, send_generate_info):
@@ -216,6 +245,10 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                 res.append(v)
                 applied[key] = v
             else:
+                if should_skip(key):
+                    debug(f'Paste skip: "{key}"="{v}"')
+                    res.append(gr.update())
+                    continue
                 try:
                     valtype = type(output.value)
                     if hasattr(output, "step") and type(output.step) == float:
@@ -245,7 +278,9 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                     continue
                 if setting_name == 'sd_backend':
                     continue
-                if shared.opts.disable_weights_auto_swap and setting_name in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_model_dict', 'sd_vae', 'sd_unet', 'sd_text_encoder']:
+                if setting_name in shared.opts.disable_apply_metadata:
+                    continue
+                if should_skip(param_name) or should_skip(setting_name):
                     continue
                 v = shared.opts.cast_value(setting_name, v)
                 current_value = getattr(shared.opts, setting_name, None)
