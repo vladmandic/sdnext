@@ -92,6 +92,7 @@
   - HiDream live preview  
   - FLUX.1 controlnet i2i  
   - SD35 InstantX IP-adapter  
+  - OpenVINO device selection
   - xyz grid restore settings  
   - config save unnecessary keys  
   - recursive wildcards  
