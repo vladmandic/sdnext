@@ -36,6 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
+supported = ['sd', 'sdxl', 'f1', 'h1', 'hunyuanvideo', 'wanvideo', 'mochivideo']
 
 
 def warn_once(msg, variant=None):
@@ -56,38 +57,37 @@ def get_model(model_type = 'decoder', variant = None):
         cls = 'sd'
     if cls == 'h1': # hidream uses flux vae
         cls = 'f1'
+    if cls not in supported:
+        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)
-    if 'video' in cls:
-        return None
-    if ('sd' not in cls) and ('f1' not in cls):
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
-        return None
-    if variant.startswith('TAESD'):
+    if variant.startswith('TAE'):
         cfg = TAESD_MODELS[variant]
         if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
         fn = os.path.join(folder, cfg['fn'] + cls + '_' + model_type + '.pth')
         if not os.path.exists(fn):
-            uri = cfg['uri'] + '/tae' + cls + '_' + model_type + '.pth'
+            uri = cfg['uri']
+            if not uri.endswith('.pth'):
+                uri += '/tae' + cls + '_' + model_type + '.pth'
             try:
                 shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
                 torch.hub.download_url_to_file(uri, fn)
             except Exception as e:
-                warn_once(f'download uri={uri} {e}')
+                warn_once(f'download uri={uri} {e}', variant=variant)
         if os.path.exists(fn):
             prev_cls = cls
             prev_type = model_type
             prev_model = variant
             shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" load')
-            if 'TAEHV' in variant:
+            if 'TAE HunyuanVideo' in variant:
                 from modules.taesd.taehv import TAEHV
                 TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
-            if 'TAEW2' in variant:
+            elif 'TAE WanVideo' in variant:
                 from modules.taesd.taehv import TAEHV
                 TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
-            elif 'TAEM1' in variant:
+            elif 'TAE MochiVideo' in variant:
                 from modules.taesd.taem1 import TAEM1
                 TAESD_MODELS[variant]['model'] = TAEM1(checkpoint_path=fn)
             else:
@@ -99,7 +99,7 @@ def get_model(model_type = 'decoder', variant = None):
         if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
         if cfg is None:
-            warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
+            warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
             return None
         repo = cfg['repo']
         prev_cls = cls
@@ -117,7 +117,7 @@ def get_model(model_type = 'decoder', variant = None):
         CQYAN_MODELS[variant][cls]['model'] = vae
         return vae
     else:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported')
+        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
     return None
 
 

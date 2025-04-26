@@ -49,7 +49,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     latent_copy = latents.detach().clone().to(device=devices.cpu, dtype=devices.dtype)
     latent_copy = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
     if model_type == 'hunyuanvideo':
-        latent_copy = latent_copy.unsqueeze(0)
+        latent_copy = latent_copy.unsqueeze(0) if len(latents.shape) == 4 else latents
 
     for i in range(latent_copy.shape[0]):
         params = {}

@@ -36,10 +36,10 @@ def vae_decode_tiny(latents):
         shared.log.warning(f'Video VAE: type=Tiny cls={shared.sd_model.__class__.__name__} not supported')
         return None
     from modules import sd_vae_taesd
-    vae = sd_vae_taesd.get_model(variant)
+    vae = sd_vae_taesd.get_model(variant=variant)
     if vae is None:
         return None
-    debug(f'Video VAE: type=Tiny cls={vae.__class__.__name__} variant="{variant}" latents={latents.shape}')
+    shared.log.debug(f'Video VAE: type=Tiny cls={vae.__class__.__name__} variant="{variant}" latents={latents.shape}')
     vae = vae.to(device=devices.device, dtype=devices.dtype)
     latents = latents.transpose(1, 2).to(device=devices.device, dtype=devices.dtype)
     images = vae.decode_video(latents, parallel=False).transpose(1, 2).mul_(2).sub_(1)

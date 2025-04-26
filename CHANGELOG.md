@@ -14,6 +14,7 @@
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
     - I2V & FLF2V support with explicit strength controls   
     - complex actions: modify prompts for each section of the video  
+    - decode: use local, tiny or remote VAE  
     - custom models: e.g. replace llama with one of your choice  
     - video: multiple codecs and with hw acceleration, raw export, frame export, frame interpolation  
     - compute: quantization support, new offloading, more configuration options, cross-platform, etc.
@@ -94,6 +95,7 @@
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  
+  - video vae selection load correct vae
 
 ## Update for 2025-04-12
 
