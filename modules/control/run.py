@@ -26,6 +26,7 @@ pipe = None
 instance = None
 original_pipeline = None
 p_extra_args = {}
+unified_models = ['Flex2Pipeline'] # models that have controlnet builtin
 
 
 def restore_pipeline():
@@ -44,6 +45,10 @@ def terminate(msg):
     restore_pipeline()
     shared.log.error(f'Control terminated: {msg}')
     return msg
+
+
+def is_unified_model():
+    return shared.sd_model.__class__.__name__ in unified_models
 
 
 def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits):
@@ -75,7 +80,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['control_guidance_start'] = control_guidance_start
         p.task_args['control_guidance_end'] = control_guidance_end
         p.task_args['guess_mode'] = p.guess_mode
-        if 'Flex' not in shared.sd_model.__class__.__name__:
+        if not is_unified_model():
             instance = controlnet.ControlNetPipeline(selected_models, shared.sd_model, p=p)
             pipe = instance.pipeline
         else:
@@ -143,7 +148,7 @@ def check_active(p, unit_type, units):
             active_strength.append(float(u.strength))
             p.adapter_conditioning_factor = u.factor
             shared.log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
-        elif unit_type == 'controlnet' and u.controlnet.model is not None:
+        elif unit_type == 'controlnet' and (u.controlnet.model is not None or is_unified_model()):
             active_process.append(u.process)
             active_model.append(u.controlnet)
             active_strength.append(float(u.strength))
@@ -192,17 +197,13 @@ def check_enabled(p, unit_type, units, active_model, active_strength, active_sta
     control_conditioning = None
     control_guidance_start = None
     control_guidance_end = None
-    if 'Flex' in p.sd_model.__class__.__name__:
-        has_models = True
-        selected_models = [None]
-        p.guess_mode = False
-    elif unit_type == 't2i adapter' or unit_type == 'controlnet' or unit_type == 'xs' or unit_type == 'lite':
+    if unit_type == 't2i adapter' or unit_type == 'controlnet' or unit_type == 'xs' or unit_type == 'lite':
         if len(active_model) == 0:
             selected_models = None
         elif len(active_model) == 1:
             selected_models = active_model[0].model if active_model[0].model is not None else None
             p.is_tile = p.is_tile or 'tile' in (active_model[0].model_id or '').lower()
-            has_models = selected_models is not None
+            has_models = (selected_models is not None) or is_unified_model()
             control_conditioning = active_strength[0] if len(active_strength) > 0 else 1 # strength or list[strength]
             control_guidance_start = active_start[0] if len(active_start) > 0 else 0
             control_guidance_end = active_end[0] if len(active_end) > 0 else 1
@@ -389,6 +390,9 @@ def control_run(state: str = '',
         p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(width_before * p.hr_scale / 8), 8 * int(height_before * p.hr_scale / 8)
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
         p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / 8), 8 * int(hr_resize_y / 8)
+
+    if is_unified_model():
+        p.init_images = inputs
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():
@@ -688,13 +692,13 @@ def control_run(state: str = '',
                                 p.task_args['image'] = p.init_images # need to set explicitly for txt2img
                                 del p.init_images
                         if unit_type == 'lite':
-                            p.init_image = [input_image]
+                            p.init_images = [input_image]
                             instance.apply(selected_models, processed_image, control_conditioning)
                     if hasattr(p, 'init_images') and p.init_images is None: # delete empty
                         del p.init_images
 
                     # final check
-                    if has_models:
+                    if has_models and shared.sd_model.__class__.__name__ not in unified_models:
                         if unit_type in ['controlnet', 't2i adapter', 'lite', 'xs'] \
                             and p.task_args.get('image', None) is None \
                             and p.task_args.get('control_image', None) is None \

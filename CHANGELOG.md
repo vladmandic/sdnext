@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-25
+## Update for 2025-04-26
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -96,6 +96,7 @@
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  
+  - checkpoint match when searching for model to load  
   - video vae selection load correct vae
 
 ## Update for 2025-04-12

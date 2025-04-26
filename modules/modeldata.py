@@ -27,7 +27,7 @@ def get_model_type(pipe):
         model_type = 'sc'
     elif "AuraFlow" in name:
         model_type = 'auraflow'
-    elif "Flux" in name or "Flex.1" in name or "Flex.2" in name:
+    elif "Flux" in name or "Flex1" in name or "Flex2" in name:
         model_type = 'f1'
     elif "Lumina2" in name:
         model_type = 'lumina2'
