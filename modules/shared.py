@@ -752,11 +752,11 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
 }))
 
 options_templates.update(options_section(('image-metadata', "Image Metadata"), {
-    "image_metadata": OptionInfo(True, "Include metadata"),
-    "save_txt": OptionInfo(False, "Create image info text file"),
-    "save_log_fn": OptionInfo("", "Append image info JSON file", component_args=hide_dirs),
-    "disable_apply_params": OptionInfo('', "Restore from metadata skip params", gr.Textbox),
-    "disable_apply_metadata": OptionInfo(['sd_model_checkpoint', 'sd_vae', 'sd_unet', 'sd_text_encoder'], "Restore from metadata skip settings", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
+    "image_metadata": OptionInfo(True, "Include metadata in image"),
+    "save_txt": OptionInfo(False, "Save metadata to text file"),
+    "save_log_fn": OptionInfo("", "Append metadata to JSON file", component_args=hide_dirs),
+    "disable_apply_params": OptionInfo('', "Restore from metadata: skip params", gr.Textbox),
+    "disable_apply_metadata": OptionInfo(['sd_model_checkpoint', 'sd_vae', 'sd_unet', 'sd_text_encoder'], "Restore from metadata: skip settings", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
     "disable_weights_auto_swap": OptionInfo(True, "Do not change selected model when reading generation parameters", gr.Checkbox, {"visible": False}),
 }))
 
