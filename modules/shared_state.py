@@ -154,7 +154,7 @@ class State:
         else:
             self.results.append(results)
 
-    def get_id(self, task_id):
+    def get_id(self, task_id:str=None):
         if task_id is None or task_id == 0:
             task_id = uuid.uuid4().hex[:15]
         if not isinstance(task_id, str):
