@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-26
+## Update for 2025-04-27
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
@@ -83,7 +83,7 @@
   - add `SD_LORA_DUMP` env variable for dev/diag to dump lora/model keys  
 - **Wiki**  
   - new *Nunchaku*, *API* pages  
-  - updated *HiDream, Quantization, NNCF, Video, Docker, WSL* pages  
+  - updated *HiDream, Quantization, NNCF, Video, Docker, WSL, ZLUDA* pages  
 - **Fixes**
   - HunyuanVideo-I2V with latest transformers  
   - NNCF with TE-only quant  
@@ -99,6 +99,7 @@
   - extension installer handling of PYTHONPATH  
   - trace logging  
   - api logging  
+  - sd/sdxl-inpaint model loader  
   - settings list display only visible items  
   - checkpoint match when searching for model to load  
   - video vae selection load correct vae
