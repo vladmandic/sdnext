@@ -109,7 +109,19 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
             emb_dict[vec_name] = weight
             bundle_embeddings[emb_name] = emb_dict
             continue
-        if len(parts) > 5: # messy handler for diffusers peft lora
+        if parts[0] in ["clip_l","clip_g","t5","unet","transformer"]:
+            network_part = []
+            while parts[-1] in ["alpha","weight","lora_up","lora_down"]:
+                network_part.insert(0,parts[-1])
+                parts = parts[0:-1]
+            network_part = ".".join(network_part)
+            key_network_without_network_parts = "_".join(parts)
+            if key_network_without_network_parts.startswith("unet") or key_network_without_network_parts.startswith("transformer"):
+                key_network_without_network_parts = "lora_" + key_network_without_network_parts
+            key_network_without_network_parts = key_network_without_network_parts.replace("clip_g","lora_te2").replace("clip_l","lora_te")
+            #TODO Add t5 key support for SD3.5/f1 here?
+
+        elif len(parts) > 5: # messy handler for diffusers peft lora
             key_network_without_network_parts = '_'.join(parts[:-2])
             if not key_network_without_network_parts.startswith('lora_'):
                 key_network_without_network_parts = 'lora_' + key_network_without_network_parts

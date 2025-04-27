@@ -26,7 +26,7 @@ re_compiled = {}
 def make_unet_conversion_map() -> Dict[str, str]:
     unet_conversion_map_layer = []
 
-    for i in range(3):  # num_blocks is 3 in sdxl
+    for i in range(4):  # num_blocks is 3 in sdxl
         # loop over downblocks/upblocks
         for j in range(2):
             # loop over resnets/attentions for downblocks
@@ -108,7 +108,7 @@ def make_unet_conversion_map() -> Dict[str, str]:
 class KeyConvert:
     def __init__(self):
         self.is_sdxl = True if shared.sd_model_type == "sdxl" else False
-        self.UNET_CONVERSION_MAP = make_unet_conversion_map() if self.is_sdxl else None
+        self.UNET_CONVERSION_MAP = make_unet_conversion_map()
         self.LORA_PREFIX_UNET = "lora_unet_"
         self.LORA_PREFIX_TEXT_ENCODER = "lora_te_"
         self.OFT_PREFIX_UNET = "oft_unet_"
@@ -117,16 +117,15 @@ class KeyConvert:
         self.LORA_PREFIX_TEXT_ENCODER2 = "lora_te2_"
 
     def __call__(self, key):
-        if self.is_sdxl:
-            if "diffusion_model" in key:  # Fix NTC Slider naming error
-                key = key.replace("diffusion_model", "lora_unet")
-            map_keys = list(self.UNET_CONVERSION_MAP.keys())  # prefix of U-Net modules
-            map_keys.sort()
-            search_key = key.replace(self.LORA_PREFIX_UNET, "").replace(self.OFT_PREFIX_UNET, "").replace(self.LORA_PREFIX_TEXT_ENCODER1, "").replace(self.LORA_PREFIX_TEXT_ENCODER2, "")
-            position = bisect.bisect_right(map_keys, search_key)
-            map_key = map_keys[position - 1]
-            if search_key.startswith(map_key):
-                key = key.replace(map_key, self.UNET_CONVERSION_MAP[map_key]).replace("oft", "lora") # pylint: disable=unsubscriptable-object
+        if "diffusion_model" in key:  # Fix NTC Slider naming error
+            key = key.replace("diffusion_model", "lora_unet")
+        map_keys = list(self.UNET_CONVERSION_MAP.keys())  # prefix of U-Net modules
+        map_keys.sort()
+        search_key = key.replace(self.LORA_PREFIX_UNET, "").replace(self.OFT_PREFIX_UNET, "").replace(self.LORA_PREFIX_TEXT_ENCODER1, "").replace(self.LORA_PREFIX_TEXT_ENCODER2, "")
+        position = bisect.bisect_right(map_keys, search_key)
+        map_key = map_keys[position - 1]
+        if search_key.startswith(map_key):
+            key = key.replace(map_key, self.UNET_CONVERSION_MAP[map_key]).replace("oft", "lora") # pylint: disable=unsubscriptable-object
         if "lycoris" in key and "transformer" in key:
             key = key.replace("lycoris", "lora_transformer")
         sd_module = shared.sd_model.network_layer_mapping.get(key, None)
