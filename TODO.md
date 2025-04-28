@@ -24,22 +24,24 @@ N/A
 
 > pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g'
  
-- install: enable ROCm for windows when available
-- resize image: enable full VAE mode for resize-latent
-- infotext: handle using regex instead
-- fc: autodetect tensor format based on model
+- control: support scripts via api
 - fc: autodetect distilled based on model
-- processing: remove duplicate mask params
-- model loader: implement model in-memory caching
-- custom: load receipe
-- custom: save receipe
+- fc: autodetect tensor format based on model
+- hidream: pack latents for remote vae
 - hypertile: vae breaks when using non-standard sizes
-- model load: force-reloading entire model as loading transformers only leads to massive memory usage
+- infotext: handle using regex instead
+- install: enable ROCm for windows when available
+- loader: load receipe
+- loader: save receipe
 - lora: add other quantization types
 - lora: maybe force imediate quantization
-- modules/lora/lora_extract.py:185:9: W0511: TODO: lora support pre-quantized flux
-- control: support scripts via api
+- lora: add t5 key support for sd35/f16
+- lora: support pre-quantized flux
+- model load: force-reloading entire model as loading transformers only leads to massive memory usage
+- model loader: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
-- nunchaku: cache-dir for transformer and t5 loader
 - nunchaku: batch support
-- nunchaku: LoRA support
+- nunchaku: cache-dir for transformer and t5 loader
+- processing: remove duplicate mask params
+- resize image: enable full VAE mode for resize-latent
+  

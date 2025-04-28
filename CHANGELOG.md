@@ -1,6 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-27
+## Highlights for 2025-04-28
+
+Another major release with *over 120 commits*!  
+Highlights include **Nunchaku** inference engine that allows running FLUX.1 3-5x higher performance!  
+And a new **FramePack** extension for high-quality *I2V* and *FLF2V* video generation with unlimited duration and limited VRAM!  
+
+What else?
+- New UI **History** tab  
+- New models: **Flex.2, LTXVideo-0.9.6, WAN-2.1-14B-FLF2V**, schedulers: **UniPC and LCM FlowMatch**, features: **CFGZero**  
+- Major updates to: **NNCF, OpenVINO, ROCm, ZLUDA**  
+- Cumulative fixes since last release  
+
+## Details for 2025-04-28
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  

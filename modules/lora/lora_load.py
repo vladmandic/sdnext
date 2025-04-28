@@ -119,7 +119,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
             if key_network_without_network_parts.startswith("unet") or key_network_without_network_parts.startswith("transformer"):
                 key_network_without_network_parts = "lora_" + key_network_without_network_parts
             key_network_without_network_parts = key_network_without_network_parts.replace("clip_g","lora_te2").replace("clip_l","lora_te")
-            #TODO Add t5 key support for SD3.5/f1 here?
+            # TODO lora: add t5 key support for sd35/f1
 
         elif len(parts) > 5: # messy handler for diffusers peft lora
             key_network_without_network_parts = '_'.join(parts[:-2])
@@ -148,8 +148,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
             if net_module is not None:
                 network_types.append(nettype.__class__.__name__)
                 break
-            else:
-                module_errors += 1
+            module_errors += 1
         if net_module is None:
             if l.debug:
                 shared.log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')

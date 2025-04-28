@@ -20,7 +20,7 @@ from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models, category_types
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system
-from modules.ui_components import DropdownEditable, DropdownMulti
+from modules.ui_components import DropdownEditable
 from modules.options import OptionInfo
 import modules.memmon
 import modules.styles
