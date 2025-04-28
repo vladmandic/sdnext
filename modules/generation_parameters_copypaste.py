@@ -129,6 +129,8 @@ def create_buttons(tabs_list):
 
 def should_skip(param):
     skip_params = [p.strip().lower() for p in shared.opts.disable_apply_params.split(",")]
+    if not shared.opts.clip_skip_enabled:
+        skip_params += ['clip skip']
     all_params = [p.lower() for p in get_all_fields()]
     valid = any(p in all_params for p in skip_params)
     skip = param.lower() in skip_params
@@ -225,15 +227,16 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
             if os.path.exists(filename):
                 with open(filename, "r", encoding="utf8") as file:
                     prompt = file.read()
-                shared.log.debug(f'Paste prompt: type="params" prompt="{prompt}"')
+                shared.log.debug(f'Prompt parse: type="params" prompt="{prompt}"')
             else:
                 prompt = ''
         else:
-            shared.log.debug(f'Paste prompt: type="current" prompt="{prompt}"')
+            shared.log.debug(f'Prompt parse: type="current" prompt="{prompt}"')
         params = parse(prompt)
         script_callbacks.infotext_pasted_callback(prompt, params)
         res = []
         applied = {}
+        skipped = {}
         for output, key in local_paste_fields:
             if callable(key):
                 v = key(params)
@@ -248,6 +251,7 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                 if should_skip(key):
                     debug(f'Paste skip: "{key}"="{v}"')
                     res.append(gr.update())
+                    skipped[key] = v
                     continue
                 try:
                     valtype = type(output.value)
@@ -262,7 +266,8 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                     applied[key] = val
                 except Exception:
                     res.append(gr.update())
-        debug(f"Parse apply: {applied}")
+        list_applied = [{k: v} for k, v in applied.items() if not callable(v) and not callable(k)]
+        shared.log.debug(f"Prompt restore: apply={list_applied} skip={skipped}")
         return res
 
     if override_settings_component is not None:

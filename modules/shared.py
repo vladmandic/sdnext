@@ -558,6 +558,9 @@ options_templates.update(options_section(('quantization', "Quantization Settings
 }))
 
 options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
+    "clip_skip_sep": OptionInfo("<h2>CLiP Skip</h2>", "", gr.HTML),
+    "clip_skip_enabled": OptionInfo(False, "CLiP skip enabled"),
+
     "token_merging_sep": OptionInfo("<h2>Token Merging</h2>", "", gr.HTML),
     "token_merging_method": OptionInfo("None", "Token merging enabled", gr.Radio, {"choices": ['None', 'ToMe', 'ToDo']}),
     "tome_ratio": OptionInfo(0.0, "ToMe token merging ratio", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),

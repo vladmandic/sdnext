@@ -4,7 +4,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- ModernUI for custom model loader
+- ModernUI for custom model loader  
+- ModernUI for history tab  
 
 ### Issues/Limitations
 

@@ -56,6 +56,11 @@
   - new History tab where you can see all jobs since the server startup  
     and optionally download any of the previously generated images/videos  
     access via *system -> history*  
+  - server restart from ui now replaces currently running process  
+    instead of trying to reload python modules in-place  
+  - add option to enable/disable clip skip  
+    disabled by default to avoid issues with frequent incorrect recommendations  
+    in *settings -> pipeline modifiers*
   - configurable restore metadata from image to settings and to params  
     in *settings -> image metadata*  
 - **API**  
