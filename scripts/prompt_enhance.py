@@ -16,6 +16,12 @@ class Options:
     models = {
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
+        'Qwen/Qwen3-0.6B-FP8': {},
+        'Qwen/Qwen3-1.7B-FP8': {},
+        'Qwen/Qwen3-4B-FP8': {},
+        'Qwen/Qwen3-0.6B': {},
+        'Qwen/Qwen3-1.7B': {},
+        'Qwen/Qwen3-4B': {},
         'Qwen/Qwen2.5-0.5B-Instruct': {},
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},
@@ -223,6 +229,7 @@ class Script(scripts.Script):
             inputs = self.tokenizer.apply_chat_template(
                 chat_template,
                 add_generation_prompt=True,
+                enable_thinking=False,
                 tokenize=True,
                 return_dict=True,
                 return_tensors="pt",

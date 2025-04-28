@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2025-04-28
+
+- Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models
+- Docker: pre-install `ffmpeg`
+
 ## Highlights for 2025-04-28
 
 Another major release with *over 120 commits*!  
