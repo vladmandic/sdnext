@@ -299,7 +299,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             if device_map and max_memory:
                 module.balanced_offload_device_map = device_map
                 module.balanced_offload_max_memory = max_memory
-            module.offload_post = shared.sd_model_type in [offload_post] and shared.opts.te_hijack and module_name.startswith("text_encoder")
+            module.offload_post = shared.sd_model_type in offload_post and shared.opts.te_hijack and module_name.startswith("text_encoder")
         devices.torch_gc(fast=True, force=True, reason='offload')
 
     apply_balanced_offload_to_module(sd_model)

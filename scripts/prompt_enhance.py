@@ -28,6 +28,11 @@ class Options:
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
         'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
+        # 'llava/Llama-3-8B-v1.1-Extracted': {
+        #     'repo': 'hunyuanvideo-community/HunyuanVideo',
+        #     'subfolder': 'text_encoder',
+        #     'tokenizer': 'tokenizer',
+        # },
         'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
             'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
             'type': 'llama', # required so gguf loader knows what to do
@@ -76,6 +81,8 @@ class Script(scripts.Script):
         model_gguf = model_gguf or self.options.models.get(name, {}).get('gguf', None) or model_repo
         model_type = model_type or self.options.models.get(name, {}).get('type', None)
         model_file = model_file or self.options.models.get(name, {}).get('file', None)
+        model_subfolder = self.options.models.get(name, {}).get('subfolder', None)
+        model_tokenizer = self.options.models.get(name, {}).get('tokenizer', None)
 
         gguf_args = {}
         if model_type is not None and model_file is not None and len(model_type) > 2 and len(model_file) > 2:
@@ -97,8 +104,11 @@ class Script(scripts.Script):
                 self.llm = None
                 shared.log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
+            load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
+            if model_subfolder:
+                load_args['subfolder'] = model_subfolder,
             self.llm = transformers.AutoModelForCausalLM.from_pretrained(
-                pretrained_model_name_or_path=model_repo if not gguf_args else model_gguf,
+                **load_args,
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
@@ -109,6 +119,7 @@ class Script(scripts.Script):
             self.llm.eval()
             self.tokenizer = transformers.AutoTokenizer.from_pretrained(
                 pretrained_model_name_or_path=model_repo,
+                subfolder=model_tokenizer,
                 cache_dir=shared.opts.hfcache_dir,
             )
             if debug_enabled:

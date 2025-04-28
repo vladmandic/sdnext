@@ -46,7 +46,11 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
     def f(*args, extra_outputs_array=extra_outputs, **kwargs):
         t = time.perf_counter()
         shared.mem_mon.reset()
-        shared.state.begin(job_name)
+        if len(args) > 0 and type(args[0]) == str and args[0][0:5] == "task(" and args[0][-1] == ")":
+            task_id = args[0]
+        else:
+            task_id = 0
+        shared.state.begin(job_name, task_id=task_id)
         try:
             if shared.cmd_opts.profile:
                 pr = cProfile.Profile()
@@ -74,28 +78,8 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
         elapsed_s = elapsed % 60
         elapsed_text = f"{elapsed_m}m {elapsed_s:.2f}s" if elapsed_m > 0 else f"{elapsed_s:.2f}s"
         summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
-        gpu = ''
-        cpu = ''
-        if not shared.mem_mon.disabled:
-            mem_mon_read = shared.mem_mon.read()
-            ooms = mem_mon_read.pop("oom")
-            retries = mem_mon_read.pop("retries")
-            vram = {k: v//1048576 for k, v in mem_mon_read.items()}
-            if 'active_peak' in vram:
-                peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
-                used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
-            else:
-                peak = 0
-                used = 0
-            if peak > 0:
-                gpu += f"| GPU {peak} MB"
-                gpu += f" {used}%" if used > 0 else ''
-                gpu += f" | retries {retries} oom {ooms}" if retries > 0 or ooms > 0 else ''
-        ram = shared.ram_stats()
-        if ram['used'] > 0:
-            cpu += f"| RAM {ram['used']} GB"
-            cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
-        if isinstance(res, list):
-            res[-1] += f"<div class='performance'><p>Time: {elapsed_text} | {summary} {gpu} {cpu}</p></div>"
+        memory = shared.mem_mon.summary()
+        if isinstance(res, list) and isinstance(res[-1], str):
+            res[-1] += f"<div class='performance'><p>Time: {elapsed_text} | {summary} {memory}</p></div>"
         return tuple(res)
     return f

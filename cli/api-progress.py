@@ -48,6 +48,7 @@ while True:
         status = progress()
         # {'progress': 0.0, 'eta_relative': 0.0, 'state': {'skipped': False, 'interrupted': False, 'job': '', 'job_count': 0, 'job_timestamp': '20250316110822', 'job_no': 0, 'sampling_step': 20, 'sampling_steps': 20}, 'current_image': None, 'textinfo': None}
         state = status.get('state', {})
+        task_id = status.get('id', None)
         job_timestamp = state.get('job_timestamp', None)
         job_progress = status.get('progress', 0)
         eta_relative = status.get('eta_relative', 0)
@@ -61,7 +62,7 @@ while True:
             job_timestamp = datetime.datetime.strptime(job_timestamp, "%Y%m%d%H%M%S") if job_timestamp != '0' else datetime.datetime.now()
             elapsed = datetime.datetime.now() - job_timestamp
             timeout = round(opts.timeout - elapsed.total_seconds())
-            log.info(f'sdnext: last="{job_timestamp}" elapsed={elapsed} timeout={timeout} progress={job_progress} eta={eta_relative} step={sampling_step}/{sampling_steps} job="{job}"')
+            log.info(f'sdnext: id={task_id} last="{job_timestamp}" elapsed={elapsed} timeout={timeout} progress={job_progress} eta={eta_relative} step={sampling_step}/{sampling_steps} job="{job}"')
             if timeout < 0:
                 log.warning(f'sdnext reached: timeout={opts.timeout} action={opts.action}')
                 os.system(opts.action)

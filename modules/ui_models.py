@@ -304,7 +304,7 @@ def create_ui():
                     gr.HTML('<h2>&nbspReplace model components<br></h2>')
                 with gr.Row():
                     with gr.Column(scale=3):
-                        model_type = gr.Dropdown(label="Model type", choices=['sd15', 'sdxl', 'sd21', 'sd35', 'flux.1'], value='sdxl', interactive=False)
+                        model_type = gr.Dropdown(label="Base model type", choices=['sd15', 'sdxl', 'sd21', 'sd35', 'flux.1'], value='sdxl', interactive=False)
                     with gr.Column(scale=5):
                         with gr.Row():
                             model_name = gr.Dropdown(sd_models.checkpoint_titles(), label="Input model")

@@ -170,9 +170,9 @@ def post_pnginfo(req: models.ReqImageInfo):
     script_callbacks.infotext_pasted_callback(geninfo, params)
     return models.ResImageInfo(info=geninfo, items=items, parameters=params)
 
-def get_history():
+def get_latent_history():
     return shared.history.list
 
-def post_history(req: models.ReqHistory):
+def post_latent_history(req: models.ReqLatentHistory):
     shared.history.index = shared.history.find(req.name)
     return shared.history.index

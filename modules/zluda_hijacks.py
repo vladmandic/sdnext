@@ -41,7 +41,11 @@ def topk(input: torch.Tensor, *args, **kwargs): # pylint: disable=redefined-buil
 
 
 class DeviceProperties:
-    PROPERTIES_OVERRIDE = {"regs_per_multiprocessor": 65535, "gcnArchName": "UNKNOWN ARCHITECTURE"}
+    PROPERTIES_OVERRIDE = {
+        "regs_per_multiprocessor": 65535,
+         # sometimes gcnArchName contains device name ("AMD Radeon RX ..."), not architecture name ("gfx...")
+        "gcnArchName": "UNKNOWN ARCHITECTURE",
+    }
     internal: torch._C._CudaDeviceProperties
 
     def __init__(self, props: torch._C._CudaDeviceProperties):
@@ -78,11 +82,12 @@ def do_hijack():
         def triton_runtime_driver_active_utils_get_device_properties(device):
             props = _get_device_properties(device)
             name = torch.cuda.get_device_name()[:-8]
-            if name in MEM_BUS_WIDTH:
-                props["mem_bus_width"] = MEM_BUS_WIDTH[name]
-            else:
-                props["mem_bus_width"] = 128
-                shared.log.warning(f'[TRITON] defaulting mem_bus_width=128 for device "{name}".')
+            if props["mem_bus_width"] == 0: # Windows HIP SDK bug
+                if name in MEM_BUS_WIDTH:
+                    props["mem_bus_width"] = MEM_BUS_WIDTH[name]
+                else:
+                    props["mem_bus_width"] = 128
+                    shared.log.warning(f'[TRITON] defaulting mem_bus_width=128 for device "{name}".')
             return props
         triton.runtime.driver.active.utils.get_device_properties = triton_runtime_driver_active_utils_get_device_properties
 
@@ -99,20 +104,13 @@ def do_hijack():
                         query = torch.nn.functional.pad(query, [0, 8 - head_size_og % 8])
                         key = torch.nn.functional.pad(key, [0, 8 - head_size_og % 8])
                         value = torch.nn.functional.pad(value, [0, 8 - head_size_og % 8])
-                    out_padded, _, _, _ = interface_fa.fwd(
+                    out_padded = interface_fa.fwd(
                         query.transpose(1, 2),
                         key.transpose(1, 2),
                         value.transpose(1, 2),
-                        None,
-                        None,
                         dropout_p,
                         scale,
                         is_causal,
-                        -1,
-                        -1,
-                        0.0,
-                        False,
-                        None,
                     )
                     return out_padded[..., :head_size_og].transpose(1, 2)
                 else:

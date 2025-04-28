@@ -417,5 +417,5 @@ if __name__ == "__main__":
         output_list = parse_prompt_attention(schedule[1])
         log.info(f'  A1111: {output_list}')
         opts.data['prompt_attention'] = 'native'
-        log.info = parse_prompt_attention(schedule[1])
+        output_list = parse_prompt_attention(schedule[1])
         log.info(f'  Full:  {output_list}')

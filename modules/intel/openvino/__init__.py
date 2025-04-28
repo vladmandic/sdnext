@@ -13,7 +13,6 @@ from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
 from torch.fx.experimental.proxy_tensor import make_fx
 from torch.fx import GraphModule
-from torch._subclasses.fake_tensor import FakeTensorMode
 from torch.utils._pytree import tree_flatten
 
 from types import MappingProxyType
@@ -83,7 +82,8 @@ def get_device():
     if hasattr(shared, "opts") and len(shared.opts.openvino_devices) > 1:
         device = ""
         available_devices = shared.opts.openvino_devices.copy()
-        available_devices.remove("CPU")
+        if "CPU" in shared.opts.openvino_devices:
+            available_devices.remove("CPU")
         for hetero_device in available_devices:
             device = f"{device},{hetero_device}"
         if "CPU" in shared.opts.openvino_devices:
@@ -540,8 +540,7 @@ def openvino_fx(subgraph, example_inputs, options=None):
 
     if inputs_reversed:
         example_inputs.reverse()
-    with FakeTensorMode(allow_non_fake_inputs=True):
-        model = make_fx(subgraph)(*example_inputs)
+    model = make_fx(subgraph)(*example_inputs)
     for node in model.graph.nodes:
         if node.target == torch.ops.aten.mul_.Tensor:
             node.target = torch.ops.aten.mul.Tensor

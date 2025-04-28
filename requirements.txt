@@ -34,7 +34,7 @@ pi-heif
 rich==13.9.4
 safetensors==0.5.3
 tensordict==0.1.2
-peft==0.15.1
+peft==0.15.2
 httpx==0.24.1
 compel==2.0.3
 torchsde==0.2.6

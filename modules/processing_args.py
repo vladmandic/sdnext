@@ -153,7 +153,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             shared.log.error(f'Prompt parser encode: {e}')
             if os.environ.get('SD_PROMPT_DEBUG', None) is not None:
                 errors.display(e, 'Prompt parser encode')
-        timer.process.record('encode', reset=False)
+        timer.process.record('prompt', reset=False)
     else:
         prompt_parser_diffusers.embedder = None
 
@@ -161,7 +161,12 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
             prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
-        if hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
+        if 'HiDreamImage' in model.__class__.__name__:
+            args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
+            args['prompt_embeds_t5'] = prompt_embeds[0]
+            args['prompt_embeds_llama3'] = prompt_embeds[1]
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
             if prompt_parser_diffusers.embedder is not None:
                 if 'StableCascade' in model.__class__.__name__:
@@ -172,12 +177,15 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
                 elif 'Flux' in model.__class__.__name__:
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'HiDreamImage' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
-        if hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
+        if 'HiDreamImage' in model.__class__.__name__:
+            args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            negative_prompt_embeds = prompt_parser_diffusers.embedder('negative_prompt_embeds')
+            args['negative_prompt_embeds_t5'] = negative_prompt_embeds[0]
+            args['negative_prompt_embeds_llama3'] = negative_prompt_embeds[1]
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['negative_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_prompt_embeds')
             if prompt_parser_diffusers.embedder is not None:
                 if 'StableCascade' in model.__class__.__name__:
@@ -185,8 +193,6 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 elif 'XL' in model.__class__.__name__:
                     args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
                 elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
-                elif 'HiDreamImage' in model.__class__.__name__:
                     args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
@@ -278,7 +284,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args["prior_guidance_scale"] = p.cfg_scale
         if 'decoder_guidance_scale' in possible:
             args["decoder_guidance_scale"] = p.image_cfg_scale
-
+    if 'Flex2' in model.__class__.__name__:
+        if len(getattr(p, 'init_images', [])) > 0:
+            args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
+            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, 1)
+            args['control_image'] = args['inpaint_image'].convert('L').convert('RGB') # will be interpreted as depth
+            args['control_strength'] = p.denoising_strength
+            args['width'] = p.width
+            args['height'] = p.height
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1
@@ -293,7 +306,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     elif 'callback_on_step_end' in possible:
         args['callback_on_step_end'] = diffusers_callback
         if 'callback_on_step_end_tensor_inputs' in possible:
-            if 'prompt_embeds' in possible and 'negative_prompt_embeds' in possible and hasattr(model, '_callback_tensor_inputs'):
+            if 'HiDreamImage' in model.__class__.__name__: # uses prompt_embeds_t5 and prompt_embeds_llama3 instead
+                args['callback_on_step_end_tensor_inputs'] = model._callback_tensor_inputs # pylint: disable=protected-access
+            elif 'prompt_embeds' in possible and 'negative_prompt_embeds' in possible and hasattr(model, '_callback_tensor_inputs'):
                 args['callback_on_step_end_tensor_inputs'] = model._callback_tensor_inputs # pylint: disable=protected-access
             else:
                 args['callback_on_step_end_tensor_inputs'] = ['latents']

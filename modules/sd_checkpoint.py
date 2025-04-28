@@ -178,6 +178,10 @@ def update_model_hashes():
     return txt
 
 
+def remove_hash(s):
+    return re.sub(r'\s*\[.*?\]', '', s)
+
+
 def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
     if s.startswith('https://huggingface.co/'):
         model_name = s.replace('https://huggingface.co/', '')
@@ -197,6 +201,12 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
 
     # models search
     found = sorted([info for info in checkpoints_list.values() if os.path.basename(info.title).lower().startswith(s.lower())], key=lambda x: len(x.title))
+    if found and len(found) == 1:
+        return found[0]
+
+    # nohash search
+    nohash = remove_hash(s)
+    found = sorted([info for info in checkpoints_list.values() if info.title.lower().startswith(nohash.lower())], key=lambda x: len(x.title))
     if found and len(found) == 1:
         return found[0]
 

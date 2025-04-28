@@ -7,7 +7,7 @@ from rich import progress # pylint: disable=redefined-builtin
 import torch
 import safetensors.torch
 
-from modules import paths, shared, devices, errors
+from modules import paths, shared, errors
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_legacy import get_checkpoint_state_dict, load_model_weights, load_model, repair_config # pylint: disable=unused-import
@@ -171,40 +171,12 @@ def apply_function_to_model(sd_model, function, options, op=None):
             if hasattr(sd_model, 'decoder_pipe') and hasattr(sd_model.decoder_pipe, 'text_encoder') and hasattr(sd_model.decoder_pipe.text_encoder, 'config'):
                 sd_model.decoder_pipe.text_encoder = function(sd_model.decoder_pipe.text_encoder, op="decoder_pipe.text_encoder", sd_model=sd_model)
             else:
-                if op == "nncf" and sd_model.text_encoder.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-                    from modules.sd_hijack import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
-                    for i in range(len(sd_model.text_encoder.encoder.block)):
-                        sd_model.text_encoder.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                            sd_model.text_encoder.encoder.block[i].layer[1].DenseReluDense,
-                            dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-                        )
                 sd_model.text_encoder = function(sd_model.text_encoder, op="text_encoder", sd_model=sd_model)
         if hasattr(sd_model, 'text_encoder_2') and hasattr(sd_model.text_encoder_2, 'config'):
-            if op == "nncf" and sd_model.text_encoder_2.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-                from modules.sd_hijack import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
-                for i in range(len(sd_model.text_encoder_2.encoder.block)):
-                    sd_model.text_encoder_2.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                        sd_model.text_encoder_2.encoder.block[i].layer[1].DenseReluDense,
-                        dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-                    )
             sd_model.text_encoder_2 = function(sd_model.text_encoder_2, op="text_encoder_2", sd_model=sd_model)
         if hasattr(sd_model, 'text_encoder_3') and hasattr(sd_model.text_encoder_3, 'config'):
-            if op == "nncf" and sd_model.text_encoder_3.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-                from modules.sd_hijack import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
-                for i in range(len(sd_model.text_encoder_3.encoder.block)):
-                    sd_model.text_encoder_3.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                        sd_model.text_encoder_3.encoder.block[i].layer[1].DenseReluDense,
-                        dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-                    )
             sd_model.text_encoder_3 = function(sd_model.text_encoder_3, op="text_encoder_3", sd_model=sd_model)
         if hasattr(sd_model, 'text_encoder_4') and hasattr(sd_model.text_encoder_4, 'config'):
-            if op == "nncf" and sd_model.text_encoder_4.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-                from modules.sd_hijack import NNCF_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
-                for i in range(len(sd_model.text_encoder_4.encoder.block)):
-                    sd_model.text_encoder_4.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                        sd_model.text_encoder_4.encoder.block[i].layer[1].DenseReluDense,
-                        dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-                    )
             sd_model.text_encoder_4 = function(sd_model.text_encoder_4, op="text_encoder_4", sd_model=sd_model)
         if hasattr(sd_model, 'prior_pipe') and hasattr(sd_model.prior_pipe, 'text_encoder') and hasattr(sd_model.prior_pipe.text_encoder, 'config'):
             sd_model.prior_pipe.text_encoder = function(sd_model.prior_pipe.text_encoder, op="prior_pipe.text_encoder", sd_model=sd_model)

@@ -16,7 +16,7 @@ import diffusers
 from modules import errors, devices, shared_items, shared_state, cmd_args, theme, history, files_cache
 from modules.paths import models_path, script_path, data_path, sd_configs_path, sd_default_config, sd_model_file, default_sd_model_file, extensions_dir, extensions_builtin_dir # pylint: disable=W0611
 from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
-from modules.onnx_impl import initialize_onnx, execution_providers
+from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models, category_types
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system
@@ -416,7 +416,7 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
 
 options_templates.update(options_section(('model_options', "Models Options"), {
     "model_sd3_disable_te5": OptionInfo(False, "StableDiffusion3: T5 disable encoder"),
-    "model_h1_llama_repo": OptionInfo("meta-llama/Meta-Llama-3.1-8B-Instruct", "HiDream: LLama repo", gr.Textbox),
+    "model_h1_llama_repo": OptionInfo("Default", "HiDream: LLama repo", gr.Textbox),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {
@@ -484,7 +484,7 @@ options_templates.update(options_section(('backends', "Backend Settings"), {
     "torch_tunable_ops": OptionInfo("default", "Tunable ops", gr.Radio, {"choices": ["default", "true", "false"]}),
     "torch_tunable_limit": OptionInfo(30, "Tunable ops limit", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
     "cuda_mem_fraction": OptionInfo(0.0, "Memory limit", gr.Slider, {"minimum": 0, "maximum": 2.0, "step": 0.05}),
-    "torch_gc_threshold": OptionInfo(70, "GC threshold", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
+    "torch_gc_threshold": OptionInfo(70, "GC threshold", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
     "inference_mode": OptionInfo("no-grad", "Inference mode", gr.Radio, {"choices": ["no-grad", "inference-mode", "none"]}),
     "torch_malloc": OptionInfo("native", "Memory allocator", gr.Radio, {"choices": ['native', 'cudaMallocAsync'] }),
 
@@ -537,11 +537,13 @@ options_templates.update(options_section(('quantization', "Quantization Settings
 
     "nncf_compress_sep": OptionInfo("<h2>NNCF: Neural Network Compression Framework</h2>", "", gr.HTML),
     "nncf_compress_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
-    "nncf_compress_weights_mode": OptionInfo("INT8", "Quantization type", gr.Dropdown, {"choices": ['INT8', 'INT8_SYM', 'INT4_ASYM', 'INT4_SYM', 'NF4'] if cmd_opts.use_openvino else ['INT8']}),
+    "nncf_compress_mode": OptionInfo("post", "Quantization mode", gr.Dropdown, {"choices": ['pre', 'post'], "visible": native}),
+    "nncf_compress_weights_mode": OptionInfo("INT8_SYM", "Quantization type", gr.Dropdown, {"choices": ['INT8', 'INT8_SYM', 'INT4_ASYM', 'INT4_SYM', 'NF4'] if cmd_opts.use_openvino else ['INT8', 'INT8_SYM', 'INT4', 'INT4_SYM']}),
     "nncf_compress_weights_raito": OptionInfo(0, "Compress ratio", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": cmd_opts.use_openvino}),
     "nncf_compress_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 512, "step": 1, "visible": cmd_opts.use_openvino}),
     "nncf_quantize": OptionInfo([], "OpenVINO enabled", gr.CheckboxGroup, {"choices": ["Model", "VAE", "TE"], "visible": cmd_opts.use_openvino}),
     "nncf_quantize_mode": OptionInfo("INT8", "OpenVINO mode", gr.Dropdown, {"choices": ['INT8', 'FP8_E4M3', 'FP8_E5M2'], "visible": cmd_opts.use_openvino}),
+    "nncf_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
     "nncf_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights", gr.Checkbox, {"visible": native}),
 
     "layerwise_quantization_sep": OptionInfo("<h2>Layerwise Casting</h2>", "", gr.HTML),
@@ -552,9 +554,13 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
     "nunchaku_quantization": OptionInfo([], "SVDQuant enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "nunchaku_attention": OptionInfo(False, "Nunchaku attention", gr.Checkbox, {"visible": native}),
+    "nunchaku_offload": OptionInfo(False, "Nunchaku offloading", gr.Checkbox, {"visible": native}),
 }))
 
 options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
+    "clip_skip_sep": OptionInfo("<h2>CLiP Skip</h2>", "", gr.HTML),
+    "clip_skip_enabled": OptionInfo(False, "CLiP skip enabled"),
+
     "token_merging_sep": OptionInfo("<h2>Token Merging</h2>", "", gr.HTML),
     "token_merging_method": OptionInfo("None", "Token merging enabled", gr.Radio, {"choices": ['None', 'ToMe', 'ToDo']}),
     "tome_ratio": OptionInfo(0.0, "ToMe token merging ratio", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
@@ -690,10 +696,6 @@ options_templates.update(options_section(('saving-images', "Image Options"), {
     "samples_save_zip": OptionInfo(False, "Create ZIP archive for multiple images"),
     "image_background": OptionInfo("#000000", "Resize background color", gr.ColorPicker, {}),
 
-    "image_sep_metadata": OptionInfo("<h2>Metadata/Logging</h2>", "", gr.HTML),
-    "image_metadata": OptionInfo(True, "Include metadata"),
-    "save_txt": OptionInfo(False, "Create image info text file"),
-    "save_log_fn": OptionInfo("", "Append image info JSON file", component_args=hide_dirs),
     "image_sep_grid": OptionInfo("<h2>Grid Options</h2>", "", gr.HTML),
     "grid_save": OptionInfo(True, "Save all generated image grids"),
     "grid_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
@@ -752,6 +754,15 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
 }))
 
+options_templates.update(options_section(('image-metadata', "Image Metadata"), {
+    "image_metadata": OptionInfo(True, "Include metadata in image"),
+    "save_txt": OptionInfo(False, "Save metadata to text file"),
+    "save_log_fn": OptionInfo("", "Append metadata to JSON file", component_args=hide_dirs),
+    "disable_apply_params": OptionInfo('', "Restore from metadata: skip params", gr.Textbox),
+    "disable_apply_metadata": OptionInfo(['sd_model_checkpoint', 'sd_vae', 'sd_unet', 'sd_text_encoder'], "Restore from metadata: skip settings", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
+    "disable_weights_auto_swap": OptionInfo(True, "Do not change selected model when reading generation parameters", gr.Checkbox, {"visible": False}),
+}))
+
 options_templates.update(options_section(('ui', "User Interface"), {
     "theme_type": OptionInfo("Standard", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
     "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
@@ -770,10 +781,9 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "return_grid": OptionInfo(True, "Show grid in results"),
     "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
     "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
-    "disable_weights_auto_swap": OptionInfo(True, "Do not change selected model when reading generation parameters"),
     "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
     "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
-    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": list(opts.data_labels.keys())}),
+    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {
@@ -976,8 +986,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
 options_templates.update(options_section((None, "Hidden options"), {
     "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
-    "disabled_extensions": OptionInfo([], "Disable these extensions"),
-    "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint"),
+    "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
+    "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
     "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
 }))
 
@@ -1096,6 +1106,11 @@ class Options:
         data_label = self.data_labels.get(key)
         return data_label.default if data_label is not None else None
 
+    def list(self):
+        """list all visible options"""
+        components = [k for k, v in self.data_labels.items() if v.visible]
+        return components
+
     def save_atomic(self, filename=None, silent=False):
         if self.filename is None:
             self.filename = config_filename
@@ -1109,25 +1124,36 @@ class Options:
             diff = {}
             unused_settings = []
 
+            # if self.debug:
+            #     log.debug('Settings: user')
+            #     for k, v in self.data.items():
+            #         log.trace(f'  Config: item={k} value={v} default={self.data_labels[k].default if k in self.data_labels else None}')
+
             if self.debug:
-                log.debug('Settings: user')
-                for k, v in self.data.items():
-                    log.trace(f'  Config: item={k} value={v} default={self.data_labels[k].default if k in self.data_labels else None}')
+                log.debug(f'Settings: total={len(self.data.keys())} known={len(self.data_labels.keys())}')
 
             for k, v in self.data.items():
                 if k in self.data_labels:
-                    if type(v) is list:
+                    default = self.data_labels[k].default
+                    if isinstance(v, list):
+                        if (len(default) != len(v) or set(default) != set(v)): # list order is non-deterministic
+                            diff[k] = v
+                            if self.debug:
+                                log.trace(f'Settings changed: {k}={v} default={default}')
+                    elif self.data_labels[k].default != v:
                         diff[k] = v
-                    if self.data_labels[k].default != v:
-                        diff[k] = v
+                        if self.debug:
+                            log.trace(f'Settings changed: {k}={v} default={default}')
                 else:
                     if k not in compatibility_opts:
                         diff[k] = v
                         if not k.startswith('uiux_'):
                             unused_settings.append(k)
+                        if self.debug:
+                            log.trace(f'Settings unknown: {k}={v}')
             writefile(diff, filename, silent=silent)
             if self.debug:
-                log.trace(f'Settings save: {diff}')
+                log.trace(f'Settings save: count={len(diff.keys())} {diff}')
             if len(unused_settings) > 0:
                 log.debug(f"Settings: unused={unused_settings}")
         except Exception as err:
@@ -1216,6 +1242,7 @@ class Options:
             value = expected_type(value)
         return value
 
+
 profiler = None
 opts = Options()
 config_filename = cmd_opts.config
@@ -1252,7 +1279,6 @@ if devices.backend == "directml":
 elif devices.backend == "zluda":
     from modules.zluda import initialize_zluda
     initialize_zluda()
-initialize_onnx()
 try:
     log.info(f'Device: {print_dict(devices.get_gpu_info())}')
 except Exception as ex:

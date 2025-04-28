@@ -1,7 +1,7 @@
 # MIT-Han-Lab Nunchaku: <https://github.com/mit-han-lab/nunchaku>
 # TODO nunchaku: cache-dir for transformer and t5 loader
 # TODO nunchaku: batch support
-# TODO nunchaku: LoRA support
+
 
 from installer import log, pip
 from modules import devices
@@ -31,6 +31,7 @@ def install_nunchaku():
     if devices.backend is None:
         return False # too early
     if not check():
+        import os
         import sys
         import platform
         import importlib
@@ -43,7 +44,7 @@ def install_nunchaku():
         arch = platform.system().lower()
         if arch not in ['linux', 'windows']:
             log.error(f'Nunchaku: platform={arch} unsupported')
-            return
+            return False
         if devices.backend not in ['cuda']:
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
             return False
@@ -51,11 +52,13 @@ def install_nunchaku():
         if torch_ver not in ['2.5', '2.6', '2.7', '2.8']:
             log.error(f'Nunchaku: torch={torch.__version__} unsupported')
         suffix = 'x86_64' if arch == 'linux' else 'win_amd64'
-        url = f'https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-{ver}'
-        url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}_{suffix}.whl'
+        url = os.environ.get('NUNCHAKU_COMMAND', None)
+        if url is None:
+            url = f'https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-{ver}'
+            url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}_{suffix}.whl'
         cmd = f'install --upgrade {url}'
         # pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
-        log.debug(f'Nunchaku: url={url}')
+        log.debug(f'Nunchaku: install="{url}"')
         pip(cmd, ignore=False, uv=False)
         importlib.reload(pkg_resources)
     if not check():

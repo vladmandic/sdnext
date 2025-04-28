@@ -242,7 +242,7 @@ class Script(scripts.Script):
                     )[0]
             info = processing.create_infotext(p)
             processed = processing.Processed(p, [output], info=info)
-            shared.state.end('PuLID')
+            shared.state.end()
         else: # let processing run the pipeline
             p.task_args['id_embedding'] = id_embedding
             p.task_args['uncond_id_embedding'] = uncond_id_embedding

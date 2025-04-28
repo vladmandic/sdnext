@@ -1,4 +1,5 @@
 import diffusers
+from modules.onnx_impl import initialize_onnx
 
 
 pipelines = {
@@ -7,10 +8,15 @@ pipelines = {
     'Custom Diffusers Pipeline': getattr(diffusers, 'DiffusionPipeline', None),
 
     # standard pipelines
+    'Stable Diffusion': getattr(diffusers, 'StableDiffusionPipeline', None),
+    'Stable Diffusion Inpaint': getattr(diffusers, 'StableDiffusionInpaintPipeline', None),
+    'Stable Diffusion Instruct': getattr(diffusers, 'StableDiffusionInstructPix2PixPipeline', None),
     'Stable Diffusion 1.5': getattr(diffusers, 'StableDiffusionPipeline', None),
     'Stable Diffusion 2.x': getattr(diffusers, 'StableDiffusionPipeline', None),
     'Stable Diffusion Upscale': getattr(diffusers, 'StableDiffusionUpscalePipeline', None),
     'Stable Diffusion XL': getattr(diffusers, 'StableDiffusionXLPipeline', None),
+    'Stable Diffusion XL Inpaint': getattr(diffusers, 'StableDiffusionXLInpaintPipeline', None),
+    'Stable Diffusion XL Instruct': getattr(diffusers, 'StableDiffusionXLInstructPix2PixPipeline', None),
     'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
     'Stable Diffusion 3.x': getattr(diffusers, 'StableDiffusion3Pipeline', None),
     'Latent Consistency Model': getattr(diffusers, 'LatentConsistencyModelPipeline', None),
@@ -19,6 +25,7 @@ pipelines = {
     'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
     'DeepFloyd IF': getattr(diffusers, 'IFPipeline', None),
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
+    'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Text2ImgPipeline', None),
@@ -40,6 +47,8 @@ pipelines = {
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
 }
+
+initialize_onnx()
 onnx_pipelines = {
     'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
     'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),

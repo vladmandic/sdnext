@@ -42,6 +42,8 @@ if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__long_version__ = torch.__version__
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)
 timer.startup.record("torch")
+
+
 try:
     import bitsandbytes # pylint: disable=W0611,C0411
 except Exception:
@@ -73,9 +75,11 @@ timer.startup.record("pydantic")
 import diffusers.utils.import_utils # pylint: disable=W0611,C0411
 diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
 diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
+
 import diffusers # pylint: disable=W0611,C0411
 import diffusers.loaders.single_file # pylint: disable=W0611,C0411
 import huggingface_hub # pylint: disable=W0611,C0411
+
 logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
 timer.startup.record("diffusers")
 
@@ -138,6 +142,17 @@ except ImportError:
         sys.modules["torchvision.transforms.functional_tensor"] = functional
     except ImportError:
         pass  # shrug...
+
+
+deprecate_diffusers = diffusers.utils.deprecation_utils.deprecate
+def deprecate_warn(*args, **kwargs):
+    try:
+        deprecate_diffusers(*args, **kwargs)
+    except Exception as e:
+        errors.log.warning(f'Deprecation: {e}')
+diffusers.utils.deprecation_utils.deprecate = deprecate_warn
+diffusers.utils.deprecate = deprecate_warn
+
 
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
 errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__}')

@@ -195,7 +195,6 @@ def initialize_onnx():
         return
     from installer import log, installed
     from modules import devices
-    from modules.shared import opts
     if not installed('onnx', quiet=True):
         return
     try: # may fail on onnx import
@@ -222,7 +221,7 @@ def initialize_onnx():
 
         diffusers.OnnxStableDiffusionUpscalePipeline = OnnxStableDiffusionUpscalePipeline
 
-        log.debug(f'ONNX: version={ort.__version__} provider={opts.onnx_execution_provider}, available={available_execution_providers}')
+        log.debug(f'ONNX: version={ort.__version__}, available={available_execution_providers}')
     except Exception as e:
         log.error(f'ONNX failed to initialize: {e}')
 

@@ -189,10 +189,6 @@ function get_img2img_tab_index(...args) {
 
 function create_submit_args(args) {
   const res = Array.from(args);
-  // As it is currently, txt2img and img2img send back the previous output args (txt2img_gallery, generation_info, html_info) whenever you generate a new image.
-  // This can lead to uploading a huge gallery of previously generated images, which leads to an unnecessary delay between submitting and beginning to generate.
-  // I don't know why gradio is sending outputs along with inputs, but we can prevent sending the image gallery here, which seems to be an issue for some.
-  // If gradio at some point stops sending outputs, this may break something
   if (Array.isArray(res[res.length - 3])) res[res.length - 3] = null;
   return res;
 }

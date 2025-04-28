@@ -53,3 +53,29 @@ class MemUsageMonitor():
             except Exception:
                 self.disabled = True
         return self.data
+
+    def summary(self):
+        from modules.shared import ram_stats
+        gpu = ''
+        cpu = ''
+        gpu = ''
+        if not self.disabled:
+            mem_mon_read = self.read()
+            ooms = mem_mon_read.pop("oom")
+            retries = mem_mon_read.pop("retries")
+            vram = {k: v//1048576 for k, v in mem_mon_read.items()}
+            if 'active_peak' in vram:
+                peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
+                used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
+            else:
+                peak = 0
+                used = 0
+            if peak > 0:
+                gpu += f"| GPU {peak} MB"
+                gpu += f" {used}%" if used > 0 else ''
+                gpu += f" | retries {retries} oom {ooms}" if retries > 0 or ooms > 0 else ''
+        ram = ram_stats()
+        if ram['used'] > 0:
+            cpu += f"| RAM {ram['used']} GB"
+            cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
+        return f'{gpu} {cpu}'

@@ -32,6 +32,9 @@ class OptionInfo:
         self.comment_after = comment_after # HTML text that will be added before label in UI
         self.submit = submit
         self.exclude = ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder', 'sd_model_dict']
+        self.dynamic = callable(component_args)
+        args = {} if self.dynamic else (component_args or {}) # executing callable here is too expensive
+        self.visible = args.get('visible', True) and len(self.label) > 2
 
     def needs_reload_ui(self):
         return self

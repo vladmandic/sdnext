@@ -41,7 +41,12 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                 else:
                     self.network_weights_backup = weight.clone().to(devices.cpu) if not shared.opts.lora_fuse_diffusers else True
             else:
-                self.network_weights_backup = weight.clone().to(devices.cpu) if not shared.opts.lora_fuse_diffusers else True
+                if shared.opts.lora_fuse_diffusers:
+                    self.network_weights_backup = True
+                else:
+                    self.network_weights_backup = weight.clone().to(devices.cpu)
+                    if self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
+                        self.nncf_decompressor_backup = self.pre_ops["0"].to(devices.cpu)
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -74,7 +79,13 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             continue
         try:
             t0 = time.time()
-            weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
+            if self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
+                return_device = self.weight.data.device
+                self.weight.data = self.weight.data.to(devices.device) # pre_ops are always in devices.device
+                weight = self.pre_ops["0"](self, return_decompressed_only=True).to(devices.device)
+                self.weight.data = self.weight.data.to(return_device)
+            else:
+                weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
             weight = None
             del weight
@@ -128,6 +139,23 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             # weight._quantize(devices.device) / weight.to(device=device)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
+    elif not bias and self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
+        num_bits = None
+        is_asym_mode = None
+        try:
+            from modules.model_quant_nncf import nncf_compress_layer
+            num_bits = self.pre_ops["0"].num_bits
+            is_asym_mode = self.pre_ops["0"].quantization_mode == "asymmetric"
+            self.weight = torch.nn.Parameter(model_weights.to(devices.device), requires_grad=False)
+            dequant_weight = self.pre_ops["0"](self, return_decompressed_only=True)
+            new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
+            self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
+            self.pre_ops.pop("0")
+            self = nncf_compress_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.nncf_quantize_conv_layers)
+            self = self.to(device)
+            del dequant_weight
+        except Exception as e:
+            shared.log.error(f'Network load: type=LoRA quant=nncf cls={self.__class__.__name__} bits={num_bits} is_asym_mode={is_asym_mode} weight={self.weight} lora_weights={lora_weights} {e}')
     else:
         try:
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
@@ -189,6 +217,8 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
+            if hasattr(self, "nncf_decompressor_backup"):
+                self.pre_ops["0"] = self.nncf_decompressor_backup.to(devices.device) # model.to doesn't move pre_ops, send them here
 
     if bias_backup is not None:
         self.bias = None

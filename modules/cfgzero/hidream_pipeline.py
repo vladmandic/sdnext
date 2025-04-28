@@ -13,6 +13,7 @@ from transformers import (
 )
 
 from diffusers.image_processor import VaeImageProcessor
+from diffusers.loaders import HiDreamImageLoraLoaderMixin
 from diffusers.models import AutoencoderKL, HiDreamImageTransformer2DModel
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler, UniPCMultistepScheduler
 from diffusers.utils import is_torch_xla_available, logging
@@ -165,7 +166,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class HiDreamImageCFGZeroPipeline(DiffusionPipeline):
+class HiDreamImageCFGZeroPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin):
     model_cpu_offload_seq = "text_encoder->text_encoder_2->text_encoder_3->text_encoder_4->transformer->vae"
     _callback_tensor_inputs = ["latents", "prompt_embeds"]
 
@@ -699,10 +700,11 @@ class HiDreamImageCFGZeroPipeline(DiffusionPipeline):
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
                     timesteps=timestep,
-                    encoder_hidden_states=prompt_embeds,
+                    encoder_hidden_states_t5=prompt_embeds[0],
+                    encoder_hidden_states_llama3=prompt_embeds[1],
                     pooled_embeds=pooled_prompt_embeds,
-                    img_sizes=img_sizes,
-                    img_ids=img_ids,
+                    # img_sizes=img_sizes,
+                    # img_ids=img_ids,
                     return_dict=False,
                 )[0]
                 noise_pred = -noise_pred

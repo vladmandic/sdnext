@@ -1,23 +1,97 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-16
+## Highlights for 2025-04-28
+
+Another major release with *over 120 commits*!  
+Highlights include new [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) inference engine that allows running FLUX.1 with **3-5x** higher performance!  
+And a new [FramePack](https://github.com/vladmandic/sd-extension-framepack) extension for high-quality *I2V* and *FLF2V* video generation with unlimited duration!  
+
+What else?
+- New UI **History** tab  
+- New models: **Flex.2, LTXVideo-0.9.6, WAN-2.1-14B-FLF2V**, schedulers: **UniPC and LCM FlowMatch**, features: **CFGZero**  
+- Major updates to: **NNCF, OpenVINO, ROCm, ZLUDA**  
+- Cumulative fixes since last release  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+## Details for 2025-04-28
 
 - **Features**
   - [Nunchaku](https://github.com/mit-han-lab/nunchaku) inference engine with custom **SVDQuant** 4-bit execution  
-    highly experimental and with limited support, but when it works, its magic: **Flux.1 at 5.90 it/s** *(not sec/it)*!  
-    see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for details  
+    highly experimental and with limited support, but when it works, its magic: **Flux.1 at 6.0 it/s** *(not sec/it)*!  
+    basically, it can speed up supported models by 2-5x by using custom quantization and execution engine  
+    see [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) for installation guide and list of supported models & features  
+  - [FramePack](https://github.com/vladmandic/sd-extension-framepack) based on **HunyuanVideo-I2V**  
+    full support and much more for **Lllyasviel** [FramePack](https://lllyasviel.github.io/frame_pack_gitpage/)  
+    implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
+    generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
+    install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
+    - I2V & FLF2V support with explicit strength controls   
+    - complex actions: modify prompts for each section of the video  
+    - LoRA support: use normal **HunyuanVideo** LoRAs  
+    - decode: use local, tiny or remote VAE  
+    - custom models: e.g. replace llama with one of your choice  
+    - video: multiple codecs and with hw acceleration, raw export, frame export, frame interpolation  
+    - compute: quantization support, new offloading, more configuration options, cross-platform, etc.  
+  - [Ostris Flex.2 Preview](https://huggingface.co/ostris/Flex.2-preview)  
+    more than a FLUX.1 finetune, FLEX.2 is created from *Flux.1 Schnell -> OpenFlux.1 -> Flex.1-alpha -> Flex.2-preview*  
+    and it has universal control and inpainting support built in!  
+    supported for text and control workflows  
+    when using in control mode, simply choose preprocessor and do not load actual controlnet  
+    supported control modes are: *line, pose and depth*  
+    available via  *networks -> models -> reference*  
+  - [LTXVideo 0.9.6](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file) **T2V** and **I2V**  
+    in both **Standard** and **Distilled** variants  
+    available in *video tab*
+  - [WAN 2.1 14B 720P](https://huggingface.co/Wan-AI/Wan2.1-FLF2V-14B-720P) **FLF2V**  
+    new first-to-last image video model from WAN-AI  
+    available in *video tab*
   - [CFG-Zero](https://github.com/WeichenFan/CFG-Zero-star) new guidance method optimized for flow-matching models  
     implemented for **FLUX.1, HiDream-I1, SD3.x, CogView4, HunyuanVideo, WanAI**  
     enable and configure in *settings -> pipeline modifiers -> cfg zero*  
     experiment with CFGZero support in XYZ-grid  
 - **Optimizations**
-  - **HiDream** optimized offloading and prompt-encode caching  
+  - **NNCF** update to 2.16.0  
+    major refactoring of NNCF quantization code  
+    new quant types: `INT8_SYM` (new default), `INT4` and `INT4_SYM`  
+    quantization support for the convolutional layers on unet models with sym methods  
+    pre-load quantization support  
+    LoRA support  
+    *if you're low on VRAM, NNCF is as close as a catch-all solution*  
+  - **OpenVINO** update to 2025.1.0 and Torch to 2.7  
+  - **ROCm** update to Torch 2.7  
+  - **HiDream-I1** optimized offloading and prompt-encode caching  
     it now works in 12GB VRAM / 26GB RAM!  
   - **CogView3** and **CogView4** model loader optimizations  
+  - **Sana** model loader optimizations
   - add explicit offload after encode prompt  
     configure in *settings -> text encoder -> offload*  
+- **UI**  
+  - new History tab where you can see all jobs since the server startup  
+    and optionally download any of the previously generated images/videos  
+    access via *system -> history*  
+  - server restart from ui now replaces currently running process  
+    instead of trying to reload python modules in-place  
+  - add option to enable/disable clip skip  
+    disabled by default to avoid issues with frequent incorrect recommendations  
+    in *settings -> pipeline modifiers*
+  - configurable restore metadata from image to settings and to params  
+    in *settings -> image metadata*  
+- **API**  
+  - new [API Wiki](https://github.com/vladmandic/sdnext/wiki/API)  
+  - server will now maintain job history which can be queried via API  
+    so you can check previous jobs as well as request any previously generated images/videos  
+  - history endpoint: `/sdapi/v1/history?id={id}`  
+  - download endpoint: `/file={filename}`  
+  - progress api `/sdapi/v1/progress` now also include task id in the response  
 - **Other**
-  - **HiDream** add HF gated access auth check  
+  - **OMI** support for sd15/sdxl omi-standard LoRAs
+  - text/image/control/video pipeline vs task compatibility check  
+  - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
+  - **HiDream-I1** LoRA support  
+    currently limited to diffusers-only LoRAs, CivitAI LoRA support is TBD  
+  - **HiDream-I1** add LLM info to image metadata  
+  - add `model_type` as option for image filename pattern  
   - add **UniPC FlowMatch** scheduler  
   - add **LCM FlowMatch** scheduler  
   - networks: set which networks to skip when scanning civitai  
@@ -25,10 +99,30 @@
     comma-separate list of regex patterns to skip  
   - ui display reference models with subdued color  
   - xyz grid support bool  
+  - do not force gc at end of processing  
+  - add `SD_LORA_DUMP` env variable for dev/diag to dump lora/model keys  
+- **Wiki**  
+  - new *Nunchaku*, *API* pages  
+  - updated *HiDream, Quantization, NNCF, Video, Docker, WSL, ZLUDA* pages  
 - **Fixes**
+  - HunyuanVideo-I2V with latest transformers  
   - NNCF with TE-only quant  
-  - **HunyuanVideo-I2V** with latest transformers  
+  - ONNX init fix  
+  - Quanto with TE/LLM quant  
+  - HiDream live preview  
+  - FLUX.1 controlnet i2i  
+  - SD35 InstantX IP-adapter  
+  - OpenVINO device selection
+  - xyz grid restore settings  
+  - config save unnecessary keys  
+  - recursive wildcards  
+  - extension installer handling of PYTHONPATH  
   - trace logging  
+  - api logging  
+  - sd/sdxl-inpaint model loader  
+  - settings list display only visible items  
+  - checkpoint match when searching for model to load  
+  - video vae selection load correct vae
 
 ## Update for 2025-04-12
 

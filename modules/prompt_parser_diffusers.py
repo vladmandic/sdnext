@@ -511,11 +511,13 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         return prompt_embeds, pooled_prompt_embeds, None, None # no negative support
 
     if "HiDreamImage" in pipe.__class__.__name__: # clip is only used for the pooled embeds
-        prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds = pipe.encode_prompt(
+        prompt_embeds_t5, negative_prompt_embeds_t5, prompt_embeds_llama3, negative_prompt_embeds_llama3, pooled_prompt_embeds, negative_pooled_prompt_embeds = pipe.encode_prompt(
             prompt=prompt, prompt_2=prompt_2, prompt_3=prompt_3, prompt_4=prompt_4,
             negative_prompt=neg_prompt, negative_prompt_2=neg_prompt_2, negative_prompt_3=neg_prompt_3, negative_prompt_4=neg_prompt_4,
             device=device, num_images_per_prompt=1,
         )
+        prompt_embeds = [prompt_embeds_t5, prompt_embeds_llama3]
+        negative_prompt_embeds = [negative_prompt_embeds_t5, negative_prompt_embeds_llama3]
         return prompt_embeds, pooled_prompt_embeds, negative_prompt_embeds, negative_pooled_prompt_embeds
 
     if prompt != prompt_2:

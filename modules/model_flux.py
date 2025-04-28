@@ -4,7 +4,7 @@ import torch
 import diffusers
 import transformers
 from safetensors.torch import load_file
-from huggingface_hub import hf_hub_download
+from huggingface_hub import hf_hub_download, auth_check
 from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 
@@ -112,11 +112,21 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
         if 'transformer' not in kwargs and model_quant.check_nunchaku('Transformer'):
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
-            nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-dev" if 'dev' in repo_id else f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-schnell"
-            shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
-            kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
-            if shared.opts.nunchaku_attention:
-                kwargs['transformer'].set_attention_impl("nunchaku-fp16")
+            nunchaku_repo = None
+            if 'dev' in repo_id:
+                nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-dev"
+            elif 'schnell' in repo_id:
+                nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-schnell"
+            elif 'shuttle' in repo_id:
+                nunchaku_repo = 'mit-han-lab/svdq-fp4-shuttle-jaguar'
+            else:
+                shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
+            if nunchaku_repo is not None:
+                shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} offload={shared.opts.nunchaku_offload} attention={shared.opts.nunchaku_attention}')
+                kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, offload=shared.opts.nunchaku_offload, torch_dtype=devices.dtype)
+                kwargs['transformer'].quantization_method = 'SVDQuant'
+                if shared.opts.nunchaku_attention:
+                    kwargs['transformer'].set_attention_impl("nunchaku-fp16")
         elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
             quant_args = model_quant.create_config(allow=allow_quant, module='Transformer')
             if quant_args:
@@ -192,11 +202,17 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
 
 
 def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_checkpoint change
-    prequantized = model_quant.get_quant(checkpoint_info.path)
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    login = modelloader.hf_login()
+    try:
+        auth_check(repo_id)
+    except Exception as e:
+        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
+        return False
+
+    prequantized = model_quant.get_quant(checkpoint_info.path)
     shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={prequantized} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
     debug(f'Load model: type=FLUX config={diffusers_load_config}')
-    modelloader.hf_login()
 
     transformer = None
     text_encoder_1 = None

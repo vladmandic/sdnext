@@ -42,7 +42,7 @@ ADAPTERS_SDXL = {
 }
 ADAPTERS_SD3 = {
     'None': { 'name': 'none', 'repo': 'none', 'subfolder': 'none' },
-    'InstantX Large': { 'name': 'none', 'repo': 'InstantX/SD3.5-Large-IP-Adapter', 'subfolder': 'none', 'revision': 'refs/pr/10' },
+    'InstantX Large': { 'name': 'ip-adapter_diffusers.safetensors', 'repo': 'InstantX/SD3.5-Large-IP-Adapter', 'subfolder': 'none', 'revision': 'refs/pr/10' },
 }
 ADAPTERS_F1 = {
     'None': { 'name': 'none', 'repo': 'none', 'subfolder': 'none' },

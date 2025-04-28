@@ -78,9 +78,17 @@ def set_config(req: Dict[str, Any]):
 def get_cmd_flags():
     return vars(shared.cmd_opts)
 
+def get_history(req: models.ReqHistory = Depends()):
+    if req.id is not None and len(req.id) > 0:
+        res = [item for item in shared.state.state_history if item['id'] == req.id]
+    else:
+        res = shared.state.state_history
+    res = [models.ResHistory(**item) for item in res]
+    return res
+
 def get_progress(req: models.ReqProgress = Depends()):
     if shared.state.job_count == 0:
-        return models.ResProgress(progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
+        return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
     shared.state.do_set_current_image()
     current_image = None
     if shared.state.current_image and not req.skip_current_image:
@@ -94,7 +102,7 @@ def get_progress(req: models.ReqProgress = Depends()):
     progress = min((current / total) if current > 0 and total > 0 else 0, 1)
     time_since_start = time.time() - shared.state.time_start
     eta_relative = (time_since_start / progress) - time_since_start if progress > 0 else 0
-    res = models.ResProgress(progress=round(progress, 2), eta_relative=round(eta_relative, 2), current_image=current_image, textinfo=shared.state.textinfo, state=shared.state.dict(), )
+    res = models.ResProgress(id=shared.state.id, progress=round(progress, 2), eta_relative=round(eta_relative, 2), current_image=current_image, textinfo=shared.state.textinfo, state=shared.state.dict(), )
     return res
 
 def get_status():

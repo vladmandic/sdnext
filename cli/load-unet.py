@@ -1,3 +1,5 @@
+# test for manually loading unet state_dict
+
 import torch
 import diffusers
 

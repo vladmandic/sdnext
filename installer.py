@@ -538,7 +538,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = 'ce1063acfa0cbc2168a7e9dddd4282ab8013b810' # diffusers commit hash
+    sha = 'b4be42282dc9bf9deccc2f60f5db952de772cf42' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -571,7 +571,7 @@ def install_cuda():
     log.info('CUDA: nVidia toolkit detected')
     ts('cuda', t_start)
     if args.use_nightly:
-        cmd = os.environ.get('TORCH_COMMAND', 'pip install --upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
+        cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
         cmd = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cu126 torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126')
     return cmd
@@ -589,7 +589,6 @@ def install_rocm_zluda():
         return os.environ.get('TORCH_COMMAND', 'torch torchvision')
 
     log.info('ROCm: AMD toolkit detected')
-    os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', 'garbage_collection_threshold:0.8,max_split_size_mb:512')
     # if not is_windows:
     #    os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow-rocm')
 
@@ -646,9 +645,6 @@ def install_rocm_zluda():
 
         if error is None:
             try:
-                if device is not None and zluda_installer.get_blaslt_enabled():
-                    log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
-                    zluda_installer.set_blaslt_enabled(device.blaslt_supported)
                 zluda_installer.load()
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
@@ -666,14 +662,14 @@ def install_rocm_zluda():
         if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
-            elif rocm.version == "6.2": # use rocm 6.2.4 instead of 6.2 as torch+rocm6.2 doesn't exists
+            else: # oldest rocm version on nightly is 6.2.4
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')
-            else: # oldest rocm version on nightly is 6.1
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.1')
         else:
-            if rocm.version is None or float(rocm.version) >= 6.2: # assume the latest if version check fails
-                # use rocm 6.2.4 instead of 6.2 as torch==2.6.0+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.2.4 torchvision==0.21.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+            if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.3 torchvision==0.22.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+            elif rocm.version == "6.2":
+                # use rocm 6.2.4 instead of 6.2 as torch==2.7.0+rocm6.2 doesn't exists
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.2.4 torchvision==0.22.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
             elif rocm.version == "6.1":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             elif rocm.version == "6.0":
@@ -735,7 +731,7 @@ def install_ipex(torch_command):
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+xpu torchvision==0.21.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+xpu torchvision==0.22.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -746,12 +742,12 @@ def install_openvino(torch_command):
     check_python(supported_minors=[9, 10, 11, 12], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision==0.21.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision==0.22.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cpu torchvision==0.21.0+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cpu torchvision==0.22.0+cpu --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.0.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.15.0'), 'nncf')
+    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
+    install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
         os.environ.setdefault('NEOReadDebugKeys', '1')
@@ -783,7 +779,7 @@ def install_torch_addons():
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
     if opts.get('nncf_compress_weights', False) and not args.use_openvino:
-        install('nncf==2.7.0', 'nncf')
+        install('nncf==2.16.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
     if opts.get('torchao_quantization', False):
@@ -977,6 +973,9 @@ def run_extension_installer(folder):
         log.debug(f"Extension installer: {path_installer}")
         env = os.environ.copy()
         env['PYTHONPATH'] = os.path.abspath(".")
+        if os.environ.get('PYTHONPATH', None) is not None:
+            seperator = ';' if sys.platform == 'win32' else ':'
+            env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
         result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder)
         txt = result.stdout.decode(encoding="utf8", errors="ignore")
         debug(f'Extension installer: file="{path_installer}" {txt}')
@@ -1151,7 +1150,7 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic')
-    install('nncf==2.7.0', ignore=True, no_deps=True) # requires older pandas
+    install('nncf==2.16.0', ignore=True, no_deps=True) # requires older pandas
     # install('flash-attn', ignore=True) # requires cuda and nvcc to be installed
     install('gguf', ignore=True)
     try:
@@ -1227,6 +1226,7 @@ def set_environment():
     if opts.get("torch_expandable_segments", False):
         allocator += ',expandable_segments:True'
     os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', allocator)
+    os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', allocator)
     log.debug(f'Torch allocator: "{allocator}"')
     if sys.platform == 'darwin':
         os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
@@ -1257,7 +1257,7 @@ def check_extensions():
                 mtime = os.path.getmtime(os.path.join(extension_dir, f))
                 newest = max(newest, mtime)
             newest_all = max(newest_all, newest)
-            # log.debug(f'Extension version: {time.ctime(newest)} {folder}{os.pathsep}{ext}')
+            # log.debug(f'Extension version: {time.ctime(newest)} {folder}{os.path.sep}{ext}')
     return round(newest_all)
 
 
@@ -1402,7 +1402,9 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
                         git_reset()
                         check_version(offline=offline, reset=False)
             else:
-                log.info(f'Repository latest available {commits["commit"]["sha"]} {commits["commit"]["commit"]["author"]["date"]}')
+                dt = commits["commit"]["commit"]["author"]["date"]
+                commit = commits["commit"]["sha"][:8]
+                log.info(f'Version: check latest available hash={commit} updated={dt}')
     except Exception as e:
         log.error(f'Repository failed to check version: {e} {commits}')
     ts('latest', t_start)
@@ -1499,7 +1501,7 @@ def add_args(parser):
     group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run installer with debug logging, default: %(default)s")
     group_log.add_argument("--profile", default=os.environ.get("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
     group_log.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
-    group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", True), action='store_true', help="Log all API requests")
+    group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", False), action='store_true', help="Log all API requests")
 
     group_nargs = parser.add_argument_group('Other')
     group_nargs.add_argument('args', type=str, nargs='*')

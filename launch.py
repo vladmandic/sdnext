@@ -160,6 +160,35 @@ def get_memory_stats(detailed:bool=False):
         return res
 
 
+def clean_server():
+    t0 = time.time()
+    import gc
+    modules_loaded = sorted(sys.modules.keys())
+    modules_to_remove = ['webui', 'modules', 'scripts', 'gradio',
+                         'onnx', 'torch', 'pytorch', 'lightning', 'tensor', 'diffusers', 'transformers', 'tokenize', 'safetensors', 'gguf', 'accelerate', 'peft', 'triton', 'huggingface',
+                         'PIL', 'cv2', 'timm', 'numpy', 'scipy', 'sympy', 'sklearn', 'skimage', 'sqlalchemy', 'flash_attn', 'bitsandbytes', 'xformers', 'matplotlib', 'optimum', 'pandas', 'pi', 'git', 're', 'altair',
+                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'k_diffusion', 'gfpgan', 'war',
+                         'fastapi', 'urllib', 'uvicorn', 'web', 'http', 'google', 'starlette', 'socket']
+    removed_removed = []
+    for module_loaded in modules_loaded:
+        for module_to_remove in modules_to_remove:
+            if module_loaded.startswith(module_to_remove):
+                try:
+                    del sys.modules[module_loaded]
+                    removed_removed.append(module_loaded)
+                except Exception:
+                    pass
+    collected = gc.collect() # python gc
+    modules_cleaned = sorted(sys.modules.keys())
+    modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
+    modules_sorted = {}
+    for module_key in modules_keys:
+        modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
+    installer.log.trace(f'Server modules: {modules_sorted}')
+    t1 = time.time()
+    installer.log.trace(f'Server modules: total={len(modules_loaded)} unloaded={len(removed_removed)} remaining={len(modules_cleaned)} gc={collected} time={t1-t0:.2f}')
+
+
 def start_server(immediate=True, server=None):
     if args.profile:
         import cProfile
@@ -282,8 +311,10 @@ def main():
             t_monitor = t_current
         if not alive:
             if uv is not None and uv.wants_restart:
+                clean_server()
                 installer.log.info('Server restarting...')
-                uv, instance = start_server(immediate=False, server=instance)
+                # uv, instance = start_server(immediate=False, server=instance)
+                os.execv(sys.executable, ['python'] + sys.argv)
             else:
                 installer.log.info('Exiting...')
                 break

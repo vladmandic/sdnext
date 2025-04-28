@@ -146,8 +146,6 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
                 model.eval()
             return model
         sd_model = apply_function_to_model(sd_model, eval_model, ["Model", "VAE", "TE"], op="eval")
-    if len(shared.opts.torchao_quantization) > 0 and shared.opts.torchao_quantization_mode == 'post':
-        sd_model = model_quant.torchao_quantization(sd_model)
 
     if shared.opts.opt_channelslast and hasattr(sd_model, 'unet'):
         shared.log.quiet(quiet, f'Setting {op}: channels-last=True')
@@ -236,7 +234,7 @@ def move_model(model, device=None, force=False):
     if 'move' not in process_timer.records:
         process_timer.records['move'] = 0
     process_timer.records['move'] += t1 - t0
-    if os.environ.get('SD_MOVE_DEBUG', None) or (t1-t0) > 2:
+    if os.environ.get('SD_MOVE_DEBUG', None) is not None or (t1-t0) > 2:
         shared.log.debug(f'Model move: device={device} class={model.__class__.__name__} accelerate={getattr(model, "has_accelerate", False)} fn={fn} time={t1-t0:.2f}') # pylint: disable=protected-access
     devices.torch_gc()
 
@@ -311,6 +309,9 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['FLUX']:
             from modules.model_flux import load_flux
             sd_model = load_flux(checkpoint_info, diffusers_load_config)
+        elif model_type in ['FLEX']:
+            from modules.model_flex import load_flex
+            sd_model = load_flex(checkpoint_info, diffusers_load_config)
         elif model_type in ['Lumina 2']:
             from modules.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
@@ -602,12 +603,7 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         prompt_parser_diffusers.cache.clear()
 
         set_diffuser_options(sd_model, vae, op, offload=False)
-        if shared.opts.nncf_compress_weights and not (shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
-            sd_model = model_quant.nncf_compress_weights(sd_model) # run this before move model so it can be compressed in CPU
-        if shared.opts.optimum_quanto_weights:
-            sd_model = model_quant.optimum_quanto_weights(sd_model) # run this before move model so it can be compressed in CPU
-        if shared.opts.layerwise_quantization:
-            model_quant.apply_layerwise(sd_model)
+        sd_model = model_quant.do_post_load_quant(sd_model) # run this before move model so it can be compressed in CPU
         timer.record("options")
 
         set_diffuser_offload(sd_model, op)
@@ -947,7 +943,11 @@ def add_noise_pred_to_diffusers_callback(pipe):
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
     elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction":
+        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     elif hasattr(pipe, "default_scheduler") and "flow" in pipe.default_scheduler.__class__.__name__.lower():
+        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction":
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     return pipe
 

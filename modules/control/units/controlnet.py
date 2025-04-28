@@ -289,8 +289,6 @@ class ControlNet():
                 if "ControlNet" in opts.nncf_compress_weights:
                     try:
                         log.debug(f'Control {what} model NNCF Compress: id="{model_id}"')
-                        from installer import install
-                        install('nncf==2.7.0', quiet=True)
                         from modules.model_quant import nncf_compress_model
                         self.model = nncf_compress_model(self.model)
                     except Exception as e:

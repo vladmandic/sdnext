@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, ui_history, generation_parameters_copypaste, call_queue, script_callbacks
 
 
 text_settings = None # holds json of entire shared.opts
@@ -20,8 +20,8 @@ def apply_setting(key, value):
         return gr.update()
     if key == 'sd_backend':
         return gr.update()
-    if shared.opts.disable_weights_auto_swap and key in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_model_dict', 'sd_vae', 'sd_unet', 'sd_text_encoder']:
-        return gr.update()
+    if key in shared.opts.disable_apply_metadata:
+        gr.update()
     if key == "sd_model_checkpoint":
         ckpt_info = sd_models.get_closet_checkpoint_match(value)
         if ckpt_info is not None:
@@ -203,7 +203,7 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
-            shared.log.debug(f'UI settings: sections={len(sections)} settings={len(list(shared.opts.data_labels))}')
+            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))}')
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:
@@ -241,6 +241,9 @@ def create_ui():
         with gr.TabItem("User interface", id="system_config", elem_id="tab_config"):
             loadsave.create_ui()
             create_dirty_indicator("tab_defaults", [], interactive=False)
+
+        with gr.TabItem("History", id="system_history", elem_id="tab_history"):
+            ui_history.create_ui()
 
         with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
             from modules.onnx_impl import ui as ui_onnx
