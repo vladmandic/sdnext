@@ -1,6 +1,7 @@
 import os
 import torch
 import triton
+from modules.rocm import Agent, MicroArchitecture
 
 
 AUTOTUNE = os.environ.get('FLASH_ATTENTION_TRITON_AMD_AUTOTUNE', '0').lower() in ('1', 'true', 'yes')
@@ -266,15 +267,9 @@ def get_input_shapes():
     return cases
 
 
-def is_hip():
-    return triton.runtime.driver.active.get_current_target().backend == "hip"
-
-
 def is_cdna():
-    return is_hip() and triton.runtime.driver.active.get_current_target().arch in ('gfx940', 'gfx941', 'gfx942',
-                                                                                   'gfx90a', 'gfx908')
+    return Agent(triton.runtime.driver.active.get_current_target().arch).arch == MicroArchitecture.CDNA
 
 
 def is_rdna():
-    return is_hip() and triton.runtime.driver.active.get_current_target().arch in ("gfx1030", "gfx1100", "gfx1101",
-                                                                                   "gfx1102", "gfx1200", "gfx1201")
+    return Agent(triton.runtime.driver.active.get_current_target().arch).arch == MicroArchitecture.RDNA
