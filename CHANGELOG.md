@@ -58,7 +58,7 @@ What else?
     pre-load quantization support  
     LoRA support  
     *if you're low on VRAM, NNCF is as close as a catch-all solution*  
-  - **OpenVINO** update to 2025.1.0 and Torch to 2.7
+  - **OpenVINO** update to 2025.1.0 and Torch to 2.7  
   - **IPEX** update to Torch 2.7  
   - **ROCm** update to Torch 2.7  
   - **HiDream-I1** optimized offloading and prompt-encode caching  
