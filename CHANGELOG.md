@@ -71,6 +71,7 @@
   - download endpoint: `/file={filename}`  
   - progress api `/sdapi/v1/progress` now also include task id in the response  
 - **Other**
+  - **OMI** support for sd15/sdxl omi-standard LoRAs
   - text/image/control/video pipeline vs task compatibility check  
   - **HiDream-I1, FLUX.1, SD3.x** add HF gated access auth check  
   - **HiDream-I1** LoRA support  
