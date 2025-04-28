@@ -3,14 +3,16 @@
 ## Highlights for 2025-04-28
 
 Another major release with *over 120 commits*!  
-Highlights include **Nunchaku** inference engine that allows running FLUX.1 3-5x higher performance!  
-And a new **FramePack** extension for high-quality *I2V* and *FLF2V* video generation with unlimited duration and limited VRAM!  
+Highlights include new [Nunchaku Wiki](https://github.com/vladmandic/sdnext/wiki/Nunchaku) inference engine that allows running FLUX.1 with **3-5x** higher performance!  
+And a new [FramePack](https://github.com/vladmandic/sd-extension-framepack) extension for high-quality *I2V* and *FLF2V* video generation with unlimited duration!  
 
 What else?
 - New UI **History** tab  
 - New models: **Flex.2, LTXVideo-0.9.6, WAN-2.1-14B-FLF2V**, schedulers: **UniPC and LCM FlowMatch**, features: **CFGZero**  
 - Major updates to: **NNCF, OpenVINO, ROCm, ZLUDA**  
 - Cumulative fixes since last release  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
 ## Details for 2025-04-28
 
