@@ -56,6 +56,7 @@ class Options:
     do_sample: bool = True
     temperature: float = 0.15
     repetition_penalty: float = 1.2
+    thinking_mode: bool = False
 
 
 class Script(scripts.Script):
@@ -201,7 +202,7 @@ class Script(scripts.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None):
+    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False):
         model = model or self.options.default
         prompt = prompt or self.prompt.value
         prefix = prefix or ''
@@ -210,6 +211,7 @@ class Script(scripts.Script):
         tokens = tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
         temperature = temperature or self.options.temperature
+        thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         while self.busy:
             time.sleep(0.1)
@@ -229,7 +231,7 @@ class Script(scripts.Script):
             inputs = self.tokenizer.apply_chat_template(
                 chat_template,
                 add_generation_prompt=True,
-                enable_thinking=False,
+                enable_thinking=thinking,
                 tokenize=True,
                 return_dict=True,
                 return_tensors="pt",
@@ -277,7 +279,7 @@ class Script(scripts.Script):
             response = self.post(response, prefix, suffix, networks)
         shared.log.info(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
         if debug_enabled:
-            shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty}')
+            shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty} thinking={thinking}')
             shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
             shared.log.trace(f'Prompt enhance: response="{response}"')
         self.busy = False
@@ -286,7 +288,7 @@ class Script(scripts.Script):
             return prompt
         return response
 
-    def apply(self, prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty):
+    def apply(self, prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode):
         response = self.enhance(
             prompt=prompt,
             prefix=prompt_prefix,
@@ -297,6 +299,7 @@ class Script(scripts.Script):
             tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
+            thinking=thinking_mode,
         )
         if apply_prompt:
             return [response, response]
@@ -346,6 +349,8 @@ class Script(scripts.Script):
                     with gr.Row():
                         temperature = gr.Slider(label='Temperature', value=self.options.temperature, minimum=0.0, maximum=1.0, step=0.01, interactive=True)
                         repetition_penalty = gr.Slider(label='Repetition penalty', value=self.options.repetition_penalty, minimum=0.0, maximum=2.0, step=0.01, interactive=True)
+                    with gr.Row():
+                        thinking_mode = gr.Checkbox(label='Thinking mode', value=False, interactive=True)
                     gr.HTML('<br>')
                 with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'):
                     with gr.Row():
@@ -362,15 +367,15 @@ class Script(scripts.Script):
                         clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
                         copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
                         copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty], outputs=[prompt_output, self.prompt])
-        return [apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty]
+            apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode], outputs=[prompt_output, self.prompt])
+        return [apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
             self.prompt = component
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty = args
+        apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -390,6 +395,7 @@ class Script(scripts.Script):
             tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
+            thinking=thinking_mode,
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()

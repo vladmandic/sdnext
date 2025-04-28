@@ -2,8 +2,9 @@
 
 ## Update for 2025-04-28
 
-- Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models
-- Docker: pre-install `ffmpeg`
+- Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
+- Prompt-Enhhance: add thinking mode support (for models that have it)  
+- Docker: pre-install `ffmpeg`  
 
 ## Highlights for 2025-04-28
 
