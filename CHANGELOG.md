@@ -9,6 +9,7 @@
   - Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
   - Prompt-Enhhance: add thinking mode support (for models that have it)  
 - **Other**  
+  - CUDA: set default to `torch==2.7.0` with `cuda==12.8`
   - FramePack: improve performance  
   - Docker: pre-install `ffmpeg`  
 - **Fixes**  
