@@ -42,6 +42,8 @@ def load_transformer(repo_id, diffusers_load_config={}):
 
 
 def load_text_encoders(repo_id, diffusers_load_config={}):
+    if repo_id == 'HiDream-ai/HiDream-E1-Full':
+        repo_id = 'HiDream-ai/HiDream-I1-Full' # use I1 for t5 and llm
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     shared.log.debug(f'Load model: type=HiDream te3="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     text_encoder_3 = transformers.T5EncoderModel.from_pretrained(
@@ -92,7 +94,19 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    pipe = diffusers.HiDreamImagePipeline.from_pretrained(
+    if 'I1' in repo_id:
+        cls = diffusers.HiDreamImagePipeline
+    elif 'E1' in repo_id:
+        from modules.hidream.pipeline_hidream_image_editing import HiDreamImageEditingPipeline
+        cls = HiDreamImageEditingPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["hidream-e1"] = diffusers.HiDreamImagePipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["hidream-e1"] = HiDreamImageEditingPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["hidream-e1"] = HiDreamImageEditingPipeline
+    else:
+        shared.log.error(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" not recognized')
+        return False
+
+    pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder_3=text_encoder_3,
@@ -101,6 +115,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
+
     sd_hijack_te.init_hijack(pipe)
     del text_encoder_3
     del text_encoder_4

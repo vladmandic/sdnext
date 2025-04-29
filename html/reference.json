@@ -364,6 +364,13 @@
     "skip": true,
     "extras": "sampler: Default"
   },
+  "HiDream-E1 Full": {
+    "path": "HiDream-ai/HiDream-E1-Full",
+    "desc": "HiDream-E1 is an image editing model built on HiDream-I1.",
+    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
 
   "Kwai Kolors": {
     "path": "Kwai-Kolors/Kolors-diffusers",

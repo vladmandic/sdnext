@@ -1,10 +1,19 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-28
+## Update for 2025-04-29
 
-- Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
-- Prompt-Enhhance: add thinking mode support (for models that have it)  
-- Docker: pre-install `ffmpeg`  
+- **Features**
+  - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
+    available via  *networks -> models -> reference*  
+    *note*: right now hidream-e1 is limited to 768x768 images, so you must force resize image before running it  
+  - Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
+  - Prompt-Enhhance: add thinking mode support (for models that have it)  
+- **Other**  
+  - FramePack: improve performance  
+  - Docker: pre-install `ffmpeg`  
+- **Fixes**  
+  - FramePack: correct dtype  
+  - NNCF: check dependencies and register quant type  
 
 ## Highlights for 2025-04-28
 

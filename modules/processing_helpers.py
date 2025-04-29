@@ -458,6 +458,8 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
             steps = p.steps // (1 - p.refiner_start)
         elif 'Flex' in shared.sd_model.__class__.__name__:
             steps = p.steps
+        elif 'HiDreamImageEditingPipeline' in shared.sd_model.__class__.__name__:
+            steps = p.steps
         elif shared.sd_model_type == 'omnigen':
             steps = p.steps
         elif p.denoising_strength > 0:
