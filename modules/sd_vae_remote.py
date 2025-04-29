@@ -28,13 +28,6 @@ dtypes = {
 }
 
 
-def h1_pack_latents(latents, _batch_size, _num_channels_latents, _height, _width): # TODO hidream: pack latents for remote vae
-    # latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
-    # latents = latents.permute(0, 2, 4, 1, 3, 5)
-    # latents = latents.reshape(batch_size, (height // 2) * (width // 2) // (num_channels_latents * 4), num_channels_latents * 4)
-    return latents
-
-
 def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str = None) -> Image.Image:
     from modules import devices, shared, errors, modelloader
     tensors = []
@@ -57,9 +50,6 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
             latent = latent_copy[i]
             if model_type != 'f1':
                 latent = latent.unsqueeze(0)
-            # if model_type == 'h1':
-            #     num_channels_latents = shared.sd_model.transformer.config.in_channels
-            #     latent = h1_pack_latents(latent, 1, num_channels_latents, height, width) # pylint: disable=protected-access
             params = {
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),
