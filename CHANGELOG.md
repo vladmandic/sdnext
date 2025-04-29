@@ -15,6 +15,7 @@
 - **Fixes**  
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
+  - API: refresh checkpoint list  
 
 ## Highlights for 2025-04-28
 

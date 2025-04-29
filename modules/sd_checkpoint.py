@@ -158,6 +158,7 @@ def list_models():
     shared.log.info(f'Available Models: safetensors="{shared.opts.ckpt_dir}":{len(safetensors_list)} diffusers="{shared.opts.diffusers_dir}":{len(diffusers_list)} items={len(checkpoints_list)} time={time.time()-t0:.2f}')
     checkpoints_list = dict(sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename))
 
+
 def update_model_hashes():
     txt = []
     lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.hash is None]
