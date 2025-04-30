@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-29
+## Update for 2025-04-30
 
 - **Features**
   - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
@@ -16,6 +16,7 @@
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
   - API: refresh checkpoint list  
+  - Styles: save style with prompt  
 
 ## Highlights for 2025-04-28
 

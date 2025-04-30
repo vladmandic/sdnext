@@ -973,7 +973,6 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),
     "extra_networks_styles": OptionInfo(True, "Show reference styles"),
-    "extra_networks_save_unparsed": OptionInfo(True, "Save unparsed prompt"),
     "extra_networks_apply_unparsed": OptionInfo(True, "Restore unparsed prompt"),
 
     "extra_networks_embed_sep": OptionInfo("<h2>Embeddings</h2>", "", gr.HTML),
