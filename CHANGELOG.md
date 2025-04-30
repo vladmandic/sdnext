@@ -12,11 +12,13 @@
   - CUDA: set default to `torch==2.7.0` with `cuda==12.8`
   - FramePack: improve performance  
   - Docker: pre-install `ffmpeg`  
+  - Wiki: updated pages: *Video, ZLUDA*  
 - **Fixes**  
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
   - API: refresh checkpoint list  
   - Styles: save style with prompt  
+  - Texture tiling: fix apply when switching models  
 
 ## Highlights for 2025-04-28
 
