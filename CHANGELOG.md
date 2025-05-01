@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-04-30
+## Update for 2025-05-01
 
 - **Features**
   - Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
@@ -13,12 +13,14 @@
   - FramePack: improve performance  
   - Docker: pre-install `ffmpeg`  
   - Wiki: updated pages: *Video, ROCm, ZLUDA, Quantization*  
+  - Gallery: support JXL image format  
 - **Fixes**  
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
   - API: refresh checkpoint list  
   - Styles: save style with prompt  
   - Texture tiling: fix apply when switching models  
+  - Diffusers: slow initial startup  
 
 ## Highlights for 2025-04-28
 
