@@ -21,6 +21,7 @@
   - Styles: save style with prompt  
   - Texture tiling: fix apply when switching models  
   - Diffusers: slow initial startup  
+  - Gated access: obfuscate and log token used for access  
 
 ## Highlights for 2025-04-28
 

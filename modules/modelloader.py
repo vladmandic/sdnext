@@ -26,7 +26,7 @@ def hf_login(token=None):
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
     install('hf_xet', quiet=True)
-    if token is None or len(token) <= 2:
+    if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
         return False
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
@@ -41,8 +41,9 @@ def hf_login(token=None):
             hf.logout()
             hf.login(token=token, add_to_git_credential=False, write_permission=False)
         text = stdout.getvalue() or ''
+        obfuscated_token = 'hf_...' + token[-4:]
         line = [l for l in text.split('\n') if 'Token' in l]
-        log.info(f'HF login: token="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
+        log.info(f'HF login: token="{obfuscated_token}" fn="{hf.constants.HF_TOKEN_PATH}" {line[0] if len(line) > 0 else text}')
         loggedin = token
     return True
 
