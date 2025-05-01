@@ -632,7 +632,7 @@ def batch(model_name, system_prompt, batch_files, batch_folder, batch_str, quest
         files += [f.name for f in batch_folder]
     if batch_str is not None and len(batch_str) > 0 and os.path.exists(batch_str) and os.path.isdir(batch_str):
         from modules.files_cache import list_files
-        files += list(list_files(batch_str, ext_filter=['.png', '.jpg', '.jpeg', '.webp'], recursive=recursive))
+        files += list(list_files(batch_str, ext_filter=['.png', '.jpg', '.jpeg', '.webp', '.jxl'], recursive=recursive))
     if len(files) == 0:
         shared.log.warning('Interrogate batch: type=vlm no images')
         return ''

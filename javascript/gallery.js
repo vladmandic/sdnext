@@ -126,7 +126,7 @@ class GalleryFile extends HTMLElement {
   async connectedCallback() {
     if (this.shadow.children.length > 0) return;
     const ext = this.name.split('.').pop().toLowerCase();
-    if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'mp4'].includes(ext)) return;
+    if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'jxl', 'svg', 'mp4'].includes(ext)) return;
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
