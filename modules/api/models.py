@@ -355,6 +355,7 @@ class ReqVQA(BaseModel):
     image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
     model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
     question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System prompt", description="Prompt to shape how the model interprets and responds to user prompts.")
 
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
