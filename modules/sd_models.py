@@ -44,6 +44,7 @@ pipe_switch_task_exclude = [
     'PhotoMakerStableDiffusionXLPipeline',
     'StableDiffusionXLInstantIDPipeline',
     'LTXConditionPipeline',
+    'StableDiffusionXLAdapterPipeline',
 ]
 
 
@@ -655,7 +656,14 @@ class DiffusersTaskType(Enum):
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
     cls = pipe.__class__.__name__
-    if cls in ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL", "OmniGenPipeline"]: # special case
+    i2i_pipes = [
+        'LEditsPPPipelineStableDiffusion',
+        'LEditsPPPipelineStableDiffusionXL',
+        'OmniGenPipeline',
+        'StableDiffusionAdapterPipeline',
+        'StableDiffusionXLAdapterPipeline',
+    ]
+    if cls in i2i_pipes: # special case
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif 'ImageToVideo' in cls or cls in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
         return DiffusersTaskType.IMAGE_2_IMAGE

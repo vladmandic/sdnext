@@ -35,7 +35,10 @@ def task_specific_kwargs(p, model):
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in ['StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline']:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
             p.ops.append('img2img')
         if p.vae_type == 'Remote':

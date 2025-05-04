@@ -2,7 +2,7 @@ import os
 import time
 from typing import Union
 import threading
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, T2IAdapter, MultiAdapter, StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline # pylint: disable=unused-import
+from diffusers import pipelines, StableDiffusionPipeline, StableDiffusionXLPipeline, T2IAdapter, MultiAdapter, StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline # pylint: disable=unused-import
 from installer import log
 from modules import errors, sd_models
 from modules.control.units import detect
@@ -142,6 +142,14 @@ class AdapterPipeline():
         if isinstance(adapter, list) and len(adapter) > 1:
             adapter = MultiAdapter(adapter)
         adapter.to(device=pipeline.device, dtype=pipeline.dtype)
+        """
+        pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["sd-t2iadapter"] = StableDiffusionAdapterPipeline
+        pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["sd-t2iadapter"] = StableDiffusionAdapterPipeline
+        pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["sd-t2iadapter"] = StableDiffusionAdapterPipeline
+        pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["sdxl-t2iadapter"] = StableDiffusionXLAdapterPipeline
+        pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["sdxl-t2iadapter"] = StableDiffusionXLAdapterPipeline
+        pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["sdxl-t2iadapter"] = StableDiffusionXLAdapterPipeline
+        """
         if pipeline.__class__.__name__ == 'StableDiffusionAdapterPipeline' or pipeline.__class__.__name__ == 'StableDiffusionXLAdapterPipeline':
             pass # already initialized
         if detect.is_sdxl(pipeline):
