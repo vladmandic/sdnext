@@ -23,7 +23,7 @@ def is_txt2img():
 
 
 def is_refiner_enabled(p):
-    return p.enable_hr and p.refiner_steps > 0 and p.refiner_start > 0 and p.refiner_start < 1 and shared.sd_refiner is not None
+    return p.enable_hr and (p.refiner_steps > 0) and (p.refiner_start > 0) and (p.refiner_start < 1) and (shared.sd_refiner is not None)
 
 
 def setup_color_correction(image):
