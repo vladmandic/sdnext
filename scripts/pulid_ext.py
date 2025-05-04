@@ -137,7 +137,7 @@ class Script(scripts.Script):
             shared.log.error('PuLID: no images')
             return None
 
-        supported_model_list = ['sdxl']
+        supported_model_list = ['sdxl', 'f1']
         if shared.sd_model_type not in supported_model_list:
             shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
@@ -168,15 +168,12 @@ class Script(scripts.Script):
             p.batch_size = 1
 
         sdp = shared.opts.cross_attention_optimization == "Scaled-Dot-Product"
-        sampler_fn = getattr(self.pulid.sampling, f'sample_{sampler}', None)
         strength = getattr(p, 'pulid_strength', strength)
         zero = getattr(p, 'pulid_zero', zero)
         ortho = getattr(p, 'pulid_ortho', ortho)
         sampler = getattr(p, 'pulid_sampler', sampler)
         restore = getattr(p, 'pulid_restore', restore)
         p.pulid_restore = restore
-        if sampler_fn is None:
-            sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
 
         if shared.sd_model_type == 'sdxl' and not hasattr(shared.sd_model, 'pipe'):
             try:
@@ -203,9 +200,42 @@ class Script(scripts.Script):
                 shared.log.error(f'PuLID: failed to create pipeline: {e}')
                 errors.display(e, 'PuLID')
                 return None
+        elif shared.sd_model_type == 'f1':
+            # TODO nunchaku: pulid-f1
+            shared.log.error('PuLID: f1 not supported')
+            return None
 
+        if shared.sd_model_type == 'sdxl':
+            processed = self.run_sdxl(p, images, strength, zero, sampler, ortho, restore, offload, version)
+        elif shared.sd_model_type == 'f1':
+            processed = None
+        else:
+            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            processed = None
+        return processed
+
+    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
+        _strength, _zero, _sampler, _ortho, _gallery, restore, _offload, _version = args
+        if shared.sd_model_type == "sdxl" and hasattr(shared.sd_model, 'pipe'):
+            restore = getattr(p, 'pulid_restore', restore)
+            if restore:
+                if hasattr(shared.sd_model, 'app'):
+                    shared.sd_model.app = None
+                    shared.sd_model.ip_adapter = None
+                    shared.sd_model.face_helper = None
+                    shared.sd_model.clip_vision_model = None
+                    shared.sd_model.handler_ante = None
+                shared.sd_model = shared.sd_model.pipe
+                devices.torch_gc(force=True)
+            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
+        return processed
+
+    def run_sdxl(self, p: processing.StableDiffusionProcessing, images: list, strength: float, zero: int, sampler: str, ortho: str, restore: bool, offload: bool, version: str):
+        sampler_fn = getattr(self.pulid.sampling, f'sample_{sampler}', None)
+        if sampler_fn is None:
+            sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
         shared.sd_model.sampler = sampler_fn
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" sdp={sdp} strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
+        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
         self.pulid.attention.NUM_ZERO = zero
         self.pulid.attention.ORTHO = ortho == 'v1'
         self.pulid.attention.ORTHO_v2 = ortho == 'v2'
@@ -255,20 +285,4 @@ class Script(scripts.Script):
 
         # interim = [Image.fromarray(img) for img in shared.sd_model.debug_img_list]
         # shared.log.debug(f'PuLID: time={t1-t0:.2f}')
-        return processed
-
-    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
-        _strength, _zero, _sampler, _ortho, _gallery, restore, _offload, _version = args
-        if hasattr(shared.sd_model, 'pipe') and shared.sd_model_type == "sdxl":
-            restore = getattr(p, 'pulid_restore', restore)
-            if restore:
-                if hasattr(shared.sd_model, 'app'):
-                    shared.sd_model.app = None
-                    shared.sd_model.ip_adapter = None
-                    shared.sd_model.face_helper = None
-                    shared.sd_model.clip_vision_model = None
-                    shared.sd_model.handler_ante = None
-                shared.sd_model = shared.sd_model.pipe
-                devices.torch_gc(force=True)
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
         return processed
