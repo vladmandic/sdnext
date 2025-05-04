@@ -31,20 +31,27 @@ debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not Non
 diffusers_version = int(diffusers.__version__.split('.')[1])
 checkpoint_tiles = checkpoint_titles # legacy compatibility
 pipe_switch_task_exclude = [
-    'StableDiffusionReferencePipeline',
-    'StableDiffusionAdapterPipeline',
-    'AnimateDiffPipeline',
-    'AnimateDiffSDXLPipeline',
-    'OmniGenPipeline',
-    'StableDiffusion3ControlNetPipeline',
-    'InstantIRPipeline',
-    'FluxFillPipeline',
+    'AnimateDiffPipeline', 'AnimateDiffSDXLPipeline',
     'FluxControlPipeline',
-    'PixelSmithXLPipeline',
-    'PhotoMakerStableDiffusionXLPipeline',
-    'StableDiffusionXLInstantIDPipeline',
+    'FluxFillPipeline',
+    'InstantIRPipeline',
     'LTXConditionPipeline',
-    'StableDiffusionXLAdapterPipeline',
+    'OmniGenPipeline',
+    'PhotoMakerStableDiffusionXLPipeline',
+    'PixelSmithXLPipeline',
+    'StableDiffusion3ControlNetPipeline',
+    'StableDiffusionAdapterPipeline',
+    'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
+    'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
+    'StableDiffusionReferencePipeline',
+    'StableDiffusionXLInstantIDPipeline',
+]
+i2i_pipes = [
+    'LEditsPPPipelineStableDiffusion',
+    'LEditsPPPipelineStableDiffusionXL',
+    'OmniGenPipeline',
+    'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
+    'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
 ]
 
 
@@ -656,13 +663,6 @@ class DiffusersTaskType(Enum):
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
     cls = pipe.__class__.__name__
-    i2i_pipes = [
-        'LEditsPPPipelineStableDiffusion',
-        'LEditsPPPipelineStableDiffusionXL',
-        'OmniGenPipeline',
-        'StableDiffusionAdapterPipeline',
-        'StableDiffusionXLAdapterPipeline',
-    ]
     if cls in i2i_pipes: # special case
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif 'ImageToVideo' in cls or cls in ['LTXConditionPipeline', 'StableVideoDiffusionPipeline']: # i2v pipelines
@@ -790,6 +790,9 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
         clean_diffuser_pipe(pipe)
 
+    if hasattr(pipe, 'no_task_switch'):
+        del pipe.no_task_switch
+        return pipe
     if get_diffusers_task(pipe) == new_pipe_type:
         return pipe
 

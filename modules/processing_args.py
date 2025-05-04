@@ -35,7 +35,7 @@ def task_specific_kwargs(p, model):
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            if model.__class__.__name__ in ['StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline']:
+            if model.__class__.__name__ in sd_models.i2i_pipes:
                 pass
             else:
                 model.register_to_config(requires_aesthetics_score = False)
@@ -74,7 +74,10 @@ def task_specific_kwargs(p, model):
         }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in [sd_models.i2i_pipes]:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if p.detailer_enabled:
             p.ops.append('detailer')
         else:

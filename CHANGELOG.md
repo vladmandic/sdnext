@@ -26,6 +26,8 @@
   - Gated access: obfuscate and log token used for access  
   - SDXL refiner workflow  
   - Control: t2i-adapter workflow  
+  - Control: xs-controlnet workflow  
+  - Control: lllite-workflow  
 
 ## Highlights for 2025-04-28
 
