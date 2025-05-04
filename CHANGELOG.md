@@ -2,16 +2,18 @@
 
 ## Update for 2025-05-04
 
-- **Features**
-  - Prompt-Enhhance: add **Qwen3** 0.6B/1.7B/4B models  
-  - Prompt-Enhhance: add thinking mode support (for models that have it)  
+- **Features**  
+  - [FramePack](https://github.com/vladmandic/sd-extension-framepack)  
+     support for **T2V** in addition to **I2V** and **FLF2V**  
+     support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
+  - **Prompt-Enhhance**  
+    add **Qwen3** *0.6B/1.7B/4B* models  
+    add thinking mode support (for models that have it)  
   - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
     available via  *networks -> models -> reference*  
     *note*: right now hidream-e1 is limited to 768x768 images, so you must force resize image before running it  
-  - [FramePack](https://github.com/vladmandic/sd-extension-framepack)  
-     support for **T2V** in addition to **I2V** and **FLF2V**  
 - **Other**  
-  - CUDA: set default to `torch==2.7.0` with `cuda==12.8`
+  - CUDA: set default to `torch==2.7.0` with `cuda==12.8`  
   - FramePack: improve performance  
   - Docker: pre-install `ffmpeg`  
   - Wiki: updated pages: *Video, ROCm, ZLUDA, Quantization*  
