@@ -8,6 +8,8 @@
   - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
     available via  *networks -> models -> reference*  
     *note*: right now hidream-e1 is limited to 768x768 images, so you must force resize image before running it  
+  - [FramePack](https://github.com/vladmandic/sd-extension-framepack)  
+     support for **T2V** in addition to **I2V** and **FLF2V**  
 - **Other**  
   - CUDA: set default to `torch==2.7.0` with `cuda==12.8`
   - FramePack: improve performance  
