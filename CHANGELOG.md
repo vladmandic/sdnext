@@ -15,6 +15,7 @@
   - Wiki: updated pages: *Video, ROCm, ZLUDA, Quantization*  
   - Gallery: support JXL image format  
   - Scheduler: add sigmoid beta scheduler  
+  - GitHub: updated issue template  
 - **Fixes**  
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
