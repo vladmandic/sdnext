@@ -13,7 +13,7 @@
     add thinking mode support (for models that have it)  
   - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
     available via  *networks -> models -> reference*  
-    *note*: right now hidream-e1 is limited to 768x768 images, so you must force resize image before running it  
+    *note*: right now HiDream-E1 is limited to 768x768 images, so you must force resize image before running it  
 - **Other**  
   - CUDA: set default to `torch==2.7.0` with `cuda==12.8`  
   - FramePack: improve performance  
