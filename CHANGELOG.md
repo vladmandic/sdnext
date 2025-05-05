@@ -19,7 +19,7 @@
   - CUDA: set default to `torch==2.7.0` with `cuda==12.8`  
   - FramePack: improve performance  
   - Docker: pre-install `ffmpeg`  
-  - Wiki: updated pages: *Video, ROCm, ZLUDA, Quantization*  
+  - Wiki: updated pages: *FramePack, Video, ROCm, ZLUDA, Quantization*  
   - Gallery: support JXL image format  
   - Scheduler: add sigmoid beta scheduler  
   - GitHub: updated issue template  
