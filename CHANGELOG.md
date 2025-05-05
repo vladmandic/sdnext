@@ -1,11 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-04
+## Update for 2025-05-05
 
 - **Features**  
-  - [FramePack](https://github.com/vladmandic/sd-extension-framepack)  
-     support for **T2V** in addition to **I2V** and **FLF2V**  
-     support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
+  - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
+    add **T2V** mode in addition to **I2V** and **FLF2V**  
+    support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
+    add **prompt enhance** using VLM: it will analyze input image and then create enhanced prompt based on user prompt and image  
+    complete [docs](https://vladmandic.github.io/sdnext-docs/FramePack) rewrite  
   - **Prompt-Enhhance**  
     add **Qwen3** *0.6B/1.7B/4B* models  
     add thinking mode support (for models that have it)  
@@ -24,6 +26,7 @@
   - FramePack: correct dtype  
   - NNCF: check dependencies and register quant type  
   - API: refresh checkpoint list  
+  - API: vlm-api endpoint  
   - Styles: save style with prompt  
   - Texture tiling: fix apply when switching models  
   - Diffusers: slow initial startup  
