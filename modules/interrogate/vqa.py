@@ -27,6 +27,7 @@ vlm_models = {
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "Alibaba Qwen VL2 2B": "Qwen/Qwen2-VL-2B-Instruct",
+    "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
@@ -67,6 +68,8 @@ vlm_prompts = [
 
 
 def b64(image):
+    if image is None:
+        return ''
     with io.BytesIO() as stream:
         image.save(stream, 'JPEG')
         values = stream.getvalue()
@@ -125,7 +128,7 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
-    system_prompt = system_prompt or shared.opts.vlm_system
+    system_prompt = system_prompt or shared.opts.interrogate_vlm_system
     conversation = [
         {
             "role": "system",
@@ -169,19 +172,20 @@ def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: st
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
-    system_prompt = system_prompt or shared.opts.vlm_system
+    system_prompt = system_prompt or shared.opts.interrogate_vlm_system
+
+    system_content = []
+    if system_prompt is not None and len(system_prompt) > 4:
+        system_content.append({"type": "text", "text": system_prompt})
+
+    user_content = []
+    if image is not None:
+        user_content.append({"type": "image", "image": b64(image)})
+    if question is not None and len(question) > 4:
+        user_content.append({"type": "text", "text": question})
     conversation = [
-        {
-            "role": "system",
-            "content": [{"type": "text", "text": system_prompt}]
-        },
-        {
-            "role": "user",
-            "content": [
-                {"type": "image", "image": b64(image)},
-                {"type": "text", "text": question}
-            ]
-        }
+        { "role": "system", "content": system_content},
+        { "role": "user", "content": user_content },
     ]
     inputs = processor.apply_chat_template(
         conversation,
@@ -294,7 +298,7 @@ def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
-    system_prompt = system_prompt or shared.opts.vlm_system
+    system_prompt = system_prompt or shared.opts.interrogate_vlm_system
     conversation = [
         {
             "role": "system",
