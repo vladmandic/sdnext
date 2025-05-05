@@ -7,7 +7,8 @@
     add **T2V** mode in addition to **I2V** and **FLF2V**  
     support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
     add **prompt enhance** using VLM: it will analyze input image and then create enhanced prompt based on user prompt and image  
-    complete [docs](https://vladmandic.github.io/sdnext-docs/FramePack) rewrite  
+    add **prompt interpolation**, section prompts do not need to match exact video section count  
+    [Docs](https://vladmandic.github.io/sdnext-docs/FramePack) rewrite!  
   - **Prompt-Enhhance**  
     add **Qwen3** *0.6B/1.7B/4B* models  
     add thinking mode support (for models that have it)  
@@ -35,6 +36,7 @@
   - Control: t2i-adapter workflow  
   - Control: xs-controlnet workflow  
   - Control: lllite-workflow  
+  - Extension: `DominikDoom/a1111-sd-webui-tagcomplete`  
 
 ## Highlights for 2025-04-28
 
