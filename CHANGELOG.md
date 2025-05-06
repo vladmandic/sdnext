@@ -2,6 +2,12 @@
 
 ## Update for 2025-05-06
 
+- **Fixes**
+  - FramePack: monkey-patch for dynamically installed `av`  
+  - Logging: reduce spam while progress is active  
+
+## Update for 2025-05-06
+
 - **Features**  
   - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
     add **T2V** mode in addition to **I2V** and **FLF2V**  
