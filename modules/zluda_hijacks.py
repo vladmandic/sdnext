@@ -33,16 +33,8 @@ MEM_BUS_WIDTH = {
 }
 
 
-_topk = torch.topk
-def topk(input: torch.Tensor, *args, **kwargs): # pylint: disable=redefined-builtin
-    device = input.device
-    values, indices = _topk(input.cpu(), *args, **kwargs)
-    return torch.return_types.topk((values.to(device), indices.to(device),))
-
-
 class DeviceProperties:
     PROPERTIES_OVERRIDE = {
-        "regs_per_multiprocessor": 65535,
          # sometimes gcnArchName contains device name ("AMD Radeon RX ..."), not architecture name ("gfx...")
         "gcnArchName": "UNKNOWN ARCHITECTURE",
     }
@@ -68,7 +60,6 @@ def torch__C__cuda_getCurrentRawStream(device):
 
 
 def do_hijack():
-    torch.topk = topk
     if zluda.default_agent is not None:
         DeviceProperties.PROPERTIES_OVERRIDE["gcnArchName"] = zluda.default_agent.name
     torch.cuda._get_device_properties = torch_cuda__get_device_properties # pylint: disable=protected-access
@@ -104,10 +95,13 @@ def do_hijack():
                         query = torch.nn.functional.pad(query, [0, 8 - head_size_og % 8])
                         key = torch.nn.functional.pad(key, [0, 8 - head_size_og % 8])
                         value = torch.nn.functional.pad(value, [0, 8 - head_size_og % 8])
-                    out_padded = interface_fa.fwd(
-                        query.transpose(1, 2),
+                    query = query.transpose(1, 2)
+                    out_padded = torch.zeros_like(query)
+                    interface_fa.fwd(
+                        query,
                         key.transpose(1, 2),
                         value.transpose(1, 2),
+                        out_padded,
                         dropout_p,
                         scale,
                         is_causal,
