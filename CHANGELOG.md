@@ -36,7 +36,6 @@
   - Control: t2i-adapter workflow  
   - Control: xs-controlnet workflow  
   - Control: lllite-workflow  
-  - Extension: `DominikDoom/a1111-sd-webui-tagcomplete`  
 
 ## Highlights for 2025-04-28
 
