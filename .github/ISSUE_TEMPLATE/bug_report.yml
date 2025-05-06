@@ -76,6 +76,21 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: compute
+    attributes:
+      label: Compute
+      description: What is the compute engine backend you're using?
+      options:
+        - nVidia CUDA
+        - AMD ROCm
+        - Intel IPEX
+        - OpenVINO
+        - DirectML
+        - ZLUDA
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
     id: ui
     attributes:
       label: UI
