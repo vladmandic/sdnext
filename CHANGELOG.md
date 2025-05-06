@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-05
+## Update for 2025-05-06
 
 - **Features**  
   - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
@@ -36,6 +36,7 @@
   - Control: t2i-adapter workflow  
   - Control: xs-controlnet workflow  
   - Control: lllite-workflow  
+  - Control: refiner workflow with multiple control elements  
 
 ## Highlights for 2025-04-28
 

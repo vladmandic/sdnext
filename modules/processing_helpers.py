@@ -454,14 +454,15 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
     if not is_txt2img():
-        if use_denoise_start and shared.sd_model_type == 'sdxl':
+        cls = shared.sd_model.__class__.__name__
+        if cls in sd_models.i2i_pipes:
+            steps = p.steps
+        elif 'Flex' in cls:
+            steps = p.steps
+        elif 'HiDreamImageEditingPipeline' in cls:
+            steps = p.steps
+        elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)
-        elif 'Flex' in shared.sd_model.__class__.__name__:
-            steps = p.steps
-        elif 'HiDreamImageEditingPipeline' in shared.sd_model.__class__.__name__:
-            steps = p.steps
-        elif shared.sd_model.__class__.__name__ in sd_models.i2i_pipes:
-            steps = p.steps
         elif p.denoising_strength > 0:
             steps = (p.steps // p.denoising_strength) + 1
         else:
