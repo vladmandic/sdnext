@@ -783,8 +783,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def show_details(text, img, desc, info, meta, description, prompt, negative, parameters, wildcards, params, _dummy1=None, _dummy2=None):
         page, item = get_item(state, params)
-        valid = item is not None and hasattr(item, 'name') and hasattr(item, 'filename')
-        if valid:
+        is_style = (page is not None) and (page.title == 'Style')
+        is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
+
+        if is_valid:
             stat = os.stat(item.filename) if os.path.exists(item.filename) else None
             desc = item.description
             fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
@@ -795,16 +797,14 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 item.filename = None
                 shared.log.warning('Network: show details not supported for compound item')
                 info = None
-            """
-            if prompt is not None:
+            if prompt is not None and len(prompt) > 0:
                 item.prompt = prompt
-            if negative is not None:
+            if negative is not None and len(negative) > 0:
                 item.negative = negative
-            if description is not None:
+            if description is not None and len(description) > 0:
                 item.description = description
-            if wildcards is not None:
+            if wildcards is not None and len(wildcards) > 0:
                 item.wildcards = wildcards
-            """
             meta = page.metadata.get(item.name, {}) or {}
             if type(meta) is str:
                 try:
@@ -887,7 +887,6 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 </tbody></table>
                 {note}
             '''
-        is_style = (page is not None) and (page.title == 'Style')
         return [
             text, # gr.html
             img, # gr.image
@@ -899,7 +898,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             gr.update(value=negative, visible=is_style), # gr.textbox
             gr.update(value=parameters, visible=is_style), # gr.textbox
             gr.update(value=wildcards, visible=is_style), # gr.textbox
-            gr.update(visible=valid), # details ui visible
+            gr.update(visible=is_valid), # details ui visible
             gr.update(visible=not is_style), # details ui tabs visible
             gr.update(visible=is_style), # details ui text visible
         ]
@@ -940,10 +939,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return ui_refresh_click(title)
 
     def ui_save_click():
-        if shared.opts.extra_networks_save_unparsed:
-            from modules.processing_info import get_last_args
-            params, text = get_last_args()
-        else:
+        from modules.processing_info import get_last_args
+        params, text = get_last_args()
+        if (not params) or (not text) or (len(text) == 0):
             filename = os.path.join(paths.data_path, "params.txt")
             if os.path.exists(filename):
                 with open(filename, "r", encoding="utf8") as file:
@@ -957,13 +955,12 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return res
 
     def ui_quicksave_click(name):
-        if shared.opts.extra_networks_save_unparsed:
-            from modules.processing_info import get_last_args
-            params, text = get_last_args()
-        else:
-            if name is None or len(name) < 1:
-                shared.log.warning("Network quick save style: no name provided")
-                return
+        if name is None or len(name) < 1:
+            shared.log.warning("Network quick save style: no name provided")
+            return
+        from modules.processing_info import get_last_args
+        params, text = get_last_args()
+        if (not params) or (not text) or (len(text) == 0):
             fn = os.path.join(paths.data_path, "params.txt")
             if os.path.exists(fn):
                 with open(fn, "r", encoding="utf8") as file:
@@ -983,9 +980,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         }
         shared.writefile(item, fn, silent=True)
         if len(prompt) > 0:
-            shared.log.debug(f'Network quick save style: item="{name}" filename="{fn}" unparsed={shared.opts.extra_networks_unparsed}')
+            shared.log.debug(f'Networks type=style quicksave style: item="{name}" filename="{fn}" prompt="{prompt}"')
         else:
-            shared.log.warning(f'Network quick save model: item="{name}" filename="{fn}" prompt is empty')
+            shared.log.warning(f'Networks type=style quicksave model: item="{name}" filename="{fn}" prompt is empty')
 
     def ui_sort_cards(sort_order):
         if shared.opts.extra_networks_sort != sort_order:

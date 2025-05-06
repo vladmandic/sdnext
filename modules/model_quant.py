@@ -207,7 +207,7 @@ def load_bnb(msg='', silent=False):
     if not installed('bitsandbytes'):
         if devices.backend == 'cuda':
             # forcing a version will uninstall the multi-backend-refactor branch of bnb
-            install('bitsandbytes==0.45.1', quiet=True)
+            install('bitsandbytes==0.45.5', quiet=True)
             log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
@@ -263,6 +263,8 @@ def load_nncf(msg='', silent=False):
     if not installed('nncf'):
         install('nncf==2.16.0', quiet=True)
         log.warning('Quantization: nncf installed please restart')
+    install('jstyleson', quiet=True)
+    install('texttable', quiet=True)
     try:
         import nncf
         intel_nncf = nncf
@@ -350,6 +352,7 @@ def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_g
     num_bits = 8 if shared.opts.nncf_compress_weights_mode in {"INT8", "INT8_SYM", "INT8_ASYM"} else 4
     is_asym_mode = shared.opts.nncf_compress_weights_mode in {"INT8", "INT4", "INT8_ASYM", "INT4_ASYM"}
     model = apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=shared.opts.nncf_quantize_conv_layers)
+    model.quantization_method = 'NNCF'
     if send_to_device:
         nncf_send_to_device(model, devices.device)
 

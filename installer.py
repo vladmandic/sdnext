@@ -508,17 +508,23 @@ def get_platform():
 
 
 # check python version
-def check_python(supported_minors=[9, 10, 11, 12], reason=None):
+def check_python(supported_minors=[], experimental_minors=[], reason=None):
+    if supported_minors is None or len(supported_minors) == 0:
+        supported_minors = [9, 10, 11, 12]
+        experimental_minors = []
     t_start = time.time()
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
-        log.error(f"Python version incompatible: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
-        if reason is not None:
-            log.error(reason)
-        if not args.ignore and not args.experimental:
-            sys.exit(1)
+        if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
+            log.warning(f"Python version experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} recommended 3.{supported_minors}")
+        else:
+            log.error(f"Python version incompatible: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
+            if reason is not None:
+                log.error(reason)
+            if not args.ignore and not args.experimental:
+                sys.exit(1)
     if int(sys.version_info.minor) == 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
     if not args.skip_git:
@@ -538,7 +544,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = 'b4be42282dc9bf9deccc2f60f5db952de772cf42' # diffusers commit hash
+    sha = '8c661ea586bf11cb2440da740dd3c4cf84679b85' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -573,7 +579,8 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cu126 torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126')
+        # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cu126 torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cu128 torchvision==0.22.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -1090,7 +1097,13 @@ def install_submodules(force=True):
     return '\n'.join(res)
 
 
-def reload(package):
+def reload(package, desired=None):
+    loaded = package in sys.modules
+    if not loaded:
+        return
+    current = sys.modules[package].__version__ if hasattr(sys.modules[package], "__version__") else None
+    if desired is not None and current == desired:
+        return
     modules = [m for m in sys.modules if m.startswith(package)]
     for m in modules:
         del sys.modules[m]
@@ -1142,17 +1155,17 @@ def install_optional():
     install('pillow-jxl-plugin==1.3.2', ignore=True)
     install('optimum-quanto==0.2.7', ignore=True)
     install('torchao==0.10.0', ignore=True)
-    install('bitsandbytes==0.45.1', ignore=True)
+    install('bitsandbytes==0.45.5', ignore=True)
     install('pynvml', ignore=True)
     install('ultralytics==8.3.40', ignore=True)
     install('Cython', ignore=True)
     install('insightface==0.7.3', ignore=True) # problematic build
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
-    reload('pydantic')
-    install('nncf==2.16.0', ignore=True, no_deps=True) # requires older pandas
-    # install('flash-attn', ignore=True) # requires cuda and nvcc to be installed
+    reload('pydantic', '1.10.21')
+    install('nncf==2.16.0', ignore=True) # requires older pandas
     install('gguf', ignore=True)
+    install('av', ignore=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')

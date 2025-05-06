@@ -814,7 +814,7 @@ options_templates.update(options_section(('sampler-params', "Sampler Settings"),
     "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ['default', 'karras', 'exponential', 'polyexponential'], "visible": False}),
 
     # managed from ui.py for backend diffusers
-    "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ['default', 'linear', 'scaled_linear', 'squaredcos_cap_v2'], "visible": False}),
+    "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ['default', 'linear', 'scaled_linear', 'squaredcos_cap_v2', 'sigmoid'], "visible": False}),
     "schedulers_use_thresholding": OptionInfo(False, "Use dynamic thresholding", gr.Checkbox, {"visible": False}),
     "schedulers_timestep_spacing": OptionInfo("default", "Timestep spacing", gr.Dropdown, {"choices": ['default', 'linspace', 'leading', 'trailing'], "visible": False}),
     'schedulers_timesteps': OptionInfo('', "Timesteps", gr.Textbox, {"visible": False}),
@@ -973,7 +973,6 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),
     "extra_networks_styles": OptionInfo(True, "Show reference styles"),
-    "extra_networks_save_unparsed": OptionInfo(True, "Save unparsed prompt"),
     "extra_networks_apply_unparsed": OptionInfo(True, "Restore unparsed prompt"),
 
     "extra_networks_embed_sep": OptionInfo("<h2>Embeddings</h2>", "", gr.HTML),

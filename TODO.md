@@ -4,6 +4,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- Video: API support  
 - ModernUI for custom model loader  
 - ModernUI for history tab  
 
@@ -13,10 +14,8 @@ N/A
 
 ## Future Candidates
 
-- IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Control: API enhance scripts compatibility  
-- Video: add generate context menu  
-- Video: API support  
+- IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
 - Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
 - Video: SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
 
@@ -27,9 +26,7 @@ N/A
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
-- hidream: pack latents for remote vae
 - hypertile: vae breaks when using non-standard sizes
-- infotext: handle using regex instead
 - install: enable ROCm for windows when available
 - loader: load receipe
 - loader: save receipe

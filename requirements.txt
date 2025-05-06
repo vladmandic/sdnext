@@ -31,7 +31,7 @@ invisible-watermark
 pi-heif
 
 # versioned
-rich==13.9.4
+rich==14.0.0
 safetensors==0.5.3
 tensordict==0.1.2
 peft==0.15.2
@@ -46,9 +46,9 @@ opencv-contrib-python-headless==4.9.0.80
 einops==0.4.1
 gradio==3.43.2
 huggingface_hub==0.30.2
-numexpr==2.8.8
+numexpr==2.10.2
 numpy==1.26.4
-numba==0.59.1
+numba==0.61.2
 protobuf==4.25.3
 pytorch_lightning==1.9.4
 tokenizers==0.21.1

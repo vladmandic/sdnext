@@ -17,8 +17,11 @@ def get_upscalers():
     return [{"name": upscaler.name, "model_name": upscaler.scaler.model_name, "model_path": upscaler.data_path, "model_url": None, "scale": upscaler.scale} for upscaler in shared.sd_upscalers]
 
 def get_sd_models():
-    from modules import sd_models, sd_models_config
-    return [{"title": x.title, "model_name": x.name, "filename": x.filename, "type": x.type, "hash": x.shorthash, "sha256": x.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(x)} for x in sd_models.checkpoints_list.values()]
+    from modules import sd_checkpoint, sd_models_config
+    checkpoints = []
+    for v in sd_checkpoint.checkpoints_list.values():
+        checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(v)})
+    return checkpoints
 
 def get_hypernetworks():
     return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]
@@ -128,10 +131,12 @@ def post_reload_checkpoint():
     return {}
 
 def post_refresh_checkpoints():
-    return shared.refresh_checkpoints()
+    shared.refresh_checkpoints()
+    return {}
 
 def post_refresh_vae():
-    return shared.refresh_vaes()
+    shared.refresh_vaes()
+    return {}
 
 def post_refresh_loras():
     from modules.lora import lora_load

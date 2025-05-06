@@ -152,11 +152,6 @@ def apply_styles_to_extra(p, style: Style):
     reference_style = get_reference_style()
     extra = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
 
-    if not hasattr(p, 'original_prompt'):
-        p.original_prompt = p.prompt
-    if not hasattr(p, 'original_negative'):
-        p.original_negative = p.negative_prompt
-
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True)
     style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
@@ -340,6 +335,11 @@ class StyleDatabase:
         return prompt
 
     def apply_styles_to_extra(self, p):
+        if len(getattr(p, 'original_prompt', '')) == 0:
+            p.original_prompt = p.prompt
+        if len(getattr(p, 'original_negative', '')) == 0:
+            p.original_negative = p.negative_prompt
+
         if p.styles is None:
             return
         if p.styles is None or not isinstance(p.styles, list):

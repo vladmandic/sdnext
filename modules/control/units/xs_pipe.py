@@ -114,6 +114,14 @@ class StableDiffusionXLControlNetXSPipeline(
     ):
         super().__init__()
 
+        if isinstance(controlnet, list):
+            if len(controlnet) == 1:
+                controlnet = controlnet[0]
+            else:
+                raise ValueError(
+                    "ControlNetXS pipeline only supports a single ControlNetXS model"
+                )
+
         vae_compatible, cnxs_condition_downsample_factor, vae_downsample_factor = controlnet._check_if_vae_compatible(
             vae
         )

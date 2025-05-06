@@ -23,7 +23,7 @@ def is_txt2img():
 
 
 def is_refiner_enabled(p):
-    return p.enable_hr and p.refiner_steps > 0 and p.refiner_start > 0 and p.refiner_start < 1 and shared.sd_refiner is not None
+    return p.enable_hr and (p.refiner_steps > 0) and (p.refiner_start > 0) and (p.refiner_start < 1) and (shared.sd_refiner is not None)
 
 
 def setup_color_correction(image):
@@ -454,12 +454,15 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
     if not is_txt2img():
-        if use_denoise_start and shared.sd_model_type == 'sdxl':
+        cls = shared.sd_model.__class__.__name__
+        if cls in sd_models.i2i_pipes:
+            steps = p.steps
+        elif 'Flex' in cls:
+            steps = p.steps
+        elif 'HiDreamImageEditingPipeline' in cls:
+            steps = p.steps
+        elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)
-        elif 'Flex' in shared.sd_model.__class__.__name__:
-            steps = p.steps
-        elif shared.sd_model_type == 'omnigen':
-            steps = p.steps
         elif p.denoising_strength > 0:
             steps = (p.steps // p.denoising_strength) + 1
         else:
@@ -536,19 +539,17 @@ def set_latents(p):
     return latents
 
 
-last_circular = False
-def apply_circular(enable, model):
-    global last_circular # pylint: disable=global-statement
+def apply_circular(enable: bool, model):
     if not hasattr(model, 'unet') or not hasattr(model, 'vae'):
         return
-    if last_circular == enable:
+    if getattr(model, 'texture_tiling', False) == enable:
         return
     try:
         for layer in [layer for layer in model.unet.modules() if type(layer) is torch.nn.Conv2d]:
             layer.padding_mode = 'circular' if enable else 'zeros'
         for layer in [layer for layer in model.vae.modules() if type(layer) is torch.nn.Conv2d]:
             layer.padding_mode = 'circular' if enable else 'zeros'
-        last_circular = enable
+        model.texture_tiling = enable
     except Exception as e:
         debug(f"Diffusers tiling failed: {e}")
 

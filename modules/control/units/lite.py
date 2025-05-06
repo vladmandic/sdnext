@@ -125,6 +125,7 @@ class ControlLLLite():
 class ControlLLitePipeline():
     def __init__(self, pipeline: Union[StableDiffusionXLPipeline, StableDiffusionPipeline]):
         self.pipeline = pipeline
+        # self.pipeline.__class__.__name__ = 'ControlLLLitePipeline'
         self.nets = []
 
     def apply(self, controlnet: Union[ControlNetLLLite, list[ControlNetLLLite]], image, conditioning):

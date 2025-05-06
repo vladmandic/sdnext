@@ -17,6 +17,7 @@ pipelines = {
     'Stable Diffusion XL': getattr(diffusers, 'StableDiffusionXLPipeline', None),
     'Stable Diffusion XL Inpaint': getattr(diffusers, 'StableDiffusionXLInpaintPipeline', None),
     'Stable Diffusion XL Instruct': getattr(diffusers, 'StableDiffusionXLInstructPix2PixPipeline', None),
+    'Stable Diffusion XL Refiner': getattr(diffusers, 'StableDiffusionXLImg2ImgPipeline', None),
     'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
     'Stable Diffusion 3.x': getattr(diffusers, 'StableDiffusion3Pipeline', None),
     'Latent Consistency Model': getattr(diffusers, 'LatentConsistencyModelPipeline', None),

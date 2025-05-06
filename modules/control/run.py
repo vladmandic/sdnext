@@ -133,7 +133,7 @@ def check_active(p, unit_type, units):
         if u.type != unit_type:
             continue
         num_units += 1
-        debug_log(f'Control unit: i={num_units} type={u.type} enabled={u.enabled}')
+        debug_log(f'Control unit: i={num_units} type={u.type} enabled={u.enabled} cn={u.controlnet} proc={u.process}')
         if not u.enabled:
             if u.controlnet is not None and u.controlnet.model is not None:
                 debug_log(f'Control unit offload: model="{u.controlnet.model_id}" device={devices.cpu}')
@@ -692,7 +692,16 @@ def control_run(state: str = '',
                                 p.task_args['image'] = p.init_images # need to set explicitly for txt2img
                                 del p.init_images
                         if unit_type == 'lite':
-                            p.init_images = [input_image]
+                            if input_type == 0:
+                                shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+                                shared.sd_model.no_task_switch = True
+                            elif input_type == 1:
+                                p.init_images = [input_image]
+                            elif input_type == 2:
+                                if init_image is None:
+                                    shared.log.warning('Control: separate init image not provided')
+                                    init_image = input_image
+                                p.init_images = [init_image]
                             instance.apply(selected_models, processed_image, control_conditioning)
                     if hasattr(p, 'init_images') and p.init_images is None: # delete empty
                         del p.init_images

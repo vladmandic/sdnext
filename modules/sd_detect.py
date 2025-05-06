@@ -104,12 +104,14 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 index = shared.readfile(index, silent=True)
                 cls = index.get('_class_name', None)
                 if cls is not None:
-                    pipeline = getattr(diffusers, cls)
-                if 'Flux' in pipeline.__name__ and guess != 'FLEX':
+                    pipeline = getattr(diffusers, cls, None)
+                    if pipeline is None:
+                        pipeline = cls
+                if callable(pipeline) and 'Flux' in pipeline.__name__ and guess != 'FLEX':
                     guess = 'FLUX'
-                if 'StableDiffusion3' in pipeline.__name__:
+                if callable(pipeline) and 'StableDiffusion3' in pipeline.__name__:
                     guess = 'Stable Diffusion 3'
-                if 'Lumina2' in pipeline.__name__:
+                if callable(pipeline) and 'Lumina2' in pipeline.__name__:
                     guess = 'Lumina 2'
             # switch for specific variant
             if guess == 'Stable Diffusion' and 'inpaint' in f.lower():

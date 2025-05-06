@@ -54,7 +54,7 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 def process_base(p: processing.StableDiffusionProcessing):
     txt2img = is_txt2img()
-    use_refiner_start = txt2img and is_refiner_enabled(p) and not p.is_hr_pass and p.refiner_start > 0 and p.refiner_start < 1
+    use_refiner_start = is_refiner_enabled(p) and (not p.is_hr_pass)
     use_denoise_start = not txt2img and p.refiner_start > 0 and p.refiner_start < 1
 
     shared.sd_model = update_pipeline(shared.sd_model, p)

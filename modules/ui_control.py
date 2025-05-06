@@ -359,7 +359,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             controlnetxs_ui_units.append(unit_ui)
                             units.append(unit.Unit(
                                 unit_type = 'xs',
-                                index = 1,
+                                index = i,
                                 enabled = enabled,
                                 result_txt = result_txt,
                                 enabled_cb = enabled_cb,

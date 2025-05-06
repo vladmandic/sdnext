@@ -35,7 +35,10 @@ def task_specific_kwargs(p, model):
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in sd_models.i2i_pipes:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
             p.ops.append('img2img')
         if p.vae_type == 'Remote':
@@ -71,7 +74,10 @@ def task_specific_kwargs(p, model):
         }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in [sd_models.i2i_pipes]:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if p.detailer_enabled:
             p.ops.append('detailer')
         else:
@@ -144,7 +150,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         'StableDiffusion' in model.__class__.__name__ or
         'StableCascade' in model.__class__.__name__ or
         'Flux' in model.__class__.__name__ or
-        'HiDreamImage' in model.__class__.__name__
+        'HiDreamImagePipeline' in model.__class__.__name__ # hidream-e1 has different embeds
     ):
         try:
             prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
@@ -161,7 +167,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
             prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
-        if 'HiDreamImage' in model.__class__.__name__:
+        if 'HiDreamImage' in model.__class__.__name__  and prompt_parser_diffusers.embedder is not None:
             args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
             args['prompt_embeds_t5'] = prompt_embeds[0]
@@ -180,7 +186,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
-        if 'HiDreamImage' in model.__class__.__name__:
+        if 'HiDreamImage' in model.__class__.__name__ and prompt_parser_diffusers.embedder is not None:
             args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
             negative_prompt_embeds = prompt_parser_diffusers.embedder('negative_prompt_embeds')
             args['negative_prompt_embeds_t5'] = negative_prompt_embeds[0]
