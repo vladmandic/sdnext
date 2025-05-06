@@ -8,6 +8,7 @@
     support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
     add **prompt enhance** using VLM: it will analyze input image and then create enhanced prompt based on user prompt and image  
     add **prompt interpolation**, section prompts do not need to match exact video section count  
+    and improved performance  
     [Docs](https://vladmandic.github.io/sdnext-docs/FramePack) rewrite!  
   - **Prompt-Enhhance**  
     add **Qwen3** *0.6B/1.7B/4B* models  
@@ -17,7 +18,7 @@
     *note*: right now HiDream-E1 is limited to 768x768 images, so you must force resize image before running it  
 - **Other**  
   - CUDA: set default to `torch==2.7.0` with `cuda==12.8`  
-  - FramePack: improve performance  
+  - ZLUDA: update to `zluda==3.9.4` and `flash-attn-2`  
   - Docker: pre-install `ffmpeg`  
   - Wiki: updated pages: *FramePack, Video, ROCm, ZLUDA, Quantization*  
   - Gallery: support JXL image format  
