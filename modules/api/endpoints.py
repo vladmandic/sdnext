@@ -130,6 +130,26 @@ def post_reload_checkpoint():
     sd_models.reload_model_weights()
     return {}
 
+def get_checkpoint():
+    if not shared.sd_loaded or shared.sd_model is None:
+        checkpoint = {
+            'type': None,
+            'class': None,
+        }
+    else:
+        checkpoint = {
+            'type': shared.sd_model_type,
+            'class': shared.sd_model.__class__.__name__,
+        }
+        if hasattr(shared.sd_model, 'sd_model_checkpoint'):
+            checkpoint['checkpoint'] = shared.sd_model.sd_model_checkpoint
+        if hasattr(shared.sd_model, 'sd_checkpoint_info'):
+            checkpoint['title'] = shared.sd_model.sd_checkpoint_info.title
+            checkpoint['name'] = shared.sd_model.sd_checkpoint_info.name
+            checkpoint['filename'] = shared.sd_model.sd_checkpoint_info.filename
+            checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
+    return checkpoint
+
 def post_refresh_checkpoints():
     shared.refresh_checkpoints()
     return {}

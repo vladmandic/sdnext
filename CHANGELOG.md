@@ -1,7 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-06
+## Update for 2025-05-07
 
+- **API**
+  - full API support for FramePack
+  - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
 - **Fixes**
   - FramePack: monkey-patch for dynamically installed `av`  
   - Logging: reduce spam while progress is active  
