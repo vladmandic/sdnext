@@ -42,7 +42,7 @@ class QuantizationMethod(str, Enum):
     NNCF = "nncf"
 
 
-# de-abstracted and modified slightly from the actual quant functions of nncf 2.16.0:
+# de-abstracted and modified from the actual quant functions of nncf 2.16.0:
 def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, param_name=None):
     if layer.__class__.__name__ in allowed_types:
         if torch_dtype is None:
@@ -77,7 +77,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
 
             scale = torch.where(torch.abs(scale) < eps, eps, scale)
             zero_point = level_low - torch.round(min_values / scale)
-            zero_point = torch.clip(zero_point.to(dtype=torch.int32), level_low, level_high)
+            zero_point = torch.clip(zero_point.to(dtype=torch.int32), level_low, level_high).to(dtype=torch.float32)
         else:
             factor = 2 ** (num_bits - 1)
 
@@ -96,8 +96,12 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
         level_high = 2**num_bits - 1 if is_asym_mode else 2 ** (num_bits - 1) - 1
 
         compressed_weight = layer.weight.data / scale
+        if not shared.opts.nncf_decompress_fp32:
+           scale = scale.to(torch_dtype)
+
         if zero_point is not None:
-            compressed_weight += zero_point.to(dtype=layer.weight.dtype)
+            compressed_weight += zero_point
+            zero_point = zero_point.to(scale.dtype)
 
         compressed_weight = torch.round(compressed_weight)
         compressed_weight = torch.clip(compressed_weight, level_low, level_high).to(dtype)
@@ -359,7 +363,6 @@ class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self
 
 def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor) -> torch.Tensor:
     input = input.to(dtype=scale.dtype)
-    zero_point = zero_point.to(dtype=scale.dtype)
     decompressed_input = (input - zero_point) * scale
     return decompressed_input
 
@@ -401,7 +404,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
     def __init__(self, scale: torch.Tensor, zero_point: torch.Tensor, result_dtype: Optional[torch.dtype] = None):
         super().__init__()
         self.scale = scale
-        self.zero_point = self.pack_weight(zero_point)
+        self.zero_point = zero_point
         self.result_dtype = result_dtype
 
     @property
@@ -453,6 +456,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
     def forward(self, x, *args, return_decompressed_only=False):
         result = decompress_symmetric(x.weight, self.scale)
         result = result.to(dtype=self.result_dtype)
+
         if return_decompressed_only:
             return result
         else:
@@ -470,10 +474,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
     ):
         super().__init__()
         self.scale = scale
-
-        self.zero_point_shape = zero_point.shape
-        self.zero_point = self.pack_weight(zero_point)
-
+        self.zero_point = zero_point
         self.compressed_weight_shape = compressed_weight_shape
         self.result_shape = result_shape
         self.result_dtype = result_dtype
@@ -496,12 +497,10 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         result = unpack_uint4(x.weight)
         result = result.reshape(self.compressed_weight_shape)
 
-        zero_point = unpack_uint4(self.zero_point)
-        zero_point = zero_point.reshape(self.zero_point_shape)
-
-        result = decompress_asymmetric(result, self.scale, zero_point)
+        result = decompress_asymmetric(result, self.scale, self.zero_point)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
         result = result.to(dtype=self.result_dtype)
+
         if return_decompressed_only:
             return result
         else:
@@ -547,6 +546,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         result = decompress_symmetric(result, self.scale)
         result = result.reshape(self.result_shape) if self.result_shape is not None else result
         result = result.to(dtype=self.result_dtype)
+
         if return_decompressed_only:
             return result
         else:

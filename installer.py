@@ -1163,7 +1163,7 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic', '1.10.21')
-    install('nncf==2.16.0', ignore=True) # requires older pandas
+    install('nncf==2.16.0', ignore=True)
     install('gguf', ignore=True)
     install('av', ignore=True)
     try:
