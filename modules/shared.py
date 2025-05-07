@@ -335,6 +335,10 @@ def temp_disable_extensions():
                 disabled.append(ext)
     if not opts.lora_legacy:
         disabled.append('Lora')
+    else:
+        if 'Lora' in disabled:
+            disabled.remove('Lora')
+
     cmd_opts.controlnet_loglevel = 'WARNING'
     return disabled
 
