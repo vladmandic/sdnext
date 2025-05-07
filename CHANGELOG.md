@@ -8,8 +8,12 @@
 - **Fixes**
   - FramePack: monkey-patch for dynamically installed `av`  
   - Logging: reduce spam while progress is active  
+  - LoRA: legacy handler enable/disable  
 
 ## Update for 2025-05-06
+
+Minor refesh with several bugfixes and updates to core libraries  
+Plus new features with **FramePack** and **HiDream-E1**
 
 - **Features**  
   - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
