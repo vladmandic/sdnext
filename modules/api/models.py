@@ -266,6 +266,19 @@ class ReqProcess(BaseModel):
 class ResProcess(BaseModel):
     html_info: str = Field(title="HTML info", description="A series of HTML tags containing the process info.")
 
+
+class ReqPromptEnhance(BaseModel):
+    prompt: str = Field(title="Prompt", description="Prompt to enhance")
+    type: str = Field(title="Type", default='text', description="Type of enhancement to perform")
+    model: Optional[str] = Field(title="Model", default=None, description="Model to use for enhancement")
+    system_prompt: Optional[str] = Field(title="System prompt", default=None, description="Model system prompt")
+    image: Optional[str] = Field(title="Image", default=None, description="Image to work on, must be a Base64 string containing the image's data.")
+    seed: int = Field(title="Seed", default=-1, description="Seed used to generate the prompt")
+
+class ResPromptEnhance(BaseModel):
+    prompt: str = Field(title="Prompt", description="Enhanced prompt")
+    seed: int = Field(title="Seed", description="Seed used to generate the prompt")
+
 class ReqProcessImage(ReqProcess):
     image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
 
