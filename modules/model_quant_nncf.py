@@ -244,22 +244,12 @@ class NNCFQuantizer(DiffusersQuantizer):
         from nncf.torch.nncf_module_replacement import replace_modules_by_nncf_modules
 
         self.modules_to_not_convert = self.quantization_config.modules_to_not_convert
-
         if not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
-
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
 
         model.config.quantization_config = self.quantization_config
-
-        if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-            for i in range(len(model.encoder.block)):
-                model.encoder.block[i].layer[1].DenseReluDense = NNCF_T5DenseGatedActDense(
-                    model.encoder.block[i].layer[1].DenseReluDense,
-                    dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-                )
-
         with init_empty_weights():
             model, _ = replace_modules_by_nncf_modules(model)
 
