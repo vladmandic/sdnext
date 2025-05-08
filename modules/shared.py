@@ -606,7 +606,7 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
 
     "teacache_sep": OptionInfo("<h2>TeaCache</h2>", "", gr.HTML),
     "teacache_enabled": OptionInfo(False, "TC cache enabled"),
-    "teacache_thresh": OptionInfo(0.6, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
+    "teacache_thresh": OptionInfo(0.1, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
 
     "hypertile_sep": OptionInfo("<h2>HyperTile</h2>", "", gr.HTML),
     "hypertile_unet_enabled": OptionInfo(False, "UNet Enabled"),
