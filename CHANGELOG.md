@@ -2,13 +2,15 @@
 
 ## Update for 2025-05-07
 
-- **API**
-  - full API support for FramePack
-  - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
+- **Features**
+  - FramePack: full API support
+  - NNCF: Faster quantization
+  - API: add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
 - **Fixes**
   - FramePack: monkey-patch for dynamically installed `av`  
   - Logging: reduce spam while progress is active  
   - LoRA: legacy handler enable/disable  
+  - LoRA: force clear-cache on model unload  
 
 ## Update for 2025-05-06
 
