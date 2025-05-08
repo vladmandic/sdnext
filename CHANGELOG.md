@@ -13,6 +13,7 @@
   - Logging: reduce spam while progress is active  
   - LoRA: legacy handler enable/disable  
   - LoRA: force clear-cache on model unload  
+  - ADetailer: fix enable/disable  
 
 ## Update for 2025-05-06
 

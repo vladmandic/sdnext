@@ -1027,15 +1027,17 @@ def install_extensions(force=False):
     from modules.paths import extensions_builtin_dir, extensions_dir
     extensions_duplicates = []
     extensions_enabled = []
+    extensions_disabled = [e.lower() for e in opts.get('disabled_extensions', [])]
     extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     res = []
-
     for folder in extension_folders:
         if not os.path.isdir(folder):
             continue
         extensions = list_extensions_folder(folder, quiet=True)
         log.debug(f'Extensions all: {extensions}')
         for ext in extensions:
+            if os.path.basename(ext).lower() in extensions_disabled:
+                continue
             t_start = time.time()
             if ext in extensions_enabled:
                 extensions_duplicates.append(ext)
