@@ -25,10 +25,12 @@ skip_install = False # parsed by some extensions
 
 
 try:
-    from modules.timer import launch
+    from modules.timer import launch, init
     rec = launch.record
+    init_summary = init.summary
 except Exception:
     rec = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
+    init_summary = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
 
 
 def init_args():
@@ -290,6 +292,7 @@ def main():
                 installer.log.warning(f'See log file for more details: {installer.log_file}')
     installer.extensions_preload(parser) # adds additional args from extensions
     args = installer.parse_args(parser)
+    installer.log.info(f'Installer time: {init_summary()}')
     get_custom_args()
 
     uv, instance = start_server(immediate=True, server=None)

@@ -1,12 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-07
+## Update for 2025-05-08
 
 - **Features**
-  - FramePack: full API support
-  - NNCF: Faster quantization
+  - FramePack: full API support  
+  - NNCF: Faster quantization  
   - API: add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
 - **Fixes**
+  - ROCm: disable cuDNN, fixes slow MIOpen tuning with `torch==2.7`  
+  - Extensions: use in-process installer for extensions-builtin, improves startup performance  
   - FramePack: monkey-patch for dynamically installed `av`  
   - Logging: reduce spam while progress is active  
   - LoRA: legacy handler enable/disable  
