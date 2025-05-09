@@ -32,6 +32,11 @@ try:
 except Exception:
     pass
 
+try:
+    # silence the pytorch version warning
+    nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+except Exception:
+    pass
 
 # Set default params
 torch._dynamo.config.cache_size_limit = max(64, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access

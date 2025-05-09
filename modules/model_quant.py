@@ -268,6 +268,11 @@ def load_nncf(msg='', silent=False):
     try:
         import nncf
         intel_nncf = nncf
+        try:
+            # silence the pytorch version warning
+            nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+        except Exception:
+            pass
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=nncf version={nncf.__version__} fn={fn}') # pylint: disable=protected-access
         return intel_nncf

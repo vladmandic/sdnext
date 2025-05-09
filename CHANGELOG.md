@@ -17,7 +17,7 @@
     supports text, image and video prompts with or without input image  
     *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
 - **Fixes**
-  - ROCm: disable cuDNN, fixes slow MIOpen tuning with `torch==2.7`  
+  - ROCm: disable cuDNN benchmark, fixes slow MIOpen tuning with `torch==2.7`  
   - Extensions: use in-process installer for extensions-builtin, improves startup performance  
   - FramePack: monkey-patch for dynamically installed `av`  
   - Logging: reduce spam while progress is active  

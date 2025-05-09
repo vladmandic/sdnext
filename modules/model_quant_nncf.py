@@ -392,11 +392,14 @@ def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: t
 
 
 if shared.opts.nncf_decompress_compile:
-    torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
-    decompress_asymmetric = torch.compile(decompress_asymmetric, fullgraph=True)
-    decompress_symmetric = torch.compile(decompress_symmetric, fullgraph=True)
-    decompress_int4_asymmetric = torch.compile(decompress_int4_asymmetric, fullgraph=True)
-    decompress_int4_symmetric = torch.compile(decompress_int4_symmetric, fullgraph=True)
+    try:
+        torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
+        decompress_asymmetric = torch.compile(decompress_asymmetric, fullgraph=True)
+        decompress_symmetric = torch.compile(decompress_symmetric, fullgraph=True)
+        decompress_int4_asymmetric = torch.compile(decompress_int4_asymmetric, fullgraph=True)
+        decompress_int4_symmetric = torch.compile(decompress_int4_symmetric, fullgraph=True)
+    except Exception as e:
+        shared.logs.warning(f"Quantization: type=nncf Decompress using torch.compile is not available: {e}")
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
