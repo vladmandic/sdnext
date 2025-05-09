@@ -527,10 +527,11 @@ def sa2(question: str, image: Image.Image, repo: str = None):
     return response
 
 
-def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=False):
+def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:Image.Image=None, model_name:str=None, quiet:bool=False):
     if not quiet:
         shared.state.begin('Interrogate')
     t0 = time.time()
+    model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
     if isinstance(image, dict) and 'name' in image:

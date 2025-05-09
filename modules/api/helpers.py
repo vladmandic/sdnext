@@ -15,6 +15,8 @@ def validate_sampler_name(name):
 
 
 def decode_base64_to_image(encoding, quiet=False):
+    if encoding is None:
+        return None
     if encoding.startswith("data:image/"):
         encoding = encoding.split(";")[1].split(",")[1]
     try:

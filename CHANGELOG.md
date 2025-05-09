@@ -1,6 +1,33 @@
 # Change Log for SD.Next
 
+## Update for 2025-05-08
+
+- **Features**
+  - NNCF: Faster quantization  
+  - Prompt Enhancer: support for *img2img* workflows  
+    where prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
+- **API**  
+  - add `/sdapi/v1/framepack` endpoint with full support for FramePack including all optional settings  
+    see example: `sd-extension-framepack/create-video.py`  
+  - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
+    see example: `cli/api-checkpoint.py`  
+  - add `/sdapi/v1/prompt-enhance` endpoint to enhance prompt using LLM  
+    see example: `cli/api-enhance.py`  
+    supports text, image and video prompts with or without input image  
+    *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
+- **Fixes**
+  - ROCm: disable cuDNN, fixes slow MIOpen tuning with `torch==2.7`  
+  - Extensions: use in-process installer for extensions-builtin, improves startup performance  
+  - FramePack: monkey-patch for dynamically installed `av`  
+  - Logging: reduce spam while progress is active  
+  - LoRA: legacy handler enable/disable  
+  - LoRA: force clear-cache on model unload  
+  - ADetailer: fix enable/disable  
+
 ## Update for 2025-05-06
+
+Minor refesh with several bugfixes and updates to core libraries  
+Plus new features with **FramePack** and **HiDream-E1**
 
 - **Features**  
   - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  

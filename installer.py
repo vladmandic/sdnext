@@ -71,8 +71,10 @@ control_extensions = [ # 3rd party extensions marked as safe for control ui
 try:
     from modules.timer import init
     ts = init.ts
+    elapsed = init.elapsed
 except Exception:
     ts = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
+    elapsed = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
 
 
 def get_console():
@@ -977,21 +979,27 @@ def run_extension_installer(folder):
     if not os.path.isfile(path_installer):
         return
     try:
-        log.debug(f"Extension installer: {path_installer}")
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.path.abspath(".")
-        if os.environ.get('PYTHONPATH', None) is not None:
-            seperator = ';' if sys.platform == 'win32' else ':'
-            env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
-        result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder)
-        txt = result.stdout.decode(encoding="utf8", errors="ignore")
-        debug(f'Extension installer: file="{path_installer}" {txt}')
-        if result.returncode != 0:
-            errors.append(f'ext: {os.path.basename(folder)}')
-            if len(result.stderr) > 0:
-                txt = txt + '\n' + result.stderr.decode(encoding="utf8", errors="ignore")
-            log.error(f'Extension installer error: {path_installer}')
-            log.debug(txt)
+        is_builtin = 'extensions-builtin' in folder
+        log.debug(f'Extension installer: builtin={is_builtin} file="{path_installer}"')
+        if is_builtin:
+            module_spec = importlib.util.spec_from_file_location(os.path.basename(folder), path_installer)
+            module = importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(module)
+        else:
+            env = os.environ.copy()
+            env['PYTHONPATH'] = os.path.abspath(".")
+            if os.environ.get('PYTHONPATH', None) is not None:
+                seperator = ';' if sys.platform == 'win32' else ':'
+                env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
+            result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder)
+            txt = result.stdout.decode(encoding="utf8", errors="ignore")
+            debug(f'Extension installer: file="{path_installer}" {txt}')
+            if result.returncode != 0:
+                errors.append(f'ext: {os.path.basename(folder)}')
+                if len(result.stderr) > 0:
+                    txt = txt + '\n' + result.stderr.decode(encoding="utf8", errors="ignore")
+                log.error(f'Extension installer error: {path_installer}')
+                log.debug(txt)
     except Exception as e:
         log.error(f'Extension installer exception: {e}')
 
@@ -1010,7 +1018,6 @@ def list_extensions_folder(folder, quiet=False):
 
 # run installer for each installed and enabled extension and optionally update them
 def install_extensions(force=False):
-    t_start = time.time()
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1020,6 +1027,7 @@ def install_extensions(force=False):
     from modules.paths import extensions_builtin_dir, extensions_dir
     extensions_duplicates = []
     extensions_enabled = []
+    extensions_disabled = [e.lower() for e in opts.get('disabled_extensions', [])]
     extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     res = []
     for folder in extension_folders:
@@ -1028,6 +1036,9 @@ def install_extensions(force=False):
         extensions = list_extensions_folder(folder, quiet=True)
         log.debug(f'Extensions all: {extensions}')
         for ext in extensions:
+            if os.path.basename(ext).lower() in extensions_disabled:
+                continue
+            t_start = time.time()
             if ext in extensions_enabled:
                 extensions_duplicates.append(ext)
                 continue
@@ -1053,13 +1064,14 @@ def install_extensions(force=False):
                     log.info(f'Extension installed packages: {ext} {diff}')
             except Exception as e:
                 log.error(f'Extension installed unknown package: {e}')
+            ts(ext, t_start)
     log.info(f'Extensions enabled: {extensions_enabled}')
     if len(extensions_duplicates) > 0:
         log.warning(f'Extensions duplicates: {extensions_duplicates}')
     if args.profile:
         pr.disable()
         print_profile(pr, 'Extensions')
-    ts('extensions', t_start)
+    # ts('extensions', t_start)
     return '\n'.join(res)
 
 
@@ -1163,7 +1175,7 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic', '1.10.21')
-    install('nncf==2.16.0', ignore=True) # requires older pandas
+    install('nncf==2.16.0', ignore=True)
     install('gguf', ignore=True)
     install('av', ignore=True)
     try:
