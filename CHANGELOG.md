@@ -6,6 +6,7 @@
   - NNCF: Faster quantization  
   - Prompt Enhancer: support for *img2img* workflows  
     where prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
+  - FramePack: improve LoRA compatibility  
 - **API**  
   - add `/sdapi/v1/framepack` endpoint with full support for FramePack including all optional settings  
     see example: `sd-extension-framepack/create-video.py`  

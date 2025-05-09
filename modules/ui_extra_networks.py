@@ -411,7 +411,6 @@ class ExtraNetworksPage:
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
-
     def find_description(self, path, info=None):
         t0 = time.time()
         class HTMLFilter(HTMLParser):
