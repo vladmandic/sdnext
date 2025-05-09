@@ -1281,9 +1281,13 @@ mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
 if devices.backend == "directml":
     directml_do_hijack()
-elif devices.backend == "zluda":
-    from modules.zluda import initialize_zluda
-    initialize_zluda()
+elif sys.platform == "win32" and (devices.backend == "zluda" or devices.backend == "rocm"):
+    from modules.rocm_triton_windows import apply_triton_patches
+    apply_triton_patches()
+
+    if devices.backend == "zluda":
+        from modules.zluda import initialize_zluda
+        initialize_zluda()
 try:
     log.info(f'Device: {print_dict(devices.get_gpu_info())}')
 except Exception as ex:
