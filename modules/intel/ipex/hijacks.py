@@ -217,13 +217,13 @@ def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
                 dtype = torch.float32
     return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
 
-original_Tensor_to = torch.Tensor.to
+torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
     if check_cuda(device):
-        return original_Tensor_to(self, return_xpu(device), *args, **kwargs)
+        return self.original_Tensor_to(return_xpu(device), *args, **kwargs)
     else:
-        return original_Tensor_to(self, device, *args, **kwargs)
+        return self.original_Tensor_to(device, *args, **kwargs)
 
 original_Tensor_cuda = torch.Tensor.cuda
 @wraps(torch.Tensor.cuda)

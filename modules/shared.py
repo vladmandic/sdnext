@@ -550,6 +550,7 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "nncf_quantize_mode": OptionInfo("INT8", "OpenVINO activations mode", gr.Dropdown, {"choices": ['INT8', 'FP8_E4M3', 'FP8_E5M2'], "visible": cmd_opts.use_openvino}),
     "nncf_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
     "nncf_decompress_fp32": OptionInfo(False, "Decompress using full precision", gr.Checkbox, {"visible": native}),
+    "nncf_decompress_compile": OptionInfo(False, "Decompress using torch.compile", gr.Checkbox, {"visible": native}),
     "nncf_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox, {"visible": native}),
 
     "layerwise_quantization_sep": OptionInfo("<h2>Layerwise Casting</h2>", "", gr.HTML),
@@ -606,7 +607,7 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
 
     "teacache_sep": OptionInfo("<h2>TeaCache</h2>", "", gr.HTML),
     "teacache_enabled": OptionInfo(False, "TC cache enabled"),
-    "teacache_thresh": OptionInfo(0.1, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
+    "teacache_thresh": OptionInfo(0.15, "TC L1 threshold", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
 
     "hypertile_sep": OptionInfo("<h2>HyperTile</h2>", "", gr.HTML),
     "hypertile_unet_enabled": OptionInfo(False, "UNet Enabled"),
@@ -1281,9 +1282,13 @@ mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
 if devices.backend == "directml":
     directml_do_hijack()
-elif devices.backend == "zluda":
-    from modules.zluda import initialize_zluda
-    initialize_zluda()
+elif sys.platform == "win32" and (devices.backend == "zluda" or devices.backend == "rocm"):
+    from modules.rocm_triton_windows import apply_triton_patches
+    apply_triton_patches()
+
+    if devices.backend == "zluda":
+        from modules.zluda import initialize_zluda
+        initialize_zluda()
 try:
     log.info(f'Device: {print_dict(devices.get_gpu_info())}')
 except Exception as ex:
