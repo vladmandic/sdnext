@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-08
+## Update for 2025-05-09
 
 - **Features**
   - NNCF: Faster quantization  
@@ -23,6 +23,7 @@
   - LoRA: legacy handler enable/disable  
   - LoRA: force clear-cache on model unload  
   - ADetailer: fix enable/disable  
+  - ZLUDA: improve compatibility with older GPUs  
 
 ## Update for 2025-05-06
 
