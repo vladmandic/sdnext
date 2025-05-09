@@ -352,32 +352,18 @@ class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self
 
 # WeightsDecompressor classes and functions are modified from NNCF 2.16.0
 
-def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor) -> torch.Tensor:
-    input = input.to(dtype=scale.dtype)
-    decompressed_input = (input - zero_point) * scale
-    return decompressed_input
+def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+    return torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1).reshape(shape)
 
 
-def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
-    input = input.to(dtype=scale.dtype)
-    decompressed_input = input * scale
-    return decompressed_input
-
-
-def unpack_uint4(packed_tensor: torch.Tensor) -> torch.Tensor:
-    return torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1)
-
-
-def unpack_int4(packed_tensor: torch.Tensor, dtype: Optional[torch.dtype] = torch.int8) -> torch.Tensor:
-    t = unpack_uint4(packed_tensor)
-    return t.to(dtype=dtype) - 8
+def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[torch.dtype] = torch.int8) -> torch.Tensor:
+    return unpack_uint4(packed_tensor, shape).to(dtype=dtype) - 8
 
 
 def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.dtype != torch.uint8:
         raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
-    packed_tensor = tensor.contiguous()
-    packed_tensor = packed_tensor.reshape(-1, 2)
+    packed_tensor = tensor.contiguous().reshape(-1, 2)
     packed_tensor = torch.bitwise_and(packed_tensor[..., ::2], 15) | packed_tensor[..., 1::2] << 4
     return packed_tensor
 
@@ -387,6 +373,30 @@ def pack_int4(tensor: torch.Tensor) -> torch.Tensor:
         raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.int8 type is supported.")
     tensor = tensor + 8
     return pack_uint4(tensor.to(dtype=torch.uint8))
+
+
+def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    return torch.mul(torch.sub(input.to(dtype=scale.dtype), zero_point), scale).to(dtype=dtype)
+
+
+def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    return torch.mul(input.to(dtype=scale.dtype), scale).to(dtype=dtype)
+
+
+def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype) -> torch.Tensor:
+    return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype)
+
+
+def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_dtype: torch.dtype) -> torch.Tensor:
+    return decompress_symmetric(unpack_int4(input, shape, dtype=dtype), scale, result_dtype)
+
+
+if shared.opts.nncf_decompress_compile:
+    torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
+    decompress_asymmetric = torch.compile(decompress_asymmetric, fullgraph=True)
+    decompress_symmetric = torch.compile(decompress_symmetric, fullgraph=True)
+    decompress_int4_asymmetric = torch.compile(decompress_int4_asymmetric, fullgraph=True)
+    decompress_int4_symmetric = torch.compile(decompress_int4_symmetric, fullgraph=True)
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -411,8 +421,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         return weight.to(dtype=torch.uint8)
 
     def forward(self, x, *args, return_decompressed_only=False):
-        result = decompress_asymmetric(x.weight, self.scale, self.zero_point)
-        result = result.to(dtype=self.result_dtype)
+        result = decompress_asymmetric(x.weight, self.scale, self.zero_point, self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -440,9 +449,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         return weight.to(dtype=torch.int8)
 
     def forward(self, x, *args, return_decompressed_only=False):
-        result = decompress_symmetric(x.weight, self.scale)
-        result = result.to(dtype=self.result_dtype)
-
+        result = decompress_symmetric(x.weight, self.scale, self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -478,12 +485,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         return pack_uint4(weight.to(dtype=torch.uint8))
 
     def forward(self, x, *args, return_decompressed_only=False):
-        result = unpack_uint4(x.weight)
-        result = result.reshape(self.compressed_weight_shape)
-
-        result = decompress_asymmetric(result, self.scale, self.zero_point)
-        result = result.to(dtype=self.result_dtype)
-
+        result = decompress_int4_asymmetric(x.weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype)
         if return_decompressed_only:
             return result
         else:
@@ -517,12 +519,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         return pack_int4(weight.to(dtype=torch.int8))
 
     def forward(self, x, *arg, return_decompressed_only=False):
-        result = unpack_int4(x.weight, dtype=self.scale.dtype)
-        result = result.reshape(self.compressed_weight_shape)
-
-        result = decompress_symmetric(result, self.scale)
-        result = result.to(dtype=self.result_dtype)
-
+        result = decompress_int4_symmetric(x.weight, self.scale, self.compressed_weight_shape, self.scale.dtype, self.result_dtype)
         if return_decompressed_only:
             return result
         else:
