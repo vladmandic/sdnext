@@ -550,7 +550,7 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "nncf_quantize_mode": OptionInfo("INT8", "OpenVINO activations mode", gr.Dropdown, {"choices": ['INT8', 'FP8_E4M3', 'FP8_E5M2'], "visible": cmd_opts.use_openvino}),
     "nncf_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
     "nncf_decompress_fp32": OptionInfo(False, "Decompress using full precision", gr.Checkbox, {"visible": native}),
-    "nncf_decompress_compile": OptionInfo(False, "Decompress using torch.compile", gr.Checkbox, {"visible": native}),
+    "nncf_decompress_compile": OptionInfo(devices.has_triton(), "Decompress using torch.compile", gr.Checkbox, {"visible": native}),
     "nncf_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox, {"visible": native}),
 
     "layerwise_quantization_sep": OptionInfo("<h2>Layerwise Casting</h2>", "", gr.HTML),

@@ -58,6 +58,14 @@ def has_zluda() -> bool:
         return False
 
 
+def has_triton() -> bool:
+    try:
+        from torch.utils._triton import has_triton as torch_has_triton
+        return torch_has_triton()
+    except Exception:
+        return False
+
+
 def get_backend(shared_cmd_opts):
     global args # pylint: disable=global-statement
     args = shared_cmd_opts
