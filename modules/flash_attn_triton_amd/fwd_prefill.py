@@ -219,7 +219,7 @@ autotune_configs, autotune_keys = get_autotune_configs()
 @triton.autotune(
     configs=autotune_configs,
     key=autotune_keys,
-    use_cuda_graph=True,
+    # use_cuda_graph=True,
 )
 @triton.jit
 def attn_fwd(Q, K, V, bias, Cache_seqlens, Cache_batch_idx, # pylint: disable=unused-argument
