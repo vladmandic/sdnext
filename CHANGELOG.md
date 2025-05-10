@@ -2,23 +2,34 @@
 
 ## Update for 2025-05-10
 
-- **NNCF**  
-  - Faster quantization  
-  - Faster inference with support for `torch.triton`  
-    up to 3.5x faster with INT4 and 2x faster with INT8  
-- **Other**  
+- **Compute**
+  - **NNCF**  
+    - Faster quantization  
+    - Faster inference with support for `torch.triton`  
+      up to 3.5x faster with INT4 and 2x faster with INT8  
+  - **ZLUDA**:
+    - *warning*: AMD Adrenaline 25.5.1 drivers are NOT COMPATIBLE with ZLUDA
+      see [issue](https://github.com/vladmandic/sdnext/issues/3918) for details
+  - **ROCm**
+    - first working builds of **Torch with ROCm on Windows**  
+      highly experimental  
+      reach out on Discord if you want to test it  
+- **Features**
   - Prompt Enhancer: support for *img2img* workflows  
     where prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
   - FramePack: improve LoRA compatibility  
-- **API**  
-  - add `/sdapi/v1/framepack` endpoint with full support for FramePack including all optional settings  
-    see example: `sd-extension-framepack/create-video.py`  
-  - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
-    see example: `cli/api-checkpoint.py`  
-  - add `/sdapi/v1/prompt-enhance` endpoint to enhance prompt using LLM  
-    see example: `cli/api-enhance.py`  
-    supports text, image and video prompts with or without input image  
-    *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
+  - **UI**
+    - ModernUI: support for History tab  
+    - ModernUI: support for FramePack tab  
+  - **API**  
+    - add `/sdapi/v1/framepack` endpoint with full support for FramePack including all optional settings  
+      see example: `sd-extension-framepack/create-video.py`  
+    - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
+      see example: `cli/api-checkpoint.py`  
+    - add `/sdapi/v1/prompt-enhance` endpoint to enhance prompt using LLM  
+      see example: `cli/api-enhance.py`  
+      supports text, image and video prompts with or without input image  
+      *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
 - **Fixes**
   - ROCm: disable cuDNN benchmark, fixes slow MIOpen tuning with `torch==2.7`  
   - Extensions: use in-process installer for extensions-builtin, improves startup performance  

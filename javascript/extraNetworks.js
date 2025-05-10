@@ -6,10 +6,17 @@ let totalCards = -1;
 
 const getENActiveTab = () => {
   let tabName = '';
+  if (gradioApp().getElementById('txt2img_prompt').checkVisibility()) return 'txt2img';
+  if (gradioApp().getElementById('img2img_prompt').checkVisibility()) return 'img2img';
+  if (gradioApp().getElementById('control_prompt').checkVisibility()) return 'control';
+  if (gradioApp().getElementById('video_prompt').checkVisibility()) return 'video';
+  if (gradioApp().getElementById('framepack_prompt_row').checkVisibility()) return 'framepack';
+  // legacy method
   if (gradioApp().getElementById('tab_txt2img').style.display === 'block') tabName = 'txt2img';
   else if (gradioApp().getElementById('tab_img2img').style.display === 'block') tabName = 'img2img';
   else if (gradioApp().getElementById('tab_control').style.display === 'block') tabName = 'control';
   else if (gradioApp().getElementById('tab_video').style.display === 'block') tabName = 'video';
+  else if (gradioApp().getElementById('tab_framepack_tab').style.display === 'block') tabName = 'framepack';
   // log('getENActiveTab', tabName);
   return tabName;
 };
@@ -31,8 +38,10 @@ const setENState = (state) => {
   state.page = getENActivePage();
   // log('setENState', state);
   const el = gradioApp().querySelector(`#${state.tab}_extra_state  > label > textarea`);
-  el.value = JSON.stringify(state);
-  updateInput(el);
+  if (el) {
+    el.value = JSON.stringify(state);
+    updateInput(el);
+  }
 };
 
 // methods
@@ -90,9 +99,11 @@ function readCardDescription(page, item) {
   xhrGet('/sd_extra_networks/description', { page, item }, (data) => {
     const tabname = getENActiveTab();
     const description = gradioApp().querySelector(`#${tabname}_description > label > textarea`);
-    description.value = data?.description?.trim() || '';
-    // description.focus();
-    updateInput(description);
+    if (description) {
+      description.value = data?.description?.trim() || '';
+      // description.focus();
+      updateInput(description);
+    }
     setENState({ op: 'readCardDescription', page, item });
   });
 }
@@ -232,6 +243,7 @@ function refreshENInput(tabname) {
 function cardClicked(textToAdd, allowNegativePrompt) {
   // log('cardClicked', textToAdd, allowNegativePrompt);
   const tabname = getENActiveTab();
+  log('cardClicked', tabname, textToAdd);
   const textarea = allowNegativePrompt ? activePromptTextarea[tabname] : gradioApp().querySelector(`#${tabname}_prompt > label > textarea`);
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
   else textarea.value += textToAdd;
