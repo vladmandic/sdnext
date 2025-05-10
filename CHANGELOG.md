@@ -1,9 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-09
+## Update for 2025-05-10
 
-- **Features**
-  - NNCF: Faster quantization  
+- **NNCF**  
+  - Faster quantization  
+  - Faster inference with support for `torch.triton`  
+    up to 3.5x faster with INT4 and 2x faster with INT8  
+- **Other**  
   - Prompt Enhancer: support for *img2img* workflows  
     where prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
   - FramePack: improve LoRA compatibility  

@@ -4,9 +4,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)
+- [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)
 - Video: API support  
-- ModernUI for custom model loader  
-- ModernUI for history tab  
+- ModernUI for Custom model loader  
+- ModernUI for History tab  
+- ModernUI for FramePack
 
 ### Issues/Limitations
 
