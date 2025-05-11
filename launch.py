@@ -306,12 +306,10 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        t_timestamp = 'none'
-        if float(args.status) > 0 and t_current - t_server > float(args.status):
+        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
             s = instance.state.status()
-            if s.timestamp is None or s.timestamp != t_timestamp: # dont spam during active job
-                installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
-                t_timestamp = s.timestamp
+            if (s.timestamp is None) or (s.step == 0): # dont spam during active job
+                installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
         if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
             installer.log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
@@ -325,7 +323,7 @@ def main():
             else:
                 installer.log.info('Exiting...')
                 break
-        time.sleep(1)
+        time.sleep(1.0)
 
 
 if __name__ == "__main__":

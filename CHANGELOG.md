@@ -16,8 +16,10 @@
       reach out on Discord if you want to test it  
 - **Features**
   - Prompt Enhancer: support for *img2img* workflows  
-    where prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
-  - FramePack: improve LoRA compatibility  
+    in img2img prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
+  - **FramePack**
+    - improve LoRA compatibility  
+    - add metadata to video  
   - **UI**
     - ModernUI: support for History tab  
     - ModernUI: support for FramePack tab  
