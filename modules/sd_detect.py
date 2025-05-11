@@ -40,7 +40,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                     guess = 'Stable Diffusion XL Refiner'
                 elif (size > 5692 and size < 5698) or (size > 4134 and size < 4138) or (size > 10362 and size < 10366) or (size > 15028 and size < 15228):
                     guess = 'Stable Diffusion 3'
-                elif (size >= 6611 and size <= 7220): # 6617, HassakuXL is 6776, monkrenRealisticINT_v10 is 7217
+                elif (size >= 6420 and size <= 7220): # 6420, IustriousRedux is 6541, monkrenRealisticINT_v10 is 7217
                     guess = 'Stable Diffusion XL'
                 elif (size >= 9791 and size <= 9799): # 9794
                     guess = 'Stable Diffusion XL Instruct'
