@@ -62,21 +62,26 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             reduction_axes = [i for i in range(layer.weight.ndim) if i != 1]
         else:
             reduction_axes = -1
-            if shared.opts.nncf_compress_weights_num_of_groups > 1 or num_bits == 4:
-                num_of_groups = shared.opts.nncf_compress_weights_num_of_groups
+            if shared.opts.nncf_compress_weights_group_size > 0 or (num_bits == 4 and shared.opts.nncf_compress_weights_group_size != -1):
+                group_size = shared.opts.nncf_compress_weights_group_size
                 channel_size = layer.weight.shape[-1]
 
-                if num_of_groups > channel_size:
-                    group_size = 1
-                    num_of_groups = channel_size
-                elif num_of_groups == 0:
-                    group_size = 128
+                if group_size == 0:
+                    group_size = 64
                     num_of_groups = channel_size // group_size
+
+                if group_size >= channel_size:
+                    group_size = channel_size
+                    num_of_groups = 1
                 else:
-                    group_size = channel_size / num_of_groups
-                while channel_size % group_size != 0: # find something divisible
-                    num_of_groups -= 1
-                    group_size = channel_size / num_of_groups
+                    num_of_groups = channel_size // group_size
+                    while channel_size % group_size != 0: # find something divisible
+                        num_of_groups -= 1
+                        if num_of_groups <= 1:
+                            group_size = channel_size
+                            num_of_groups = 1
+                            break
+                        group_size = channel_size / num_of_groups
 
                 if num_of_groups > 1:
                     result_shape = layer.weight.shape
