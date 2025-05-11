@@ -95,10 +95,11 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             eps = torch.finfo(scale.dtype).eps
 
             scale = torch.where(torch.abs(scale) < eps, eps, scale)
-            zero_point = level_low - torch.round(min_values / scale)
+            zero_point = (level_low - (min_values / scale)).to(dtype=torch.float32)
+
             #this is for packing zero_point to int:
+            #zero_point = level_low - torch.round(min_values / scale)
             #zero_point = torch.clip(zero_point.to(dtype=torch.int32), level_low, level_high)
-            zero_point = zero_point.to(dtype=torch.float32)
         else:
             factor = 2 ** (num_bits - 1)
 
