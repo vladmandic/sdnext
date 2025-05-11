@@ -81,8 +81,8 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             t0 = time.time()
             if self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
                 return_device = self.weight.data.device
-                self.weight.data = self.weight.data.to(devices.device) # pre_ops are always in devices.device
-                weight = self.pre_ops["0"](self, return_decompressed_only=True).to(devices.device)
+                self.weight.data = self.weight.data.to(devices.device)
+                weight = self.pre_ops["0"].to(devices.device)(self, return_decompressed_only=True)
                 self.weight.data = self.weight.data.to(return_device)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
@@ -218,7 +218,7 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
             if hasattr(self, "nncf_decompressor_backup"):
-                self.pre_ops["0"] = self.nncf_decompressor_backup.to(devices.device) # model.to doesn't move pre_ops, send them here
+                self.pre_ops["0"] = self.nncf_decompressor_backup.to(device)
 
     if bias_backup is not None:
         self.bias = None

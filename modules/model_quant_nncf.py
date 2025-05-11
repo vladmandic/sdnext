@@ -281,7 +281,6 @@ class NNCFQuantizer(DiffusersQuantizer):
             model, _ = replace_modules_by_nncf_modules(model)
 
     def _process_model_after_weight_loading(self, model, **kwargs):
-        nncf_send_to_device(model, devices.device)
         return model
 
     def update_tp_plan(self, config):
