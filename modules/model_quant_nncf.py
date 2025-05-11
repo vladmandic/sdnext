@@ -61,10 +61,10 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                 return layer
             reduction_axes = [i for i in range(layer.weight.ndim) if i != 1]
         else:
+            reduction_axes = -1
             if shared.opts.nncf_compress_weights_num_of_groups > 1:
                 num_of_groups = shared.opts.nncf_compress_weights_num_of_groups
-                reduction_axes = layer.weight.ndim - 1
-                channel_size = layer.weight.shape[reduction_axes]
+                channel_size = layer.weight.shape[-1]
 
                 group_size = channel_size // num_of_groups
                 while channel_size % group_size != 0: # find something divisible
@@ -74,10 +74,9 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                 if num_of_groups > 1:
                     result_shape = layer.weight.shape
                     new_shape = list(result_shape)
-                    new_shape[reduction_axes : reduction_axes + 1] = (num_of_groups, group_size)
+                    last_dim_index = layer.weight.ndim
+                    new_shape[last_dim_index - 1 : last_dim_index] = (num_of_groups, group_size)
                     layer.weight.data = layer.weight.reshape(new_shape)
-
-            reduction_axes = [layer.weight.ndim - 1]
 
         if shared.opts.diffusers_offload_mode != "none":
             return_device = layer.weight.data.device
