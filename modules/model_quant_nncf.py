@@ -66,16 +66,16 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                 num_of_groups = shared.opts.nncf_compress_weights_num_of_groups
                 channel_size = layer.weight.shape[-1]
 
-                group_size = channel_size // num_of_groups
+                group_size = channel_size / num_of_groups
                 while channel_size % group_size != 0: # find something divisible
                     num_of_groups -= 1
-                    group_size = channel_size // num_of_groups
+                    group_size = channel_size / num_of_groups
 
                 if num_of_groups > 1:
                     result_shape = layer.weight.shape
                     new_shape = list(result_shape)
                     last_dim_index = layer.weight.ndim
-                    new_shape[last_dim_index - 1 : last_dim_index] = (num_of_groups, group_size)
+                    new_shape[last_dim_index - 1 : last_dim_index] = (int(num_of_groups), int(group_size))
                     layer.weight.data = layer.weight.reshape(new_shape)
 
         if shared.opts.diffusers_offload_mode != "none":
