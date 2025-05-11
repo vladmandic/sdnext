@@ -2,6 +2,18 @@
 
 ## Update for 2025-05-11
 
+### Highlights for 2025-05-11
+
+First of all NNCF quantization engine has gone through some major enhancements and its now much faster, both in quantization as well as actual inference!
+And its a only truly cross-platform solution for quantization as all other methods are platform specific.
+
+*Note* if you're a ZLUDA user, see notes on GPU driver compatibility as recent Andrenaline drivers do cause problems!  
+And if you're a ROCm user, this release brings much faster compile times on Linux as well as first (experimental) builds for Windows!
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-05-11
+
 - **Compute**
   - **NNCF**  
     - Faster quantization  
