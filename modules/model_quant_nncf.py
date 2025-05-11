@@ -66,7 +66,10 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                 num_of_groups = shared.opts.nncf_compress_weights_num_of_groups
                 channel_size = layer.weight.shape[-1]
 
-                if num_of_groups == 0:
+                if num_of_groups > channel_size:
+                    group_size = 1
+                    num_of_groups = channel_size
+                elif num_of_groups == 0:
                     group_size = 128
                     num_of_groups = channel_size // group_size
                 else:
