@@ -48,6 +48,7 @@ And if you're a ROCm user, this release brings much faster compile times on Linu
       supports text, image and video prompts with or without input image  
       *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
 - **Fixes**
+  - Latent Diffusion Upscale
   - Model load: support SDXL safetensors packaged without VAE  
   - ROCm: disable cuDNN benchmark, fixes slow MIOpen tuning with `torch==2.7`  
   - Extensions: use in-process installer for extensions-builtin, improves startup performance  

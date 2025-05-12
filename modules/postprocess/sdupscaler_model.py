@@ -55,7 +55,7 @@ class UpscalerDiffusion(Upscaler):
             'prompt': '',
             'negative_prompt': '',
             'image': img,
-            'num_inference_steps': 20,
+            'num_inference_steps': shared.opts.upscaler_latent_steps,
             'guidance_scale': 7.5,
             'generator': generator,
             'latents': None,
