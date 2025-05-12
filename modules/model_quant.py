@@ -118,7 +118,11 @@ def create_nncf_config(kwargs = None, allow_nncf: bool = True, module: str = 'Mo
             diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["nncf"] = NNCFConfig
             transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["nncf"] = NNCFConfig
 
-            nncf_config = NNCFConfig(weights_dtype=shared.opts.nncf_compress_weights_mode.lower())
+            nncf_config = NNCFConfig(
+                weights_dtype=shared.opts.nncf_compress_weights_mode.lower(),
+                group_size=shared.opts.nncf_compress_weights_group_size,
+                use_int8_matmul=shared.opts.nncf_decompress_int8_matmul,
+            )
             log.debug(f'Quantization: module="{module}" type=nncf dtype={shared.opts.nncf_compress_weights_mode}')
             if kwargs is None:
                 return nncf_config
