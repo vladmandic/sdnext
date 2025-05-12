@@ -20,7 +20,8 @@ And if you're a ROCm user, this release brings much faster compile times on Linu
     - Faster inference with support for `torch.triton`  
       up to 3.5x faster with INT4 and 2x faster with INT8  
     - New settings: *NNCF -> Group size*  
-      default is a balance between performance (lower settings) and quality (larger setting)  
+      default is a balance between performance (higher size) and quality (lower size)  
+      0 is default at 64, -1 disables grouping  
   - **ZLUDA**:
     - *warning*: AMD Adrenaline 25.5.1 drivers are NOT COMPATIBLE with ZLUDA
       see [issue](https://github.com/vladmandic/sdnext/issues/3918) for details
