@@ -268,6 +268,11 @@ def load_nncf(msg='', silent=False):
     try:
         import nncf
         intel_nncf = nncf
+        try:
+            # silence the pytorch version warning
+            nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+        except Exception:
+            pass
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         log.debug(f'Quantization: type=nncf version={nncf.__version__} fn={fn}') # pylint: disable=protected-access
         return intel_nncf
@@ -322,13 +327,13 @@ def apply_layerwise(sd_model, quiet:bool=False):
             log.error(f'Quantization: type=layerwise {e}')
 
 
-def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_gc=True):
+def nncf_compress_model(model, op=None, sd_model=None, do_gc=True):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared
     from accelerate import init_empty_weights
 
     load_nncf('Quantize model: type=NNCF')
-    from modules.model_quant_nncf import apply_nncf_to_module, nncf_send_to_device
+    from modules.model_quant_nncf import apply_nncf_to_module
     from nncf.torch.nncf_module_replacement import replace_modules_by_nncf_modules # get around lazy import
 
     model.eval()
@@ -353,8 +358,6 @@ def nncf_compress_model(model, op=None, sd_model=None, send_to_device=True, do_g
     is_asym_mode = shared.opts.nncf_compress_weights_mode in {"INT8", "INT4", "INT8_ASYM", "INT4_ASYM"}
     model = apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=shared.opts.nncf_quantize_conv_layers)
     model.quantization_method = 'NNCF'
-    if send_to_device:
-        nncf_send_to_device(model, devices.device)
 
     if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:
         model.set_input_embeddings(backup_embeddings)

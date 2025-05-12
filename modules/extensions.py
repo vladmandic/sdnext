@@ -150,8 +150,11 @@ def list_extensions():
                 continue
             extension_names.append(extension_dirname)
             extension_paths.append((extension_dirname, path, dirname == extensions_builtin_dir))
-    disabled_extensions = shared.opts.disabled_extensions + shared.temp_disable_extensions()
+    if shared.opts.theme_type == 'Modern' and 'sdnext-modernui' in shared.opts.disabled_extensions:
+        shared.opts.disabled_extensions.remove('sdnext-modernui')
+    disabled_extensions = [e.lower() for e in shared.opts.disabled_extensions + shared.temp_disable_extensions()]
     for dirname, path, is_builtin in extension_paths:
-        extension = Extension(name=dirname, path=path, enabled=dirname not in disabled_extensions, is_builtin=is_builtin)
+        enabled = dirname.lower() not in disabled_extensions
+        extension = Extension(name=dirname, path=path, enabled=enabled, is_builtin=is_builtin)
         extensions.append(extension)
     shared.log.debug(f'Extensions: disabled={[e.name for e in extensions if not e.enabled]}')

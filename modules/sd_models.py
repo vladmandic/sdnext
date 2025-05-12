@@ -1086,6 +1086,7 @@ def clear_caches():
 
 
 def unload_model_weights(op='model'):
+    clear_caches()
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()

@@ -25,10 +25,12 @@ skip_install = False # parsed by some extensions
 
 
 try:
-    from modules.timer import launch
+    from modules.timer import launch, init
     rec = launch.record
+    init_summary = init.summary
 except Exception:
     rec = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
+    init_summary = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
 
 
 def init_args():
@@ -290,6 +292,7 @@ def main():
                 installer.log.warning(f'See log file for more details: {installer.log_file}')
     installer.extensions_preload(parser) # adds additional args from extensions
     args = installer.parse_args(parser)
+    installer.log.info(f'Installer time: {init_summary()}')
     get_custom_args()
 
     uv, instance = start_server(immediate=True, server=None)
@@ -303,8 +306,10 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if float(args.status) > 0 and t_current - t_server > float(args.status):
-            installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
+        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
+            s = instance.state.status()
+            if (s.timestamp is None) or (s.step == 0): # dont spam during active job
+                installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
         if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
             installer.log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
@@ -318,7 +323,7 @@ def main():
             else:
                 installer.log.info('Exiting...')
                 break
-        time.sleep(1)
+        time.sleep(1.0)
 
 
 if __name__ == "__main__":

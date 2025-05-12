@@ -38,7 +38,7 @@ def select(evt: gr.SelectData, _data):
 
 def create_ui():
     with gr.Row():
-        btn_refresh = gr.Button("Refresh")
+        btn_refresh = gr.Button("Refresh", elem_id='btn_history_refresh')
     with gr.Row():
         history_table = gr.DataFrame(
             value=None,
@@ -49,8 +49,13 @@ def create_ui():
             wrap=True,
             overflow_row_behaviour='paginate',
             max_rows=50,
+            elem_id='history_table',
         )
     with gr.Row():
-        history_files = gr.Files(label="Task files", interactive=False)
+        history_files = gr.Files(
+            label="Task files",
+            interactive=False,
+            elem_id='history_files',
+        )
     btn_refresh.click(fn=refresh, inputs=[], outputs=[history_table])
     history_table.select(fn=select, inputs=[history_table], outputs=[history_files])

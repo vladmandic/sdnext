@@ -38,8 +38,8 @@ vlm_models = {
     "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
     "ToriiGate 0.4 7B": "Minthy/ToriiGate-v0.4-7B",
     "ViLT Base": "dandelin/vilt-b32-finetuned-vqa", # 0.5GB
-    "JoyCaption": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 0.7GB
-    "JoyTag": "fancyfeast/joytag", # 17.4GB
+    "JoyCaption": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
+    "JoyTag": "fancyfeast/joytag", # 0.7GB
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
     "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
@@ -527,10 +527,11 @@ def sa2(question: str, image: Image.Image, repo: str = None):
     return response
 
 
-def interrogate(question, system_prompt, prompt, image, model_name, quiet:bool=False):
+def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:Image.Image=None, model_name:str=None, quiet:bool=False):
     if not quiet:
         shared.state.begin('Interrogate')
     t0 = time.time()
+    model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
     if isinstance(image, dict) and 'name' in image:

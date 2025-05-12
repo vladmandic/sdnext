@@ -65,6 +65,7 @@ class Api:
         self.add_api_route("/sdapi/v1/preprocess", self.process.post_preprocess, methods=["POST"])
         self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"])
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"])
+        self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance)
 
         # api dealing with optional scripts
         self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts)
@@ -89,6 +90,7 @@ class Api:
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo)
         self.add_api_route("/sdapi/v1/interrogate", endpoints.post_interrogate, methods=["POST"])
         self.add_api_route("/sdapi/v1/vqa", endpoints.post_vqa, methods=["POST"])
+        self.add_api_route("/sdapi/v1/checkpoint", endpoints.get_checkpoint, methods=["GET"])
         self.add_api_route("/sdapi/v1/refresh-checkpoints", endpoints.post_refresh_checkpoints, methods=["POST"])
         self.add_api_route("/sdapi/v1/unload-checkpoint", endpoints.post_unload_checkpoint, methods=["POST"])
         self.add_api_route("/sdapi/v1/reload-checkpoint", endpoints.post_reload_checkpoint, methods=["POST"])

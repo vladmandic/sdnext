@@ -32,9 +32,14 @@ try:
 except Exception:
     pass
 
+try:
+    # silence the pytorch version warning
+    nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+except Exception:
+    pass
 
 # Set default params
-torch._dynamo.config.cache_size_limit = 64 # pylint: disable=protected-access
+torch._dynamo.config.cache_size_limit = max(64, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
 torch._dynamo.eval_frame.check_if_dynamo_supported = lambda: True # pylint: disable=protected-access
 if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
     torch._dynamo.config.inline_inbuilt_nn_modules = False # pylint: disable=protected-access

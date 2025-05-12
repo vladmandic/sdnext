@@ -1,9 +1,13 @@
 from dataclasses import dataclass
+import io
 import os
 import re
 import time
-import gradio as gr
+import base64
+import torch
 import transformers
+import gradio as gr
+from PIL import Image
 from modules import scripts, shared, devices, errors, processing, sd_models, sd_modules
 
 
@@ -11,8 +15,23 @@ debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
 debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
+def b64(image):
+    if image is None:
+        return ''
+    if isinstance(image, gr.Image):
+        return None
+    with io.BytesIO() as stream:
+        image.convert('RGB').save(stream, 'JPEG')
+        values = stream.getvalue()
+        encoded = base64.b64encode(values).decode()
+        return encoded
+
+
 @dataclass
 class Options:
+    img2img = [
+        'google/gemma-3-4b-it',
+    ]
     models = {
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
@@ -46,9 +65,11 @@ class Options:
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
     }
-    default = list(models)[0]
+    default = list(models)[1] # gemma-3-4b-it
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
     system_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Do not modify subject or style of the original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing if no nudity, and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present, it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
+    image_prompt: str = 'You are a helpful assistant. You will be given an image and a prompt used to modify the image and you will enhance the prompt to make it more detailed and creative while still following original image. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Do not modify subject or style of the original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing if no nudity, and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present, it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
+    image_noprompt: str = 'You are a helpful assistant. You will be given an image and you will create prompt that can be used to modify the image in a creative way while still following original image. Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Do not modify subject or style of the original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing if no nudity, and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present, it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Output as a simple text without formatting or numbering.'
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
@@ -61,6 +82,7 @@ class Options:
 
 class Script(scripts.Script):
     prompt: gr.Textbox = None
+    image: gr.Image = None
     model: str = None
     llm: transformers.AutoModelForCausalLM = None
     tokenizer: transformers.AutoProcessor = None
@@ -124,11 +146,17 @@ class Script(scripts.Script):
                 **quant_args,
             )
             self.llm.eval()
-            self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            if model_repo in self.options.img2img:
+                cls = transformers.AutoProcessor # required to encode image
+            else:
+                cls = transformers.AutoTokenizer
+            self.tokenizer = cls.from_pretrained(
                 pretrained_model_name_or_path=model_repo,
                 subfolder=model_tokenizer,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.tokenizer.is_processor = model_repo in self.options.img2img
+
             if debug_enabled:
                 modules = sd_modules.get_model_stats(self.llm) + sd_modules.get_model_stats(self.tokenizer)
                 for m in modules:
@@ -202,12 +230,12 @@ class Script(scripts.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False):
+    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False, seed:int=-1, image=None):
         model = model or self.options.default
         prompt = prompt or self.prompt.value
+        image = image or self.image
         prefix = prefix or ''
         suffix = suffix or ''
-        system = system or self.options.system_prompt
         tokens = tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
         temperature = temperature or self.options.temperature
@@ -216,15 +244,66 @@ class Script(scripts.Script):
         while self.busy:
             time.sleep(0.1)
         self.load(model)
+        if seed is not None and seed >= 0:
+            torch.manual_seed(seed)
         if self.llm is None:
             shared.log.error('Prompt enhance: model not loaded')
             return prompt
         prompt, networks = self.extract(prompt)
         debug_log(f'Prompt enhance: networks={networks}')
-        chat_template = [
-            { "role": "system", "content": system },
-            { "role": "user",   "content": prompt },
-        ]
+        try:
+            if image is not None and isinstance(image, gr.Image):
+                image = image.value
+            if image is not None and (image.width <= 64 or image.height <= 64):
+                image = None
+        except Exception:
+            image = None
+        if image is not None and isinstance(image, Image.Image):
+            if not self.tokenizer.is_processor:
+                shared.log.error('Prompt enhance: image not supported by model')
+                return prompt
+            if prompt is not None and len(prompt) > 0:
+                mode = 'i2i+p'
+                system = system or self.options.image_prompt
+                chat_template = [
+                    { "role": "system", "content": [
+                        {"type": "text", "text": system }
+                    ] },
+                    { "role": "user",   "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image", "image": b64(image)}
+                    ] },
+                ]
+            else:
+                mode = 'i2i-p'
+                system = system or self.options.image_noprompt
+                chat_template = [
+                    { "role": "system", "content": [
+                        {"type": "text", "text": system }
+                    ] },
+                    { "role": "user",   "content": [
+                        {"type": "image", "image": b64(image)}
+                    ] },
+                ]
+        else:
+            system = system or self.options.system_prompt
+            if not self.tokenizer.is_processor:
+                mode = 't2i-t'
+                chat_template = [
+                    { "role": "system", "content": system },
+                    { "role": "user",   "content": prompt },
+                ]
+            else:
+                mode = 't2i+t'
+                chat_template = [
+                    { "role": "system", "content": [
+                        {"type": "text", "text": system }
+                    ] },
+                    { "role": "user",   "content": [
+                        {"type": "text", "text": prompt},
+                    ] },
+                ]
+
         t0 = time.time()
         self.busy = True
         try:
@@ -277,7 +356,7 @@ class Script(scripts.Script):
         if not is_censored:
             response = self.clean(response)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
+        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
         if debug_enabled:
             shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty} thinking={thinking}')
             shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
@@ -288,9 +367,10 @@ class Script(scripts.Script):
             return prompt
         return response
 
-    def apply(self, prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode):
         response = self.enhance(
             prompt=prompt,
+            image=image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
             model=llm_model,
@@ -367,15 +447,19 @@ class Script(scripts.Script):
                         clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
                         copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
                         copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode], outputs=[prompt_output, self.prompt])
-        return [apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode]
+            if self.image is None:
+                self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
+            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
             self.prompt = component
+        if getattr(component, 'elem_id', '') in ['img2img_image', 'control_input_select']:
+            self.image = component
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -387,6 +471,7 @@ class Script(scripts.Script):
         shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
+            image=self_image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
             model=llm_model,

@@ -58,6 +58,14 @@ def has_zluda() -> bool:
         return False
 
 
+def has_triton() -> bool:
+    try:
+        from torch.utils._triton import has_triton as torch_has_triton
+        return torch_has_triton()
+    except Exception:
+        return False
+
+
 def get_backend(shared_cmd_opts):
     global args # pylint: disable=global-statement
     args = shared_cmd_opts
@@ -395,10 +403,10 @@ def set_cudnn_params():
             torch.use_deterministic_algorithms(opts.cudnn_deterministic)
             if opts.cudnn_deterministic:
                 os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
-            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.benchmark = opts.cudnn_benchmark
             if opts.cudnn_benchmark:
                 log.debug('Torch cuDNN: enable benchmark')
-                torch.backends.cudnn.benchmark_limit = 0
+            torch.backends.cudnn.benchmark_limit = opts.cudnn_benchmark_limit
             torch.backends.cudnn.allow_tf32 = True
         except Exception as e:
             log.warning(f'Torch cudnn: {e}')
