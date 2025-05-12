@@ -251,11 +251,19 @@ class Script(scripts.Script):
             return prompt
         prompt, networks = self.extract(prompt)
         debug_log(f'Prompt enhance: networks={networks}')
+        try:
+            if image is not None and isinstance(image, gr.Image):
+                image = image.value
+            if image is not None and (image.width <= 64 or image.height <= 64):
+                image = None
+        except Exception:
+            image = None
         if image is not None and isinstance(image, Image.Image):
             if not self.tokenizer.is_processor:
                 shared.log.error('Prompt enhance: image not supported by model')
                 return prompt
             if prompt is not None and len(prompt) > 0:
+                mode = 'i2i+p'
                 system = system or self.options.image_prompt
                 chat_template = [
                     { "role": "system", "content": [
@@ -267,6 +275,7 @@ class Script(scripts.Script):
                     ] },
                 ]
             else:
+                mode = 'i2i-p'
                 system = system or self.options.image_noprompt
                 chat_template = [
                     { "role": "system", "content": [
@@ -279,11 +288,13 @@ class Script(scripts.Script):
         else:
             system = system or self.options.system_prompt
             if not self.tokenizer.is_processor:
+                mode = 't2i-t'
                 chat_template = [
                     { "role": "system", "content": system },
                     { "role": "user",   "content": prompt },
                 ]
             else:
+                mode = 't2i+t'
                 chat_template = [
                     { "role": "system", "content": [
                         {"type": "text", "text": system }
@@ -345,7 +356,7 @@ class Script(scripts.Script):
         if not is_censored:
             response = self.clean(response)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
+        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
         if debug_enabled:
             shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty} thinking={thinking}')
             shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
@@ -437,9 +448,9 @@ class Script(scripts.Script):
                         copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
                         copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
             if self.image is None:
-                self.image = gr.Image(type='pil', interactive=False, visible=False) # dummy image
+                self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
             apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode], outputs=[prompt_output, self.prompt])
-        return [apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode]
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -448,7 +459,7 @@ class Script(scripts.Script):
             self.image = component
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -460,6 +471,7 @@ class Script(scripts.Script):
         shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
+            image=self_image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
             model=llm_model,
