@@ -6,11 +6,11 @@ let totalCards = -1;
 
 const getENActiveTab = () => {
   let tabName = '';
-  if (gradioApp().getElementById('txt2img_prompt').checkVisibility()) return 'txt2img';
-  if (gradioApp().getElementById('img2img_prompt').checkVisibility()) return 'img2img';
-  if (gradioApp().getElementById('control_prompt').checkVisibility()) return 'control';
-  if (gradioApp().getElementById('video_prompt').checkVisibility()) return 'video';
-  if (gradioApp().getElementById('framepack_prompt_row').checkVisibility()) return 'framepack';
+  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility()) return 'txt2img';
+  if (gradioApp().getElementById('img2img_prompt')?.checkVisibility()) return 'img2img';
+  if (gradioApp().getElementById('control_prompt')?.checkVisibility()) return 'control';
+  if (gradioApp().getElementById('video_prompt')?.checkVisibility()) return 'video';
+  if (gradioApp().getElementById('framepack_prompt_row')?.checkVisibility()) return 'framepack';
   // legacy method
   if (gradioApp().getElementById('tab_txt2img').style.display === 'block') tabName = 'txt2img';
   else if (gradioApp().getElementById('tab_img2img').style.display === 'block') tabName = 'img2img';

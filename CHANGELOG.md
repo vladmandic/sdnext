@@ -2,6 +2,18 @@
 
 ## Update for 2025-05-12
 
+Curious how your system is performing?  
+Run a built-in benchmark and compare to over 15k unique results world-wide: (Benchmark data)[https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html]!  
+From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275 it/s running on tuned GH100 system!  
+
+- **Wiki**  
+  - Updates for: *WSL, ZLUDA, ROCm*  
+- **Compute**  
+  - NNCF: added experimental support for direct INT8 MatMul  
+
+
+## Update for 2025-05-12
+
 ### Highlights for 2025-05-12
 
 First of all NNCF quantization engine has gone through some major enhancements and its now much faster, both in quantization as well as actual inference!  
