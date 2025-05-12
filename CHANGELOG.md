@@ -1,25 +1,25 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-11
+## Update for 2025-05-12
 
-### Highlights for 2025-05-11
+### Highlights for 2025-05-12
 
-First of all NNCF quantization engine has gone through some major enhancements and its now much faster, both in quantization as well as actual inference!
-And its a only truly cross-platform solution for quantization as all other methods are platform specific.
+First of all NNCF quantization engine has gone through some major enhancements and its now much faster, both in quantization as well as actual inference!  
+And its a only truly cross-platform solution for quantization as all other methods are platform specific.  
 
 *Note* if you're a ZLUDA user, see notes on GPU driver compatibility as recent Andrenaline drivers do cause problems!  
-And if you're a ROCm user, this release brings much faster compile times on Linux as well as first (experimental) builds for Windows!
+And if you're a ROCm user, this release brings much faster compile times on Linux as well as first (experimental) builds for Windows!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-05-11
+### Details for 2025-05-12
 
 - **Compute**
   - **NNCF**  
     - Faster quantization  
     - Faster inference with support for `torch.triton`  
       up to 3.5x faster with INT4 and 2x faster with INT8  
-    - New settings: *NNCF -> Number of quantization groups*  
+    - New settings: *NNCF -> Group size*  
       default is a balance between performance (lower settings) and quality (larger setting)  
   - **ZLUDA**:
     - *warning*: AMD Adrenaline 25.5.1 drivers are NOT COMPATIBLE with ZLUDA
