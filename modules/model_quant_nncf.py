@@ -1,3 +1,5 @@
+# pylint: disable=redefined-builtin,no-member
+
 from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
@@ -318,7 +320,7 @@ class NNCFConfig(QuantizationConfigMixin):
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
     """
 
-    def __init__(
+    def __init__( # pylint: disable=super-init-not-called
         self,
         weights_dtype: str = "int8_sym",
         group_size: int = 0,
@@ -467,6 +469,7 @@ def int8_matmul(
     weight: torch.Tensor,
     scale: torch.Tensor,
     compressed_weight_shape: torch.Size,
+    num_bits: int, # pylint: disable=unused-argument
 ):
     if compressed_weight_shape is not None:
         weight = unpack_int4_compiled(weight, compressed_weight_shape, transpose=True)
@@ -515,7 +518,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 255].")
         return weight.to(dtype=torch.uint8)
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=keyword-arg-before-vararg
+    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=keyword-arg-before-vararg,unused-argument
         result = decompress_asymmetric_compiled(x.weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
         if return_decompressed_only:
             return result
