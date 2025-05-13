@@ -408,25 +408,25 @@ def quantize_int(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point
     level_low = 0 if is_asym_mode else -(2 ** (num_bits - 1))
     level_high = 2**num_bits - 1 if is_asym_mode else 2 ** (num_bits - 1) - 1
 
-    compressed_weight = weight / scale
+    compressed_weight = torch.div(weight, scale)
     if zero_point is not None:
-        compressed_weight += zero_point
+        compressed_weight.add_(zero_point)
 
-    compressed_weight = torch.round(compressed_weight).clamp_(level_low, level_high).to(dtype)
+    compressed_weight = compressed_weight.round_().clamp_(level_low, level_high).to(dtype)
     if flatten:
         compressed_weight = compressed_weight.flatten(0,-2)
     return compressed_weight
 
 
 def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    result = torch.mul(torch.sub(input.to(dtype=scale.dtype), zero_point), scale).to(dtype=dtype)
+    result = input.to(dtype=scale.dtype).sub_(zero_point).mul_(scale).to(dtype=dtype)
     if result_shape is not None:
         result = result.reshape(result_shape)
     return result
 
 
 def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    result = torch.mul(input.to(dtype=scale.dtype), scale).to(dtype=dtype)
+    result = input.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
     if result_shape is not None:
         result = result.reshape(result_shape)
     return result
@@ -463,7 +463,7 @@ def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size, transpose: Opti
 
 
 def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[torch.dtype] = torch.int8, transpose: Optional[bool] = False) -> torch.Tensor:
-    result = unpack_uint4(packed_tensor, shape).to(dtype=dtype) - 8
+    result = unpack_uint4(packed_tensor, shape).to(dtype=dtype).sub_(8)
     if transpose:
         result = result.transpose(0,1)
     return result
@@ -483,9 +483,8 @@ def int8_matmul(
     weight: torch.Tensor,
     scale: torch.Tensor,
     compressed_weight_shape: torch.Size,
-    num_bits: int,
 ):
-    if num_bits == 4:
+    if compressed_weight_shape is not None:
         weight = unpack_int4_compiled(weight, compressed_weight_shape, transpose=True)
 
     return_dtype = input.dtype
@@ -500,14 +499,9 @@ class linear_forward_int8_matmul():
     def __func__(self, input) -> torch.FloatTensor:
         if self.pre_ops["0"].skip_int8_matmul:
             return torch.nn.Linear.forward(self, input)
-
-        num_bits = self.pre_ops["0"].num_bits
-        scale = self.pre_ops["0"].scale
-        compressed_weight_shape = self.pre_ops["0"].compressed_weight_shape if num_bits == 4 else None
-        result = int8_matmul(input, self.weight, scale, compressed_weight_shape, num_bits)
-
+        result = int8_matmul(input, self.weight, self.pre_ops["0"].scale, getattr(self.pre_ops["0"], "compressed_weight_shape", None))
         if self.bias is not None:
-            result = result + self.bias
+            result.add_(self.bias)
         return result
 
 
