@@ -1,7 +1,7 @@
 <div align="center">
 <img src="https://github.com/vladmandic/sdnext/raw/master/html/logo-transparent.png" width=200 alt="SD.Next">
 
-**Image Diffusion implementation with advanced features**
+# SD.Next: All-in-one WebUI for AI generative image and video creation
 
 ![Last update](https://img.shields.io/github/last-commit/vladmandic/sdnext?svg=true)
 ![License](https://img.shields.io/github/license/vladmandic/sdnext?svg=true)
@@ -29,9 +29,9 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 - Multiple UIs!  
   ▹ **Standard | Modern**  
 - Multiple [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
-- Built-in Control for Text, Image, Batch and video processing!  
+- Built-in Control for Text, Image, Batch and Video processing!  
 - Multiplatform!  
- ▹ **Windows | Linux | MacOS | nVidia | AMD | IntelArc/IPEX | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
+ ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | IntelArc/IPEX | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
 - Platform specific autodetection and tuning performed on install  
 - Optimized processing with latest `torch` developments with built-in support for model compile, quantize and compress  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  

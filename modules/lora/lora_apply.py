@@ -151,7 +151,8 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
             self.pre_ops.pop("0")
-            self = nncf_compress_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.nncf_quantize_conv_layers)
+            self._custom_forward_fn = None
+            self = nncf_compress_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.nncf_quantize_conv_layers, group_size=shared.opts.nncf_compress_weights_group_size, use_int8_matmul=shared.opts.nncf_decompress_int8_matmul)
             self = self.to(device)
             del dequant_weight
         except Exception as e:
