@@ -111,7 +111,6 @@ def create_nncf_config(kwargs = None, allow_nncf: bool = True, module: str = 'Mo
             load_nncf(silent=True)
             if intel_nncf is None:
                 return kwargs
-
             from modules.model_quant_nncf import NNCFQuantizer, NNCFConfig
             diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
             transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
@@ -269,12 +268,12 @@ def load_nncf(msg='', silent=False):
         log.warning('Quantization: nncf installed please restart')
     install('jstyleson', quiet=True)
     install('texttable', quiet=True)
+    install('tabulate', quiet=True)
     try:
         import nncf
         intel_nncf = nncf
         try:
-            # silence the pytorch version warning
-            nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+            nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None # silence the pytorch version warning
         except Exception:
             pass
         fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
@@ -328,7 +327,8 @@ def apply_layerwise(sd_model, quiet:bool=False):
                     m.quantization_method = quantization_config.QuantizationMethod.LAYERWISE # pylint: disable=no-member
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
         except Exception as e:
-            log.error(f'Quantization: type=layerwise {e}')
+            if 'Hook with name' not in str(e):
+                log.error(f'Quantization: type=layerwise {e}')
 
 
 def nncf_compress_model(model, op=None, sd_model=None, do_gc=True):

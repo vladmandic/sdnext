@@ -1,28 +1,23 @@
 from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
-
 import os
 import torch
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
-
 from accelerate import init_empty_weights
 from accelerate.utils import CustomDtype
-
 from modules import devices, shared
 
 
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
-
 torch_dtype_dict = {
     "int8": torch.int8,
     "uint8": torch.uint8,
     "int4": CustomDtype.INT4,
     "uint4": CustomDtype.INT4,
 }
-
 weights_dtype_dict = {
     "int8_asym": "uint8",
     "int8_sym": "int8",
@@ -31,26 +26,24 @@ weights_dtype_dict = {
     "int8": "uint8",
     "int4": "uint4",
 }
-
 linear_types = ["NNCFLinear", "Linear"]
 conv_types = ["NNCFConv1d", "NNCFConv2d", "NNCFConv3d", "Conv1d", "Conv2d", "Conv3d"]
 conv_transpose_types = ["NNCFConvTranspose1d", "NNCFConvTranspose2d", "NNCFConvTranspose3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
-
 allowed_types = []
 allowed_types.extend(linear_types)
 allowed_types.extend(conv_types)
 allowed_types.extend(conv_transpose_types)
 
+
 class QuantizationMethod(str, Enum):
     NNCF = "nncf"
 
 
-def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, group_size=0, use_int8_matmul=False, param_name=None):
+def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, group_size=0, use_int8_matmul=False, param_name=None): # pylint: disable=unused-argument
     if layer.__class__.__name__ in allowed_types:
         if torch_dtype is None:
             torch_dtype = devices.dtype
         result_shape = None
-
         if layer.__class__.__name__ in conv_types:
             if is_asym_mode or not quant_conv: # don't quant convs with asym mode
                 return layer
@@ -70,7 +63,6 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                 if group_size == 0:
                     group_size = 64
                     num_of_groups = channel_size // group_size
-
                 if group_size >= channel_size:
                     group_size = channel_size
                     num_of_groups = 1
@@ -103,19 +95,17 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             scale = get_int_scale_symmetric(layer.weight, reduction_axes, num_bits)
             zero_point = None
         compressed_weight = quantize_int(layer.weight, scale, zero_point, is_asym_mode, num_bits)
-
         if not shared.opts.nncf_decompress_fp32:
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
-
         if use_int8_matmul:
-            layer._custom_forward_fn = linear_forward_int8_matmul
+            layer._custom_forward_fn = linear_forward_int8_matmul # pylint: disable=protected-access
             scale = scale.squeeze(-1)
             if num_bits == 8:
                 compressed_weight = compressed_weight.transpose(0,1)
         else:
-            layer._custom_forward_fn = None
+            layer._custom_forward_fn = None # pylint: disable=protected-access
 
         if num_bits == 4:
             if is_asym_mode:
@@ -151,13 +141,10 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     result_shape=result_shape,
                     use_int8_matmul=use_int8_matmul,
                 )
-
         compressed_weight = decompressor.pack_weight(compressed_weight)
         compressed_weight = compressed_weight.to(return_device)
-
         decompressor = decompressor.to(return_device)
         layer.register_pre_forward_operation(decompressor)
-
         layer.weight.requires_grad = False
         layer.weight.data = compressed_weight
     return layer
@@ -201,8 +188,9 @@ class NNCFQuantizer(DiffusersQuantizer):
     use_keep_in_fp32_modules = True
     requires_calibration = False
     required_packages = ["nncf"]
+    torch_dtype = None
 
-    def __init__(self, quantization_config, **kwargs):
+    def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
         super().__init__(quantization_config, **kwargs)
 
     def check_if_quantized_param(
@@ -213,7 +201,7 @@ class NNCFQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        module, tensor_name = get_module_from_name(model, param_name)
+        module, _tensor_name = get_module_from_name(model, param_name)
         return module.__class__.__name__.startswith("NNCF") and param_name.endswith(".weight")
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -222,19 +210,19 @@ class NNCFQuantizer(DiffusersQuantizer):
         """
         return self.check_if_quantized_param(*args, **kwargs)
 
-    def create_quantized_param(
+    def create_quantized_param( # pylint: disable=arguments-differ
         self,
         model,
         param_value: "torch.Tensor",
         param_name: str,
         target_device: "torch.device",
-        state_dict: Dict[str, Any],
-        unexpected_keys: List[str],
+        state_dict: Dict[str, Any], # pylint: disable=unused-argument
+        unexpected_keys: List[str], # pylint: disable=unused-argument
         **kwargs,
     ):
         # load the model params to target_device first
         layer, tensor_name = get_module_from_name(model, param_name)
-        layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device)
+        layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device) # pylint: disable=protected-access
 
         split_param_name = param_name.split(".")
         if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
@@ -252,7 +240,7 @@ class NNCFQuantizer(DiffusersQuantizer):
         max_memory = {key: val * 0.70 for key, val in max_memory.items()}
         return max_memory
 
-    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype":
+    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype": # pylint: disable=unused-argument,arguments-renamed
         return torch_dtype_dict[self.quantization_config.weights_dtype]
 
     def update_torch_dtype(self, torch_dtype: "torch.dtype" = None) -> "torch.dtype":
@@ -261,10 +249,10 @@ class NNCFQuantizer(DiffusersQuantizer):
         self.torch_dtype = torch_dtype
         return torch_dtype
 
-    def _process_model_before_weight_loading(
+    def _process_model_before_weight_loading( # pylint: disable=arguments-differ
         self,
         model,
-        device_map,
+        device_map, # pylint: disable=unused-argument
         keep_in_fp32_modules: List[str] = [],
         **kwargs,
     ):
@@ -289,19 +277,19 @@ class NNCFQuantizer(DiffusersQuantizer):
         """
         return config
 
-    def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]:
+    def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return unexpected_keys
 
-    def update_missing_keys_after_loading(self, model, missing_keys: List[str], prefix: str) -> List[str]:
+    def update_missing_keys_after_loading(self, model, missing_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return missing_keys
 
-    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]:
+    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
@@ -336,7 +324,7 @@ class NNCFConfig(QuantizationConfigMixin):
         group_size: int = 0,
         use_int8_matmul: bool = False,
         modules_to_not_convert: Optional[List[str]] = None,
-        **kwargs,
+        **kwargs, # pylint: disable=unused-argument
     ):
         self.quant_method = QuantizationMethod.NNCF
         self.weights_dtype = weights_dtype_dict[weights_dtype.lower()]
@@ -385,11 +373,10 @@ def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int
 
     min_values = torch.amin(weight, dim=reduction_axes, keepdims=True)
     max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
-    scale = ((max_values - min_values) / (level_high - 1))
-
+    scale = (max_values - min_values) / (level_high - 1)
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
-    zero_point = (level_low - (min_values / scale))
+    zero_point = level_low - (min_values / scale)
     return scale, zero_point
 
 
@@ -397,7 +384,6 @@ def get_int_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int]
     w_abs_min = torch.abs(torch.amin(weight, dim=reduction_axes, keepdims=True))
     w_max = torch.amax(weight, dim=reduction_axes, keepdims=True)
     scale = torch.where(w_abs_min >= w_max, w_abs_min, -w_max) / (2 ** (num_bits - 1))
-
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     return scale
@@ -484,20 +470,23 @@ def int8_matmul(
 ):
     if compressed_weight_shape is not None:
         weight = unpack_int4_compiled(weight, compressed_weight_shape, transpose=True)
-
     return_dtype = input.dtype
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
-
     input, scale = quantize_int8_matmul_input_compiled(input, scale)
-    return decompress_symmetric_compiled(torch._int_mm(input, weight), scale, return_dtype, output_shape)
+    return decompress_symmetric_compiled(torch._int_mm(input, weight), scale, return_dtype, output_shape) # pylint: disable=protected-access
 
 
 class linear_forward_int8_matmul():
     def __func__(self, input) -> torch.FloatTensor:
         if self.pre_ops["0"].skip_int8_matmul:
             return torch.nn.Linear.forward(self, input)
-        result = int8_matmul(input, self.weight, self.pre_ops["0"].scale, getattr(self.pre_ops["0"], "compressed_weight_shape", None))
+
+        num_bits = self.pre_ops["0"].num_bits
+        scale = self.pre_ops["0"].scale
+        compressed_weight_shape = self.pre_ops["0"].compressed_weight_shape if num_bits == 4 else None
+        result = int8_matmul(input, self.weight, scale, compressed_weight_shape, num_bits)
+
         if self.bias is not None:
             result.add_(self.bias)
         return result
@@ -510,12 +499,11 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         zero_point: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool,
+        use_int8_matmul: bool, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.num_bits = 8
         self.quantization_mode = "asymmetric"
-
         self.scale = scale
         self.zero_point = zero_point
         self.result_dtype = result_dtype
@@ -527,7 +515,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 255].")
         return weight.to(dtype=torch.uint8)
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False):
+    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=keyword-arg-before-vararg
         result = decompress_asymmetric_compiled(x.weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
         if return_decompressed_only:
             return result
@@ -546,11 +534,9 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         super().__init__()
         self.num_bits = 8
         self.quantization_mode = "symmetric"
-
         self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
-
         self.use_int8_matmul = use_int8_matmul
         self.skip_int8_matmul = False
         self.input_scale = None
@@ -561,7 +547,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [-128, 127].")
         return weight.to(dtype=torch.int8)
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False):
+    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=unused-argument,keyword-arg-before-vararg
         if self.use_int8_matmul:
             if input is not None:
                 if torch.numel(input[0]) / input[0].shape[-1] < 32:
@@ -586,7 +572,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool,
+        use_int8_matmul: bool, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.num_bits = 4
@@ -604,7 +590,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 15].")
         return pack_uint4(weight.to(dtype=torch.uint8))
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False):
+    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=unused-argument,keyword-arg-before-vararg
         result = decompress_int4_asymmetric_compiled(x.weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
         if return_decompressed_only:
             return result
@@ -640,7 +626,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Tensor values are not in [-8, 7].")
         return pack_int4(weight.to(dtype=torch.int8))
 
-    def forward(self, x, input=None, *arg, return_decompressed_only=False):
+    def forward(self, x, input=None, *arg, return_decompressed_only=False): # pylint: disable=keyword-arg-before-vararg,unused-argument
         if self.use_int8_matmul:
             if input is not None:
                 if torch.numel(input[0]) / input[0].shape[-1] < 32:
@@ -665,20 +651,14 @@ if shared.opts.nncf_decompress_compile:
         decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)
         decompress_int4_symmetric_compiled = torch.compile(decompress_int4_symmetric, fullgraph=True)
 
-        if devices.backend != "ipex": # pytorch uses the cpu device in torch._int_mm op with ipex + torch.compile
-            int8_matmul = torch.compile(int8_matmul, fullgraph=True)
-            quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
-            unpack_int4_compiled = unpack_int4
-        else:
-            quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
-            unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
+        quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
+        unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
     except Exception as e:
         shared.log.warning(f"Quantization: type=nncf Decompress using torch.compile is not available: {e}")
         decompress_asymmetric_compiled = decompress_asymmetric
         decompress_symmetric_compiled = decompress_symmetric
         decompress_int4_asymmetric_compiled = decompress_int4_asymmetric
         decompress_int4_symmetric_compiled = decompress_int4_symmetric
-
         quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
         unpack_int4_compiled = unpack_int4
 else:
@@ -686,6 +666,5 @@ else:
     decompress_symmetric_compiled = decompress_symmetric
     decompress_int4_asymmetric_compiled = decompress_int4_asymmetric
     decompress_int4_symmetric_compiled = decompress_int4_symmetric
-
     quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
     unpack_int4_compiled = unpack_int4
