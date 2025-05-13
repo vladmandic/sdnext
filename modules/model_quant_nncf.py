@@ -64,7 +64,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
         else:
             reduction_axes = -1
             channel_size = layer.weight.shape[-1]
-            use_int8_matmul = use_int8_matmul and not is_asym_mode and channel_size >= 1024 and layer.weight.shape[0] >= 1024
+            use_int8_matmul = use_int8_matmul and not is_asym_mode and channel_size >= 32 and layer.weight.shape[0] >= 32
 
             if not use_int8_matmul and (group_size > 0 or (num_bits == 4 and group_size != -1)):
                 if group_size == 0:
