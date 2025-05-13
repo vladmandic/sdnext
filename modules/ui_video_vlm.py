@@ -9,7 +9,9 @@ models = [
 system_prompts = {
     'prefix': 'You are a video director.',
     'desc': 'You will provide a prompt that can be used to create short, creative and dynamic video. Describe the subject of the video, add movement that fits the overall tone of the video, add camera movement.',
-    'suffix': 'NSFW content and nudity are allowed and must be fully described if present. Movement should be dynamic and creative. Do not specify duration and assume video is short. Avoid slow-motion and prefer faster movements. Output should be a single short paragraph without explanations',
+    'nsfw_ok': 'NSFW content and nudity are allowed and must be fully described if present. ',
+    'nsfw_no': 'NSFW content and nudity are not allowed. ',
+    'suffix': 'Movement should be dynamic and creative. Do not specify duration and assume video is short. Avoid slow-motion and prefer faster movements. Output should be a single short paragraph without explanations',
     'example': 'Example: "Short video of beautiful blonde woman in her 20ies wearing a long flowing red dress. She is briskly walking on the beach during sunset and performing a pirouette ending with her hand pointing at the camera as she smiles. Camera is moving around her and zooming to her face. Sun is setting in the background causing changes in colors and shadows to move dynamically."',
 
     't2v-prompt': 'You are a given short prompt with basic instructions.',
@@ -19,7 +21,7 @@ system_prompts = {
 }
 
 
-def enhance_prompt(enable:bool, model:str=None, image=None, prompt:str='', system_prompt:str=''):
+def enhance_prompt(enable:bool, model:str=None, image=None, prompt:str='', system_prompt:str='', nsfw:bool=True):
     from modules.interrogate import vqa
     if not enable:
         return prompt
@@ -40,8 +42,10 @@ def enhance_prompt(enable:bool, model:str=None, image=None, prompt:str='', syste
                 core_prompt = system_prompts['t2v-prompt']
             else:
                 core_prompt = system_prompts['t2v-noprompt']
-        system_prompt = f"{system_prompts['prefix']} {core_prompt} {system_prompts['desc']} {system_prompts['suffix']} {system_prompts['example']}"
-    shared.log.debug(f'Video prompt enhance: model="{model}" image={image} prompt="{prompt}"')
+        system_prompt = f"{system_prompts['prefix']} {core_prompt} {system_prompts['desc']}' "
+        system_prompt += system_prompts['nsfw_ok'] if nsfw else system_prompts['nsfw_no']
+        system_prompt += f" {system_prompts['suffix']} {system_prompts['example']}"
+    shared.log.debug(f'Video prompt enhance: model="{model}" image={image} nsfw={nsfw} prompt="{prompt}"')
     # shared.log.trace(f'Video prompt enhance: system="{system_prompt}"')
     answer = vqa.interrogate(question='', prompt=prompt, system_prompt=system_prompt, image=image, model_name=model, quiet=False)
     shared.log.debug(f'Video prompt enhance: answer="{answer}"')
@@ -52,6 +56,7 @@ def create_ui(prompt_element:gr.Textbox, image_element:gr.Image):
     with gr.Accordion('Prompt enhance', open=False):
         with gr.Row():
             enable = gr.Checkbox(label='Enable', value=False)
+            nsfw = gr.Checkbox(label='NSFW allowed', value=True)
             btn_enhance = gr.Button(value='Enhance now', elem_id='btn_enhance')
         with gr.Row():
             model = gr.Dropdown(label='Model', choices=models, value=models[0])
@@ -59,7 +64,7 @@ def create_ui(prompt_element:gr.Textbox, image_element:gr.Image):
             system_prompt = gr.Textbox(label='System prompt', placeholder='override system prompt with user-provided prompt', lines=3)
         btn_enhance.click(
             fn=enhance_prompt,
-            inputs=[enable, model, image_element, prompt_element, system_prompt],
+            inputs=[enable, model, image_element, prompt_element, system_prompt, nsfw],
             outputs=prompt_element,
             show_progress=True,
         )

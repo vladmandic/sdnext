@@ -146,6 +146,7 @@ class APIProcess():
                 prompt=req.prompt,
                 system=req.system_prompt,
                 seed=seed,
+                nsfw=req.nsfw,
             )
         elif req.type == 'image':
             from modules.scripts import scripts_txt2img
@@ -157,6 +158,7 @@ class APIProcess():
                 system=req.system_prompt,
                 image=decode_base64_to_image(req.image),
                 seed=seed,
+                nsfw=req.nsfw,
             )
         elif req.type == 'video':
             from modules.ui_video_vlm import enhance_prompt
@@ -167,6 +169,7 @@ class APIProcess():
                 prompt=req.prompt,
                 model=model,
                 system_prompt=req.system_prompt,
+                nsfw=req.nsfw,
             )
         else:
             raise HTTPException(status_code=400, detail="prompt enhancement: invalid type")

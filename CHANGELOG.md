@@ -10,7 +10,8 @@ From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275 it/
   - Updates for: *WSL, ZLUDA, ROCm*  
 - **Compute**  
   - NNCF: added experimental support for direct INT8 MatMul  
-
+- **Feature**
+  - Prompt Enhance: option to allow/disallow NSFW content  
 
 ## Update for 2025-05-12
 

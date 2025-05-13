@@ -53,6 +53,7 @@ def enhance(args): # pylint: disable=redefined-outer-name
         'prompt': str(args.prompt),
         'seed': int(args.seed),
         'type': str(args.type),
+        'nsfw': bool(args.nsfw),
     }
     if args.model:
         options['model'] = str(args.model)
@@ -69,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument('--type', type=str, default='text', choices=['text', 'image', 'video'], required=False, help='enhance type')
     parser.add_argument('--model', type=str, default=None, required=False, help='model name')
     parser.add_argument('--image', type=str, default=None, required=False, help='optional input image')
+    parser.add_argument('--nsfw', type=bool, action=argparse.BooleanOptionalAction, required=False, help='nsfw allowed')
     args = parser.parse_args()
     log.info(f'api-upscale: {args}')
     result = enhance(args)

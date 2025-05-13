@@ -274,6 +274,7 @@ class ReqPromptEnhance(BaseModel):
     system_prompt: Optional[str] = Field(title="System prompt", default=None, description="Model system prompt")
     image: Optional[str] = Field(title="Image", default=None, description="Image to work on, must be a Base64 string containing the image's data.")
     seed: int = Field(title="Seed", default=-1, description="Seed used to generate the prompt")
+    nsfw: bool = Field(title="NSFW", default=True, description="Should NSFW content be allowed?")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
