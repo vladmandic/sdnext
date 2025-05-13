@@ -472,9 +472,7 @@ def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
     input_scale = torch.div(input.abs().max(), 127)
     input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2)
-
-    scale_dtype = torch.float32 if input.dtype == torch.float16 else torch.bfloat16
-    scale = torch.mul(input_scale.to(dtype=scale_dtype), scale.to(dtype=scale_dtype))
+    scale = torch.mul(input_scale, scale)
     return input, scale
 
 
