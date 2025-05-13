@@ -667,8 +667,13 @@ if shared.opts.nncf_decompress_compile:
         decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)
         decompress_int4_symmetric_compiled = torch.compile(decompress_int4_symmetric, fullgraph=True)
 
-        quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
-        unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
+        if devices.backend != "ipex": # pytorch uses the cpu device in torch._int_mm op with ipex + torch.compile
+            int8_matmul = torch.compile(int8_matmul, fullgraph=True)
+            quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
+            unpack_int4_compiled = unpack_int4
+        else:
+            quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
+            unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
     except Exception as e:
         shared.log.warning(f"Quantization: type=nncf Decompress using torch.compile is not available: {e}")
         decompress_asymmetric_compiled = decompress_asymmetric
