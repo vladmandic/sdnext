@@ -372,14 +372,11 @@ class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self
 
 
 def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], num_bits: int) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-    level_low = 0
-    level_high = 2**num_bits
-    min_values = torch.amin(weight, dim=reduction_axes, keepdims=True)
+    zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
     max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
-    scale = (max_values - min_values) / (level_high - 1)
+    scale = (max_values - zero_point) / (2**num_bits - 1)
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
-    zero_point = level_low - (min_values / scale)
     return scale, zero_point
 
 
@@ -396,11 +393,10 @@ def quantize_int(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point
     dtype = torch.uint8 if is_asym_mode else torch.int8
     level_low = 0 if is_asym_mode else -(2 ** (num_bits - 1))
     level_high = 2**num_bits - 1 if is_asym_mode else 2 ** (num_bits - 1) - 1
-
-    compressed_weight = torch.div(weight, scale)
     if zero_point is not None:
-        compressed_weight.add_(zero_point)
-
+        compressed_weight = torch.sub(weight, zero_point).div_(scale)
+    else:
+        compressed_weight = torch.div(weight, scale)
     compressed_weight = compressed_weight.round_().clamp_(level_low, level_high).to(dtype)
     if flatten:
         compressed_weight = compressed_weight.flatten(0,-2)
@@ -408,7 +404,7 @@ def quantize_int(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point
 
 
 def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    result = input.to(dtype=scale.dtype).sub_(zero_point).mul_(scale).to(dtype=dtype)
+    result = torch.addcmul(zero_point, input.to(dtype=scale.dtype), scale).to(dtype=dtype)
     if result_shape is not None:
         result = result.reshape(result_shape)
     return result
@@ -644,9 +640,9 @@ if shared.opts.nncf_decompress_compile:
         decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)
         decompress_int4_symmetric_compiled = torch.compile(decompress_int4_symmetric, fullgraph=True)
         if devices.backend != "ipex": # pytorch uses the cpu device in torch._int_mm op with ipex + torch.compile
-            int8_matmul = torch.compile(int8_matmul, fullgraph=True)
             quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
             unpack_int4_compiled = unpack_int4
+            int8_matmul = torch.compile(int8_matmul, fullgraph=True)
         else:
             quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
             unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
