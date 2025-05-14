@@ -45,7 +45,7 @@ class Script(scripts.Script):
         with gr.Row():
             query = gr.Textbox(lines=1, label='Query', placeholder='use the composition from the image')
         with gr.Row():
-            image = gr.Image(value=None, label='Image', type='pil', source='upload', width=256, height=256)
+            image = gr.Image(value=None, label='Image', type='pil', width=256, height=256)
         with gr.Row():
             strength = gr.Slider(label="Strength", value=1.0, minimum=0, maximum=2.0, step=0.05)
             tokens = gr.Slider(label="Tokens", value=4, minimum=1, maximum=32, step=1)

@@ -59,7 +59,7 @@ def create_ui_wiki():
         gr.HTML('<a href="https://github.com/vladmandic/sdnext/wiki" style="color: #AAA" target="_blank">&nbsp Open GitHub Wiki</a>')
     with gr.Row():
         wiki_search = gr.Textbox(label="Search Wiki Pages", elem_id="wiki_search")
-        wiki_search_btn = ui_components.ToolButton(value=ui_symbols.search, label="Search", elem_id="wiki_search_btn")
+        wiki_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="wiki_search_btn")
     with gr.Row():
         wiki_result = gr.HTML(elem_id="wiki_result", value='')
     wiki_search.submit(_js="wikiSearch", fn=search_github, inputs=[wiki_search], outputs=[wiki_result])

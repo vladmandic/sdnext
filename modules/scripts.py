@@ -412,9 +412,14 @@ class ScriptRunner:
             api_args = []
             for control in controls:
                 debug(f'Script control: parent={script.parent} script="{script.name}" label="{control.label}" type={control} id={control.elem_id}')
-                if not isinstance(control, gr.components.IOComponent):
-                    errors.log.error(f'Invalid script control: "{script.filename}" control={control}')
-                    continue
+                if hasattr(gr.components, 'IOComponent'):
+                    if not isinstance(control, gr.components.IOComponent):
+                        errors.log.error(f'Invalid script control: "{script.filename}" control={control}')
+                        continue
+                else:
+                    if not isinstance(control, gr.components.Component):
+                        errors.log.error(f'Invalid script control: "{script.filename}" control={control}')
+                        continue
                 control.custom_script_source = os.path.basename(script.filename)
                 arg_info = api_models.ScriptArg(label=control.label or "")
                 for field in ("value", "minimum", "maximum", "step", "choices"):

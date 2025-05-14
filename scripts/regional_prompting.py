@@ -38,8 +38,8 @@ class Script(scripts.Script):
             mode = gr.Radio(label='Mode', choices=['None', 'Prompt', 'Prompt EX', 'Columns', 'Rows'], value='None')
         with gr.Row():
             power = gr.Slider(label='Power', minimum=0, maximum=1, value=1.0, step=0.01)
-            threshold = gr.Textbox('', label='Prompt thresholds:', default='', visible=False)
-            grid = gr.Text('', label='Grid sections:', default='', visible=False)
+            threshold = gr.Textbox('', label='Prompt thresholds', visible=False)
+            grid = gr.Textbox('', label='Grid sections', visible=False)
         mode.change(fn=self.change, inputs=[mode], outputs=[grid, threshold])
         return mode, grid, power, threshold
 

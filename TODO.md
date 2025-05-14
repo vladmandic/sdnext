@@ -4,10 +4,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)
-- [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)
-- Video: API support  
-
 ### Issues/Limitations
 
 N/A
@@ -15,9 +11,18 @@ N/A
 ## Future Candidates
 
 - Control: API enhance scripts compatibility  
-- IPAdapter: negative guidance: <https://github.com/huggingface/diffusers/discussions/7167>  
-- Video: STG: <https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance>  
-- Video: SmoothCache: https://github.com/huggingface/diffusers/issues/11135  
+- Video: API support  
+- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
+- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
+- [Magi](https://github.com/SandAI-org/MAGI-1)
+- [SkyReels-v2](https://github.com/huggingface/diffusers/pull/11518)
+- [LTXVideo-0.9.7](https://github.com/huggingface/diffusers/pull/11516)
+- [VisualClose](https://github.com/huggingface/diffusers/pull/11377)
+- [SEVA](https://github.com/huggingface/diffusers/pull/11440)
+- [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)
+- [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)
+- [Pydantic changes](https://github.com/Cschlaefli/automatic)
 
 ## Code TODO
 

@@ -97,7 +97,10 @@ def create_setting_component(key, is_quicksettings=False):
             res = None
 
     if res is not None and not is_quicksettings:
-        res.change(fn=None, inputs=res, _js=f'(val) => markIfModified("{key}", val)')
+        try:
+            res.change(fn=None, inputs=res, _js=f'(val) => markIfModified("{key}", val)')
+        except Exception as e:
+            shared.log.error(f'Quicksetting: component={res} {e}')
         if dirty_indicator is not None:
             dirty_indicator.click(fn=lambda: shared.opts.get_default(key), outputs=[res], show_progress=False)
         dirtyable_setting.__exit__()
@@ -186,7 +189,7 @@ def create_ui():
                 preview_theme = gr.Button(value="Preview theme", variant='primary', elem_id="settings_preview_theme")
                 defaults_submit = gr.Button(value="Restore defaults", variant='primary', elem_id="defaults_submit")
             with gr.Row():
-                _settings_search = gr.Text(label="Search", elem_id="settings_search")
+                _settings_search = gr.Textbox(label="Search", elem_id="settings_search")
 
             result = gr.HTML(elem_id="settings_result")
             script_callbacks.ui_settings_callback() # let extensions create settings

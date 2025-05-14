@@ -73,13 +73,13 @@ class Script(scripts.Script):
     def ui(self, _is_img2img):
         with gr.Row():
             self.button = gr.Button(value='Enhance prompt')
-            self.auto_apply = gr.Checkbox(label='Auto apply', default=False)
+            self.auto_apply = gr.Checkbox(label='Auto apply', value=False)
         with gr.Row():
             self.max_length = gr.Slider(label='Length', minimum=64, maximum=512, step=1, value=128)
             self.temperature = gr.Slider(label='Temperature', minimum=0.1, maximum=2.0, step=0.05, value=0.7)
             self.repetition_penalty = gr.Slider(label='Penalty', minimum=0.1, maximum=2.0, step=0.05, value=1.2)
         with gr.Row():
-            self.table = gr.DataFrame(self.prompts, label='', show_label=False, interactive=False, wrap=True, datatype="str", col_count=1, max_rows=num_return_sequences, headers=['Prompts'])
+            self.table = gr.DataFrame(self.prompts, label='', show_label=False, interactive=False, wrap=True, datatype="str", col_count=1, headers=['Prompts'])
 
         if self.prompt is not None:
             self.button.click(fn=self.enhance, inputs=[self.prompt, self.auto_apply, self.temperature, self.repetition_penalty, self.max_length], outputs=[self.table])

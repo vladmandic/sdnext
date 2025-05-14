@@ -1872,7 +1872,7 @@ class Script(scripts.Script):
             strength = gr.Slider(minimum=0.0, maximum=2.0, value=1.0, label='Mask strength')
             model = gr.Dropdown(label='Model', choices=['None', 'DPT Tiny', 'DPT Hybrid', 'DPT Large'], value='None')
         with gr.Row():
-            image = gr.Image(label="Image map", show_label=False, type="pil", source="upload", interactive=True, tool="editor", visible=True, image_mode='RGB')
+            image = gr.Image(label="Image map", show_label=False, type="pil", interactive=True, tool="editor", visible=True, image_mode='RGB')
         return enabled, strength, invert, model, image
 
     def depthmap(self, image_init: Image.Image, image_map: Image.Image, model: str, strength: float, invert: bool):

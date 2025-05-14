@@ -61,11 +61,11 @@ def create_ui():
                         vlm_top_p.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p], outputs=[])
                     with gr.Accordion(label='Batch caption', open=False, visible=True):
                         with gr.Row():
-                            vlm_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], type='file', interactive=True, height=100, elem_id='vlm_batch_files')
+                            vlm_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='vlm_batch_files')
                         with gr.Row():
-                            vlm_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], type='file', interactive=True, height=100, elem_id='vlm_batch_folder')
+                            vlm_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], interactive=True, height=100, elem_id='vlm_batch_folder')
                         with gr.Row():
-                            vlm_batch_str = gr.Text(label="Folder", value="", interactive=True, elem_id='vlm_batch_str')
+                            vlm_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='vlm_batch_str')
                         with gr.Row():
                             vlm_save_output = gr.Checkbox(label='Save caption files', value=True, elem_id="vlm_save_output")
                             vlm_save_append = gr.Checkbox(label='Append caption files', value=False, elem_id="vlm_save_append")
@@ -100,11 +100,11 @@ def create_ui():
                         clip_num_beams.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                     with gr.Accordion(label='Batch interogate', open=False, visible=True):
                         with gr.Row():
-                            clip_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], type='file', interactive=True, height=100, elem_id='clip_batch_files')
+                            clip_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='clip_batch_files')
                         with gr.Row():
-                            clip_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], type='file', interactive=True, height=100, elem_id='clip_batch_folder')
+                            clip_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], interactive=True, height=100, elem_id='clip_batch_folder')
                         with gr.Row():
-                            clip_batch_str = gr.Text(label="Folder", value="", interactive=True, elem_id='clip_batch_str')
+                            clip_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='clip_batch_str')
                         with gr.Row():
                             clip_save_output = gr.Checkbox(label='Save caption files', value=True, elem_id="clip_save_output")
                             clip_save_append = gr.Checkbox(label='Append caption files', value=False, elem_id="clip_save_append")

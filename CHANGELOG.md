@@ -10,13 +10,15 @@ Also, since quantization is becoming a necessity for almost all new models, see 
 *Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance!  
 
 - **Wiki**  
-  - Updates for: *Quantization, WSL, ZLUDA, ROCm*  
+  - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
 - **Compute**  
   - NNCF: added experimental support for direct INT8 MatMul  
 - **Feature**  
   - Prompt Enhance: option to allow/disallow NSFW content  
 - **Fixes**  
   - OpenVINO: force cpu device  
+  - Gradio: major cleanup and fixing defaults and ranges  
+  - Pydantic: update to api types  
 
 ## Update for 2025-05-12
 

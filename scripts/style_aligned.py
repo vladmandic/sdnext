@@ -51,7 +51,7 @@ class Script(scripts.Script):
         with gr.Row():
             prompt = gr.Textbox(lines=1, label='Optional image description', placeholder='use the style from the image')
         with gr.Row():
-            image = gr.Image(label='Optional image', source='upload', type='pil')
+            image = gr.Image(label='Optional image', type='pil')
 
         image.change(self.reset)
         preset.change(self.preset, inputs=[preset], outputs=[shared_opts, shared_score_scale, shared_score_shift, only_self_level])
