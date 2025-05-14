@@ -20,6 +20,8 @@ N/A
 - [LTXVideo-0.9.7](https://github.com/huggingface/diffusers/pull/11516)
 - [VisualClose](https://github.com/huggingface/diffusers/pull/11377)
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)
+- [CausVid-Plus](https://github.com/goatWu/CausVid-Plus/)
+- [JoyCaption-Beta-One](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava)
 - [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)
 - [Pydantic changes](https://github.com/Cschlaefli/automatic)

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-13
+## Update for 2025-05-14
 
 Curious how your system is performing?  
 Run a built-in benchmark and compare to over 15k unique results world-wide: (Benchmark data)[https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html]!  
@@ -9,9 +9,13 @@ From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275 it/
 Also, since quantization is becoming a necessity for almost all new models, see comparison of different quantization methods available in SD.Next: [Quantization](https://vladmandic.github.io/sdnext-docs/Quantization/)  
 *Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance!  
 
+For ZLUDA users, this update adds [compatibility](https://github.com/vladmandic/sdnext/issues/3918) with with latest AMD Adrenaline drivers  
+
 - **Wiki**  
   - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
 - **Compute**  
+  - ZLUDA: update to `zluda==3.9.5` with `torch==2.7.0`  
+    *Note*: delete `.zluda` folder so that newest zluda will be installed if you are using the latest AMD Adrenaline driver  
   - NNCF: added experimental support for direct INT8 MatMul  
 - **Feature**  
   - Prompt Enhance: option to allow/disallow NSFW content  
