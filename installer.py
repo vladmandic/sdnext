@@ -655,7 +655,7 @@ def install_rocm_zluda():
         if error is None:
             try:
                 zluda_installer.load()
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
                 error = e
                 log.warning(f'Failed to load ZLUDA: {e}')
