@@ -38,14 +38,13 @@ N/A
 - loader: load receipe
 - loader: save receipe
 - lora: add other quantization types
+- lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
-- lora: add t5 key support for sd35/f16
-- lora: support pre-quantized flux
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - model loader: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
+- modules/lora/lora_extract.py:185:9: W0511: TODO: lora: support pre-quantized flux
 - nunchaku: batch support
 - nunchaku: cache-dir for transformer and t5 loader
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent
-  

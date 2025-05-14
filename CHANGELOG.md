@@ -2,14 +2,16 @@
 
 ## Update for 2025-05-14
 
-Curious how your system is performing?  
+*Curious how your system is performing?*  
 Run a built-in benchmark and compare to over 15k unique results world-wide: (Benchmark data)[https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html]!  
-From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275 it/s running on tuned GH100 system!  
+From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275+ it/s running on tuned GH100 system!  
 
 Also, since quantization is becoming a necessity for almost all new models, see comparison of different quantization methods available in SD.Next: [Quantization](https://vladmandic.github.io/sdnext-docs/Quantization/)  
 *Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance!  
 
 For ZLUDA users, this update adds [compatibility](https://github.com/vladmandic/sdnext/issues/3918) with with latest AMD Adrenaline drivers  
+
+Btw, last few releases have been smaller, but more regular so do check posts about previous releases as features do quickly add up!  
 
 - **Wiki**  
   - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
