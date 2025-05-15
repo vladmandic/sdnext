@@ -988,7 +988,7 @@ Commit hash: `master: #dcfc9f3` `dev: #935cac6`
   - optimizations: full offload, quantization and tiling support  
   - [TeaCache](https://github.com/ali-vilab/TeaCache/blob/main/TeaCache4LTX-Video/README.md) integration  
 - **VAE**:  
-  - tiling granular options in *settings -> variable auto encoder*  
+  - tiling granular options in *settings -> Variational Auto Encoder*  
 - **UI**:  
   - live preview optimizations and error handling  
   - live preview high quality output, thanks @Disty0  

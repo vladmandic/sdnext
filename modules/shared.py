@@ -423,7 +423,7 @@ options_templates.update(options_section(('model_options', "Models Options"), {
     "model_h1_llama_repo": OptionInfo("Default", "HiDream: LLama repo", gr.Textbox),
 }))
 
-options_templates.update(options_section(('vae_encoder', "Variable Auto Encoder"), {
+options_templates.update(options_section(('vae_encoder', "Variational Auto Encoder"), {
     "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
     "diffusers_vae_upcast": OptionInfo("default", "VAE upcasting", gr.Radio, {"choices": ['default', 'true', 'false']}),
     "no_half_vae": OptionInfo(False if not cmd_opts.use_openvino else True, "Full precision (--no-half-vae)"),

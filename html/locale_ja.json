@@ -324,7 +324,7 @@
       "id": "",
       "label": "VAE",
       "localized": "VAE",
-      "hint": "Variable Auto Encoder：生成の最後にイメージデコードを実行するために使用されるモデル"
+      "hint": "Variational Auto Encoder：生成の最後にイメージデコードを実行するために使用されるモデル"
     },
     {
       "id": "",
@@ -1402,7 +1402,7 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
       "localized": "可変オートエンコーダー",
       "hint": "生成時の可変オートエンコーダーと画像デコードプロセスに関する設定。"
     },

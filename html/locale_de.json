@@ -1402,7 +1402,7 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
       "localized": "Variabler Auto-Encoder",
       "hint": "Einstellungen bezüglich variablem Auto-Encoder und Bilddekodierungsprozess während der Generierung"
     },

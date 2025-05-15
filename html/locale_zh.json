@@ -1402,7 +1402,7 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
       "localized": "可变自动编码器",
       "hint": "与可变自动编码器和生成过程中图像解码过程相关的设置"
     },
