@@ -100,3 +100,4 @@ class Script(scripts.Script):
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
             self.prompt = component
+            self.prompt.use_original = True

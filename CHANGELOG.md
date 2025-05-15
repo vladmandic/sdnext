@@ -25,6 +25,7 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
   - OpenVINO: force cpu device  
   - Gradio: major cleanup and fixing defaults and ranges  
   - Pydantic: update to api types  
+  - UI defaults: match correct prompt components  
 
 ## Update for 2025-05-12
 
