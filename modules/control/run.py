@@ -433,7 +433,6 @@ def control_run(state: str = '',
         original_pipeline = shared.sd_model
         shared.sd_model = pipe
         sd_models.move_model(shared.sd_model, shared.device)
-        shared.sd_model.to(dtype=devices.dtype)
         debug_log(f'Control device={devices.device} dtype={devices.dtype}')
         sd_models.copy_diffuser_options(shared.sd_model, original_pipeline) # copy options from original pipeline
         sd_models.set_diffuser_options(shared.sd_model)

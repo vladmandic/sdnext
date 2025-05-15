@@ -110,7 +110,6 @@ class Script(scripts.Script):
         sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline) # copy options from original pipeline
         sd_models.set_diffuser_options(shared.sd_model) # set all model options such as fp16, offload, etc.
         sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-        shared.sd_model.to(dtype=devices.dtype)
 
         # if pipeline also needs a specific type, you can set it here, but not commonly needed
         # shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)

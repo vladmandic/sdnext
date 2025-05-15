@@ -26,6 +26,7 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
   - Gradio: major cleanup and fixing defaults and ranges  
   - Pydantic: update to api types  
   - UI defaults: match correct prompt components  
+  - NNCF with ControlNet  
 
 ## Update for 2025-05-12
 

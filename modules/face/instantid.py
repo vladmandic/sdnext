@@ -61,7 +61,6 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
     shared.sd_model.load_ip_adapter_instantid(face_adapter, scale=strength)
     shared.sd_model.set_ip_adapter_scale(strength)
     sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-    shared.sd_model.to(dtype=devices.dtype)
 
     # pipeline specific args
     if p.all_prompts is None or len(p.all_prompts) == 0:
