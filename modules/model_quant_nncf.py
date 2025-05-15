@@ -228,6 +228,12 @@ class NNCFQuantizer(DiffusersQuantizer):
         layer, tensor_name = get_module_from_name(model, param_name)
         layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device) # pylint: disable=protected-access
 
+        # nncf_padding_value somehow ends up in the meta device with cogvideo even if we don't use init_empty_weights
+        # set it to the default value if it is in the meta device:
+        if layer.__class__.__name__ == "NNCFConv2d" and hasattr(layer, "get_padding_value_ref") and hasattr(layer, "_set_padding_value"):
+            if layer.get_padding_value_ref().device == torch.device("meta"):
+                layer._set_padding_value(torch.zeros([1]))
+
         split_param_name = param_name.split(".")
         if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
             layer = nncf_compress_layer(
