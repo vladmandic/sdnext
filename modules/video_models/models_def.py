@@ -224,5 +224,11 @@ models = {
               repo_cls=diffusers.CogVideoXImageToVideoPipeline,
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.CogVideoXTransformer3DModel),
+        Model(name='Index Anisora 1.0 5B I2V',
+              url='https://huggingface.co/Disty0/Index-anisora-5B-diffusers',
+              repo='Disty0/Index-anisora-5B-diffusers',
+              repo_cls=diffusers.CogVideoXImageToVideoPipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.CogVideoXTransformer3DModel),
     ],
 }
