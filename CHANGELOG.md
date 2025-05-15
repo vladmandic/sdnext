@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-14
+## Update for 2025-05-15
 
 *Curious how your system is performing?*  
 Run a built-in benchmark and compare to over 15k unique results world-wide: (Benchmark data)[https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html]!  
