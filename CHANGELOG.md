@@ -15,6 +15,8 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
 
 - **Wiki**  
   - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
+- **Models**
+  - [Index AniSora v1 5B](https://huggingface.co/IndexTeam/Index-anisora)  
 - **Compute**  
   - ZLUDA: update to `zluda==3.9.5` with `torch==2.7.0`  
     *Note*: delete `.zluda` folder so that newest zluda will be installed if you are using the latest AMD Adrenaline driver  
@@ -27,6 +29,8 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
   - Pydantic: update to api types  
   - UI defaults: match correct prompt components  
   - NNCF with ControlNet  
+  - NNCF with CogVideo
+  - IPEX with CogVideo  
 
 ## Update for 2025-05-12
 
