@@ -3,7 +3,7 @@
 ## Update for 2025-05-15
 
 *Curious how your system is performing?*  
-Run a built-in benchmark and compare to over 15k unique results world-wide: (Benchmark data)[https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html]!  
+Run a built-in benchmark and compare to over 15k unique results world-wide: [Benchmark data](https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html)!  
 From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275+ it/s running on tuned GH100 system!  
 
 Also, since quantization is becoming a necessity for almost all new models, see comparison of different quantization methods available in SD.Next: [Quantization](https://vladmandic.github.io/sdnext-docs/Quantization/)  
