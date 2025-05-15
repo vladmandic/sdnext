@@ -61,12 +61,33 @@ def hidream_rope(pos: torch.Tensor, dim: int, theta: int) -> torch.Tensor:
     return out.to(return_device, dtype=torch.float32)
 
 
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
+    if output_type == "np":
+        return diffusers.models.embeddings.get_1d_sincos_pos_embed_from_grid_np(embed_dim=embed_dim, pos=pos)
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be divisible by 2")
+
+    omega = torch.arange(embed_dim // 2, device=pos.device, dtype=torch.float32)
+    omega /= embed_dim / 2.0
+    omega = 1.0 / 10000**omega  # (D/2,)
+
+    pos = pos.reshape(-1)  # (M,)
+    out = torch.outer(pos, omega)  # (M, D/2), outer product
+
+    emb_sin = torch.sin(out)  # (M, D/2)
+    emb_cos = torch.cos(out)  # (M, D/2)
+
+    emb = torch.concat([emb_sin, emb_cos], dim=1)  # (M, D)
+    return emb
+
+
 def ipex_diffusers(device_supports_fp64=False, can_allocate_plus_4gb=False):
     diffusers.utils.torch_utils.fourier_filter = fourier_filter
     if not device_supports_fp64:
         # get around lazy imports
         from diffusers.models import transformers as diffusers_transformers # pylint: disable=import-error, unused-import # noqa: F401
         from diffusers.models import controlnets as diffusers_controlnets # pylint: disable=import-error, unused-import # noqa: F401
+        diffusers.models.embeddings.get_1d_sincos_pos_embed_from_grid = get_1d_sincos_pos_embed_from_grid
         diffusers.models.embeddings.FluxPosEmbed = FluxPosEmbed
         diffusers.models.transformers.transformer_flux.FluxPosEmbed = FluxPosEmbed
         diffusers.models.controlnets.controlnet_flux.FluxPosEmbed = FluxPosEmbed
