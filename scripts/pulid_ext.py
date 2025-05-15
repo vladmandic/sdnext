@@ -86,8 +86,8 @@ class Script(scripts.Script):
         with gr.Row():
             gr.HTML('<a href="https://github.com/ToTheBeginning/PuLID">&nbsp PuLID: Pure and Lightning ID Customization</a><br>')
         with gr.Row():
-            strength = gr.Slider(label = 'Strength', value = 0.8, mininimum = 0, maximum = 1, step = 0.01)
-            zero = gr.Slider(label = 'Zero', value = 20, mininimum = 0, maximum = 80, step = 1)
+            strength = gr.Slider(label = 'Strength', value = 0.8, minimum = 0, maximum = 1, step = 0.01)
+            zero = gr.Slider(label = 'Zero', value = 20, minimum = 0, maximum = 80, step = 1)
         with gr.Row():
             sampler = gr.Dropdown(label="Sampler", value='dpmpp_sde', choices=['dpmpp_2m', 'dpmpp_2m_sde', 'dpmpp_2s_ancestral', 'dpmpp_3m_sde', 'dpmpp_sde', 'euler', 'euler_ancestral'])
             ortho = gr.Dropdown(label="Ortho", choices=['off', 'v1', 'v2'], value='v2')
@@ -97,7 +97,7 @@ class Script(scripts.Script):
             restore = gr.Checkbox(label='Restore pipe on end', value=False)
             offload = gr.Checkbox(label='Offload face module', value=True)
         with gr.Row():
-            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], type='file', interactive=True, height=100)
+            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], interactive=True, height=100)
         with gr.Row():
             gallery = gr.Gallery(show_label=False, value=[], visible=False, container=False, rows=1)
         files.change(fn=self.load_images, inputs=[files], outputs=[gallery])

@@ -47,8 +47,6 @@ def create_ui():
             show_label=True,
             interactive=False,
             wrap=True,
-            overflow_row_behaviour='paginate',
-            max_rows=50,
             elem_id='history_table',
         )
     with gr.Row():

@@ -438,17 +438,17 @@ def create_html(search_text, sort_column):
 
 def create_ui():
     extensions_disable_all = gr.Radio(label="Disable all extensions", choices=["none", "user", "all"], value=shared.opts.disable_all_extensions, elem_id="extensions_disable_all", visible=False)
-    extensions_disabled_list = gr.Text(elem_id="extensions_disabled_list", visible=False, container=False)
-    extensions_update_list = gr.Text(elem_id="extensions_update_list", visible=False, container=False)
+    extensions_disabled_list = gr.Textbox(elem_id="extensions_disabled_list", visible=False, container=False)
+    extensions_update_list = gr.Textbox(elem_id="extensions_update_list", visible=False, container=False)
     with gr.Tabs(elem_id="tabs_extensions"):
         with gr.TabItem("Manage extensions", id="manage"):
             with gr.Row(elem_id="extensions_installed_top"):
-                extension_to_install = gr.Text(elem_id="extension_to_install", visible=False)
+                extension_to_install = gr.Textbox(elem_id="extension_to_install", visible=False)
                 install_extension_button = gr.Button(elem_id="install_extension_button", visible=False)
                 uninstall_extension_button = gr.Button(elem_id="uninstall_extension_button", visible=False)
                 update_extension_button = gr.Button(elem_id="update_extension_button", visible=False)
                 with gr.Column(scale=4):
-                    search_text = gr.Text(label="Search")
+                    search_text = gr.Textbox(label="Search")
                 with gr.Column(scale=1):
                     sort_column = gr.Dropdown(value="default", label="Sort by", choices=list(sort_ordering.keys()), multiselect=False)
                 with gr.Column(scale=1):
@@ -508,9 +508,9 @@ def create_ui():
                 outputs=[extensions_table, info],
             )
         with gr.TabItem("Manual install", id="install_from_url"):
-            install_url = gr.Text(label="Extension GIT repository URL")
-            install_branch = gr.Text(label="Specific branch name", placeholder="Leave empty for default main branch")
-            install_dirname = gr.Text(label="Local directory name", placeholder="Leave empty for auto")
+            install_url = gr.Textbox(label="Extension GIT repository URL")
+            install_branch = gr.Textbox(label="Specific branch name", placeholder="Leave empty for default main branch")
+            install_dirname = gr.Textbox(label="Local directory name", placeholder="Leave empty for auto")
             install_button = gr.Button(value="Install", variant="primary")
             info = gr.HTML(elem_id="extension_info")
             install_button.click(

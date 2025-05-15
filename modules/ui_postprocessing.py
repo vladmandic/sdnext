@@ -22,7 +22,7 @@ def create_ui():
             with gr.Tabs(elem_id="mode_extras"):
                 with gr.Tab('Process Image', id="single_image", elem_id="extras_single_tab") as tab_single:
                     with gr.Row():
-                        extras_image = gr.Image(label="Source", source="upload", interactive=True, type="pil", elem_id="extras_image")
+                        extras_image = gr.Image(label="Source", interactive=True, type="pil", elem_id="extras_image")
                 with gr.Tab('Process Batch', id="batch_process", elem_id="extras_batch_process_tab") as tab_batch:
                     image_batch = gr.Files(label="Batch process", interactive=True, elem_id="extras_image_batch")
                 with gr.Tab('Process Folder', id="batch_from_directory", elem_id="extras_batch_directory_tab") as tab_batch_dir:
@@ -44,7 +44,7 @@ def create_ui():
             result_images, generation_info, html_info, html_info_formatted, html_log = ui_common.create_output_panel("extras")
             gr.HTML('File metadata')
             exif_info = gr.HTML(elem_id="pnginfo_html_info")
-            gen_info = gr.Text(elem_id="pnginfo_gen_info", visible=False)
+            gen_info = gr.Textbox(elem_id="pnginfo_gen_info", visible=False)
             with gr.Row(elem_id='copy_buttons_process'):
                 copy_process_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "caption"])
 

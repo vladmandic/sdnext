@@ -546,7 +546,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = '0ba1f76d4dde6d25b33dbdca73b6aa21bb682c56' # diffusers commit hash
+    sha = '20379d9d1395b8e95977faf80facff43065ba75f' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -655,7 +655,7 @@ def install_rocm_zluda():
         if error is None:
             try:
                 zluda_installer.load()
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
                 error = e
                 log.warning(f'Failed to load ZLUDA: {e}')

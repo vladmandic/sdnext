@@ -367,10 +367,10 @@ class YoloRestorer(Detailer):
             with gr.Row():
                 negative = gr.Textbox(label="Detailer negative prompt", value='', placeholder='Detailer negative prompt', lines=2, elem_id=f"{tab}_detailer_negative")
             with gr.Row():
-                steps = gr.Slider(label="Detailer steps", elem_id=f"{tab}_detailer_steps", value=10, min=0, max=99, step=1)
+                steps = gr.Slider(label="Detailer steps", elem_id=f"{tab}_detailer_steps", value=10, minimum=0, maximum=99, step=1)
                 strength = gr.Slider(label="Detailer strength", elem_id=f"{tab}_detailer_strength", value=0.3, minimum=0, maximum=1, step=0.01)
             with gr.Row():
-                max_detected = gr.Slider(label="Max detected", elem_id=f"{tab}_detailer_max", value=shared.opts.detailer_max, min=1, maximum=10, step=1)
+                max_detected = gr.Slider(label="Max detected", elem_id=f"{tab}_detailer_max", value=shared.opts.detailer_max, minimum=1, maximum=10, step=1)
             with gr.Row():
                 padding = gr.Slider(label="Edge padding", elem_id=f"{tab}_detailer_padding", value=shared.opts.detailer_padding, minimum=0, maximum=100, step=1)
                 blur = gr.Slider(label="Edge blur", elem_id=f"{tab}_detailer_blur", value=shared.opts.detailer_blur, minimum=0, maximum=100, step=1)

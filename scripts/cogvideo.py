@@ -42,8 +42,8 @@ class Script(scripts.Script):
             override = gr.Checkbox(label='Override resolution', value=True)
         with gr.Accordion('Optional init image or video', open=False):
             with gr.Row():
-                image = gr.Image(value=None, label='Image', type='pil', source='upload', width=256, height=256)
-                video = gr.Video(value=None, label='Video', source='upload', width=256, height=256)
+                image = gr.Image(value=None, label='Image', type='pil', width=256, height=256)
+                video = gr.Video(value=None, label='Video', width=256, height=256)
         with gr.Row():
             from modules.ui_sections import create_video_inputs
             video_type, duration, loop, pad, interpolate = create_video_inputs(tab='img2img' if is_img2img else 'txt2img')

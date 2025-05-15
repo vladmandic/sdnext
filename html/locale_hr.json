@@ -324,7 +324,7 @@
       "id": "",
       "label": "VAE",
       "localized": "VAE",
-      "hint": "Variable Auto Encoder: model koji se koristi za pokretanje dekodiranja slike na kraju generiranja"
+      "hint": "Variational Auto Encoder: model koji se koristi za pokretanje dekodiranja slike na kraju generiranja"
     },
     {
       "id": "",
@@ -1402,7 +1402,7 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
       "localized": "Varijabilni Auto Encoder",
       "hint": "Postavke vezane uz varijabilni auto encoder i proces dekodiranja slike tijekom generiranja"
     },

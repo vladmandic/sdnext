@@ -21,7 +21,8 @@ class Script(scripts.Script):
         with gr.Row():
             original = gr.Checkbox(label='Include original image', value=True)
         with gr.Row():
-            cube_file = gr.File(label='LUT .cube file', type='file', help='Download LUTs from https://luts.iwltbap.com/')
+            cube_file = gr.File(label='LUT .cube file', help='Download LUTs from https://luts.iwltbap.com/')
+            # cube_file = gr.File(label='LUT .cube file')
         with gr.Row():
             gr.HTML("<br>Enhance LUT")
         with gr.Row():

@@ -68,20 +68,20 @@ def create_ui():
                     img2img_selected_tab = gr.State(0) # pylint: disable=abstract-class-instantiated
                     state = gr.Textbox(value='', visible=False)
                     with gr.TabItem('Image', id='img2img_image', elem_id="img2img_image_tab") as tab_img2img:
-                        img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, source="upload", interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
+                        img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
                         interrogate_btn = ui_sections.create_interrogate_button(tab='img2img')
                         add_copy_image_controls('img2img', img_init)
 
                     with gr.TabItem('Inpaint', id='img2img_inpaint', elem_id="img2img_inpaint_tab") as tab_inpaint:
-                        img_inpaint = gr.Image(label="", elem_id="img2img_inpaint", show_label=False, source="upload", interactive=True, type="pil", tool="sketch", image_mode="RGBA", height=512)
+                        img_inpaint = gr.Image(label="", elem_id="img2img_inpaint", show_label=False, interactive=True, type="pil", tool="sketch", image_mode="RGBA", height=512)
                         add_copy_image_controls('inpaint', img_inpaint)
 
                     with gr.TabItem('Sketch', id='img2img_sketch', elem_id="img2img_sketch_tab") as tab_sketch:
-                        img_sketch = gr.Image(label="", elem_id="img2img_sketch", show_label=False, source="upload", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
+                        img_sketch = gr.Image(label="", elem_id="img2img_sketch", show_label=False, interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
                         add_copy_image_controls('sketch', img_sketch)
 
                     with gr.TabItem('Composite', id='img2img_composite', elem_id="img2img_composite_tab") as tab_inpaint_color:
-                        img_composite = gr.Image(label="", show_label=False, elem_id="img2img_composite", source="upload", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
+                        img_composite = gr.Image(label="", show_label=False, elem_id="img2img_composite", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
                         img_composite_orig = gr.State(None) # pylint: disable=abstract-class-instantiated
                         img_composite_orig_update = False
 
@@ -99,8 +99,8 @@ def create_ui():
                         add_copy_image_controls('composite', img_composite)
 
                     with gr.TabItem('Upload', id='inpaint_upload', elem_id="img2img_inpaint_upload_tab") as tab_inpaint_upload:
-                        init_img_inpaint = gr.Image(label="Image for img2img", show_label=False, source="upload", interactive=True, type="pil", elem_id="img_inpaint_base")
-                        init_mask_inpaint = gr.Image(label="Mask", source="upload", interactive=True, type="pil", elem_id="img_inpaint_mask")
+                        init_img_inpaint = gr.Image(label="Image for img2img", show_label=False, interactive=True, type="pil", elem_id="img_inpaint_base")
+                        init_mask_inpaint = gr.Image(label="Mask", interactive=True, type="pil", elem_id="img_inpaint_mask")
 
                     with gr.TabItem('Batch', id='batch', elem_id="img2img_batch_tab") as tab_batch:
                         gr.HTML("<p style='padding-bottom: 1em;' class=\"text-gray-500\">Run image processing on upload images or files in a folder<br>If masks are provided will run inpaint</p>")

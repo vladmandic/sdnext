@@ -324,7 +324,7 @@
       "id": "",
       "label": "VAE",
       "localized": "VAE",
-      "hint": "Variable Auto Encoder : modèle utilisé pour exécuter le décodage d'image à la fin de la génération"
+      "hint": "Variational Auto Encoder : modèle utilisé pour exécuter le décodage d'image à la fin de la génération"
     },
     {
       "id": "",
@@ -1402,7 +1402,7 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
       "localized": "Encodeur automatique variable",
       "hint": "Paramètres liés à l'encodeur automatique variable et au processus de décodage d'image pendant la génération"
     },

@@ -324,7 +324,7 @@
       "id": "",
       "label": "VAE",
       "localized": "VAE",
-      "hint": "Variable Auto Encoder: 생성 종료 시 이미지 디코드를 실행하는 데 사용되는 모델"
+      "hint": "Variational Auto Encoder: 생성 종료 시 이미지 디코드를 실행하는 데 사용되는 모델"
     },
     {
       "id": "",
@@ -1402,8 +1402,8 @@
     },
     {
       "id": "",
-      "label": "Variable Auto Encoder",
-      "localized": "Variable Auto Encoder",
+      "label": "Variational Auto Encoder",
+      "localized": "Variational Auto Encoder",
       "hint": "가변 자동 인코더 및 생성 중 이미지 디코딩 프로세스와 관련된 설정입니다."
     },
     {

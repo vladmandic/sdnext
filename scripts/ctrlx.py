@@ -17,20 +17,20 @@ class Script(scripts.Script):
             gr.HTML('<a href="https://github.com/genforce/ctrl-x">&nbsp Ctrl-X: Controlling Structure and Appearance</a><br>')
         with gr.Accordion(label='Structure', open=True):
             with gr.Row():
-                struct_prompt = gr.Textbox(label='Prompt', value='', rows=1)
+                struct_prompt = gr.Textbox(label='Prompt', value='')
             with gr.Row():
                 struct_strength = gr.Slider(label='Strength', value=0.5, minimum=0.0, maximum=1.0, step=0.05)
                 struct_guidance = gr.Slider(label='Guidance', value=5.0, minimum=0.0, maximum=14.0, step=0.05)
             with gr.Row():
-                struct_image = gr.Image(label='Image', source='upload', type='pil')
+                struct_image = gr.Image(label='Image', type='pil')
         with gr.Accordion(label='Appearance', open=True):
             with gr.Row():
-                appear_prompt = gr.Textbox(label='Prompt', value='', rows=1)
+                appear_prompt = gr.Textbox(label='Prompt', value='')
             with gr.Row():
                 appear_strength = gr.Slider(label='Strength', value=0.5, minimum=0.0, maximum=1.0, step=0.05)
                 appear_guidance = gr.Slider(label='Guidance', value=5.0, minimum=0.0, maximum=14.0, step=0.05)
             with gr.Row():
-                appear_image = gr.Image(label='Image', source='upload', type='pil')
+                appear_image = gr.Image(label='Image', type='pil')
         return struct_prompt, struct_strength, struct_guidance, struct_image, appear_prompt, appear_strength, appear_guidance, appear_image
 
     def restore(self):

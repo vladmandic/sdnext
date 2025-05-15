@@ -43,14 +43,14 @@ def create_ui():
     with gr.Blocks() as tab:
         with gr.Row(elem_id='tab-gallery-sort-buttons'):
             sort_buttons = []
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_asc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_dsc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_asc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_dsc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_asc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_dsc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_asc, show_label=False, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_dsc, show_label=False, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_dsc, elem_classes=['gallery-sort']))
             gr.Textbox(show_label=False, placeholder='Search', elem_id='tab-gallery-search')
             gr.HTML('', elem_id='tab-gallery-status')
             for btn in sort_buttons:

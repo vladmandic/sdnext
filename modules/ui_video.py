@@ -92,7 +92,7 @@ def create_ui():
                 with gr.Row():
                     engine = gr.Dropdown(label='Engine', choices=list(models_def.models), value='None', elem_id="video_engine")
                     model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
-                    btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load", label='Load model')
+                    btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
                 with gr.Row():
                     url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
                 with gr.Accordion(open=True, label="Size", elem_id='video_size_accordion'):
@@ -101,8 +101,8 @@ def create_ui():
                     with gr.Row():
                         frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
                         seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
-                        random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed", label='Random seed')
-                        reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed", label='Reuse seed')
+                        random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed")
+                        reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed")
                 with gr.Accordion(open=True, label="Parameters", elem_id='video_parameters_accordion'):
                     steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                     with gr.Row():

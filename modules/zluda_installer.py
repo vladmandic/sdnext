@@ -78,7 +78,7 @@ def install():
         return
 
     platform = "windows"
-    commit = os.environ.get("ZLUDA_HASH", "8d2128caf460b853b165cab0b4d8826b6b734ae7")
+    commit = os.environ.get("ZLUDA_HASH", "5e717459179dc272b7d7d23391f0fad66c7459cf")
     if os.environ.get("ZLUDA_NIGHTLY", "0") == "1":
         log.warning("Environment variable 'ZLUDA_NIGHTLY' will be removed. Please use command-line argument '--use-nightly' instead.")
         args.use_nightly = True

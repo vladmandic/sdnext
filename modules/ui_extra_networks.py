@@ -603,7 +603,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 text = gr.HTML('<div>title</div>')
                 ui.details_components.append(text)
             with gr.Column(scale=1):
-                img = gr.Image(value=None, show_label=False, interactive=False, container=False, show_download_button=False, show_info=False, elem_id=f"{tabname}_extra_details_img", elem_classes=['extra-details-img'])
+                img = gr.Image(value=None, show_label=False, interactive=False, container=False, show_download_button=False, elem_id=f"{tabname}_extra_details_img", elem_classes=['extra-details-img'])
                 ui.details_components.append(img)
                 with gr.Row():
                     btn_save_img = gr.Button('Replace', elem_classes=['small-button'])

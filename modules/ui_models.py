@@ -23,11 +23,11 @@ def create_ui():
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
-            # models_output = gr.Text(elem_id="models_output", value="", show_label=False)
+            # models_output = gr.Textbox(elem_id="models_output", value="", show_label=False)
             gr.HTML(elem_id="models_progress", value="")
             models_image = gr.Image(elem_id="models_image", show_label=False, interactive=False, type='pil')
             models_outcome = gr.HTML(elem_id="models_error", value="")
-            models_file = gr.File(label='', type='file', help='', visible=False)
+            models_file = gr.File(label='', visible=False)
 
         with gr.Column(elem_id='models_input_container', scale=3):
 
@@ -327,7 +327,7 @@ def create_ui():
                         with gr.Row():
                             precision = gr.Dropdown(label="Model precision", choices=["fp32", "fp16", "bf16"], value="fp16")
                             comp_scheduler = gr.Dropdown(label="Sampler", choices=[s.name for s in sd_samplers.samplers if s.constructor is not None])
-                            comp_prediction = gr.Dropdown(Label="Prediction type", choices=["epsilon", "v"], value="epsilon")
+                            comp_prediction = gr.Dropdown(label="Prediction type", choices=["epsilon", "v"], value="epsilon")
                 with gr.Row():
                     with gr.Column(scale=3):
                         gr.HTML('Merge LoRA<br>')
@@ -349,7 +349,7 @@ def create_ui():
                         meta_desc = gr.Textbox(placeholder="Model description", lines=3, show_label=False)
                         meta_hint = gr.Textbox(placeholder="Model hint", lines=3, show_label=False)
                     with gr.Column(scale=3):
-                        meta_thumbnail = gr.Image(label="Thumbnail", type='pil', source='upload')
+                        meta_thumbnail = gr.Image(label="Thumbnail", type='pil')
                 with gr.Row():
                     gr.HTML('Note: Save is optional as you can merge in-memory and use newly created model immediately')
                 with gr.Row():
@@ -357,7 +357,7 @@ def create_ui():
                     create_safetensors = gr.Checkbox(label="Save safetensors", value=True)
                     debug = gr.Checkbox(label="Debug info", value=False)
 
-                model_modules_btn = gr.Button(label="Modules", variant='primary')
+                model_modules_btn = gr.Button(value="Modules", variant='primary')
                 model_modules_btn.click(
                     fn=extras.run_model_modules,
                     inputs=[
@@ -389,8 +389,6 @@ def create_ui():
                         show_label=True,
                         interactive=False,
                         wrap=True,
-                        overflow_row_behaviour='paginate',
-                        max_rows=50,
                     )
 
                 def list_models():
@@ -452,7 +450,7 @@ def create_ui():
                         gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
                     with gr.Row():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
-                        hf_search_btn = ToolButton(value=ui_symbols.search, label="Search")
+                        hf_search_btn = ToolButton(value=ui_symbols.search)
                     with gr.Row():
                         with gr.Column(scale=2):
                             with gr.Row():
@@ -472,7 +470,7 @@ def create_ui():
                 with gr.Row():
                     hf_headers = ['Name', 'Pipeline', 'Tags', 'Downloads', 'Updated', 'URL']
                     hf_types = ['str', 'str', 'str', 'number', 'date', 'markdown']
-                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, overflow_row_behaviour='paginate', max_rows=10, headers=hf_headers, datatype=hf_types, type='array')
+                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, headers=hf_headers, datatype=hf_types, type='array')
 
                 hf_search_text.submit(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
                 hf_search_btn.click(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
@@ -684,7 +682,7 @@ def create_ui():
                         with gr.Row():
                             civit_search_text = gr.Textbox('', label='Search models', placeholder='keyword')
                             civit_search_tag = gr.Textbox('', label='', placeholder='tags')
-                            civit_search_btn = ToolButton(value=ui_symbols.search, label="Search", interactive=True)
+                            civit_search_btn = ToolButton(value=ui_symbols.search, interactive=True)
                         with gr.Row():
                             civit_search_res = gr.HTML('')
                 with gr.Row():
@@ -704,25 +702,16 @@ def create_ui():
                 with gr.Row():
                     civit_headers1 = ['ID', 'Name', 'Tags', 'Downloads', 'Rating']
                     civit_types1 = ['number', 'str', 'str', 'number', 'number']
-                    civit_results1 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False,
-                                                  wrap=True, overflow_row_behaviour='paginate', max_rows=10,
-                                                  headers=civit_headers1, datatype=civit_types1, type='array',
-                                                  visible=False)
+                    civit_results1 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=civit_headers1, datatype=civit_types1, type='array', visible=False)
                 with gr.Row():
                     with gr.Column():
                         civit_headers2 = ['ID', 'ModelID', 'Name', 'Base', 'Created', 'Preview']
                         civit_types2 = ['number', 'number', 'str', 'str', 'date', 'str']
-                        civit_results2 = gr.DataFrame(value=None, label='Model versions', show_label=True,
-                                                      interactive=False, wrap=True, overflow_row_behaviour='paginate',
-                                                      max_rows=10, headers=civit_headers2, datatype=civit_types2,
-                                                      type='array', visible=False)
+                        civit_results2 = gr.DataFrame(value=None, label='Model versions', show_label=True, interactive=False, wrap=True, headers=civit_headers2, datatype=civit_types2, type='array', visible=False)
                     with gr.Column():
                         civit_headers3 = ['Name', 'Size', 'Metadata', 'URL']
                         civit_types3 = ['str', 'number', 'str', 'str']
-                        civit_results3 = gr.DataFrame(value=None, label='Model variants', show_label=True,
-                                                      interactive=False, wrap=True, overflow_row_behaviour='paginate',
-                                                      max_rows=10, headers=civit_headers3, datatype=civit_types3,
-                                                      type='array', visible=False)
+                        civit_results3 = gr.DataFrame(value=None, label='Model variants', show_label=True, interactive=False, wrap=True, headers=civit_headers3, datatype=civit_types3, type='array', visible=False)
 
                 def is_visible(component):
                     visible = len(component) > 0 if component is not None else False
@@ -751,8 +740,7 @@ def create_ui():
                     civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
                     civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
                     civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
-                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, overflow_row_behaviour='paginate',
-                                                  row_count=20, max_rows=100, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
+                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
                 with gr.Row():
                     gr.HTML('<h3>Select model from the list and download update if available</h3>')
                 with gr.Row():

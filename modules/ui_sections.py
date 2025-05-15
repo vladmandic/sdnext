@@ -87,7 +87,7 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])
     for c in [ar_dropdown, width, height]:
         c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress=False)
-    res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_switch_btn", label="Switch dims")
+    res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_switch_btn")
     res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
     return width, height
 
@@ -125,8 +125,8 @@ def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=
     with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_seed_row", variant="compact"):
             seed = gr.Number(label='Initial seed', value=-1, elem_id=f"{tab}_seed", container=True)
-            random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_seed", label='Random seed')
-            reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_seed", label='Reuse seed', visible=reuse_visible)
+            random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_seed")
+            reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_seed", visible=reuse_visible)
         with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=subseed_visible):
             subseed = gr.Number(label='Variation', value=-1, elem_id=f"{tab}_subseed", container=True)
             random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_subseed")
