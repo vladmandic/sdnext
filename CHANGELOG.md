@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-15
+## Update for 2025-05-17
 
 *Curious how your system is performing?*  
 Run a built-in benchmark and compare to over 15k unique results world-wide: [Benchmark data](https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html)!  
@@ -15,6 +15,11 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
 
 - **Wiki**  
   - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
+- **Models**  
+  - [Index AniSora v1 5B](https://huggingface.co/IndexTeam/Index-anisora) I2V  
+    Based on CogVideoX architecture, trained as animated video generation model: This Project presenting Bilibili's gift to the anime world!  
+  - [Index AniSora v1 RL 5B](https://github.com/bilibili/Index-anisora?tab=readme-ov-file#anisorav10_rl) I2V  
+    RL-optimized AniSoraV1.0 for enhanced anime-style output  
 - **Compute**  
   - ZLUDA: update to `zluda==3.9.5` with `torch==2.7.0`  
     *Note*: delete `.zluda` folder so that newest zluda will be installed if you are using the latest AMD Adrenaline driver  
@@ -27,6 +32,9 @@ Btw, last few releases have been smaller, but more regular so do check posts abo
   - Pydantic: update to api types  
   - UI defaults: match correct prompt components  
   - NNCF with ControlNet  
+  - NNCF with CogVideo
+  - IPEX with CogVideo  
+  - JXL image format metadata handling  
 
 ## Update for 2025-05-12
 
