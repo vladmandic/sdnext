@@ -461,9 +461,11 @@ def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[
 
 
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
-    input_scale = torch.div(input.abs().max(), 127)
-    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2)
-    scale = torch.mul(input_scale, scale)
+    input_scale = torch.div(input.abs().max(dim=-1).values, 127).unsqueeze(-1)
+    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2).contiguous()
+    scale = torch.mul(input_scale, scale).flatten(0,-2).contiguous()
+    if scale.dtype == torch.float16: # fp16 will overflow
+        scale = scale.to(dtype=torch.float32)
     return input, scale
 
 
@@ -485,7 +487,7 @@ def int8_matmul(
 class linear_forward_int8_matmul():
     def __func__(self, input) -> torch.FloatTensor:
         if self.pre_ops["0"].skip_int8_matmul:
-            return torch.nn.Linear.forward(self, input)
+            return torch.nn.functional.linear(input, self.weight, self.bias)
         result = int8_matmul(input, self.weight, self.pre_ops["0"].scale, getattr(self.pre_ops["0"], "compressed_weight_shape", None))
         if self.bias is not None:
             result.add_(self.bias)
