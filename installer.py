@@ -667,6 +667,8 @@ def install_rocm_zluda():
 
         if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
+        if os.environ.get("MIOPEN_FIND_ENFORCE", None) is None:
+            os.environ.setdefault('MIOPEN_FIND_ENFORCE', 'SEARCH')
 
         if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
