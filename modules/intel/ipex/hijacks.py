@@ -51,13 +51,41 @@ def return_xpu(device): # keep the device instance type, aka return string if th
 # Autocast
 original_autocast_init = torch.amp.autocast_mode.autocast.__init__
 @wraps(torch.amp.autocast_mode.autocast.__init__)
-def autocast_init(self, device_type, dtype=None, enabled=True, cache_enabled=None):
-    if device_type == "cuda" or device_type == "xpu":
+def autocast_init(self, device_type=None, dtype=None, enabled=True, cache_enabled=None):
+    if device_type is None or check_cuda(device_type) or check_device_type(device_type, "xpu"):
         if dtype is None:
             dtype = devices.dtype
         return original_autocast_init(self, device_type="xpu", dtype=dtype, enabled=enabled, cache_enabled=cache_enabled)
     else:
         return original_autocast_init(self, device_type=device_type, dtype=dtype, enabled=enabled, cache_enabled=cache_enabled)
+
+
+original_grad_scaler_init = torch.amp.grad_scaler.GradScaler.__init__
+@wraps(torch.amp.grad_scaler.GradScaler.__init__)
+def GradScaler_init(self, device: str = None, init_scale: float = 2.0**16, growth_factor: float = 2.0, backoff_factor: float = 0.5, growth_interval: int = 2000, enabled: bool = True):
+    if device is None or check_cuda(device):
+        return original_grad_scaler_init(self, device=return_xpu(device), init_scale=init_scale, growth_factor=growth_factor, backoff_factor=backoff_factor, growth_interval=growth_interval, enabled=enabled)
+    else:
+        return original_grad_scaler_init(self, device=device, init_scale=init_scale, growth_factor=growth_factor, backoff_factor=backoff_factor, growth_interval=growth_interval, enabled=enabled)
+
+
+original_is_autocast_enabled = torch.is_autocast_enabled
+@wraps(torch.is_autocast_enabled)
+def torch_is_autocast_enabled(device_type=None):
+    if device_type is None or check_cuda(device_type):
+        return original_is_autocast_enabled(return_xpu(device_type))
+    else:
+        return original_is_autocast_enabled(device_type)
+
+
+original_get_autocast_dtype = torch.get_autocast_dtype
+@wraps(torch.get_autocast_dtype)
+def torch_get_autocast_dtype(device_type=None):
+    if device_type is None or check_cuda(device_type) or check_device_type(device_type, "xpu"):
+        return torch.bfloat16
+    else:
+        return original_get_autocast_dtype(device_type)
+
 
 # Latent Antialias CPU Offload:
 # IPEX 2.5 and above has partial support but doesn't really work most of the time.
@@ -404,4 +432,28 @@ def ipex_hijacks():
     if not device_supports_fp64:
         torch.from_numpy = from_numpy
         torch.as_tensor = as_tensor
+
+    # AMP:
+    torch.amp.grad_scaler.GradScaler.__init__ = GradScaler_init
+    torch.is_autocast_enabled = torch_is_autocast_enabled
+    torch.get_autocast_gpu_dtype = torch_get_autocast_dtype
+    torch.get_autocast_dtype = torch_get_autocast_dtype
+
+    if hasattr(torch.xpu, "amp"):
+        if not hasattr(torch.xpu.amp, "custom_fwd"):
+            torch.xpu.amp.custom_fwd = torch.cuda.amp.custom_fwd
+            torch.xpu.amp.custom_bwd = torch.cuda.amp.custom_bwd
+        if not hasattr(torch.xpu.amp, "GradScaler"):
+            torch.xpu.amp.GradScaler = torch.amp.grad_scaler.GradScaler
+        torch.cuda.amp = torch.xpu.amp
+    else:
+        if not hasattr(torch.amp, "custom_fwd"):
+            torch.amp.custom_fwd = torch.cuda.amp.custom_fwd
+            torch.amp.custom_bwd = torch.cuda.amp.custom_bwd
+        torch.cuda.amp = torch.amp
+
+    if not hasattr(torch.cuda.amp, "common"):
+        torch.cuda.amp.common = nullcontext()
+    torch.cuda.amp.common.amp_definitely_not_available = lambda: False
+
     return device_supports_fp64, can_allocate_plus_4gb
