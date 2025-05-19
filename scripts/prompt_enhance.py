@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 import io
 import os
@@ -446,7 +445,8 @@ class Script(scripts.Script):
                         model_file = gr.Textbox(label='Model file', value=None, interactive=True, elem_id='prompt_enhance_model_file', placeholder='Optional GGUF model file inside GGUF model repo')
                     with gr.Row():
                         custom_btn = gr.Button(value='Load custom model', elem_id='prompt_enhance_custom_load', variant='secondary')
-                        custom_btn.click(fn=self.load, inputs=[model_file, model_repo, model_gguf, model_type, None], outputs=[])
+                        # THIS IS THE CORRECTED LINE:
+                        custom_btn.click(fn=self.load, inputs=[model_repo, model_repo, model_gguf, model_type, model_file], outputs=[])
                         llm_model.change(fn=self.get_custom, inputs=[llm_model], outputs=[model_repo, model_gguf, model_type, model_file])
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
@@ -515,4 +515,4 @@ class Script(scripts.Script):
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
-
+        
