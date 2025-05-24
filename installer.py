@@ -1392,6 +1392,7 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
+    branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1406,30 +1407,29 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
         return
     commits = None
     try:
-        commits = requests.get('https://api.github.com/repos/vladmandic/sdnext/branches/master', timeout=10).json()
-        if commits['commit']['sha'] != commit:
-            if args.upgrade:
-                global quick_allowed # pylint: disable=global-statement
-                quick_allowed = False
-                log.info('Updating main repository')
-                try:
-                    git('add .')
-                    git('stash')
-                    update('.', keep_branch=True)
-                    # git('git stash pop')
-                    ver = git('log -1 --pretty=format:"%h %ad"')
-                    log.info(f'Repository upgraded: {ver}')
-                except Exception:
-                    if not reset:
-                        log.error('Repository error upgrading')
-                    else:
-                        log.warning('Repository: retrying upgrade...')
-                        git_reset()
-                        check_version(offline=offline, reset=False)
-            else:
-                dt = commits["commit"]["commit"]["author"]["date"]
-                commit = commits["commit"]["sha"][:8]
-                log.info(f'Version: check latest available hash={commit} updated={dt}')
+        commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
+        if commits['commit']['sha'] != commit and args.upgrade:
+            global quick_allowed # pylint: disable=global-statement
+            quick_allowed = False
+            log.info('Updating main repository')
+            try:
+                git('add .')
+                git('stash')
+                update('.', keep_branch=True)
+                # git('git stash pop')
+                ver = git('log -1 --pretty=format:"%h %ad"')
+                log.info(f'Repository upgraded: {ver}')
+            except Exception:
+                if not reset:
+                    log.error('Repository error upgrading')
+                else:
+                    log.warning('Repository: retrying upgrade...')
+                    git_reset()
+                    check_version(offline=offline, reset=False)
+        else:
+            dt = commits["commit"]["commit"]["author"]["date"]
+            commit = commits["commit"]["sha"][:8]
+            log.info(f'Version: app=sd.next latest={dt} hash={commit} branch={branch_name}')
     except Exception as e:
         log.error(f'Repository failed to check version: {e} {commits}')
     ts('latest', t_start)
