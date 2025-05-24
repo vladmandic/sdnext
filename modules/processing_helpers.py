@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import cv2
 from PIL import Image
-from skimage import exposure
 from blendmodes.blend import blendLayers, BlendType
 from modules import shared, devices, images, sd_models, sd_samplers, sd_hijack_hypertile, processing_vae, timer
 
@@ -33,6 +32,7 @@ def setup_color_correction(image):
 
 
 def apply_color_correction(correction, original_image):
+    from skimage import exposure
     shared.log.debug(f"Applying color correction: correction={correction.shape} image={original_image}")
     np_image = np.asarray(original_image)
     np_recolor = cv2.cvtColor(np_image, cv2.COLOR_RGB2LAB)
@@ -545,11 +545,15 @@ def apply_circular(enable: bool, model):
     if getattr(model, 'texture_tiling', False) == enable:
         return
     try:
+        i = 0
         for layer in [layer for layer in model.unet.modules() if type(layer) is torch.nn.Conv2d]:
+            i += 1
             layer.padding_mode = 'circular' if enable else 'zeros'
         for layer in [layer for layer in model.vae.modules() if type(layer) is torch.nn.Conv2d]:
+            i += 1
             layer.padding_mode = 'circular' if enable else 'zeros'
         model.texture_tiling = enable
+        shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
     except Exception as e:
         debug(f"Diffusers tiling failed: {e}")
 
