@@ -9,6 +9,7 @@
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
+  - Set the default quant mode to `post`  
   - Use per token input quant with int8 matmul  
   - Implement better layer hijacks  
   - Fix Conv quant  
