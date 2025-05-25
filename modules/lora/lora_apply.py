@@ -45,8 +45,8 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                     self.network_weights_backup = True
                 else:
                     self.network_weights_backup = weight.clone().to(devices.cpu)
-                    if hasattr(self, "nncf_decompressor"):
-                        self.nncf_decompressor_backup = self.nncf_decompressor.to(devices.cpu)
+                    if hasattr(self, "sdnq_decompressor"):
+                        self.sdnq_decompressor_backup = self.sdnq_decompressor.to(devices.cpu)
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -79,10 +79,10 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             continue
         try:
             t0 = time.time()
-            if hasattr(self, "nncf_decompressor"):
+            if hasattr(self, "sdnq_decompressor"):
                 return_device = self.weight.data.device
                 self.weight.data = self.weight.data.to(devices.device)
-                weight = self.nncf_decompressor.to(devices.device)(self, return_decompressed_only=True)
+                weight = self.sdnq_decompressor.to(devices.device)(self, return_decompressed_only=True)
                 self.weight.data = self.weight.data.to(return_device)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
@@ -139,23 +139,23 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             # weight._quantize(devices.device) / weight.to(device=device)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
-    elif not bias and hasattr(self, "nncf_decompressor"):
+    elif not bias and hasattr(self, "sdnq_decompressor"):
         num_bits = None
         is_asym_mode = None
         try:
-            from modules.model_quant_nncf import nncf_compress_layer
-            num_bits = self.nncf_decompressor.num_bits
-            is_asym_mode = self.nncf_decompressor.quantization_mode == "asymmetric"
+            from modules.model_quant_sdnq import sdnq_quantize_layer
+            num_bits = self.sdnq_decompressor.num_bits
+            is_asym_mode = self.sdnq_decompressor.quantization_mode == "asymmetric"
             self.weight = torch.nn.Parameter(model_weights.to(devices.device), requires_grad=False)
-            dequant_weight = self.nncf_decompressor(self, return_decompressed_only=True)
+            dequant_weight = self.sdnq_decompressor(self, return_decompressed_only=True)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.nncf_decompressor = None
-            self = nncf_compress_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.nncf_quantize_conv_layers, group_size=shared.opts.nncf_compress_weights_group_size, use_int8_matmul=shared.opts.nncf_decompress_int8_matmul)
+            self.sdnq_decompressor = None
+            self = sdnq_quantize_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.sdnq_quantize_conv_layers, group_size=shared.opts.sdnq_quantize_weights_group_size, use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul)
             self = self.to(device)
             del dequant_weight
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA quant=nncf cls={self.__class__.__name__} bits={num_bits} is_asym_mode={is_asym_mode} weight={self.weight} lora_weights={lora_weights} {e}')
+            shared.log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} bits={num_bits} is_asym_mode={is_asym_mode} weight={self.weight} lora_weights={lora_weights} {e}')
     else:
         try:
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
@@ -217,8 +217,8 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
-            if hasattr(self, "nncf_decompressor_backup"):
-                self.nncf_decompressor = self.nncf_decompressor_backup.to(device)
+            if hasattr(self, "sdnq_decompressor_backup"):
+                self.sdnq_decompressor = self.sdnq_decompressor_backup.to(device)
 
     if bias_backup is not None:
         self.bias = None

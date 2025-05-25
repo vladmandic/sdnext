@@ -19,17 +19,10 @@ torch_dtype_dict = {
     "int4": CustomDtype.INT4,
     "uint4": CustomDtype.INT4,
 }
-weights_dtype_dict = {
-    "int8_asym": "uint8",
-    "int8_sym": "int8",
-    "int4_asym": "uint4",
-    "int4_sym": "int4",
-    "int8": "uint8",
-    "int4": "uint4",
-}
-linear_types = ["NNCFLinear", "Linear"]
-conv_types = ["NNCFConv1d", "NNCFConv2d", "NNCFConv3d", "Conv1d", "Conv2d", "Conv3d"]
-conv_transpose_types = ["NNCFConvTranspose1d", "NNCFConvTranspose2d", "NNCFConvTranspose3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
+
+linear_types = ["Linear"]
+conv_types = ["Conv1d", "Conv2d", "Conv3d"]
+conv_transpose_types = ["ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
 allowed_types = []
 allowed_types.extend(linear_types)
 allowed_types.extend(conv_types)
@@ -37,10 +30,10 @@ allowed_types.extend(conv_transpose_types)
 
 
 class QuantizationMethod(str, Enum):
-    NNCF = "nncf"
+    SDNQ = "sdnq"
 
 
-def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, group_size=0, use_int8_matmul=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, group_size=0, use_int8_matmul=False, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -106,7 +99,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             zero_point = None
         compressed_weight = quantize_int(layer.weight, scale, zero_point, is_asym_mode, num_bits)
 
-        if not shared.opts.nncf_decompress_fp32:
+        if not shared.opts.sdnq_decompress_fp32:
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
@@ -152,7 +145,7 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
 
         layer.weight.requires_grad = False
         layer.weight.data = compressed_weight
-        layer.nncf_decompressor = decompressor
+        layer.sdnq_decompressor = decompressor
 
         if is_linear_type:
             if use_int8_matmul:
@@ -172,38 +165,29 @@ def nncf_compress_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
     return layer
 
 
-def apply_nncf_to_module(model, num_bits, is_asym_mode, quant_conv=False):
+def apply_sdnq_to_module(model, num_bits, is_asym_mode, quant_conv=False):
     has_children = list(model.children())
     if not has_children:
         return model
     for param_name, module in model.named_children():
         if hasattr(module, "weight") and module.weight is not None:
-            module = nncf_compress_layer(
+            module = sdnq_quantize_layer(
                 module,
                 num_bits,
                 is_asym_mode,
                 torch_dtype=devices.dtype,
                 quant_conv=quant_conv,
-                group_size=shared.opts.nncf_compress_weights_group_size,
-                use_int8_matmul=shared.opts.nncf_decompress_int8_matmul,
+                group_size=shared.opts.sdnq_quantize_weights_group_size,
+                use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul,
                 param_name=param_name,
             )
-        module = apply_nncf_to_module(module, num_bits, is_asym_mode, quant_conv=quant_conv)
+        module = apply_sdnq_to_module(module, num_bits, is_asym_mode, quant_conv=quant_conv)
     return model
 
 
-def nncf_send_to_device(model, device):
-    for child in model.children():
-        if "WeightsDecompressor" in child.__class__.__name__:
-            child.scale = child.scale.to(device)
-            if hasattr(child, "zero_point"):
-                child.zero_point = child.zero_point.to(device)
-        nncf_send_to_device(child, device)
-
-
-class NNCFQuantizer(DiffusersQuantizer):
+class SDNQQuantizer(DiffusersQuantizer):
     r"""
-    Diffusers Quantizer for NNCF
+    Diffusers Quantizer for SDNQ
     """
 
     requires_parameters_quantization = True
@@ -247,7 +231,7 @@ class NNCFQuantizer(DiffusersQuantizer):
 
         split_param_name = param_name.split(".")
         if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
-            layer = nncf_compress_layer(
+            layer = sdnq_quantize_layer(
                 layer,
                 self.quantization_config.num_bits,
                 self.quantization_config.is_asym_mode,
@@ -321,14 +305,14 @@ class NNCFQuantizer(DiffusersQuantizer):
 
 
 @dataclass
-class NNCFConfig(QuantizationConfigMixin):
+class SDNQConfig(QuantizationConfigMixin):
     """
     This is a wrapper class about all possible attributes and features that you can play with a model that has been
-    loaded using `nncf`.
+    loaded using `sdnq`.
 
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
-            The target dtype for the weights after quantization. Supported values are ("int8", "int8_sym", "int4", "int4_sym")
+            The target dtype for the weights after quantization. Supported values are ("int8", "uint8", "int4", "uint4")
        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -336,23 +320,21 @@ class NNCFConfig(QuantizationConfigMixin):
 
     def __init__( # pylint: disable=super-init-not-called
         self,
-        weights_dtype: str = "int8_sym",
+        weights_dtype: str = "int8",
         group_size: int = 0,
         use_int8_matmul: bool = False,
         modules_to_not_convert: Optional[List[str]] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
-        self.quant_method = QuantizationMethod.NNCF
-        self.weights_dtype = weights_dtype_dict[weights_dtype.lower()]
+        self.weights_dtype = weights_dtype
+        self.quant_method = QuantizationMethod.SDNQ
         self.group_size = group_size
         self.use_int8_matmul = use_int8_matmul
         self.modules_to_not_convert = modules_to_not_convert
-
-        self.post_init()
-
         self.num_bits = 8 if self.weights_dtype in {"int8", "uint8"} else 4
         self.is_asym_mode = self.weights_dtype in {"uint8", "uint4"}
         self.is_integer = True
+        self.post_init()
 
     def post_init(self):
         r"""
@@ -363,7 +345,7 @@ class NNCFConfig(QuantizationConfigMixin):
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
 
 
-class NNCF_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
+class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
     def __init__(self, T5DenseGatedActDense, dtype):
         super().__init__()
         self.wi_0 = T5DenseGatedActDense.wi_0
@@ -496,31 +478,31 @@ def int8_matmul(
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input[0]) / input[0].shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.nncf_decompressor(self, return_decompressed_only=True, skip_int8_matmul=True), self.bias)
-    return int8_matmul(input, self.weight, self.bias, self.nncf_decompressor.scale, getattr(self.nncf_decompressor, "compressed_weight_shape", None))
+        return torch.nn.functional.linear(input, self.sdnq_decompressor(self, return_decompressed_only=True, skip_int8_matmul=True), self.bias)
+    return int8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale, getattr(self.sdnq_decompressor, "compressed_weight_shape", None))
 
 
 def quantized_linear_forward(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    return torch.nn.functional.linear(input, self.nncf_decompressor(self, return_decompressed_only=True), self.bias)
+    return torch.nn.functional.linear(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias)
 
 
 def quantized_conv_forward(self, input) -> torch.FloatTensor:
-    return self._conv_forward(input, self.nncf_decompressor(self, return_decompressed_only=True), self.bias)
+    return self._conv_forward(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias)
 
 
 def quantized_conv_transpose_1d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 1, self.dilation)
-    return torch.nn.functional.conv_transpose1d(input, self.nncf_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose1d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_2d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 2, self.dilation)
-    return torch.nn.functional.conv_transpose2d(input, self.nncf_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose2d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
         output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 3, self.dilation)
-        return torch.nn.functional.conv_transpose3d(input, self.nncf_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+        return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -647,7 +629,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
             x.weight = result
 
 
-if shared.opts.nncf_decompress_compile:
+if shared.opts.sdnq_decompress_compile:
     try:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
         decompress_asymmetric_compiled = torch.compile(decompress_asymmetric, fullgraph=True)
@@ -662,7 +644,7 @@ if shared.opts.nncf_decompress_compile:
             quantize_int8_matmul_input_compiled = torch.compile(quantize_int8_matmul_input, fullgraph=True)
             unpack_int4_compiled = torch.compile(unpack_int4, fullgraph=True)
     except Exception as e:
-        shared.log.warning(f"Quantization: type=nncf Decompress using torch.compile is not available: {e}")
+        shared.log.warning(f"Quantization: type=sdnq Decompress using torch.compile is not available: {e}")
         decompress_asymmetric_compiled = decompress_asymmetric
         decompress_symmetric_compiled = decompress_symmetric
         decompress_int4_asymmetric_compiled = decompress_int4_asymmetric

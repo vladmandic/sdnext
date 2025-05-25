@@ -161,10 +161,10 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.decoder = None
             sd_model.decoder = sd_model.decoder_pipe.decoder = function(sd_model.decoder_pipe.decoder, op="decoder_pipe.decoder", sd_model=sd_model)
         if hasattr(sd_model, 'prior_pipe') and hasattr(sd_model.prior_pipe, 'prior'):
-            if op == "nncf" and "StableCascade" in sd_model.__class__.__name__: # fixes dtype errors
+            if op == "sdnq" and "StableCascade" in sd_model.__class__.__name__: # fixes dtype errors
                 backup_clip_txt_pooled_mapper = copy.deepcopy(sd_model.prior_pipe.prior.clip_txt_pooled_mapper)
             sd_model.prior_pipe.prior = function(sd_model.prior_pipe.prior, op="prior_pipe.prior", sd_model=sd_model)
-            if op == "nncf" and "StableCascade" in sd_model.__class__.__name__:
+            if op == "sdnq" and "StableCascade" in sd_model.__class__.__name__:
                 sd_model.prior_pipe.prior.clip_txt_pooled_mapper = backup_clip_txt_pooled_mapper
     if "TE" in options:
         if hasattr(sd_model, 'text_encoder') and hasattr(sd_model.text_encoder, 'config'):

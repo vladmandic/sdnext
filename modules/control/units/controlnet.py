@@ -286,13 +286,13 @@ class ControlNet():
                     return
                 if self.dtype is not None:
                     self.model.to(self.dtype)
-                if "ControlNet" in opts.nncf_compress_weights:
+                if "ControlNet" in opts.sdnq_quantize_weights:
                     try:
-                        log.debug(f'Control {what} model NNCF Compress: id="{model_id}"')
-                        from modules.model_quant import nncf_compress_model
-                        self.model = nncf_compress_model(self.model)
+                        log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
+                        from modules.model_quant import sdnq_quantize_model
+                        self.model = sdnq_quantize_model(self.model)
                     except Exception as e:
-                        log.error(f'Control {what} model NNCF Compression failed: id="{model_id}" {e}')
+                        log.error(f'Control {what} model SDNQ Compression failed: id="{model_id}" {e}')
                 elif "ControlNet" in opts.optimum_quanto_weights:
                     try:
                         log.debug(f'Control {what} model Optimum Quanto: id="{model_id}"')
