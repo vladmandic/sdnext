@@ -787,8 +787,6 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if opts.get('nncf_compress_weights', False) and not args.use_openvino:
-        install('nncf==2.16.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
     if opts.get('torchao_quantization', False):
@@ -1175,7 +1173,6 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic', '1.10.21')
-    install('nncf==2.16.0', ignore=True)
     install('gguf', ignore=True)
     install('av', ignore=True)
     try:

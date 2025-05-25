@@ -9,7 +9,6 @@ from installer import installed, install, log, setup_logging
 
 ao = None
 bnb = None
-intel_nncf = None
 optimum_quanto = None
 quant_last_model_name = None
 quant_last_model_device = None
@@ -108,9 +107,6 @@ def create_nncf_config(kwargs = None, allow_nncf: bool = True, module: str = 'Mo
     from modules import shared
     if len(shared.opts.nncf_compress_weights) > 0 and (shared.opts.nncf_compress_mode == 'pre') and allow_nncf:
         if 'Model' in shared.opts.nncf_compress_weights or (module is not None and module in shared.opts.nncf_compress_weights) or module == 'any':
-            load_nncf(silent=True)
-            if intel_nncf is None:
-                return kwargs
             from modules.model_quant_nncf import NNCFQuantizer, NNCFConfig
             diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
             transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["nncf"] = NNCFQuantizer
@@ -259,35 +255,6 @@ def load_quanto(msg='', silent=False):
     return None
 
 
-def load_nncf(msg='', silent=False):
-    global intel_nncf # pylint: disable=global-statement
-    if intel_nncf is not None:
-        return intel_nncf
-    if not installed('nncf'):
-        install('nncf==2.16.0', quiet=True)
-        log.warning('Quantization: nncf installed please restart')
-    install('jstyleson', quiet=True)
-    install('texttable', quiet=True)
-    install('tabulate', quiet=True)
-    try:
-        import nncf
-        intel_nncf = nncf
-        try:
-            nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None # silence the pytorch version warning
-        except Exception:
-            pass
-        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.debug(f'Quantization: type=nncf version={nncf.__version__} fn={fn}') # pylint: disable=protected-access
-        return intel_nncf
-    except Exception as e:
-        if len(msg) > 0:
-            log.error(f"{msg} failed to import nncf: {e}")
-        intel_nncf = None
-        if not silent:
-            raise
-    return None
-
-
 def apply_layerwise(sd_model, quiet:bool=False):
     import torch
     from diffusers.quantizers import quantization_config
@@ -334,11 +301,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
 def nncf_compress_model(model, op=None, sd_model=None, do_gc=True):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared
-    from accelerate import init_empty_weights
-
-    load_nncf('Quantize model: type=NNCF')
     from modules.model_quant_nncf import apply_nncf_to_module
-    from nncf.torch.nncf_module_replacement import replace_modules_by_nncf_modules # get around lazy import
 
     model.eval()
 
@@ -354,9 +317,6 @@ def nncf_compress_model(model, op=None, sd_model=None, do_gc=True):
     backup_embeddings = None
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
-
-    with init_empty_weights():
-        model, _ = replace_modules_by_nncf_modules(model)
 
     num_bits = 8 if shared.opts.nncf_compress_weights_mode in {"INT8", "INT8_SYM", "INT8_ASYM"} else 4
     is_asym_mode = shared.opts.nncf_compress_weights_mode in {"INT8", "INT4", "INT8_ASYM", "INT4_ASYM"}
