@@ -246,7 +246,7 @@ class Script(scripts.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        
+
         while self.busy:
             time.sleep(0.1)
         self.load(model)
@@ -257,7 +257,7 @@ class Script(scripts.Script):
             return prompt
         prompt_text, networks = self.extract(prompt) # Use prompt_text after extraction
         debug_log(f'Prompt enhance: networks={networks}')
-        
+
         current_image = None
         try:
             if image is not None and isinstance(image, gr.Image):
@@ -268,10 +268,10 @@ class Script(scripts.Script):
                 current_image = None
         except Exception:
             current_image = None
-            
+
         has_system = system is not None and len(system) > 4
         mode = 'custom' if has_system else ''
-        
+
         if current_image is not None and isinstance(current_image, Image.Image):
             if not self.tokenizer.is_processor:
                 shared.log.error('Prompt enhance: image not supported by model')
@@ -514,4 +514,4 @@ class Script(scripts.Script):
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
-        
+
