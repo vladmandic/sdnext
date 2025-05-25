@@ -209,7 +209,7 @@ class NNCFQuantizer(DiffusersQuantizer):
     requires_parameters_quantization = True
     use_keep_in_fp32_modules = True
     requires_calibration = False
-    required_packages = ["nncf"]
+    required_packages = None
     torch_dtype = None
 
     def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
