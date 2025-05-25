@@ -1,5 +1,18 @@
 # Change Log for SD.Next
 
+## Update for 2025-05-25
+
+- **SDNQ Quantization**  
+  - Renamed `NNCF` to `SDNQ` as NNCF implementation in SDNext re-implemented and optimized enough to not use any imports from NNCF anymore  
+  - Renamed quantization scheme names to the underlying dtype names instead of NNCF names  
+    - `INT8_SYM` -> `int8`  
+    - `INT8` -> `uint8`  
+    - `INT4_SYM` -> `int4`  
+    - `INT4` -> `uint4`  
+  - Use per token input quant with int8 matmul  
+  - Implement better layer hijacks  
+  - Fix Conv quant  
+
 ## Update for 2025-05-17
 
 *Curious how your system is performing?*  
