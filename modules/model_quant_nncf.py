@@ -575,7 +575,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
 
     def forward(self, x, input=None, *args, return_decompressed_only=False, skip_int8_matmul=False): # pylint: disable=unused-argument,keyword-arg-before-vararg
         if skip_int8_matmul:
-            return decompress_int4_symmetric_compiled(x.weight, self.scale.unsqueeze(-1), self.compressed_weight_shape, self.result_dtype, self.result_shape)
+            return decompress_symmetric_compiled(x.weight.transpose(0,1), self.scale.unsqueeze(-1), self.result_dtype, self.result_shape)
         result = decompress_symmetric_compiled(x.weight, self.scale, self.result_dtype, self.result_shape)
         if return_decompressed_only:
             return result
