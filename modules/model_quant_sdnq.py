@@ -414,15 +414,15 @@ def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.
     return result
 
 
-def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, skip_int8_matmul: bool = False) -> torch.Tensor:
+def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
+    return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype, result_shape)
+
+
+def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, skip_int8_matmul: bool = False) -> torch.Tensor:
     if skip_int8_matmul:
-        return decompress_asymmetric(unpack_uint4(input, shape), scale.unsqueeze(-1), zero_point, dtype, result_shape)
+        return decompress_symmetric(unpack_int4(input, shape, dtype=scale.dtype), scale.unsqueeze(-1), dtype, result_shape)
     else:
-        return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype, result_shape)
-
-
-def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    return decompress_symmetric(unpack_int4(input, shape, dtype=scale.dtype), scale, dtype, result_shape)
+        return decompress_symmetric(unpack_int4(input, shape, dtype=scale.dtype), scale, dtype, result_shape)
 
 
 def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
