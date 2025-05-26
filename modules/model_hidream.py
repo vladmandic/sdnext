@@ -94,6 +94,11 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    if shared.opts.teacache_enabled:
+        from modules import teacache
+        shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.HiDreamImageTransformer2DModel.__name__}')
+        diffusers.HiDreamImageTransformer2DModel.forward = teacache.teacache_hidream_forward # patch must be done before transformer is loaded
+
     if 'I1' in repo_id:
         cls = diffusers.HiDreamImagePipeline
     elif 'E1' in repo_id:

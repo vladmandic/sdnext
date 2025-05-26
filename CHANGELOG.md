@@ -16,6 +16,8 @@
 - **IPEX**  
   - Disabe Dynamic Attention by default on PyTorch 2.7  
   - Remove GradScaler hijack and use torch.amp.GradScaler instead  
+- **Feature**  
+  - TeaCache support for HiDream I1  
 
 ## Update for 2025-05-17
 
