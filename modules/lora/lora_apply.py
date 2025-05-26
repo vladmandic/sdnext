@@ -137,21 +137,22 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
     elif not bias and hasattr(self, "sdnq_decompressor"):
-        num_bits = None
-        is_asym_mode = None
         try:
             from modules.model_quant_sdnq import sdnq_quantize_layer
-            num_bits = self.sdnq_decompressor.num_bits
-            is_asym_mode = self.sdnq_decompressor.is_asym_mode
-            dequant_weight = self.sdnq_decompressor.to(devices.device)(model_weights.to(devices.device), skip_int8_matmul=self.sdnq_decompressor.use_int8_matmul)
+            if hasattr(self, "sdnq_decompressor_backup"):
+                sdnq_decompressor = self.sdnq_decompressor_backup.to(devices.device)
+            else:
+                sdnq_decompressor = self.sdnq_decompressor.to(devices.device)
+            dequant_weight = sdnq_decompressor(model_weights.to(devices.device), skip_int8_matmul=sdnq_decompressor.use_int8_matmul)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
             self.sdnq_decompressor = None
-            self = sdnq_quantize_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.sdnq_quantize_conv_layers, group_size=shared.opts.sdnq_quantize_weights_group_size, use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul)
+            self = sdnq_quantize_layer(self, sdnq_decompressor.num_bits, sdnq_decompressor.is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.sdnq_quantize_conv_layers, group_size=shared.opts.sdnq_quantize_weights_group_size, use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul)
             self = self.to(device)
+            weight = None
             del dequant_weight
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} bits={num_bits} is_asym_mode={is_asym_mode} weight={self.weight} lora_weights={lora_weights} {e}')
+            shared.log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} weight={self.weight} lora_weights={lora_weights} {e}')
     else:
         try:
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
