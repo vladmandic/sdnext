@@ -16,19 +16,14 @@ def apply_teacache(p):
         return
     if not hasattr(shared.sd_model, 'transformer'):
         return
+    shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
+    shared.sd_model.transformer.__class__.cnt = 0
+    shared.sd_model.transformer.__class__.num_steps = p.steps
+    shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
+    shared.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
+    shared.sd_model.transformer.__class__.previous_modulated_input = None
+    shared.sd_model.transformer.__class__.previous_residual = None
     if shared.sd_model.__class__.__name__.startswith('HiDream'):
-        shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
-        shared.sd_model.transformer.__class__.cnt = 0
-        shared.sd_model.transformer.__class__.num_steps = p.steps
         shared.sd_model.transformer.__class__.ret_steps = p.steps * 0.1
-        shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.17 for 1.5x speedup, 0.25 for 1.7x speedup, 0.3 for 2x speedup, 0.45 for 2.6x speedup
         shared.sd_model.transformer.__class__.coefficients = [-3.13605009e+04, -7.12425503e+02, 4.91363285e+01, 8.26515490e+00, 1.08053901e-01]
-    else:
-        shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
-        shared.sd_model.transformer.__class__.cnt = 0
-        shared.sd_model.transformer.__class__.num_steps = p.steps
-        shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
-        shared.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
-        shared.sd_model.transformer.__class__.previous_modulated_input = None
-        shared.sd_model.transformer.__class__.previous_residual = None
     shared.log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')
