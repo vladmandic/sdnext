@@ -404,15 +404,21 @@ def decompress_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: 
     return result
 
 
-def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    result = input.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
+def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.dtype, result_shape: torch.Size, skip_int8_matmul: bool = False) -> torch.Tensor:
+    if skip_int8_matmul:
+        result = input.transpose(0,1).to(dtype=scale.dtype).mul_(scale.unsqueeze(-1)).to(dtype=dtype)
+    else:
+        result = input.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
     if result_shape is not None:
         result = result.reshape(result_shape)
     return result
 
 
-def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype, result_shape)
+def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, skip_int8_matmul: bool = False) -> torch.Tensor:
+    if skip_int8_matmul:
+        return decompress_asymmetric(unpack_uint4(input, shape), scale.unsqueeze(-1), zero_point, dtype, result_shape)
+    else:
+        return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype, result_shape)
 
 
 def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
@@ -434,10 +440,8 @@ def pack_int4(tensor: torch.Tensor) -> torch.Tensor:
     return pack_uint4(tensor.to(dtype=torch.uint8))
 
 
-def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size, transpose: Optional[bool] = False) -> torch.Tensor:
+def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     result = torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1).reshape(shape)
-    if transpose:
-        result = result.transpose(0,1)
     return result
 
 
@@ -478,31 +482,31 @@ def int8_matmul(
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self, return_decompressed_only=True, skip_int8_matmul=True), self.bias)
+        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_int8_matmul=True), self.bias)
     return int8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale, getattr(self.sdnq_decompressor, "compressed_weight_shape", None))
 
 
 def quantized_linear_forward(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    return torch.nn.functional.linear(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias)
+    return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight), self.bias)
 
 
 def quantized_conv_forward(self, input) -> torch.FloatTensor:
-    return self._conv_forward(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias)
+    return self._conv_forward(input, self.sdnq_decompressor(self.weight), self.bias)
 
 
 def quantized_conv_transpose_1d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 1, self.dilation)
-    return torch.nn.functional.conv_transpose1d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose1d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_2d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 2, self.dilation)
-    return torch.nn.functional.conv_transpose2d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose2d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 3, self.dilation)
-    return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -515,7 +519,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
     ):
         super().__init__()
         self.num_bits = 8
-        self.quantization_mode = "asymmetric"
+        self.is_asym_mode = True
         self.scale = scale
         self.zero_point = zero_point
         self.result_dtype = result_dtype
@@ -527,12 +531,8 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 255].")
         return weight.to(dtype=torch.uint8)
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=keyword-arg-before-vararg,unused-argument
-        result = decompress_asymmetric_compiled(x.weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
-        if return_decompressed_only:
-            return result
-        else:
-            x.weight = result
+    def forward(self, weight):
+        return decompress_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
 
 
 class INT8SymmetricWeightsDecompressor(torch.nn.Module):
@@ -544,7 +544,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
     ):
         super().__init__()
         self.num_bits = 8
-        self.quantization_mode = "symmetric"
+        self.is_asym_mode = False
         self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
@@ -555,14 +555,8 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [-128, 127].")
         return weight.to(dtype=torch.int8)
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False, skip_int8_matmul=False): # pylint: disable=unused-argument,keyword-arg-before-vararg
-        if skip_int8_matmul:
-            return decompress_symmetric_compiled(x.weight.transpose(0,1), self.scale.unsqueeze(-1), self.result_dtype, self.result_shape)
-        result = decompress_symmetric_compiled(x.weight, self.scale, self.result_dtype, self.result_shape)
-        if return_decompressed_only:
-            return result
-        else:
-            x.weight = result
+    def forward(self, weight, skip_int8_matmul=False):
+        return decompress_symmetric_compiled(weight, self.scale, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
 
 
 class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
@@ -576,7 +570,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
     ):
         super().__init__()
         self.num_bits = 4
-        self.quantization_mode = "asymmetric"
+        self.is_asym_mode = True
         self.scale = scale
         self.zero_point = zero_point
         self.compressed_weight_shape = compressed_weight_shape
@@ -589,12 +583,8 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 15].")
         return pack_uint4(weight.to(dtype=torch.uint8))
 
-    def forward(self, x, input=None, *args, return_decompressed_only=False): # pylint: disable=unused-argument,keyword-arg-before-vararg
-        result = decompress_int4_asymmetric_compiled(x.weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
-        if return_decompressed_only:
-            return result
-        else:
-            x.weight = result
+    def forward(self, weight):
+        return decompress_int4_asymmetric_compiled(weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
 
 
 class INT4SymmetricWeightsDecompressor(torch.nn.Module):
@@ -607,7 +597,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
     ):
         super().__init__()
         self.num_bits = 4
-        self.quantization_mode = "symmetric"
+        self.is_asym_mode = False
         self.scale = scale
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
@@ -619,14 +609,8 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Tensor values are not in [-8, 7].")
         return pack_int4(weight.to(dtype=torch.int8))
 
-    def forward(self, x, input=None, *arg, return_decompressed_only=False, skip_int8_matmul=False): # pylint: disable=keyword-arg-before-vararg,unused-argument
-        if skip_int8_matmul:
-            return decompress_int4_symmetric_compiled(x.weight, self.scale.unsqueeze(-1), self.compressed_weight_shape, self.result_dtype, self.result_shape)
-        result = decompress_int4_symmetric_compiled(x.weight, self.scale, self.compressed_weight_shape, self.result_dtype, self.result_shape)
-        if return_decompressed_only:
-            return result
-        else:
-            x.weight = result
+    def forward(self, weight, skip_int8_matmul=False):
+        return decompress_int4_symmetric_compiled(weight, self.scale, self.compressed_weight_shape, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
 
 
 if shared.opts.sdnq_decompress_compile:
