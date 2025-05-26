@@ -477,7 +477,7 @@ def int8_matmul(
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    if torch.numel(input[0]) / input[0].shape[-1] < 32:
+    if torch.numel(input) / input.shape[-1] < 32:
         return torch.nn.functional.linear(input, self.sdnq_decompressor(self, return_decompressed_only=True, skip_int8_matmul=True), self.bias)
     return int8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale, getattr(self.sdnq_decompressor, "compressed_weight_shape", None))
 
