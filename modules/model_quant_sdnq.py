@@ -501,8 +501,8 @@ def quantized_conv_transpose_2d_forward(self, input: torch.FloatTensor, output_s
 
 
 def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
-        output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 3, self.dilation)
-        return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 3, self.dilation)
+    return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self, return_decompressed_only=True), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
