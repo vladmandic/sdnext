@@ -531,7 +531,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [0, 255].")
         return weight.to(dtype=torch.uint8)
 
-    def forward(self, weight):
+    def forward(self, weight, **kwargs):
         return decompress_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
 
 
@@ -555,7 +555,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Weight values are not in [-128, 127].")
         return weight.to(dtype=torch.int8)
 
-    def forward(self, weight, skip_int8_matmul=False):
+    def forward(self, weight, skip_int8_matmul=False, **kwargs):
         return decompress_symmetric_compiled(weight, self.scale, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
 
 
@@ -577,7 +577,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_dtype = result_dtype
         self.result_shape = result_shape
 
-    def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
+    def pack_weight(self, weight: torch.Tensor, **kwargs) -> torch.Tensor:
         if debug:
             if torch.any((weight < 0) | (weight > 15)):
                 raise ValueError("Weight values are not in [0, 15].")
@@ -609,7 +609,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
                 raise ValueError("Tensor values are not in [-8, 7].")
         return pack_int4(weight.to(dtype=torch.int8))
 
-    def forward(self, weight, skip_int8_matmul=False):
+    def forward(self, weight, skip_int8_matmul=False, **kwargs):
         return decompress_int4_symmetric_compiled(weight, self.scale, self.compressed_weight_shape, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
 
 
