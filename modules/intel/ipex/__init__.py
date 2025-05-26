@@ -193,10 +193,10 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.ipc_collect = lambda *args, **kwargs: None
             torch.cuda.utilization = lambda *args, **kwargs: 0
 
-            device_supports_fp64, can_allocate_plus_4gb = ipex_hijacks()
+            device_supports_fp64 = ipex_hijacks()
             try:
                 from .diffusers import ipex_diffusers
-                ipex_diffusers(device_supports_fp64=device_supports_fp64, can_allocate_plus_4gb=can_allocate_plus_4gb)
+                ipex_diffusers(device_supports_fp64=device_supports_fp64)
             except Exception: # pylint: disable=broad-exception-caught
                 pass
             torch.cuda.is_xpu_hijacked = True

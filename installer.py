@@ -727,10 +727,6 @@ def install_ipex(torch_command):
     if os.environ.get("PYTORCH_ENABLE_XPU_FALLBACK", None) is None:
         os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1') # CPU fallback for unsupported ops
 
-    if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', None) is None:
-        # XPU PyTorch doesn't support Flash Atten or Memory Atten yet so Battlemage goes OOM without this
-        os.environ.setdefault('IPEX_FORCE_ATTENTION_SLICE', '1')
-
     # FP64 emulation causes random UR Errors
     #if os.environ.get("OverrideDefaultFP64Settings", None) is None:
     #    os.environ.setdefault('OverrideDefaultFP64Settings', '1')

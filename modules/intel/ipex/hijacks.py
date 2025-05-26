@@ -9,16 +9,19 @@ from modules import devices, errors
 torch_version = float(torch.__version__[:3])
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
-if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0' and (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
-    try:
-        x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
-        del x
-        torch.xpu.empty_cache()
-        can_allocate_plus_4gb = True
-    except Exception:
-        can_allocate_plus_4gb = False
+if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
+    if torch_version >= 2.7:
+        use_dynamic_attention = False # torch 2.7 has flash atten support
+    elif (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
+        try:
+            x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
+            del x
+            torch.xpu.empty_cache()
+            use_dynamic_attention = False
+        except Exception:
+            use_dynamic_attention = True
 else:
-    can_allocate_plus_4gb = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '-1')
+    use_dynamic_attention = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '1')
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
 
@@ -122,7 +125,7 @@ def as_tensor(data, dtype=None, device=None):
         return original_as_tensor(data, dtype=dtype, device=device)
 
 
-if can_allocate_plus_4gb:
+if not use_dynamic_attention:
     original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
 else:
     # 32 bit attention workarounds for Alchemist:
@@ -388,7 +391,7 @@ class torch_Generator(original_torch_Generator):
 
 # Hijack Functions:
 def ipex_hijacks():
-    global device_supports_fp64, can_allocate_plus_4gb
+    global device_supports_fp64
     if torch_version >= 2.4:
         torch.UntypedStorage.cuda = UntypedStorage_cuda
         torch.UntypedStorage.to = UntypedStorage_to
@@ -456,4 +459,4 @@ def ipex_hijacks():
         torch.cuda.amp.common = nullcontext()
     torch.cuda.amp.common.amp_definitely_not_available = lambda: False
 
-    return device_supports_fp64, can_allocate_plus_4gb
+    return device_supports_fp64
