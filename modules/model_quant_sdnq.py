@@ -587,13 +587,13 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_shape = result_shape
         self.use_int8_matmul = use_int8_matmul
 
-    def pack_weight(self, weight: torch.Tensor, **kwargs) -> torch.Tensor:
+    def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
             if torch.any((weight < 0) | (weight > 15)):
                 raise ValueError("Weight values are not in [0, 15].")
         return pack_uint4(weight.to(dtype=torch.uint8))
 
-    def forward(self, weight):
+    def forward(self, weight, **kwargs):
         return decompress_int4_asymmetric_compiled(weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
 
 
