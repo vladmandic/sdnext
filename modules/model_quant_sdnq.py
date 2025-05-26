@@ -117,6 +117,7 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     compressed_weight_shape=compressed_weight.shape,
                     result_dtype=torch_dtype,
                     result_shape=result_shape,
+                    use_int8_matmul=use_int8_matmul,
                 )
             else:
                 decompressor = INT4SymmetricWeightsDecompressor(
@@ -124,6 +125,7 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     compressed_weight_shape=compressed_weight.shape,
                     result_dtype=torch_dtype,
                     result_shape=result_shape,
+                    use_int8_matmul=use_int8_matmul,
                 )
         else:
             if is_asym_mode:
@@ -132,12 +134,14 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     zero_point=zero_point.data,
                     result_dtype=torch_dtype,
                     result_shape=result_shape,
+                    use_int8_matmul=use_int8_matmul,
                 )
             else:
                 decompressor = INT8SymmetricWeightsDecompressor(
                     scale=scale.data,
                     result_dtype=torch_dtype,
                     result_shape=result_shape,
+                    use_int8_matmul=use_int8_matmul,
                 )
 
         compressed_weight = decompressor.pack_weight(compressed_weight).to(return_device)
@@ -516,6 +520,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         zero_point: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        use_int8_matmul: bool = False,
     ):
         super().__init__()
         self.num_bits = 8
@@ -524,6 +529,7 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         self.zero_point = zero_point
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -541,6 +547,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         scale: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        use_int8_matmul: bool = False,
     ):
         super().__init__()
         self.num_bits = 8
@@ -548,6 +555,7 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -567,6 +575,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        use_int8_matmul: bool = False,
     ):
         super().__init__()
         self.num_bits = 4
@@ -576,6 +585,7 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor, **kwargs) -> torch.Tensor:
         if debug:
@@ -594,6 +604,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        use_int8_matmul: bool = False,
     ):
         super().__init__()
         self.num_bits = 4
@@ -602,6 +613,7 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
