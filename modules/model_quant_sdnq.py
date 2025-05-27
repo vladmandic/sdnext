@@ -13,25 +13,19 @@ from modules import devices, shared
 
 
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
-torch_dtype_dict = {
-    "int8": torch.int8,
-    "uint8": torch.uint8,
-    "int4": CustomDtype.INT4,
-    "uint4": CustomDtype.INT4,
-}
 
 dtype_dict = {
-    "int8": {"min": -128, "max": 127, "num_bits": 8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
-    "uint8": {"min": 0, "max": 255, "num_bits": 8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
-    "int4": {"min": -8, "max": 7, "num_bits": 4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
-    "uint4": {"min": 0, "max": 15, "num_bits": 4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
-    "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
-    "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
-    "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
-    "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
+    "int8": {"min": -128, "max": 127, "num_bits": 8, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
+    "uint8": {"min": 0, "max": 255, "num_bits": 8, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "int4": {"min": -8, "max": 7, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
+    "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "target_dtype": torch.float8_e4m3fn, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
+    "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": torch.float8_e4m3fnuz, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
+    "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
+    "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2fnuz, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
 }
 if hasattr(torch, "float8_e8m0fnu"):
-    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False},
+    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "target_dtype": torch.float8_e8m0fnu, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False},
 
 quantized_matmul_dtypes = ("int8", "int4", "float8_e4m3fn")
 
@@ -501,7 +495,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         return max_memory
 
     def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype": # pylint: disable=unused-argument,arguments-renamed
-        return torch_dtype_dict[self.quantization_config.weights_dtype]
+        return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
 
     def update_torch_dtype(self, torch_dtype: "torch.dtype" = None) -> "torch.dtype":
         if torch_dtype is None:
@@ -524,6 +518,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
 
     def _process_model_after_weight_loading(self, model, **kwargs):
+        devices.torch_gc(force=True)
         return model
 
     def update_tp_plan(self, config):
