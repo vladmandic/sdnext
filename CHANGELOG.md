@@ -9,10 +9,13 @@
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
+  - Add `float8_e4m3fn` and `float8_e5m2` support  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 matmul  
   - Implement better layer hijacks  
   - Fix Conv quant  
+  - Fix lora weight change  
+  - Use device_map = gpu  
 - **IPEX**  
   - Disabe Dynamic Attention by default on PyTorch 2.7  
   - Remove GradScaler hijack and use torch.amp.GradScaler instead  
