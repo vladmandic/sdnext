@@ -116,7 +116,8 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
             sdnq_config = SDNQConfig(
                 weights_dtype=weights_dtype if weights_dtype is not None else shared.opts.sdnq_quantize_weights_mode,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
-                use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul,
+                quant_conv=shared.opts.sdnq_quantize_conv_layers,
+                use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
             )
             log.debug(f'Quantization: module="{module}" type=sdnq dtype={shared.opts.sdnq_quantize_weights_mode}')
             if kwargs is None:
@@ -318,9 +319,15 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
 
-    num_bits = 8 if shared.opts.sdnq_quantize_weights_mode in {"int8", "uint8"} else 4
-    is_asym_mode = shared.opts.sdnq_quantize_weights_mode in {"uint8", "uint4"}
-    model = apply_sdnq_to_module(model, num_bits, is_asym_mode, quant_conv=shared.opts.sdnq_quantize_conv_layers)
+    model = apply_sdnq_to_module(
+        model,
+        weights_dtype=shared.opts.sdnq_quantize_weights_mode,
+        torch_dtype=devices.dtype,
+        group_size=shared.opts.sdnq_quantize_weights_group_size,
+        quant_conv=shared.opts.sdnq_quantize_conv_layers,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        param_name=op,
+    )
     model.quantization_method = 'SDNQ'
 
     if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:

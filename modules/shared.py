@@ -530,7 +530,7 @@ options_templates.update(options_section(('quantization', "Quantization Settings
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
     "sdnq_decompress_fp32": OptionInfo(False, "Decompress using full precision", gr.Checkbox, {"visible": native}),
     "sdnq_decompress_compile": OptionInfo(devices.has_triton(), "Decompress using torch.compile", gr.Checkbox, {"visible": native}),
-    "sdnq_decompress_int8_matmul": OptionInfo(False, "Use direct INT8 MatMul", gr.Checkbox, {"visible": native}),
+    "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox, {"visible": native}),
     "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox, {"visible": native}),
 
     "bnb_quantization_sep": OptionInfo("<h2>BitsAndBytes</h2>", "", gr.HTML),

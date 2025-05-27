@@ -20,20 +20,32 @@ torch_dtype_dict = {
     "uint4": CustomDtype.INT4,
 }
 
-linear_types = ["Linear"]
-conv_types = ["Conv1d", "Conv2d", "Conv3d"]
-conv_transpose_types = ["ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
-allowed_types = []
-allowed_types.extend(linear_types)
-allowed_types.extend(conv_types)
-allowed_types.extend(conv_transpose_types)
+dtype_dict = {
+    "int8": {"min": -128, "max": 127, "num_bits": 8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
+    "uint8": {"min": 0, "max": 255, "num_bits": 8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "int4": {"min": -8, "max": 7, "num_bits": 4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
+    "uint4": {"min": 0, "max": 15, "num_bits": 4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
+    "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
+    "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
+    "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
+}
+if hasattr(torch, "float8_e8m0fnu"):
+    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False},
+
+quantized_matmul_dtypes = ("int8", "int4", "float8_e4m3fn")
+
+linear_types = ("Linear",)
+conv_types = ("Conv1d", "Conv2d", "Conv3d")
+conv_transpose_types = ("ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d")
+allowed_types = linear_types + conv_types + conv_transpose_types
 
 
 class QuantizationMethod(str, Enum):
     SDNQ = "sdnq"
 
 
-def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_conv=False, group_size=0, use_int8_matmul=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -47,21 +59,21 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
             if not quant_conv:
                 return layer
             reduction_axes = [i for i in range(layer.weight.ndim) if i != 0]
-            use_int8_matmul = False
+            use_quantized_matmul = False
             is_conv_type = True
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
             reduction_axes = [i for i in range(layer.weight.ndim) if i != 1]
-            use_int8_matmul = False
+            use_quantized_matmul = False
             is_conv_transpose_type = True
         else:
             is_linear_type = True
             reduction_axes = -1
             channel_size = layer.weight.shape[-1]
-            use_int8_matmul = use_int8_matmul and not is_asym_mode and channel_size >= 32 and layer.weight.shape[0] >= 32
+            use_quantized_matmul = use_quantized_matmul and weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and layer.weight.shape[0] >= 32
 
-            if not use_int8_matmul and (group_size > 0 or (num_bits == 4 and group_size != -1)):
+            if not use_quantized_matmul and (group_size > 0 or (dtype_dict[weights_dtype]["num_bits"] == 4 and group_size != -1)):
                 if group_size == 0:
                     group_size = 64
                     num_of_groups = channel_size // group_size
@@ -87,62 +99,36 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
                     layer.weight.data = layer.weight.reshape(new_shape)
 
         if shared.opts.diffusers_offload_mode != "none":
-            return_device = layer.weight.data.device
+            return_device = layer.weight.device
         else:
             return_device = devices.device
         layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
 
-        if is_asym_mode:
-            scale, zero_point = get_int_scale_asymmetric(layer.weight, reduction_axes, num_bits)
+        if dtype_dict[weights_dtype]["is_unsigned"]:
+            scale, zero_point = get_int_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
         else:
-            scale = get_int_scale_symmetric(layer.weight, reduction_axes, num_bits)
+            scale = get_int_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
             zero_point = None
-        compressed_weight = quantize_int(layer.weight, scale, zero_point, is_asym_mode, num_bits)
+        compressed_weight = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
 
         if not shared.opts.sdnq_decompress_fp32:
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
 
-        if use_int8_matmul:
+        if use_quantized_matmul:
             scale = scale.squeeze(-1)
-            if num_bits == 8:
+            if dtype_dict[weights_dtype]["num_bits"] == 8:
                 compressed_weight = compressed_weight.transpose(0,1)
 
-        if num_bits == 4:
-            if is_asym_mode:
-                decompressor = INT4AsymmetricWeightsDecompressor(
-                    scale=scale.data,
-                    zero_point=zero_point.data,
-                    compressed_weight_shape=compressed_weight.shape,
-                    result_dtype=torch_dtype,
-                    result_shape=result_shape,
-                    use_int8_matmul=use_int8_matmul,
-                )
-            else:
-                decompressor = INT4SymmetricWeightsDecompressor(
-                    scale=scale.data,
-                    compressed_weight_shape=compressed_weight.shape,
-                    result_dtype=torch_dtype,
-                    result_shape=result_shape,
-                    use_int8_matmul=use_int8_matmul,
-                )
-        else:
-            if is_asym_mode:
-                decompressor = INT8AsymmetricWeightsDecompressor(
-                    scale=scale.data,
-                    zero_point=zero_point.data,
-                    result_dtype=torch_dtype,
-                    result_shape=result_shape,
-                    use_int8_matmul=use_int8_matmul,
-                )
-            else:
-                decompressor = INT8SymmetricWeightsDecompressor(
-                    scale=scale.data,
-                    result_dtype=torch_dtype,
-                    result_shape=result_shape,
-                    use_int8_matmul=use_int8_matmul,
-                )
+        decompressor = decompressor_dict[weights_dtype](
+            scale=scale,
+            zero_point=zero_point,
+            compressed_weight_shape=compressed_weight.shape,
+            result_dtype=torch_dtype,
+            result_shape=result_shape,
+            use_quantized_matmul=use_quantized_matmul,
+        )
 
         compressed_weight = decompressor.pack_weight(compressed_weight).to(return_device)
         decompressor = decompressor.to(return_device)
@@ -150,9 +136,10 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
         layer.weight.requires_grad = False
         layer.weight.data = compressed_weight
         layer.sdnq_decompressor = decompressor
+        del compressed_weight, scale, zero_point
 
         if is_linear_type:
-            if use_int8_matmul:
+            if use_quantized_matmul:
                 layer.forward = quantized_linear_forward_int8_matmul
             else:
                 layer.forward = quantized_linear_forward
@@ -169,235 +156,58 @@ def sdnq_quantize_layer(layer, num_bits, is_asym_mode, torch_dtype=None, quant_c
     return layer
 
 
-def apply_sdnq_to_module(model, num_bits, is_asym_mode, quant_conv=False):
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None):
     has_children = list(model.children())
     if not has_children:
         return model
-    for param_name, module in model.named_children():
+    for module_param_name, module in model.named_children():
         if hasattr(module, "weight") and module.weight is not None:
             module = sdnq_quantize_layer(
                 module,
-                num_bits,
-                is_asym_mode,
-                torch_dtype=devices.dtype,
+                weights_dtype=weights_dtype,
+                torch_dtype=torch_dtype,
+                group_size=group_size,
                 quant_conv=quant_conv,
-                group_size=shared.opts.sdnq_quantize_weights_group_size,
-                use_int8_matmul=shared.opts.sdnq_decompress_int8_matmul,
-                param_name=param_name,
+                use_quantized_matmul=use_quantized_matmul,
+                param_name=module_param_name,
             )
-        module = apply_sdnq_to_module(module, num_bits, is_asym_mode, quant_conv=quant_conv)
+        module = apply_sdnq_to_module(
+                module,
+                weights_dtype=weights_dtype,
+                torch_dtype=torch_dtype,
+                group_size=group_size,
+                quant_conv=quant_conv,
+                use_quantized_matmul=use_quantized_matmul,
+                param_name=module_param_name,
+            )
     return model
 
 
-class SDNQQuantizer(DiffusersQuantizer):
-    r"""
-    Diffusers Quantizer for SDNQ
-    """
-
-    requires_parameters_quantization = True
-    use_keep_in_fp32_modules = True
-    requires_calibration = False
-    required_packages = None
-    torch_dtype = None
-
-    def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
-        super().__init__(quantization_config, **kwargs)
-
-    def check_if_quantized_param(
-        self,
-        model,
-        param_value: "torch.Tensor",
-        param_name: str,
-        state_dict: Dict[str, Any],
-        **kwargs,
-    ):
-        return param_name.endswith(".weight")
-
-    def check_quantized_param(self, *args, **kwargs) -> bool:
-        """
-        needed for transformers compatibilty, returns self.check_if_quantized_param
-        """
-        return self.check_if_quantized_param(*args, **kwargs)
-
-    def create_quantized_param( # pylint: disable=arguments-differ
-        self,
-        model,
-        param_value: "torch.Tensor",
-        param_name: str,
-        target_device: "torch.device",
-        state_dict: Dict[str, Any], # pylint: disable=unused-argument
-        unexpected_keys: List[str], # pylint: disable=unused-argument
-        **kwargs,
-    ):
-        # load the model params to target_device first
-        layer, tensor_name = get_module_from_name(model, param_name)
-        layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device) # pylint: disable=protected-access
-
-        split_param_name = param_name.split(".")
-        if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
-            layer = sdnq_quantize_layer(
-                layer,
-                self.quantization_config.num_bits,
-                self.quantization_config.is_asym_mode,
-                torch_dtype=self.torch_dtype,
-                group_size=self.quantization_config.group_size,
-                use_int8_matmul=self.quantization_config.use_int8_matmul,
-                param_name=param_name,
-            )
-
-    def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
-        max_memory = {key: val * 0.70 for key, val in max_memory.items()}
-        return max_memory
-
-    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype": # pylint: disable=unused-argument,arguments-renamed
-        return torch_dtype_dict[self.quantization_config.weights_dtype]
-
-    def update_torch_dtype(self, torch_dtype: "torch.dtype" = None) -> "torch.dtype":
-        if torch_dtype is None:
-            torch_dtype = devices.dtype
-        self.torch_dtype = torch_dtype
-        return torch_dtype
-
-    def _process_model_before_weight_loading( # pylint: disable=arguments-differ
-        self,
-        model,
-        device_map, # pylint: disable=unused-argument
-        keep_in_fp32_modules: List[str] = [],
-        **kwargs,
-    ):
-        model.config.quantization_config = self.quantization_config
-        self.modules_to_not_convert = self.quantization_config.modules_to_not_convert
-        if not isinstance(self.modules_to_not_convert, list):
-            self.modules_to_not_convert = [self.modules_to_not_convert]
-        if keep_in_fp32_modules is not None:
-            self.modules_to_not_convert.extend(keep_in_fp32_modules)
-
-    def _process_model_after_weight_loading(self, model, **kwargs):
-        return model
-
-    def update_tp_plan(self, config):
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return config
-
-    def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return unexpected_keys
-
-    def update_missing_keys_after_loading(self, model, missing_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return missing_keys
-
-    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return expected_keys
-
-    @property
-    def is_trainable(self):
-        return False
-
-    @property
-    def is_serializable(self):
-        return False
-
-
-@dataclass
-class SDNQConfig(QuantizationConfigMixin):
-    """
-    This is a wrapper class about all possible attributes and features that you can play with a model that has been
-    loaded using `sdnq`.
-
-    Args:
-        weights_dtype (`str`, *optional*, defaults to `"int8"`):
-            The target dtype for the weights after quantization. Supported values are ("int8", "uint8", "int4", "uint4")
-       modules_to_not_convert (`list`, *optional*, default to `None`):
-            The list of modules to not quantize, useful for quantizing models that explicitly require to have some
-            modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
-    """
-
-    def __init__( # pylint: disable=super-init-not-called
-        self,
-        weights_dtype: str = "int8",
-        group_size: int = 0,
-        use_int8_matmul: bool = False,
-        modules_to_not_convert: Optional[List[str]] = None,
-        **kwargs, # pylint: disable=unused-argument
-    ):
-        self.weights_dtype = weights_dtype
-        self.quant_method = QuantizationMethod.SDNQ
-        self.group_size = group_size
-        self.use_int8_matmul = use_int8_matmul
-        self.modules_to_not_convert = modules_to_not_convert
-        self.num_bits = 8 if self.weights_dtype in {"int8", "uint8"} else 4
-        self.is_asym_mode = self.weights_dtype in {"uint8", "uint4"}
-        self.is_integer = True
-        self.post_init()
-
-    def post_init(self):
-        r"""
-        Safety checker that arguments are correct
-        """
-        accepted_weights = ["int8", "uint8", "int4", "uint4"]
-        if self.weights_dtype not in accepted_weights:
-            raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
-
-
-class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
-    def __init__(self, T5DenseGatedActDense, dtype):
-        super().__init__()
-        self.wi_0 = T5DenseGatedActDense.wi_0
-        self.wi_1 = T5DenseGatedActDense.wi_1
-        self.wo = T5DenseGatedActDense.wo
-        self.dropout = T5DenseGatedActDense.dropout
-        self.act = T5DenseGatedActDense.act
-        self.torch_dtype = dtype
-
-    def forward(self, hidden_states):
-        hidden_gelu = self.act(self.wi_0(hidden_states))
-        hidden_linear = self.wi_1(hidden_states)
-        hidden_states = hidden_gelu * hidden_linear
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = hidden_states.to(self.torch_dtype) # this line needs to be forced
-        hidden_states = self.wo(hidden_states)
-        return hidden_states
-
-
-def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], num_bits: int) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
-    max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
-    scale = (max_values - zero_point) / (2**num_bits - 1)
+    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
+    if dtype_dict[weights_dtype]["min"] != 0:
+        zero_point.add_(dtype_dict[weights_dtype]["min"])
     return scale, zero_point
 
 
-def get_int_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], num_bits: int) -> torch.FloatTensor:
-    w_abs_min = torch.abs(torch.amin(weight, dim=reduction_axes, keepdims=True))
-    w_max = torch.amax(weight, dim=reduction_axes, keepdims=True)
-    scale = torch.where(w_abs_min >= w_max, w_abs_min, -w_max) / (2 ** (num_bits - 1))
+def get_int_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> torch.FloatTensor:
+    abs_min_values = torch.amin(weight, dim=reduction_axes, keepdims=True).abs_()
+    max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
+    scale = torch.where(abs_min_values >= max_values, abs_min_values, -max_values).div_(dtype_dict[weights_dtype]["max"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     return scale
 
 
-def quantize_int(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, is_asym_mode: bool, num_bits: int, flatten: Optional[bool] = False) -> torch.ByteTensor:
-    dtype = torch.uint8 if is_asym_mode else torch.int8
-    level_low = 0 if is_asym_mode else -(2 ** (num_bits - 1))
-    level_high = 2**num_bits - 1 if is_asym_mode else 2 ** (num_bits - 1) - 1
+def quantize_weight(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, weights_dtype: str) -> torch.ByteTensor:
     if zero_point is not None:
         compressed_weight = torch.sub(weight, zero_point).div_(scale)
     else:
         compressed_weight = torch.div(weight, scale)
-    compressed_weight = compressed_weight.round_().clamp_(level_low, level_high).to(dtype)
-    if flatten:
-        compressed_weight = compressed_weight.flatten(0,-2)
+    compressed_weight = compressed_weight.round_().clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
     return compressed_weight
 
 
@@ -519,16 +329,15 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         zero_point: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool = False,
+        **kwargs,
     ):
         super().__init__()
-        self.num_bits = 8
-        self.is_asym_mode = True
+        self.weights_dtype = "uint8"
+        self.use_quantized_matmul = False
         self.scale = scale
         self.zero_point = zero_point
         self.result_dtype = result_dtype
         self.result_shape = result_shape
-        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -546,15 +355,15 @@ class INT8SymmetricWeightsDecompressor(torch.nn.Module):
         scale: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool = False,
+        use_quantized_matmul: bool = False,
+        **kwargs,
     ):
         super().__init__()
-        self.num_bits = 8
-        self.is_asym_mode = False
+        self.weights_dtype = "int8"
+        self.use_quantized_matmul = use_quantized_matmul
         self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
-        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -574,17 +383,16 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool = False,
+        **kwargs,
     ):
         super().__init__()
-        self.num_bits = 4
-        self.is_asym_mode = True
+        self.weights_dtype = "uint4"
+        self.use_quantized_matmul = False
         self.scale = scale
         self.zero_point = zero_point
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
-        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -603,16 +411,16 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        use_int8_matmul: bool = False,
+        use_quantized_matmul: bool = False,
+        **kwargs,
     ):
         super().__init__()
-        self.num_bits = 4
-        self.is_asym_mode = False
+        self.weights_dtype = "int4"
+        self.use_quantized_matmul = use_quantized_matmul
         self.scale = scale
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
-        self.use_int8_matmul = use_int8_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         if debug:
@@ -622,6 +430,193 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
 
     def forward(self, weight, skip_int8_matmul=False, **kwargs):
         return decompress_int4_symmetric_compiled(weight, self.scale, self.compressed_weight_shape, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
+
+
+decompressor_dict = {
+    "int8": INT8SymmetricWeightsDecompressor,
+    "uint8": INT8AsymmetricWeightsDecompressor,
+    "int4": INT4SymmetricWeightsDecompressor,
+    "uint4": INT4AsymmetricWeightsDecompressor,
+}
+
+
+class SDNQQuantizer(DiffusersQuantizer):
+    r"""
+    Diffusers Quantizer for SDNQ
+    """
+
+    requires_parameters_quantization = True
+    use_keep_in_fp32_modules = True
+    requires_calibration = False
+    required_packages = None
+    torch_dtype = None
+
+    def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
+        super().__init__(quantization_config, **kwargs)
+
+    def check_if_quantized_param(
+        self,
+        model,
+        param_value: "torch.Tensor",
+        param_name: str,
+        state_dict: Dict[str, Any],
+        **kwargs,
+    ):
+        return param_name.endswith(".weight")
+
+    def check_quantized_param(self, *args, **kwargs) -> bool:
+        """
+        needed for transformers compatibilty, returns self.check_if_quantized_param
+        """
+        return self.check_if_quantized_param(*args, **kwargs)
+
+    def create_quantized_param( # pylint: disable=arguments-differ
+        self,
+        model,
+        param_value: "torch.Tensor",
+        param_name: str,
+        target_device: "torch.device",
+        state_dict: Dict[str, Any], # pylint: disable=unused-argument
+        unexpected_keys: List[str], # pylint: disable=unused-argument
+        **kwargs,
+    ):
+        # load the model params to target_device first
+        layer, tensor_name = get_module_from_name(model, param_name)
+        layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device) # pylint: disable=protected-access
+
+        split_param_name = param_name.split(".")
+        if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
+            layer = sdnq_quantize_layer(
+                layer,
+                weights_dtype=self.quantization_config.weights_dtype,
+                torch_dtype=self.torch_dtype,
+                group_size=self.quantization_config.group_size,
+                quant_conv=self.quantization_config.quant_conv,
+                use_quantized_matmul=self.quantization_config.use_quantized_matmul,
+                param_name=param_name,
+            )
+
+    def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
+        max_memory = {key: val * 0.70 for key, val in max_memory.items()}
+        return max_memory
+
+    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype": # pylint: disable=unused-argument,arguments-renamed
+        return torch_dtype_dict[self.quantization_config.weights_dtype]
+
+    def update_torch_dtype(self, torch_dtype: "torch.dtype" = None) -> "torch.dtype":
+        if torch_dtype is None:
+            torch_dtype = devices.dtype
+        self.torch_dtype = torch_dtype
+        return torch_dtype
+
+    def _process_model_before_weight_loading( # pylint: disable=arguments-differ
+        self,
+        model,
+        device_map, # pylint: disable=unused-argument
+        keep_in_fp32_modules: List[str] = [],
+        **kwargs,
+    ):
+        model.config.quantization_config = self.quantization_config
+        self.modules_to_not_convert = self.quantization_config.modules_to_not_convert
+        if not isinstance(self.modules_to_not_convert, list):
+            self.modules_to_not_convert = [self.modules_to_not_convert]
+        if keep_in_fp32_modules is not None:
+            self.modules_to_not_convert.extend(keep_in_fp32_modules)
+
+    def _process_model_after_weight_loading(self, model, **kwargs):
+        return model
+
+    def update_tp_plan(self, config):
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return config
+
+    def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return unexpected_keys
+
+    def update_missing_keys_after_loading(self, model, missing_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return missing_keys
+
+    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return expected_keys
+
+    @property
+    def is_trainable(self):
+        return False
+
+    @property
+    def is_serializable(self):
+        return False
+
+
+@dataclass
+class SDNQConfig(QuantizationConfigMixin):
+    """
+    This is a wrapper class about all possible attributes and features that you can play with a model that has been
+    loaded using `sdnq`.
+
+    Args:
+        weights_dtype (`str`, *optional*, defaults to `"int8"`):
+            The target dtype for the weights after quantization. Supported values are ("int8", "uint8", "int4", "uint4")
+       modules_to_not_convert (`list`, *optional*, default to `None`):
+            The list of modules to not quantize, useful for quantizing models that explicitly require to have some
+            modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
+    """
+
+    def __init__( # pylint: disable=super-init-not-called
+        self,
+        weights_dtype: str = "int8",
+        group_size: int = 0,
+        quant_conv: bool = False,
+        use_quantized_matmul: bool = False,
+        modules_to_not_convert: Optional[List[str]] = None,
+        **kwargs, # pylint: disable=unused-argument
+    ):
+        self.weights_dtype = weights_dtype
+        self.quant_method = QuantizationMethod.SDNQ
+        self.group_size = group_size
+        self.quant_conv = quant_conv
+        self.use_quantized_matmul = use_quantized_matmul
+        self.modules_to_not_convert = modules_to_not_convert
+        self.post_init()
+
+    def post_init(self):
+        r"""
+        Safety checker that arguments are correct
+        """
+        accepted_weights = ["int8", "uint8", "int4", "uint4"]
+        if self.weights_dtype not in accepted_weights:
+            raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
+
+
+class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
+    def __init__(self, T5DenseGatedActDense, dtype):
+        super().__init__()
+        self.wi_0 = T5DenseGatedActDense.wi_0
+        self.wi_1 = T5DenseGatedActDense.wi_1
+        self.wo = T5DenseGatedActDense.wo
+        self.dropout = T5DenseGatedActDense.dropout
+        self.act = T5DenseGatedActDense.act
+        self.torch_dtype = dtype
+
+    def forward(self, hidden_states):
+        hidden_gelu = self.act(self.wi_0(hidden_states))
+        hidden_linear = self.wi_1(hidden_states)
+        hidden_states = hidden_gelu * hidden_linear
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = hidden_states.to(self.torch_dtype) # this line needs to be forced
+        hidden_states = self.wo(hidden_states)
+        return hidden_states
 
 
 if shared.opts.sdnq_decompress_compile:
