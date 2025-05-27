@@ -15,7 +15,6 @@
   - Implement better layer hijacks  
   - Fix Conv quant  
   - Fix lora weight change  
-  - Use device_map = gpu  
 - **IPEX**  
   - Disabe Dynamic Attention by default on PyTorch 2.7  
   - Remove GradScaler hijack and use torch.amp.GradScaler instead  
