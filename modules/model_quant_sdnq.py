@@ -147,6 +147,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             elif layer_class_name.endswith("3d"):
                 layer.forward = quantized_conv_transpose_3d_forward
         layer.forward = layer.forward.__get__(layer, layer.__class__)
+        devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
     return layer
 
 
