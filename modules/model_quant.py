@@ -151,25 +151,25 @@ def check_nunchaku(module: str = ''):
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model'):
     if kwargs is None:
         kwargs = {}
+    kwargs = create_sdnq_config(kwargs, allow_sdnq=allow, module=module)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=sdnq config={kwargs.get("quantization_config", None)}')
+        return kwargs
     kwargs = create_bnb_config(kwargs, allow_bnb=allow, module=module)
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=bnb config={kwargs.get("quantization_config", None)}')
-        return kwargs
-    kwargs = create_ao_config(kwargs, allow_ao=allow, module=module)
-    if kwargs is not None and 'quantization_config' in kwargs:
-        if debug:
-            log.trace(f'Quantization: type=torchao config={kwargs.get("quantization_config", None)}')
         return kwargs
     kwargs = create_quanto_config(kwargs, allow_quanto=allow, module=module)
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=quanto config={kwargs.get("quantization_config", None)}')
         return kwargs
-    kwargs = create_sdnq_config(kwargs, allow_sdnq=allow, module=module)
+    kwargs = create_ao_config(kwargs, allow_ao=allow, module=module)
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
-            log.trace(f'Quantization: type=sdnq config={kwargs.get("quantization_config", None)}')
+            log.trace(f'Quantization: type=torchao config={kwargs.get("quantization_config", None)}')
         return kwargs
     return kwargs
 
@@ -349,6 +349,8 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
             quant_last_model_name = None
             quant_last_model_device = None
         model.to(devices.device)
+    elif shared.opts.diffusers_offload_mode == "model":
+        model = model.to(devices.cpu)
     if do_gc:
         devices.torch_gc(force=True)
     return model
@@ -521,12 +523,14 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
     # if 'variant' in config:
     #     del config['variant']
     if device_map:
-        if shared.opts.device_map == 'cpu':
-            config['device_map'] = 'cpu'
-        if shared.opts.device_map == 'gpu':
-            config['device_map'] = devices.device
         if devices.backend == "ipex" and os.environ.get('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '0') != '1' and module in {'TE', 'LLM'}:
             config['device_map'] = 'cpu' # alchemist gpus hits the 4GB allocation limit with transformers, UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS emulates above 4GB allocations
+        elif shared.opts.device_map == 'cpu':
+            config['device_map'] = 'cpu'
+        elif shared.opts.device_map == 'gpu':
+            config['device_map'] = devices.device
+        elif 'Model' in shared.opts.sdnq_quantize_weights or (module is not None and module in shared.opts.sdnq_quantize_weights) or module == 'any':
+            config['device_map'] = devices.device
     if allow_quant:
         quant_args = create_config(module=module)
     else:

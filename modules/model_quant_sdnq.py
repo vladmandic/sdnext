@@ -92,10 +92,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                     new_shape[last_dim_index - 1 : last_dim_index] = (int(num_of_groups), int(group_size))
                     layer.weight.data = layer.weight.reshape(new_shape)
 
-        if shared.opts.diffusers_offload_mode != "none":
-            return_device = layer.weight.device
-        else:
+        layer.weight.requires_grad = False
+        if shared.opts.diffusers_offload_mode in {"none", "model"}:
             return_device = devices.device
+        else:
+            return_device = devices.cpu
         layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
@@ -103,7 +104,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         else:
             scale = get_int_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
             zero_point = None
-        compressed_weight = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
+        layer.weight.data = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
 
         if not shared.opts.sdnq_decompress_fp32:
             scale = scale.to(torch_dtype)
@@ -113,24 +114,17 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul:
             scale = scale.squeeze(-1)
             if dtype_dict[weights_dtype]["num_bits"] == 8:
-                compressed_weight = compressed_weight.transpose(0,1)
+                layer.weight.data = layer.weight.data.transpose(0,1)
 
-        decompressor = decompressor_dict[weights_dtype](
+        layer.sdnq_decompressor = decompressor_dict[weights_dtype](
             scale=scale,
             zero_point=zero_point,
-            compressed_weight_shape=compressed_weight.shape,
+            compressed_weight_shape=layer.weight.data.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
             use_quantized_matmul=use_quantized_matmul,
-        )
-
-        compressed_weight = decompressor.pack_weight(compressed_weight).to(return_device)
-        decompressor = decompressor.to(return_device)
-
-        layer.weight.requires_grad = False
-        layer.weight.data = compressed_weight
-        layer.sdnq_decompressor = decompressor
-        del compressed_weight, scale, zero_point
+        ).to(return_device)
+        layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight.data).to(return_device)
 
         if is_linear_type:
             if use_quantized_matmul:
@@ -457,7 +451,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        return param_name.endswith(".weight")
+        if param_name.endswith(".weight"):
+            split_param_name = param_name.split(".")
+            if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
+                layer, _ = get_module_from_name(model, param_name)
+                return layer.__class__.__name__ in allowed_types
+        return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
         """
@@ -477,19 +476,16 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         # load the model params to target_device first
         layer, tensor_name = get_module_from_name(model, param_name)
-        layer._parameters[tensor_name] = torch.nn.Parameter(param_value).to(device=target_device) # pylint: disable=protected-access
-
-        split_param_name = param_name.split(".")
-        if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
-            layer = sdnq_quantize_layer(
-                layer,
-                weights_dtype=self.quantization_config.weights_dtype,
-                torch_dtype=self.torch_dtype,
-                group_size=self.quantization_config.group_size,
-                quant_conv=self.quantization_config.quant_conv,
-                use_quantized_matmul=self.quantization_config.use_quantized_matmul,
-                param_name=param_name,
-            )
+        layer.weight = torch.nn.Parameter(param_value.to(device=target_device), requires_grad=False)
+        layer = sdnq_quantize_layer(
+            layer,
+            weights_dtype=self.quantization_config.weights_dtype,
+            torch_dtype=self.torch_dtype,
+            group_size=self.quantization_config.group_size,
+            quant_conv=self.quantization_config.quant_conv,
+            use_quantized_matmul=self.quantization_config.use_quantized_matmul,
+            param_name=param_name,
+        )
 
     def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
         max_memory = {key: val * 0.70 for key, val in max_memory.items()}
@@ -519,6 +515,8 @@ class SDNQQuantizer(DiffusersQuantizer):
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
 
     def _process_model_after_weight_loading(self, model, **kwargs):
+        if shared.opts.diffusers_offload_mode == "model":
+            model = model.to(devices.cpu)
         devices.torch_gc(force=True)
         return model
 
