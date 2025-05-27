@@ -529,7 +529,7 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
             config['device_map'] = 'cpu'
         elif shared.opts.device_map == 'gpu':
             config['device_map'] = devices.device
-        elif module not in {'TE', 'LLM'}: # Transformers loads the entire model into GPU at once and OOMs
+        elif shared.opts.device_map == 'default' and module not in {'TE', 'LLM'}: # Transformers loads the entire model into GPU at once and OOMs
             if 'Model' in shared.opts.sdnq_quantize_weights or (module is not None and module in shared.opts.sdnq_quantize_weights) or module == 'any':
                 config['device_map'] = devices.device
     if allow_quant:
