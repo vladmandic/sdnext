@@ -433,15 +433,14 @@ def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.dtype != torch.uint8:
         raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
     packed_tensor = tensor.contiguous().reshape(-1, 2)
-    packed_tensor = torch.bitwise_and(packed_tensor[..., ::2], 15) | packed_tensor[..., 1::2] << 4
+    packed_tensor = torch.bitwise_or(torch.bitwise_and(packed_tensor[:, 0], 15), torch.bitwise_left_shift(packed_tensor[:, 1], 4))
     return packed_tensor
 
 
 def pack_int4(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.dtype != torch.int8:
         raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.int8 type is supported.")
-    tensor = tensor + 8
-    return pack_uint4(tensor.to(dtype=torch.uint8))
+    return pack_uint4((tensor + 8).to(dtype=torch.uint8))
 
 
 def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
