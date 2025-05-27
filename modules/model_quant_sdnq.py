@@ -20,14 +20,14 @@ dtype_dict = {
     "int4": {"min": -8, "max": 7, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
     "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "target_dtype": torch.float8_e4m3fn, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
-    "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": torch.float8_e4m3fnuz, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
     "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
-    "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2fnuz, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
+    "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
+    "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
 }
 if hasattr(torch, "float8_e8m0fnu"):
-    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "target_dtype": torch.float8_e8m0fnu, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False},
+    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False}
 
-quantized_matmul_dtypes = ("int8", "int4", "float8_e4m3fn")
+quantized_matmul_dtypes = ("int8", "int4") # todo: float8_e4m3fn
 
 linear_types = ("Linear",)
 conv_types = ("Conv1d", "Conv2d", "Conv3d")
@@ -100,9 +100,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
-            scale, zero_point = get_int_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
+            scale, zero_point = get_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
         else:
-            scale = get_int_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
+            scale = get_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
             zero_point = None
         layer.weight.data = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
 
@@ -123,6 +123,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             result_dtype=torch_dtype,
             result_shape=result_shape,
             use_quantized_matmul=use_quantized_matmul,
+            weights_dtype=weights_dtype,
         ).to(return_device)
         layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight.data).to(return_device)
 
@@ -172,7 +173,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
     scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
@@ -182,7 +183,7 @@ def get_int_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int
     return scale, zero_point
 
 
-def get_int_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> torch.FloatTensor:
+def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> torch.FloatTensor:
     abs_min_values = torch.amin(weight, dim=reduction_axes, keepdims=True).abs_()
     max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
     scale = torch.where(abs_min_values >= max_values, abs_min_values, -max_values).div_(dtype_dict[weights_dtype]["max"])
@@ -196,7 +197,9 @@ def quantize_weight(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_po
         compressed_weight = torch.sub(weight, zero_point).div_(scale)
     else:
         compressed_weight = torch.div(weight, scale)
-    compressed_weight = compressed_weight.round_().clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
+    if dtype_dict[weights_dtype]["is_integer"]:
+        compressed_weight.round_()
+    compressed_weight = compressed_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
     return compressed_weight
 
 
@@ -311,17 +314,18 @@ def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_s
     return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
-class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
+class AsymmetricWeightsDecompressor(torch.nn.Module):
     def __init__(
         self,
         scale: torch.Tensor,
         zero_point: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        weights_dtype: torch.dtype,
         **kwargs,
     ):
         super().__init__()
-        self.weights_dtype = "uint8"
+        self.weights_dtype = weights_dtype
         self.use_quantized_matmul = False
         self.scale = scale
         self.zero_point = zero_point
@@ -329,36 +333,31 @@ class INT8AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_shape = result_shape
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        if debug:
-            if torch.any((weight < 0) | (weight > 255)):
-                raise ValueError("Weight values are not in [0, 255].")
-        return weight.to(dtype=torch.uint8)
+        return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
 
     def forward(self, weight, **kwargs):
         return decompress_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
 
 
-class INT8SymmetricWeightsDecompressor(torch.nn.Module):
+class SymmetricWeightsDecompressor(torch.nn.Module):
     def __init__(
         self,
         scale: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        weights_dtype: torch.dtype,
         use_quantized_matmul: bool = False,
         **kwargs,
     ):
         super().__init__()
-        self.weights_dtype = "int8"
+        self.weights_dtype = weights_dtype
         self.use_quantized_matmul = use_quantized_matmul
         self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        if debug:
-            if torch.any((weight < -128) | (weight > 127)):
-                raise ValueError("Weight values are not in [-128, 127].")
-        return weight.to(dtype=torch.int8)
+        return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
 
     def forward(self, weight, skip_int8_matmul=False, **kwargs):
         return decompress_symmetric_compiled(weight, self.scale, self.result_dtype, self.result_shape, skip_int8_matmul=skip_int8_matmul)
@@ -384,9 +383,6 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.result_shape = result_shape
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        if debug:
-            if torch.any((weight < 0) | (weight > 15)):
-                raise ValueError("Weight values are not in [0, 15].")
         return pack_uint4(weight.to(dtype=torch.uint8))
 
     def forward(self, weight, **kwargs):
@@ -412,9 +408,6 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         self.result_shape = result_shape
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        if debug:
-            if torch.any((weight < -8) | (weight > 7)):
-                raise ValueError("Tensor values are not in [-8, 7].")
         return pack_int4(weight.to(dtype=torch.int8))
 
     def forward(self, weight, skip_int8_matmul=False, **kwargs):
@@ -422,10 +415,15 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
 
 
 decompressor_dict = {
-    "int8": INT8SymmetricWeightsDecompressor,
-    "uint8": INT8AsymmetricWeightsDecompressor,
+    "int8": SymmetricWeightsDecompressor,
+    "uint8": AsymmetricWeightsDecompressor,
     "int4": INT4SymmetricWeightsDecompressor,
     "uint4": INT4AsymmetricWeightsDecompressor,
+    "float8_e4m3fn": SymmetricWeightsDecompressor,
+    "float8_e4m3fnuz": SymmetricWeightsDecompressor,
+    "float8_e5m2": SymmetricWeightsDecompressor,
+    "float8_e5m2fnuz": SymmetricWeightsDecompressor,
+    "float8_e8m0fnu": AsymmetricWeightsDecompressor,
 }
 
 
@@ -561,7 +559,8 @@ class SDNQConfig(QuantizationConfigMixin):
 
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
-            The target dtype for the weights after quantization. Supported values are ("int8", "uint8", "int4", "uint4")
+            The target dtype for the weights after quantization. Supported values are:
+            ("int8", "uint8", "int4", "uint4", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz", "float8_e8m0fnu")
        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -583,12 +582,13 @@ class SDNQConfig(QuantizationConfigMixin):
         self.use_quantized_matmul = use_quantized_matmul
         self.modules_to_not_convert = modules_to_not_convert
         self.post_init()
+        self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
 
     def post_init(self):
         r"""
         Safety checker that arguments are correct
         """
-        accepted_weights = ["int8", "uint8", "int4", "uint4"]
+        accepted_weights = ["int8", "uint8", "int4", "uint4", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz", "float8_e8m0fnu"]
         if self.weights_dtype not in accepted_weights:
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
 
