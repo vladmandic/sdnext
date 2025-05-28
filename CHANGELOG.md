@@ -20,7 +20,10 @@
   - Disabe Dynamic Attention by default on PyTorch 2.7  
   - Remove GradScaler hijack and use torch.amp.GradScaler instead  
 - **Feature**  
-  - TeaCache support for HiDream I1  
+  - TeaCache support for HiDream I1 
+- **Changes**
+  - Set the default attention optimizer to Scaled-Dot-Product on all backends  
+  - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
 
 ## Update for 2025-05-17
 

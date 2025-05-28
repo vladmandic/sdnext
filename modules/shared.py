@@ -369,18 +369,11 @@ def get_default_modes():
         default_offload_mode = "sequential"
         default_diffusers_offload_min_gpu_memory = 0
 
-    if devices.backend == "directml": # Force BMM for DirectML instead of SDP
-        default_cross_attention = "Dynamic Attention BMM" if native else "Sub-quadratic"
-    elif devices.backend == "cpu":
-        default_cross_attention = "Scaled-Dot-Product" if native else "Doggettx's"
-    elif devices.backend == "mps":
-        default_cross_attention = "Scaled-Dot-Product" if native else "Doggettx's"
-    else: # cuda, rocm, zluda, ipex, openvino
-        default_cross_attention = "Scaled-Dot-Product"
+    default_cross_attention = "Scaled-Dot-Product"
 
     if devices.backend == "zluda":
         default_sdp_options = ['Flash attention', 'Math attention', 'Dynamic attention']
-    elif devices.backend == "rocm":
+    elif devices.backend in {"rocm", "directml", "cpu", "mps"}:
         default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention']
     else:
         default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention']
