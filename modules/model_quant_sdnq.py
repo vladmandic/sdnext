@@ -39,7 +39,7 @@ class QuantizationMethod(str, Enum):
     SDNQ = "sdnq"
 
 
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None, pre_mode=False): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -95,8 +95,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         layer.weight.requires_grad = False
         if shared.opts.diffusers_offload_mode in {"none", "model"}:
             return_device = devices.device
-        else:
+        elif pre_mode:
             return_device = devices.cpu
+        else:
+            return_device = layer.weight.device
         layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
@@ -124,8 +126,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             result_shape=result_shape,
             use_quantized_matmul=use_quantized_matmul,
             weights_dtype=weights_dtype,
-        ).to(return_device)
+        )
         layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight.data).to(return_device)
+        layer.sdnq_decompressor = layer.sdnq_decompressor.to(return_device)
 
         if is_linear_type:
             if use_quantized_matmul:
@@ -449,11 +452,16 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
+        param_value.data = param_value.data.clone() # safetensors is unable to release the cpu memory without this
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
-                layer, _ = get_module_from_name(model, param_name)
-                return layer.__class__.__name__ in allowed_types
+                layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
+                if layer_class_name in allowed_types:
+                    if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
+                        return self.quantization_config.quant_conv
+                    else:
+                        return True
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -465,16 +473,16 @@ class SDNQQuantizer(DiffusersQuantizer):
     def create_quantized_param( # pylint: disable=arguments-differ
         self,
         model,
-        param_value: "torch.Tensor",
+        param_value: torch.FloatTensor,
         param_name: str,
-        target_device: "torch.device",
+        target_device: torch.device, # pylint: disable=unused-argument
         state_dict: Dict[str, Any], # pylint: disable=unused-argument
         unexpected_keys: List[str], # pylint: disable=unused-argument
         **kwargs,
     ):
         # load the model params to target_device first
-        layer, tensor_name = get_module_from_name(model, param_name)
-        layer.weight = torch.nn.Parameter(param_value.to(device=target_device), requires_grad=False)
+        layer, _ = get_module_from_name(model, param_name)
+        layer.weight = torch.nn.Parameter(param_value.to(device=devices.device, dtype=torch.float32), requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=self.quantization_config.weights_dtype,
@@ -483,16 +491,17 @@ class SDNQQuantizer(DiffusersQuantizer):
             quant_conv=self.quantization_config.quant_conv,
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
             param_name=param_name,
+            pre_mode=True,
         )
 
     def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
-        max_memory = {key: val * 0.70 for key, val in max_memory.items()}
+        max_memory = {key: val * 0.80 for key, val in max_memory.items()}
         return max_memory
 
-    def adjust_target_dtype(self, target_dtype: "torch.dtype") -> "torch.dtype": # pylint: disable=unused-argument,arguments-renamed
+    def adjust_target_dtype(self, target_dtype: torch.dtype) -> torch.dtype: # pylint: disable=unused-argument,arguments-renamed
         return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
 
-    def update_torch_dtype(self, torch_dtype: "torch.dtype" = None) -> "torch.dtype":
+    def update_torch_dtype(self, torch_dtype: torch.dtype = None) -> torch.dtype:
         if torch_dtype is None:
             torch_dtype = devices.dtype
         self.torch_dtype = torch_dtype
