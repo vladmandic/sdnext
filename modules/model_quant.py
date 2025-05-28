@@ -349,7 +349,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
             quant_last_model_name = None
             quant_last_model_device = None
         model.to(devices.device)
-    elif shared.opts.diffusers_offload_mode == "model":
+    elif shared.opts.diffusers_offload_mode != "none":
         model = model.to(devices.cpu)
     if do_gc:
         devices.torch_gc(force=True)

@@ -96,14 +96,19 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if shared.opts.diffusers_offload_mode in {"none", "model"}:
             return_device = devices.device
         elif pre_mode:
-            if shared.opts.device_map != "gpu":
+            if shared.opts.sdnq_quantize_with_gpu:
                 return_device = devices.cpu
-            else:
+            elif shared.opts.device_map == "gpu":
                 return_device = devices.device
+            else:
+                return_device = layer.weight.device
         else:
             return_device = layer.weight.device
         if not pre_mode:
-            layer.weight.data = layer.weight.to(devices.device).to(dtype=torch.float32)
+            if shared.opts.sdnq_quantize_with_gpu:
+                layer.weight.data = layer.weight.to(devices.device).to(dtype=torch.float32)
+            else:
+                layer.weight.data = layer.weight.to(dtype=torch.float32)
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
             scale, zero_point = get_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
@@ -493,7 +498,11 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         # load the model params to target_device first
         layer, _ = get_module_from_name(model, param_name)
-        layer.weight = torch.nn.Parameter(param_value.to(devices.device).to(dtype=torch.float32), requires_grad=False)
+        if shared.opts.sdnq_quantize_with_gpu:
+            param_value = param_value.to(devices.device).to(dtype=torch.float32)
+        else:
+            param_value = param_value.to(target_device).to(dtype=torch.float32)
+        layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=self.quantization_config.weights_dtype,

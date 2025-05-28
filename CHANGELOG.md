@@ -13,14 +13,15 @@
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 matmul  
   - Implement better layer hijacks  
+  - Add an option to toggle quantize with GPU  
   - Fix Conv quant  
   - Fix lora weight change  
-  * Fix high RAM usage with pre mode  
+  - Fix high RAM usage with pre mode  
 - **IPEX**  
   - Disabe Dynamic Attention by default on PyTorch 2.7  
   - Remove GradScaler hijack and use torch.amp.GradScaler instead  
 - **Feature**  
-  - TeaCache support for HiDream I1 
+  - TeaCache support for HiDream I1  
 - **Changes**
   - Set the default attention optimizer to Scaled-Dot-Product on all backends  
   - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
