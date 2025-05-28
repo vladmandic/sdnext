@@ -345,10 +345,10 @@ class AsymmetricWeightsDecompressor(torch.nn.Module):
         super().__init__()
         self.weights_dtype = weights_dtype
         self.use_quantized_matmul = False
-        self.scale = scale
-        self.zero_point = zero_point
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.register_buffer("scale", scale)
+        self.register_buffer("zero_point", zero_point)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
@@ -370,9 +370,9 @@ class SymmetricWeightsDecompressor(torch.nn.Module):
         super().__init__()
         self.weights_dtype = weights_dtype
         self.use_quantized_matmul = use_quantized_matmul
-        self.scale = scale
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.register_buffer("scale", scale)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
@@ -394,11 +394,11 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         super().__init__()
         self.weights_dtype = "uint4"
         self.use_quantized_matmul = False
-        self.scale = scale
-        self.zero_point = zero_point
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.register_buffer("scale", scale)
+        self.register_buffer("zero_point", zero_point)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return pack_uint4(weight.to(dtype=torch.uint8))
@@ -420,10 +420,10 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         super().__init__()
         self.weights_dtype = "int4"
         self.use_quantized_matmul = use_quantized_matmul
-        self.scale = scale
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.register_buffer("scale", scale)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return pack_int4(weight.to(dtype=torch.int8))
