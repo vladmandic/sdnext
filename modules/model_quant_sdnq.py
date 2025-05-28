@@ -93,13 +93,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                     layer.weight.data = layer.weight.reshape(new_shape)
 
         layer.weight.requires_grad = False
-        if pre_mode:
+        if shared.opts.diffusers_offload_mode in {"none", "model"}:
+            return_device = devices.device
+        elif pre_mode:
             if shared.opts.device_map != "gpu":
                 return_device = devices.cpu
             else:
                 return_device = devices.device
-        elif shared.opts.diffusers_offload_mode in {"none", "model"}:
-            return_device = devices.device
         else:
             return_device = layer.weight.device
         if not pre_mode:
@@ -264,8 +264,14 @@ def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[
     return result
 
 
+def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1)
+    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
+    return input, input_scale
+
+
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
-    input_scale = torch.div(input.abs().max(dim=-1).values, 127).unsqueeze(-1)
+    input_scale = torch.div(input.abs().amax(dim=-1), 127).unsqueeze(-1)
     input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2).contiguous()
     scale = torch.mul(input_scale, scale).flatten(0,-2).contiguous()
     if scale.dtype == torch.float16: # fp16 will overflow
