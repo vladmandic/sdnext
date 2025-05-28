@@ -93,13 +93,17 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                     layer.weight.data = layer.weight.reshape(new_shape)
 
         layer.weight.requires_grad = False
-        if shared.opts.diffusers_offload_mode in {"none", "model"}:
+        if pre_mode:
+            if shared.opts.device_map != "gpu":
+                return_device = devices.cpu
+            else:
+                return_device = devices.device
+        elif shared.opts.diffusers_offload_mode in {"none", "model"}:
             return_device = devices.device
-        elif pre_mode:
-            return_device = devices.cpu
         else:
             return_device = layer.weight.device
-        layer.weight.data = layer.weight.data.to(devices.device, dtype=torch.float32)
+        if not pre_mode:
+            layer.weight.data = layer.weight.to(devices.device).to(dtype=torch.float32)
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
             scale, zero_point = get_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
@@ -116,18 +120,18 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul:
             scale = scale.squeeze(-1)
             if dtype_dict[weights_dtype]["num_bits"] == 8:
-                layer.weight.data = layer.weight.data.transpose(0,1)
+                layer.weight.data = layer.weight.transpose(0,1)
 
         layer.sdnq_decompressor = decompressor_dict[weights_dtype](
             scale=scale,
             zero_point=zero_point,
-            compressed_weight_shape=layer.weight.data.shape,
+            compressed_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
             use_quantized_matmul=use_quantized_matmul,
             weights_dtype=weights_dtype,
         )
-        layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight.data).to(return_device)
+        layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight).to(return_device)
         layer.sdnq_decompressor = layer.sdnq_decompressor.to(return_device)
 
         if is_linear_type:
@@ -452,7 +456,8 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        param_value.data = param_value.data.clone() # safetensors is unable to release the cpu memory without this
+        if shared.opts.device_map != "gpu":
+            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
@@ -475,14 +480,14 @@ class SDNQQuantizer(DiffusersQuantizer):
         model,
         param_value: torch.FloatTensor,
         param_name: str,
-        target_device: torch.device, # pylint: disable=unused-argument
+        target_device: torch.device,
         state_dict: Dict[str, Any], # pylint: disable=unused-argument
         unexpected_keys: List[str], # pylint: disable=unused-argument
         **kwargs,
     ):
         # load the model params to target_device first
         layer, _ = get_module_from_name(model, param_name)
-        layer.weight = torch.nn.Parameter(param_value.to(device=devices.device, dtype=torch.float32), requires_grad=False)
+        layer.weight = torch.nn.Parameter(param_value.to(devices.device).to(dtype=torch.float32), requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=self.quantization_config.weights_dtype,
@@ -522,7 +527,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
 
     def _process_model_after_weight_loading(self, model, **kwargs):
-        if shared.opts.diffusers_offload_mode == "model":
+        if shared.opts.diffusers_offload_mode != "none":
             model = model.to(devices.cpu)
         devices.torch_gc(force=True)
         return model
