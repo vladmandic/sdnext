@@ -187,11 +187,11 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
 
 def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
-    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"])
+    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     if dtype_dict[weights_dtype]["min"] != 0:
-        zero_point.add_(dtype_dict[weights_dtype]["min"])
+        zero_point.sub_(torch.mul(scale, dtype_dict[weights_dtype]["min"]))
     return scale, zero_point
 
 
