@@ -96,10 +96,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if shared.opts.diffusers_offload_mode in {"none", "model"}:
             return_device = devices.device
         elif pre_mode:
-            if shared.opts.sdnq_quantize_with_gpu:
-                return_device = devices.cpu
-            elif shared.opts.device_map == "gpu":
+            if shared.opts.device_map == "gpu":
                 return_device = devices.device
+            elif shared.opts.sdnq_quantize_with_gpu:
+                return_device = devices.cpu
             else:
                 return_device = layer.weight.device
         else:
