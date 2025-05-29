@@ -279,8 +279,9 @@ def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[
 
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
-    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1).to(torch.float32)
+    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
+    input_scale = input_scale.to(torch.float32)
     return input, input_scale
 
 
