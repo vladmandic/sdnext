@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 import os
+import sys
 import torch
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
@@ -149,7 +150,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if dtype_dict[weights_dtype]["is_integer"]:
                     layer.forward = quantized_linear_forward_int8_matmul
                 else:
-                    layer.forward = quantized_linear_forward_fp8_matmul
+                    if devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9):
+                        layer.forward = quantized_linear_forward_fp8_matmul_sm89
+                    else:
+                        layer.forward = quantized_linear_forward_fp8_matmul
             else:
                 layer.forward = quantized_linear_forward
         elif is_conv_type:
@@ -285,6 +289,15 @@ def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.FloatTens
     return input, input_scale
 
 
+def quantize_fp8_matmul_input_sm89(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
+    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1)
+    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn).flatten(0,-2).contiguous()
+    scale = torch.mul(input_scale, scale).flatten(0,-2).contiguous()
+    if scale.dtype == torch.float16: # fp16 will overflow
+        scale = scale.to(dtype=torch.float32)
+    return input, scale
+
+
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
     input_scale = torch.div(input.abs().amax(dim=-1), 127).unsqueeze(-1)
     input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2).contiguous()
@@ -305,6 +318,24 @@ def fp8_matmul(
     output_shape[-1] = weight.shape[-1]
     input, input_scale = quantize_fp8_matmul_input(input)
     return torch._scaled_mm(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).reshape(output_shape)
+
+
+# sm89 doesn't support row wise scale in Windows
+def fp8_matmul_sm89(
+    input: torch.FloatTensor,
+    weight: torch.Tensor,
+    bias: torch.FloatTensor,
+    scale: torch.FloatTensor,
+) -> torch.FloatTensor:
+    return_dtype = input.dtype
+    output_shape = list(input.shape)
+    output_shape[-1] = weight.shape[-1]
+    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
+    input, scale = quantize_fp8_matmul_input_sm89(input, scale)
+    result = decompress_symmetric_compiled(torch._scaled_mm(input, weight, dummy_input_scale, dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
+    if bias is not None:
+        result.add_(bias)
+    return result
 
 
 def int8_matmul(
@@ -330,6 +361,12 @@ def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch
     if self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
         return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     return fp8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale)
+
+
+def quantized_linear_forward_fp8_matmul_sm89(self, input: torch.FloatTensor) -> torch.FloatTensor:
+    if self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
+        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
+    return fp8_matmul_sm89(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
@@ -679,6 +716,7 @@ if shared.opts.sdnq_decompress_compile:
         decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)
         decompress_int4_symmetric_compiled = torch.compile(decompress_int4_symmetric, fullgraph=True)
         fp8_matmul = torch.compile(fp8_matmul, fullgraph=True)
+        fp8_matmul_sm89 = torch.compile(fp8_matmul_sm89, fullgraph=True)
         if devices.backend != "ipex": # pytorch uses the cpu device in torch._int_mm op with ipex + torch.compile
             quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
             unpack_int4_compiled = unpack_int4
