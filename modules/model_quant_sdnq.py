@@ -286,25 +286,27 @@ def unpack_int4(packed_tensor: torch.Tensor, shape: torch.Size, dtype: Optional[
 
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
-    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1)
+    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
     input_scale = input_scale.to(torch.float32)
     return input, input_scale
 
 
 def quantize_fp8_matmul_input_sm89(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
-    input_scale = torch.div(input.abs().amax(dim=-1), 448).unsqueeze(-1)
-    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn).flatten(0,-2).contiguous()
-    scale = torch.mul(input_scale, scale).flatten(0,-2).contiguous()
+    input = input.flatten(0,-2).contiguous()
+    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 448)
+    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
+    scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)
     return input, scale
 
 
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
-    input_scale = torch.div(input.abs().amax(dim=-1), 127).unsqueeze(-1)
-    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8).flatten(0,-2).contiguous()
-    scale = torch.mul(input_scale, scale).flatten(0,-2).contiguous()
+    input = input.flatten(0,-2).contiguous()
+    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 127)
+    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8)
+    scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)
     return input, scale
