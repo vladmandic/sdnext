@@ -1,4 +1,4 @@
-# pylint: disable=redefined-builtin,no-member
+# pylint: disable=redefined-builtin,no-member,protected-access
 
 from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
@@ -320,7 +320,7 @@ def int8_matmul(
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     input, scale = quantize_int8_matmul_input_compiled(input, scale)
-    result = decompress_symmetric_compiled(torch._int_mm(input, weight), scale, return_dtype, output_shape) # pylint: disable=protected-access
+    result = decompress_symmetric_compiled(torch._int_mm(input, weight), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
@@ -673,7 +673,7 @@ class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self
 
 if shared.opts.sdnq_decompress_compile:
     try:
-        torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
+        torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
         decompress_asymmetric_compiled = torch.compile(decompress_asymmetric, fullgraph=True)
         decompress_symmetric_compiled = torch.compile(decompress_symmetric, fullgraph=True)
         decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)

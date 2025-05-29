@@ -20,6 +20,8 @@ if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
             use_dynamic_attention = False
         except Exception:
             use_dynamic_attention = True
+    else:
+        use_dynamic_attention = True
 else:
     use_dynamic_attention = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '1')
 
