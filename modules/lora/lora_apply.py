@@ -80,7 +80,7 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
         try:
             t0 = time.time()
             if hasattr(self, "sdnq_decompressor"):
-                weight = self.sdnq_decompressor.to(devices.device)(self.weight.to(devices.device), skip_int8_matmul=self.sdnq_decompressor.use_quantized_matmul)
+                weight = self.sdnq_decompressor.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_decompressor.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
@@ -143,7 +143,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                 sdnq_decompressor = self.sdnq_decompressor_backup.to(devices.device)
             else:
                 sdnq_decompressor = self.sdnq_decompressor.to(devices.device)
-            dequant_weight = sdnq_decompressor(model_weights.to(devices.device), skip_int8_matmul=sdnq_decompressor.use_quantized_matmul)
+            dequant_weight = sdnq_decompressor(model_weights.to(devices.device), skip_quantized_matmul=sdnq_decompressor.use_quantized_matmul)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
             self.sdnq_decompressor = None
