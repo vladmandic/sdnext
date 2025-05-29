@@ -1,9 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-25
+## Update for 2025-05-29
 
 - **SDNQ Quantization**  
-  - Renamed `NNCF` to `SDNQ` as NNCF implementation in SDNext re-implemented and optimized enough to not use any imports from NNCF anymore  
+  - Renamed `NNCF` to `SDNQ` as NNCF implementation in SDNext re-implemented, optimized and evolved enough to become its own quantization method  
   - Renamed quantization scheme names to the underlying dtype names instead of NNCF names  
     - `INT8_SYM` -> `int8`  
     - `INT8` -> `uint8`  
@@ -12,10 +12,10 @@
   - Add `float8_e4m3fn` and `float8_e5m2` support  
   - Add quantized matmul support for `float8_e4m3fn`  
   - Set the default quant mode to `pre`  
-  - Use per token input quant with int8 matmul  
+  - Use per token input quant with int8 and fp8 quantized matmul  
   - Implement better layer hijacks  
   - Add an option to toggle quantize with GPU  
-  - Fix Conv quant  
+  - Fix conv quant and add support for conv quant with asym modes  
   - Fix lora weight change  
   - Fix high RAM usage with pre mode  
   - Fix scale and zero_point not being offloaded  
