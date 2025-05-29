@@ -125,7 +125,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul:
             scale = scale.transpose(0,1)
             if dtype_dict[weights_dtype]["num_bits"] == 8:
-                layer.weight.data = layer.weight.transpose(0,1).contiguous()
+                layer.weight.data = layer.weight.transpose(0,1)
             if not dtype_dict[weights_dtype]["is_integer"]:
                 stride = layer.weight.stride()
                 if stride[0] > stride[1] and stride[1] == 1:
