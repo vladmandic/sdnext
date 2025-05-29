@@ -65,8 +65,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         else:
             is_linear_type = True
             reduction_axes = -1
-            channel_size = layer.weight.shape[-1]
-            use_quantized_matmul = use_quantized_matmul and weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and layer.weight.shape[0] >= 32
+            output_channel_size, channel_size = layer.weight.shape
+            if use_quantized_matmul:
+                use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
+                if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
+                    use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
 
             if not use_quantized_matmul and (group_size > 0 or (dtype_dict[weights_dtype]["num_bits"] == 4 and group_size != -1)):
                 if group_size == 0:
@@ -358,14 +361,10 @@ def int8_matmul(
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    if self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     return fp8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
 
 def quantized_linear_forward_fp8_matmul_sm89(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    if self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     return fp8_matmul_sm89(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
 
