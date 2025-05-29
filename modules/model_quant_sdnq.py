@@ -327,7 +327,7 @@ def int8_matmul(
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    if input.shape[-1] % 16 != 0 or self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
+    if self.weight.shape[0] % 16 != 0 or self.weight.shape[1] % 16 != 0:
         return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     return fp8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
