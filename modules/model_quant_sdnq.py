@@ -117,7 +117,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             zero_point = None
         layer.weight.data = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
 
-        if not shared.opts.sdnq_decompress_fp32:
+        if not shared.opts.sdnq_decompress_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]):
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
