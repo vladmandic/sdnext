@@ -467,7 +467,7 @@ def fp8_matmul_sm89(
     output_shape[-1] = weight.shape[-1]
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_sm89(input, scale)
-    result = decompress_symmetric_compiled(torch._scaled_mm(input, weight, dummy_input_scale, dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
+    result = decompress_symmetric(torch._scaled_mm(input, weight, dummy_input_scale, dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
@@ -487,7 +487,7 @@ def int8_matmul(
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     input, scale = quantize_int8_matmul_input(input, scale)
-    result = decompress_symmetric_compiled(torch._int_mm(input, weight), scale, return_dtype, output_shape)
+    result = decompress_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
@@ -713,11 +713,15 @@ class SDNQQuantizer(DiffusersQuantizer):
         # load the model params to target_device first
         layer, _ = get_module_from_name(model, param_name)
         if shared.opts.sdnq_quantize_with_gpu:
-            param_value = param_value.to(devices.device).to(dtype=torch.float32)
-        else:
-            if param_value.dtype != torch.float32 and param_value.device == torch.device(target_device):
+            if param_value.dtype == torch.float32 and devices.same_device(param_value.device, devices.device):
                 param_value = param_value.clone()
-            param_value = param_value.to(target_device).to(dtype=torch.float32)
+            else:
+                param_value = param_value.to(devices.device).to(dtype=torch.float32)
+        else:
+            if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
+                param_value = param_value.clone()
+            else:
+                param_value = param_value.to(target_device).to(dtype=torch.float32)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
