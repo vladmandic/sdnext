@@ -3,7 +3,6 @@
 from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
-import os
 import sys
 import torch
 from diffusers.quantizers.base import DiffusersQuantizer
@@ -12,8 +11,6 @@ from diffusers.utils import get_module_from_name
 from accelerate.utils import CustomDtype
 from modules import devices, shared
 
-
-debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
 
 dtype_dict = {
     "int8": {"min": -128, "max": 127, "num_bits": 8, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
@@ -372,7 +369,7 @@ def unpack_uint2(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
             torch.bitwise_and(packed_tensor, 3),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 3),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 3),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 3),
+            torch.bitwise_right_shift(packed_tensor, 6),
         ),
         dim=-1
     ).reshape(shape)
@@ -389,7 +386,7 @@ def unpack_uint1(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 1),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 5), 1),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 7), 1),
+            torch.bitwise_right_shift(packed_tensor, 7),
         ),
         dim=-1
     ).reshape(shape)
