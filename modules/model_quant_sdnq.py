@@ -6,7 +6,6 @@ from enum import Enum
 import os
 import sys
 import torch
-import diffusers
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
@@ -682,17 +681,17 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        if hasattr(diffusers, model.__class__.__name__):
-            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
                     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
-                        return self.quantization_config.quant_conv
+                        if self.quantization_config.quant_conv:
+                            return True
                     else:
                         return True
+        param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -716,6 +715,8 @@ class SDNQQuantizer(DiffusersQuantizer):
         if shared.opts.sdnq_quantize_with_gpu:
             param_value = param_value.to(devices.device).to(dtype=torch.float32)
         else:
+            if param_value.dtype != torch.float32 and param_value.device == torch.device(target_device):
+                param_value = param_value.clone()
             param_value = param_value.to(target_device).to(dtype=torch.float32)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
