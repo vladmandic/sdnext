@@ -681,8 +681,6 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
-        if shared.opts.device_map != "gpu":
-            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
