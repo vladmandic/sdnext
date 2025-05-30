@@ -22,7 +22,7 @@ Also unlike most traditional methods, its also applicable to nearly all model ty
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
-  - Add `float8_e4m3fn`, `float8_e5m2`, `uint2` and `uint1` support  
+  - Add `float8_e4m3fn`, `float8_e5m2`, `uint2` and `uint1` support    
   - Add quantized matmul support for `float8_e4m3fn`  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
@@ -34,12 +34,14 @@ Also unlike most traditional methods, its also applicable to nearly all model ty
   - Fix scale and zero_point not being offloaded  
 - **IPEX**  
   - Disabe Dynamic Attention by default on PyTorch 2.7  
-  - Remove GradScaler hijack and use torch.amp.GradScaler instead  
+  - Remove GradScaler hijack and use `torch.amp.GradScaler` instead  
 - **Feature**  
   - TeaCache support for HiDream I1  
-- **Changes**
+- **Changes**  
   - Set the default attention optimizer to Scaled-Dot-Product on all backends  
   - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
+- **Fixes**
+  - Gallery duplicate entries  
 
 ## Update for 2025-05-17
 

@@ -48,7 +48,7 @@ class UiLoadsave:
             if debug_ui and key in self.component_mapping and not key.startswith('customscript'):
                 errors.log.warning(f'UI duplicate: key="{key}" id={getattr(obj, "elem_id", None)} class={getattr(obj, "elem_classes", None)}')
             if hasattr(obj, 'skip'):
-                print('HERE', key)
+                pass
             if (field == 'value') and (key not in self.component_mapping):
                 self.component_mapping[key] = x
             if field == 'open' and key not in self.component_mapping:

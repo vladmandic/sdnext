@@ -12,11 +12,11 @@ const getENActiveTab = () => {
   if (gradioApp().getElementById('video_prompt')?.checkVisibility()) return 'video';
   if (gradioApp().getElementById('framepack_prompt_row')?.checkVisibility()) return 'framepack';
   // legacy method
-  if (gradioApp().getElementById('tab_txt2img').style.display === 'block') tabName = 'txt2img';
-  else if (gradioApp().getElementById('tab_img2img').style.display === 'block') tabName = 'img2img';
-  else if (gradioApp().getElementById('tab_control').style.display === 'block') tabName = 'control';
-  else if (gradioApp().getElementById('tab_video').style.display === 'block') tabName = 'video';
-  else if (gradioApp().getElementById('tab_framepack_tab').style.display === 'block') tabName = 'framepack';
+  if (gradioApp().getElementById('tab_txt2img')?.style.display === 'block') tabName = 'txt2img';
+  else if (gradioApp().getElementById('tab_img2img')?.style.display === 'block') tabName = 'img2img';
+  else if (gradioApp().getElementById('tab_control')?.style.display === 'block') tabName = 'control';
+  else if (gradioApp().getElementById('tab_video')?.style.display === 'block') tabName = 'video';
+  else if (gradioApp().getElementById('tab_framepack_tab')?.style.display === 'block') tabName = 'framepack';
   // log('getENActiveTab', tabName);
   return tabName;
 };

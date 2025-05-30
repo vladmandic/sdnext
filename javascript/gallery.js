@@ -5,6 +5,8 @@ let url;
 let currentImage;
 let pruneImagesTimer;
 let outstanding = 0;
+let lastSort = 0;
+let lastSortName = 'none';
 const el = {
   folders: undefined,
   files: undefined,
@@ -124,9 +126,14 @@ class GalleryFile extends HTMLElement {
   }
 
   async connectedCallback() {
-    if (this.shadow.children.length > 0) return;
+    if (this.shadow.children.length > 0) {
+      return;
+    }
     const ext = this.name.split('.').pop().toLowerCase();
-    if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'jxl', 'svg', 'mp4'].includes(ext)) return;
+    if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'jxl', 'svg', 'mp4'].includes(ext)) {
+      console.error(`gallery: type=${ext} file=${this.name} unsupported`);
+      return;
+    }
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
@@ -143,7 +150,6 @@ class GalleryFile extends HTMLElement {
     `;
 
     const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash) : undefined;
-    this.shadow.appendChild(style);
     const img = document.createElement('img');
     img.className = 'gallery-file';
     img.loading = 'lazy';
@@ -196,14 +202,20 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     img.onclick = () => {
       currentImage = this.src;
       el.btnSend.click();
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
+    if (this.shadow.children.length > 0) {
+      return; // avoid double-adding
+    }
     this.title = img.title;
     this.style.display = this.title.toLowerCase().includes(el.search.value.toLowerCase()) ? 'unset' : 'none';
+    this.shadow.appendChild(style);
     this.shadow.appendChild(img);
   }
 }
@@ -272,49 +284,68 @@ async function gallerySearch(evt) {
   }, 250);
 }
 
+const findDuplicates = (arr, key) => {
+  const map = new Map();
+  return arr.filter(item => {
+    const value = item[key];
+    if (map.has(value)) return true;
+    map.set(value, true);
+    return false;
+  });
+};
+
 async function gallerySort(btn) {
   const t0 = performance.now();
   const arr = Array.from(el.files.children).filter((node) => node.name); // filter out separators
+  if (arr.length === 0) return; // no files to sort
+  if (btn) lastSort = btn.charCodeAt(0);
+  lastSortName = 'none';
   const fragment = document.createDocumentFragment();
-  el.files.innerHTML = '';
-  log('gallerySort', btn.charCodeAt(0));
-  switch (btn.charCodeAt(0)) {
+  switch (lastSort) {
     case 61789: // name asc
+      lastSortName = 'name asc';
       arr
         .sort((a, b) => a.name.localeCompare(b.name))
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61790: // name dsc
+      lastSortName = 'name dsc';
       arr
         .sort((b, a) => a.name.localeCompare(b.name))
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61792: // size asc
+      lastSortName = 'size asc';
       arr
         .sort((a, b) => a.size - b.size)
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61793: // size dsc
+      lastSortName = 'size dsc';
       arr
         .sort((b, a) => a.size - b.size)
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61794: // resolution asc
+      lastSortName = 'resolution asc';
       arr
         .sort((a, b) => a.width * a.height - b.width * b.height)
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61795: // resolution dsc
+      lastSortName = 'resolution dsc';
       arr
         .sort((b, a) => a.width * a.height - b.width * b.height)
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61662:
+      lastSortName = 'modified asc';
       arr
         .sort((a, b) => a.mtime - b.mtime)
         .forEach((node) => fragment.appendChild(node));
       break;
     case 61661:
+      lastSortName = 'modified dsc';
       arr
         .sort((b, a) => a.mtime - b.mtime)
         .forEach((node) => fragment.appendChild(node));
@@ -322,14 +353,16 @@ async function gallerySort(btn) {
     default:
       break;
   }
+  if (fragment.children.length === 0) return;
+  el.files.innerHTML = '';
   el.files.appendChild(fragment);
   addSeparators();
   const t1 = performance.now();
-  el.status.innerText = `Sort | ${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`;
+  log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
+  el.status.innerText = `Sort | ${lastSortName} | ${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`;
 }
 
 async function fetchFilesHT(evt) {
-  el.status.innerText = `Folder | ${evt.target.name}`;
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
   el.status.innerText = `Folder | ${evt.target.name} | in-progress`;
@@ -389,7 +422,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
       const file = new GalleryFile(data[0], data[1]);
       fragment.appendChild(file);
       if (numFiles % 100 === 0) {
-        el.status.innerText = `Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`;
+        el.status.innerText = `Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`;
         el.files.appendChild(fragment);
         fragment = document.createDocumentFragment();
       }
@@ -397,6 +430,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   };
   ws.onclose = (event) => {
     el.files.appendChild(fragment);
+    // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     el.status.innerText = `Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`;
     addSeparators();
