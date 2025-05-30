@@ -761,6 +761,9 @@ class SDNQQuantizer(DiffusersQuantizer):
         devices.torch_gc(force=True)
         return model
 
+    def get_cuda_warm_up_factor(self):
+        return 32 // dtype_dict[self.quantization_config.weights_dtype]["num_bits"]
+
     def update_tp_plan(self, config):
         """
         needed for transformers compatibilty, no-op function
