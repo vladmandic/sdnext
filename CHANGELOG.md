@@ -6,7 +6,7 @@
 
 This release is all about quantization: with new SD.Next own quantization method: **SDNQ**
 SDNQ is based on NNCF, but has been re-implemented, optimized and evolved enough to become its own quantization method!
-It's fully cross-platform, supports all GPUs and includes 8-bit, 4-bit, 2-bit and 1-bit quantization methods.
+It's fully cross-platform, supports all GPUs and includes 8-bit, 6-bit, 4-bit, 2-bit and 1-bit quantization methods.
 Also unlike most traditional methods, its also applicable to nearly all model types.
 
 *Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements.  
@@ -22,7 +22,7 @@ Also unlike most traditional methods, its also applicable to nearly all model ty
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
-  - Add `float8_e4m3fn`, `float8_e5m2`, `uint2` and `uint1` support    
+  - Add `float8_e4m3fn`, `float8_e5m2`, `int6`, `uint6`, `uint2` and `uint1` support  
   - Add quantized matmul support for `float8_e4m3fn`  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
