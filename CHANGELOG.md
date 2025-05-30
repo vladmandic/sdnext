@@ -9,7 +9,7 @@
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
-  - Add `float8_e4m3fn` and `float8_e5m2` support  
+  - Add `float8_e4m3fn`, `float8_e5m2` and `uint2` support  
   - Add quantized matmul support for `float8_e4m3fn`  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
