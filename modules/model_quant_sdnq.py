@@ -21,6 +21,7 @@ dtype_dict = {
     "int4": {"min": -8, "max": 7, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
     "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "uint2": {"min": 0, "max": 3, "num_bits": 2, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint1": {"min": 0, "max": 1, "num_bits": 1, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "target_dtype": torch.float8_e4m3fn, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
     "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
     "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
@@ -146,8 +147,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             compressed_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
-            use_quantized_matmul=use_quantized_matmul,
             weights_dtype=weights_dtype,
+            use_quantized_matmul=use_quantized_matmul,
         )
         layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight).to(return_device)
         layer.sdnq_decompressor = layer.sdnq_decompressor.to(return_device)
@@ -251,8 +252,8 @@ def decompress_symmetric(input: torch.Tensor, scale: torch.Tensor, dtype: torch.
     return result
 
 
-def decompress_int4_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    return decompress_asymmetric(unpack_uint4(input, shape), scale, zero_point, dtype, result_shape)
+def decompress_packed_int_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str) -> torch.Tensor:
+    return decompress_asymmetric(packed_int_function_dict[weights_dtype]["unpack"](input, shape), scale, zero_point, dtype, result_shape)
 
 
 def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, skip_quantized_matmul: bool = False) -> torch.Tensor:
@@ -260,10 +261,6 @@ def decompress_int4_symmetric(input: torch.Tensor, scale: torch.Tensor, shape: t
         return decompress_symmetric(unpack_int4(input, shape, dtype=scale.dtype), scale.transpose(0,1), dtype, result_shape)
     else:
         return decompress_symmetric(unpack_int4(input, shape, dtype=scale.dtype), scale, dtype, result_shape)
-
-
-def decompress_int2_asymmetric(input: torch.Tensor, scale: torch.Tensor, zero_point: torch.Tensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size) -> torch.Tensor:
-    return decompress_asymmetric(unpack_uint2(input, shape), scale, zero_point, dtype, result_shape)
 
 
 def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
@@ -297,6 +294,35 @@ def pack_uint2(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
+def pack_uint1(tensor: torch.Tensor) -> torch.Tensor:
+    if tensor.dtype != torch.uint8:
+        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+    packed_tensor = tensor.contiguous().reshape(-1, 8)
+    packed_tensor = torch.bitwise_or(
+        torch.bitwise_or(
+            torch.bitwise_or(
+                torch.bitwise_and(packed_tensor[:, 0], 1),
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 1], 1), 1),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 2], 1), 2),
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 3], 1), 3)
+            )
+        ),
+        torch.bitwise_or(
+            torch.bitwise_or(
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 4], 1), 4),
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 5], 1), 5)
+            ),
+            torch.bitwise_or(
+                torch.bitwise_left_shift(torch.bitwise_and(packed_tensor[:, 6], 1), 6),
+                torch.bitwise_left_shift(packed_tensor[:, 7], 7)
+            )
+        ),
+    )
+    return packed_tensor
+
+
 def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     result = torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1).reshape(shape)
     return result
@@ -316,6 +342,23 @@ def unpack_uint2(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 3),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 3),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 3),
+        ),
+        dim=-1
+    ).reshape(shape)
+    return result
+
+
+def unpack_uint1(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+    result = torch.stack(
+        (
+            torch.bitwise_and(packed_tensor, 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 1), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 3), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 5), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 7), 1),
         ),
         dim=-1
     ).reshape(shape)
@@ -444,7 +487,7 @@ class AsymmetricWeightsDecompressor(torch.nn.Module):
         zero_point: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        weights_dtype: torch.dtype,
+        weights_dtype: str,
         **kwargs,
     ):
         super().__init__()
@@ -468,7 +511,7 @@ class SymmetricWeightsDecompressor(torch.nn.Module):
         scale: torch.Tensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
-        weights_dtype: torch.dtype,
+        weights_dtype: str,
         use_quantized_matmul: bool = False,
         **kwargs,
     ):
@@ -486,7 +529,7 @@ class SymmetricWeightsDecompressor(torch.nn.Module):
         return decompress_symmetric_compiled(weight, self.scale, self.result_dtype, self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
 
 
-class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
+class PackedINTAsymmetricWeightsDecompressor(torch.nn.Module):
     def __init__(
         self,
         scale: torch.Tensor,
@@ -494,10 +537,11 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         compressed_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        weights_dtype: str,
         **kwargs,
     ):
         super().__init__()
-        self.weights_dtype = "uint4"
+        self.weights_dtype = weights_dtype
         self.use_quantized_matmul = False
         self.compressed_weight_shape = compressed_weight_shape
         self.result_dtype = result_dtype
@@ -506,10 +550,10 @@ class INT4AsymmetricWeightsDecompressor(torch.nn.Module):
         self.register_buffer("zero_point", zero_point)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        return pack_uint4(weight.to(dtype=torch.uint8))
+        return packed_int_function_dict[self.weights_dtype]["pack"](weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"]))
 
     def forward(self, weight, **kwargs):
-        return decompress_int4_asymmetric_compiled(weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
+        return decompress_packed_int_asymmetric_compiled(weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape, self.weights_dtype)
 
 
 class INT4SymmetricWeightsDecompressor(torch.nn.Module):
@@ -537,43 +581,26 @@ class INT4SymmetricWeightsDecompressor(torch.nn.Module):
         return decompress_int4_symmetric_compiled(weight, self.scale, self.compressed_weight_shape, self.result_dtype, self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
 
 
-class INT2AsymmetricWeightsDecompressor(torch.nn.Module):
-    def __init__(
-        self,
-        scale: torch.Tensor,
-        zero_point: torch.Tensor,
-        compressed_weight_shape: torch.Size,
-        result_dtype: torch.dtype,
-        result_shape: torch.Size,
-        **kwargs,
-    ):
-        super().__init__()
-        self.weights_dtype = "uint2"
-        self.use_quantized_matmul = False
-        self.compressed_weight_shape = compressed_weight_shape
-        self.result_dtype = result_dtype
-        self.result_shape = result_shape
-        self.register_buffer("scale", scale)
-        self.register_buffer("zero_point", zero_point)
-
-    def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        return pack_uint2(weight.to(dtype=torch.uint8))
-
-    def forward(self, weight, **kwargs):
-        return decompress_int2_asymmetric_compiled(weight, self.scale, self.zero_point, self.compressed_weight_shape, self.result_dtype, self.result_shape)
-
-
 decompressor_dict = {
     "int8": SymmetricWeightsDecompressor,
     "uint8": AsymmetricWeightsDecompressor,
     "int4": INT4SymmetricWeightsDecompressor,
-    "uint4": INT4AsymmetricWeightsDecompressor,
-    "uint2": INT2AsymmetricWeightsDecompressor,
+    "uint4": PackedINTAsymmetricWeightsDecompressor,
+    "uint2": PackedINTAsymmetricWeightsDecompressor,
+    "uint1": PackedINTAsymmetricWeightsDecompressor,
     "float8_e4m3fn": SymmetricWeightsDecompressor,
     "float8_e4m3fnuz": SymmetricWeightsDecompressor,
     "float8_e5m2": SymmetricWeightsDecompressor,
     "float8_e5m2fnuz": SymmetricWeightsDecompressor,
     "float8_e8m0fnu": AsymmetricWeightsDecompressor,
+}
+
+
+packed_int_function_dict = {
+    "int4": {"pack": pack_int4, "unpack": unpack_int4},
+    "uint4": {"pack": pack_uint4, "unpack": unpack_uint4},
+    "uint2": {"pack": pack_uint2, "unpack": unpack_uint2},
+    "uint1": {"pack": pack_uint1, "unpack": unpack_uint1},
 }
 
 
@@ -779,9 +806,8 @@ if shared.opts.sdnq_decompress_compile:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
         decompress_asymmetric_compiled = torch.compile(decompress_asymmetric, fullgraph=True)
         decompress_symmetric_compiled = torch.compile(decompress_symmetric, fullgraph=True)
-        decompress_int4_asymmetric_compiled = torch.compile(decompress_int4_asymmetric, fullgraph=True)
+        decompress_packed_int_asymmetric_compiled = torch.compile(decompress_packed_int_asymmetric, fullgraph=True)
         decompress_int4_symmetric_compiled = torch.compile(decompress_int4_symmetric, fullgraph=True)
-        decompress_int2_asymmetric_compiled = torch.compile(decompress_int2_asymmetric, fullgraph=True)
         fp8_matmul = torch.compile(fp8_matmul, fullgraph=True)
         fp8_matmul_sm89 = torch.compile(fp8_matmul_sm89, fullgraph=True)
         if devices.backend != "ipex": # pytorch uses the cpu device in torch._int_mm op with ipex + torch.compile
@@ -795,16 +821,14 @@ if shared.opts.sdnq_decompress_compile:
         shared.log.warning(f"Quantization: type=sdnq Decompress using torch.compile is not available: {e}")
         decompress_asymmetric_compiled = decompress_asymmetric
         decompress_symmetric_compiled = decompress_symmetric
-        decompress_int4_asymmetric_compiled = decompress_int4_asymmetric
+        decompress_packed_int_asymmetric_compiled = decompress_packed_int_asymmetric
         decompress_int4_symmetric_compiled = decompress_int4_symmetric
-        decompress_int2_asymmetric_compiled = decompress_int2_asymmetric
         quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
         unpack_int4_compiled = unpack_int4
 else:
     decompress_asymmetric_compiled = decompress_asymmetric
     decompress_symmetric_compiled = decompress_symmetric
-    decompress_int4_asymmetric_compiled = decompress_int4_asymmetric
+    decompress_packed_int_asymmetric_compiled = decompress_packed_int_asymmetric
     decompress_int4_symmetric_compiled = decompress_int4_symmetric
-    decompress_int2_asymmetric_compiled = decompress_int2_asymmetric
     quantize_int8_matmul_input_compiled = quantize_int8_matmul_input
     unpack_int4_compiled = unpack_int4
