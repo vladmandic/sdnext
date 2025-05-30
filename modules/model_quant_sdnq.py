@@ -6,6 +6,7 @@ from enum import Enum
 import os
 import sys
 import torch
+import diffusers
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
@@ -681,6 +682,8 @@ class SDNQQuantizer(DiffusersQuantizer):
         state_dict: Dict[str, Any],
         **kwargs,
     ):
+        if hasattr(diffusers, model.__class__.__name__):
+            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
