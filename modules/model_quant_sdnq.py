@@ -157,8 +157,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if dtype_dict[weights_dtype]["is_integer"]:
                     layer.forward = quantized_linear_forward_int8_matmul
                 else:
-                    if devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9):
-                        layer.forward = quantized_linear_forward_fp8_matmul_sm89
+                    if devices.backend == "cpu" or (devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9)):
+                        layer.forward = quantized_linear_forward_fp8_matmul_tensorwise
                     else:
                         layer.forward = quantized_linear_forward_fp8_matmul
             else:
@@ -401,7 +401,7 @@ def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.FloatTens
     return input, input_scale
 
 
-def quantize_fp8_matmul_input_sm89(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
+def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
     input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
@@ -435,7 +435,7 @@ def fp8_matmul(
 
 
 # sm89 doesn't support row wise scale in Windows
-def fp8_matmul_sm89(
+def fp8_matmul_tensorwise(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     bias: torch.FloatTensor,
@@ -445,7 +445,7 @@ def fp8_matmul_sm89(
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
-    input, scale = quantize_fp8_matmul_input_sm89(input, scale)
+    input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     result = decompress_symmetric(torch._scaled_mm(input, weight, dummy_input_scale, dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
@@ -476,8 +476,8 @@ def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch
     return fp8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
 
-def quantized_linear_forward_fp8_matmul_sm89(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    return fp8_matmul_sm89(input, self.weight, self.bias, self.sdnq_decompressor.scale)
+def quantized_linear_forward_fp8_matmul_tensorwise(self, input: torch.FloatTensor) -> torch.FloatTensor:
+    return fp8_matmul_tensorwise(input, self.weight, self.bias, self.sdnq_decompressor.scale)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
@@ -852,7 +852,7 @@ if shared.opts.sdnq_decompress_compile:
         decompress_packed_int_asymmetric_compiled = torch.compile(decompress_packed_int_asymmetric, fullgraph=True)
         decompress_packed_int_symmetric_compiled = torch.compile(decompress_packed_int_symmetric, fullgraph=True)
         fp8_matmul = torch.compile(fp8_matmul, fullgraph=True)
-        fp8_matmul_sm89 = torch.compile(fp8_matmul_sm89, fullgraph=True)
+        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True)
         int8_matmul = torch.compile(int8_matmul, fullgraph=True)
     except Exception as e:
         shared.log.warning(f"Quantization: type=sdnq Decompress using torch.compile is not available: {e}")
