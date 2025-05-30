@@ -204,7 +204,7 @@ What else?
     implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
     generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
-    - I2V & FLF2V support with explicit strength controls   
+    - I2V & FLF2V support with explicit strength controls  
     - complex actions: modify prompts for each section of the video  
     - LoRA support: use normal **HunyuanVideo** LoRAs  
     - decode: use local, tiny or remote VAE  
@@ -316,7 +316,7 @@ There are quite a few other performance and quality-of-life improvements in this
 
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
-    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
+    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters  
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
     see [HiDream Wiki page](https://github.com/vladmandic/sdnext/wiki/HiDream) for details  
@@ -375,7 +375,7 @@ Time for another major release with ~120 commits and [ChangeLog](https://github.
 *Highlights?*  
 Video...Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
-Models...And support for new models: **CogView-4**, **SANA 1.5**, 
+Models...And support for new models: **CogView-4**, **SANA 1.5**,  
 
 *Plus...*  
 - New **Prompt Enhance** using LLM,
@@ -674,7 +674,7 @@ We're back with another update with nearly 100 commits!
   - updated **CUDA** receipe to `torch==2.6.0` with `cuda==12.6` and add prebuilt image  
   - added **ROCm** receipe and prebuilt image  
   - added **IPEX** receipe and add prebuilt image  
-  - added **OpenVINO** receipe and prebuilt image   
+  - added **OpenVINO** receipe and prebuilt image  
 - **System**  
   - improve **python==3.12** compatibility  
   - **Torch**  
@@ -747,7 +747,7 @@ Just one week after latest release and what a week it was with over 50 commits!
 
 - **GitHub**
   - rename core repo from <https://github.com/vladmandic/automatic> to <https://github.com/vladmandic/sdnext>  
-    old repo url should automatically redirect to new one for seamless transition and in-place upgrades   
+    old repo url should automatically redirect to new one for seamless transition and in-place upgrades  
     all internal links have been updated  
     wiki content and docs site have been updated  
 - **Docs**:
@@ -1096,7 +1096,7 @@ We've also added support for several new models such as highly anticipated [NVLa
 And several new SOTA video models: [Lightricks LTX-Video](https://huggingface.co/Lightricks/LTX-Video), [Hunyuan Video](https://huggingface.co/tencent/HunyuanVideo) and [Genmo Mochi.1 Preview](https://huggingface.co/genmo/mochi-1-preview)  
 
 And a lot of **Control** and **IPAdapter** goodies  
-- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models 
+- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models  
 - for **FLUX.1** there are [Flux Tools](https://blackforestlabs.ai/flux-1-tools/) as well as official *Canny* and *Depth* models,  
   a cool [Redux](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) model as well as [XLabs](https://huggingface.co/XLabs-AI/flux-ip-adapter-v2) IP-adapter
 - for **SD3.5** there are official *Canny*, *Blur* and *Depth* models in addition to existing 3rd party models  
