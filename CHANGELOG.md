@@ -8,7 +8,7 @@ This release is all about quantization: with new SD.Next own quantization method
 **SDNQ** is based on **NNCF**, but has been re-implemented, optimized and evolved enough to become its own quantization method!  
 It's fully cross-platform, supports all GPUs and includes tons of quantization methods:
 - *8-bit, 6-bit, 4-bit, 2-bit and 1-bit int and uint*
-- *8-bit e5 and e4 float*
+- *8-bit e5, e4 and fnuz float*
 
 Also unlike most traditional methods, its also applicable to nearly all model types  
 
@@ -25,7 +25,7 @@ Also unlike most traditional methods, its also applicable to nearly all model ty
     - `INT8` -> `uint8`  
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
-  - Add `float8_e4m3fn`, `float8_e5m2`, `int6`, `uint6`, `uint2` and `uint1` support  
+  - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `uint2` and `uint1` support  
   - Add quantized matmul support for `float8_e4m3fn`  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
