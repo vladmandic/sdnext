@@ -21,7 +21,7 @@ dtype_dict = {
     "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "int2": {"min": -2, "max": 1, "num_bits": 2, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
     "uint2": {"min": 0, "max": 3, "num_bits": 2, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
-    "uint1": {"min": 0, "max": 1, "num_bits": 1, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint1": {"min": 0, "max": 1, "num_bits": 1, "target_dtype": torch.bool, "torch_dtype": torch.bool, "storage_dtype": torch.bool, "is_unsigned": True, "is_integer": True},
     "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "target_dtype": torch.float8_e4m3fn, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
     "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False},
     "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
@@ -313,23 +313,6 @@ def pack_uint2(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def pack_uint1(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
-    packed_tensor = tensor.contiguous().reshape(-1, 8)
-    packed_tensor = torch.bitwise_or(
-        torch.bitwise_or(
-            torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 1)),
-            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 2], 2), torch.bitwise_left_shift(packed_tensor[:, 3], 3))
-        ),
-        torch.bitwise_or(
-            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 4], 4), torch.bitwise_left_shift(packed_tensor[:, 5], 5)),
-            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 6], 6), torch.bitwise_left_shift(packed_tensor[:, 7], 7))
-        ),
-    )
-    return packed_tensor
-
-
 def unpack_uint6(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     result = torch.stack(
         (
@@ -361,23 +344,6 @@ def unpack_uint2(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 3),
             torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 3),
             torch.bitwise_right_shift(packed_tensor, 6),
-        ),
-        dim=-1
-    ).reshape(shape)
-    return result
-
-
-def unpack_uint1(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
-    result = torch.stack(
-        (
-            torch.bitwise_and(packed_tensor, 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 1), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 3), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 5), 1),
-            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 1),
-            torch.bitwise_right_shift(packed_tensor, 7),
         ),
         dim=-1
     ).reshape(shape)
@@ -615,7 +581,7 @@ decompressor_dict = {
     "uint4": PackedINTAsymmetricWeightsDecompressor,
     "int2": PackedINTSymmetricWeightsDecompressor,
     "uint2": PackedINTAsymmetricWeightsDecompressor,
-    "uint1": PackedINTAsymmetricWeightsDecompressor,
+    "uint1": AsymmetricWeightsDecompressor,
     "float8_e4m3fn": SymmetricWeightsDecompressor,
     "float8_e4m3fnuz": SymmetricWeightsDecompressor,
     "float8_e5m2": SymmetricWeightsDecompressor,
@@ -630,7 +596,6 @@ packed_int_function_dict = {
     "uint4": {"pack": pack_uint4, "unpack": unpack_uint4},
     "int2": {"pack": pack_uint2, "unpack": unpack_uint2},
     "uint2": {"pack": pack_uint2, "unpack": unpack_uint2},
-    "uint1": {"pack": pack_uint1, "unpack": unpack_uint1},
 }
 
 
