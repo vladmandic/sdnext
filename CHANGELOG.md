@@ -1,19 +1,22 @@
 # Change Log for SD.Next
 
-## Update for 2025-05-30
+## Update for 2025-06-01
 
-### Highlights for 2025-05-30
+### Highlights for 2025-06-01
 
-This release is all about quantization: with new SD.Next own quantization method: **SDNQ**
-SDNQ is based on NNCF, but has been re-implemented, optimized and evolved enough to become its own quantization method!
-It's fully cross-platform, supports all GPUs and includes 8-bit, 6-bit, 4-bit, 2-bit and 1-bit quantization methods.
-Also unlike most traditional methods, its also applicable to nearly all model types.
+This release is all about quantization: with new SD.Next own quantization method: **SDNQ**  
+**SDNQ** is based on **NNCF**, but has been re-implemented, optimized and evolved enough to become its own quantization method!  
+It's fully cross-platform, supports all GPUs and includes tons of quantization methods:
+- *8-bit, 6-bit, 4-bit, 2-bit and 1-bit int and uint*
+- *8-bit e5 and e4 float*
+
+Also unlike most traditional methods, its also applicable to nearly all model types  
 
 *Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements.  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-05-30
+### Details for 2025-06-01
 
 - **SDNQ Quantization**  
   - Renamed `NNCF` to `SDNQ`  
