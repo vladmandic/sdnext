@@ -26,8 +26,6 @@ dtype_dict = {
     "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
     "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
 }
-if hasattr(torch, "float8_e8m0fnu"):
-    dtype_dict["float8_e8m0fnu"] = {"min": 5.87747e-39, "max": 1.70141e+38, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e8m0fnu, "storage_dtype": torch.float8_e8m0fnu, "is_unsigned": True, "is_integer": False}
 
 quantized_matmul_dtypes = ("int8", "int6", "int4", "float8_e4m3fn")
 
@@ -628,7 +626,6 @@ decompressor_dict = {
     "float8_e4m3fnuz": SymmetricWeightsDecompressor,
     "float8_e5m2": SymmetricWeightsDecompressor,
     "float8_e5m2fnuz": SymmetricWeightsDecompressor,
-    "float8_e8m0fnu": AsymmetricWeightsDecompressor,
 }
 
 
@@ -795,7 +792,7 @@ class SDNQConfig(QuantizationConfigMixin):
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
-            ("int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz", "float8_e8m0fnu")
+            ("int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -823,7 +820,7 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
-        accepted_weights = ["int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz", "float8_e8m0fnu"]
+        accepted_weights = ["int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
         if self.weights_dtype not in accepted_weights:
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
 
