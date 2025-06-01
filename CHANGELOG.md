@@ -26,7 +26,7 @@ Also unlike most traditional methods, its also applicable to nearly all model ty
     - `INT4_SYM` -> `int4`  
     - `INT4` -> `uint4`  
   - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `int2`, `uint2` and `uint1` support  
-  - Add quantized matmul support for `float8_e4m3fn`  
+  - Add quantized matmul support for `float8_e4m3fn` and `float8_e5m2`  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
   - Implement better layer hijacks  

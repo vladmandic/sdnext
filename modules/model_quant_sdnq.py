@@ -28,9 +28,9 @@ dtype_dict = {
     "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
 }
 
-quantized_matmul_dtypes = ("int8", "int6", "int4", "int2", "float8_e4m3fn")
+quantized_matmul_dtypes = ("int8", "int6", "int4", "int2", "float8_e4m3fn", "float8_e5m2")
 if devices.backend in {"cpu", "openvino"}:
-    quantized_matmul_dtypes += ("float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz")
+    quantized_matmul_dtypes += ("float8_e4m3fnuz", "float8_e5m2fnuz")
 
 linear_types = ("Linear",)
 conv_types = ("Conv1d", "Conv2d", "Conv3d")
