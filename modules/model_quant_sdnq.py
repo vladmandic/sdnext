@@ -45,6 +45,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         is_conv_type = False
         is_conv_transpose_type = False
         is_linear_type = False
+        use_tensorwise_fp8_matmul = False
         result_shape = None
         if torch_dtype is None:
             torch_dtype = devices.dtype
@@ -69,6 +70,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
+                    use_tensorwise_fp8_matmul = devices.backend == "cpu" or (devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
 
             if not use_quantized_matmul and (group_size > 0 or (dtype_dict[weights_dtype]["num_bits"] < 6 and group_size != -1)):
                 if group_size == 0:
@@ -136,7 +138,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 stride = layer.weight.stride()
                 if stride[0] > stride[1] and stride[1] == 1:
                     layer.weight.data = layer.weight.t().contiguous().t()
-                scale = scale.to(torch.float32)
+                if not use_tensorwise_fp8_matmul:
+                    scale = scale.to(torch.float32)
 
         layer.sdnq_decompressor = decompressor_dict[weights_dtype](
             scale=scale,
@@ -155,7 +158,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if dtype_dict[weights_dtype]["is_integer"]:
                     layer.forward = quantized_linear_forward_int8_matmul
                 else:
-                    if devices.backend == "cpu" or (devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9)):
+                    if use_tensorwise_fp8_matmul:
                         layer.forward = quantized_linear_forward_fp8_matmul_tensorwise
                     else:
                         layer.forward = quantized_linear_forward_fp8_matmul
