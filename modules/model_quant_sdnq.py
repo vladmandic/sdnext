@@ -432,7 +432,7 @@ def fp8_matmul(
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     input, input_scale = quantize_fp8_matmul_input(input)
-    return torch._scaled_mm(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).reshape(output_shape)
+    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).reshape(output_shape)
 
 
 # sm89 doesn't support row wise scale in Windows
@@ -447,7 +447,7 @@ def fp8_matmul_tensorwise(
     output_shape[-1] = weight.shape[-1]
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
-    result = decompress_symmetric(torch._scaled_mm(input, weight, dummy_input_scale, dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
+    result = decompress_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
