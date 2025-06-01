@@ -35,7 +35,7 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 - Platform specific autodetection and tuning performed on install  
 - Optimized processing with latest `torch` developments with built-in support for model compile and quantize  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
-  Quantization methods: *BitsAndBytes | SDNQ | Optimum-Quanto | TorchAO*  
+  Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO*  
 - **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
 - Built-in queue management  
 - Built in installer with automatic updates and dependency management  
