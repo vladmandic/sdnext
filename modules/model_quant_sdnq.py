@@ -61,6 +61,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             use_quantized_matmul = False
             is_conv_type = True
             output_channel_size, channel_size = layer.weight.shape[:2]
+            if dtype_dict[weights_dtype]["num_bits"] < 4:
+                weights_dtype = "uint4"
+            elif dtype_dict[weights_dtype]["num_bits"] < 6:
+                weights_dtype = "int6"
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
@@ -69,6 +73,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             use_quantized_matmul = False
             is_conv_transpose_type = True
             channel_size, output_channel_size = layer.weight.shape[:2]
+            if dtype_dict[weights_dtype]["num_bits"] < 4:
+                weights_dtype = "uint4"
+            elif dtype_dict[weights_dtype]["num_bits"] < 6:
+                weights_dtype = "int6"
         else:
             is_linear_type = True
             reduction_axes = -1
