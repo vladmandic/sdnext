@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-01
+## Update for 2025-06-02
 
-### Highlights for 2025-06-01
+### Highlights for 2025-06-02
 
 This release is all about quantization: with new SD.Next own quantization method: **SDNQ**  
 **SDNQ** is based on **NNCF**, but has been re-implemented, optimized and evolved enough to become its own quantization method!  
@@ -12,11 +12,15 @@ It's fully cross-platform, supports all GPUs and includes tons of quantization m
 
 Also unlike most traditional methods, its also applicable to nearly all model types  
 
-*Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements.  
+*Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements. And on-the-fly quantization takes just few seconds during model load, there is no need to have multiple quant models permanently saved.  
+
+On a different topic, **SD.Next Wiki & Docs** and its **UI Hints** and **UI Localization** system are community efforts and any contributions are welcome!  
+You dont need any coding experience, but if you learned something and you find documentation either wrong or insufficient, please do suggest edits!  
+Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](https://github.com/vladmandic/sdnext/wiki/Hints) and [Localization](https://github.com/vladmandic/sdnext/wiki/Locale) contribution guides
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-06-01
+### Details for 2025-06-02
 
 - **SDNQ Quantization**  
   - Renamed `NNCF` to `SDNQ`  
