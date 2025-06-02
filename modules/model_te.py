@@ -70,8 +70,13 @@ def load_t5(name=None, cache_dir=None):
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'int8' in name.lower():
-        from modules.model_quant import create_nncf_config
-        quantization_config = create_nncf_config(kwargs=None, allow_nncf=True, module="any")
+        from modules.model_quant import create_sdnq_config
+        quantization_config = create_sdnq_config(kwargs=None, allow_sdnq=True, module='any', weights_dtype='int8')
+        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
+    elif 'uint4' in name.lower():
+        from modules.model_quant import create_sdnq_config
+        quantization_config = create_sdnq_config(kwargs=None, allow_sdnq=True, module='any', weights_dtype='uint4')
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'qint4' in name.lower():

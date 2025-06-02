@@ -31,11 +31,11 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 - Multiple [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
 - Built-in Control for Text, Image, Batch and Video processing!  
 - Multiplatform!  
- ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | IntelArc/IPEX | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
+ ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | Intel Arc / IPEX XPU | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
 - Platform specific autodetection and tuning performed on install  
-- Optimized processing with latest `torch` developments with built-in support for model compile, quantize and compress  
+- Optimized processing with latest `torch` developments with built-in support for model compile and quantize  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
-  Quantization and compression methods: *BitsAndBytes | TorchAO | Optimum-Quanto | NNCF*  
+  Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO*  
 - **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
 - Built-in queue management  
 - Built in installer with automatic updates and dependency management  

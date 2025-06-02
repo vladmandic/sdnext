@@ -546,7 +546,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = '20379d9d1395b8e95977faf80facff43065ba75f' # diffusers commit hash
+    sha = '6508da6f06a0da1054ae6a808d0025c04b70f0e8' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -727,10 +727,6 @@ def install_ipex(torch_command):
     if os.environ.get("PYTORCH_ENABLE_XPU_FALLBACK", None) is None:
         os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1') # CPU fallback for unsupported ops
 
-    if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', None) is None:
-        # XPU PyTorch doesn't support Flash Atten or Memory Atten yet so Battlemage goes OOM without this
-        os.environ.setdefault('IPEX_FORCE_ATTENTION_SLICE', '1')
-
     # FP64 emulation causes random UR Errors
     #if os.environ.get("OverrideDefaultFP64Settings", None) is None:
     #    os.environ.setdefault('OverrideDefaultFP64Settings', '1')
@@ -787,8 +783,6 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if opts.get('nncf_compress_weights', False) and not args.use_openvino:
-        install('nncf==2.16.0', 'nncf')
     if opts.get('optimum_quanto_weights', False):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
     if opts.get('torchao_quantization', False):
@@ -1175,7 +1169,6 @@ def install_optional():
     install('albumentations==1.4.3', ignore=True)
     install('pydantic==1.10.21', ignore=True)
     reload('pydantic', '1.10.21')
-    install('nncf==2.16.0', ignore=True)
     install('gguf', ignore=True)
     install('av', ignore=True)
     try:
@@ -1392,6 +1385,7 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
+    branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1406,30 +1400,29 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
         return
     commits = None
     try:
-        commits = requests.get('https://api.github.com/repos/vladmandic/sdnext/branches/master', timeout=10).json()
-        if commits['commit']['sha'] != commit:
-            if args.upgrade:
-                global quick_allowed # pylint: disable=global-statement
-                quick_allowed = False
-                log.info('Updating main repository')
-                try:
-                    git('add .')
-                    git('stash')
-                    update('.', keep_branch=True)
-                    # git('git stash pop')
-                    ver = git('log -1 --pretty=format:"%h %ad"')
-                    log.info(f'Repository upgraded: {ver}')
-                except Exception:
-                    if not reset:
-                        log.error('Repository error upgrading')
-                    else:
-                        log.warning('Repository: retrying upgrade...')
-                        git_reset()
-                        check_version(offline=offline, reset=False)
-            else:
-                dt = commits["commit"]["commit"]["author"]["date"]
-                commit = commits["commit"]["sha"][:8]
-                log.info(f'Version: check latest available hash={commit} updated={dt}')
+        commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
+        if commits['commit']['sha'] != commit and args.upgrade:
+            global quick_allowed # pylint: disable=global-statement
+            quick_allowed = False
+            log.info('Updating main repository')
+            try:
+                git('add .')
+                git('stash')
+                update('.', keep_branch=True)
+                # git('git stash pop')
+                ver = git('log -1 --pretty=format:"%h %ad"')
+                log.info(f'Repository upgraded: {ver}')
+            except Exception:
+                if not reset:
+                    log.error('Repository error upgrading')
+                else:
+                    log.warning('Repository: retrying upgrade...')
+                    git_reset()
+                    check_version(offline=offline, reset=False)
+        else:
+            dt = commits["commit"]["commit"]["author"]["date"]
+            commit = commits["commit"]["sha"][:8]
+            log.info(f'Version: app=sd.next latest={dt} hash={commit} branch={branch_name}')
     except Exception as e:
         log.error(f'Repository failed to check version: {e} {commits}')
     ts('latest', t_start)

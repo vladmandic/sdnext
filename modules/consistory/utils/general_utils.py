@@ -6,15 +6,16 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from skimage import filters
 
 
 ## Attention Utils
 def get_dynamic_threshold(tensor):
+    from skimage import filters
     return filters.threshold_otsu(tensor.float().cpu().numpy())
 
 
 def attn_map_to_binary(attention_map, scaler=1.):
+    from skimage import filters
     attention_map_np = attention_map.float().cpu().numpy()
     threshold_value = filters.threshold_otsu(attention_map_np) * scaler
     binary_mask = (attention_map_np > threshold_value).astype(np.uint8)

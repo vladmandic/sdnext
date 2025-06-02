@@ -167,7 +167,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
         shared.prompt_styles.apply_styles_to_extra(p)
         shared.prompt_styles.extract_comments(p)
-        if shared.opts.cuda_compile_backend == 'none':
+        if 'Model' not in shared.opts.cuda_compile:
             token_merge.apply_token_merging(p.sd_model)
             from modules import sd_hijack_freeu, para_attention, teacache
             sd_hijack_freeu.apply_freeu(p, not shared.native)

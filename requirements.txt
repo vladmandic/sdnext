@@ -41,7 +41,7 @@ torchsde==0.2.6
 antlr4-python3-runtime==4.9.3
 requests==2.32.3
 tqdm==4.67.1
-accelerate==1.6.0
+accelerate==1.7.0
 opencv-contrib-python-headless==4.9.0.80
 einops==0.4.1
 gradio==3.43.2
@@ -52,7 +52,7 @@ numba==0.61.2
 protobuf==4.25.3
 pytorch_lightning==1.9.4
 tokenizers==0.21.1
-transformers==4.51.3
+transformers==4.52.3
 urllib3==1.26.19
 Pillow==10.4.0
 timm==0.9.16

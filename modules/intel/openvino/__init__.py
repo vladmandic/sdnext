@@ -52,6 +52,24 @@ DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
     },
 )
 
+dtype_mapping = {
+        torch.float32: Type.f32,
+        torch.float64: Type.f64,
+        torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
+        torch.float8_e4m3fn: Type.f8e4m3,
+        torch.float8_e5m2: Type.f8e5m2,
+        torch.int64: Type.i64,
+        torch.uint64: Type.u64,
+        torch.int32: Type.i32,
+        torch.uint32: Type.u32,
+        torch.int8: Type.i8,
+        torch.uint8: Type.u8,
+        torch.bool: Type.boolean
+    }
+if hasattr(torch, "float8_e8m0fnu"):
+    dtype_mapping[torch.float8_e8m0fnu] = Type.f8e8m0
+
 
 class OpenVINOGraphModule(torch.nn.Module):
     def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None, file_name="", int_inputs=[]):
@@ -219,17 +237,6 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = Non
                     f.write("\n")
                 f.close()
 
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
-
     idx_minus = 0
     for idx, input_data in enumerate(example_inputs):
         if isinstance(input_data, int):
@@ -282,17 +289,6 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
     global dont_use_4bit_nncf
     global dont_use_nncf
     global dont_use_quant
-
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
 
     for idx, input_data in enumerate(example_inputs):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])

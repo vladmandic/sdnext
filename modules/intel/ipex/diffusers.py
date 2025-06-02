@@ -81,7 +81,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
     return emb
 
 
-def ipex_diffusers(device_supports_fp64=False, can_allocate_plus_4gb=False):
+def ipex_diffusers(device_supports_fp64=False):
     diffusers.utils.torch_utils.fourier_filter = fourier_filter
     if not device_supports_fp64:
         # get around lazy imports

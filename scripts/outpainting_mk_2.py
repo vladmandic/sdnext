@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import skimage
 import gradio as gr
 from PIL import Image, ImageDraw
 import modules.scripts as scripts
@@ -60,6 +59,8 @@ def get_matched_noise(_np_src_image, np_mask_rgb, noise_q=1, color_variation=0.0
         for c in range(3):
             np_mask_rgb[:, :, c] = hardened[:]
         return np_mask_rgb
+
+    import skimage
     width = _np_src_image.shape[0]
     height = _np_src_image.shape[1]
     num_channels = _np_src_image.shape[2]

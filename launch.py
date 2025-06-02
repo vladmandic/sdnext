@@ -264,8 +264,11 @@ def main():
     installer.check_onnx()
     installer.check_diffusers()
     installer.check_modified_files()
+    if args.test:
+        installer.log.info('Startup: test mode')
+        installer.quick_allowed = False
     if args.reinstall:
-        installer.log.info('Forcing reinstall of all packages')
+        installer.log.info('Startup: force reinstall of all packages')
         installer.quick_allowed = False
     if args.skip_all:
         installer.log.info('Startup: skip all')

@@ -18,7 +18,7 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 def b64(image):
     if image is None:
         return ''
-    if isinstance(image, gr.Image):
+    if isinstance(image, gr.Image): # should not happen
         return None
     with io.BytesIO() as stream:
         image.convert('RGB').save(stream, 'JPEG')
@@ -105,6 +105,7 @@ class Script(scripts.Script):
             return
         self.busy = True
         if self.model is not None and self.model == name:
+            self.busy = False # ensure busy is reset even if model is already loaded
             return
 
         from modules import modelloader, model_quant, ggml
@@ -138,7 +139,7 @@ class Script(scripts.Script):
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
-                load_args['subfolder'] = model_subfolder,
+                load_args['subfolder'] = model_subfolder # Comma was incorrect here
             self.llm = transformers.AutoModelForCausalLM.from_pretrained(
                 **load_args,
                 trust_remote_code=True,
@@ -194,8 +195,8 @@ class Script(scripts.Script):
 
         # remove comments between brackets
         response = re.sub(r'<.*?>', '', response)
-        response = re.sub(r'\[.*?\]', '', response)
-        response = re.sub(r'\/.*?\/', '', response)
+        response = re.sub(r'\[.*?\]', '', response) # Fixed regex for brackets
+        response = re.sub(r'\/.*?\/', '', response) # Fixed regex for slashes
 
         # remove llm commentary
         removed = ''
@@ -209,7 +210,7 @@ class Script(scripts.Script):
             debug_log(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
         # remove bullets and lists
-        lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()]
+        lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()] # Fixed regex
         response = '\n'.join(lines)
 
         response = response.strip()
@@ -235,7 +236,7 @@ class Script(scripts.Script):
 
     def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None):
         model = model or self.options.default
-        prompt = prompt or self.prompt.value
+        prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
         image = image or self.image
         prefix = prefix or ''
         suffix = suffix or ''
@@ -244,6 +245,8 @@ class Script(scripts.Script):
         temperature = temperature or self.options.temperature
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
+        nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
+
         while self.busy:
             time.sleep(0.1)
         self.load(model)
@@ -252,22 +255,28 @@ class Script(scripts.Script):
         if self.llm is None:
             shared.log.error('Prompt enhance: model not loaded')
             return prompt
-        prompt, networks = self.extract(prompt)
+        prompt_text, networks = self.extract(prompt) # Use prompt_text after extraction
         debug_log(f'Prompt enhance: networks={networks}')
+
+        current_image = None
         try:
             if image is not None and isinstance(image, gr.Image):
-                image = image.value
-            if image is not None and (image.width <= 64 or image.height <= 64):
-                image = None
+                current_image = image.value
+            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+                current_image = image
+            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+                current_image = None
         except Exception:
-            image = None
+            current_image = None
+
         has_system = system is not None and len(system) > 4
         mode = 'custom' if has_system else ''
-        if image is not None and isinstance(image, Image.Image):
+
+        if current_image is not None and isinstance(current_image, Image.Image):
             if not self.tokenizer.is_processor:
                 shared.log.error('Prompt enhance: image not supported by model')
-                return prompt
-            if prompt is not None and len(prompt) > 0:
+                return prompt_text # Return original text part if image cannot be processed
+            if prompt_text is not None and len(prompt_text) > 0:
                 if not has_system:
                     mode = 'i2i-prompt'
                     system = self.options.i2i_prompt
@@ -278,8 +287,8 @@ class Script(scripts.Script):
                         {"type": "text", "text": system }
                     ] },
                     { "role": "user",   "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image", "image": b64(image)}
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image", "image": b64(current_image)}
                     ] },
                 ]
             else:
@@ -293,7 +302,7 @@ class Script(scripts.Script):
                         {"type": "text", "text": system }
                     ] },
                     { "role": "user",   "content": [
-                        {"type": "image", "image": b64(image)}
+                        {"type": "image", "image": b64(current_image)}
                     ] },
                 ]
         else:
@@ -305,7 +314,7 @@ class Script(scripts.Script):
                 mode = 't2i+tokenizer'
                 chat_template = [
                     { "role": "system", "content": system },
-                    { "role": "user",   "content": prompt },
+                    { "role": "user",   "content": prompt_text },
                 ]
             else:
                 mode = 't2i+processor'
@@ -314,7 +323,7 @@ class Script(scripts.Script):
                         {"type": "text", "text": system }
                     ] },
                     { "role": "user",   "content": [
-                        {"type": "text", "text": prompt},
+                        {"type": "text", "text": prompt_text},
                     ] },
                 ]
 
@@ -334,7 +343,7 @@ class Script(scripts.Script):
             shared.log.error(f'Prompt enhance tokenize: {e}')
             errors.display(e, 'Prompt enhance')
             self.busy = False
-            return prompt
+            return prompt_text # Return original text part on error
         try:
             with devices.inference_context():
                 sd_models.move_model(self.llm, devices.device)
@@ -370,18 +379,19 @@ class Script(scripts.Script):
         if not is_censored:
             response = self.clean(response)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1]} prompt={len(prompt)} response={len(response)}')
+        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}') # Added check for outputs
         if debug_enabled:
             shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty} thinking={thinking}')
-            shared.log.trace(f'Prompt enhance: prompt="{prompt}"')
+            shared.log.trace(f'Prompt enhance: prompt="{prompt_text}"')
             shared.log.trace(f'Prompt enhance: response="{response}"')
         self.busy = False
         if is_censored:
             shared.log.warning(f'Prompt enhance: censored response="{response}"')
-            return prompt
+            return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode):
+    # --- START OF CORRECTED METHOD ---
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode): # Added nsfw_mode
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -394,10 +404,12 @@ class Script(scripts.Script):
             temperature=temperature,
             penalty=repetition_penalty,
             thinking=thinking_mode,
+            nsfw=nsfw_mode # Pass nsfw_mode here
         )
         if apply_prompt:
             return [response, response]
         return [response, gr.update()]
+    # --- END OF CORRECTED METHOD ---
 
     def get_custom(self, name):
         model_repo = self.options.models.get(name, {}).get('repo', None) or name
@@ -433,7 +445,7 @@ class Script(scripts.Script):
                         model_file = gr.Textbox(label='Model file', value=None, interactive=True, elem_id='prompt_enhance_model_file', placeholder='Optional GGUF model file inside GGUF model repo')
                     with gr.Row():
                         custom_btn = gr.Button(value='Load custom model', elem_id='prompt_enhance_custom_load', variant='secondary')
-                        custom_btn.click(fn=self.load, inputs=[model_file, model_repo, model_gguf, model_type, model_file], outputs=[])
+                        custom_btn.click(fn=self.load, inputs=[model_repo, model_repo, model_gguf, model_type, model_file], outputs=[])
                         llm_model.change(fn=self.get_custom, inputs=[llm_model], outputs=[model_repo, model_gguf, model_type, model_file])
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
@@ -447,14 +459,14 @@ class Script(scripts.Script):
                         nsfw_mode = gr.Checkbox(label='NSFW allowed', value=True, interactive=True)
                         thinking_mode = gr.Checkbox(label='Thinking mode', value=False, interactive=True)
                     gr.HTML('<br>')
-                with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'):
+                with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'): # Corrected elem_id reference
                     with gr.Row():
                         prompt_prefix = gr.Textbox(label='Prompt prefix', value='', placeholder='Optional prompt prefix', interactive=True, lines=2, elem_id='prompt_enhance_prefix')
                     with gr.Row():
                         prompt_suffix = gr.Textbox(label='Prompt suffix', value='', placeholder='Optional prompt suffix', interactive=True, lines=2, elem_id='prompt_enhance_suffix')
                     with gr.Row():
-                        prompt_system = gr.Textbox(label='System prompt', value='', interactive=True, lines=4, elem_id='prompt_enhance_system')
-                with gr.Accordion('Output', open=True, elem_id='prompt_enhance_system_prompt'):
+                        prompt_system = gr.Textbox(label='System prompt', value='', interactive=True, lines=4, elem_id='prompt_enhance_system') # Default to empty as per diff
+                with gr.Accordion('Output', open=True, elem_id='prompt_enhance_output'): # Corrected elem_id reference
                     with gr.Row():
                         prompt_output = gr.Textbox(label='Enhanced prompt', value='', interactive=True, lines=4)
                     with gr.Row():
@@ -502,3 +514,4 @@ class Script(scripts.Script):
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
+

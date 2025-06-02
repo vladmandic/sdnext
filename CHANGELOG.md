@@ -1,5 +1,56 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-02
+
+### Highlights for 2025-06-02
+
+This release is all about quantization: with new SD.Next own quantization method: **SDNQ**  
+**SDNQ** is based on **NNCF**, but has been re-implemented, optimized and evolved enough to become its own quantization method!  
+It's fully cross-platform, supports all GPUs and includes tons of quantization methods:
+- *8-bit, 6-bit, 4-bit, 2-bit and 1-bit int and uint*
+- *8-bit e5, e4 and fnuz float*
+
+Also unlike most traditional methods, its also applicable to nearly all model types  
+
+*Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements. And on-the-fly quantization takes just few seconds during model load, there is no need to have multiple quant models permanently saved.  
+
+On a different topic, **SD.Next Wiki & Docs** and its **UI Hints** and **UI Localization** system are community efforts and any contributions are welcome!  
+You dont need any coding experience, but if you learned something and you find documentation either wrong or insufficient, please do suggest edits!  
+Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](https://github.com/vladmandic/sdnext/wiki/Hints) and [Localization](https://github.com/vladmandic/sdnext/wiki/Locale) contribution guides
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-06-02
+
+- **SDNQ Quantization**  
+  - Renamed `NNCF` to `SDNQ`  
+  - Renamed quantization scheme names to the underlying dtype names instead of NNCF names  
+    - `INT8_SYM` -> `int8`  
+    - `INT8` -> `uint8`  
+    - `INT4_SYM` -> `int4`  
+    - `INT4` -> `uint4`  
+  - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `int2`, `uint2` and `uint1` support  
+  - Add quantized matmul support for `float8_e4m3fn` and `float8_e5m2`  
+  - Set the default quant mode to `pre`  
+  - Use per token input quant with int8 and fp8 quantized matmul  
+  - Implement better layer hijacks  
+  - Add an option to toggle quantize with GPU  
+  - Fix conv quant and add support for conv quant with asym modes  
+  - Fix lora weight change  
+  - Fix high RAM usage with pre mode  
+  - Fix scale and zero_point not being offloaded  
+- **IPEX**  
+  - Disabe Dynamic Attention by default on PyTorch 2.7  
+  - Remove GradScaler hijack and use `torch.amp.GradScaler` instead  
+- **Feature**  
+  - TeaCache support for HiDream I1  
+- **Changes**  
+  - Set the default attention optimizer to Scaled-Dot-Product on all backends  
+  - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
+- **Fixes**
+  - Gallery duplicate entries  
+  - Prompt enhancement args mismatch  
+
 ## Update for 2025-05-17
 
 *Curious how your system is performing?*  
@@ -163,7 +214,7 @@ What else?
     implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
     generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
-    - I2V & FLF2V support with explicit strength controls   
+    - I2V & FLF2V support with explicit strength controls  
     - complex actions: modify prompts for each section of the video  
     - LoRA support: use normal **HunyuanVideo** LoRAs  
     - decode: use local, tiny or remote VAE  
@@ -275,7 +326,7 @@ There are quite a few other performance and quality-of-life improvements in this
 
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
-    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
+    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters  
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
     see [HiDream Wiki page](https://github.com/vladmandic/sdnext/wiki/HiDream) for details  
@@ -334,7 +385,7 @@ Time for another major release with ~120 commits and [ChangeLog](https://github.
 *Highlights?*  
 Video...Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
-Models...And support for new models: **CogView-4**, **SANA 1.5**, 
+Models...And support for new models: **CogView-4**, **SANA 1.5**,  
 
 *Plus...*  
 - New **Prompt Enhance** using LLM,
@@ -633,7 +684,7 @@ We're back with another update with nearly 100 commits!
   - updated **CUDA** receipe to `torch==2.6.0` with `cuda==12.6` and add prebuilt image  
   - added **ROCm** receipe and prebuilt image  
   - added **IPEX** receipe and add prebuilt image  
-  - added **OpenVINO** receipe and prebuilt image   
+  - added **OpenVINO** receipe and prebuilt image  
 - **System**  
   - improve **python==3.12** compatibility  
   - **Torch**  
@@ -706,7 +757,7 @@ Just one week after latest release and what a week it was with over 50 commits!
 
 - **GitHub**
   - rename core repo from <https://github.com/vladmandic/automatic> to <https://github.com/vladmandic/sdnext>  
-    old repo url should automatically redirect to new one for seamless transition and in-place upgrades   
+    old repo url should automatically redirect to new one for seamless transition and in-place upgrades  
     all internal links have been updated  
     wiki content and docs site have been updated  
 - **Docs**:
@@ -1055,7 +1106,7 @@ We've also added support for several new models such as highly anticipated [NVLa
 And several new SOTA video models: [Lightricks LTX-Video](https://huggingface.co/Lightricks/LTX-Video), [Hunyuan Video](https://huggingface.co/tencent/HunyuanVideo) and [Genmo Mochi.1 Preview](https://huggingface.co/genmo/mochi-1-preview)  
 
 And a lot of **Control** and **IPAdapter** goodies  
-- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models 
+- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models  
 - for **FLUX.1** there are [Flux Tools](https://blackforestlabs.ai/flux-1-tools/) as well as official *Canny* and *Depth* models,  
   a cool [Redux](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) model as well as [XLabs](https://huggingface.co/XLabs-AI/flux-ip-adapter-v2) IP-adapter
 - for **SD3.5** there are official *Canny*, *Blur* and *Depth* models in addition to existing 3rd party models  
