@@ -11,6 +11,7 @@ from diffusers.utils import get_module_from_name
 from accelerate.utils import CustomDtype
 from modules import devices, shared
 
+torch_version = float(torch.__version__[:3])
 
 dtype_dict = {
     "int8": {"min": -128, "max": 127, "num_bits": 8, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
@@ -73,7 +74,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
-                    use_tensorwise_fp8_matmul = devices.backend in {"cpu", "openvino"} or (devices.backend == "cuda" and sys.platform == "win32" and float(torch.__version__[:3]) <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
+                    use_tensorwise_fp8_matmul = torch_version < 2.5 or devices.backend in {"cpu", "openvino"} or (devices.backend == "cuda" and sys.platform == "win32" and torch_version <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
 
             if not use_quantized_matmul and (group_size > 0 or (dtype_dict[weights_dtype]["num_bits"] < 6 and group_size != -1)):
                 if group_size == 0:
