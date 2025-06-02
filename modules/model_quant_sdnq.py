@@ -57,15 +57,18 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if layer_class_name in conv_types:
             if not quant_conv:
                 return layer
-            reduction_axes = [i for i in range(layer.weight.ndim) if i != 0]
+            reduction_axes = list(range(layer.weight.ndim))[1:]
             use_quantized_matmul = False
             is_conv_type = True
+            output_channel_size, channel_size = layer.weight.shape[:2]
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
-            reduction_axes = [i for i in range(layer.weight.ndim) if i != 1]
+            reduction_axes = list(range(layer.weight.ndim))
+            reduction_axes.pop(1)
             use_quantized_matmul = False
             is_conv_transpose_type = True
+            channel_size, output_channel_size = layer.weight.shape[:2]
         else:
             is_linear_type = True
             reduction_axes = -1
@@ -76,33 +79,53 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                     use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
                     use_tensorwise_fp8_matmul = torch_version < 2.5 or devices.backend in {"cpu", "openvino"} or (devices.backend == "cuda" and sys.platform == "win32" and torch_version <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
 
-            if not use_quantized_matmul and (group_size > 0 or (dtype_dict[weights_dtype]["num_bits"] < 6 and group_size != -1)):
-                if group_size == 0:
-                    if dtype_dict[weights_dtype]["num_bits"] < 4:
-                        group_size = 32
-                    else:
-                        group_size = 64
-                    num_of_groups = channel_size // group_size
+        if group_size == 0:
+            if is_linear_type:
+                if dtype_dict[weights_dtype]["num_bits"] < 6:
+                    group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
+            else:
+                group_size = 2 ** dtype_dict[weights_dtype]["num_bits"]
 
-                if group_size >= channel_size:
-                    group_size = channel_size
-                    num_of_groups = 1
-                else:
-                    num_of_groups = channel_size // group_size
-                    while channel_size % group_size != 0: # find something divisible
-                        num_of_groups -= 1
-                        if num_of_groups <= 1:
-                            group_size = channel_size
-                            num_of_groups = 1
-                            break
-                        group_size = channel_size / num_of_groups
+        if not use_quantized_matmul and group_size > 0:
+            if group_size >= channel_size:
+                group_size = channel_size
+                num_of_groups = 1
+            else:
+                num_of_groups = channel_size // group_size
+                while channel_size % group_size != 0: # find something divisible
+                    num_of_groups -= 1
+                    if num_of_groups <= 1:
+                        group_size = channel_size
+                        num_of_groups = 1
+                        break
+                    group_size = channel_size / num_of_groups
+            group_size = int(group_size)
+            num_of_groups = int(num_of_groups)
 
-                if num_of_groups > 1:
-                    result_shape = layer.weight.shape
-                    new_shape = list(result_shape)
+            if num_of_groups > 1:
+                result_shape = layer.weight.shape
+                new_shape = list(result_shape)
+                if is_conv_type:
+                    # output_channel_size, channel_size, X, X
+                    # output_channel_size, num_of_groups, group_size, X, X
+                    new_shape[1] = group_size
+                    new_shape.insert(1, num_of_groups)
+                    reduction_axes.pop(0)
+                    reduction_axes.append(layer.weight.ndim)
+                elif is_conv_transpose_type:
+                    #channel_size, output_channel_size, X, X
+                    #num_of_groups, group_size, output_channel_size, X, X
+                    new_shape[0] = group_size
+                    new_shape.insert(0, num_of_groups)
+                    reduction_axes = list(range(layer.weight.ndim + 1))
+                    reduction_axes.pop(2)
+                    reduction_axes.pop(0)
+                elif is_linear_type:
+                    # output_channel_size, channel_size
+                    # output_channel_size, num_of_groups, group_size
                     last_dim_index = layer.weight.ndim
-                    new_shape[last_dim_index - 1 : last_dim_index] = (int(num_of_groups), int(group_size))
-                    layer.weight.data = layer.weight.reshape(new_shape)
+                    new_shape[last_dim_index - 1 : last_dim_index] = (num_of_groups, group_size)
+                layer.weight.data = layer.weight.reshape(new_shape)
 
         layer.weight.requires_grad = False
         if shared.opts.diffusers_offload_mode in {"none", "model"}:
