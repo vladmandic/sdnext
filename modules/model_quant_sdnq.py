@@ -418,7 +418,7 @@ def int8_matmul(
     weights_dtype: str,
 ) -> torch.FloatTensor:
     if compressed_weight_shape is not None:
-        weight = packed_int_function_dict[weights_dtype]["unpack"](weight, compressed_weight_shape, transpose=True)
+        weight = unpack_int_symetric(weight, compressed_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
     return_dtype = input.dtype
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
