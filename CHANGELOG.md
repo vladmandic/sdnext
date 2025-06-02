@@ -49,6 +49,7 @@ Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](h
   - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
 - **Fixes**
   - Gallery duplicate entries  
+  - Prompt enhancement args mismatch  
 
 ## Update for 2025-05-17
 
