@@ -57,26 +57,21 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if layer_class_name in conv_types:
             if not quant_conv:
                 return layer
-            reduction_axes = list(range(layer.weight.ndim))[1:]
-            use_quantized_matmul = False
             is_conv_type = True
+            reduction_axes = 1
             output_channel_size, channel_size = layer.weight.shape[:2]
+            use_quantized_matmul = False
             if dtype_dict[weights_dtype]["num_bits"] < 4:
                 weights_dtype = "uint4"
-            elif dtype_dict[weights_dtype]["num_bits"] < 6:
-                weights_dtype = "int6"
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
-            reduction_axes = list(range(layer.weight.ndim))
-            reduction_axes.pop(1)
-            use_quantized_matmul = False
             is_conv_transpose_type = True
+            reduction_axes = 0
             channel_size, output_channel_size = layer.weight.shape[:2]
+            use_quantized_matmul = False
             if dtype_dict[weights_dtype]["num_bits"] < 4:
                 weights_dtype = "uint4"
-            elif dtype_dict[weights_dtype]["num_bits"] < 6:
-                weights_dtype = "int6"
         else:
             is_linear_type = True
             reduction_axes = -1
@@ -92,7 +87,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if dtype_dict[weights_dtype]["num_bits"] < 6:
                     group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
             else:
-                group_size = 2 ** dtype_dict[weights_dtype]["num_bits"]
+                if dtype_dict[weights_dtype]["num_bits"] < 8:
+                    group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
 
         if not use_quantized_matmul and group_size > 0:
             if group_size >= channel_size:
@@ -118,16 +114,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                     # output_channel_size, num_of_groups, group_size, X, X
                     new_shape[1] = group_size
                     new_shape.insert(1, num_of_groups)
-                    reduction_axes.pop(0)
-                    reduction_axes.append(layer.weight.ndim)
+                    reduction_axes = 2
                 elif is_conv_transpose_type:
                     #channel_size, output_channel_size, X, X
                     #num_of_groups, group_size, output_channel_size, X, X
                     new_shape[0] = group_size
                     new_shape.insert(0, num_of_groups)
-                    reduction_axes = list(range(layer.weight.ndim + 1))
-                    reduction_axes.pop(2)
-                    reduction_axes.pop(0)
+                    reduction_axes = 1
                 elif is_linear_type:
                     # output_channel_size, channel_size
                     # output_channel_size, num_of_groups, group_size
