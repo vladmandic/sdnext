@@ -405,7 +405,7 @@ def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.
     return input, scale
 
 
-def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor, flatten: bool = True) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
+def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.ByteTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
     input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 127)
     input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8)
