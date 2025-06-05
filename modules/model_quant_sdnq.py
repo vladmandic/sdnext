@@ -505,9 +505,9 @@ def process_conv_input(conv_type, input, reversed_padding_repeated_twice, paddin
         input = input.unsqueeze(2)
 
     if conv_type == 3:
-        K_D_eff = kernel_size[0] + (kernel_size[0] - 1) * (dilation[0] - 1)
-        K_H_eff = kernel_size[1] + (kernel_size[1] - 1) * (dilation[0] - 1)
-        K_W_eff = kernel_size[2] + (kernel_size[2] - 1) * (dilation[0] - 1)
+        K_D_eff = K_d + (K_d - 1) * (dilation[0] - 1)
+        K_H_eff = K_h + (K_h - 1) * (dilation[0] - 1)
+        K_W_eff = K_w + (K_w - 1) * (dilation[0] - 1)
         input = input.unfold(2, K_D_eff, stride[0]).unfold(3, K_H_eff, stride[1]).unfold(4, K_W_eff, stride[2])
         if dilation[0] > 1:
             input = input[..., ::dilation[0], :, :]
@@ -515,7 +515,7 @@ def process_conv_input(conv_type, input, reversed_padding_repeated_twice, paddin
             input = input[..., ::dilation[1], :]
         if dilation[2] > 1:
             input = input[..., ::dilation[2]]
-        input = input.permute(0, 2, 3, 4, 1, 5, 6, 7).reshape(mm_output_shape[0], mm_output_shape[1] * mm_output_shape[2] * mm_output_shape[3], -1)
+        input = input.permute(0, 2, 3, 4, 1, 5, 6, 7).reshape(batch_size, D_out * H_out * W_out, -1)
     else:
         input = torch.nn.functional.unfold(input, kernel_size=kernel_size, padding=padding, stride=stride, dilation=dilation).transpose(1,2)
     return input, mm_output_shape
@@ -681,6 +681,8 @@ def get_conv_args(input_ndim, stride, padding, dilation):
 
 
 def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
+    if torch.numel(input) / input.shape[2] < 32:
+        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul(
         input, self.weight, self.bias,
@@ -694,6 +696,8 @@ def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
 
 
 def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTensor:
+    if torch.numel(input) / input.shape[2] < 32:
+        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul_tensorwise(
         input, self.weight, self.bias,
@@ -707,6 +711,8 @@ def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTens
 
 
 def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
+    if torch.numel(input) / input.shape[2] < 32:
+        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_int8_matmul(
         input, self.weight, self.bias,
