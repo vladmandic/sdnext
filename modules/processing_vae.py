@@ -125,10 +125,6 @@ def full_vae_decode(latents, model):
             model.vae.orig_dtype = model.vae.dtype
             model.vae = model.vae.to(dtype=torch.float32)
     latents = latents.to(devices.device)
-    if getattr(model.vae, "post_quant_conv", None) is not None:
-        latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
-    else:
-        latents = latents.to(model.vae.dtype)
 
     # normalize latents
     latents_mean = model.vae.config.get("latents_mean", None)
@@ -143,6 +139,11 @@ def full_vae_decode(latents, model):
         latents = latents / scaling_factor
     if shift_factor:
         latents = latents + shift_factor
+
+    if getattr(model.vae, "post_quant_conv", None) is not None and "VAE" not in shared.opts.sdnq_quantize_weights:
+        latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
+    else:
+        latents = latents.to(model.vae.dtype)
 
     log_debug(f'VAE config: {model.vae.config}')
     try:
