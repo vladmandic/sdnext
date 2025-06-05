@@ -140,8 +140,14 @@ def full_vae_decode(latents, model):
     if shift_factor:
         latents = latents + shift_factor
 
-    if getattr(model.vae, "post_quant_conv", None) is not None and "VAE" not in shared.opts.sdnq_quantize_weights:
-        latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
+    if getattr(model.vae, "post_quant_conv", None) is not None:
+        if hasattr(model.vae.post_quant_conv, "bias"):
+            latents = latents.to(model.vae.post_quant_conv.bias.dtype)
+        else:
+            if "VAE" in shared.opts.sdnq_quantize_weights:
+                latents = latents.to(devices.dtype_vae)
+            else:
+                latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
     else:
         latents = latents.to(model.vae.dtype)
 
