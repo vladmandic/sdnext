@@ -141,7 +141,7 @@ def full_vae_decode(latents, model):
         latents = latents + shift_factor
 
     if getattr(model.vae, "post_quant_conv", None) is not None:
-        if hasattr(model.vae.post_quant_conv, "bias"):
+        if getattr(model.vae.post_quant_conv, "bias", None) is not None:
             latents = latents.to(model.vae.post_quant_conv.bias.dtype)
         else:
             if "VAE" in shared.opts.sdnq_quantize_weights:
