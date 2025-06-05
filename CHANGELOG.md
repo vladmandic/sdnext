@@ -1,5 +1,13 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-05
+
+- **SDNQ Quantization**  
+    - Add group size support for convolutional layers  
+    - Add quantized matmul support for for convolutional layers  
+    - Fix VAE with conv quant  
+
+
 ## Update for 2025-06-02
 
 ### Highlights for 2025-06-02
@@ -31,7 +39,6 @@ Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](h
     - `INT4` -> `uint4`  
   - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `int2`, `uint2` and `uint1` support  
   - Add quantized matmul support for `float8_e4m3fn` and `float8_e5m2`  
-  - Add group size support for convolutional layers  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
   - Implement better layer hijacks  
