@@ -147,7 +147,16 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
             self.sdnq_decompressor = None
-            self = sdnq_quantize_layer(self, sdnq_decompressor.weights_dtype, torch_dtype=devices.dtype, group_size=shared.opts.sdnq_quantize_weights_group_size, quant_conv=shared.opts.sdnq_quantize_conv_layers, use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul, param_name=getattr(self, 'network_layer_name', None))
+            self = sdnq_quantize_layer(
+                self,
+                sdnq_decompressor.weights_dtype,
+                torch_dtype=devices.dtype,
+                group_size=shared.opts.sdnq_quantize_weights_group_size,
+                quant_conv=shared.opts.sdnq_quantize_conv_layers,
+                use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+                use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+                param_name=getattr(self, 'network_layer_name', None),
+            )
             self = self.to(device)
             weight = None
             del dequant_weight

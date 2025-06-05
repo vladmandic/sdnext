@@ -44,7 +44,7 @@ class QuantizationMethod(str, Enum):
     SDNQ = "sdnq"
 
 
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None, pre_mode=False): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, param_name=None, pre_mode=False):
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -64,7 +64,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             output_channel_size, channel_size = layer.weight.shape[:2]
             group_channel_size = channel_size // layer.groups
             use_quantized_matmul = False
-            if shared.opts.sdnq_use_quantized_matmul_conv:
+            if use_quantized_matmul_conv:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and group_channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and group_channel_size % 16 == 0
@@ -222,7 +222,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, param_name=None):
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, param_name=None):
     has_children = list(model.children())
     if not has_children:
         return model
@@ -235,6 +235,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 group_size=group_size,
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
+                use_quantized_matmul_conv=use_quantized_matmul_conv,
                 param_name=module_param_name,
             )
         module = apply_sdnq_to_module(
@@ -244,6 +245,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 group_size=group_size,
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
+                use_quantized_matmul_conv=use_quantized_matmul_conv,
                 param_name=module_param_name,
             )
     return model
@@ -907,6 +909,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             group_size=self.quantization_config.group_size,
             quant_conv=self.quantization_config.quant_conv,
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
+            use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
             param_name=param_name,
             pre_mode=True,
         )
@@ -1001,6 +1004,7 @@ class SDNQConfig(QuantizationConfigMixin):
         group_size: int = 0,
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
+        use_quantized_matmul_conv: bool = False,
         modules_to_not_convert: Optional[List[str]] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
@@ -1009,6 +1013,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.group_size = group_size
         self.quant_conv = quant_conv
         self.use_quantized_matmul = use_quantized_matmul
+        self.use_quantized_matmul_conv = use_quantized_matmul_conv
         self.modules_to_not_convert = modules_to_not_convert
         self.post_init()
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
