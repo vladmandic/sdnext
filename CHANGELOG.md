@@ -18,6 +18,7 @@
 
 - **Fixes**
   - Meissonic with multiple generators  
+  - Kandinsky V2.2 invalid attention processor  
 
 ## Update for 2025-06-02
 

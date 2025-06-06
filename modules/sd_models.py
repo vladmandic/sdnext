@@ -902,25 +902,9 @@ def set_diffusers_attention(pipe, quiet:bool=False):
     def set_attn(pipe, attention):
         if attention is None:
             return
-        if not hasattr(pipe, "_internal_dict"):
-            return
-        modules = [getattr(pipe, n, None) for n in pipe._internal_dict.keys()] # pylint: disable=protected-access
-        modules = [m for m in modules if isinstance(m, torch.nn.Module) and hasattr(m, "set_attn_processor")]
-        for module in modules:
-            if module.__class__.__name__ in ['SD3Transformer2DModel']:
-                module.set_attn_processor(p.JointAttnProcessor2_0())
-            elif module.__class__.__name__ in ['FluxTransformer2DModel']:
-                module.set_attn_processor(p.FluxAttnProcessor2_0())
-            elif module.__class__.__name__ in ['HunyuanDiT2DModel']:
-                module.set_attn_processor(p.HunyuanAttnProcessor2_0())
-            elif module.__class__.__name__ in ['AuraFlowTransformer2DModel']:
-                module.set_attn_processor(p.AuraFlowAttnProcessor2_0())
-            elif 'KandinskyCombinedPipeline' in pipe.__class__.__name__:
-                pass
-            elif 'Transformer' in module.__class__.__name__:
-                pass # unknown transformer so probably dont want to force attention processor
-            else:
-                module.set_attn_processor(attention)
+        # other models uses their own attention processor
+        if pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet"):
+            pipe.unet.set_attn_processor(attention)
 
     # if hasattr(pipe, 'pipe'):
     #    set_diffusers_attention(pipe.pipe)
