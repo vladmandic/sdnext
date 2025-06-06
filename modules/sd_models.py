@@ -107,7 +107,7 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
             if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
                 if shared.opts.diffusers_vae_tile_size > 0:
                     sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
-                    sd_model.vae.tile_latent_min_size = int(sd_model.vae.config.sample_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                    sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
                 if shared.opts.diffusers_vae_tile_overlap != 0.25:
                     sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
                 shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True tile={sd_model.vae.tile_sample_min_size} overlap={sd_model.vae.tile_overlap_factor}')
