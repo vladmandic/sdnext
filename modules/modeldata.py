@@ -56,6 +56,10 @@ def get_model_type(pipe):
         model_type = 'mochivideo'
     elif "Allegro" in name:
         model_type = 'allegrovideo'
+    elif "PixArtSigma" in name:
+        model_type = 'pixartsigma'
+    elif "PixArtAlpha" in name:
+        model_type = 'pixartalpha'
     else:
         model_type = name
     return model_type
