@@ -582,7 +582,7 @@ def install_cuda():
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
         # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cu126 torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126')
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cu128 torchvision==0.22.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu128 torchvision==0.22.1+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -655,7 +655,7 @@ def install_rocm_zluda():
         if error is None:
             try:
                 zluda_installer.load()
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
                 error = e
                 log.warning(f'Failed to load ZLUDA: {e}')
@@ -675,10 +675,10 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')
         else:
             if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.3 torchvision==0.22.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.3 torchvision==0.22.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
             elif rocm.version == "6.2":
-                # use rocm 6.2.4 instead of 6.2 as torch==2.7.0+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.2.4 torchvision==0.22.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+                # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
             elif rocm.version == "6.1":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             elif rocm.version == "6.0":
@@ -736,7 +736,7 @@ def install_ipex(torch_command):
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+xpu torchvision==0.22.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+xpu torchvision==0.22.1+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -747,9 +747,9 @@ def install_openvino(torch_command):
     check_python(supported_minors=[9, 10, 11, 12], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision==0.22.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision==0.22.1')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cpu torchvision==0.22.0+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu')
 
     install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
     install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')

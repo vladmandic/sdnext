@@ -1,6 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-05
+## Update for 2025-06-06
+
+- **Torch**:
+    - set default to `torch==2.7.1`  
 
 - **SDNQ Quantization**  
     - Add group size support for convolutional layers  
