@@ -2,15 +2,19 @@
 
 ## Update for 2025-06-06
 
-- **Torch**:
-    - set default to `torch==2.7.1`  
+- **Changes**  
+  - Increase the medvram mode threshold from 8GB to 12GB  
+  - Set CPU backend to use FP32 by default  
+
+- **Torch**  
+  - set default to `torch==2.7.1`  
 
 - **SDNQ Quantization**  
-    - Add group size support for convolutional layers  
-    - Add quantized matmul support for for convolutional layers  
-    - Fix forced FP32 with tensorwise FP8 matmul  
-    - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
-    - Fix VAE with conv quant  
+  - Add group size support for convolutional layers  
+  - Add quantized matmul support for for convolutional layers  
+  - Fix forced FP32 with tensorwise FP8 matmul  
+  - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
+  - Fix VAE with conv quant  
 
 
 ## Update for 2025-06-02
