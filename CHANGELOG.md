@@ -16,6 +16,8 @@
   - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
   - Fix VAE with conv quant  
 
+- **Fixes**
+  - Meissonic with multiple generators  
 
 ## Update for 2025-06-02
 
