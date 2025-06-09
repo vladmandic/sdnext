@@ -1,10 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-06
+## Update for 2025-06-09
+
+- **Feature**  
+  - Support Python 3.13  
 
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
   - Set CPU backend to use FP32 by default  
+  - Relax Python version checks for Zluda  
 
 - **Torch**  
   - set default to `torch==2.7.1`  
@@ -16,7 +20,7 @@
   - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
   - Fix VAE with conv quant  
 
-- **Fixes**
+- **Fixes**  
   - Meissonic with multiple generators  
   - Kandinsky V2.2 invalid attention processor  
   - PixArt Sigma Small and Large loading  
