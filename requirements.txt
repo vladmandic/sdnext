@@ -48,6 +48,7 @@ gradio==3.43.2
 huggingface_hub==0.31.2
 numexpr==2.10.2
 numpy==1.26.4
+pandas==2.3.0
 numba==0.61.2
 protobuf==4.25.3
 pytorch_lightning==1.9.4
@@ -63,7 +64,6 @@ typing-extensions==4.12.2
 # additional
 blendmodes
 scipy
-pandas
 torchdiffeq
 dctorch
 scikit-image

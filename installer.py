@@ -513,7 +513,7 @@ def get_platform():
 def check_python(supported_minors=[], experimental_minors=[], reason=None):
     if supported_minors is None or len(supported_minors) == 0:
         supported_minors = [9, 10, 11, 12]
-        experimental_minors = []
+        experimental_minors = [13]
     t_start = time.time()
     if args.quick:
         return
@@ -1155,8 +1155,8 @@ def ensure_base_requirements():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('basicsr')
-    install('gfpgan')
+    install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
+    install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
     install('clean-fid')
     install('pillow-jxl-plugin==1.3.3', ignore=True)
     install('optimum-quanto==0.2.7', ignore=True)
@@ -1188,6 +1188,16 @@ def install_requirements():
         pr.enable()
     if args.skip_requirements and not args.requirements:
         return
+    if int(sys.version_info.minor) >= 13:
+        install("audioop-lts")
+        # gcc 15 patch
+        backup_cmake_policy = os.environ.get("CMAKE_POLICY_VERSION_MINIMUM", None)
+        backup_cxxflags = os.environ.get("CXXFLAGS", None)
+        os.environ.setdefault("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
+        os.environ.setdefault("CXXFLAGS", "-include cstdint")
+        install("git+https://github.com/google/sentencepiece#subdirectory=python", "sentencepiece")
+        os.environ.setdefault("CMAKE_POLICY_VERSION_MINIMUM", backup_cmake_policy)
+        os.environ.setdefault("CXXFLAGS", backup_cxxflags)
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False

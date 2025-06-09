@@ -1,5 +1,4 @@
 import math
-import lpips
 import torch
 from torch import autograd as autograd
 from torch import nn as nn
@@ -260,6 +259,7 @@ class LPIPSLoss(nn.Module):
             use_input_norm=True,
             range_norm=False,):
         super(LPIPSLoss, self).__init__()
+        import lpips
         self.perceptual = lpips.LPIPS(net="vgg", spatial=False).eval()
         self.loss_weight = loss_weight
         self.use_input_norm = use_input_norm
