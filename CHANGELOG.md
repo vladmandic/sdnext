@@ -16,6 +16,7 @@
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
   - Add quantized matmul support for for convolutional layers  
+  - Add 5-bit and 3-bit quantization support  
   - Fix forced FP32 with tensorwise FP8 matmul  
   - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
   - Fix VAE with conv quant  

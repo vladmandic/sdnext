@@ -15,12 +15,16 @@ torch_version = float(torch.__version__[:3])
 
 dtype_dict = {
     "int8": {"min": -128, "max": 127, "num_bits": 8, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
-    "uint8": {"min": 0, "max": 255, "num_bits": 8, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "int6": {"min": -32, "max": 31, "num_bits": 6, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
-    "uint6": {"min": 0, "max": 63, "num_bits": 6, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "int5": {"min": -16, "max": 15, "num_bits": 5, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
     "int4": {"min": -8, "max": 7, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
-    "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "int3": {"min": -4, "max": 3, "num_bits": 3, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
     "int2": {"min": -2, "max": 1, "num_bits": 2, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True},
+    "uint8": {"min": 0, "max": 255, "num_bits": 8, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint6": {"min": 0, "max": 63, "num_bits": 6, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint5": {"min": 0, "max": 31, "num_bits": 5, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint4": {"min": 0, "max": 15, "num_bits": 4, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
+    "uint3": {"min": 0, "max": 7, "num_bits": 3, "target_dtype": CustomDtype.INT4, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "uint2": {"min": 0, "max": 3, "num_bits": 2, "target_dtype": CustomDtype.INT2, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True},
     "uint1": {"min": 0, "max": 1, "num_bits": 1, "target_dtype": torch.bool, "torch_dtype": torch.bool, "storage_dtype": torch.bool, "is_unsigned": True, "is_integer": True},
     "float8_e4m3fn": {"min": -448, "max": 448, "num_bits": 8, "target_dtype": torch.float8_e4m3fn, "torch_dtype": torch.float8_e4m3fn, "storage_dtype": torch.float8_e4m3fn, "is_unsigned": False, "is_integer": False},
@@ -28,9 +32,10 @@ dtype_dict = {
     "float8_e4m3fnuz": {"min": -240, "max": 240, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False},
     "float8_e5m2fnuz": {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": CustomDtype.FP8, "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False},
 }
+dtype_dict["bool"] = dtype_dict["uint1"]
 
 use_tensorwise_fp8_matmul = torch_version < 2.5 or devices.backend in {"cpu", "openvino"} or (devices.backend == "cuda" and sys.platform == "win32" and torch_version <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
-quantized_matmul_dtypes = ("int8", "int6", "int4", "int2", "float8_e4m3fn", "float8_e5m2")
+quantized_matmul_dtypes = ("int8", "int6", "int5", "int4", "int3", "int2", "float8_e4m3fn", "float8_e5m2")
 if devices.backend in {"cpu", "openvino"}:
     quantized_matmul_dtypes += ("float8_e4m3fnuz", "float8_e5m2fnuz")
 
@@ -91,11 +96,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         if group_size == 0:
             if is_linear_type:
-                if dtype_dict[weights_dtype]["num_bits"] < 6:
-                    group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
+                group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
             else:
-                if dtype_dict[weights_dtype]["num_bits"] < 8:
-                    group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
+                group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
 
         if not use_quantized_matmul and group_size > 0:
             if group_size >= channel_size:
@@ -337,11 +340,97 @@ def pack_uint6(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
+def pack_uint5(tensor: torch.Tensor) -> torch.Tensor:
+    if tensor.dtype != torch.uint8:
+        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+    packed_tensor = tensor.contiguous().reshape(-1, 8)
+    packed_tensor = torch.stack(
+        (
+            torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 5], 5)),
+            torch.bitwise_or(packed_tensor[:, 1], torch.bitwise_left_shift(packed_tensor[:, 6], 5)),
+            torch.bitwise_or(packed_tensor[:, 2], torch.bitwise_left_shift(packed_tensor[:, 7], 5)),
+            torch.bitwise_or(
+                packed_tensor[:, 3],
+                torch.bitwise_or(
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 5], 2), 96),
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 7], 3), 128),
+                ),
+            ),
+            torch.bitwise_or(
+                packed_tensor[:, 4],
+                torch.bitwise_or(
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 6], 2), 96),
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 7], 4), 128),
+                ),
+            ),
+        ),
+        dim=-1
+    )
+    return packed_tensor
+
+
+def unpack_uint5(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+    result = torch.stack(
+        (
+            torch.bitwise_and(packed_tensor[:, 0], 31),
+            torch.bitwise_and(packed_tensor[:, 1], 31),
+            torch.bitwise_and(packed_tensor[:, 2], 31),
+            torch.bitwise_and(packed_tensor[:, 3], 31),
+            torch.bitwise_and(packed_tensor[:, 4], 31),
+            torch.bitwise_or(
+                torch.bitwise_right_shift(packed_tensor[:, 0], 5),
+                torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 3], 2), 24),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_right_shift(packed_tensor[:, 1], 5),
+                torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 4], 2), 24),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_right_shift(packed_tensor[:, 2], 5),
+                torch.bitwise_or(
+                    torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 3], 3), 16),
+                    torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 4], 4), 8),
+                ),
+            ),
+        ),
+        dim=-1
+    ).reshape(shape)
+    return result
+
+
+
 def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.dtype != torch.uint8:
         raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
     packed_tensor = tensor.contiguous().reshape(-1, 2)
     packed_tensor = torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 4))
+    return packed_tensor
+
+
+def pack_uint3(tensor: torch.Tensor) -> torch.Tensor:
+    if tensor.dtype != torch.uint8:
+        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+    packed_tensor = tensor.contiguous().reshape(-1, 8)
+    packed_tensor = torch.stack(
+        (
+            torch.bitwise_or(
+                torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 3)),
+                torch.bitwise_left_shift(packed_tensor[:, 6], 6),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_or(packed_tensor[:, 2], torch.bitwise_left_shift(packed_tensor[:, 3], 3)),
+                torch.bitwise_left_shift(packed_tensor[:, 7], 6),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_or(packed_tensor[:, 4], torch.bitwise_left_shift(packed_tensor[:, 5], 3)),
+                torch.bitwise_or(
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 6], 4), 64),
+                    torch.bitwise_and(torch.bitwise_left_shift(packed_tensor[:, 7], 5), 128),
+                )
+            ),
+        ),
+        dim=-1
+    )
     return packed_tensor
 
 
@@ -377,6 +466,29 @@ def unpack_uint6(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
 
 def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
     result = torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1).reshape(shape)
+    return result
+
+
+def unpack_uint3(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+    result = torch.stack(
+        (
+            torch.bitwise_and(packed_tensor[:, 0], 7),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 0], 3), 7),
+            torch.bitwise_and(packed_tensor[:, 1], 7),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 1], 3), 7),
+            torch.bitwise_and(packed_tensor[:, 2], 7),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 2], 3), 7),
+            torch.bitwise_or(
+                torch.bitwise_right_shift(packed_tensor[:, 0], 6),
+                torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 2], 4), 4),
+            ),
+            torch.bitwise_or(
+                torch.bitwise_right_shift(packed_tensor[:, 1], 6),
+                torch.bitwise_and(torch.bitwise_right_shift(packed_tensor[:, 2], 5), 4),
+            ),
+        ),
+        dim=-1
+    ).reshape(shape)
     return result
 
 
@@ -849,14 +961,19 @@ class PackedINTSymmetricWeightsDecompressor(torch.nn.Module):
 
 decompressor_dict = {
     "int8": SymmetricWeightsDecompressor,
-    "uint8": AsymmetricWeightsDecompressor,
     "int6": PackedINTSymmetricWeightsDecompressor,
-    "uint6": PackedINTAsymmetricWeightsDecompressor,
+    "int5": PackedINTSymmetricWeightsDecompressor,
     "int4": PackedINTSymmetricWeightsDecompressor,
-    "uint4": PackedINTAsymmetricWeightsDecompressor,
+    "int3": PackedINTSymmetricWeightsDecompressor,
     "int2": PackedINTSymmetricWeightsDecompressor,
+    "uint8": AsymmetricWeightsDecompressor,
+    "uint6": PackedINTAsymmetricWeightsDecompressor,
+    "uint5": PackedINTAsymmetricWeightsDecompressor,
+    "uint4": PackedINTAsymmetricWeightsDecompressor,
+    "uint3": PackedINTAsymmetricWeightsDecompressor,
     "uint2": PackedINTAsymmetricWeightsDecompressor,
     "uint1": AsymmetricWeightsDecompressor,
+    "bool": AsymmetricWeightsDecompressor,
     "float8_e4m3fn": SymmetricWeightsDecompressor,
     "float8_e4m3fnuz": SymmetricWeightsDecompressor,
     "float8_e5m2": SymmetricWeightsDecompressor,
@@ -866,10 +983,14 @@ decompressor_dict = {
 
 packed_int_function_dict = {
     "int6": {"pack": pack_uint6, "unpack": unpack_uint6},
-    "uint6": {"pack": pack_uint6, "unpack": unpack_uint6},
+    "int5": {"pack": pack_uint5, "unpack": unpack_uint5},
     "int4": {"pack": pack_uint4, "unpack": unpack_uint4},
-    "uint4": {"pack": pack_uint4, "unpack": unpack_uint4},
+    "int3": {"pack": pack_uint3, "unpack": unpack_uint3},
     "int2": {"pack": pack_uint2, "unpack": unpack_uint2},
+    "uint6": {"pack": pack_uint6, "unpack": unpack_uint6},
+    "uint5": {"pack": pack_uint5, "unpack": unpack_uint5},
+    "uint4": {"pack": pack_uint4, "unpack": unpack_uint4},
+    "uint3": {"pack": pack_uint3, "unpack": unpack_uint3},
     "uint2": {"pack": pack_uint2, "unpack": unpack_uint2},
 }
 
@@ -1028,7 +1149,7 @@ class SDNQConfig(QuantizationConfigMixin):
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
-            ("int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
+            ("int8", "int6", "int5", "int4", "int3", "int2", "uint8", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -1058,7 +1179,7 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
-        accepted_weights = ["int8", "uint8", "int6", "uint6", "int4", "uint4", "uint2", "uint1", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
+        accepted_weights = ["int8", "int6", "int5", "int4", "int3", "int2", "uint8", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
         if self.weights_dtype not in accepted_weights:
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
 

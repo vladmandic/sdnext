@@ -663,7 +663,7 @@ def install_rocm_zluda():
             log.info('Using CPU-only torch')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     else:
-        #check_python(supported_minors=[9, 10, 11, 12], reason='ROCm backend requires a Python version between 3.9 and 3.12')
+        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.9 and 3.12')
 
         if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
@@ -711,7 +711,7 @@ def install_rocm_zluda():
 
 def install_ipex(torch_command):
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12], reason='IPEX backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.12')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
@@ -744,7 +744,7 @@ def install_ipex(torch_command):
 
 def install_openvino(torch_command):
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision==0.22.1')
