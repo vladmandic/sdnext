@@ -138,7 +138,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
     elif not bias and hasattr(self, "sdnq_decompressor"):
         try:
-            from modules.model_quant_sdnq import sdnq_quantize_layer
+            from modules.sdnq import sdnq_quantize_layer
             if hasattr(self, "sdnq_decompressor_backup"):
                 sdnq_decompressor = self.sdnq_decompressor_backup.to(devices.device)
             else:
