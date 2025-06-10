@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-09
+## Update for 2025-06-10
 
 - **Feature**  
   - Support Python 3.13  
@@ -27,6 +27,7 @@
   - PixArt Sigma Small and Large loading  
   - TAESD previews with PixArt  
   - VAE Tiling with non-default tile sizes  
+  - flash-atten repo with ROCm  
 
 ## Update for 2025-06-02
 
