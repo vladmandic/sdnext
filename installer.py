@@ -711,7 +711,7 @@ def install_rocm_zluda():
     return torch_command
 
 
-def install_ipex(torch_command):
+def install_ipex():
     t_start = time.time()
     #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.12')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
@@ -744,7 +744,7 @@ def install_ipex(torch_command):
     return torch_command
 
 
-def install_openvino(torch_command):
+def install_openvino():
     t_start = time.time()
     #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
     log.info('OpenVINO: selected')
@@ -842,15 +842,15 @@ def check_torch():
         elif is_rocm_available and (args.use_rocm or args.use_zluda): # prioritize rocm
             torch_command = install_rocm_zluda()
         elif allow_ipex and args.use_ipex: # prioritize ipex
-            torch_command = install_ipex(torch_command)
+            torch_command = install_ipex()
         elif allow_openvino and args.use_openvino: # prioritize openvino
-            torch_command = install_openvino(torch_command)
+            torch_command = install_openvino()
         elif is_cuda_available:
             torch_command = install_cuda()
         elif is_rocm_available:
             torch_command = install_rocm_zluda()
         elif is_ipex_available:
-            torch_command = install_ipex(torch_command)
+            torch_command = install_ipex()
         else:
             machine = platform.machine()
             if sys.platform == 'darwin':
@@ -1192,15 +1192,15 @@ def install_requirements():
     if args.skip_requirements and not args.requirements:
         return
     if int(sys.version_info.minor) >= 13:
-        install("audioop-lts")
+        install('audioop-lts')
         # gcc 15 patch
-        backup_cmake_policy = os.environ.get("CMAKE_POLICY_VERSION_MINIMUM", None)
-        backup_cxxflags = os.environ.get("CXXFLAGS", None)
-        os.environ.setdefault("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
-        os.environ.setdefault("CXXFLAGS", "-include cstdint")
-        install("git+https://github.com/google/sentencepiece#subdirectory=python", "sentencepiece")
-        os.environ.setdefault("CMAKE_POLICY_VERSION_MINIMUM", backup_cmake_policy)
-        os.environ.setdefault("CXXFLAGS", backup_cxxflags)
+        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
+        backup_cxxflags = os.environ.get('CXXFLAGS', None)
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
+        os.environ.setdefault('CXXFLAGS', '-include cstdint')
+        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
+        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
