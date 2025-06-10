@@ -869,6 +869,7 @@ def check_torch():
     if 'torch' in torch_command and not args.version:
         if not installed('torch'):
             log.info(f'Torch: download and install in progress... cmd="{torch_command}"')
+            install('--upgrade pip', 'pip', reinstall=True) # pytorch rocm is too large for older pip
         install(torch_command, 'torch torchvision', quiet=True)
     else:
         try:

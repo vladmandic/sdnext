@@ -14,6 +14,7 @@
 - **Torch**  
   - Set default to `torch==2.7.1`  
   - Support ROCm 6.4 with `---use-nightly`  
+  - Force upgrade pip when installing Torch  
 
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
