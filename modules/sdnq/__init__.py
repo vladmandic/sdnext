@@ -123,14 +123,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         if dtype_dict[weights_dtype]["is_unsigned"]:
             scale, zero_point = get_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
-            layer.weight.data.sub_(zero_point).div_(scale)
         else:
             scale = get_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
-            layer.weight.data.div_(scale)
             zero_point = None
-        if dtype_dict[weights_dtype]["is_integer"]:
-            layer.weight.data.round_()
-        layer.weight.data = layer.weight.data.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
+        layer.weight.data = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
 
         if not shared.opts.sdnq_decompress_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
             scale = scale.to(torch_dtype)
@@ -212,6 +208,17 @@ def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], we
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     return scale
+
+
+def quantize_weight(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
+    if zero_point is not None:
+        compressed_weight = torch.sub(weight, zero_point).div_(scale)
+    else:
+        compressed_weight = torch.div(weight, scale)
+    if dtype_dict[weights_dtype]["is_integer"]:
+        compressed_weight.round_()
+    compressed_weight = compressed_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
+    return compressed_weight
 
 
 class QuantizationMethod(str, Enum):
