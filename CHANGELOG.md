@@ -9,6 +9,7 @@
   - Increase the medvram mode threshold from 8GB to 12GB  
   - Set CPU backend to use FP32 by default  
   - Relax Python version checks for Zluda  
+  - don't override user set gfx version with ROCm  
 
 - **Torch**  
   - set default to `torch==2.7.1`  

@@ -696,7 +696,7 @@ def install_rocm_zluda():
             log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
             rocm.set_blaslt_enabled(device.blaslt_supported)
 
-    if device is None:
+    if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.debug('ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped')
     else:
         gfx_ver = device.get_gfx_version()
