@@ -139,12 +139,14 @@ class PackedINTSymmetricWeightsDecompressor(torch.nn.Module):
 
 decompressor_dict = {
     "int8": SymmetricWeightsDecompressor,
+    "int7": PackedINTSymmetricWeightsDecompressor,
     "int6": PackedINTSymmetricWeightsDecompressor,
     "int5": PackedINTSymmetricWeightsDecompressor,
     "int4": PackedINTSymmetricWeightsDecompressor,
     "int3": PackedINTSymmetricWeightsDecompressor,
     "int2": PackedINTSymmetricWeightsDecompressor,
     "uint8": AsymmetricWeightsDecompressor,
+    "uint7": PackedINTAsymmetricWeightsDecompressor,
     "uint6": PackedINTAsymmetricWeightsDecompressor,
     "uint5": PackedINTAsymmetricWeightsDecompressor,
     "uint4": PackedINTAsymmetricWeightsDecompressor,
