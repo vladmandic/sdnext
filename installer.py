@@ -669,7 +669,9 @@ def install_rocm_zluda():
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
 
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
+            elif rocm.version == "6.3":
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
             else: # oldest rocm version on nightly is 6.2.4
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')

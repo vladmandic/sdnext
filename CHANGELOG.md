@@ -12,7 +12,8 @@
   - don't override user set gfx version with ROCm  
 
 - **Torch**  
-  - set default to `torch==2.7.1`  
+  - Set default to `torch==2.7.1`  
+  - Support ROCm 6.4 with `---use-nightly`  
 
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
