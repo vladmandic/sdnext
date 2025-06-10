@@ -64,6 +64,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
             else:
                 group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
+        elif group_size != -1 and not is_linear_type:
+            group_size = max(group_size // 2, 1)
 
         if not use_quantized_matmul and group_size > 0:
             if group_size >= channel_size:
@@ -322,10 +324,11 @@ class SDNQQuantizer(DiffusersQuantizer):
         keep_in_fp32_modules: List[str] = [],
         **kwargs, # pylint: disable=unused-argument
     ):
-        model.config.quantization_config = self.quantization_config
-        self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
+        self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
+        self.quantization_config.modules_to_not_convert = self.modules_to_not_convert
+        model.config.quantization_config = self.quantization_config
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
@@ -366,7 +369,7 @@ class SDNQQuantizer(DiffusersQuantizer):
 
     @property
     def is_serializable(self):
-        return False
+        return True
 
 
 @dataclass
