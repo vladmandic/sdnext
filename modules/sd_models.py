@@ -92,7 +92,7 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
         if shared.opts.diffusers_vae_upcast != 'default':
             sd_model.vae.config.force_upcast = True if shared.opts.diffusers_vae_upcast == 'true' else False
             shared.log.quiet(quiet, f'Setting {op}: component=VAE upcast={sd_model.vae.config.force_upcast}')
-        if shared.opts.no_half_vae:
+        if shared.opts.no_half_vae and op not in {'decode', 'encode'}:
             devices.dtype_vae = torch.float32
             sd_model.vae.to(devices.dtype_vae)
             shared.log.quiet(quiet, f'Setting {op}: component=VAE no-half=True')
@@ -105,11 +105,20 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
     if hasattr(sd_model, "enable_vae_tiling"):
         if shared.opts.diffusers_vae_tiling:
             if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
+                if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
+                    sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
+                    sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
+                    sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
                 if shared.opts.diffusers_vae_tile_size > 0:
                     sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
                     sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                else:
+                    sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
+                    sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
                 if shared.opts.diffusers_vae_tile_overlap != 0.25:
                     sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
+                else:
+                    sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
                 shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True tile={sd_model.vae.tile_sample_min_size} overlap={sd_model.vae.tile_overlap_factor}')
             else:
                 shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True')
