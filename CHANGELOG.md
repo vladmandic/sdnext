@@ -18,7 +18,7 @@
 - **ROCm**  
   - Support ROCm 6.4 with `---use-nightly`  
   - Don't override user set gfx version  
-  - Don't override gfx version with RX 9000 and gfx1101  
+  - Don't override gfx version with RX 9000  
   - Fix flash-atten repo  
 
 - **SDNQ Quantization**  
