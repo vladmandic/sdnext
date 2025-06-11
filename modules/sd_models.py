@@ -908,12 +908,14 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 def set_diffusers_attention(pipe, quiet:bool=False):
     import diffusers.models.attention_processor as p
 
-    def set_attn(pipe, attention):
+    def set_attn(pipe, attention, name:str=None, quiet:bool=False):
         if attention is None:
             return
         # other models uses their own attention processor
         if pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet"):
             pipe.unet.set_attn_processor(attention)
+        elif not quiet:
+            shared.log.warning(f"Attention: {name if name is not None else attention.__class__.__name__} is not compatible with {pipe.__class__.__name__}")
 
     # if hasattr(pipe, 'pipe'):
     #    set_diffusers_attention(pipe.pipe)
@@ -924,16 +926,22 @@ def set_diffusers_attention(pipe, quiet:bool=False):
     if shared.opts.cross_attention_optimization == "Disabled":
         pass # do nothing
     elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product": # The default set by Diffusers
-        set_attn(pipe, p.AttnProcessor2_0())
-    elif shared.opts.cross_attention_optimization == "xFormers" and hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
-        pipe.enable_xformers_memory_efficient_attention()
-    elif shared.opts.cross_attention_optimization == "Split attention" and hasattr(pipe, "enable_attention_slicing"):
-        pipe.enable_attention_slicing()
+        set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product", quiet=True)
+    elif shared.opts.cross_attention_optimization == "xFormers":
+        if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
+            pipe.enable_xformers_memory_efficient_attention()
+        else:
+            shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
+    elif shared.opts.cross_attention_optimization == "Split attention":
+        if hasattr(pipe, "enable_attention_slicing"):
+            pipe.enable_attention_slicing()
+        else:
+            shared.log.warning(f"Attention: Split attention is not compatible with {pipe.__class__.__name__}")
     elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
-        set_attn(pipe, p.AttnProcessor())
+        set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
     elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
         from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
-        set_attn(pipe, DynamicAttnProcessorBMM())
+        set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
 
