@@ -9,13 +9,17 @@
   - Increase the medvram mode threshold from 8GB to 12GB  
   - Set CPU backend to use FP32 by default  
   - Relax Python version checks for Zluda  
-  - Don't override user set gfx version with ROCm  
   - Make VAE options not require model reload  
 
 - **Torch**  
   - Set default to `torch==2.7.1`  
-  - Support ROCm 6.4 with `---use-nightly`  
   - Force upgrade pip when installing Torch  
+
+- **ROCm**  
+  - Support ROCm 6.4 with `---use-nightly`  
+  - Don't override user set gfx version  
+  - Don't override gfx version with RX 9000  
+  - Fix flash-atten repo  
 
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
@@ -31,7 +35,6 @@
   - PixArt Sigma Small and Large loading  
   - TAESD previews with PixArt  
   - VAE Tiling with non-default tile sizes  
-  - flash-atten repo with ROCm  
 
 ## Update for 2025-06-02
 
