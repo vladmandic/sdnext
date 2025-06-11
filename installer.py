@@ -633,7 +633,7 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32": # TODO install: enable ROCm for windows when available
-        #check_python(supported_minors=[9, 10, 11, 12], reason='ZLUDA backend requires a Python version between 3.9 and 3.12')
+        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.9 and 3.13')
 
         if args.device_id is not None:
             if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
@@ -663,7 +663,7 @@ def install_rocm_zluda():
             log.info('Using CPU-only torch')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     else:
-        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.9 and 3.12')
+        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.9 and 3.13')
 
         if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
@@ -699,7 +699,7 @@ def install_rocm_zluda():
             rocm.set_blaslt_enabled(device.blaslt_supported)
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
-        log.debug('ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped')
+        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
         if gfx_ver is not None:
@@ -713,7 +713,7 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
@@ -746,7 +746,7 @@ def install_ipex():
 
 def install_openvino():
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.13')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision==0.22.1')
