@@ -82,7 +82,7 @@ class Agent:
 
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1200:
-            return "12.0.0"
+            return None # 12.0.1 is RX 9070, 12.0.0 is RX 9060
         elif self.gfx_version >= 0x1100:
             return "11.0.0"
         elif self.gfx_version >= 0x1000:
