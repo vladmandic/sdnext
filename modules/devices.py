@@ -426,8 +426,6 @@ def override_ipex_math():
 
 def set_sdpa_params():
     try:
-        if opts.cross_attention_optimization != "Scaled-Dot-Product":
-            return
         try:
             global sdpa_original # pylint: disable=global-statement
             if sdpa_original is not None:
