@@ -81,11 +81,14 @@ class Agent:
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
     def get_gfx_version(self) -> Union[str, None]:
-        if self.gfx_version >= 0x1200:
-            return None # 12.0.1 is RX 9070, 12.0.0 is RX 9060
-        elif self.gfx_version >= 0x1100:
+        if self.gfx_version >= 0x1102 and self.gfx_version < 0x1200:
             return "11.0.0"
-        elif self.gfx_version >= 0x1000:
+        elif self.gfx_version == 0x1101:
+            if version is None or float(version) < 6.4:
+                return "11.0.0" # gfx1101 requires rocm 6.4.1
+            else:
+                return None
+        elif self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
             # gfx1010 users had to override gfx version to 10.3.0 in Linux
             # it is unknown whether overriding is needed in ZLUDA
             return "10.3.0"

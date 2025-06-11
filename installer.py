@@ -699,13 +699,12 @@ def install_rocm_zluda():
             rocm.set_blaslt_enabled(device.blaslt_supported)
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
-        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
+        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
         if gfx_ver is not None:
             os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
-        else:
-            log.warning(f'ROCm: device={device.name} could not auto-detect HSA version')
+            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device.name} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
     ts('amd', t_start)
     return torch_command
