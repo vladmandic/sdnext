@@ -204,9 +204,7 @@ def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], w
 
 
 def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> torch.FloatTensor:
-    abs_min_values = torch.amin(weight, dim=reduction_axes, keepdims=True).abs_()
-    max_values = torch.amax(weight, dim=reduction_axes, keepdims=True)
-    scale = torch.where(abs_min_values >= max_values, abs_min_values, -max_values).div_(dtype_dict[weights_dtype]["max"])
+    scale = torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     return scale
