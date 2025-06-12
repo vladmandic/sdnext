@@ -33,7 +33,7 @@
   - Meissonic with multiple generators  
   - Kandinsky V2.2 invalid attention processor  
   - PixArt Sigma Small and Large loading  
-  - TAESD previews with PixArt  
+  - TAESD previews with PixArt and Lumina 2  
   - VAE Tiling with non-default tile sizes  
 
 ## Update for 2025-06-02

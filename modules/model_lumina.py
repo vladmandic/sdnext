@@ -23,7 +23,7 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
     transformer = diffusers.Lumina2Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
-        cache_dir=shared.opts.hfcache_dir,
+        cache_dir=shared.opts.diffusers_dir,
         **load_config,
         **quant_config,
     )
@@ -32,14 +32,13 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
     text_encoder = transformers.AutoModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
-        cache_dir=shared.opts.hfcache_dir,
-        torch_dtype=devices.dtype,
+        cache_dir=shared.opts.diffusers_dir,
         **load_config,
         **quant_config,
     )
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    pipe = diffusers.Lumina2Text2ImgPipeline.from_pretrained(
+    pipe = diffusers.Lumina2Pipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
         text_encoder=text_encoder,

@@ -29,7 +29,7 @@ pipelines = {
     'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
-    'Lumina 2': getattr(diffusers, 'Lumina2Text2ImgPipeline', None),
+    'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),
     'AuraFlow': getattr(diffusers, 'AuraFlowPipeline', None),
     'Kandinsky 2.1': getattr(diffusers, 'KandinskyCombinedPipeline', None),
     'Kandinsky 2.2': getattr(diffusers, 'KandinskyV22CombinedPipeline', None),
