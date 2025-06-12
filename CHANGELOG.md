@@ -35,6 +35,7 @@
   - PixArt Sigma Small and Large loading  
   - TAESD previews with PixArt and Lumina 2  
   - VAE Tiling with non-default tile sizes  
+  - Lumina 2 with IPEX  
 
 ## Update for 2025-06-02
 
