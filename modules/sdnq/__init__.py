@@ -10,7 +10,7 @@ from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
 from .common import dtype_dict, use_tensorwise_fp8_matmul, quantized_matmul_dtypes, allowed_types, conv_types, conv_transpose_types
-from .decompressor import decompressor_dict
+from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
 
@@ -123,14 +123,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             else:
                 layer.weight.data = layer.weight.to(dtype=torch.float32)
 
-        if dtype_dict[weights_dtype]["is_unsigned"]:
-            scale, zero_point = get_scale_asymmetric(layer.weight, reduction_axes, weights_dtype)
-        else:
-            scale = get_scale_symmetric(layer.weight, reduction_axes, weights_dtype)
-            zero_point = None
-        layer.weight.data = quantize_weight(layer.weight, scale, zero_point, weights_dtype)
-
-        if not shared.opts.sdnq_decompress_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
+        layer.weight.data, scale, zero_point = quantize_weight(layer.weight, reduction_axes, weights_dtype)
+        if not shared.opts.sdnq_dequantize_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
@@ -146,17 +140,17 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if not use_tensorwise_fp8_matmul:
                     scale = scale.to(torch.float32)
 
-        layer.sdnq_decompressor = decompressor_dict[weights_dtype](
+        layer.sdnq_dequantizer = dequantizer_dict[weights_dtype](
             scale=scale,
             zero_point=zero_point,
-            compressed_weight_shape=layer.weight.shape,
+            quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
         )
-        layer.weight.data = layer.sdnq_decompressor.pack_weight(layer.weight).to(return_device)
-        layer.sdnq_decompressor = layer.sdnq_decompressor.to(return_device)
+        layer.weight.data = layer.sdnq_dequantizer.pack_weight(layer.weight).to(return_device)
+        layer.sdnq_dequantizer = layer.sdnq_dequantizer.to(return_device)
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
@@ -193,7 +187,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
     scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
@@ -203,22 +197,25 @@ def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: List[int], w
     return scale, zero_point
 
 
-def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: List[int], weights_dtype: str) -> torch.FloatTensor:
+def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> torch.FloatTensor:
     scale = torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
     eps = torch.finfo(scale.dtype).eps # prevent divison by 0
     scale = torch.where(torch.abs(scale) < eps, eps, scale)
     return scale
 
 
-def quantize_weight(weight: torch.FloatTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
-    if zero_point is not None:
-        compressed_weight = torch.sub(weight, zero_point).div_(scale)
+def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str):
+    if dtype_dict[weights_dtype]["is_unsigned"]:
+        scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
+        quantized_weight = torch.sub(weight, zero_point).div_(scale)
     else:
-        compressed_weight = torch.div(weight, scale)
+        scale = get_scale_symmetric(weight, reduction_axes, weights_dtype)
+        quantized_weight = torch.div(weight, scale)
+        zero_point = None
     if dtype_dict[weights_dtype]["is_integer"]:
-        compressed_weight.round_()
-    compressed_weight = compressed_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
-    return compressed_weight
+        quantized_weight.round_()
+    quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
+    return quantized_weight, scale, zero_point
 
 
 class QuantizationMethod(str, Enum):

@@ -45,8 +45,8 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                     self.network_weights_backup = True
                 else:
                     self.network_weights_backup = weight.clone().to(devices.cpu)
-                    if hasattr(self, "sdnq_decompressor"):
-                        self.sdnq_decompressor_backup = self.sdnq_decompressor.to(devices.cpu)
+                    if hasattr(self, "sdnq_dequantizer"):
+                        self.sdnq_dequantizer_backup = self.sdnq_dequantizer.to(devices.cpu)
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -79,8 +79,8 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             continue
         try:
             t0 = time.time()
-            if hasattr(self, "sdnq_decompressor"):
-                weight = self.sdnq_decompressor.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_decompressor.use_quantized_matmul)
+            if hasattr(self, "sdnq_dequantizer"):
+                weight = self.sdnq_dequantizer.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
@@ -136,20 +136,20 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             # weight._quantize(devices.device) / weight.to(device=device)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
-    elif not bias and hasattr(self, "sdnq_decompressor"):
+    elif not bias and hasattr(self, "sdnq_dequantizer"):
         try:
             from modules.sdnq import sdnq_quantize_layer
-            if hasattr(self, "sdnq_decompressor_backup"):
-                sdnq_decompressor = self.sdnq_decompressor_backup.to(devices.device)
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                sdnq_dequantizer = self.sdnq_dequantizer_backup.to(devices.device)
             else:
-                sdnq_decompressor = self.sdnq_decompressor.to(devices.device)
-            dequant_weight = sdnq_decompressor(model_weights.to(devices.device), skip_quantized_matmul=sdnq_decompressor.use_quantized_matmul)
+                sdnq_dequantizer = self.sdnq_dequantizer.to(devices.device)
+            dequant_weight = sdnq_dequantizer(model_weights.to(devices.device), skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.sdnq_decompressor = None
+            self.sdnq_dequantizer = None
             self = sdnq_quantize_layer(
                 self,
-                sdnq_decompressor.weights_dtype,
+                sdnq_dequantizer.weights_dtype,
                 torch_dtype=devices.dtype,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
@@ -223,8 +223,8 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
-            if hasattr(self, "sdnq_decompressor_backup"):
-                self.sdnq_decompressor = self.sdnq_decompressor_backup.to(device)
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                self.sdnq_dequantizer = self.sdnq_dequantizer_backup.to(device)
 
     if bias_backup is not None:
         self.bias = None

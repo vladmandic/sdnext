@@ -5,7 +5,7 @@ import torch
 from modules import shared
 
 from .common import conv_types, conv_transpose_types
-from .decompressor import decompress_symmetric
+from .dequantizer import dequantize_symmetric
 from .packed_int import unpack_int_symetric
 
 
@@ -43,7 +43,7 @@ def get_forward_func(layer_class_name: str, use_quantized_matmul: bool, is_integ
 
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
-    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 448)
+    input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
     input_scale = input_scale.to(torch.float32)
     return input, input_scale
@@ -51,7 +51,7 @@ def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.Tensor, t
 
 def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
-    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 448)
+    input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
@@ -61,7 +61,7 @@ def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.
 
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
-    input_scale = torch.div(input.abs().amax(dim=-1, keepdims=True), 127)
+    input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(127)
     input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
@@ -94,7 +94,7 @@ def fp8_matmul_tensorwise(
     output_shape[-1] = weight.shape[-1]
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
-    result = decompress_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
+    result = dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
@@ -105,16 +105,16 @@ def int8_matmul(
     weight: torch.Tensor,
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
-    compressed_weight_shape: torch.Size,
+    quantized_weight_shape: torch.Size,
     weights_dtype: str,
 ) -> torch.FloatTensor:
-    if compressed_weight_shape is not None:
-        weight = unpack_int_symetric(weight, compressed_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
+    if quantized_weight_shape is not None:
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
     return_dtype = input.dtype
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     input, scale = quantize_int8_matmul_input(input, scale)
-    result = decompress_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
+    result = dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
     if bias is not None:
         result.add_(bias)
     return result
@@ -224,14 +224,14 @@ def conv_fp8_matmul_tensorwise(
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 
     if groups == 1:
-        result = decompress_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, mm_output_shape)
     else:
         weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
         input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
         result = []
         for i in range(groups):
             result.append(torch._scaled_mm(input[i], weight[i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
-        result = decompress_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
     if bias is not None:
         result.add_(bias)
 
@@ -250,7 +250,7 @@ def conv_int8_matmul(
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
     result_shape: torch.Size,
-    compressed_weight_shape: torch.Size,
+    quantized_weight_shape: torch.Size,
     weights_dtype: str,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
@@ -260,18 +260,18 @@ def conv_int8_matmul(
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     input, scale = quantize_int8_matmul_input(input, scale)
-    if compressed_weight_shape is not None:
-        weight = unpack_int_symetric(weight, compressed_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
+    if quantized_weight_shape is not None:
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
 
     if groups == 1:
-        result = decompress_symmetric(torch._int_mm(input, weight), scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, mm_output_shape)
     else:
         weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
         input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
         result = []
         for i in range(groups):
             result.append(torch._int_mm(input[i], weight[i]))
-        result = decompress_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
     if bias is not None:
         result.add_(bias)
 
@@ -286,24 +286,24 @@ def conv_int8_matmul(
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
-    return fp8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale)
+        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
+    return fp8_matmul(input, self.weight, self.bias, self.sdnq_dequantizer.scale)
 
 
 def quantized_linear_forward_fp8_matmul_tensorwise(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
-    return fp8_matmul_tensorwise(input, self.weight, self.bias, self.sdnq_decompressor.scale)
+        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
+    return fp8_matmul_tensorwise(input, self.weight, self.bias, self.sdnq_dequantizer.scale)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
-    return int8_matmul(input, self.weight, self.bias, self.sdnq_decompressor.scale, getattr(self.sdnq_decompressor, "compressed_weight_shape", None), self.sdnq_decompressor.weights_dtype)
+        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
+    return int8_matmul(input, self.weight, self.bias, self.sdnq_dequantizer.scale, getattr(self.sdnq_dequantizer, "quantized_weight_shape", None), self.sdnq_dequantizer.weights_dtype)
 
 
 def quantized_linear_forward(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    return torch.nn.functional.linear(input, self.sdnq_decompressor(self.weight), self.bias)
+    return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight), self.bias)
 
 
 def get_conv_args(input_ndim: int, stride, padding, dilation):
@@ -328,12 +328,12 @@ def get_conv_args(input_ndim: int, stride, padding, dilation):
 
 def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul(
         input, self.weight, self.bias,
-        self.sdnq_decompressor.scale,
-        self.sdnq_decompressor.result_shape,
+        self.sdnq_dequantizer.scale,
+        self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
         self.groups, stride, padding, dilation,
@@ -342,12 +342,12 @@ def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
 
 def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul_tensorwise(
         input, self.weight, self.bias,
-        self.sdnq_decompressor.scale,
-        self.sdnq_decompressor.result_shape,
+        self.sdnq_dequantizer.scale,
+        self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
         self.groups, stride, padding, dilation,
@@ -356,14 +356,14 @@ def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTens
 
 def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_decompressor(self.weight, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_int8_matmul(
         input, self.weight, self.bias,
-        self.sdnq_decompressor.scale,
-        self.sdnq_decompressor.result_shape,
-        getattr(self.sdnq_decompressor, "compressed_weight_shape", None),
-        self.sdnq_decompressor.weights_dtype,
+        self.sdnq_dequantizer.scale,
+        self.sdnq_dequantizer.result_shape,
+        getattr(self.sdnq_dequantizer, "quantized_weight_shape", None),
+        self.sdnq_dequantizer.weights_dtype,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
         self.groups, stride, padding, dilation,
@@ -371,25 +371,25 @@ def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
 
 
 def quantized_conv_forward(self, input) -> torch.FloatTensor:
-    return self._conv_forward(input, self.sdnq_decompressor(self.weight), self.bias)
+    return self._conv_forward(input, self.sdnq_dequantizer(self.weight), self.bias)
 
 
 def quantized_conv_transpose_1d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 1, self.dilation)
-    return torch.nn.functional.conv_transpose1d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose1d(input, self.sdnq_dequantizer(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_2d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 2, self.dilation)
-    return torch.nn.functional.conv_transpose2d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose2d(input, self.sdnq_dequantizer(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
 def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_size: Optional[list[int]] = None) -> torch.FloatTensor:
     output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size, 3, self.dilation)
-    return torch.nn.functional.conv_transpose3d(input, self.sdnq_decompressor(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
+    return torch.nn.functional.conv_transpose3d(input, self.sdnq_dequantizer(self.weight), self.bias, self.stride, self.padding, output_padding, self.groups, self.dilation)
 
 
-if shared.opts.sdnq_decompress_compile:
+if shared.opts.sdnq_dequantize_compile:
     try:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
         int8_matmul = torch.compile(int8_matmul, fullgraph=True)
