@@ -10,6 +10,7 @@
   - Set CPU backend to use FP32 by default  
   - Relax Python version checks for Zluda  
   - Make VAE options not require model reload  
+  - Add warning about incompatible attention processors  
 
 - **Torch**  
   - Set default to `torch==2.7.1`  
@@ -32,7 +33,7 @@
 
 - **Fixes**  
   - Meissonic with multiple generators  
-  - Kandinsky V2.2 invalid attention processor  
+  - Invalid attention processors  
   - PixArt Sigma Small and Large loading  
   - TAESD previews with PixArt and Lumina 2  
   - VAE Tiling with non-default tile sizes  
