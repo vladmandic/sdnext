@@ -63,11 +63,12 @@ def load_flux_quanto(checkpoint_info):
         quanto.requantize(text_encoder_2, state_dict, quantization_map, device=torch.device("cpu"))
         if shared.opts.diffusers_eval:
             text_encoder_2.eval()
-        if text_encoder_2.dtype != devices.dtype:
+        text_encoder_2_dtype = text_encoder_2.dtype
+        if text_encoder_2_dtype != devices.dtype:
             try:
                 text_encoder_2 = text_encoder_2.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"Load model: type=FLUX Failed to cast text encoder to {devices.dtype}, set dtype to {text_encoder_2.dtype}")
+                shared.log.error(f"Load model: type=FLUX Failed to cast text encoder to {devices.dtype}, set dtype to {text_encoder_2_dtype}")
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto text encoder: {e}")
         if debug:
