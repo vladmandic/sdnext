@@ -280,7 +280,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         # load the model params to target_device first
         layer, _ = get_module_from_name(model, param_name)
-        if shared.opts.sdnq_quantize_with_gpu:
+        if self.quantization_config.quantize_with_gpu:
             if param_value.dtype == torch.float32 and devices.same_device(param_value.device, devices.device):
                 param_value = param_value.clone()
             else:
