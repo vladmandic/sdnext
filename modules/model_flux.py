@@ -35,11 +35,12 @@ def load_flux_quanto(checkpoint_info):
         quanto.requantize(transformer, state_dict, quantization_map, device=torch.device("cpu"))
         if shared.opts.diffusers_eval:
             transformer.eval()
-        if transformer.dtype != devices.dtype:
+        transformer_dtype = transformer.dtype
+        if transformer_dtype != devices.dtype:
             try:
                 transformer = transformer.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"Load model: type=FLUX Failed to cast transformer to {devices.dtype}, set dtype to {transformer.dtype}")
+                shared.log.error(f"Load model: type=FLUX Failed to cast transformer to {devices.dtype}, set dtype to {transformer_dtype}")
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto transformer: {e}")
         if debug:
