@@ -125,6 +125,8 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
                 use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
                 use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+                quantize_with_gpu=shared.opts.sdnq_quantize_with_gpu,
+                dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
             )
             log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype}')
             if kwargs is None:
@@ -339,6 +341,8 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
         quant_conv=shared.opts.sdnq_quantize_conv_layers,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
         use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+        quantize_with_gpu=shared.opts.sdnq_quantize_with_gpu,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
         param_name=op,
     )
     model.quantization_method = 'SDNQ'

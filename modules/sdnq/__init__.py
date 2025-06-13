@@ -14,7 +14,7 @@ from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
 
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, param_name=None, pre_mode=False):
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, quantize_with_gpu=True, dequantize_fp32=False, param_name=None, pre_mode=False):
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -111,20 +111,20 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         elif pre_mode:
             if shared.opts.device_map == "gpu":
                 return_device = devices.device
-            elif shared.opts.sdnq_quantize_with_gpu:
+            elif quantize_with_gpu:
                 return_device = devices.cpu
             else:
                 return_device = layer.weight.device
         else:
             return_device = layer.weight.device
         if not pre_mode:
-            if shared.opts.sdnq_quantize_with_gpu:
+            if quantize_with_gpu:
                 layer.weight.data = layer.weight.to(devices.device).to(dtype=torch.float32)
             else:
                 layer.weight.data = layer.weight.to(dtype=torch.float32)
 
         layer.weight.data, scale, zero_point = quantize_weight(layer.weight, reduction_axes, weights_dtype)
-        if not shared.opts.sdnq_dequantize_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
+        if not dequantize_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
             scale = scale.to(torch_dtype)
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
@@ -158,7 +158,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, param_name=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, quantize_with_gpu=True, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -172,6 +172,8 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
+                quantize_with_gpu=quantize_with_gpu,
+                dequantize_fp32=dequantize_fp32,
                 param_name=module_param_name,
             )
         module = apply_sdnq_to_module(
@@ -182,6 +184,8 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
+                quantize_with_gpu=quantize_with_gpu,
+                dequantize_fp32=dequantize_fp32,
                 param_name=module_param_name,
             )
     return model
@@ -295,6 +299,8 @@ class SDNQQuantizer(DiffusersQuantizer):
             quant_conv=self.quantization_config.quant_conv,
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
             use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
+            quantize_with_gpu=self.quantization_config.quantize_with_gpu,
+            dequantize_fp32=self.quantization_config.dequantize_fp32,
             param_name=param_name,
             pre_mode=True,
         )
@@ -389,6 +395,8 @@ class SDNQConfig(QuantizationConfigMixin):
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
         use_quantized_matmul_conv: bool = False,
+        quantize_with_gpu: bool = True,
+        dequantize_fp32: bool = False,
         modules_to_not_convert: Optional[List[str]] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
@@ -398,6 +406,8 @@ class SDNQConfig(QuantizationConfigMixin):
         self.quant_conv = quant_conv
         self.use_quantized_matmul = use_quantized_matmul
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
+        self.quantize_with_gpu = quantize_with_gpu,
+        self.dequantize_fp32 = dequantize_fp32,
         self.modules_to_not_convert = modules_to_not_convert
         self.post_init()
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
