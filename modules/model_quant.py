@@ -113,14 +113,20 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
             diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
             transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
+            if weights_dtype is None:
+                if shared.opts.sdnq_quantize_weights_mode_te != "default" and module in {"TE", "LLM"}:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+                else:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode
+
             sdnq_config = SDNQConfig(
-                weights_dtype=weights_dtype if weights_dtype is not None else shared.opts.sdnq_quantize_weights_mode,
+                weights_dtype=weights_dtype,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
                 use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
                 use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
             )
-            log.debug(f'Quantization: module="{module}" type=sdnq dtype={shared.opts.sdnq_quantize_weights_mode}')
+            log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype}')
             if kwargs is None:
                 return sdnq_config
             else:
@@ -320,9 +326,14 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
 
+    if shared.opts.sdnq_quantize_weights_mode_te != "default" and op is not None and "text_encoder" in op:
+        weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+    else:
+        weights_dtype = shared.opts.sdnq_quantize_weights_mode
+
     model = apply_sdnq_to_module(
         model,
-        weights_dtype=shared.opts.sdnq_quantize_weights_mode,
+        weights_dtype=weights_dtype,
         torch_dtype=devices.dtype,
         group_size=shared.opts.sdnq_quantize_weights_group_size,
         quant_conv=shared.opts.sdnq_quantize_conv_layers,

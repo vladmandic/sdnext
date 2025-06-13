@@ -519,6 +519,7 @@ options_templates.update(options_section(("quantization", "Quantization Settings
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "sdnq_quantize_mode": OptionInfo("pre", "Quantization mode", gr.Dropdown, {"choices": ["pre", "post"], "visible": native}),
     "sdnq_quantize_weights_mode": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"], "visible": native}),
+    "sdnq_quantize_weights_mode_te": OptionInfo("default", "Quantization type for Text Encoders", gr.Dropdown, {"choices": ["default", "int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"], "visible": native}),
     "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1, "visible": native}),
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
     "sdnq_dequantize_compile": OptionInfo(devices.has_triton(), "Dequantize using torch.compile", gr.Checkbox, {"visible": native}),
