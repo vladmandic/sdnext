@@ -14,7 +14,6 @@ debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None el
 def load_flux_quanto(checkpoint_info):
     transformer, text_encoder_2 = None, None
     quanto = model_quant.load_quanto('Load model: type=FLUX')
-    quanto.tensor.qbits.QBitsTensor.create = lambda *args, **kwargs: quanto.tensor.qbits.QBitsTensor(*args, **kwargs)
 
     if isinstance(checkpoint_info, str):
         repo_path = checkpoint_info
