@@ -33,6 +33,7 @@
 
 - **Fixes**  
   - Meissonic with multiple generators  
+  - OmniGen with new transformers  
   - Invalid attention processors  
   - PixArt Sigma Small and Large loading  
   - TAESD previews with PixArt and Lumina 2  

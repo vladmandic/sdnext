@@ -256,8 +256,8 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if output_type == "pil":
                     images = model.numpy_to_pil(images)
             else:
-                import diffusers
-                model.image_processor = diffusers.image_processor.VaeImageProcessor()
+                from diffusers.image_processor import VaeImageProcessor
+                model.image_processor = VaeImageProcessor()
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
