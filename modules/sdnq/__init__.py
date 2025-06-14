@@ -14,7 +14,7 @@ from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
 
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, quantize_with_gpu=True, dequantize_fp32=False, param_name=None, pre_mode=False):
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None):
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -106,22 +106,12 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 layer.weight.data = layer.weight.reshape(new_shape)
 
         layer.weight.requires_grad = False
-        if shared.opts.diffusers_offload_mode in {"none", "model"}:
-            return_device = devices.device
-        elif pre_mode:
-            if shared.opts.device_map == "gpu":
-                return_device = devices.device
-            elif quantize_with_gpu:
-                return_device = devices.cpu
-            else:
-                return_device = layer.weight.device
-        else:
+        if return_device is None:
             return_device = layer.weight.device
-        if not pre_mode:
-            if quantize_with_gpu:
-                layer.weight.data = layer.weight.to(devices.device).to(dtype=torch.float32)
-            else:
-                layer.weight.data = layer.weight.to(dtype=torch.float32)
+        if quantization_device is not None:
+            layer.weight.data = layer.weight.to(quantization_device)
+        if layer.weight.dtype != torch.float32:
+            layer.weight.data = layer.weight.to(dtype=torch.float32)
 
         layer.weight.data, scale, zero_point = quantize_weight(layer.weight, reduction_axes, weights_dtype)
         if not dequantize_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
@@ -158,7 +148,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, quantize_with_gpu=True, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -172,8 +162,9 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
-                quantize_with_gpu=quantize_with_gpu,
                 dequantize_fp32=dequantize_fp32,
+                quantization_device=quantization_device,
+                return_device=return_device,
                 param_name=module_param_name,
             )
         module = apply_sdnq_to_module(
@@ -184,8 +175,9 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
-                quantize_with_gpu=quantize_with_gpu,
                 dequantize_fp32=dequantize_fp32,
+                quantization_device=quantization_device,
+                return_device=return_device,
                 param_name=module_param_name,
             )
     return model
@@ -278,18 +270,20 @@ class SDNQQuantizer(DiffusersQuantizer):
         unexpected_keys: List[str], # pylint: disable=unused-argument
         **kwargs, # pylint: disable=unused-argument
     ):
-        # load the model params to target_device first
-        layer, _ = get_module_from_name(model, param_name)
-        if self.quantization_config.quantize_with_gpu:
-            if param_value.dtype == torch.float32 and devices.same_device(param_value.device, devices.device):
-                param_value = param_value.clone()
-            else:
-                param_value = param_value.to(devices.device).to(dtype=torch.float32)
+        if self.quantization_config.return_device is not None:
+            return_device = self.quantization_config.return_device
         else:
-            if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
-                param_value = param_value.clone()
-            else:
-                param_value = param_value.to(target_device).to(dtype=torch.float32)
+            return_device = target_device
+
+        if self.quantization_config.quantization_device is not None:
+            target_device = self.quantization_config.quantization_device
+
+        if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
+            param_value = param_value.clone()
+        else:
+            param_value = param_value.to(target_device).to(dtype=torch.float32)
+
+        layer, _ = get_module_from_name(model, param_name)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
@@ -299,10 +293,10 @@ class SDNQQuantizer(DiffusersQuantizer):
             quant_conv=self.quantization_config.quant_conv,
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
             use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
-            quantize_with_gpu=self.quantization_config.quantize_with_gpu,
             dequantize_fp32=self.quantization_config.dequantize_fp32,
+            quantization_device=None,
+            return_device=return_device,
             param_name=param_name,
-            pre_mode=True,
         )
 
     def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
@@ -399,8 +393,9 @@ class SDNQConfig(QuantizationConfigMixin):
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
         use_quantized_matmul_conv: bool = False,
-        quantize_with_gpu: bool = True,
         dequantize_fp32: bool = False,
+        quantization_device: Optional[torch.device] = None,
+        return_device: Optional[torch.device] = None,
         modules_to_not_convert: Optional[List[str]] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
@@ -410,8 +405,9 @@ class SDNQConfig(QuantizationConfigMixin):
         self.quant_conv = quant_conv
         self.use_quantized_matmul = use_quantized_matmul
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
-        self.quantize_with_gpu = quantize_with_gpu,
-        self.dequantize_fp32 = dequantize_fp32,
+        self.dequantize_fp32 = dequantize_fp32
+        self.quantization_device = quantization_device
+        self.return_device = return_device
         self.modules_to_not_convert = modules_to_not_convert
         self.post_init()
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
