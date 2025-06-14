@@ -5,7 +5,7 @@ import torch
 from modules import shared
 
 from .common import conv_types, conv_transpose_types
-from .dequantizer import dequantize_symmetric
+from .dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias
 from .packed_int import unpack_int_symetric
 
 
@@ -94,10 +94,10 @@ def fp8_matmul_tensorwise(
     output_shape[-1] = weight.shape[-1]
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
-    result = dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
     if bias is not None:
-        result.add_(bias)
-    return result
+        return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), bias, scale, return_dtype, output_shape)
+    else:
+        return dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
 
 
 def int8_matmul(
@@ -114,10 +114,10 @@ def int8_matmul(
     output_shape = list(input.shape)
     output_shape[-1] = weight.shape[-1]
     input, scale = quantize_int8_matmul_input(input, scale)
-    result = dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
     if bias is not None:
-        result.add_(bias)
-    return result
+        return dequantize_symmetric_with_bias(torch._int_mm(input, weight), bias, scale, return_dtype, output_shape)
+    else:
+        return dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
 
 
 def process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation):
@@ -192,11 +192,14 @@ def conv_fp8_matmul(
         weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
         input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
         result = []
-        for i in range(groups):
-            result.append(torch._scaled_mm(input[i], weight[i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=return_dtype))
-        result = torch.cat(result, dim=-1).reshape(mm_output_shape)
         if bias is not None:
-            result.add_(bias)
+            bias = bias.reshape(groups, bias.shape[0] // groups)
+            for i in range(groups):
+                result.append(torch._scaled_mm(input[i], weight[i], scale_a=input_scale[i], scale_b=scale[i], bias=bias[i], out_dtype=return_dtype))
+        else:
+            for i in range(groups):
+                result.append(torch._scaled_mm(input[i], weight[i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=return_dtype))
+        result = torch.cat(result, dim=-1).reshape(mm_output_shape)
 
     if conv_type == 1:
         result = result.transpose(1,2)
@@ -224,16 +227,18 @@ def conv_fp8_matmul_tensorwise(
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 
     if groups == 1:
-        result = dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, mm_output_shape)
+        result = torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype)
     else:
         weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
         input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
         result = []
         for i in range(groups):
             result.append(torch._scaled_mm(input[i], weight[i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
-        result = dequantize_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
+        result = torch.cat(result, dim=-1)
     if bias is not None:
-        result.add_(bias)
+        dequantize_symmetric_with_bias(result, bias, scale, return_dtype, mm_output_shape)
+    else:
+        dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 
     if conv_type == 1:
         result = result.transpose(1,2)
@@ -264,16 +269,18 @@ def conv_int8_matmul(
         weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
 
     if groups == 1:
-        result = dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, mm_output_shape)
+        result = torch._int_mm(input, weight)
     else:
         weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
         input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
         result = []
         for i in range(groups):
             result.append(torch._int_mm(input[i], weight[i]))
-        result = dequantize_symmetric(torch.cat(result, dim=-1), scale, return_dtype, mm_output_shape)
+        result = torch.cat(result, dim=-1)
     if bias is not None:
-        result.add_(bias)
+        result = dequantize_symmetric_with_bias(result, bias, scale, return_dtype, mm_output_shape)
+    else:
+        result = dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 
     if conv_type == 1:
         result = result.transpose(1,2)
