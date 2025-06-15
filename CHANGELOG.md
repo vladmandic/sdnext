@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-16
+
+- **Feature**  
+  - TeaCache support for Lumina 2  
+
 ## Update for 2025-06-15
 
 - **Feature**  

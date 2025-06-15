@@ -111,7 +111,8 @@ def teacache_hidream_forward(
             should_calc = True
             self.accumulated_rel_l1_distance = 0
         else:
-            rescale_func = np.poly1d(self.coefficients)
+            coefficients = [-3.13605009e+04, -7.12425503e+02, 4.91363285e+01, 8.26515490e+00, 1.08053901e-01]
+            rescale_func = np.poly1d(coefficients)
             self.accumulated_rel_l1_distance += rescale_func(((modulated_inp-self.previous_modulated_input).abs().mean() / self.previous_modulated_input.abs().mean()).cpu().item())
             if self.accumulated_rel_l1_distance < self.rel_l1_thresh:
                 should_calc = False
