@@ -1,14 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-16
-
-- **Feature**  
-  - TeaCache support for Lumina 2  
-
 ## Update for 2025-06-15
 
 - **Feature**  
   - Support for Python 3.13  
+  - TeaCache support for Lumina 2  
 
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
@@ -36,6 +32,7 @@
   - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
   - Fix VAE with conv quant  
   - Don't ignore the Quantize with GPU option with offload mode `none` and `model`  
+  - High VRAM usage with Lumina 2  
 
 - **Fixes**  
   - Meissonic with multiple generators  
