@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-15
+## Update for 2025-06-16
 
 - **Feature**  
   - Support for Python 3.13  
@@ -42,6 +42,7 @@
   - TAESD previews with PixArt and Lumina 2  
   - VAE Tiling with non-default tile sizes  
   - Lumina 2 with IPEX  
+  - Nunchaku updated repo  
 
 ## Update for 2025-06-02
 

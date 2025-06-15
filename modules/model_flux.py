@@ -115,11 +115,11 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = None
             if 'dev' in repo_id:
-                nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-dev"
+                nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-dev/svdq-{nunchaku_precision}_r32-flux.1-dev.safetensors"
             elif 'schnell' in repo_id:
-                nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-flux.1-schnell"
+                nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
             elif 'shuttle' in repo_id:
-                nunchaku_repo = 'mit-han-lab/svdq-fp4-shuttle-jaguar'
+                nunchaku_repo = f"mit-han-lab/nunchaku-shuttle-jaguar/svdq-{nunchaku_precision}_r32-shuttle-jaguar.safetensors"
             else:
                 shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
             if nunchaku_repo is not None:
@@ -135,7 +135,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
         if 'text_encoder_2' not in kwargs and model_quant.check_nunchaku('TE'):
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
-            nunchaku_repo = 'mit-han-lab/svdq-flux.1-t5'
+            nunchaku_repo = 'mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
             kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
         elif 'text_encoder_2' not in kwargs and model_quant.check_quant('TE'):
