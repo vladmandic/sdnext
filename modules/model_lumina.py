@@ -1,5 +1,8 @@
+import os
 import transformers
 import diffusers
+from huggingface_hub import repo_exists
+from modules import sd_hijack_te
 
 
 def load_lumina(_checkpoint_info, diffusers_load_config={}):
@@ -18,6 +21,13 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
     from modules import shared, devices, sd_models, model_quant
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    if os.path.isdir(checkpoint_info.filename) and not repo_exists(repo_id):
+        repo_id = checkpoint_info.filename
+
+    if shared.opts.teacache_enabled:
+        from modules import teacache
+        shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.Lumina2Transformer2DModel.__name__}')
+        diffusers.Lumina2Transformer2DModel.forward = teacache.teacache_lumina2_forward # patch must be done before transformer is loaded
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
     transformer = diffusers.Lumina2Transformer2DModel.from_pretrained(
@@ -46,5 +56,6 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         **load_config,
     )
 
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True)
     return pipe
