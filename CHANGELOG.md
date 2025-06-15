@@ -3,7 +3,7 @@
 ## Update for 2025-06-15
 
 - **Feature**  
-  - Support Python 3.13  
+  - Support for Python 3.13  
 
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
@@ -17,7 +17,7 @@
   - Force upgrade pip when installing Torch  
 
 - **ROCm**  
-  - Support ROCm 6.4 with `---use-nightly`  
+  - Support ROCm 6.4 with `--use-nightly`  
   - Don't override user set gfx version  
   - Don't override gfx version with RX 9000  
   - Fix flash-atten repo  
