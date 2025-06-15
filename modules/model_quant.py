@@ -104,22 +104,45 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
 
 
 def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Model', weights_dtype: str = None):
-    from modules import shared
+    from modules import devices, shared
     if len(shared.opts.sdnq_quantize_weights) > 0 and (shared.opts.sdnq_quantize_mode == 'pre') and allow_sdnq:
         if 'Model' in shared.opts.sdnq_quantize_weights or (module is not None and module in shared.opts.sdnq_quantize_weights) or module == 'any':
-            from modules.model_quant_sdnq import SDNQQuantizer, SDNQConfig
+            from modules.sdnq import SDNQQuantizer, SDNQConfig
             diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
             transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
             diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
             transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
+            if weights_dtype is None:
+                if shared.opts.sdnq_quantize_weights_mode_te != "default" and module in {"TE", "LLM"}:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+                else:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode
+
+            if shared.opts.device_map == "gpu":
+                quantization_device = devices.device
+                return_device = devices.device
+            elif shared.opts.diffusers_offload_mode in {"none", "model"}:
+                quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
+                return_device = devices.device
+            elif shared.opts.sdnq_quantize_with_gpu:
+                quantization_device = devices.device
+                return_device = devices.cpu
+            else:
+                quantization_device = None
+                return_device = None
+
             sdnq_config = SDNQConfig(
-                weights_dtype=weights_dtype if weights_dtype is not None else shared.opts.sdnq_quantize_weights_mode,
+                weights_dtype=weights_dtype,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
                 use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+                use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+                dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+                quantization_device=quantization_device,
+                return_device=return_device,
             )
-            log.debug(f'Quantization: module="{module}" type=sdnq dtype={shared.opts.sdnq_quantize_weights_mode}')
+            log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype}')
             if kwargs is None:
                 return sdnq_config
             else:
@@ -302,13 +325,13 @@ def apply_layerwise(sd_model, quiet:bool=False):
 def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared
-    from modules.model_quant_sdnq import apply_sdnq_to_module
+    from modules.sdnq import apply_sdnq_to_module
 
     model.eval()
 
     if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
         import torch
-        from modules.model_quant_sdnq import SDNQ_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
+        from modules.sdnq import SDNQ_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
         for i in range(len(model.encoder.block)):
             model.encoder.block[i].layer[1].DenseReluDense = SDNQ_T5DenseGatedActDense(
                 model.encoder.block[i].layer[1].DenseReluDense,
@@ -319,13 +342,32 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
 
+    if shared.opts.sdnq_quantize_weights_mode_te != "default" and op is not None and "text_encoder" in op:
+        weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+    else:
+        weights_dtype = shared.opts.sdnq_quantize_weights_mode
+
+    if shared.opts.diffusers_offload_mode in {"none", "model"}:
+        quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
+        return_device = devices.device
+    elif shared.opts.sdnq_quantize_with_gpu:
+        quantization_device = devices.device
+        return_device = getattr(model, "device", devices.cpu)
+    else:
+        quantization_device = None
+        return_device = None
+
     model = apply_sdnq_to_module(
         model,
-        weights_dtype=shared.opts.sdnq_quantize_weights_mode,
+        weights_dtype=weights_dtype,
         torch_dtype=devices.dtype,
         group_size=shared.opts.sdnq_quantize_weights_group_size,
         quant_conv=shared.opts.sdnq_quantize_conv_layers,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        quantization_device=quantization_device,
+        return_device=return_device,
         param_name=op,
     )
     model.quantization_method = 'SDNQ'

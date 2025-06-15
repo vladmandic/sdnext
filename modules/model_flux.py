@@ -14,7 +14,6 @@ debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None el
 def load_flux_quanto(checkpoint_info):
     transformer, text_encoder_2 = None, None
     quanto = model_quant.load_quanto('Load model: type=FLUX')
-    quanto.tensor.qbits.QBitsTensor.create = lambda *args, **kwargs: quanto.tensor.qbits.QBitsTensor(*args, **kwargs)
 
     if isinstance(checkpoint_info, str):
         repo_path = checkpoint_info
@@ -36,11 +35,12 @@ def load_flux_quanto(checkpoint_info):
         quanto.requantize(transformer, state_dict, quantization_map, device=torch.device("cpu"))
         if shared.opts.diffusers_eval:
             transformer.eval()
-        if transformer.dtype != devices.dtype:
+        transformer_dtype = transformer.dtype
+        if transformer_dtype != devices.dtype:
             try:
                 transformer = transformer.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"Load model: type=FLUX Failed to cast transformer to {devices.dtype}, set dtype to {transformer.dtype}")
+                shared.log.error(f"Load model: type=FLUX Failed to cast transformer to {devices.dtype}, set dtype to {transformer_dtype}")
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto transformer: {e}")
         if debug:
@@ -63,11 +63,12 @@ def load_flux_quanto(checkpoint_info):
         quanto.requantize(text_encoder_2, state_dict, quantization_map, device=torch.device("cpu"))
         if shared.opts.diffusers_eval:
             text_encoder_2.eval()
-        if text_encoder_2.dtype != devices.dtype:
+        text_encoder_2_dtype = text_encoder_2.dtype
+        if text_encoder_2_dtype != devices.dtype:
             try:
                 text_encoder_2 = text_encoder_2.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"Load model: type=FLUX Failed to cast text encoder to {devices.dtype}, set dtype to {text_encoder_2.dtype}")
+                shared.log.error(f"Load model: type=FLUX Failed to cast text encoder to {devices.dtype}, set dtype to {text_encoder_2_dtype}")
     except Exception as e:
         shared.log.error(f"Load model: type=FLUX failed to load Quanto text encoder: {e}")
         if debug:

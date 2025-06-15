@@ -331,7 +331,7 @@ def test_fp16():
     if fp16_ok is not None:
         return fp16_ok
     if opts.cuda_dtype != 'FP16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend == 'openvino': # override
+        if sys.platform == "darwin" or backend in {'openvino', 'cpu'}: # override
             fp16_ok = False
             return fp16_ok
         elif backend == 'rocm':
@@ -362,7 +362,7 @@ def test_bf16():
     if bf16_ok is not None:
         return bf16_ok
     if opts.cuda_dtype != 'BF16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend == 'openvino' or backend == 'directml': # override
+        if sys.platform == "darwin" or backend in {'openvino', 'directml', 'cpu'}: # override
             bf16_ok = False
             return bf16_ok
         elif backend == 'rocm' or backend == 'zluda':
@@ -426,8 +426,6 @@ def override_ipex_math():
 
 def set_sdpa_params():
     try:
-        if opts.cross_attention_optimization != "Scaled-Dot-Product":
-            return
         try:
             global sdpa_original # pylint: disable=global-statement
             if sdpa_original is not None:

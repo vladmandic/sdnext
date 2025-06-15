@@ -8,4 +8,5 @@ from .models import *
 from .ops import *
 from .train import *
 from .utils import *
-from .version import __gitsha__, __version__
+__gitsha__ = '366a46c91d51923c56e09963dbc358bc61315408'
+__version__ = '1.3.2'

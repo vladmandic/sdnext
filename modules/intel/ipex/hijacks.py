@@ -379,6 +379,12 @@ def torch_cuda_device(device):
     else:
         return torch.xpu.device(device)
 
+@wraps(torch.cuda.set_device)
+def torch_cuda_set_device(device):
+    if check_cuda(device):
+        torch.xpu.set_device(return_xpu(device))
+    else:
+        torch.xpu.set_device(device)
 
 # torch.Generator has to be a class for isinstance checks
 original_torch_Generator = torch.Generator
@@ -412,6 +418,7 @@ def ipex_hijacks():
     torch.load = torch_load
     torch.cuda.synchronize = torch_cuda_synchronize
     torch.cuda.device = torch_cuda_device
+    torch.cuda.set_device = torch_cuda_set_device
 
     torch.Generator = torch_Generator
     torch._C.Generator = torch_Generator

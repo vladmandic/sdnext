@@ -1,5 +1,46 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-15
+
+- **Feature**  
+  - Support for Python 3.13  
+
+- **Changes**  
+  - Increase the medvram mode threshold from 8GB to 12GB  
+  - Set CPU backend to use FP32 by default  
+  - Relax Python version checks for Zluda  
+  - Make VAE options not require model reload  
+  - Add warning about incompatible attention processors  
+
+- **Torch**  
+  - Set default to `torch==2.7.1`  
+  - Force upgrade pip when installing Torch  
+
+- **ROCm**  
+  - Support ROCm 6.4 with `--use-nightly`  
+  - Don't override user set gfx version  
+  - Don't override gfx version with RX 9000  
+  - Fix flash-atten repo  
+
+- **SDNQ Quantization**  
+  - Add group size support for convolutional layers  
+  - Add quantized matmul support for for convolutional layers  
+  - Add 7-bit, 5-bit and 3-bit quantization support  
+  - Add separate quant mode option for Text Encoders  
+  - Fix forced FP32 with tensorwise FP8 matmul  
+  - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
+  - Fix VAE with conv quant  
+  - Don't ignore the Quantize with GPU option with offload mode `none` and `model`  
+
+- **Fixes**  
+  - Meissonic with multiple generators  
+  - OmniGen with new transformers  
+  - Invalid attention processors  
+  - PixArt Sigma Small and Large loading  
+  - TAESD previews with PixArt and Lumina 2  
+  - VAE Tiling with non-default tile sizes  
+  - Lumina 2 with IPEX  
+
 ## Update for 2025-06-02
 
 ### Highlights for 2025-06-02
@@ -31,7 +72,6 @@ Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](h
     - `INT4` -> `uint4`  
   - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `int2`, `uint2` and `uint1` support  
   - Add quantized matmul support for `float8_e4m3fn` and `float8_e5m2`  
-  - Add group size support for convolutional layers  
   - Set the default quant mode to `pre`  
   - Use per token input quant with int8 and fp8 quantized matmul  
   - Implement better layer hijacks  

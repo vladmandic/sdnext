@@ -513,7 +513,7 @@ def get_platform():
 def check_python(supported_minors=[], experimental_minors=[], reason=None):
     if supported_minors is None or len(supported_minors) == 0:
         supported_minors = [9, 10, 11, 12]
-        experimental_minors = []
+        experimental_minors = [13]
     t_start = time.time()
     if args.quick:
         return
@@ -546,7 +546,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = '6508da6f06a0da1054ae6a808d0025c04b70f0e8' # diffusers commit hash
+    sha = '8adc6003ba4dbf5b61bb4f1ce571e9e55e145a99' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -582,7 +582,7 @@ def install_cuda():
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
         # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+cu126 torchvision==0.21.0+cu126 --index-url https://download.pytorch.org/whl/cu126')
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cu128 torchvision==0.22.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu128 torchvision==0.22.1+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -633,7 +633,7 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32": # TODO install: enable ROCm for windows when available
-        check_python(supported_minors=[10, 11], reason='ZLUDA backend requires Python 3.10 or 3.11')
+        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.9 and 3.13')
 
         if args.device_id is not None:
             if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
@@ -655,7 +655,7 @@ def install_rocm_zluda():
         if error is None:
             try:
                 zluda_installer.load()
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision --index-url https://download.pytorch.org/whl/cu118')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
             except Exception as e:
                 error = e
                 log.warning(f'Failed to load ZLUDA: {e}')
@@ -663,22 +663,24 @@ def install_rocm_zluda():
             log.info('Using CPU-only torch')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     else:
-        check_python(supported_minors=[9, 10, 11, 12], reason='ROCm backend requires a Python version between 3.9 and 3.12')
+        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.9 and 3.13')
 
         if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
 
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
+            elif rocm.version == "6.3":
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
             else: # oldest rocm version on nightly is 6.2.4
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')
         else:
             if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.3 torchvision==0.22.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.3 torchvision==0.22.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
             elif rocm.version == "6.2":
-                # use rocm 6.2.4 instead of 6.2 as torch==2.7.0+rocm6.2 doesn't exists
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+rocm6.2.4 torchvision==0.22.0+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
+                # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
             elif rocm.version == "6.1":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             elif rocm.version == "6.0":
@@ -696,22 +698,21 @@ def install_rocm_zluda():
             log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
             rocm.set_blaslt_enabled(device.blaslt_supported)
 
-    if device is None:
-        log.debug('ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped')
+    if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
+        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
         if gfx_ver is not None:
             os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
-        else:
-            log.warning(f'ROCm: device={device.name} could not auto-detect HSA version')
+            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device.name} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
     ts('amd', t_start)
     return torch_command
 
 
-def install_ipex(torch_command):
+def install_ipex():
     t_start = time.time()
-    check_python(supported_minors=[9, 10, 11, 12], reason='IPEX backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
@@ -736,20 +737,20 @@ def install_ipex(torch_command):
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+xpu torchvision==0.22.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+xpu torchvision==0.22.1+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
 
 
-def install_openvino(torch_command):
+def install_openvino():
     t_start = time.time()
-    check_python(supported_minors=[9, 10, 11, 12], reason='OpenVINO backend requires a Python version between 3.9 and 3.12')
+    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.13')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0 torchvision==0.22.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision==0.22.1')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.0+cpu torchvision==0.22.0+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu')
 
     install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
     install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
@@ -840,15 +841,15 @@ def check_torch():
         elif is_rocm_available and (args.use_rocm or args.use_zluda): # prioritize rocm
             torch_command = install_rocm_zluda()
         elif allow_ipex and args.use_ipex: # prioritize ipex
-            torch_command = install_ipex(torch_command)
+            torch_command = install_ipex()
         elif allow_openvino and args.use_openvino: # prioritize openvino
-            torch_command = install_openvino(torch_command)
+            torch_command = install_openvino()
         elif is_cuda_available:
             torch_command = install_cuda()
         elif is_rocm_available:
             torch_command = install_rocm_zluda()
         elif is_ipex_available:
-            torch_command = install_ipex(torch_command)
+            torch_command = install_ipex()
         else:
             machine = platform.machine()
             if sys.platform == 'darwin':
@@ -867,6 +868,7 @@ def check_torch():
     if 'torch' in torch_command and not args.version:
         if not installed('torch'):
             log.info(f'Torch: download and install in progress... cmd="{torch_command}"')
+            install('--upgrade pip', 'pip', reinstall=True) # pytorch rocm is too large for older pip
         install(torch_command, 'torch torchvision', quiet=True)
     else:
         try:
@@ -1155,8 +1157,8 @@ def ensure_base_requirements():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('basicsr')
-    install('gfpgan')
+    install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
+    install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
     install('clean-fid')
     install('pillow-jxl-plugin==1.3.3', ignore=True)
     install('optimum-quanto==0.2.7', ignore=True)
@@ -1188,6 +1190,16 @@ def install_requirements():
         pr.enable()
     if args.skip_requirements and not args.requirements:
         return
+    if int(sys.version_info.minor) >= 13:
+        install('audioop-lts')
+        # gcc 15 patch
+        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
+        backup_cxxflags = os.environ.get('CXXFLAGS', None)
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
+        os.environ.setdefault('CXXFLAGS', '-include cstdint')
+        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
+        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False

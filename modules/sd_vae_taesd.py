@@ -36,7 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'f1', 'h1', 'hunyuanvideo', 'wanvideo', 'mochivideo']
+supported = ['sd', 'sdxl', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanvideo', 'mochivideo', 'pixartsigma', 'pixartalpha']
 
 
 def warn_once(msg, variant=None):
@@ -53,11 +53,13 @@ def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model # pylint: disable=global-statement
     from modules import shared
     cls = shared.sd_model_type
-    if cls == 'ldm': # original backend
+    if cls in {'ldm', 'pixartalpha'}:
         cls = 'sd'
-    if cls == 'h1': # hidream uses flux vae
+    elif cls in {'h1', 'lumina2'}:
         cls = 'f1'
-    if cls not in supported:
+    elif cls == 'pixartsigma':
+        cls = 'sdxl'
+    elif cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")

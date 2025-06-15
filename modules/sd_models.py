@@ -92,7 +92,7 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
         if shared.opts.diffusers_vae_upcast != 'default':
             sd_model.vae.config.force_upcast = True if shared.opts.diffusers_vae_upcast == 'true' else False
             shared.log.quiet(quiet, f'Setting {op}: component=VAE upcast={sd_model.vae.config.force_upcast}')
-        if shared.opts.no_half_vae:
+        if shared.opts.no_half_vae and op not in {'decode', 'encode'}:
             devices.dtype_vae = torch.float32
             sd_model.vae.to(devices.dtype_vae)
             shared.log.quiet(quiet, f'Setting {op}: component=VAE no-half=True')
@@ -105,11 +105,20 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
     if hasattr(sd_model, "enable_vae_tiling"):
         if shared.opts.diffusers_vae_tiling:
             if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
+                if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
+                    sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
+                    sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
+                    sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
                 if shared.opts.diffusers_vae_tile_size > 0:
                     sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
-                    sd_model.vae.tile_latent_min_size = int(sd_model.vae.config.sample_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                    sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                else:
+                    sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
+                    sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
                 if shared.opts.diffusers_vae_tile_overlap != 0.25:
                     sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
+                else:
+                    sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
                 shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True tile={sd_model.vae.tile_sample_min_size} overlap={sd_model.vae.tile_overlap_factor}')
             else:
                 shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True')
@@ -899,48 +908,45 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 def set_diffusers_attention(pipe, quiet:bool=False):
     import diffusers.models.attention_processor as p
 
-    def set_attn(pipe, attention):
+    def set_attn(pipe, attention, name:str=None, quiet:bool=False):
         if attention is None:
             return
-        if not hasattr(pipe, "_internal_dict"):
-            return
-        modules = [getattr(pipe, n, None) for n in pipe._internal_dict.keys()] # pylint: disable=protected-access
-        modules = [m for m in modules if isinstance(m, torch.nn.Module) and hasattr(m, "set_attn_processor")]
-        for module in modules:
-            if module.__class__.__name__ in ['SD3Transformer2DModel']:
-                module.set_attn_processor(p.JointAttnProcessor2_0())
-            elif module.__class__.__name__ in ['FluxTransformer2DModel']:
-                module.set_attn_processor(p.FluxAttnProcessor2_0())
-            elif module.__class__.__name__ in ['HunyuanDiT2DModel']:
-                module.set_attn_processor(p.HunyuanAttnProcessor2_0())
-            elif module.__class__.__name__ in ['AuraFlowTransformer2DModel']:
-                module.set_attn_processor(p.AuraFlowAttnProcessor2_0())
-            elif 'KandinskyCombinedPipeline' in pipe.__class__.__name__:
-                pass
-            elif 'Transformer' in module.__class__.__name__:
-                pass # unknown transformer so probably dont want to force attention processor
-            else:
-                module.set_attn_processor(attention)
+        # other models uses their own attention processor
+        if pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet"):
+            pipe.unet.set_attn_processor(attention)
+        elif not quiet:
+            shared.log.warning(f"Attention: {name if name is not None else attention.__class__.__name__} is not compatible with {pipe.__class__.__name__}")
 
     # if hasattr(pipe, 'pipe'):
     #    set_diffusers_attention(pipe.pipe)
 
-    if 'ControlNet' in pipe.__class__.__name__: # do not replace attention in ControlNet pipelines
+    if 'ControlNet' in pipe.__class__.__name__ or not (pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet")):
+        if shared.opts.cross_attention_optimization not in {"Scaled-Dot-Product", "Disabled"}:
+            shared.log.warning(f"Attention: {shared.opts.cross_attention_optimization} is not compatible with {pipe.__class__.__name__}")
+        else:
+            pipe.current_attn_name = shared.opts.cross_attention_optimization
         return
+
     shared.log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
     if shared.opts.cross_attention_optimization == "Disabled":
         pass # do nothing
     elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product": # The default set by Diffusers
-        set_attn(pipe, p.AttnProcessor2_0())
-    elif shared.opts.cross_attention_optimization == "xFormers" and hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
-        pipe.enable_xformers_memory_efficient_attention()
-    elif shared.opts.cross_attention_optimization == "Split attention" and hasattr(pipe, "enable_attention_slicing"):
-        pipe.enable_attention_slicing()
+        set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product", quiet=True)
+    elif shared.opts.cross_attention_optimization == "xFormers":
+        if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
+            pipe.enable_xformers_memory_efficient_attention()
+        else:
+            shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
+    elif shared.opts.cross_attention_optimization == "Split attention":
+        if hasattr(pipe, "enable_attention_slicing"):
+            pipe.enable_attention_slicing()
+        else:
+            shared.log.warning(f"Attention: Split attention is not compatible with {pipe.__class__.__name__}")
     elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
-        set_attn(pipe, p.AttnProcessor())
+        set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
     elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
         from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
-        set_attn(pipe, DynamicAttnProcessorBMM())
+        set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
 

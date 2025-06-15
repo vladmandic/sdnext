@@ -23,8 +23,12 @@ from diffusers.schedulers.scheduling_utils import SchedulerMixin
 
 
 def gumbel_noise(t, generator=None):
-    device = generator.device if generator is not None else t.device
-    noise = torch.zeros_like(t, device=device).uniform_(0, 1, generator=generator).to(t.device)
+    noise = []
+    noise_shape = t.shape[1:]
+    for i in range(len(generator)):
+        device = generator[i].device if generator[i] is not None else t.device
+        noise.append(torch.zeros(noise_shape, device=device, dtype=t.dtype).uniform_(0, 1, generator=generator[i]).to(t.device))
+    noise = torch.stack(noise, dim=0)
     return -torch.log((-torch.log(noise.clamp(1e-20))).clamp(1e-20))
 
 
@@ -100,14 +104,20 @@ class Scheduler(SchedulerMixin, ConfigMixin):
         unknown_map = sample == self.config.mask_token_id
 
         probs = model_output.softmax(dim=-1)
-
         device = probs.device
-        probs_ = probs.to(generator.device) if generator is not None else probs  # handles when generator is on CPU
-        if probs_.device.type == "cpu" and probs_.dtype != torch.float32:
-            probs_ = probs_.float()  # multinomial is not implemented for cpu half precision
-        probs_ = probs_.reshape(-1, probs.size(-1))
-        pred_original_sample = torch.multinomial(probs_, 1, generator=generator).to(device=device)
-        pred_original_sample = pred_original_sample[:, 0].view(*probs.shape[:-1])
+        probs_view_shape = probs.shape[1:-1]
+        if not isinstance(generator, list):
+            generator = [generator] * probs.size(0)
+        elif isinstance(generator, list) and len(generator) == 1 and len(generator) != probs.size(0):
+            generator = generator * probs.size(0)
+
+        pred_original_sample = []
+        for i in range(len(generator)):
+            probs_ = probs[i].to(generator[i].device) if generator[i] is not None else probs[i] # handles when generator is on CPU
+            if probs_.device.type == "cpu" and probs_.dtype != torch.float32:
+                probs_ = probs_.float()  # multinomial is not implemented for cpu half precision
+            pred_original_sample.append(torch.multinomial(probs_, 1, generator=generator[i]).to(device=device).view(*probs_view_shape))
+        pred_original_sample = torch.stack(pred_original_sample, dim=0)
         pred_original_sample = torch.where(unknown_map, pred_original_sample, sample)
 
         if timestep == 0:
@@ -163,7 +173,7 @@ class Scheduler(SchedulerMixin, ConfigMixin):
 
         mask_indices = (
             torch.rand(
-                sample.shape, device=generator.device if generator is not None else sample.device, generator=generator
+                sample.shape, device=generator[0].device if generator[0] is not None else sample.device, generator=generator
             ).to(sample.device)
             < mask_ratio
         )
