@@ -2,6 +2,7 @@ import os
 import transformers
 import diffusers
 from huggingface_hub import repo_exists
+from modules import sd_hijack_te
 
 
 def load_lumina(_checkpoint_info, diffusers_load_config={}):
@@ -55,5 +56,6 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         **load_config,
     )
 
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True)
     return pipe
