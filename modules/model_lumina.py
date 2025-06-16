@@ -2,7 +2,9 @@ import os
 import transformers
 import diffusers
 from huggingface_hub import repo_exists
-from modules import sd_hijack_te
+from modules import errors, shared, sd_unet, sd_hijack_te
+
+debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_lumina(_checkpoint_info, diffusers_load_config={}):
@@ -20,6 +22,7 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
 
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
     from modules import shared, devices, sd_models, model_quant
+    transformer, text_encoder = None, None
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
     if os.path.isdir(checkpoint_info.filename) and not repo_exists(repo_id):
         repo_id = checkpoint_info.filename
@@ -30,13 +33,32 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         diffusers.Lumina2Transformer2DModel.forward = teacache.teacache_lumina2_forward # patch must be done before transformer is loaded
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
-    transformer = diffusers.Lumina2Transformer2DModel.from_pretrained(
-        repo_id,
-        subfolder="transformer",
-        cache_dir=shared.opts.diffusers_dir,
-        **load_config,
-        **quant_config,
-    )
+    if shared.opts.sd_unet != 'Default':
+        try:
+            debug(f'Load model: type=Lumina2 unet="{shared.opts.sd_unet}"')
+            transformer = diffusers.Lumina2Transformer2DModel.from_single_file(
+                sd_unet.unet_dict[shared.opts.sd_unet],
+                cache_dir=shared.opts.diffusers_dir,
+                **load_config,
+                **quant_config
+            )
+            if transformer is None:
+                shared.opts.sd_unet = 'Default'
+                sd_unet.failed_unet.append(shared.opts.sd_unet)
+        except Exception as e:
+            shared.log.error(f"Load model: type=Lumina2 failed to load UNet: {e}")
+            shared.opts.sd_unet = 'Default'
+            if debug:
+                errors.display(e, 'Lumina2 UNet:')
+
+    if transformer is None:
+        transformer = diffusers.Lumina2Transformer2DModel.from_pretrained(
+            repo_id,
+            subfolder="transformer",
+            cache_dir=shared.opts.diffusers_dir,
+            **load_config,
+            **quant_config,
+        )
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     text_encoder = transformers.AutoModel.from_pretrained(

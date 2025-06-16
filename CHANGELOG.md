@@ -5,6 +5,7 @@
 - **Feature**  
   - Support for Python 3.13  
   - TeaCache support for Lumina 2  
+  - Custom UNet loading support for Lumina 2  
 
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  

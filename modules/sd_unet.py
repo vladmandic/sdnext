@@ -34,7 +34,7 @@ def load_unet(model):
             if prior_text_encoder is not None:
                 model.prior_pipe.text_encoder = None # Prevent OOM
                 model.prior_pipe.text_encoder = prior_text_encoder.to(devices.device, dtype=devices.dtype)
-        elif "Flux" in model.__class__.__name__ or "StableDiffusion3" in model.__class__.__name__ or "HiDream" in model.__class__.__name__:
+        elif "Flux" in model.__class__.__name__ or "StableDiffusion3" in model.__class__.__name__ or "HiDream" in model.__class__.__name__ or "Lumina2" in model.__class__.__name__:
             loaded_unet = shared.opts.sd_unet
             sd_models.load_diffuser() # TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
             """
@@ -71,7 +71,7 @@ def load_unet(model):
 
 def refresh_unet_list():
     unet_dict.clear()
-    for file in files_cache.list_files(shared.opts.unet_dir, ext_filter=[".safetensors", ".gguf"]):
+    for file in files_cache.list_files(shared.opts.unet_dir, ext_filter=[".safetensors", ".gguf", ".pth"]):
         basename = os.path.basename(file)
         name = os.path.splitext(basename)[0] if ".safetensors" in basename else basename
         unet_dict[name] = file
