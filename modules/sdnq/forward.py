@@ -95,7 +95,7 @@ def fp8_matmul_tensorwise(
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     if bias is not None:
-        return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), bias, scale, return_dtype, output_shape)
+        return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, bias, return_dtype, output_shape)
     else:
         return dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, return_dtype, output_shape)
 
@@ -115,7 +115,7 @@ def int8_matmul(
     output_shape[-1] = weight.shape[-1]
     input, scale = quantize_int8_matmul_input(input, scale)
     if bias is not None:
-        return dequantize_symmetric_with_bias(torch._int_mm(input, weight), bias, scale, return_dtype, output_shape)
+        return dequantize_symmetric_with_bias(torch._int_mm(input, weight), scale, bias, return_dtype, output_shape)
     else:
         return dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
 
@@ -236,7 +236,7 @@ def conv_fp8_matmul_tensorwise(
             result.append(torch._scaled_mm(input[i], weight[i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
         result = torch.cat(result, dim=-1)
     if bias is not None:
-        dequantize_symmetric_with_bias(result, bias, scale, return_dtype, mm_output_shape)
+        dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)
     else:
         dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 
@@ -278,7 +278,7 @@ def conv_int8_matmul(
             result.append(torch._int_mm(input[i], weight[i]))
         result = torch.cat(result, dim=-1)
     if bias is not None:
-        result = dequantize_symmetric_with_bias(result, bias, scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)
     else:
         result = dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 

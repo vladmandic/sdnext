@@ -200,7 +200,7 @@ def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, Li
     return scale
 
 
-def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str):
+def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     if dtype_dict[weights_dtype]["is_unsigned"]:
         scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
         quantized_weight = torch.sub(weight, zero_point).div_(scale)
@@ -229,7 +229,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     required_packages = None
     torch_dtype = None
 
-    def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
+    def __init__(self, quantization_config, **kwargs):
         super().__init__(quantization_config, **kwargs)
         self.modules_to_not_convert = []
 
@@ -381,7 +381,21 @@ class SDNQConfig(QuantizationConfigMixin):
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
             ("int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
-       modules_to_not_convert (`list`, *optional*, default to `None`):
+        weights_dtype (`int`, *optional*, defaults to `0`):
+            Used to decide how many elements of a tensor will share the same quantization group.
+        quant_conv (`bool`, *optional*, defaults to `False`):
+            Enabling this option will quantize the convolutional layers in UNet models too.
+        use_quantized_matmul (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use quantized INT8 or FP8 MatMul instead of BF16 / FP16.
+        use_quantized_matmul_conv (`bool`, *optional*, defaults to `False`):
+            Same as use_quantized_matmul_conv but for the convolutional layers with UNets like SDXL.
+        dequantize_fp32 (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use FP32 on the dequantization step.
+        quantization_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will be used for the quantization calculation on model load.
+        return_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will the quantized weights be sent back to.
+        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
     """
