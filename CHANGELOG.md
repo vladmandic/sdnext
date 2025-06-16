@@ -5,7 +5,7 @@
 - **Feature**  
   - Support for Python 3.13  
   - TeaCache support for Lumina 2  
-  - Custom UNet loading support for Lumina 2  
+  - Custom UNet and VAE loading support for Lumina 2  
 
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
@@ -44,6 +44,7 @@
   - VAE Tiling with non-default tile sizes  
   - Lumina 2 with IPEX  
   - Nunchaku updated repo  
+  - Double loading of models with custom UNets  
 
 ## Update for 2025-06-02
 

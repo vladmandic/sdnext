@@ -591,7 +591,7 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         if "Kandinsky" in sd_model.__class__.__name__: # need a special case
             sd_model.scheduler.name = 'DDIM'
 
-        if model_type not in ['Stable Cascade']: # need a special-case
+        if hasattr(sd_model, "unet") and model_type not in ['Stable Cascade']: # others calls load_diffuser again
             sd_unet.load_unet(sd_model)
 
         add_noise_pred_to_diffusers_callback(sd_model)
