@@ -56,8 +56,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             output_channel_size, channel_size = layer.weight.shape
             if use_quantized_matmul:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
-                if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
-                    use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
+                if use_quantized_matmul:
+                    if dtype_dict[weights_dtype]["is_integer"]:
+                        use_quantized_matmul = output_channel_size % 8 == 0 and channel_size % 8 == 0
+                    else:
+                        use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
 
         if group_size == 0:
             if is_linear_type:
