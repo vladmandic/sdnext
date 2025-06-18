@@ -1,5 +1,14 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-18
+
+- **SDNQ Quantization**  
+  - Fix Qwen 2.5 with int8 matmul  
+  - Fix Dora loading  
+
+- **Fixes**  
+  - IPEX with DPM2++ FlowMatch samplers  
+
 ## Update for 2025-06-16
 
 - **Feature**  

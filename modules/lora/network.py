@@ -124,7 +124,10 @@ class NetworkModule:
         self.sd_key = weights.sd_key
         self.sd_module = weights.sd_module
         if hasattr(self.sd_module, 'weight'):
-            self.shape = self.sd_module.weight.shape
+            if hasattr(self.sd_module, "sdnq_dequantizer"):
+                self.shape = self.sd_module.sdnq_dequantizer.original_shape
+            else:
+                self.shape = self.sd_module.weight.shape
         self.dim = None
         self.bias = weights.w.get("bias")
         self.alpha = weights.w["alpha"].item() if "alpha" in weights.w else None

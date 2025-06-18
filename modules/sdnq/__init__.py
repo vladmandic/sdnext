@@ -21,6 +21,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         is_conv_transpose_type = False
         is_linear_type = False
         result_shape = None
+        original_shape = layer.weight.shape
         if torch_dtype is None:
             torch_dtype = devices.dtype
 
@@ -139,6 +140,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
+            original_shape=original_shape,
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
         )
