@@ -85,7 +85,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
+    if shared.sd_model_type in ['f1', 'chroma']: # if kohya flux lora, convert state_dict
         state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
     if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
         try:

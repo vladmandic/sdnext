@@ -546,7 +546,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = '8adc6003ba4dbf5b61bb4f1ce571e9e55e145a99' # diffusers commit hash
+    sha = '900653c814cfa431877ae46548fe496506bda2ad' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''

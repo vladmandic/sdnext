@@ -11,7 +11,7 @@ from modules.timer import process as process_timer
 
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
+offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4', 'chroma']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']

@@ -427,8 +427,12 @@ def optimum_quanto_model(model, op=None, sd_model=None, weights=None, activation
     from modules import devices, shared
     quanto = load_quanto('Quantize model: type=Optimum Quanto')
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
-    if sd_model is not None and "Flux" in sd_model.__class__.__name__: # LayerNorm is not supported
+    if sd_model is not None and "Flux" in sd_model.__class__.__name__ or "Chroma" in sd_model.__class__.__name__: # LayerNorm is not supported
         exclude_list = ["transformer_blocks.*.norm1.norm", "transformer_blocks.*.norm2", "transformer_blocks.*.norm1_context.norm", "transformer_blocks.*.norm2_context", "single_transformer_blocks.*.norm.norm", "norm_out.norm"]
+        if "Chroma" in sd_model.__class__.__name__:
+            # we ignore the distilled guidance layer because it degrades quality too much
+            # see: https://github.com/huggingface/diffusers/pull/11698#issuecomment-2969717180 for more details
+            exclude_list.append("distilled_guidance_layer.*")
     else:
         exclude_list = None
     weights = getattr(quanto, weights) if weights is not None else getattr(quanto, shared.opts.optimum_quanto_weights_type)

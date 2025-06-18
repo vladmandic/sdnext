@@ -4,9 +4,10 @@ from .teacache_lumina2 import teacache_lumina2_forward
 from .teacache_ltx import teacache_ltx_forward
 from .teacache_mochi import teacache_mochi_forward
 from .teacache_cogvideox import teacache_cog_forward
+from .teacache_chroma import teacache_chroma_forward
 
 
-supported_models = ['Flux', 'CogVideoX', 'Mochi', 'LTX', 'HiDream', 'Lumina2']
+supported_models = ['Flux', 'Chroma', 'CogVideoX', 'Mochi', 'LTX', 'HiDream', 'Lumina2']
 
 
 def apply_teacache(p):
