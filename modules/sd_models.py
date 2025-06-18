@@ -920,7 +920,7 @@ def set_diffusers_attention(pipe, quiet:bool=False):
     # if hasattr(pipe, 'pipe'):
     #    set_diffusers_attention(pipe.pipe)
 
-    if 'ControlNet' in pipe.__class__.__name__ or not (pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet")):
+    if 'Control' in pipe.__class__.__name__ or 'Adapter' in pipe.__class__.__name__ or not (pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet")):
         if shared.opts.cross_attention_optimization not in {"Scaled-Dot-Product", "Disabled"}:
             shared.log.warning(f"Attention: {shared.opts.cross_attention_optimization} is not compatible with {pipe.__class__.__name__}")
         else:
