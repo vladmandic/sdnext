@@ -77,13 +77,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 num_of_groups = 1
             else:
                 num_of_groups = channel_size // group_size
-                while channel_size % group_size != 0: # find something divisible
+                while num_of_groups * group_size != channel_size: # find something divisible
                     num_of_groups -= 1
                     if num_of_groups <= 1:
                         group_size = channel_size
                         num_of_groups = 1
                         break
-                    group_size = channel_size / num_of_groups
+                    group_size = channel_size // num_of_groups
             group_size = int(group_size)
             num_of_groups = int(num_of_groups)
 
