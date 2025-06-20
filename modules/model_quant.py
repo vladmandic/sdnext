@@ -328,16 +328,6 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     from modules.sdnq import apply_sdnq_to_module
 
     model.eval()
-
-    if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
-        import torch
-        from modules.sdnq import SDNQ_T5DenseGatedActDense # T5DenseGatedActDense uses fp32
-        for i in range(len(model.encoder.block)):
-            model.encoder.block[i].layer[1].DenseReluDense = SDNQ_T5DenseGatedActDense(
-                model.encoder.block[i].layer[1].DenseReluDense,
-                dtype=torch.float32 if devices.dtype != torch.bfloat16 else torch.bfloat16
-            )
-
     backup_embeddings = None
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
@@ -357,6 +347,10 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
         quantization_device = None
         return_device = None
 
+    modules_to_not_convert = getattr(model, "_keep_in_fp32_modules", [])
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+
     model = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,
@@ -369,6 +363,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
         quantization_device=quantization_device,
         return_device=return_device,
         param_name=op,
+        modules_to_not_convert=modules_to_not_convert,
     )
     model.quantization_method = 'SDNQ'
 
