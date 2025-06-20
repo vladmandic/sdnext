@@ -27,6 +27,7 @@ pipelines = {
     'DeepFloyd IF': getattr(diffusers, 'IFPipeline', None),
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
     'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
+    'Chroma': getattr(diffusers, 'ChromaPipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),

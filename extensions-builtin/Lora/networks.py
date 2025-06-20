@@ -139,7 +139,7 @@ def load_network(name, network_on_disk) -> network.Network:
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     sd = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    if shared.sd_model_type == 'f1':  # if kohya flux lora, convert state_dict
+    if shared.sd_model_type in ['f1', 'chroma']:  # if kohya flux lora, convert state_dict
         sd = lora_convert._convert_kohya_flux_lora_to_diffusers(sd) or sd  # pylint: disable=protected-access
     assign_network_names_to_compvis_modules(shared.sd_model)
     keys_failed_to_match = {}

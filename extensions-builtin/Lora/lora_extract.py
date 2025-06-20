@@ -107,6 +107,9 @@ def make_meta(fn, maxrank, rank_ratio):
     elif shared.sd_model_type == "f1":
         meta["model_spec.architecture"] = "flux-1-dev/lora"
         meta["ss_base_model_version"] = "flux1"
+    elif shared.sd_model_type == "chroma":
+        meta["model_spec.architecture"] = "chroma/lora"
+        meta["ss_base_model_version"] = "chroma"
     elif shared.sd_model_type == "sc":
         meta["model_spec.architecture"] = "stable-cascade-v1-prior/lora"
     return meta

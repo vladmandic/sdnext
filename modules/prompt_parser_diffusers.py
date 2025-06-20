@@ -7,7 +7,7 @@ import torch
 from compel.embeddings_provider import BaseTextualInversionManager, EmbeddingsProvider
 from transformers import PreTrainedTokenizer
 from modules import shared, prompt_parser, devices, sd_models
-from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1
+from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1, get_weighted_text_embeddings_chroma
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None)
 debug = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
@@ -27,6 +27,7 @@ def prompt_compatible(pipe = None):
         'DemoFusion' not in pipe.__class__.__name__ and
         'StableCascade' not in pipe.__class__.__name__ and
         'Flux' not in pipe.__class__.__name__ and
+        'Chroma' not in pipe.__class__.__name__ and
         'HiDreamImage' not in pipe.__class__.__name__
     ):
         shared.log.warning(f"Prompt parser not supported: {pipe.__class__.__name__}")
@@ -510,6 +511,10 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         prompt_embeds, pooled_prompt_embeds, _ = pipe.encode_prompt(prompt=prompt, prompt_2=prompt_2, device=device, num_images_per_prompt=1)
         return prompt_embeds, pooled_prompt_embeds, None, None # no negative support
 
+    if "Chroma" in pipe.__class__.__name__: # does not use clip and has no pooled embeds
+        prompt_embeds, _, _, negative_prompt_embeds, _, _ = pipe.encode_prompt(prompt=prompt, negative_prompt=neg_prompt, device=device, num_images_per_prompt=1)
+        return prompt_embeds, None, negative_prompt_embeds, None
+
     if "HiDreamImage" in pipe.__class__.__name__: # clip is only used for the pooled embeds
         prompt_embeds_t5, negative_prompt_embeds_t5, prompt_embeds_llama3, negative_prompt_embeds_llama3, pooled_prompt_embeds, negative_pooled_prompt_embeds = pipe.encode_prompt(
             prompt=prompt, prompt_2=prompt_2, prompt_3=prompt_3, prompt_4=prompt_4,
@@ -662,6 +667,8 @@ def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", cl
         prompt_embed, negative_embed, positive_pooled, negative_pooled = get_weighted_text_embeddings_sd3(pipe=pipe, prompt=prompt, neg_prompt=neg_prompt, use_t5_encoder=bool(pipe.text_encoder_3))
     elif 'Flux' in pipe.__class__.__name__:
         prompt_embed, positive_pooled = get_weighted_text_embeddings_flux1(pipe=pipe, prompt=prompt, prompt2=prompt_2, device=devices.device)
+    elif 'Chroma' in pipe.__class__.__name__:
+        prompt_embed, negative_embed = get_weighted_text_embeddings_chroma(pipe=pipe, prompt=prompt, neg_prompt=neg_prompt, device=devices.device)
     elif 'XL' in pipe.__class__.__name__:
         prompt_embed, negative_embed, positive_pooled, negative_pooled = get_weighted_text_embeddings_sdxl_2p(pipe=pipe, prompt=prompt, prompt_2=prompt_2, neg_prompt=neg_prompt, neg_prompt_2=neg_prompt_2)
     else:

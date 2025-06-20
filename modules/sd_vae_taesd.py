@@ -55,7 +55,7 @@ def get_model(model_type = 'decoder', variant = None):
     cls = shared.sd_model_type
     if cls in {'ldm', 'pixartalpha'}:
         cls = 'sd'
-    elif cls in {'h1', 'lumina2'}:
+    elif cls in {'h1', 'lumina2', 'chroma'}:
         cls = 'f1'
     elif cls == 'pixartsigma':
         cls = 'sdxl'

@@ -101,7 +101,7 @@ def map_model_name(name: str):
         return 'xl'
     if name == 'sd3':
         return 'v3'
-    if name == 'f1':
+    if name in ['f1', 'chroma']:
         return 'fx'
     return name
 

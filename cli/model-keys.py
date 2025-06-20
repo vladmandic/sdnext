@@ -60,6 +60,8 @@ def guess_dct(dct: dict):
     if has(dct, 'model.diffusion_model.joint_blocks') and len(list(has(dct, 'model.diffusion_model.joint_blocks'))) == 38:
         return 'sd35-large'
     if has(dct, 'model.diffusion_model.double_blocks') and len(list(has(dct, 'model.diffusion_model.double_blocks'))) == 19:
+        if has(dct, 'model.diffusion_model.distilled_guidance_layer'):
+            return 'chroma'
         return 'flux-dev'
     return None
 

@@ -12,7 +12,7 @@ samplers = all_samplers
 samplers_for_img2img = all_samplers
 samplers_map = {}
 loaded_config = None
-flow_models =  ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogView4', 'HiDream']
+flow_models = ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogView4', 'HiDream', 'Chroma']
 flow_models += ['Hunyuan', 'LTX', 'Mochi']
 
 

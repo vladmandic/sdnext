@@ -150,6 +150,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         'StableDiffusion' in model.__class__.__name__ or
         'StableCascade' in model.__class__.__name__ or
         'Flux' in model.__class__.__name__ or
+        'Chroma' in model.__class__.__name__ or
         'HiDreamImagePipeline' in model.__class__.__name__ # hidream-e1 has different embeds
     ):
         try:
@@ -174,15 +175,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['prompt_embeds_llama3'] = prompt_embeds[1]
         elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
-                if 'StableCascade' in model.__class__.__name__:
-                    args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
-                elif 'XL' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'Flux' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            if 'StableCascade' in model.__class__.__name__:
+                args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
+            elif 'XL' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'StableDiffusion3' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'Flux' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
@@ -193,13 +193,12 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['negative_prompt_embeds_llama3'] = negative_prompt_embeds[1]
         elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['negative_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
-                if 'StableCascade' in model.__class__.__name__:
-                    args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
-                elif 'XL' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
-                elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            if 'StableCascade' in model.__class__.__name__:
+                args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
+            elif 'XL' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'StableDiffusion3' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
                 args['negative_prompt'] = negative_prompts[0]

@@ -18,6 +18,7 @@ class SdVersion(enum.Enum):
     SC = 5
     F1 = 6
     HV = 7
+    CHROMA = 8
 
 
 class NetworkOnDisk:
@@ -59,6 +60,8 @@ class NetworkOnDisk:
             return 'f1'
         if base.startswith("hunyuan_video"):
             return 'hv'
+        if base.startswith("chroma"):
+            return 'chroma'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
@@ -70,6 +73,8 @@ class NetworkOnDisk:
             return 'f1'
         if arch.startswith("hunyuan-video"):
             return 'hv'
+        if arch.startswith("chroma"):
+            return 'chroma'
 
         if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
             return 'sd1'
@@ -79,6 +84,8 @@ class NetworkOnDisk:
             return 'f1'
         if 'xl' in self.name.lower():
             return 'xl'
+        if 'chroma' in self.name.lower():
+            return 'chroma'
 
         return ''
 
