@@ -152,6 +152,8 @@ class StableDiffusionProcessing:
         self.positive_pooleds = []
         self.negative_embeds = []
         self.negative_pooleds = []
+        self.prompt_attention_masks = []
+        self.negative_prompt_attention_masks = []
         self.disable_extra_networks = False
         self.iteration = 0
         self.network_data = {}
@@ -321,6 +323,8 @@ class StableDiffusionProcessing:
         self.positive_pooleds = []
         self.negative_embeds = []
         self.negative_pooleds = []
+        self.prompt_attention_masks = []
+        self.negative_prompt_attention_mask = []
 
     def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'

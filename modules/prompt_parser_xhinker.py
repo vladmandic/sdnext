@@ -88,8 +88,8 @@ def get_prompts_tokens_with_weights(
 
 
 def get_prompts_tokens_with_weights_t5(
-        t5_tokenizer: T5Tokenizer
-        , prompt: str
+        t5_tokenizer: T5Tokenizer,
+        prompt: str
 ):
     """
     Get prompt token ids and weights, this function works for both prompt and negative prompt
@@ -98,18 +98,21 @@ def get_prompts_tokens_with_weights_t5(
         prompt = "empty"
 
     texts_and_weights = parse_prompt_attention(prompt)
-    text_tokens, text_weights = [], []
+    text_tokens, text_weights, text_masks = [], [], []
     for word, weight in texts_and_weights:
         # tokenize and discard the starting and the ending token
-        token = t5_tokenizer(
-            word
-            , truncation=False  # so that tokenize whatever length prompt
-            , add_special_tokens=True
-        ).input_ids
-        # the returned token is a 1d list: [320, 1125, 539, 320]
+        inputs = t5_tokenizer(
+            word,
+            truncation=False,  # so that tokenize whatever length prompt
+            add_special_tokens=True,
+        )
+
+        token = inputs.input_ids
+        mask = inputs.attention_mask
 
         # merge the new tokens to the all tokens holder: text_tokens
         text_tokens = [*text_tokens, *token]
+        text_masks = [*text_masks, *mask]
 
         # each token chunk will come with one weight, like ['red cat', 2.0]
         # need to expand weight for each token.
@@ -117,7 +120,7 @@ def get_prompts_tokens_with_weights_t5(
 
         # append the weight back to the weight holder: text_weights
         text_weights = [*text_weights, *chunk_weights]
-    return text_tokens, text_weights
+    return text_tokens, text_weights, text_masks
 
 
 def group_tokens_and_weights(
@@ -1070,11 +1073,11 @@ def get_weighted_text_embeddings_sd3(
     )
 
     # tokenizer 3
-    prompt_tokens_3, prompt_weights_3 = get_prompts_tokens_with_weights_t5(
+    prompt_tokens_3, prompt_weights_3, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_3, prompt
     )
 
-    neg_prompt_tokens_3, neg_prompt_weights_3 = get_prompts_tokens_with_weights_t5(
+    neg_prompt_tokens_3, neg_prompt_weights_3, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_3, neg_prompt
     )
 
@@ -1366,7 +1369,7 @@ def get_weighted_text_embeddings_flux1(
     )
 
     # tokenizer 2 - google/t5-v1_1-xxl
-    prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights_t5(
+    prompt_tokens_2, prompt_weights_2, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_2, prompt2
     )
 
@@ -1443,23 +1446,26 @@ def get_weighted_text_embeddings_chroma(
         neg_prompt (str)
         device (torch.device, optional): Device to run the embeddings on.
     Returns:
-        prompt_embeds (T5 prompt embeds as torch.Tensor)
-        neg_prompt_embeds (T5 prompt embeds as torch.Tensor)
+        prompt_embeds (torch.Tensor)
+        prompt_attention_mask (torch.Tensor)
+        neg_prompt_embeds (torch.Tensor)
+        neg_prompt_attention_mask (torch.Tensor)
     """
     if device is None:
         device = pipe.text_encoder.device
 
-    # prompt
-    prompt_tokens, prompt_weights = get_prompts_tokens_with_weights_t5(
+    # positive prompt
+    prompt_tokens, prompt_weights, prompt_masks = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer, prompt
     )
 
-    prompt_tokens = torch.tensor([prompt_tokens], dtype=torch.long)
+    prompt_tokens = torch.tensor([prompt_tokens], dtype=torch.long).to(device)
+    prompt_masks = torch.tensor([prompt_masks], dtype=torch.long).to(device)
 
-    t5_prompt_embeds = pipe.text_encoder(prompt_tokens.to(device))[0].squeeze(0)
+    t5_prompt_embeds = pipe.text_encoder(prompt_tokens, output_hidden_states=False, attention_mask=prompt_masks)[0].squeeze(0)
     t5_prompt_embeds = t5_prompt_embeds.to(device=device)
 
-    # add weight to t5 prompt
+    # add weight to t5 positive embeddings
     for z in range(len(prompt_weights)):
         if prompt_weights[z] != 1.0:
             t5_prompt_embeds[z] = t5_prompt_embeds[z] * prompt_weights[z]
@@ -1467,34 +1473,67 @@ def get_weighted_text_embeddings_chroma(
     t5_prompt_embeds = t5_prompt_embeds.to(dtype=pipe.text_encoder.dtype, device=device)
 
     # negative prompt
-    neg_prompt_tokens, neg_prompt_weights = get_prompts_tokens_with_weights_t5(
+    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer, neg_prompt
     )
 
-    neg_prompt_tokens = torch.tensor([neg_prompt_tokens], dtype=torch.long)
+    neg_prompt_tokens = torch.tensor([neg_prompt_tokens], dtype=torch.long).to(device)
+    neg_prompt_masks = torch.tensor([neg_prompt_masks], dtype=torch.long).to(device)
 
-    t5_neg_prompt_embeds = pipe.text_encoder(neg_prompt_tokens.to(device))[0].squeeze(0)
+    t5_neg_prompt_embeds = pipe.text_encoder(neg_prompt_tokens, output_hidden_states=False, attention_mask=neg_prompt_masks)[0].squeeze(0)
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.to(device=device)
 
-    # add weight to neg t5 embeddings
+    # add weight to negative t5 embeddings
     for z in range(len(neg_prompt_weights)):
         if neg_prompt_weights[z] != 1.0:
             t5_neg_prompt_embeds[z] = t5_neg_prompt_embeds[z] * neg_prompt_weights[z]
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.unsqueeze(0)
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.to(dtype=pipe.text_encoder.dtype, device=device)
 
-    def pad_prompt_embeds_to_same_size(prompt_embeds_a, prompt_embeds_b):
-        size_a = prompt_embeds_a.size(1)
-        size_b = prompt_embeds_b.size(1)
+    embeds, masks = pad_prompt_embeds_to_same_size_chroma(
+        pipe,
+        [t5_prompt_embeds, t5_neg_prompt_embeds],
+        [prompt_masks, neg_prompt_masks]
+    )
 
-        if size_a < size_b:
-            pad_size = size_b - size_a
-            prompt_embeds_a = F.pad(prompt_embeds_a, (0, 0, 0, pad_size))  # Pad dim=1
-        elif size_b < size_a:
-            pad_size = size_a - size_b
-            prompt_embeds_b = F.pad(prompt_embeds_b, (0, 0, 0, pad_size))  # Pad dim=1
+    return embeds[0], masks[0], embeds[1], masks[1]
 
-        return prompt_embeds_a, prompt_embeds_b
 
-    # chroma needs positive and negative prompt embeddings to have the same length (for now)
-    return pad_prompt_embeds_to_same_size(t5_prompt_embeds, t5_neg_prompt_embeds)
+def pad_prompt_embeds_to_same_size_chroma(pipe, embeds, masks):
+    """
+    Implementation of Chroma's padding for prompt embeddings.
+    Pads the embeddings to the maximum length found in the batch, while ensuring
+    that the padding tokens are masked correctly and keeping one padding token unmasked.
+
+    https://huggingface.co/lodestones/Chroma#tldr-masking-t5-padding-tokens-enhanced-fidelity-and-increased-stability-during-training
+    """
+    pad_token_id = pipe.tokenizer.pad_token_id
+
+    max_token_count = max([embed.shape[1] for embed in embeds])
+
+    padded_embeds = []
+    padded_masks = []
+
+    for embed, mask in zip(embeds, masks):
+        current_length = embed.shape[1]
+        if current_length < max_token_count:
+            pad_length = max_token_count - current_length
+            embed_pad = torch.full(
+                (1, pad_length, embed.shape[-1]),
+                fill_value=pad_token_id,
+                dtype=embed.dtype,
+                device=embed.device
+            )
+            padded_embed = torch.cat([embed, embed_pad], dim=1)
+
+            mask_pad = torch.ones(1, pad_length, device=mask.device)
+            mask_pad[0, 0] = 0  # keep one padding token unmasked, see linked Chroma docs
+            padded_mask = torch.cat([mask, mask_pad], dim=1)
+
+            padded_embeds.append(padded_embed)
+            padded_masks.append(padded_mask)
+        else:
+            padded_embeds.append(embed)
+            padded_masks.append(mask)
+
+    return padded_embeds, padded_masks

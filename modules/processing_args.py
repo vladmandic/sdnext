@@ -183,6 +183,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             elif 'Flux' in model.__class__.__name__:
                 args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'Chroma' in model.__class__.__name__:
+                args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
@@ -199,6 +201,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
             elif 'StableDiffusion3' in model.__class__.__name__:
                 args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'Chroma' in model.__class__.__name__:
+                args['negative_prompt_attention_mask'] = prompt_parser_diffusers.embedder('negative_prompt_attention_masks')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
                 args['negative_prompt'] = negative_prompts[0]
