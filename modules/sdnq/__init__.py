@@ -149,7 +149,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
-        devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
+        #devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
     return layer
 
 

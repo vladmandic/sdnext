@@ -1,13 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-18
+## Update for 2025-06-123
 
 - **SDNQ Quantization**  
   - Fix Qwen 2.5 with int8 matmul  
   - Fix Dora loading  
+  - Remove per layer GC  
 
 - **Fixes**  
   - IPEX with DPM2++ FlowMatch samplers  
+  - LTXVideo default scheduler  
 
 ## Update for 2025-06-16
 
