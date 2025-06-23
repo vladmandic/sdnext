@@ -7,7 +7,7 @@ from diffusers.utils import USE_PEFT_BACKEND, is_torch_version, logging, scale_l
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-
+# todo: add 
 def teacache_chroma_forward(
         self,
         hidden_states: torch.Tensor,
@@ -15,6 +15,7 @@ def teacache_chroma_forward(
         timestep: torch.LongTensor = None,
         img_ids: torch.Tensor = None,
         txt_ids: torch.Tensor = None,
+        attention_mask: torch.Tensor = None,
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         controlnet_block_samples=None,
         controlnet_single_block_samples=None,
@@ -144,6 +145,7 @@ def teacache_chroma_forward(
                         encoder_hidden_states,
                         temb,
                         image_rotary_emb,
+                        attention_mask,
                         **ckpt_kwargs,
                     )
 
@@ -153,6 +155,7 @@ def teacache_chroma_forward(
                         encoder_hidden_states=encoder_hidden_states,
                         temb=temb,
                         image_rotary_emb=image_rotary_emb,
+                        attention_mask=attention_mask,
                         joint_attention_kwargs=joint_attention_kwargs,
                     )
 
@@ -244,6 +247,7 @@ def teacache_chroma_forward(
                     encoder_hidden_states,
                     temb,
                     image_rotary_emb,
+                    attention_mask=attention_mask,
                     **ckpt_kwargs,
                 )
 
@@ -253,6 +257,7 @@ def teacache_chroma_forward(
                     encoder_hidden_states=encoder_hidden_states,
                     temb=temb,
                     image_rotary_emb=image_rotary_emb,
+                    attention_mask=attention_mask,
                     joint_attention_kwargs=joint_attention_kwargs,
                 )
 
@@ -290,6 +295,7 @@ def teacache_chroma_forward(
                     hidden_states,
                     temb,
                     image_rotary_emb,
+                    attention_mask=attention_mask,
                     **ckpt_kwargs,
                 )
 
@@ -298,6 +304,7 @@ def teacache_chroma_forward(
                     hidden_states=hidden_states,
                     temb=temb,
                     image_rotary_emb=image_rotary_emb,
+                    attention_mask=attention_mask,
                     joint_attention_kwargs=joint_attention_kwargs,
                 )
 
