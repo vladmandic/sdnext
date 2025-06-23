@@ -1454,13 +1454,39 @@ def get_weighted_text_embeddings_chroma(
     if device is None:
         device = pipe.text_encoder.device
 
-    # positive prompt
     prompt_tokens, prompt_weights, prompt_masks = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer, prompt
     )
 
+    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = get_prompts_tokens_with_weights_t5(
+        pipe.tokenizer, neg_prompt
+    )
+
+    padded_tokens, padded_masks = pad_prompt_tokens_to_same_size_chroma(
+        pipe,
+        [prompt_tokens, neg_prompt_tokens],
+        [prompt_masks, neg_prompt_masks]
+    )
+
+    prompt_tokens = padded_tokens[0]
+    prompt_masks = padded_masks[0]
+
     prompt_tokens = torch.tensor([prompt_tokens], dtype=torch.long).to(device)
     prompt_masks = torch.tensor([prompt_masks], dtype=torch.long).to(device)
+
+    seq_lengths = prompt_masks.sum(dim=1)
+    mask_indices = torch.arange(prompt_masks.size(1), device=device).unsqueeze(0)
+    prompt_masks = (mask_indices <= seq_lengths.unsqueeze(1)).long().to(device)
+
+    neg_prompt_tokens = padded_tokens[1]
+    neg_prompt_masks = padded_masks[1]
+
+    neg_prompt_tokens = torch.tensor([neg_prompt_tokens], dtype=torch.long).to(device)
+    neg_prompt_masks = torch.tensor([neg_prompt_masks], dtype=torch.long).to(device)
+
+    seq_lengths = neg_prompt_masks.sum(dim=1)
+    mask_indices = torch.arange(neg_prompt_masks.size(1), device=device).unsqueeze(0)
+    neg_prompt_masks = (mask_indices <= seq_lengths.unsqueeze(1)).long().to(device)
 
     t5_prompt_embeds = pipe.text_encoder(prompt_tokens, output_hidden_states=False, attention_mask=prompt_masks)[0].squeeze(0)
     t5_prompt_embeds = t5_prompt_embeds.to(device=device)
@@ -1472,14 +1498,6 @@ def get_weighted_text_embeddings_chroma(
     t5_prompt_embeds = t5_prompt_embeds.unsqueeze(0)
     t5_prompt_embeds = t5_prompt_embeds.to(dtype=pipe.text_encoder.dtype, device=device)
 
-    # negative prompt
-    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = get_prompts_tokens_with_weights_t5(
-        pipe.tokenizer, neg_prompt
-    )
-
-    neg_prompt_tokens = torch.tensor([neg_prompt_tokens], dtype=torch.long).to(device)
-    neg_prompt_masks = torch.tensor([neg_prompt_masks], dtype=torch.long).to(device)
-
     t5_neg_prompt_embeds = pipe.text_encoder(neg_prompt_tokens, output_hidden_states=False, attention_mask=neg_prompt_masks)[0].squeeze(0)
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.to(device=device)
 
@@ -1490,16 +1508,10 @@ def get_weighted_text_embeddings_chroma(
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.unsqueeze(0)
     t5_neg_prompt_embeds = t5_neg_prompt_embeds.to(dtype=pipe.text_encoder.dtype, device=device)
 
-    embeds, masks = pad_prompt_embeds_to_same_size_chroma(
-        pipe,
-        [t5_prompt_embeds, t5_neg_prompt_embeds],
-        [prompt_masks, neg_prompt_masks]
-    )
-
-    return embeds[0], masks[0], embeds[1], masks[1]
+    return t5_prompt_embeds, prompt_masks, t5_neg_prompt_embeds, neg_prompt_masks
 
 
-def pad_prompt_embeds_to_same_size_chroma(pipe, embeds, masks):
+def pad_prompt_tokens_to_same_size_chroma(pipe, input_tokens, input_masks):
     """
     Implementation of Chroma's padding for prompt embeddings.
     Pads the embeddings to the maximum length found in the batch, while ensuring
@@ -1507,33 +1519,38 @@ def pad_prompt_embeds_to_same_size_chroma(pipe, embeds, masks):
 
     https://huggingface.co/lodestones/Chroma#tldr-masking-t5-padding-tokens-enhanced-fidelity-and-increased-stability-during-training
     """
+
+    input_tokens = input_tokens.copy()
+    input_masks = input_masks.copy()
+
     pad_token_id = pipe.tokenizer.pad_token_id
 
-    max_token_count = max([embed.shape[1] for embed in embeds])
+    for i, (tokens, mask) in enumerate(zip(input_tokens, input_masks)):
+        if pad_token_id in tokens:
+            first_pad_token_index = tokens.index(pad_token_id)
+            mask[first_pad_token_index] = 1
+        else:
+            input_tokens[i] = tokens + [pad_token_id]
+            input_masks[i] = mask + [1]
 
-    padded_embeds = []
+    max_token_count = max([len(x) for x in input_tokens])
+
+    padded_tokens = []
     padded_masks = []
 
-    for embed, mask in zip(embeds, masks):
-        current_length = embed.shape[1]
+    for tokens, mask in zip(input_tokens, input_masks):
+        current_length = len(tokens)
+
         if current_length < max_token_count:
             pad_length = max_token_count - current_length
-            embed_pad = torch.full(
-                (1, pad_length, embed.shape[-1]),
-                fill_value=pad_token_id,
-                dtype=embed.dtype,
-                device=embed.device
-            )
-            padded_embed = torch.cat([embed, embed_pad], dim=1)
 
-            mask_pad = torch.ones(1, pad_length, device=mask.device)
-            mask_pad[0, 0] = 0  # keep one padding token unmasked, see linked Chroma docs
-            padded_mask = torch.cat([mask, mask_pad], dim=1)
+            token_pad = [pad_token_id] * pad_length
+            mask_pad = [0] * pad_length
 
-            padded_embeds.append(padded_embed)
-            padded_masks.append(padded_mask)
-        else:
-            padded_embeds.append(embed)
-            padded_masks.append(mask)
+            tokens = tokens + token_pad
+            mask = mask + mask_pad
 
-    return padded_embeds, padded_masks
+        padded_tokens.append(tokens)
+        padded_masks.append(mask)
+
+    return padded_tokens, padded_masks
