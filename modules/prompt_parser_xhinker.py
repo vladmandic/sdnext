@@ -1535,7 +1535,7 @@ def pad_prompt_tokens_to_same_size_chroma(pipe, input_tokens, input_weights, inp
     """
     Implementation of Chroma's padding for prompt embeddings.
     Pads the embeddings to the maximum length found in the batch, while ensuring
-    that the padding tokens are masked correctly and keeping one padding token unmasked.
+    that the padding tokens are masked correctly while keeping at least one padding and one eos token unmasked.
 
     https://huggingface.co/lodestones/Chroma#tldr-masking-t5-padding-tokens-enhanced-fidelity-and-increased-stability-during-training
     """
