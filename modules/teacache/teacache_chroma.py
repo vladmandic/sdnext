@@ -7,7 +7,7 @@ from diffusers.utils import USE_PEFT_BACKEND, is_torch_version, logging, scale_l
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
-# todo: add 
+
 def teacache_chroma_forward(
         self,
         hidden_states: torch.Tensor,
