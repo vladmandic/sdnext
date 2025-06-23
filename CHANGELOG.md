@@ -1,14 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-123
+## Update for 2025-06-23
 
 - **SDNQ Quantization**  
+  - Add modules_to_not_convert support for post mode  
   - Fix Qwen 2.5 with int8 matmul  
   - Fix Dora loading  
   - Remove per layer GC  
 
 - **Fixes**  
   - IPEX with DPM2++ FlowMatch samplers  
+  - Invalid attention processor with ControlNet  
   - LTXVideo default scheduler  
 
 ## Update for 2025-06-16
