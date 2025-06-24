@@ -41,7 +41,7 @@ pipelines = {
     'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
-    'OmniGenPipeline': getattr(diffusers, 'DiffusionPipeline', None),
+    'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
