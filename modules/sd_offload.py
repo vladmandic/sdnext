@@ -14,7 +14,7 @@ debug_move = log.trace if debug else lambda *args, **kwargs: None
 offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'cogview4']
 offload_post = ['h1']
 offload_hook_instance = None
-balanced_offload_exclude = ['OmniGenPipeline', 'CogView4Pipeline']
+balanced_offload_exclude = ['CogView4Pipeline']
 
 
 def get_signature(cls):

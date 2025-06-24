@@ -1,6 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-23
+## Update for 2025-06-24
+
+- **Changes**  
+  - Use Diffusers version of OmniGen  
+  - Support Remote VAE with Omnigen, Lumina 2 and PixArt  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  
@@ -12,6 +16,8 @@
   - IPEX with DPM2++ FlowMatch samplers  
   - Invalid attention processor with ControlNet  
   - LTXVideo default scheduler  
+  - Balanced offload with OmniGen  
+  - Quantization with OmniGen  
 
 ## Update for 2025-06-16
 
