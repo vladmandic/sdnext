@@ -36,6 +36,7 @@
   - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
   - Fix TAESD model type detection  
   - Fix LoRA loader incorrectly reporting errors  
+  - Fix hypertile for img2img and inpaint operations  
 
 ## Update for 2025-06-16
 
