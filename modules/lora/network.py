@@ -90,6 +90,27 @@ class NetworkOnDisk:
         if not self.hash:
             self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
 
+    def get_info(self):
+        data = {}
+        if shared.cmd_opts.no_metadata:
+            return data
+        if self.filename is not None:
+            fn = os.path.splitext(self.filename)[0] + '.json'
+            if os.path.exists(fn):
+                data = shared.readfile(fn, silent=True)
+                if type(data) is list:
+                    data = data[0]
+        return data
+
+    def get_desc(self):
+        if shared.cmd_opts.no_metadata:
+            return None
+        if self.filename is not None:
+            fn = os.path.splitext(self.filename)[0] + '.txt'
+            if os.path.exists(fn):
+                return shared.readfile(fn, silent=True)
+        return None
+
     def get_alias(self):
         if shared.opts.lora_preferred_name == "filename":
             return self.name

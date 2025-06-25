@@ -12,6 +12,9 @@
   - Fix Dora loading  
   - Remove per layer GC  
 
+- **API**
+  - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
+
 - **Fixes**  
   - IPEX with DPM2++ FlowMatch samplers  
   - Invalid attention processor with ControlNet  
