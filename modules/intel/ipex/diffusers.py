@@ -81,14 +81,46 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
     return emb
 
 
+def apply_rotary_emb(x, freqs_cis, use_real: bool = True, use_real_unbind_dim: int = -1):
+    if use_real:
+        cos, sin = freqs_cis  # [S, D]
+        cos = cos[None, None]
+        sin = sin[None, None]
+        cos, sin = cos.to(x.device), sin.to(x.device)
+
+        if use_real_unbind_dim == -1:
+            # Used for flux, cogvideox, hunyuan-dit
+            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+            x_rotated = torch.stack([-x_imag, x_real], dim=-1).flatten(3)
+        elif use_real_unbind_dim == -2:
+            # Used for Stable Audio, OmniGen, CogView4 and Cosmos
+            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
+            x_rotated = torch.cat([-x_imag, x_real], dim=-1)
+        else:
+            raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
+
+        out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
+        return out
+    else:
+        # used for lumina
+        # force cpu with Alchemist
+        x_rotated = torch.view_as_complex(x.to("cpu").float().reshape(*x.shape[:-1], -1, 2))
+        freqs_cis = freqs_cis.to("cpu").unsqueeze(2)
+        x_out = torch.view_as_real(x_rotated * freqs_cis).flatten(3)
+        return x_out.type_as(x).to(x.device)
+
+
 def ipex_diffusers(device_supports_fp64=False):
     diffusers.utils.torch_utils.fourier_filter = fourier_filter
     if not device_supports_fp64:
         # get around lazy imports
+        from diffusers.models import embeddings as diffusers_embeddings # pylint: disable=import-error, unused-import # noqa: F401
         from diffusers.models import transformers as diffusers_transformers # pylint: disable=import-error, unused-import # noqa: F401
         from diffusers.models import controlnets as diffusers_controlnets # pylint: disable=import-error, unused-import # noqa: F401
         diffusers.models.embeddings.get_1d_sincos_pos_embed_from_grid = get_1d_sincos_pos_embed_from_grid
         diffusers.models.embeddings.FluxPosEmbed = FluxPosEmbed
+        diffusers.models.embeddings.apply_rotary_emb = apply_rotary_emb
         diffusers.models.transformers.transformer_flux.FluxPosEmbed = FluxPosEmbed
+        diffusers.models.transformers.transformer_lumina2.apply_rotary_emb = apply_rotary_emb
         diffusers.models.controlnets.controlnet_flux.FluxPosEmbed = FluxPosEmbed
         diffusers.models.transformers.transformer_hidream_image.rope = hidream_rope

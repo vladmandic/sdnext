@@ -3,7 +3,7 @@ import io
 import os
 from PIL import Image
 import gradio as gr
-from modules.paths import data_path
+from modules.paths import params_path
 from modules import shared, gr_tempdir, script_callbacks, images
 from modules.infotext import parse, mapping, quote, unquote # pylint: disable=unused-import
 
@@ -223,9 +223,8 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
 
     def paste_func(prompt):
         if prompt is None or len(prompt.strip()) == 0:
-            filename = os.path.join(data_path, "params.txt")
-            if os.path.exists(filename):
-                with open(filename, "r", encoding="utf8") as file:
+            if os.path.exists(params_path):
+                with open(params_path, "r", encoding="utf8") as file:
                     prompt = file.read()
                 shared.log.debug(f'Prompt parse: type="params" prompt="{prompt}"')
             else:

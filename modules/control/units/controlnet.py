@@ -137,6 +137,23 @@ def find_models():
 
 find_models()
 
+
+def api_list_models(model_type: str = None):
+    import modules.shared
+    model_type = model_type or modules.shared.sd_model_type
+    model_list = []
+    if model_type == 'sd' or model_type == 'all':
+        model_list += list(predefined_sd15)
+    if model_type == 'sdxl' or model_type == 'all':
+        model_list += list(predefined_sdxl)
+    if model_type == 'f1' or model_type == 'all':
+        model_list += list(predefined_f1)
+    if model_type == 'sd3' or model_type == 'all':
+        model_list += list(predefined_sd3)
+    model_list += sorted(find_models())
+    return model_list
+
+
 def list_models(refresh=False):
     import modules.shared
     global models # pylint: disable=global-statement

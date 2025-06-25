@@ -572,10 +572,7 @@ def update_sampler(p, sd_model, second_pass=False):
     if hasattr(sd_model, 'scheduler'):
         if sampler_selection == 'None':
             return
-        if sampler_selection is None:
-            sampler = sd_samplers.all_samplers_map.get("UniPC")
-        else:
-            sampler = sd_samplers.all_samplers_map.get(sampler_selection, None)
+        sampler = sd_samplers.find_sampler(sampler_selection)
         if sampler is None:
             shared.log.warning(f'Sampler: sampler="{sampler_selection}" not found')
             sampler = sd_samplers.all_samplers_map.get("UniPC")

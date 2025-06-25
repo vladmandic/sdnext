@@ -72,8 +72,8 @@ def setup_model(dirname):
     except Exception:
         pass
     try:
-        install('basicsr', quiet=True)
-        install('gfpgan', quiet=True)
+        install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
+        install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
         import gfpgan
         import facexlib
         import modules.detailer

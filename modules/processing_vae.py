@@ -117,6 +117,7 @@ def full_vae_decode(latents, model):
     elif shared.opts.diffusers_offload_mode != "sequential":
         sd_models.move_model(model.vae, devices.device)
 
+    sd_models.set_vae_options(model, vae=None, op='decode')
     upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
@@ -193,6 +194,7 @@ def full_vae_encode(image, model):
     vae_name = sd_vae.loaded_vae_file if sd_vae.loaded_vae_file is not None else "default"
     log_debug(f'Encode vae="{vae_name}" dtype={model.vae.dtype} upcast={model.vae.config.get("force_upcast", None)}')
 
+    sd_models.set_vae_options(model, vae=None, op='encode')
     upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
@@ -254,8 +256,8 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if output_type == "pil":
                     images = model.numpy_to_pil(images)
             else:
-                import diffusers
-                model.image_processor = diffusers.image_processor.VaeImageProcessor()
+                from diffusers.image_processor import VaeImageProcessor
+                model.image_processor = VaeImageProcessor()
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]

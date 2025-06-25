@@ -58,9 +58,12 @@ opts = JoyOptions()
 
 
 @torch.no_grad()
-def predict(question: str, image):
+def predict(question: str, image, vqa_model: str = None) -> str:
     global llava_model, processor # pylint: disable=global-statement
     opts.max_new_tokens = shared.opts.interrogate_vlm_max_length
+    if vqa_model is not None and opts.repo != vqa_model:
+        opts.repo = vqa_model
+        llava_model = None
     if llava_model is None:
         shared.log.info(f'Interrogate: type=vlm model="JoyCaption" {str(opts)}')
         processor = AutoProcessor.from_pretrained(opts.repo)

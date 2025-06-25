@@ -16,6 +16,17 @@ flow_models =  ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogVi
 flow_models += ['Hunyuan', 'LTX', 'Mochi']
 
 
+def find_sampler(name:str):
+    if name is None or name == 'None':
+        return all_samplers_map.get("UniPC", None)
+    for sampler in all_samplers:
+        if sampler.name.lower() == name.lower() or name in sampler.aliases:
+            debug(f'Find sampler: name="{name}" found={sampler.name}')
+            return sampler
+    debug(f'Find sampler: name="{name}" found=None')
+    return None
+
+
 def list_samplers():
     global all_samplers # pylint: disable=global-statement
     global all_samplers_map # pylint: disable=global-statement

@@ -467,9 +467,31 @@ def create_ui(_blocks: gr.Blocks=None):
                             if i == 0:
                                 units[-1].enabled = True # enable first unit in group
 
-                with gr.Accordion('Processor settings', open=False, elem_classes=['control-settings']) as _tab_settings:
+                with gr.Accordion('Control settings', open=False, elem_classes=['control-settings']) as _tab_settings:
                     with gr.Group(elem_classes=['processor-group']):
                         settings = []
+                        with gr.Accordion('Global', open=True, elem_classes=['processor-settings']):
+                            control_hires = gr.Checkbox(label="Use control during hires", value=shared.opts.control_hires, elem_id='control_hires')
+                            def set_control_hires(value):
+                                shared.opts.control_active = value
+                            control_hires.change(fn=set_control_hires, inputs=[control_hires], outputs=[])
+                            control_max_units = gr.Slider(label="Maximum units", minimum=1, maximum=10, step=1, value=shared.opts.control_max_units, elem_id='control_max_units')
+                            def set_control_max_units(value):
+                                shared.opts.control_max_units = value
+                            control_max_units.change(fn=set_control_max_units, inputs=[control_max_units], outputs=[])
+                            control_tiles = gr.Textbox(label="Tiling options", value=shared.opts.control_tiles, elem_id='control_tiles')
+                            def set_control_tiles(value):
+                                shared.opts.control_tiles = value
+                            control_tiles.change(fn=set_control_tiles, inputs=[control_tiles], outputs=[])
+                            control_move_processor = gr.Checkbox(label="Move processor to CPU after use", value=shared.opts.control_move_processor, elem_id='control_move_processor')
+                            def set_control_move_processor(value):
+                                shared.opts.control_move_processor = value
+                            control_move_processor.change(fn=set_control_move_processor, inputs=[control_move_processor], outputs=[])
+                            control_unload_processor = gr.Checkbox(label="Unload processor after use", value=shared.opts.control_unload_processor, elem_id='control_unload_processor')
+                            def set_control_unload_processor(value):
+                                shared.opts.control_unload_processor = value
+                            control_unload_processor.change(fn=set_control_unload_processor, inputs=[control_unload_processor], outputs=[])
+
                         with gr.Accordion('HED', open=True, elem_classes=['processor-settings']):
                             settings.append(gr.Checkbox(label="Scribble", value=False))
                         with gr.Accordion('Midas depth', open=True, elem_classes=['processor-settings']):

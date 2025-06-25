@@ -170,7 +170,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         prev_job = shared.state.job
 
         # hires runs on original pipeline
-        if hasattr(shared.sd_model, 'restore_pipeline') and shared.sd_model.restore_pipeline is not None:
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and not shared.opts.control_hires:
             shared.sd_model.restore_pipeline()
 
         # upscale
@@ -200,8 +200,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             if 'Upscale' in shared.sd_model.__class__.__name__ or 'Flux' in shared.sd_model.__class__.__name__ or 'Kandinsky' in shared.sd_model.__class__.__name__:
                 output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
             if p.is_control and hasattr(p, 'task_args') and p.task_args.get('image', None) is not None:
-                if hasattr(shared.sd_model, "vae") and output.images is not None and len(output.images) > 0:
-                    output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.hr_upscale_to_x, height=p.hr_upscale_to_y) # controlnet cannnot deal with latent input
+                    if hasattr(shared.sd_model, "vae") and output.images is not None and len(output.images) > 0:
+                        output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.hr_upscale_to_x, height=p.hr_upscale_to_y) # controlnet cannnot deal with latent input
             update_sampler(p, shared.sd_model, second_pass=True)
             orig_denoise = p.denoising_strength
             p.denoising_strength = strength

@@ -254,8 +254,15 @@ torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
     if check_cuda(device):
+        if not device_supports_fp64 and kwargs.get("dtype", None) == torch.float64:
+            kwargs["dtype"] = torch.float32
         return self.original_Tensor_to(return_xpu(device), *args, **kwargs)
     else:
+        if not device_supports_fp64:
+            if kwargs.get("dtype", None) == torch.float64 and ((device is None and self.device.type == "xpu") or (device is not None and torch.device(device).type == "xpu")):
+                kwargs["dtype"] = torch.float32
+            elif device == torch.float64 and self.device.type == "xpu":
+                device = torch.float32
         return self.original_Tensor_to(device, *args, **kwargs)
 
 original_Tensor_cuda = torch.Tensor.cuda
@@ -379,6 +386,12 @@ def torch_cuda_device(device):
     else:
         return torch.xpu.device(device)
 
+@wraps(torch.cuda.set_device)
+def torch_cuda_set_device(device):
+    if check_cuda(device):
+        torch.xpu.set_device(return_xpu(device))
+    else:
+        torch.xpu.set_device(device)
 
 # torch.Generator has to be a class for isinstance checks
 original_torch_Generator = torch.Generator
@@ -412,6 +425,7 @@ def ipex_hijacks():
     torch.load = torch_load
     torch.cuda.synchronize = torch_cuda_synchronize
     torch.cuda.device = torch_cuda_device
+    torch.cuda.set_device = torch_cuda_set_device
 
     torch.Generator = torch_Generator
     torch._C.Generator = torch_Generator

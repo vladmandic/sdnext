@@ -66,6 +66,7 @@ dir_timestamps = {}
 dir_cache = {}
 max_workers = 8
 default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
+sdnq_quant_modes = ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"]
 
 
 class Backend(Enum):
@@ -518,14 +519,15 @@ options_templates.update(options_section(("quantization", "Quantization Settings
     "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "Transformer", "VAE", "TE", "Video", "LLM", "ControlNet"], "visible": native}),
     "sdnq_quantize_mode": OptionInfo("pre", "Quantization mode", gr.Dropdown, {"choices": ["pre", "post"], "visible": native}),
-    "sdnq_quantize_weights_mode": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": ["int8", "int6", "uint4", "float8_e4m3fn", "uint8", "uint6", "int4", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "int2", "uint2", "uint1"], "visible": native}),
+    "sdnq_quantize_weights_mode": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": sdnq_quant_modes, "visible": native}),
+    "sdnq_quantize_weights_mode_te": OptionInfo("default", "Quantization type for Text Encoders", gr.Dropdown, {"choices": ['default'] + sdnq_quant_modes, "visible": native}),
     "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1, "visible": native}),
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize the convolutional layers", gr.Checkbox, {"visible": native}),
-    "sdnq_decompress_compile": OptionInfo(devices.has_triton(), "Decompress using torch.compile", gr.Checkbox, {"visible": native}),
+    "sdnq_dequantize_compile": OptionInfo(devices.has_triton(), "Dequantize using torch.compile", gr.Checkbox, {"visible": native}),
     "sdnq_use_quantized_matmul": OptionInfo(False, "Use Quantized MatMul", gr.Checkbox, {"visible": native}),
     "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use Quantized MatMul with convolutional layers", gr.Checkbox, {"visible": native}),
     "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize with the GPU", gr.Checkbox, {"visible": native}),
-    "sdnq_decompress_fp32": OptionInfo(False, "Decompress using full precision", gr.Checkbox, {"visible": native}),
+    "sdnq_dequantize_fp32": OptionInfo(False, "Dequantize using full precision", gr.Checkbox, {"visible": native}),
     "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox, {"visible": native}),
 
     "bnb_quantization_sep": OptionInfo("<h2>BitsAndBytes</h2>", "", gr.HTML),
@@ -893,10 +895,11 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
 }))
 
 options_templates.update(options_section(('control', "Control Options"), {
-    "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),
-    "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options"),
-    "control_move_processor": OptionInfo(False, "Processor move to CPU after use"),
-    "control_unload_processor": OptionInfo(False, "Processor unload after use"),
+    "control_hires": OptionInfo(False, "Use control during hires", gr.Checkbox, {"visible": False}),
+    "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
+    "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options", gr.Textbox, {"visible": False}),
+    "control_move_processor": OptionInfo(False, "Processor move to CPU after use", gr.Checkbox, {"visible": False}),
+    "control_unload_processor": OptionInfo(False, "Processor unload after use", gr.Checkbox, {"visible": False}),
 }))
 
 options_templates.update(options_section(('interrogate', "Interrogate"), {
