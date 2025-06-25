@@ -20,6 +20,7 @@
   - Quantization with OmniGen  
   - Do not save empty `params.txt` file  
   - Override `params.txt` using `SD_PATH_PARAMS` env variable  
+  - Add `wheel` to requirements due to `pip` change  
 
 ## Update for 2025-06-16
 
