@@ -52,29 +52,17 @@ def warn_once(msg, variant=None):
 def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model # pylint: disable=global-statement
     from modules import shared
-<<<<<<< feature/chroma-support
-    cls = shared.sd_model_type
-    if cls in {'ldm', 'pixartalpha'}:
-        cls = 'sd'
-    elif cls in {'h1', 'lumina2', 'chroma'}:
-        cls = 'f1'
-    elif cls == 'pixartsigma':
-        cls = 'sdxl'
-    elif cls not in supported:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
-=======
     model_cls = shared.sd_model_type
     if model_cls is None or model_cls == 'none':
         return None
     elif model_cls in {'ldm', 'pixartalpha'}:
         model_cls = 'sd'
-    elif model_cls in {'h1', 'lumina2'}:
+    elif model_cls in {'h1', 'lumina2', 'chroma'}:
         model_cls = 'f1'
     elif model_cls in {'pixartsigma', 'omnigen'}:
         model_cls = 'sdxl'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
->>>>>>> dev
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)
