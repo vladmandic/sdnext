@@ -113,15 +113,18 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
             diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
             transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
-            if weights_dtype is None and module in {"TE", "LLM"}:
-                if shared.opts.sdnq_quantize_weights_mode_te == "none":
-                    return None
-                elif shared.opts.sdnq_quantize_weights_mode_te == "same as model" or shared.opts.sdnq_quantize_weights_mode_te == "default":
-                    weights_dtype = shared.opts.sdnq_quantize_weights_mode
-                else:
-                    weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
             if weights_dtype is None:
-                return None
+                if module in {"TE", "LLM"}:
+                    if shared.opts.sdnq_quantize_weights_mode_te == "none":
+                        return kwargs
+                    elif shared.opts.sdnq_quantize_weights_mode_te in {"same as model", "default"}:
+                        weights_dtype = shared.opts.sdnq_quantize_weights_mode
+                    else:
+                        weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+                elif shared.opts.sdnq_quantize_weights_mode == "none":
+                    return kwargs
+                else:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode
 
             if shared.opts.device_map == "gpu":
                 quantization_device = devices.device
