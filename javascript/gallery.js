@@ -131,7 +131,7 @@ class GalleryFile extends HTMLElement {
     }
     const ext = this.name.split('.').pop().toLowerCase();
     if (!['jpg', 'jpeg', 'png', 'gif', 'webp', 'jxl', 'svg', 'mp4'].includes(ext)) {
-      console.error(`gallery: type=${ext} file=${this.name} unsupported`);
+      // console.error(`gallery: type=${ext} file=${this.name} unsupported`);
       return;
     }
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define

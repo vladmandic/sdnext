@@ -26,6 +26,7 @@
   - Add `wheel` to requirements due to `pip` change  
   - Case-insensitive sampler name matching  
   - Fix delete file with gallery views  
+  - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
 
 ## Update for 2025-06-16
 
