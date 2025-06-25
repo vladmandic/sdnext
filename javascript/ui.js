@@ -60,6 +60,17 @@ function selected_gallery_index() {
   return result;
 }
 
+function selected_gallery_files() {
+  let allImages = [];
+  try {
+    let allCurrentButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
+    if (allCurrentButtons.length === 0) allCurrentButtons = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
+    allImages = Array.from(allCurrentButtons).map((v) => v.querySelector('img')?.src);
+  } catch { /**/ }
+  const selectedIndex = selected_gallery_index();
+  return [allImages, selectedIndex];
+}
+
 function extract_image_from_gallery(gallery) {
   if (gallery.length === 0) return [null];
   if (gallery.length === 1) return [gallery[0]];

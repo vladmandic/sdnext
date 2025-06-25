@@ -79,7 +79,9 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             continue
         try:
             t0 = time.time()
-            if hasattr(self, "sdnq_dequantizer"):
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                weight = self.sdnq_dequantizer_backup.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
+            elif hasattr(self, "sdnq_dequantizer"):
                 weight = self.sdnq_dequantizer.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
@@ -228,6 +230,7 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
             if hasattr(self, "sdnq_dequantizer_backup"):
                 self.sdnq_dequantizer = self.sdnq_dequantizer_backup.to(device)
+                del self.sdnq_dequantizer_backup
 
     if bias_backup is not None:
         self.bias = None

@@ -36,7 +36,7 @@ def hijack_set_module_tensor(
         # note: majority of time is spent on .to(old_value.dtype)
         if tensor_name in module._buffers: # pylint: disable=protected-access
             module._buffers[tensor_name] = value.to(device, old_value.dtype)  # pylint: disable=protected-access
-        elif value is not None or not devices.same_device(torch.device(device), module._parameters[tensor_name].device):  # pylint: disable=protected-access
+        elif value is not None or not devices.same_device(device, module._parameters[tensor_name].device):  # pylint: disable=protected-access
             param_cls = type(module._parameters[tensor_name]) # pylint: disable=protected-access
             module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device, old_value.dtype) # pylint: disable=protected-access
     t1 = time.time()
@@ -64,7 +64,7 @@ def hijack_set_module_tensor_simple(
     with devices.inference_context():
         if tensor_name in module._buffers: # pylint: disable=protected-access
             module._buffers[tensor_name] = value.to(device)  # pylint: disable=protected-access
-        elif value is not None or not devices.same_device(torch.device(device), module._parameters[tensor_name].device):  # pylint: disable=protected-access
+        elif value is not None or not devices.same_device(device, module._parameters[tensor_name].device):  # pylint: disable=protected-access
             param_cls = type(module._parameters[tensor_name]) # pylint: disable=protected-access
             module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device) # pylint: disable=protected-access
     t1 = time.time()

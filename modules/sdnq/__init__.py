@@ -21,6 +21,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         is_conv_transpose_type = False
         is_linear_type = False
         result_shape = None
+        original_shape = layer.weight.shape
         if torch_dtype is None:
             torch_dtype = devices.dtype
 
@@ -76,13 +77,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 num_of_groups = 1
             else:
                 num_of_groups = channel_size // group_size
-                while channel_size % group_size != 0: # find something divisible
+                while num_of_groups * group_size != channel_size: # find something divisible
                     num_of_groups -= 1
                     if num_of_groups <= 1:
                         group_size = channel_size
                         num_of_groups = 1
                         break
-                    group_size = channel_size / num_of_groups
+                    group_size = channel_size // num_of_groups
             group_size = int(group_size)
             num_of_groups = int(num_of_groups)
 
@@ -139,6 +140,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
+            original_shape=original_shape,
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
         )
@@ -147,15 +149,17 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
-        devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
+        #devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = []): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
     for module_param_name, module in model.named_children():
+        if module_param_name in modules_to_not_convert:
+            continue
         if hasattr(module, "weight") and module.weight is not None:
             module = sdnq_quantize_layer(
                 module,
@@ -182,6 +186,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quantization_device=quantization_device,
                 return_device=return_device,
                 param_name=module_param_name,
+                modules_to_not_convert=modules_to_not_convert,
             )
     return model
 
@@ -438,23 +443,3 @@ class SDNQConfig(QuantizationConfigMixin):
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
         if not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
-
-
-class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
-    def __init__(self, T5DenseGatedActDense, dtype):
-        super().__init__()
-        self.wi_0 = T5DenseGatedActDense.wi_0
-        self.wi_1 = T5DenseGatedActDense.wi_1
-        self.wo = T5DenseGatedActDense.wo
-        self.dropout = T5DenseGatedActDense.dropout
-        self.act = T5DenseGatedActDense.act
-        self.torch_dtype = dtype
-
-    def forward(self, hidden_states):
-        hidden_gelu = self.act(self.wi_0(hidden_states))
-        hidden_linear = self.wi_1(hidden_states)
-        hidden_states = hidden_gelu * hidden_linear
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = hidden_states.to(self.torch_dtype) # this line needs to be forced
-        hidden_states = self.wo(hidden_states)
-        return hidden_states

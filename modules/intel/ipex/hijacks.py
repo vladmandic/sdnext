@@ -259,7 +259,7 @@ def Tensor_to(self, device=None, *args, **kwargs):
         return self.original_Tensor_to(return_xpu(device), *args, **kwargs)
     else:
         if not device_supports_fp64:
-            if kwargs.get("dtype", None) == torch.float64 and torch.device(device).type == "xpu":
+            if kwargs.get("dtype", None) == torch.float64 and ((device is None and self.device.type == "xpu") or (device is not None and torch.device(device).type == "xpu")):
                 kwargs["dtype"] = torch.float32
             elif device == torch.float64 and self.device.type == "xpu":
                 device = torch.float32

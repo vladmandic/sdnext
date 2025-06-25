@@ -146,7 +146,7 @@ def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
             if unload:
                 shared.log.debug('IP adapter unload')
                 pipe.unload_ip_adapter()
-        if hasattr(pipe, 'unet'):
+        if hasattr(pipe, 'unet') and pipe.unet is not None:
             module = pipe.unet
         elif hasattr(pipe, 'transformer'):
             module = pipe.transformer

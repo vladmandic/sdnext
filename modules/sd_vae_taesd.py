@@ -36,7 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanvideo', 'mochivideo', 'pixartsigma', 'pixartalpha']
+supported = ['sd', 'sdxl', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanvideo', 'mochivideo', 'pixartsigma', 'pixartalpha', 'omnigen']
 
 
 def warn_once(msg, variant=None):
@@ -52,6 +52,7 @@ def warn_once(msg, variant=None):
 def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model # pylint: disable=global-statement
     from modules import shared
+<<<<<<< feature/chroma-support
     cls = shared.sd_model_type
     if cls in {'ldm', 'pixartalpha'}:
         cls = 'sd'
@@ -61,25 +62,38 @@ def get_model(model_type = 'decoder', variant = None):
         cls = 'sdxl'
     elif cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
+=======
+    model_cls = shared.sd_model_type
+    if model_cls is None or model_cls == 'none':
+        return None
+    elif model_cls in {'ldm', 'pixartalpha'}:
+        model_cls = 'sd'
+    elif model_cls in {'h1', 'lumina2'}:
+        model_cls = 'f1'
+    elif model_cls in {'pixartsigma', 'omnigen'}:
+        model_cls = 'sdxl'
+    elif model_cls not in supported:
+        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+>>>>>>> dev
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)
     if variant.startswith('TAE'):
         cfg = TAESD_MODELS[variant]
-        if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
+        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
-        fn = os.path.join(folder, cfg['fn'] + cls + '_' + model_type + '.pth')
+        fn = os.path.join(folder, cfg['fn'] + model_type + '_' + model_cls + '.pth')
         if not os.path.exists(fn):
             uri = cfg['uri']
             if not uri.endswith('.pth'):
-                uri += '/tae' + cls + '_' + model_type + '.pth'
+                uri += '/tae' + model_cls + '_' + model_type + '.pth'
             try:
                 shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
                 torch.hub.download_url_to_file(uri, fn)
             except Exception as e:
                 warn_once(f'download uri={uri} {e}', variant=variant)
         if os.path.exists(fn):
-            prev_cls = cls
+            prev_cls = model_cls
             prev_type = model_type
             prev_model = variant
             shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" load')
@@ -97,14 +111,14 @@ def get_model(model_type = 'decoder', variant = None):
                 TAESD_MODELS[variant]['model'] = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
             return TAESD_MODELS[variant]['model']
     elif variant.startswith('Hybrid'):
-        cfg = CQYAN_MODELS[variant].get(cls, None)
-        if (cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
+        cfg = CQYAN_MODELS[variant].get(model_cls, None)
+        if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model']
         if cfg is None:
-            warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
+            warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
             return None
         repo = cfg['repo']
-        prev_cls = cls
+        prev_cls = model_cls
         prev_type = model_type
         prev_model = variant
         shared.log.debug(f'Decode: type="taesd" variant="{variant}" id="{repo}" load')
@@ -116,10 +130,12 @@ def get_model(model_type = 'decoder', variant = None):
             from modules.taesd.hybrid_small import AutoencoderSmall
             vae = AutoencoderSmall.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype)
         vae = vae.to(devices.device, dtype=dtype)
-        CQYAN_MODELS[variant][cls]['model'] = vae
+        CQYAN_MODELS[variant][model_cls]['model'] = vae
         return vae
+    elif variant is None:
+        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} variant is none', variant=variant)
     else:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={cls} unsuppported', variant=variant)
+        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
     return None
 
 

@@ -239,7 +239,7 @@
   }, 
 
   "VectorSpaceLab OmniGen v1": {
-    "path": "Shitao/OmniGen-v1",
+    "path": "Shitao/OmniGen-v1-diffusers",
     "desc": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It is designed to be simple, flexible and easy to use.",
     "preview": "Shitao--OmniGen-v1.jpg",
     "skip": true

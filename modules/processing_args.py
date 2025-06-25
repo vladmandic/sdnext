@@ -167,7 +167,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
-            prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
+            prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
         if 'HiDreamImage' in model.__class__.__name__  and prompt_parser_diffusers.embedder is not None:
             args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')

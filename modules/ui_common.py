@@ -54,7 +54,7 @@ def infotext_to_html(text):
     return code
 
 
-def delete_files(js_data, files, _html_info, index):
+def delete_files(js_data, files, all_files, index):
     try:
         data = json.loads(js_data)
     except Exception:
@@ -63,25 +63,26 @@ def delete_files(js_data, files, _html_info, index):
     if index > -1 and shared.opts.save_selected_only and (index >= data['index_of_first_image']):
         files = [files[index]]
         start_index = index
-        filenames = []
-    filenames = []
-    fullfns = []
+    deleted = []
+    all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
     for _image_index, filedata in enumerate(files, start_index):
-        if 'name' in filedata and os.path.isfile(filedata['name']):
-            fullfn = filedata['name']
-            filenames.append(os.path.basename(fullfn))
-            try:
-                os.remove(fullfn)
-                base, _ext = os.path.splitext(fullfn)
-                desc = f'{base}.txt'
-                if os.path.exists(desc):
-                    os.remove(desc)
-                fullfns.append(fullfn)
-                shared.log.info(f"Deleting image: {fullfn}")
-            except Exception as e:
-                shared.log.error(f'Error deleting file: {fullfn} {e}')
-    files = [image for image in files if image['name'] not in fullfns]
-    return files, plaintext_to_html(f"Deleted: {filenames[0] if len(filenames) > 0 else 'none'}")
+        try:
+            fn = filedata['name']
+            if os.path.isfile(fn):
+                deleted.append(fn)
+                os.remove(fn)
+                if fn in all_files:
+                    all_files.remove(fn)
+                shared.log.info(f'Delete: image="{fn}"')
+            base, _ext = os.path.splitext(fn)
+            desc = f'{base}.txt'
+            if os.path.exists(desc):
+                os.remove(desc)
+                shared.log.info(f'Delete: text="{fn}"')
+        except Exception as e:
+            shared.log.error(f'Delete: image="{fn}" {e}')
+    deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
+    return all_files, plaintext_to_html(f"Deleted: {deleted}")
 
 
 def save_files(js_data, files, html_info, index):
@@ -296,8 +297,8 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[download_files, html_log],
                 )
-                delete.click(fn=call_queue.wrap_gradio_call(delete_files),show_progress=False,
-                    _js="(x, y, z, i) => [x, y, z, selected_gallery_index()]",
+                delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress=False,
+                    _js="(x, y, i, j) => [x, y, ...selected_gallery_files()]",
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[result_gallery, html_log],
                 )

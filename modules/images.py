@@ -19,12 +19,12 @@ from modules.video import save_video # pylint: disable=unused-import
 
 
 debug = errors.log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_save = errors.log.trace if os.environ.get('SD_SAVE_DEBUG', None) is not None else lambda *args, **kwargs: None
 try:
     from pi_heif import register_heif_opener
     register_heif_opener()
 except Exception:
     pass
-
 
 
 def sanitize_filename_part(text, replace_spaces=True):
@@ -47,8 +47,9 @@ def atomically_save_image():
     while True:
         image, filename, extension, params, exifinfo, filename_txt = save_queue.get()
         shared.state.image_history += 1
-        with open(os.path.join(paths.data_path, "params.txt"), "w", encoding="utf8") as file:
-            file.write(exifinfo)
+        if len(exifinfo) > 2:
+            with open(paths.params_path, "w", encoding="utf8") as file:
+                file.write(exifinfo)
         fn = filename + extension
         filename = filename.strip()
         if extension[0] != '.': # add dot if missing
@@ -73,6 +74,7 @@ def atomically_save_image():
             pnginfo_data = PngImagePlugin.PngInfo()
             for k, v in params.pnginfo.items():
                 pnginfo_data.add_text(k, str(v))
+            debug_save(f'Save pnginfo: {params.pnginfo.items()}')
             save_args = { 'compress_level': 6, 'pnginfo': pnginfo_data if shared.opts.image_metadata else None }
         elif image_format == 'JPEG':
             if image.mode == 'RGBA':
@@ -82,12 +84,14 @@ def atomically_save_image():
                 image = image.point(lambda p: p * 0.0038910505836576).convert("L")
             save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality }
             if shared.opts.image_metadata:
+                debug_save(f'Save exif: {exifinfo}')
                 save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
         elif image_format == 'WEBP':
             if image.mode == 'I;16':
                 image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
             save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality, 'lossless': shared.opts.webp_lossless }
             if shared.opts.image_metadata:
+                debug_save(f'Save exif: {exifinfo}')
                 save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
         elif image_format == 'JXL':
             if image.mode == 'I;16':
@@ -96,10 +100,12 @@ def atomically_save_image():
                 image = image.convert("RGBA")
             save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality, 'lossless': shared.opts.webp_lossless }
             if shared.opts.image_metadata:
+                debug_save(f'Save exif: {exifinfo}')
                 save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
         else:
             save_args = { 'quality': shared.opts.jpeg_quality }
         try:
+            debug_save(f'Save args: {save_args}')
             image.save(fn, format=image_format, **save_args)
         except Exception as e:
             shared.log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')

@@ -46,11 +46,13 @@ class AsymmetricWeightsDequantizer(torch.nn.Module):
         zero_point: torch.FloatTensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        original_shape: torch.Size,
         weights_dtype: str,
         **kwargs, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.weights_dtype = weights_dtype
+        self.original_shape = original_shape
         self.use_quantized_matmul = False
         self.result_dtype = result_dtype
         self.result_shape = result_shape
@@ -70,12 +72,14 @@ class SymmetricWeightsDequantizer(torch.nn.Module):
         scale: torch.FloatTensor,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        original_shape: torch.Size,
         weights_dtype: str,
         use_quantized_matmul: bool = False,
         **kwargs, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.weights_dtype = weights_dtype
+        self.original_shape = original_shape
         self.use_quantized_matmul = use_quantized_matmul
         self.result_dtype = result_dtype
         self.result_shape = result_shape
@@ -96,12 +100,14 @@ class PackedINTAsymmetricWeightsDequantizer(torch.nn.Module):
         quantized_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        original_shape: torch.Size,
         weights_dtype: str,
         **kwargs, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.weights_dtype = weights_dtype
         self.use_quantized_matmul = False
+        self.original_shape = original_shape
         self.quantized_weight_shape = quantized_weight_shape
         self.result_dtype = result_dtype
         self.result_shape = result_shape
@@ -122,12 +128,14 @@ class PackedINTSymmetricWeightsDequantizer(torch.nn.Module):
         quantized_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
+        original_shape: torch.Size,
         weights_dtype: str,
         use_quantized_matmul: bool = False,
         **kwargs, # pylint: disable=unused-argument
     ):
         super().__init__()
         self.weights_dtype = weights_dtype
+        self.original_shape = original_shape
         self.use_quantized_matmul = use_quantized_matmul
         self.quantized_weight_shape = quantized_weight_shape
         self.result_dtype = result_dtype
