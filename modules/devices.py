@@ -665,6 +665,6 @@ def normalize_device(dev):
 
 
 def same_device(d1, d2):
-    if d1.type != d2.type:
+    if torch.device(d1).type != torch.device(d2).type:
         return False
     return normalize_device(d1) == normalize_device(d2)

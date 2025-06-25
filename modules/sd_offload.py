@@ -171,7 +171,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return module
 
     def pre_forward(self, module, *args, **kwargs):
-        if devices.normalize_device(module.device) != devices.normalize_device(devices.device):
+        if not devices.same_device(module.device, devices.device):
             device_index = torch.device(devices.device).index
             if device_index is None:
                 device_index = 0
