@@ -21,6 +21,8 @@
   - Do not save empty `params.txt` file  
   - Override `params.txt` using `SD_PATH_PARAMS` env variable  
   - Add `wheel` to requirements due to `pip` change  
+  - Case-insensitive sampler name matching  
+  - Fix delete file with gallery views  
 
 ## Update for 2025-06-16
 
