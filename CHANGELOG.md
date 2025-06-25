@@ -6,6 +6,8 @@
   - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Use Diffusers version of *OmniGen*  
+  - Control move global settings to control elements -> control settings tab  
+  - Control add setting to run hires with or without control  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  

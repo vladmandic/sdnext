@@ -25,7 +25,7 @@ def get_sd_models():
 
 def get_controlnets(model_type: Optional[str] = None):
     from modules.control.units.controlnet import api_list_models
-    return api_list_models()
+    return api_list_models(model_type)
 
 def get_hypernetworks():
     return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]

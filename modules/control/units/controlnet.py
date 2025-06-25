@@ -152,7 +152,7 @@ def api_list_models(model_type: str = None):
         model_list += list(predefined_sd3)
     model_list += sorted(find_models())
     return model_list
-    
+
 
 def list_models(refresh=False):
     import modules.shared
