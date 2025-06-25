@@ -4,7 +4,6 @@ import torch
 import transformers
 from safetensors.torch import load_file
 from modules import shared, devices, files_cache, errors, model_quant
-from installer import install
 
 
 te_dict = {}
@@ -72,27 +71,32 @@ def load_t5(name=None, cache_dir=None):
     elif 'int8' in name.lower():
         from modules.model_quant import create_sdnq_config
         quantization_config = create_sdnq_config(kwargs=None, allow_sdnq=True, module='any', weights_dtype='int8')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'uint4' in name.lower():
         from modules.model_quant import create_sdnq_config
         quantization_config = create_sdnq_config(kwargs=None, allow_sdnq=True, module='any', weights_dtype='uint4')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'qint4' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
         quantization_config = transformers.QuantoConfig(weights='int4')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'qint8' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
         quantization_config = transformers.QuantoConfig(weights='int8')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif '/' in name:
         shared.log.debug(f'Load model: type=T5 repo={name}')
         quant_config = model_quant.create_config(module='TE')
-        t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
 
     else:
         t5 = None

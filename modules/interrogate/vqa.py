@@ -38,7 +38,8 @@ vlm_models = {
     "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
     "ToriiGate 0.4 7B": "Minthy/ToriiGate-v0.4-7B",
     "ViLT Base": "dandelin/vilt-b32-finetuned-vqa", # 0.5GB
-    "JoyCaption": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
+    "JoyCaption Alpha": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
+    "JoyCaption Beta": "fancyfeast/llama-joycaption-beta-one-hf-llava", # 17.4GB
     "JoyTag": "fancyfeast/joytag", # 0.7GB
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
@@ -583,7 +584,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
             answer = joytag.predict(image)
         elif 'joycaption' in vqa_model.lower():
             from modules.interrogate import joycaption
-            answer = joycaption.predict(question, image)
+            answer = joycaption.predict(question, image, vqa_model)
         elif 'deepseek' in vqa_model.lower():
             from modules.interrogate import deepseek
             answer = deepseek.predict(question, image, vqa_model)

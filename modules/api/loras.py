@@ -8,7 +8,6 @@ def get_lora(lora: str) -> dict:
     obj = lora_load.available_networks[lora]
     obj.info = obj.get_info()
     obj.desc = obj.get_desc()
-    print('HERE', obj)
     return obj.__dict__
 
 def get_loras():

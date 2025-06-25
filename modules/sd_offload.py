@@ -4,6 +4,7 @@ import time
 import inspect
 import torch
 import accelerate.hooks
+import accelerate.utils.modeling
 from installer import log
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
@@ -15,6 +16,16 @@ offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'c
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline']
+accelerate_dtype_byte_size = None
+
+
+def dtype_byte_size(dtype: torch.dtype):
+    try:
+        if dtype in [torch.float8_e4m3fn, torch.float8_e4m3fnuz, torch.float8_e5m2, torch.float8_e5m2fnuz]:
+            dtype = accelerate.utils.modeling.CustomDtype.FP8
+    except Exception: # catch since older torch many not have defined dtypes
+        pass
+    return accelerate_dtype_byte_size(dtype)
 
 
 def get_signature(cls):
@@ -58,6 +69,7 @@ def set_accelerate(sd_model):
 
 
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
+    global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
     if not shared.native:
         shared.log.warning('Attempting to use offload with backend=original')
@@ -67,6 +79,9 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
         return
     if not (hasattr(sd_model, "has_accelerate") and sd_model.has_accelerate):
         sd_model.has_accelerate = False
+    if accelerate_dtype_byte_size is None:
+        accelerate_dtype_byte_size = accelerate.utils.modeling.dtype_byte_size
+        accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
     if shared.opts.diffusers_offload_mode == "none":
         if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
@@ -163,14 +178,18 @@ class OffloadHook(accelerate.hooks.ModelHook):
             max_memory = { device_index: self.gpu, "cpu": self.cpu }
             device_map = getattr(module, "balanced_offload_device_map", None)
             if device_map is None or max_memory != getattr(module, "balanced_offload_max_memory", None):
+                # try:
                 device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory)
+                # except Exception as e:
+                #     shared.log.error(f'Offload: type=balanced module={module.__class__.__name__} {e}')
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if devices.backend == "directml":
                 keys = device_map.keys()
                 for v in keys:
                     if isinstance(device_map[v], int):
                         device_map[v] = f"{devices.device.type}:{device_map[v]}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
-            module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
+            if device_map is not None:
+                module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory

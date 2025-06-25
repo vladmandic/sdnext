@@ -113,11 +113,15 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
             diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
             transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
-            if weights_dtype is None:
-                if shared.opts.sdnq_quantize_weights_mode_te != "default" and module in {"TE", "LLM"}:
-                    weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
-                else:
+            if weights_dtype is None and module in {"TE", "LLM"}:
+                if shared.opts.sdnq_quantize_weights_mode_te == "none":
+                    return None
+                elif shared.opts.sdnq_quantize_weights_mode_te == "same as model" or shared.opts.sdnq_quantize_weights_mode_te == "default":
                     weights_dtype = shared.opts.sdnq_quantize_weights_mode
+                else:
+                    weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
+            if weights_dtype is None:
+                return None
 
             if shared.opts.device_map == "gpu":
                 quantization_device = devices.device
@@ -337,6 +341,11 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc=True):
     else:
         weights_dtype = shared.opts.sdnq_quantize_weights_mode
 
+    if weights_dtype is None or weights_dtype == 'none':
+        return model
+    if debug:
+        log.trace(f'Quantization: type=SDNQ op={op} cls={model.__class__} dtype={weights_dtype} mode{shared.opts.diffusers_offload_mode}')
+
     if shared.opts.diffusers_offload_mode in {"none", "model"}:
         quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
         return_device = devices.device
@@ -397,7 +406,7 @@ def sdnq_quantize_weights(sd_model):
     try:
         t0 = time.time()
         from modules import shared, devices, sd_models
-        log.info(f"Quantization: type=SDNQ dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul}  group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} modules={shared.opts.sdnq_quantize_weights}")
+        log.debug(f"Quantization: type=SDNQ modules={shared.opts.sdnq_quantize_weights} dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul}  group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
 
         sd_model = sd_models.apply_function_to_model(sd_model, sdnq_quantize_model, shared.opts.sdnq_quantize_weights, op="sdnq")

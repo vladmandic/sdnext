@@ -660,7 +660,7 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         from modules import modelstats
         modelstats.analyze()
 
-    shared.log.info(f"Load {op}: time={timer.summary()} native={get_native(sd_model)} memory={memory_stats()}")
+    shared.log.info(f"Load {op}: family={shared.sd_model_type} time={timer.dct()} native={get_native(sd_model)} memory={memory_stats()}")
 
 
 class DiffusersTaskType(Enum):
@@ -1086,7 +1086,8 @@ def clear_caches():
         lora_common.loaded_networks.clear()
         lora_common.previously_loaded_networks.clear()
         lora_load.lora_cache.clear()
-    from modules import prompt_parser_diffusers, memstats
+    from modules import prompt_parser_diffusers, memstats, sd_offload
+    sd_offload.offload_hook_instance = None
     prompt_parser_diffusers.cache.clear()
     memstats.reset_stats()
 

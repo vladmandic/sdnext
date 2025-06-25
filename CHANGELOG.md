@@ -3,14 +3,18 @@
 ## Update for 2025-06-25
 
 - **Changes**  
-  - Use Diffusers version of *OmniGen*  
+  - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
+  - Use Diffusers version of *OmniGen*  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  
   - Fix Qwen 2.5 with int8 matmul  
   - Fix Dora loading  
   - Remove per layer GC  
+  - Improve offload compatibility  
+  - Add support for XYZ grid to test quantization modes  
+    *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
 
 - **API**
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
@@ -27,6 +31,7 @@
   - Case-insensitive sampler name matching  
   - Fix delete file with gallery views  
   - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
+  - Fix TAESD model type detection  
 
 ## Update for 2025-06-16
 

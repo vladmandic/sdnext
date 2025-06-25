@@ -41,5 +41,5 @@ def apply(p, model_type):
 
 def unapply():
     pipe = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
-    if hasattr(pipe, 'unet'):
+    if hasattr(pipe, 'unet') and pipe.unet is not None:
         hidiffusion.remove_hidiffusion(pipe)
