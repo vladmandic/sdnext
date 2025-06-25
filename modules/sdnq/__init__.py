@@ -441,5 +441,8 @@ class SDNQConfig(QuantizationConfigMixin):
         accepted_weights = ["int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
         if self.weights_dtype not in accepted_weights:
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
-        if not isinstance(self.modules_to_not_convert, list):
+
+        if self.modules_to_not_convert is None:
+            self.modules_to_not_convert = []
+        elif not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
