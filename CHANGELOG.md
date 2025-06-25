@@ -1,10 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-24
+## Update for 2025-06-25
 
 - **Changes**  
-  - Use Diffusers version of OmniGen  
-  - Support Remote VAE with Omnigen, Lumina 2 and PixArt  
+  - Use Diffusers version of *OmniGen*  
+  - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  
@@ -18,6 +18,8 @@
   - LTXVideo default scheduler  
   - Balanced offload with OmniGen  
   - Quantization with OmniGen  
+  - Do not save empty `params.txt` file  
+  - Override `params.txt` using `SD_PATH_PARAMS` env variable  
 
 ## Update for 2025-06-16
 

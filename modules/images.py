@@ -26,7 +26,6 @@ except Exception:
     pass
 
 
-
 def sanitize_filename_part(text, replace_spaces=True):
     if text is None:
         return None
@@ -47,8 +46,9 @@ def atomically_save_image():
     while True:
         image, filename, extension, params, exifinfo, filename_txt = save_queue.get()
         shared.state.image_history += 1
-        with open(os.path.join(paths.data_path, "params.txt"), "w", encoding="utf8") as file:
-            file.write(exifinfo)
+        if len(exifinfo) > 2:
+            with open(paths.params_path, "w", encoding="utf8") as file:
+                file.write(exifinfo)
         fn = filename + extension
         filename = filename.strip()
         if extension[0] != '.': # add dot if missing

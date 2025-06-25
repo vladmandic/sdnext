@@ -286,7 +286,7 @@ async function gallerySearch(evt) {
 
 const findDuplicates = (arr, key) => {
   const map = new Map();
-  return arr.filter(item => {
+  return arr.filter((item) => {
     const value = item[key];
     if (map.has(value)) return true;
     map.set(value, true);
