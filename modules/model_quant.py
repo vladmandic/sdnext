@@ -125,6 +125,8 @@ def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Mo
                     return kwargs
                 else:
                     weights_dtype = shared.opts.sdnq_quantize_weights_mode
+            if weights_dtype is None or weights_dtype == 'none':
+                return kwargs
 
             if shared.opts.device_map == "gpu":
                 quantization_device = devices.device
