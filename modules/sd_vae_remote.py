@@ -12,13 +12,13 @@ hf_decode_endpoints = {
     'sd': 'https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
-    'chroma': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
     'hunyuanvideo': 'https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud',
 }
 hf_decode_endpoints['pixartalpha'] = hf_decode_endpoints['sd']
 hf_decode_endpoints['pixartsigma'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['lumina2'] = hf_decode_endpoints['f1']
 
 hf_encode_endpoints = {
