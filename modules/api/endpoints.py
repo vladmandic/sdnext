@@ -23,6 +23,10 @@ def get_sd_models():
         checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(v)})
     return checkpoints
 
+def get_controlnets(model_type: Optional[str] = None):
+    from modules.control.units.controlnet import api_list_models
+    return api_list_models()
+
 def get_hypernetworks():
     return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]
 
