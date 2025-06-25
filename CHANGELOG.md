@@ -3,7 +3,7 @@
 ## Update for 2025-06-25
 
 - **Changes**  
-  - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support  
+  - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Use Diffusers version of *OmniGen*  
 
