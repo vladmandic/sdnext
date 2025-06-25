@@ -12,11 +12,7 @@ hf_decode_endpoints = {
     'sd': 'https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
-<<<<<<< feature/chroma-support
     'chroma': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
-    'h1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
-=======
->>>>>>> dev
     'hunyuanvideo': 'https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud',
 }
 hf_decode_endpoints['pixartalpha'] = hf_decode_endpoints['sd']
@@ -91,11 +87,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-<<<<<<< feature/chroma-support
-            if (model_type in ['f1', 'h1', 'chroma']) and (width > 0) and (height > 0):
-=======
-            if model_type in {'f1', 'h1', 'lumina2'} and (width > 0) and (height > 0):
->>>>>>> dev
+            if model_type in {'f1', 'h1', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:
