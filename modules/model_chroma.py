@@ -119,7 +119,6 @@ def load_quants(kwargs, pretrained_model_name_or_path, cache_dir, allow_quant):
             if quant_args:
                 if os.path.isfile(pretrained_model_name_or_path):
                     kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-                    pass
                 else:
                     kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(pretrained_model_name_or_path, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
         if 'text_encoder' not in kwargs and model_quant.check_nunchaku('TE'):
@@ -166,19 +165,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         _transformer, _text_encoder = load_chroma_bnb(file_path, diffusers_load_config)
         if _transformer is not None:
             transformer = _transformer
-    elif 'nf4' in quant: # TODO chroma: loader for civitai nf4 models
-        from modules.model_chroma_nf4 import load_chroma_nf4
-        _transformer, _text_encoder = load_chroma_nf4(file_path, prequantized=True)
-        if _transformer is not None:
-            transformer = _transformer
     else:
-        quant_args = model_quant.create_bnb_config({})
-        if quant_args:
-            shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=bnb dtype={devices.dtype}')
-            from modules.model_chroma_nf4 import load_chroma_nf4
-            transformer, _text_encoder = load_chroma_nf4(file_path, prequantized=False)
-            if transformer is not None:
-                return transformer
         quant_args = model_quant.create_config(module='Transformer', modules_to_not_convert=["distilled_guidance_layer"])
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
@@ -188,7 +175,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=none dtype={devices.dtype}')
         # TODO chroma transformer from-single-file with quant
         # shared.log.warning('Load module: type=UNet/Transformer does not support load-time quantization')
-        transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config)
+        # transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config)
     if transformer is None:
         shared.log.error('Failed to load UNet model')
         shared.opts.sd_unet = 'Default'
@@ -263,31 +250,6 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
             if debug:
                 errors.display(e, 'Chroma VAE:')
 
-    # load quantized components if any
-    if prequantized == 'nf4':
-        try:
-            from modules.model_chroma_nf4 import load_chroma_nf4
-            _transformer, _text_encoder = load_chroma_nf4(checkpoint_info)
-            if _transformer is not None:
-                transformer = _transformer
-            if _text_encoder is not None:
-                text_encoder = _text_encoder
-        except Exception as e:
-            shared.log.error(f"Load model: type=Chroma failed to load NF4 components: {e}")
-            if debug:
-                errors.display(e, 'Chroma NF4:')
-    if prequantized == 'qint8' or prequantized == 'qint4':
-        try:
-            _transformer, _text_encoder = load_chroma_quanto(checkpoint_info)
-            if _transformer is not None:
-                transformer = _transformer
-            if _text_encoder is not None:
-                text_encoder = _text_encoder
-        except Exception as e:
-            shared.log.error(f"Load model: type=Chroma failed to load Quanto components: {e}")
-            if debug:
-                errors.display(e, 'Chroma Quanto:')
-
     # initialize pipeline with pre-loaded components
     kwargs = {}
     if transformer is not None:
@@ -299,10 +261,8 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     if vae is not None:
         kwargs['vae'] = vae
 
-    # Todo: atm only ChromaPipeline is implemented in diffusers.
-    # Need to add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available.
-    # Chroma will support inpainting *after* its training has finished:
-    # https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
+    # TODO add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
+    # TODO Chroma will support inpainting *after* its training has finished: https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
     cls = diffusers.ChromaPipeline
     shared.log.debug(f'Load model: type=Chroma cls={cls.__name__} preloaded={list(kwargs)} revision={diffusers_load_config.get("revision", None)}')
     for c in kwargs:

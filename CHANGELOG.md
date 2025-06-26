@@ -3,9 +3,14 @@
 ## Update for 2025-06-26
 
 - **Models**
-  - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*
+  - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*  
+    - new foundational model from Nvidia in two variants: small 2B and large 14B
     - available via *networks -> models -> reference*  
     - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Chroma](https://huggingface.co/lodestones/Chroma)  
+    - Chroma is a 8.9B parameter model based on *FLUX.1-schnell* and fully Apache 2.0 licensed  
+    - available via *networks -> models -> reference*  
+    - *note*: model is still in training so future updates will trigger re-download  
   - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
     - available via *caption -> vlm caption*
 

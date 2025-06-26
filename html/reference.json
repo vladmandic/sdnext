@@ -180,6 +180,14 @@
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
 
+  "lodestones Chroma": {
+    "path": "lodestones/Chroma",
+    "preview": "lodestones--Chroma.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",
     "preview": "ostris--Flex.2-preview.jpg",
