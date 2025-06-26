@@ -752,8 +752,8 @@ def install_openvino():
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
+    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.2.0'), 'openvino')
+    install(os.environ.get('NNCF_COMMAND', 'nncf==2.17.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
         os.environ.setdefault('NEOReadDebugKeys', '1')

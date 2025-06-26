@@ -236,7 +236,20 @@
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
-  }, 
+  },
+
+  "nVidia Cosmos-Predict2 T2I 2B": {
+    "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
+    "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
+    "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
+    "skip": true
+  },
+  "nVidia Cosmos-Predict2 T2I 14B": {
+    "path": "nvidia/Cosmos-Predict2-14B-Text2Image",
+    "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
+    "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
+    "skip": true
+  },
 
   "VectorSpaceLab OmniGen v1": {
     "path": "Shitao/OmniGen-v1-diffusers",

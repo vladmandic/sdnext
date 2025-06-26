@@ -2,12 +2,19 @@
 
 ## Update for 2025-06-26
 
+- **Models**
+  - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*
+    - available via *networks -> models -> reference*  
+    - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
+    - available via *caption -> vlm caption*
+
 - **Changes**  
-  - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Use Diffusers version of *OmniGen*  
   - Control move global settings to control elements -> control settings tab  
   - Control add setting to run hires with or without control  
+  - Update OpenVINO to 2025.2.0  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  

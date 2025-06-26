@@ -100,6 +100,8 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                     warn(f'Model detected as FLUX UNET model, but attempting to load a base model: {op}={f} size={size} MB')
             if 'flex.2' in f.lower():
                 guess = 'FLEX'
+            if 'cosmos-predict2' in f.lower():
+                guess = 'Cosmos'
             # guess for diffusers
             index = os.path.join(f, 'model_index.json')
             if os.path.exists(index) and os.path.isfile(index):
@@ -115,6 +117,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                     guess = 'Stable Diffusion 3'
                 if callable(pipeline) and 'Lumina2' in pipeline.__name__:
                     guess = 'Lumina 2'
+
             # switch for specific variant
             if guess == 'Stable Diffusion' and 'inpaint' in f.lower():
                 guess = 'Stable Diffusion Inpaint'
@@ -124,6 +127,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 guess = 'Stable Diffusion XL Inpaint'
             elif guess == 'Stable Diffusion XL' and 'instruct' in f.lower():
                 guess = 'Stable Diffusion XL Instruct'
+
             # get actual pipeline
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
             if debug_load is not None:
