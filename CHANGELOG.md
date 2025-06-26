@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-25
+## Update for 2025-06-26
 
 - **Changes**  
   - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
