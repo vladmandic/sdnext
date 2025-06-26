@@ -551,7 +551,8 @@ def set_latents(p):
 def apply_circular(enable: bool, model):
     if not hasattr(model, 'unet') or not hasattr(model, 'vae'):
         return
-    if getattr(model, 'texture_tiling', False) == enable:
+    current = getattr(model, 'texture_tiling', 0)
+    if isinstance(current, bool) and current == enable:
         return
     try:
         i = 0

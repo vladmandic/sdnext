@@ -40,6 +40,7 @@
   - Fix prompt parser batch size  
   - Fix process batch with batch count  
   - Fix process batch double image save  
+  - Fix unapply texture tiling  
 
 ## Update for 2025-06-16
 
