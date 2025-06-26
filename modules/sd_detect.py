@@ -94,7 +94,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
                 guess = 'HiDream'
             if 'chroma' in f.lower():
                 guess = 'Chroma'
-            if 'flux' in f.lower() or 'flex.1' in f.lower() or 'lodestones' in f.lower():
+            if 'flux' in f.lower() or 'flex.1' in f.lower():
                 guess = 'FLUX'
                 if size > 11000 and size < 16000:
                     warn(f'Model detected as FLUX UNET model, but attempting to load a base model: {op}={f} size={size} MB')

@@ -1,5 +1,5 @@
 """
-Copied from: https://github.com/huggingface/diffusers/issues/9165 
+Copied from: https://github.com/huggingface/diffusers/issues/9165
 + adjusted for Chroma by skipping distilled guidance layer
 """
 

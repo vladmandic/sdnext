@@ -115,10 +115,10 @@ def load_quants(kwargs, pretrained_model_name_or_path, cache_dir, allow_quant):
         if 'transformer' not in kwargs and model_quant.check_nunchaku('Transformer'):
             raise NotImplementedError('Nunchaku does not support Chroma Model yet. See https://github.com/mit-han-lab/nunchaku/issues/167')
         elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
-            quant_args = model_quant.create_config(allow=allow_quant, module='Transformer')
+            quant_args = model_quant.create_config(allow=allow_quant, module='Transformer', modules_to_not_convert=["distilled_guidance_layer"])
             if quant_args:
                 if os.path.isfile(pretrained_model_name_or_path):
-                    kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)                    
+                    kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
                     pass
                 else:
                     kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(pretrained_model_name_or_path, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
@@ -179,7 +179,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
             transformer, _text_encoder = load_chroma_nf4(file_path, prequantized=False)
             if transformer is not None:
                 return transformer
-        quant_args = model_quant.create_config(module='Transformer')
+        quant_args = model_quant.create_config(module='Transformer', modules_to_not_convert=["distilled_guidance_layer"])
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
             transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)
@@ -318,7 +318,7 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     allow_quant = 'gguf' not in (sd_unet.loaded_unet or '') and (prequantized is None or prequantized == 'none')
     if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
         kwargs = load_quants(kwargs, repo_id or fn, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
-    # kwargs = model_quant.create_config(kwargs, allow_quant)
+    # kwargs = model_quant.create_config(kwargs, allow_quant, modules_to_not_convert=["distilled_guidance_layer"])
     if fn.endswith('.safetensors') and os.path.isfile(fn):
         pipe = diffusers.ChromaPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
     else:
