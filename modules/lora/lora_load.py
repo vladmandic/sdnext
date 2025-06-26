@@ -150,7 +150,6 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
                 break
         if net_module is None:
             module_errors += 1
-            
             if l.debug:
                 shared.log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')
         else:
