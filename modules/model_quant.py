@@ -50,7 +50,7 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
                 bnb_4bit_quant_storage=shared.opts.bnb_quantization_storage,
                 bnb_4bit_quant_type=shared.opts.bnb_quantization_type,
                 bnb_4bit_compute_dtype=devices.dtype,
-                #modules_to_not_convert=modules_to_not_convert, # ignored by bnb
+                llm_int8_skip_modules=modules_to_not_convert,
             )
             log.debug(f'Quantization: module={module} type=bnb dtype={shared.opts.bnb_quantization_type} storage={shared.opts.bnb_quantization_storage}')
             if kwargs is None:
