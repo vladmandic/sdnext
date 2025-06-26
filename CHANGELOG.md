@@ -8,6 +8,7 @@
   - Use Diffusers version of *OmniGen*  
   - Control move global settings to control elements -> control settings tab  
   - Control add setting to run hires with or without control  
+  - Update OpenVINO to 2025.2.0  
 
 - **SDNQ Quantization**  
   - Add modules_to_not_convert support for post mode  

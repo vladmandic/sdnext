@@ -24,11 +24,13 @@ from modules import shared, devices, sd_models
 
 # importing openvino.runtime forces DeprecationWarning to "always"
 # And Intel's own libs (NNCF) imports the deprecated module
-# Reset the warnings back to ignore:
+# Don't allow openvino to override warning filters:
 try:
     import warnings
+    filterwarnings = warnings.filterwarnings
+    warnings.filterwarnings = lambda *args, **kwargs: None
     import openvino.runtime # pylint: disable=unused-import
-    warnings.filterwarnings(action="ignore", category=DeprecationWarning)
+    warnings.filterwarnings = filterwarnings
 except Exception:
     pass
 
