@@ -38,6 +38,8 @@
   - Fix LoRA loader incorrectly reporting errors  
   - Fix hypertile for img2img and inpaint operations  
   - Fix prompt parser batch size  
+  - Fix process batch with batch count  
+  - Fix process batch double image save  
 
 ## Update for 2025-06-16
 
