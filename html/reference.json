@@ -158,24 +158,10 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "Black Forest Labs FLUX.1 Dev qint8": {
-    "path": "Disty0/FLUX.1-dev-qint8",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
-  "Black Forest Labs FLUX.1 Dev qint4": {
-    "path": "Disty0/FLUX.1-dev-qint4",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
-  "Black Forest Labs FLUX.1 Dev nf4": {
-    "path": "sayakpaul/flux.1-dev-nf4",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
+  "Black Forest Labs FLUX.1 Kontext Dev": {
+    "path": "black-forest-labs/FLUX.1-Kontext-dev",
+    "preview": "black-forest-labs--FLUX.1-Kontext-dev.jpg",
+    "desc": "FLUX.1 Kontext [dev] is a 12 billion parameter rectified flow transformer capable of editing images based on text instructions.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },

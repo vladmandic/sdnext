@@ -48,17 +48,21 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-        if model.__class__.__name__ == 'FluxImg2ImgPipeline': # needs explicit width/height
+        if model.__class__.__name__ == 'FluxImg2ImgPipeline' or model.__class__.__name__ == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width = p.init_images[0].shape[-1] * 16
-                p.height = p.init_images[0].shape[-2] * 16
+                p.width, p.height = p.init_images[0].shape[-1] * 16, p.init_images[0].shape[-2] * 16
             else:
-                p.width = 8 * math.ceil(p.init_images[0].width / 8)
-                p.height = 8 * math.ceil(p.init_images[0].height / 8)
+                p.width, p.height = 8 * math.ceil(p.init_images[0].width / 8), 8 * math.ceil(p.init_images[0].height / 8)
+            if model.__class__.__name__ == 'FluxKontextPipeline':
+                aspect_ratio = p.width / p.height
+                vae_scale_factor = 16
+                max_area = max(p.width, p.height)**2
+                p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
+                p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
+                task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
         if model.__class__.__name__ == 'OmniGenPipeline':
-            p.width = 16 * math.ceil(p.init_images[0].width / 16)
-            p.height = 16 * math.ceil(p.init_images[0].height / 16)
+            p.width, p.height = 16 * math.ceil(p.init_images[0].width / 16), 16 * math.ceil(p.init_images[0].height / 16)
             task_args = {
                 'width': p.width,
                 'height': p.height,

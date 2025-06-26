@@ -466,9 +466,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
         cls = shared.sd_model.__class__.__name__
         if cls in sd_models.i2i_pipes:
             steps = p.steps
-        elif 'Flex' in cls:
-            steps = p.steps
-        elif 'HiDreamImageEditingPipeline' in cls:
+        elif 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
             steps = p.steps
         elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)

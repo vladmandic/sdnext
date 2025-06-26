@@ -317,6 +317,13 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         cls = diffusers.FluxControlPipeline
     elif 'Depth' in repo_id:
         cls = diffusers.FluxControlPipeline
+    elif 'Kontext' in repo_id:
+        cls = diffusers.FluxKontextPipeline
+        from diffusers import pipelines
+        pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+        pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+        pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+
     else:
         cls = diffusers.FluxPipeline
     shared.log.debug(f'Load model: type=FLUX cls={cls.__name__} preloaded={list(kwargs)} revision={diffusers_load_config.get("revision", None)}')
