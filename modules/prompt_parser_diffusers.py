@@ -54,7 +54,8 @@ class PromptEmbedder:
         self.negative_prompts = negative_prompts
         self.batchsize = len(self.prompts)
         self.attention = last_attention
-        self.allsame = self.compare_prompts()  # collapses batched prompts to single prompt if possible
+        self.allsame = False # dont collapse prompts
+        # self.allsame = self.compare_prompts()  # collapses batched prompts to single prompt if possible
         self.steps = steps
         self.clip_skip = clip_skip
         # All embeds are nested lists, outer list batch length, inner schedule length
@@ -86,7 +87,7 @@ class PromptEmbedder:
         self.checkcache(p)
         debug(f"Prompt encode: time={(time.time() - t0):.3f}")
 
-    def checkcache(self, p):
+    def checkcache(self, p) -> bool:
         if shared.opts.sd_textencoder_cache_size == 0:
             return False
         if self.scheduled_prompt:
@@ -203,17 +204,17 @@ class PromptEmbedder:
                 negative_prompt_attention_mask
             ) = get_weighted_text_embeddings(pipe, positive_prompt, negative_prompt, self.clip_skip)
         if prompt_embed is not None:
-            self.prompt_embeds[batchidx].append(prompt_embed)
+            self.prompt_embeds[batchidx] = [prompt_embed]
         if negative_embed is not None:
-            self.negative_prompt_embeds[batchidx].append(negative_embed)
+            self.negative_prompt_embeds[batchidx] = [negative_embed]
         if positive_pooled is not None:
-            self.positive_pooleds[batchidx].append(positive_pooled)
+            self.positive_pooleds[batchidx] = [positive_pooled]
         if negative_pooled is not None:
-            self.negative_pooleds[batchidx].append(negative_pooled)
+            self.negative_pooleds[batchidx] = [negative_pooled]
         if prompt_attention_mask is not None:
-            self.prompt_attention_masks[batchidx].append(prompt_attention_mask)
+            self.prompt_attention_masks[batchidx] = [prompt_attention_mask]
         if negative_prompt_attention_mask is not None:
-            self.negative_prompt_attention_masks[batchidx].append(negative_prompt_attention_mask)
+            self.negative_prompt_attention_masks[batchidx] = [negative_prompt_attention_mask]
         if debug_enabled:
             get_tokens(pipe, 'positive', positive_prompt)
             get_tokens(pipe, 'negative', negative_prompt)

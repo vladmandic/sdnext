@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-25
+## Update for 2025-06-26
 
 - **Changes**  
   - Add [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
@@ -36,6 +36,11 @@
   - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
   - Fix TAESD model type detection  
   - Fix LoRA loader incorrectly reporting errors  
+  - Fix hypertile for img2img and inpaint operations  
+  - Fix prompt parser batch size  
+  - Fix process batch with batch count  
+  - Fix process batch double image save  
+  - Fix unapply texture tiling  
 
 ## Update for 2025-06-16
 

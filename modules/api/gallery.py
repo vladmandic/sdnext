@@ -6,7 +6,7 @@ from typing import List, Union
 from urllib.parse import quote, unquote
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from starlette.websockets import WebSocket, WebSocketState, WebSocketDisconnect
+from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
 from modules import shared, images, files_cache
@@ -196,6 +196,6 @@ def register_api(app: FastAPI): # register api
             await manager.send(ws, '#END#')
             t1 = time.time()
             shared.log.debug(f'Gallery: type=ws folder="{folder}" files={numFiles} time={t1-t0:.3f}')
-        except WebSocketDisconnect:
-            debug('Browser WS unexpected disconnect')
+        except Exception as e:
+            debug(f'Browser WS error: {e}')
         manager.disconnect(ws)

@@ -430,7 +430,6 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
 
 def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op='model'):
     sd_model = None
-    diffusers_load_config["local_files_only"] = diffusers_version < 28 # must be true for old diffusers, otherwise false but we override config for sd15/sdxl
     diffusers_load_config["extract_ema"] = shared.opts.diffusers_extract_ema
     if pipeline is None:
         shared.log.error(f'Load {op}: pipeline={shared.opts.diffusers_pipeline} not initialized')
