@@ -18,12 +18,14 @@ hf_decode_endpoints['pixartalpha'] = hf_decode_endpoints['sd']
 hf_decode_endpoints['pixartsigma'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['lumina2'] = hf_decode_endpoints['f1']
 
 hf_encode_endpoints = {
     'sd': 'https://qc6479g0aac6qwy9.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://xjqqhmyn62rog84g.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://ptccx55jz97f9zgo.us-east-1.aws.endpoints.huggingface.cloud',
+    'chroma': 'https://ptccx55jz97f9zgo.us-east-1.aws.endpoints.huggingface.cloud',
 }
 hf_encode_endpoints['pixartalpha'] = hf_encode_endpoints['sd']
 hf_encode_endpoints['pixartsigma'] = hf_encode_endpoints['sdxl']
@@ -59,7 +61,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
         params = {}
         try:
             latent = latent_copy[i]
-            if model_type != 'f1':
+            if model_type not in ['f1', 'chroma']:
                 latent = latent.unsqueeze(0)
             params = {
                 "input_tensor_type": "binary",
@@ -85,7 +87,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-            if model_type in {'f1', 'h1', 'lumina2'} and (width > 0) and (height > 0):
+            if model_type in {'f1', 'h1', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:

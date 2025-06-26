@@ -57,7 +57,7 @@ def get_model(model_type = 'decoder', variant = None):
         return None
     elif model_cls in {'ldm', 'pixartalpha'}:
         model_cls = 'sd'
-    elif model_cls in {'h1', 'lumina2'}:
+    elif model_cls in {'h1', 'lumina2', 'chroma'}:
         model_cls = 'f1'
     elif model_cls in {'pixartsigma', 'omnigen'}:
         model_cls = 'sdxl'
