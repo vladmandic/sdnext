@@ -298,6 +298,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
             args['height'] = p.height
+    if 'Cosmos2TextToImagePipeline':
+        kwargs['output_type'] = 'np' # cosmos uses wan-vae which is weird
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1

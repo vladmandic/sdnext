@@ -35,9 +35,13 @@ warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
 try:
+    import torch._logging # pylint: disable=ungrouped-imports
+    torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
     torch._logging.set_logs(all=logging.ERROR, bytecode=False, aot_graphs=False, aot_joint_graph=False, ddp_graphs=False, graph=False, graph_code=False, graph_breaks=False, graph_sizes=False, guards=False, recompiles=False, recompiles_verbose=False, trace_source=False, trace_call=False, trace_bytecode=False, output_code=False, kernel_code=False, schedule=False, perf_hints=False, post_grad_graphs=False, onnx_diagnostics=False, fusion=False, overlap=False, export=None, modules=None, cudagraphs=False, sym_node=False, compiled_autograd_verbose=False) # pylint: disable=protected-access
-except Exception:
-    pass
+    torch._dynamo.config.verbose = False # pylint: disable=protected-access
+    torch._dynamo.config.suppress_errors = True # pylint: disable=protected-access
+except Exception as e:
+    errors.log.warning(f'Torch logging: {e}')
 if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__long_version__ = torch.__version__
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)

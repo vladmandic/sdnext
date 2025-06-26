@@ -130,7 +130,7 @@ def full_vae_decode(latents, model):
     # normalize latents
     latents_mean = model.vae.config.get("latents_mean", None)
     latents_std = model.vae.config.get("latents_std", None)
-    scaling_factor = model.vae.config.get("scaling_factor", None)
+    scaling_factor = model.vae.config.get("scaling_factor", 1.0)
     shift_factor = model.vae.config.get("shift_factor", None)
     if latents_mean and latents_std:
         latents_mean = (torch.tensor(latents_mean).view(1, -1, 1, 1).to(latents.device, latents.dtype))
