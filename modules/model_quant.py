@@ -63,7 +63,7 @@ def create_bnb_config(kwargs = None, allow_bnb: bool = True, module: str = 'Mode
 
 def create_ao_config(kwargs = None, allow_ao: bool = True, module: str = 'Model', modules_to_not_convert: list = []):
     from modules import shared
-    if len(shared.opts.torchao_quantization) > 0 and (shared.opts.torchao_quantization_mode == 'pre') and allow_ao:
+    if len(shared.opts.torchao_quantization) > 0 and (shared.opts.torchao_quantization_mode in {'pre', 'auto'}) and allow_ao:
         if 'Model' in shared.opts.torchao_quantization or (module is not None and module in shared.opts.torchao_quantization) or module == 'any':
             torchao = load_torchao()
             if torchao is None:
@@ -106,7 +106,7 @@ def create_quanto_config(kwargs = None, allow_quanto: bool = True, module: str =
 
 def create_sdnq_config(kwargs = None, allow_sdnq: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = []):
     from modules import devices, shared
-    if len(shared.opts.sdnq_quantize_weights) > 0 and (shared.opts.sdnq_quantize_mode == 'pre') and allow_sdnq:
+    if len(shared.opts.sdnq_quantize_weights) > 0 and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and allow_sdnq:
         if 'Model' in shared.opts.sdnq_quantize_weights or (module is not None and module in shared.opts.sdnq_quantize_weights) or module == 'any':
             from modules.sdnq import SDNQQuantizer, SDNQConfig
             diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
@@ -588,13 +588,13 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
     return config, quant_args
 
 
-def do_post_load_quant(sd_model):
+def do_post_load_quant(sd_model, allow=True):
     from modules import shared
-    if shared.opts.sdnq_quantize_weights and shared.opts.sdnq_quantize_mode == 'post':
+    if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
         sd_model = sdnq_quantize_weights(sd_model)
     if shared.opts.optimum_quanto_weights:
         sd_model = optimum_quanto_weights(sd_model)
-    if shared.opts.torchao_quantization and shared.opts.torchao_quantization_mode == 'post':
+    if shared.opts.torchao_quantization and (shared.opts.torchao_quantization_mode == 'post' or (allow and shared.opts.torchao_quantization_mode == 'auto')):
         sd_model = torchao_quantization(sd_model)
     if shared.opts.layerwise_quantization:
         apply_layerwise(sd_model)
