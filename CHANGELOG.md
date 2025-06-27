@@ -34,16 +34,17 @@
   - Control move global settings to control elements -> control settings tab  
   - Control add setting to run hires with or without control  
   - Update OpenVINO to 2025.2.0  
+  - Simplified and unified quantization enabled for options  
 - **SDNQ Quantization**  
+  - Add `auto` quantization mode  
   - Add `modules_to_not_convert` support for post mode  
+  - Improve offload compatibility  
   - Fix Qwen 2.5 with int8 matmul  
   - Fix Dora loading  
   - Remove per layer GC  
-  - Improve offload compatibility  
   - Add support for XYZ grid to test quantization modes  
     *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
     *note*: you can also enable 'add time info' to compare performance of different quantization modes  
-  - Add `auto` quantization mode  
 - **API**
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
   - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
