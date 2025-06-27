@@ -68,6 +68,7 @@
   - Fix process batch double image save  
   - Fix unapply texture tiling  
   - Suppress torch empty logging  
+  - Improve TAESD live preview downscale handling  
 
 ## Update for 2025-06-16
 
