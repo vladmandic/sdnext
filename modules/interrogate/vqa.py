@@ -429,7 +429,7 @@ def moondream(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.AutoModelForCausalLM.from_pretrained(
             repo,
-            revision="2024-08-26",
+            revision="2025-06-21",
             trust_remote_code=True,
             cache_dir=shared.opts.hfcache_dir
         )
@@ -442,7 +442,17 @@ def moondream(question: str, image: Image.Image, repo: str = None):
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
     encoded = model.encode_image(image)
     with devices.inference_context():
-        response = model.answer_question(encoded, question, processor)
+        if question == 'CAPTION':
+            response = model.caption(image, length="short")['caption']
+        elif question == 'DETAILED CAPTION':
+            response = model.caption(image, length="normal")['caption']
+        elif question == 'MORE DETAILED CAPTION':
+            response = model.caption(image, length="long")['caption']
+        else:
+            response = model.answer_question(encoded, question, processor)['answer']
+        # model.detect(image, "face")
+        # model.point(image, "person")
+        # model.detect_gaze(image)
     return response
 
 

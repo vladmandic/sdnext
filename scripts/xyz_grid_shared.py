@@ -149,13 +149,15 @@ def confirm_samplers(p, xs):
 
 def apply_sdnq_quant(p, x, xs):
     shared.opts.sdnq_quantize_weights_mode = x
-    sd_models.unload_model_weights(op='model') # reload will happen on-demand
+    sd_models.unload_model_weights(op='model')
+    sd_models.reload_model_weights()
     shared.log.debug(f'XYZ grid apply sdnq quant: mode="{x}"')
 
 
 def apply_sdnq_quant_te(p, x, xs):
     shared.opts.sdnq_quantize_weights_mode_te = x
-    sd_models.unload_model_weights(op='model') # reload will happen on-demand
+    sd_models.unload_model_weights(op='model')
+    sd_models.reload_model_weights()
     shared.log.debug(f'XYZ grid apply sdnq quant te: mode="{x}"')
 
 

@@ -27,7 +27,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Models
 
-- [Moondream vlm](https://github.com/vikhyat/moondream)
 - [AniSora t2v](https://github.com/bilibili/Index-anisora)  
 - [Ming t2i](https://github.com/inclusionAI/Ming)
 - [Magi t2v](https://github.com/SandAI-org/MAGI-1)  

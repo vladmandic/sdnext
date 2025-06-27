@@ -19,8 +19,9 @@
     - available via *networks -> models -> reference*  
     - *note*: model is still in training so future updates will trigger re-download  
   - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
-    - available via *caption -> vlm caption*
-
+    - available via *caption -> vlm caption*  
+  - [MoonDream 2](https://huggingface.co/vikhyatk/moondream2) support (updated)  
+    - available via *caption -> vlm caption*  
 - **Changes**  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Add `--trace` command line param that enables trace logging  
@@ -28,20 +29,17 @@
   - Control move global settings to control elements -> control settings tab  
   - Control add setting to run hires with or without control  
   - Update OpenVINO to 2025.2.0  
-
 - **SDNQ Quantization**  
-  - Add modules_to_not_convert support for post mode  
+  - Add `modules_to_not_convert` support for post mode  
   - Fix Qwen 2.5 with int8 matmul  
   - Fix Dora loading  
   - Remove per layer GC  
   - Improve offload compatibility  
   - Add support for XYZ grid to test quantization modes  
     *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
-
 - **API**
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
   - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
-
 - **Fixes**  
   - IPEX with DPM2++ FlowMatch samplers  
   - Invalid attention processor with ControlNet  

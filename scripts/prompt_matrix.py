@@ -21,7 +21,7 @@ def draw_xy_grid(xs, ys, x_label, y_label, cell):
         for ix, x in enumerate(xs):
             state.job = f"{ix + iy * len(xs) + 1} out of {len(xs) * len(ys)}"
 
-            processed = cell(x, y)
+            processed, t = cell(x, y)
             if first_processed is None:
                 first_processed = processed
 

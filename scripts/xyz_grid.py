@@ -1,6 +1,7 @@
 # xyz grid that shows as selectable script
 import os
 import csv
+import time
 import random
 from collections import namedtuple
 from copy import copy
@@ -303,7 +304,7 @@ class Script(scripts.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
-                return processing.Processed(p, [], p.seed, "")
+                return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
             pc.override_settings_restore_afterwards = False
@@ -311,6 +312,8 @@ class Script(scripts.Script):
             x_opt.apply(pc, x, xs)
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
+
+            t0 = time.time()
             try:
                 processed = processing.process_images(pc)
             except Exception as e:
@@ -341,7 +344,8 @@ class Script(scripts.Script):
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 grid_text = f'{len(zs)}x{len(xs)}x{len(ys)}' if len(zs) > 0 else f'{len(xs)}x{len(ys)}'
                 grid_infotext[0] = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=grid_text)
-            return processed
+            t1 = time.time()
+            return processed, t1-t0
 
         with SharedSettingsStackHelper():
             processed = draw_xyz_grid(
