@@ -24,22 +24,28 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Pydantic changes](https://github.com/Cschlaefli/automatic)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
+- [S3Diff diffusion upscaler](https://github.com/ArcticHare105/S3Diff)
+- [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)
 
 ### Models
 
-- [AniSora t2v](https://github.com/bilibili/Index-anisora)  
-- [Ming t2i](https://github.com/inclusionAI/Ming)
-- [Magi t2v](https://github.com/SandAI-org/MAGI-1)  
-- [SEVA t2v](https://github.com/huggingface/diffusers/pull/11440)  
-- [WanAI-2.1 VACE t2v](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)  
-- [Bagel t2i](https://github.com/bytedance-seed/bagel)
-- [OmniGen2 t2i](https://huggingface.co/OmniGen2/OmniGen2)
+#### Ready
+- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
+- [LTXVideo-0.9.7](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file#diffusers-integration)(https://github.com/huggingface/diffusers/pull/11516)  
+- [Cosmos-Predict2](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)
+#### Pending
+- [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)
+- [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
+- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
+#### External:Unified
+- [Bagel](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)(https://github.com/bytedance-seed/bagel)
+- [OmniGen2](https://huggingface.co/OmniGen2/OmniGen2)
+- [Ming](https://github.com/inclusionAI/Ming)
+#### External:Image2Image
 - [Step1X i2i](https://github.com/stepfun-ai/Step1X-Edit)
-- [LTXVideo t2v](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file#diffusers-integration)
-- [LTXVideo t2v](https://github.com/huggingface/diffusers/pull/11516)  
-- [SkyReels-v2 t2v](https://github.com/SkyworkAI/SkyReels-V2)
-- [SkyReels-v2 t2v](https://github.com/huggingface/diffusers/pull/11518)  
-- [Cosmos2 i2v](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)
+- [SD3 UltraEdit i2i](https://github.com/HaozheZhao/UltraEdit)
+#### External:Video
+- [AniSora t2v](https://github.com/bilibili/Index-anisora)  
 - [WAN2GP t2v](https://github.com/deepbeepmeep/Wan2GP)
 - [SelfForcing t2v](https://github.com/guandeh17/Self-Forcing)
 - [DiffusionForcing t2v](https://github.com/kwsong0113/diffusion-forcing-transformer)

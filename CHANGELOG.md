@@ -19,9 +19,14 @@
     - available via *networks -> models -> reference*  
     - *note*: model is still in training so future updates will trigger re-download  
   - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
+    - new version of highly popular captioning model  
     - available via *caption -> vlm caption*  
   - [MoonDream 2](https://huggingface.co/vikhyatk/moondream2) support (updated)  
+    - really good 2B captioning model that can work on different levels of detail  
     - available via *caption -> vlm caption*  
+  - [UltraSharp v2](https://huggingface.co/Kim2091/UltraSharpV2) support  
+    - one of the best upscalers (traditional, non-diffusion) available today!  
+    - available via *process -> upscale -> chainner*  
 - **Changes**  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Add `--trace` command line param that enables trace logging  
