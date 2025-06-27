@@ -8,10 +8,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Features
 
-- Model receipe: load/save
 - Python 3.13 improved support
-- Control: API enhance scripts compatibility  
 - Video: API support  
+- LoRA: add OMI support for SD35/FLUX.1
 
 ### Enhancements
 
@@ -50,11 +49,11 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [SelfForcing t2v](https://github.com/guandeh17/Self-Forcing)
 - [DiffusionForcing t2v](https://github.com/kwsong0113/diffusion-forcing-transformer)
 - [LanDiff t2v](https://github.com/landiff/landiff)
-- [HunyuanCustom t2v](https://github.com/Tencent-Hunyuan/HunyuanCustom)
+- [HunyuanCustom x2v](https://github.com/Tencent-Hunyuan/HunyuanCustom)
 - [WAN-CausVid t2v](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
 - [WAN-StepDistill t2v](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-StepDistill-CfgDistill)
 - [WAN-CausVid-Plus t2v](https://github.com/goatWu/CausVid-Plus/)  
-- [HunyuanAvatar t2v](https://huggingface.co/tencent/HunyuanVideo-Avatar)
+- [HunyuanAvatar i2v](https://huggingface.co/tencent/HunyuanVideo-Avatar)
 
 ## Code TODO
 
@@ -70,10 +69,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
-- lora: support pre-quantized flux
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - model loader: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
+- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
 - nunchaku: batch support
 - nunchaku: cache-dir for transformer and t5 loader
 - processing: remove duplicate mask params
