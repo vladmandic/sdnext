@@ -37,6 +37,7 @@
   - Improve offload compatibility  
   - Add support for XYZ grid to test quantization modes  
     *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
+    *note*: you can also enable 'add time info' to compare performance of different quantization modes  
 - **API**
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
   - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
