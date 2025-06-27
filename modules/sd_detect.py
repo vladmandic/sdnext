@@ -70,7 +70,7 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             if 'lumina-next' in f.lower():
                 guess = 'Lumina-Next'
             if 'lumina-image-2' in f.lower():
-                guess = 'Lumina2'
+                guess = 'Lumina 2'
             if 'kolors' in f.lower():
                 guess = 'Kolors'
             if 'auraflow' in f.lower():

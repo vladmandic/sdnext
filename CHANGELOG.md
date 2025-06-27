@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-26
+## Update for 2025-06-27
 
 - **Models**
   - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
