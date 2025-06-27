@@ -303,21 +303,29 @@ class ControlNet():
                     return
                 if self.dtype is not None:
                     self.model.to(self.dtype)
-                if "ControlNet" in opts.sdnq_quantize_weights:
+                if "Control" in opts.sdnq_quantize_weights:
                     try:
                         log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
                         from modules.model_quant import sdnq_quantize_model
                         self.model = sdnq_quantize_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model SDNQ Compression failed: id="{model_id}" {e}')
-                elif "ControlNet" in opts.optimum_quanto_weights:
+                elif "Control" in opts.optimum_quanto_weights:
                     try:
                         log.debug(f'Control {what} model Optimum Quanto: id="{model_id}"')
-                        model_quant.load_quanto('Load model: type=ControlNet')
+                        model_quant.load_quanto('Load model: type=Control')
                         from modules.model_quant import optimum_quanto_model
                         self.model = optimum_quanto_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model Optimum Quanto: id="{model_id}" {e}')
+                elif "Control" in opts.torchao_quantization:
+                    try:
+                        log.debug(f'Control {what} model Torch AO: id="{model_id}"')
+                        model_quant.load_torchao('Load model: type=Control')
+                        from modules.model_quant import torchao_quantization
+                        self.model = torchao_quantization(self.model)
+                    except Exception as e:
+                        log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
                     self.model.to(self.device)
                 t1 = time.time()

@@ -15,7 +15,7 @@ def load_pixart(checkpoint_info, diffusers_load_config={}):
     if not file_exists(repo_id_pipe, "model_index.json"):
         repo_id_pipe = "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS"
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     transformer = diffusers.PixArtTransformer2DModel.from_pretrained(
         repo_id,
         subfolder='transformer',

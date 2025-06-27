@@ -6,7 +6,7 @@ from modules import shared, devices, sd_models, model_quant, modelloader, sd_hij
 
 
 def load_transformer(repo_id, diffusers_load_config={}):
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
     fn = None
 
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
@@ -49,7 +49,7 @@ def load_text_encoder(repo_id, diffusers_load_config={}):
     if shared.opts.diffusers_offload_mode != 'none' and text_encoder is not None:
         sd_models.move_model(text_encoder, devices.cpu)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
 

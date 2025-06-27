@@ -57,7 +57,7 @@ def load_overrides(kwargs, cache_dir):
 
 
 def load_quants(kwargs, repo_id, cache_dir):
-    quant_args = model_quant.create_config(module='Transformer')
+    quant_args = model_quant.create_config(module='Model')
     if quant_args and 'quantization_config' in quant_args:
         kwargs['transformer'] = diffusers.SD3Transformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
     quant_args = model_quant.create_config(module='TE')

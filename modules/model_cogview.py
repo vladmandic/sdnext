@@ -7,7 +7,7 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
     modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=CogView3 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     transformer = diffusers.CogView3PlusTransformer2DModel.from_pretrained(
         repo_id,
@@ -44,7 +44,7 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info.name)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=CogView4 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     transformer = diffusers.CogView4Transformer2DModel.from_pretrained(
         repo_id,

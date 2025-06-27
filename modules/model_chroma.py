@@ -112,10 +112,10 @@ def load_chroma_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=u
 
 def load_quants(kwargs, pretrained_model_name_or_path, cache_dir, allow_quant):
     try:
-        if 'transformer' not in kwargs and model_quant.check_nunchaku('Transformer'):
+        if 'transformer' not in kwargs and model_quant.check_nunchaku('Model'):
             raise NotImplementedError('Nunchaku does not support Chroma Model yet. See https://github.com/mit-han-lab/nunchaku/issues/167')
-        elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
-            quant_args = model_quant.create_config(allow=allow_quant, module='Transformer', modules_to_not_convert=["distilled_guidance_layer"])
+        elif 'transformer' not in kwargs and model_quant.check_quant('Model'):
+            quant_args = model_quant.create_config(allow=allow_quant, module='Model', modules_to_not_convert=["distilled_guidance_layer"])
             if quant_args:
                 if os.path.isfile(pretrained_model_name_or_path):
                     kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
@@ -166,7 +166,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         if _transformer is not None:
             transformer = _transformer
     else:
-        quant_args = model_quant.create_config(module='Transformer', modules_to_not_convert=["distilled_guidance_layer"])
+        quant_args = model_quant.create_config(module='Model', modules_to_not_convert=["distilled_guidance_layer"])
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
             transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)
@@ -284,7 +284,7 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     else:
         pipe = cls.from_pretrained(repo_id or fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
 
-    if shared.opts.teacache_enabled and model_quant.check_nunchaku('Transformer'):
+    if shared.opts.teacache_enabled and model_quant.check_nunchaku('Model'):
         from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
         apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
 

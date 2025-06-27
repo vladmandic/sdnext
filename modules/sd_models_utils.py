@@ -151,14 +151,13 @@ def patch_diffuser_config(sd_model, model_file):
 
 
 def apply_function_to_model(sd_model, function, options, op=None):
-    if "Model" in options or "Transformer" in options:
-        if hasattr(sd_model, 'transformer') and hasattr(sd_model.transformer, 'config'):
-            sd_model.transformer = function(sd_model.transformer, op="transformer", sd_model=sd_model)
     if "Model" in options:
         if hasattr(sd_model, 'model') and (hasattr(sd_model.model, 'config') or isinstance(sd_model.model, torch.nn.Module)):
             sd_model.model = function(sd_model.model, op="model", sd_model=sd_model)
         if hasattr(sd_model, 'unet') and hasattr(sd_model.unet, 'config'):
             sd_model.unet = function(sd_model.unet, op="unet", sd_model=sd_model)
+        if hasattr(sd_model, 'transformer') and hasattr(sd_model.transformer, 'config'):
+            sd_model.transformer = function(sd_model.transformer, op="transformer", sd_model=sd_model)
         if hasattr(sd_model, 'decoder_pipe') and hasattr(sd_model, 'decoder'):
             sd_model.decoder = None
             sd_model.decoder = sd_model.decoder_pipe.decoder = function(sd_model.decoder_pipe.decoder, op="decoder_pipe.decoder", sd_model=sd_model)

@@ -30,7 +30,7 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.Lumina2Transformer2DModel.__name__}')
         diffusers.Lumina2Transformer2DModel.forward = teacache.teacache_lumina2_forward # patch must be done before transformer is loaded
 
-    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
     if shared.opts.sd_unet != 'Default':
         try:
             debug(f'Load model: type=Lumina2 unet="{shared.opts.sd_unet}"')

@@ -24,7 +24,7 @@ def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=u
             if debug:
                 errors.display(e, 'OmniGen VAE:')
 
-    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Transformer')
+    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
     transformer = diffusers.OmniGenTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",

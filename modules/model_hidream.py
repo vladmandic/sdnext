@@ -6,7 +6,7 @@ from modules import shared, devices, sd_models, model_quant, modelloader, sd_hij
 
 
 def load_transformer(repo_id, diffusers_load_config={}):
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Transformer', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
     fn = None
 
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
@@ -24,7 +24,7 @@ def load_transformer(repo_id, diffusers_load_config={}):
     elif fn is not None and 'safetensors' in fn.lower():
         shared.log.debug(f'Load model: type=HiDream transformer="{repo_id}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
         transformer = diffusers.HiDreamImageTransformer2DModel.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, **load_args)
-    # elif model_quant.check_nunchaku('Transformer'):
+    # elif model_quant.check_nunchaku('Model'):
     #     shared.log.error(f'Load model: type=HiDream transformer="{repo_id}" quant="Nunchaku" unsupported')
     #     transformer = None
     else:
@@ -56,7 +56,7 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
     if shared.opts.diffusers_offload_mode != 'none' and text_encoder_3 is not None:
         sd_models.move_model(text_encoder_3, devices.cpu)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='LLM', device_map=True)
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
 
