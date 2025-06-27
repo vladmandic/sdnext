@@ -367,6 +367,7 @@ class Script(scripts.Script):
                 clean_up_tokenization_spaces=True,
             )
         except Exception as e:
+            outputs = None
             shared.log.error(f'Prompt enhance generate: {e}')
             errors.display(e, 'Prompt enhance')
             self.busy = False
