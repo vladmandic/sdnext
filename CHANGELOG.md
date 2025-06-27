@@ -18,6 +18,7 @@
     - Chroma is a 8.9B parameter model based on *FLUX.1-schnell* and fully Apache 2.0 licensed  
     - available via *networks -> models -> reference*  
     - *note*: model is still in training so future updates will trigger re-download  
+    - large credits to @Trojaner for work on bringing Chroma support to SD.Next and all the optimizations around it!  
   - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
     - new version of highly popular captioning model  
     - available via *caption -> vlm caption*  

@@ -6,6 +6,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- Refactor: Move `model_*` stuff into subfolder  
+- Refactor: sampler options  
+- Fix LoRA unload for HiRes  
+- Simplify Control tab  
+- Common repo for T5 and CLiP  
+- Upgrade: unblock `numpy`: see `gradio`
+- Upgrade: unblock `pydantic`: see <https://github.com/Cschlaefli/automatic>
+
 ### Complete Features
 
 - Python==3.13 improved support  
@@ -23,7 +31,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [HiDream GGUF](https://github.com/huggingface/diffusers/pull/11550)  
 - [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)  
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
-- [Pydantic changes](https://github.com/Cschlaefli/automatic)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [S3Diff diffusion upscaler](https://github.com/ArcticHare105/S3Diff)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
