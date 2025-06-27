@@ -23,6 +23,7 @@
 
 - **Changes**  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
+  - Add `--trace` command line param that enables trace logging  
   - Use Diffusers version of *OmniGen*  
   - Control move global settings to control elements -> control settings tab  
   - Control add setting to run hires with or without control  
@@ -60,6 +61,7 @@
   - Fix process batch with batch count  
   - Fix process batch double image save  
   - Fix unapply texture tiling  
+  - Suppress torch empty logging  
 
 ## Update for 2025-06-16
 
