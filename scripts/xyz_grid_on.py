@@ -332,7 +332,6 @@ class Script(scripts.Script):
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
 
-            print('HERE')
             t0 = time.time()
             try:
                 processed = processing.process_images(pc)

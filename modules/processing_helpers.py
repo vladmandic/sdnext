@@ -549,7 +549,7 @@ def set_latents(p):
 def apply_circular(enable: bool, model):
     if not hasattr(model, 'unet') or not hasattr(model, 'vae'):
         return
-    current = getattr(model, 'texture_tiling', 0)
+    current = getattr(model, 'texture_tiling', None)
     if isinstance(current, bool) and current == enable:
         return
     try:
@@ -561,7 +561,8 @@ def apply_circular(enable: bool, model):
             i += 1
             layer.padding_mode = 'circular' if enable else 'zeros'
         model.texture_tiling = enable
-        shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
+        if current is not None or enable:
+            shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
     except Exception as e:
         debug(f"Diffusers tiling failed: {e}")
 
