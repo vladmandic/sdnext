@@ -21,57 +21,6 @@ import torch.nn.functional as F
 
 from torch.nn import RMSNorm
 from diffusers.models.embeddings import Timesteps, TimestepEmbedding
-from diffusers.models.activations import FP32SiLU
-
-# Omnigen 2 uses swiglu key instead of silu
-# But the functionality is exactly the same
-class LuminaFeedForward(nn.Module):
-    r"""
-    A feed-forward layer.
-
-    Parameters:
-        hidden_size (`int`):
-            The dimensionality of the hidden layers in the model. This parameter determines the width of the model's
-            hidden representations.
-        intermediate_size (`int`): The intermediate dimension of the feedforward layer.
-        multiple_of (`int`, *optional*): Value to ensure hidden dimension is a multiple
-            of this value.
-        ffn_dim_multiplier (float, *optional*): Custom multiplier for hidden
-            dimension. Defaults to None.
-    """
-
-    def __init__(
-        self,
-        dim: int,
-        inner_dim: int,
-        multiple_of: Optional[int] = 256,
-        ffn_dim_multiplier: Optional[float] = None,
-    ):
-        super().__init__()
-        # custom hidden_size factor multiplier
-        if ffn_dim_multiplier is not None:
-            inner_dim = int(ffn_dim_multiplier * inner_dim)
-        inner_dim = multiple_of * ((inner_dim + multiple_of - 1) // multiple_of)
-
-        self.linear_1 = nn.Linear(
-            dim,
-            inner_dim,
-            bias=False,
-        )
-        self.linear_2 = nn.Linear(
-            inner_dim,
-            dim,
-            bias=False,
-        )
-        self.linear_3 = nn.Linear(
-            dim,
-            inner_dim,
-            bias=False,
-        )
-        self.swiglu = FP32SiLU()
-
-    def forward(self, x):
-        return self.linear_2(self.swiglu(self.linear_1(x)) * self.linear_3(x))
 
 
 # Makes timestep_scale configurable

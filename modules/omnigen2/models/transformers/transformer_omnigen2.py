@@ -15,8 +15,9 @@ from diffusers.models.attention_processor import Attention
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.normalization import LuminaLayerNormContinuous, LuminaRMSNormZero
+from diffusers.models.attention import LuminaFeedForward
 
-from .block_lumina2 import LuminaFeedForward, Lumina2CombinedTimestepCaptionEmbedding
+from .block_lumina2 import Lumina2CombinedTimestepCaptionEmbedding
 from ..attention_processor import OmniGen2AttnProcessor
 from .repo import OmniGen2RotaryPosEmbed
 
