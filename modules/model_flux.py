@@ -138,6 +138,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
             nunchaku_repo = 'mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
             kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+            kwargs['text_encoder_2'].quantization_method = 'SVDQuant'
         elif 'text_encoder_2' not in kwargs and model_quant.check_quant('TE'):
             quant_args = model_quant.create_config(allow=allow_quant, module='TE')
             if quant_args:

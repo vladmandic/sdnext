@@ -34,6 +34,7 @@
     - one of the best upscalers (traditional, non-diffusion) available today!  
     - available via *process -> upscale -> chainner*  
 - **Changes**  
+  - Update all core requirements  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
   - Add `--trace` command line param that enables trace logging  
   - Use Diffusers version of *OmniGen*  
@@ -73,6 +74,7 @@
   - Fix process batch with batch count  
   - Fix process batch double image save  
   - Fix unapply texture tiling  
+  - Fix nunchaku batch support  
   - Suppress torch empty logging  
   - Improve TAESD live preview downscale handling  
 
