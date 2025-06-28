@@ -51,6 +51,7 @@ i2i_pipes = [
     'LEditsPPPipelineStableDiffusion',
     'LEditsPPPipelineStableDiffusionXL',
     'OmniGenPipeline',
+    'OmniGen2Pipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
 ]

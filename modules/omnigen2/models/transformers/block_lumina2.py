@@ -13,120 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from diffusers.models.embeddings import Timesteps
-from ..embeddings import TimestepEmbedding
-from ...import_utils import is_flash_attn_available, is_triton_available
+from torch.nn import RMSNorm
+from diffusers.models.embeddings import Timesteps, TimestepEmbedding
+from diffusers.models.activations import FP32SiLU
 
-if is_triton_available():
-    from ...triton_layer_norm import RMSNorm
-else:
-    from torch.nn import RMSNorm
-    warnings.warn("Cannot import triton, install triton to use fused RMSNorm for better performance")
-
-if is_flash_attn_available():
-    from flash_attn.ops.activations import swiglu
-else:
-    from .components import swiglu
-    warnings.warn("Cannot import flash_attn, install flash_attn to use fused SwiGLU for better performance")
-
-# try:
-#     from flash_attn.ops.activations import swiglu as fused_swiglu
-#     FUSEDSWIGLU_AVALIBLE = True
-# except ImportError:
-
-#     FUSEDSWIGLU_AVALIBLE = False
-#     warnings.warn("Cannot import apex RMSNorm, switch to vanilla implementation")
-
-class LuminaRMSNormZero(nn.Module):
-    """
-    Norm layer adaptive RMS normalization zero.
-
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int,
-        norm_eps: float,
-        norm_elementwise_affine: bool,
-    ):
-        super().__init__()
-        self.silu = nn.SiLU()
-        self.linear = nn.Linear(
-            min(embedding_dim, 1024),
-            4 * embedding_dim,
-            bias=True,
-        )
-
-        self.norm = RMSNorm(embedding_dim, eps=norm_eps)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        emb: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        emb = self.linear(self.silu(emb))
-        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
-        x = self.norm(x) * (1 + scale_msa[:, None])
-        return x, gate_msa, scale_mlp, gate_mlp
-
-
-class LuminaLayerNormContinuous(nn.Module):
-    def __init__(
-        self,
-        embedding_dim: int,
-        conditioning_embedding_dim: int,
-        # NOTE: It is a bit weird that the norm layer can be configured to have scale and shift parameters
-        # because the output is immediately scaled and shifted by the projected conditioning embeddings.
-        # Note that AdaLayerNorm does not let the norm layer have scale and shift parameters.
-        # However, this is how it was implemented in the original code, and it's rather likely you should
-        # set `elementwise_affine` to False.
-        elementwise_affine=True,
-        eps=1e-5,
-        bias=True,
-        norm_type="layer_norm",
-        out_dim: Optional[int] = None,
-    ):
-        super().__init__()
-
-        # AdaLN
-        self.silu = nn.SiLU()
-        self.linear_1 = nn.Linear(conditioning_embedding_dim, embedding_dim, bias=bias)
-
-        if norm_type == "layer_norm":
-            self.norm = nn.LayerNorm(embedding_dim, eps, elementwise_affine, bias)
-        elif norm_type == "rms_norm":
-            self.norm = RMSNorm(embedding_dim, eps=eps, elementwise_affine=elementwise_affine)
-        else:
-            raise ValueError(f"unknown norm_type {norm_type}")
-
-        self.linear_2 = None
-        if out_dim is not None:
-            self.linear_2 = nn.Linear(embedding_dim, out_dim, bias=bias)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        conditioning_embedding: torch.Tensor,
-    ) -> torch.Tensor:
-        # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
-        emb = self.linear_1(self.silu(conditioning_embedding).to(x.dtype))
-        scale = emb
-        x = self.norm(x) * (1 + scale)[:, None, :]
-
-        if self.linear_2 is not None:
-            x = self.linear_2(x)
-
-        return x
-
-
+# Omnigen 2 uses swiglu key instead of silu
+# But the functionality is exactly the same
 class LuminaFeedForward(nn.Module):
     r"""
     A feed-forward layer.
@@ -150,8 +48,6 @@ class LuminaFeedForward(nn.Module):
         ffn_dim_multiplier: Optional[float] = None,
     ):
         super().__init__()
-        self.swiglu = swiglu
-
         # custom hidden_size factor multiplier
         if ffn_dim_multiplier is not None:
             inner_dim = int(ffn_dim_multiplier * inner_dim)
@@ -172,12 +68,14 @@ class LuminaFeedForward(nn.Module):
             inner_dim,
             bias=False,
         )
+        self.swiglu = FP32SiLU()
 
     def forward(self, x):
-        h1, h2 = self.linear_1(x), self.linear_3(x)
-        return self.linear_2(self.swiglu(h1, h2))
+        return self.linear_2(self.swiglu(self.linear_1(x)) * self.linear_3(x))
 
 
+# Makes timestep_scale configurable
+# Omnigen 2 uses timestep_scale=1000
 class Lumina2CombinedTimestepCaptionEmbedding(nn.Module):
     def __init__(
         self,

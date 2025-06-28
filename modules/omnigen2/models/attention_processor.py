@@ -24,9 +24,8 @@ import torch
 import torch.nn.functional as F
 from einops import repeat
 
-from ..import_utils import is_flash_attn_available
-
-if is_flash_attn_available():
+from transformers.utils.import_utils import is_flash_attn_2_available
+if is_flash_attn_2_available():
     from flash_attn import flash_attn_varlen_func
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
 else:
@@ -53,7 +52,7 @@ class OmniGen2AttnProcessorFlash2Varlen:
 
     def __init__(self) -> None:
         """Initialize the attention processor."""
-        if not is_flash_attn_available():
+        if not is_flash_attn_2_available():
             raise ImportError(
                 "OmniGen2AttnProcessorFlash2Varlen requires flash_attn. "
                 "Please install flash_attn."

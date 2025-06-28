@@ -1,10 +1,10 @@
-import warnings
 import itertools
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 
+from torch.nn import RMSNorm
 from einops import rearrange
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
@@ -14,17 +14,11 @@ from diffusers.utils import USE_PEFT_BACKEND, logging, scale_lora_layers, unscal
 from diffusers.models.attention_processor import Attention
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.modeling_utils import ModelMixin
+from diffusers.models.normalization import LuminaLayerNormContinuous, LuminaRMSNormZero
 
+from .block_lumina2 import LuminaFeedForward, Lumina2CombinedTimestepCaptionEmbedding
 from ..attention_processor import OmniGen2AttnProcessorFlash2Varlen, OmniGen2AttnProcessor
 from .repo import OmniGen2RotaryPosEmbed
-from .block_lumina2 import LuminaLayerNormContinuous, LuminaRMSNormZero, LuminaFeedForward, Lumina2CombinedTimestepCaptionEmbedding
-
-from ...import_utils import is_triton_available, is_flash_attn_available
-
-if is_triton_available():
-    from ...triton_layer_norm import RMSNorm
-else:
-    from torch.nn import RMSNorm
 
 logger = logging.get_logger(__name__)
 
