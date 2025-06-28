@@ -17,7 +17,7 @@ from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.normalization import LuminaLayerNormContinuous, LuminaRMSNormZero
 
 from .block_lumina2 import LuminaFeedForward, Lumina2CombinedTimestepCaptionEmbedding
-from ..attention_processor import OmniGen2AttnProcessorFlash2Varlen, OmniGen2AttnProcessor
+from ..attention_processor import OmniGen2AttnProcessor
 from .repo import OmniGen2RotaryPosEmbed
 
 logger = logging.get_logger(__name__)
@@ -60,11 +60,7 @@ class OmniGen2TransformerBlock(nn.Module):
         self.head_dim = dim // num_attention_heads
         self.modulation = modulation
 
-        try:
-            processor = OmniGen2AttnProcessorFlash2Varlen()
-        except ImportError:
-            processor = OmniGen2AttnProcessor()
-
+        processor = OmniGen2AttnProcessor()
         # Initialize attention layer
         self.attn = Attention(
             query_dim=dim,
