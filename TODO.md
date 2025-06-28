@@ -52,7 +52,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
 #### External:Unified/MultiModal
 - [Bagel](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)(https://github.com/bytedance-seed/bagel)  
-- [OmniGen2](https://huggingface.co/OmniGen2/OmniGen2)  
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
 #### External:Image2Image/Editing

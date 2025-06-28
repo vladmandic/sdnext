@@ -37,6 +37,7 @@ pipe_switch_task_exclude = [
     'InstantIRPipeline',
     'LTXConditionPipeline',
     'OmniGenPipeline',
+    'OmniGen2Pipeline',
     'PhotoMakerStableDiffusionXLPipeline',
     'PixelSmithXLPipeline',
     'StableDiffusion3ControlNetPipeline',
@@ -364,6 +365,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from modules.model_meissonic import load_meissonic
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
+        elif model_type in ['OmniGen2']: # forced pipeline
+            from modules.model_omnigen2 import load_omnigen2
+            sd_model = load_omnigen2(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['OmniGen']: # forced pipeline
             from modules.model_omnigen import load_omnigen
             sd_model = load_omnigen(checkpoint_info, diffusers_load_config)

@@ -4,6 +4,10 @@
 
 - **Models**
   - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
+    *note* all new image models larger than 30GB, so [offloading](https://vladmandic.github.io/sdnext-docs/Offload/) and [quantization](https://vladmandic.github.io/sdnext-docs/Quantization/) are necessary!  
+  - [OmniGen2](https://huggingface.co/OmniGen2/OmniGen2)  
+    - OmniGen2 is a powerful unified multimodal model that supports t2i and i2i workflows and uses 4B transformer with Qwen-VL-2.5 4B VLM  
+    - available via *networks -> models -> reference*  
   - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*  
     - Cosmos-Predict2 T2I is a new foundational model from Nvidia in two variants: small 2B and large 14B
     - available via *networks -> models -> reference*  
@@ -11,6 +15,7 @@
     - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
   - [Black Forest Labs FLUX.1 Kontext I2I](https://bfl.ai/announcements/flux-1-kontext-dev) *Dev* variant  
     - FLUX.1-Kontext is a 12B model billion parameter capable of editing images based on text instructions  
+    - model is primarily designed for image editing workflows, but also works for text-to-image workflows  
     - requirements are similar to regular FLUX.1 although 2x slower  
     - available via *networks -> models -> reference*  
     - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  

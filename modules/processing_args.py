@@ -61,7 +61,7 @@ def task_specific_kwargs(p, model):
                 p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
                 task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
-        if model.__class__.__name__ == 'OmniGenPipeline':
+        elif model.__class__.__name__ == 'OmniGenPipeline' or model.__class__.__name__ == 'OmniGen2Pipeline':
             p.width, p.height = 16 * math.ceil(p.init_images[0].width / 16), 16 * math.ceil(p.init_images[0].height / 16)
             task_args = {
                 'width': p.width,
@@ -285,7 +285,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             kwargs['output_type'] = 'np' # only set latent if model has vae
 
     # model specific
-    if 'Kandinsky' in model.__class__.__name__:
+    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("guidance_scale") # remove
@@ -305,8 +305,6 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
             args['height'] = p.height
-    if 'Cosmos2' in model.__class__.__name__:
-        kwargs['output_type'] = 'np' # cosmos uses wan-vae which is weird
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1

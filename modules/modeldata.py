@@ -35,6 +35,8 @@ def get_model_type(pipe):
         model_type = 'lumina2'
     elif "Lumina" in name:
         model_type = 'lumina'
+    elif "OmniGen2" in name:
+        model_type = 'omnigen2'
     elif "OmniGen" in name:
         model_type = 'omnigen'
     elif "CogView3" in name:

@@ -252,6 +252,13 @@
     "skip": true
   }, 
 
+  "VectorSpaceLab OmniGen v2": {
+    "path": "OmniGen2/OmniGen2",
+    "desc": "OmniGen2 is a powerful and efficient unified multimodal model. Unlike OmniGen v1, OmniGen2 features two distinct decoding pathways for text and image modalities, utilizing unshared parameters and a decoupled image tokenizer.",
+    "preview": "OmniGen2--OmniGen2.jpg",
+    "skip": true
+  }, 
+
   "AuraFlow 0.3": {
     "path": "fal/AuraFlow-v0.3",
     "desc": "AuraFlow v0.3 is the fully open-sourced flow-based text-to-image generation model. The model was trained with more compute compared to the previous version, AuraFlow-v0.2. Compared to AuraFlow-v0.2, the model is fine-tuned on more aesthetic datasets and now supports various aspect ratio, (now width and height up to 1536 pixels).",

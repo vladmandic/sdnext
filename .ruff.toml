@@ -20,6 +20,7 @@ exclude = [
     "modules/meissonic",
     "modules/mod",
     "modules/omnigen",
+    "modules/omnigen2",
     "modules/hidream",
     "modules/pag",
     "modules/pixelsmith",
