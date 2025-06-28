@@ -55,6 +55,7 @@
 - **API**
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
   - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
+  - Set default sampler to `Default`  
 - **Fixes**  
   - IPEX with DPM2++ FlowMatch samplers  
   - Invalid attention processor with ControlNet  

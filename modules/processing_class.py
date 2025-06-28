@@ -463,8 +463,8 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if all_subseeds is not None:
             self.all_subseeds = all_subseeds
 
-        if self.sampler_name == "PLMS":
-            self.sampler_name = 'UniPC'
+        if self.sampler_name == 'PLMS':
+            self.sampler_name = 'Default'
         if not shared.native:
             self.sampler = sd_samplers.create_sampler(self.sampler_name, self.sd_model)
             if hasattr(self.sampler, "initialize"):

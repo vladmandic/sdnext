@@ -198,7 +198,7 @@ ReqTxt2Img = PydanticModelGenerator(
     StableDiffusionProcessingTxt2Img,
     [
         {"key": "sampler_index", "type": Union[int, str], "default": 0},
-        {"key": "sampler_name", "type": str, "default": "UniPC"},
+        {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "script_name", "type": Optional[str], "default": "none"},
         {"key": "script_args", "type": list, "default": []},
