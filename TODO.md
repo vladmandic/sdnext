@@ -8,9 +8,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - Refactor: Move `model_*` stuff into subfolder  
 - Refactor: sampler options  
-- Fix LoRA unload for HiRes  
 - Simplify Control tab  
-- Common repo for T5 and CLiP  
+- Common repo for `T5` and `CLiP`  
 - Upgrade: unblock `numpy`: see `gradio`
 - Upgrade: unblock `pydantic`: see <https://github.com/Cschlaefli/automatic>
 
@@ -24,6 +23,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
+- [Refactor attention](https://github.com/huggingface/diffusers/pull/11311)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
 - [LBM](https://github.com/gojasper/LBM)  
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  

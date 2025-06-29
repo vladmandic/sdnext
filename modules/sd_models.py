@@ -858,6 +858,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     sd_checkpoint_info = getattr(pipe, "sd_checkpoint_info", None)
     sd_model_checkpoint = getattr(pipe, "sd_model_checkpoint", None)
     embedding_db = getattr(pipe, "embedding_db", None)
+    loaded_loras = getattr(pipe, "loaded_loras", None)
     sd_model_hash = getattr(pipe, "sd_model_hash", None)
     has_accelerate = getattr(pipe, "has_accelerate", None)
     current_attn_name = getattr(pipe, "current_attn_name", None)
@@ -910,6 +911,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     new_pipe.has_accelerate = has_accelerate
     new_pipe.current_attn_name = current_attn_name
     new_pipe.default_scheduler = default_scheduler
+    new_pipe.loaded_loras = loaded_loras if loaded_loras is not None else {}
     if image_encoder is not None:
         new_pipe.image_encoder = image_encoder
     if feature_extractor is not None:

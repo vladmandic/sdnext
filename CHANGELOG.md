@@ -77,6 +77,7 @@
   - Fix process batch double image save  
   - Fix unapply texture tiling  
   - Fix nunchaku batch support  
+  - Fix LoRA change detection on pipeline type change
   - Suppress torch empty logging  
   - Improve TAESD live preview downscale handling  
 
