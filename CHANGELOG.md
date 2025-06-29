@@ -36,6 +36,7 @@
 - **Changes**  
   - Update all core requirements  
   - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
+  - Enable quantization for captioning: *Gemma, Qwen, SMOL, Florence, JoyCaption*  
   - Add `--trace` command line param that enables trace logging  
   - Use Diffusers version of *OmniGen*  
   - Control move global settings to control elements -> control settings tab  
