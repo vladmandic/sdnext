@@ -158,6 +158,12 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
             shared.log.quiet(quiet, f'Setting {op}: fused-qkv=True')
         except Exception as e:
             shared.log.error(f'Setting {op}: fused-qkv=True {e}')
+    if shared.opts.enable_linfusion:
+        try:
+            from modules import linfusion
+            linfusion.apply(sd_model)
+        except Exception as e:
+            shared.log.error(f'Setting {op}: LinFusion=True {e}')
     if shared.opts.diffusers_eval:
         def eval_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
             if hasattr(model, "requires_grad_"):
@@ -673,11 +679,6 @@ def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=No
         if ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend != 'none'):
             sd_model = sd_models_compile.compile_diffusers(sd_model)
         timer.record("compile")
-
-        if shared.opts.enable_linfusion:
-            from modules import linfusion
-            linfusion.apply(sd_model)
-            timer.record("linfusion")
 
     except Exception as e:
         shared.log.error(f"Load {op}: {e}")
