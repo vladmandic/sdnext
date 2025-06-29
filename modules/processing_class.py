@@ -258,7 +258,8 @@ class StableDiffusionProcessing:
         self.all_subseeds = None
 
         # a1111 compatibility items
-        shared.opts.data['clip_skip'] = int(self.clip_skip) # for compatibility with a1111 sd_hijack_clip
+        if not shared.native:
+            shared.opts.data['clip_skip'] = int(self.clip_skip) # for compatibility with a1111 sd_hijack_clip
         self.seed_enable_extras: bool = True
         self.is_using_inpainting_conditioning = False # a111 compatibility
         self.batch_index = 0
