@@ -148,6 +148,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
+    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
+
     parser = 'fixed'
     prompt_attention = prompt_attention or shared.opts.prompt_attention
     if (prompt_attention != 'fixed') and ('Onnx' not in model.__class__.__name__) and ('prompt' not in p.task_args) and (
@@ -168,7 +170,6 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     else:
         prompt_parser_diffusers.embedder = None
 
-    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
             prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
