@@ -941,9 +941,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         from modules.processing_info import get_last_args
         params, text = get_last_args()
         if (not params) or (not text) or (len(text) == 0):
-            filename = os.path.join(paths.data_path, "params.txt")
-            if os.path.exists(filename):
-                with open(filename, "r", encoding="utf8") as file:
+            if os.path.exists(paths.params_path):
+                with open(paths.params_path, "r", encoding="utf8") as file:
                     text = file.read()
             else:
                 text = ''
@@ -960,9 +959,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         from modules.processing_info import get_last_args
         params, text = get_last_args()
         if (not params) or (not text) or (len(text) == 0):
-            fn = os.path.join(paths.data_path, "params.txt")
-            if os.path.exists(fn):
-                with open(fn, "r", encoding="utf8") as file:
+            if os.path.exists(paths.params_path):
+                with open(paths.params_path, "r", encoding="utf8") as file:
                     text = file.read()
             else:
                 text = ''

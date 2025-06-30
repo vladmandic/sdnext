@@ -110,7 +110,7 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
 
 def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
-        if 'transformer' not in kwargs and model_quant.check_nunchaku('Transformer'):
+        if 'transformer' not in kwargs and model_quant.check_nunchaku('Model'):
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = None
@@ -128,8 +128,8 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
                 kwargs['transformer'].quantization_method = 'SVDQuant'
                 if shared.opts.nunchaku_attention:
                     kwargs['transformer'].set_attention_impl("nunchaku-fp16")
-        elif 'transformer' not in kwargs and model_quant.check_quant('Transformer'):
-            quant_args = model_quant.create_config(allow=allow_quant, module='Transformer')
+        elif 'transformer' not in kwargs and model_quant.check_quant('Model'):
+            quant_args = model_quant.create_config(allow=allow_quant, module='Model')
             if quant_args:
                 kwargs['transformer'] = diffusers.FluxTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
         if 'text_encoder_2' not in kwargs and model_quant.check_nunchaku('TE'):
@@ -138,6 +138,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant):
             nunchaku_repo = 'mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
             kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+            kwargs['text_encoder_2'].quantization_method = 'SVDQuant'
         elif 'text_encoder_2' not in kwargs and model_quant.check_quant('TE'):
             quant_args = model_quant.create_config(allow=allow_quant, module='TE')
             if quant_args:
@@ -186,7 +187,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
             transformer, _text_encoder_2 = load_flux_nf4(file_path, prequantized=False)
             if transformer is not None:
                 return transformer
-        quant_args = model_quant.create_config(module='Transformer')
+        quant_args = model_quant.create_config(module='Model')
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
             transformer = diffusers.FluxTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)
@@ -317,6 +318,13 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         cls = diffusers.FluxControlPipeline
     elif 'Depth' in repo_id:
         cls = diffusers.FluxControlPipeline
+    elif 'Kontext' in repo_id:
+        cls = diffusers.FluxKontextPipeline
+        from diffusers import pipelines
+        pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+        pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+        pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextPipeline
+
     else:
         cls = diffusers.FluxPipeline
     shared.log.debug(f'Load model: type=FLUX cls={cls.__name__} preloaded={list(kwargs)} revision={diffusers_load_config.get("revision", None)}')
@@ -340,7 +348,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     else:
         pipe = cls.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
 
-    if shared.opts.teacache_enabled and model_quant.check_nunchaku('Transformer'):
+    if shared.opts.teacache_enabled and model_quant.check_nunchaku('Model'):
         from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
         apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
 

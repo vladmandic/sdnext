@@ -1,13 +1,10 @@
 # MIT-Han-Lab Nunchaku: <https://github.com/mit-han-lab/nunchaku>
-# TODO nunchaku: cache-dir for transformer and t5 loader
-# TODO nunchaku: batch support
-
 
 from installer import log, pip
 from modules import devices
 
 
-ver = '0.2.0'
+ver = '0.3.1'
 ok = False
 
 

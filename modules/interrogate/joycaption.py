@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import torch
 from transformers import AutoProcessor, LlavaForConditionalGeneration
-from modules import shared, devices
+from modules import shared, devices, sd_models, model_quant
 
 
 """
@@ -58,13 +58,24 @@ opts = JoyOptions()
 
 
 @torch.no_grad()
-def predict(question: str, image):
+def predict(question: str, image, vqa_model: str = None) -> str:
     global llava_model, processor # pylint: disable=global-statement
     opts.max_new_tokens = shared.opts.interrogate_vlm_max_length
+    if vqa_model is not None and opts.repo != vqa_model:
+        opts.repo = vqa_model
+        llava_model = None
     if llava_model is None:
         shared.log.info(f'Interrogate: type=vlm model="JoyCaption" {str(opts)}')
+
         processor = AutoProcessor.from_pretrained(opts.repo)
-        llava_model = LlavaForConditionalGeneration.from_pretrained(opts.repo, torch_dtype=devices.dtype, device_map="auto", cache_dir=shared.opts.hfcache_dir)
+        quant_args = model_quant.create_config(module='LLM')
+        llava_model = LlavaForConditionalGeneration.from_pretrained(
+            opts.repo,
+            torch_dtype=devices.dtype,
+            device_map="auto",
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
+        )
         llava_model.eval()
 
     if len(question) < 2:
@@ -77,7 +88,7 @@ def predict(question: str, image):
     convo_string = processor.apply_chat_template(convo, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[convo_string], images=[image], return_tensors="pt").to(devices.device) # Process the inputs
     inputs['pixel_values'] = inputs['pixel_values'].to(devices.dtype)
-    llava_model = llava_model.to(devices.device)
+    sd_models.move_model(llava_model, devices.device)
     with devices.inference_context():
         generate_ids = llava_model.generate( # Generate the captions
             **inputs,
@@ -94,6 +105,6 @@ def predict(question: str, image):
         )[0]
         generate_ids = generate_ids[inputs['input_ids'].shape[1]:] # Trim off the prompt
         caption = processor.tokenizer.decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False) # Decode the caption
-    llava_model = llava_model.to(devices.cpu)
+    sd_models.move_model(llava_model, devices.cpu, force=True)
     caption = caption.replace('\n\n', '\n').strip()
     return caption

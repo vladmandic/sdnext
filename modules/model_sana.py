@@ -7,14 +7,14 @@ from modules import shared, sd_models, devices, modelloader, model_quant
 
 def load_quants(kwargs, repo_id, cache_dir):
     kwargs_copy = kwargs.copy()
-    if model_quant.check_nunchaku('Transformer') and 'Sana_1600M' in repo_id: # only sana-1600m
+    if model_quant.check_nunchaku('Model') and 'Sana_1600M' in repo_id: # only sana-1600m
         import nunchaku
         nunchaku_precision = nunchaku.utils.get_precision()
         nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-sana-1600m"
         shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
         kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
-    elif model_quant.check_quant('Transformer'):
-        load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Transformer')
+    elif model_quant.check_quant('Model'):
+        load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Model')
         if quant_args:
             kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
     if model_quant.check_quant('TE'):

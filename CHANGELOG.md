@@ -1,29 +1,120 @@
 # Change Log for SD.Next
 
+## Update for 2025-06-30
+
+### Highlights for 2025-06-30
+
+New release with ~100 commits...So what's new? Well, its been a busy few weeks with new models coming out quite frequently:  
+- New T2I/I2I models: **OmniGen-2, Cosmos-Predict2, FLUX.1-Kontext, Chroma**  
+- Additional VLM models: **JoyCaption Beta, MoonDream 2**  
+- Additional upscalers: **UltraSharp v2**  
+
+And (as always) many bugfixes and improvements to existing features!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-06-30
+
+- **Models**
+  - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
+    *note* all new image models larger than 30GB, so [offloading](https://vladmandic.github.io/sdnext-docs/Offload/) and [quantization](https://vladmandic.github.io/sdnext-docs/Quantization/) are necessary!  
+  - [OmniGen2](https://huggingface.co/OmniGen2/OmniGen2)  
+    - OmniGen2 is a powerful unified multimodal model that supports t2i and i2i workflows and uses 4B transformer with Qwen-VL-2.5 4B VLM  
+    - available via *networks -> models -> reference*  
+  - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*  
+    - Cosmos-Predict2 T2I is a new foundational model from Nvidia in two variants: small 2B and large 14B
+    - available via *networks -> models -> reference*  
+    - *note*: 14B variant is a very large model at 36GB
+    - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Black Forest Labs FLUX.1 Kontext I2I](https://bfl.ai/announcements/flux-1-kontext-dev) *Dev* variant  
+    - FLUX.1-Kontext is a 12B model billion parameter capable of editing images based on text instructions  
+    - model is primarily designed for image editing workflows, but also works for text-to-image workflows  
+    - requirements are similar to regular FLUX.1 although 2x slower  
+    - available via *networks -> models -> reference*  
+    - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [lodestones Chroma](https://huggingface.co/lodestones/Chroma)  
+    - Chroma is a 8.9B parameter model based on *FLUX.1-schnell* and fully Apache 2.0 licensed  
+    - available via *networks -> models -> reference*  
+    - *note*: model is still in training so future updates will trigger re-download  
+    - large credits to @Trojaner for work on bringing Chroma support to SD.Next and all the optimizations around it!  
+  - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
+    - new version of highly popular captioning model  
+    - available via *caption -> vlm caption*  
+  - [MoonDream 2](https://huggingface.co/vikhyatk/moondream2) support (updated)  
+    - really good 2B captioning model that can work on different levels of detail  
+    - available via *caption -> vlm caption*  
+  - [UltraSharp v2](https://huggingface.co/Kim2091/UltraSharpV2) support  
+    - one of the best upscalers (traditional, non-diffusion) available today!  
+    - available via *process -> upscale -> chainner*  
+- **Changes**  
+  - Update all core requirements  
+  - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
+  - Enable quantization for captioning: *Gemma, Qwen, SMOL, Florence, JoyCaption*  
+  - Add `--trace` command line param that enables trace logging  
+  - Use Diffusers version of *OmniGen*  
+  - Control move global settings to control elements -> control settings tab  
+  - Control add setting to run hires with or without control  
+  - Update OpenVINO to 2025.2.0  
+  - Simplified and unified quantization enabled for options  
+- **SDNQ Quantization**  
+  - Add `auto` quantization mode  
+  - Add `modules_to_not_convert` support for post mode  
+  - Improve offload compatibility  
+  - Fix Qwen 2.5 with int8 matmul  
+  - Fix Dora loading  
+  - Remove per layer GC  
+  - Add support for XYZ grid to test quantization modes  
+    *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
+    *note*: you can also enable 'add time info' to compare performance of different quantization modes  
+- **API**
+  - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
+  - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
+  - Set default sampler to `Default`  
+- **Fixes**  
+  - IPEX with DPM2++ FlowMatch samplers  
+  - Invalid attention processor with ControlNet  
+  - LTXVideo default scheduler  
+  - Balanced offload with OmniGen  
+  - Quantization with OmniGen  
+  - Do not save empty `params.txt` file  
+  - Override `params.txt` using `SD_PATH_PARAMS` env variable  
+  - Add `wheel` to requirements due to `pip` change  
+  - Case-insensitive sampler name matching  
+  - Fix delete file with gallery views  
+  - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
+  - Fix TAESD model type detection  
+  - Fix LoRA loader incorrectly reporting errors  
+  - Fix hypertile for img2img and inpaint operations  
+  - Fix prompt parser batch size  
+  - Fix process batch with batch count  
+  - Fix process batch double image save  
+  - Fix unapply texture tiling  
+  - Fix nunchaku batch support  
+  - Fix LoRA change detection on pipeline type change  
+  - Fix LoRA load order when it includes text-encoder data  
+  - Suppress torch empty logging  
+  - Improve TAESD live preview downscale handling  
+
 ## Update for 2025-06-16
 
 - **Feature**  
   - Support for Python 3.13  
   - TeaCache support for Lumina 2  
   - Custom UNet and VAE loading support for Lumina 2  
-
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
   - Set CPU backend to use FP32 by default  
   - Relax Python version checks for Zluda  
   - Make VAE options not require model reload  
   - Add warning about incompatible attention processors  
-
 - **Torch**  
   - Set default to `torch==2.7.1`  
   - Force upgrade pip when installing Torch  
-
 - **ROCm**  
   - Support ROCm 6.4 with `--use-nightly`  
   - Don't override user set gfx version  
   - Don't override gfx version with RX 9000  
   - Fix flash-atten repo  
-
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
   - Add quantized matmul support for for convolutional layers  
@@ -34,7 +125,6 @@
   - Fix VAE with conv quant  
   - Don't ignore the Quantize with GPU option with offload mode `none` and `model`  
   - High VRAM usage with Lumina 2  
-
 - **Fixes**  
   - Meissonic with multiple generators  
   - OmniGen with new transformers  

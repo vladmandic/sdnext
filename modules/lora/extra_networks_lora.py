@@ -141,10 +141,14 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
     def changed(self, requested: List[str], include: List[str], exclude: List[str]):
         if shared.opts.lora_force_reload:
             return True
-        sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+        sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
         if not hasattr(sd_model, 'loaded_loras'):
             sd_model.loaded_loras = {}
-        key = f'{",".join(include)}:{",".join(exclude)}'
+        if include is None or len(include) == 0:
+            include = ['all']
+        if exclude is None or len(exclude) == 0:
+            exclude = ['none']
+        key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
         debug_log(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if len(requested) != len(loaded):

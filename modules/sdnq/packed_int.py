@@ -6,11 +6,11 @@ import torch
 from .common import dtype_dict
 
 
-def pack_int_symetric(tensor: torch.ByteTensor, weights_dtype: str) -> torch.ByteTensor:
-    return packed_int_function_dict[weights_dtype]["pack"](tensor.to(dtype=dtype_dict[weights_dtype]["torch_dtype"]).sub_(dtype_dict[weights_dtype]["min"]).to(dtype=dtype_dict[weights_dtype]["storage_dtype"]))
+def pack_int_symetric(tensor: torch.CharTensor, weights_dtype: str) -> torch.ByteTensor:
+    return packed_int_function_dict[weights_dtype]["pack"](tensor.sub_(dtype_dict[weights_dtype]["min"]).to(dtype=dtype_dict[weights_dtype]["storage_dtype"]))
 
 
-def unpack_int_symetric(packed_tensor: torch.CharTensor, shape: torch.Size, weights_dtype: str, dtype: Optional[torch.dtype] = None, transpose: Optional[bool] = False) -> torch.ByteTensor:
+def unpack_int_symetric(packed_tensor: torch.ByteTensor, shape: torch.Size, weights_dtype: str, dtype: Optional[torch.dtype] = None, transpose: Optional[bool] = False) -> torch.CharTensor:
     if dtype is None:
         dtype = dtype_dict[weights_dtype]["torch_dtype"]
     result = packed_int_function_dict[weights_dtype]["unpack"](packed_tensor, shape).to(dtype=dtype).add_(dtype_dict[weights_dtype]["min"])
@@ -19,9 +19,7 @@ def unpack_int_symetric(packed_tensor: torch.CharTensor, shape: torch.Size, weig
     return result
 
 
-def pack_uint7(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint7(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 8)
     packed_tensor = torch.stack(
         (
@@ -38,9 +36,7 @@ def pack_uint7(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def pack_uint6(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint6(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 4)
     packed_tensor = torch.stack(
         (
@@ -53,9 +49,7 @@ def pack_uint6(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def pack_uint5(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint5(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 8)
     packed_tensor = torch.stack(
         (
@@ -82,17 +76,13 @@ def pack_uint5(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def pack_uint4(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint4(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 2)
     packed_tensor = torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 4))
     return packed_tensor
 
 
-def pack_uint3(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint3(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 8)
     packed_tensor = torch.stack(
         (
@@ -117,9 +107,7 @@ def pack_uint3(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def pack_uint2(tensor: torch.Tensor) -> torch.Tensor:
-    if tensor.dtype != torch.uint8:
-        raise RuntimeError(f"Invalid tensor dtype {tensor.type}. torch.uint8 type is supported.")
+def pack_uint2(tensor: torch.ByteTensor) -> torch.ByteTensor:
     packed_tensor = tensor.contiguous().reshape(-1, 4)
     packed_tensor = torch.bitwise_or(
         torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 2)),
@@ -128,7 +116,7 @@ def pack_uint2(tensor: torch.Tensor) -> torch.Tensor:
     return packed_tensor
 
 
-def unpack_uint7(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint7(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
             torch.bitwise_and(packed_tensor[:, 0], 127),
@@ -163,7 +151,7 @@ def unpack_uint7(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
     return result
 
 
-def unpack_uint6(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint6(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
             torch.bitwise_and(packed_tensor[:, 0], 63),
@@ -182,7 +170,7 @@ def unpack_uint6(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
     return result
 
 
-def unpack_uint5(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint5(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
             torch.bitwise_and(packed_tensor[:, 0], 31),
@@ -211,12 +199,12 @@ def unpack_uint5(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
     return result
 
 
-def unpack_uint4(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint4(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack((torch.bitwise_and(packed_tensor, 15), torch.bitwise_right_shift(packed_tensor, 4)), dim=-1).reshape(shape)
     return result
 
 
-def unpack_uint3(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint3(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
             torch.bitwise_and(packed_tensor[:, 0], 7),
@@ -239,7 +227,7 @@ def unpack_uint3(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor
     return result
 
 
-def unpack_uint2(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+def unpack_uint2(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
             torch.bitwise_and(packed_tensor, 3),

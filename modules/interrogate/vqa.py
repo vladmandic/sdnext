@@ -7,12 +7,13 @@ import torch
 import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
-from modules import shared, devices, errors, sd_models
+from modules import shared, devices, errors, sd_models, model_quant
 
 
 processor = None
 model = None
 loaded: str = None
+quant_args = {}
 vlm_models = {
     "Microsoft Florence 2 Base": "microsoft/Florence-2-base", # 0.5GB
     "Microsoft Florence 2 Large": "microsoft/Florence-2-large", # 1.5GB
@@ -38,7 +39,8 @@ vlm_models = {
     "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
     "ToriiGate 0.4 7B": "Minthy/ToriiGate-v0.4-7B",
     "ViLT Base": "dandelin/vilt-b32-finetuned-vqa", # 0.5GB
-    "JoyCaption": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
+    "JoyCaption Alpha": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
+    "JoyCaption Beta": "fancyfeast/llama-joycaption-beta-one-hf-llava", # 17.4GB
     "JoyTag": "fancyfeast/joytag", # 0.7GB
     "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
     "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
@@ -120,9 +122,10 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
         model = None
         model = transformers.Qwen2VLForConditionalGeneration.from_pretrained(
             repo,
-            cache_dir=shared.opts.hfcache_dir
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
         )
-        model = model.to(devices.device, devices.dtype)
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -165,8 +168,12 @@ def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: st
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        model = transformers.Gemma3ForConditionalGeneration.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
-        model = model.to(devices.device, devices.dtype)
+        model = transformers.Gemma3ForConditionalGeneration.from_pretrained(
+            repo,
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
+        )
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -216,7 +223,6 @@ def paligemma(question: str, image: Image.Image, repo: str = None):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
-        model = model.to(devices.device, devices.dtype)
         loaded = repo
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
@@ -250,7 +256,6 @@ def ovis(question: str, image: Image.Image, repo: str = None):
             trust_remote_code=True,
             cache_dir=shared.opts.hfcache_dir,
         )
-        model = model.to(devices.device, devices.dtype)
         loaded = repo
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
@@ -291,8 +296,8 @@ def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
             _attn_implementation="eager",
+            **quant_args,
             )
-        model.to(devices.device, devices.dtype)
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -330,9 +335,9 @@ def git(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.GitForCausalLM.from_pretrained(
             repo,
+            torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
         )
-        model.to(devices.device, devices.dtype)
         processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -358,9 +363,9 @@ def blip(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.BlipForQuestionAnswering.from_pretrained(
             repo,
+            torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
         )
-        model.to(devices.device, devices.dtype)
         processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -380,9 +385,9 @@ def vilt(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.ViltForQuestionAnswering.from_pretrained(
             repo,
+            torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
         )
-        model.to(devices.device)
         processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -404,9 +409,9 @@ def pix(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.Pix2StructForConditionalGeneration.from_pretrained(
             repo,
+            torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
         )
-        model.to(devices.device)
         processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -428,20 +433,30 @@ def moondream(question: str, image: Image.Image, repo: str = None):
         model = None
         model = transformers.AutoModelForCausalLM.from_pretrained(
             repo,
-            revision="2024-08-26",
+            revision="2025-06-21",
             trust_remote_code=True,
-            cache_dir=shared.opts.hfcache_dir
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
         )
         processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
-        model.to(devices.device, devices.dtype)
         model.eval()
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
     encoded = model.encode_image(image)
     with devices.inference_context():
-        response = model.answer_question(encoded, question, processor)
+        if question == 'CAPTION':
+            response = model.caption(image, length="short")['caption']
+        elif question == 'DETAILED CAPTION':
+            response = model.caption(image, length="normal")['caption']
+        elif question == 'MORE DETAILED CAPTION':
+            response = model.caption(image, length="long")['caption']
+        else:
+            response = model.answer_question(encoded, question, processor)['answer']
+        # model.detect(image, "face")
+        # model.point(image, "person")
+        # model.detect_gaze(image)
     return response
 
 
@@ -464,12 +479,13 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
             repo,
             trust_remote_code=True,
             revision=revision,
+            torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
         )
         processor = transformers.AutoProcessor.from_pretrained(repo, trust_remote_code=True, revision=revision, cache_dir=shared.opts.hfcache_dir)
         transformers.dynamic_module_utils.get_imports = _get_imports
         loaded = repo
-        model.to(devices.device, devices.dtype)
         model.eval()
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
@@ -501,7 +517,6 @@ def sa2(question: str, image: Image.Image, repo: str = None):
             low_cpu_mem_usage=True,
             use_flash_attn=False,
             trust_remote_code=True)
-        model = model.to(devices.device, devices.dtype)
         model = model.eval()
         processor = transformers.AutoTokenizer.from_pretrained(
             repo,
@@ -528,9 +543,11 @@ def sa2(question: str, image: Image.Image, repo: str = None):
 
 
 def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:Image.Image=None, model_name:str=None, quiet:bool=False):
+    global quant_args # pylint: disable=global-statement
     if not quiet:
         shared.state.begin('Interrogate')
     t0 = time.time()
+    quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
@@ -549,8 +566,10 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     if shared.native and shared.sd_loaded:
         from modules.sd_models import apply_balanced_offload # prevent circular import
         apply_balanced_offload(shared.sd_model)
+
     from modules import modelloader
     modelloader.hf_login()
+
     try:
         if model_name is None:
             shared.log.error(f'Interrogate: type=vlm model="{model_name}" no model selected')
@@ -562,6 +581,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         if image is None:
             shared.log.error(f'Interrogate: type=vlm model="{model_name}" no input image')
             return ''
+
         if 'git' in vqa_model.lower():
             answer = git(question, image, vqa_model)
         elif 'vilt' in vqa_model.lower():
@@ -583,7 +603,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
             answer = joytag.predict(image)
         elif 'joycaption' in vqa_model.lower():
             from modules.interrogate import joycaption
-            answer = joycaption.predict(question, image)
+            answer = joycaption.predict(question, image, vqa_model)
         elif 'deepseek' in vqa_model.lower():
             from modules.interrogate import deepseek
             answer = deepseek.predict(question, image, vqa_model)
@@ -600,9 +620,10 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     except Exception as e:
         errors.display(e, 'VQA')
         answer = 'error'
+
     if shared.opts.interrogate_offload and model is not None:
-        sd_models.move_model(model, devices.cpu)
-    devices.torch_gc()
+        sd_models.move_model(model, devices.cpu, force=True)
+    devices.torch_gc(force=True)
     answer = clean(answer, question)
     t1 = time.time()
     if not quiet:

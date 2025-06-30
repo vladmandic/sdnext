@@ -21,6 +21,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         is_conv_transpose_type = False
         is_linear_type = False
         result_shape = None
+        original_shape = layer.weight.shape
         if torch_dtype is None:
             torch_dtype = devices.dtype
 
@@ -56,8 +57,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             output_channel_size, channel_size = layer.weight.shape
             if use_quantized_matmul:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
-                if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
-                    use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
+                if use_quantized_matmul:
+                    if dtype_dict[weights_dtype]["is_integer"]:
+                        use_quantized_matmul = output_channel_size % 8 == 0 and channel_size % 8 == 0
+                    else:
+                        use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
 
         if group_size == 0:
             if is_linear_type:
@@ -73,13 +77,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 num_of_groups = 1
             else:
                 num_of_groups = channel_size // group_size
-                while channel_size % group_size != 0: # find something divisible
+                while num_of_groups * group_size != channel_size: # find something divisible
                     num_of_groups -= 1
                     if num_of_groups <= 1:
                         group_size = channel_size
                         num_of_groups = 1
                         break
-                    group_size = channel_size / num_of_groups
+                    group_size = channel_size // num_of_groups
             group_size = int(group_size)
             num_of_groups = int(num_of_groups)
 
@@ -136,6 +140,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
+            original_shape=original_shape,
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
         )
@@ -144,15 +149,17 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
-        devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
+        #devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = []): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
     for module_param_name, module in model.named_children():
+        if module_param_name in modules_to_not_convert:
+            continue
         if hasattr(module, "weight") and module.weight is not None:
             module = sdnq_quantize_layer(
                 module,
@@ -179,6 +186,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 quantization_device=quantization_device,
                 return_device=return_device,
                 param_name=module_param_name,
+                modules_to_not_convert=modules_to_not_convert,
             )
     return model
 
@@ -200,7 +208,7 @@ def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, Li
     return scale
 
 
-def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str):
+def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     if dtype_dict[weights_dtype]["is_unsigned"]:
         scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
         quantized_weight = torch.sub(weight, zero_point).div_(scale)
@@ -229,7 +237,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     required_packages = None
     torch_dtype = None
 
-    def __init__(self, quantization_config, **kwargs): # pylint: disable=useless-parent-delegation
+    def __init__(self, quantization_config, **kwargs):
         super().__init__(quantization_config, **kwargs)
         self.modules_to_not_convert = []
 
@@ -381,7 +389,21 @@ class SDNQConfig(QuantizationConfigMixin):
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
             ("int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
-       modules_to_not_convert (`list`, *optional*, default to `None`):
+        weights_dtype (`int`, *optional*, defaults to `0`):
+            Used to decide how many elements of a tensor will share the same quantization group.
+        quant_conv (`bool`, *optional*, defaults to `False`):
+            Enabling this option will quantize the convolutional layers in UNet models too.
+        use_quantized_matmul (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use quantized INT8 or FP8 MatMul instead of BF16 / FP16.
+        use_quantized_matmul_conv (`bool`, *optional*, defaults to `False`):
+            Same as use_quantized_matmul_conv but for the convolutional layers with UNets like SDXL.
+        dequantize_fp32 (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use FP32 on the dequantization step.
+        quantization_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will be used for the quantization calculation on model load.
+        return_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will the quantized weights be sent back to.
+        modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
     """
@@ -419,25 +441,8 @@ class SDNQConfig(QuantizationConfigMixin):
         accepted_weights = ["int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
         if self.weights_dtype not in accepted_weights:
             raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
-        if not isinstance(self.modules_to_not_convert, list):
+
+        if self.modules_to_not_convert is None:
+            self.modules_to_not_convert = []
+        elif not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
-
-
-class SDNQ_T5DenseGatedActDense(torch.nn.Module): # forward can't find what self is without creating a class
-    def __init__(self, T5DenseGatedActDense, dtype):
-        super().__init__()
-        self.wi_0 = T5DenseGatedActDense.wi_0
-        self.wi_1 = T5DenseGatedActDense.wi_1
-        self.wo = T5DenseGatedActDense.wo
-        self.dropout = T5DenseGatedActDense.dropout
-        self.act = T5DenseGatedActDense.act
-        self.torch_dtype = dtype
-
-    def forward(self, hidden_states):
-        hidden_gelu = self.act(self.wi_0(hidden_states))
-        hidden_linear = self.wi_1(hidden_states)
-        hidden_states = hidden_gelu * hidden_linear
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = hidden_states.to(self.torch_dtype) # this line needs to be forced
-        hidden_states = self.wo(hidden_states)
-        return hidden_states

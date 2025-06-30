@@ -97,10 +97,10 @@ def get_sampler_name(sampler_index: int, img: bool = False) -> str:
     if len(sd_samplers.samplers) > sampler_index:
         sampler_name = sd_samplers.samplers[sampler_index].name
     else:
-        sampler_name = "UniPC"
+        sampler_name = "Default"
         shared.log.warning(f'Sampler not found: index={sampler_index} available={[s.name for s in sd_samplers.samplers]} fallback={sampler_name}')
     if img and sampler_name == "PLMS":
-        sampler_name = "UniPC"
+        sampler_name = "Default"
         shared.log.warning(f'Sampler not compatible: name=PLMS fallback={sampler_name}')
     return sampler_name
 
@@ -424,19 +424,28 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
 def fix_prompts(p, prompts, negative_prompts, prompts_2, negative_prompts_2):
     if hasattr(p, 'keep_prompts'):
         return prompts, negative_prompts, prompts_2, negative_prompts_2
+
     if type(prompts) is str:
         prompts = [prompts]
     if type(negative_prompts) is str:
         negative_prompts = [negative_prompts]
+
     if hasattr(p, '[init_images]') and p.init_images is not None and len(p.init_images) > 1:
         while len(prompts) < len(p.init_images):
             prompts.append(prompts[-1])
         while len(negative_prompts) < len(p.init_images):
             negative_prompts.append(negative_prompts[-1])
+
+    while len(prompts) < p.batch_size:
+        prompts.append(prompts[-1])
+    while len(negative_prompts) < p.batch_size:
+        negative_prompts.append(negative_prompts[-1])
+
     while len(negative_prompts) < len(prompts):
         negative_prompts.append(negative_prompts[-1])
     while len(prompts) < len(negative_prompts):
         prompts.append(prompts[-1])
+
     if type(prompts_2) is str:
         prompts_2 = [prompts_2]
     if type(prompts_2) is list:
@@ -457,9 +466,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
         cls = shared.sd_model.__class__.__name__
         if cls in sd_models.i2i_pipes:
             steps = p.steps
-        elif 'Flex' in cls:
-            steps = p.steps
-        elif 'HiDreamImageEditingPipeline' in cls:
+        elif 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
             steps = p.steps
         elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)
@@ -542,7 +549,8 @@ def set_latents(p):
 def apply_circular(enable: bool, model):
     if not hasattr(model, 'unet') or not hasattr(model, 'vae'):
         return
-    if getattr(model, 'texture_tiling', False) == enable:
+    current = getattr(model, 'texture_tiling', None)
+    if isinstance(current, bool) and current == enable:
         return
     try:
         i = 0
@@ -553,7 +561,8 @@ def apply_circular(enable: bool, model):
             i += 1
             layer.padding_mode = 'circular' if enable else 'zeros'
         model.texture_tiling = enable
-        shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
+        if current is not None or enable:
+            shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
     except Exception as e:
         debug(f"Diffusers tiling failed: {e}")
 
@@ -572,10 +581,7 @@ def update_sampler(p, sd_model, second_pass=False):
     if hasattr(sd_model, 'scheduler'):
         if sampler_selection == 'None':
             return
-        if sampler_selection is None:
-            sampler = sd_samplers.all_samplers_map.get("UniPC")
-        else:
-            sampler = sd_samplers.all_samplers_map.get(sampler_selection, None)
+        sampler = sd_samplers.find_sampler(sampler_selection)
         if sampler is None:
             shared.log.warning(f'Sampler: sampler="{sampler_selection}" not found')
             sampler = sd_samplers.all_samplers_map.get("UniPC")

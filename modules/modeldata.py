@@ -27,12 +27,16 @@ def get_model_type(pipe):
         model_type = 'sc'
     elif "AuraFlow" in name:
         model_type = 'auraflow'
+    elif 'Chroma' in name:
+        model_type = 'chroma'
     elif "Flux" in name or "Flex1" in name or "Flex2" in name:
         model_type = 'f1'
     elif "Lumina2" in name:
         model_type = 'lumina2'
     elif "Lumina" in name:
         model_type = 'lumina'
+    elif "OmniGen2" in name:
+        model_type = 'omnigen2'
     elif "OmniGen" in name:
         model_type = 'omnigen'
     elif "CogView3" in name:
@@ -43,6 +47,8 @@ def get_model_type(pipe):
         model_type = 'sana'
     elif "HiDream" in name:
         model_type = 'h1'
+    elif "Cosmos2TextToImage" in name:
+        model_type = 'cosmos'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

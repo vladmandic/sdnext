@@ -12,8 +12,19 @@ samplers = all_samplers
 samplers_for_img2img = all_samplers
 samplers_map = {}
 loaded_config = None
-flow_models =  ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogView4', 'HiDream']
+flow_models = ['Flux', 'StableDiffusion3', 'Lumina', 'AuraFlow', 'Sana', 'CogView4', 'HiDream', 'Chroma']
 flow_models += ['Hunyuan', 'LTX', 'Mochi']
+
+
+def find_sampler(name:str):
+    if name is None or name == 'None':
+        return all_samplers_map.get("UniPC", None)
+    for sampler in all_samplers:
+        if sampler.name.lower() == name.lower() or name in sampler.aliases:
+            debug(f'Find sampler: name="{name}" found={sampler.name}')
+            return sampler
+    debug(f'Find sampler: name="{name}" found=None')
+    return None
 
 
 def list_samplers():

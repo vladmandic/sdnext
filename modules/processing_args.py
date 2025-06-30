@@ -48,17 +48,21 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-        if model.__class__.__name__ == 'FluxImg2ImgPipeline': # needs explicit width/height
+        if model.__class__.__name__ == 'FluxImg2ImgPipeline' or model.__class__.__name__ == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width = p.init_images[0].shape[-1] * 16
-                p.height = p.init_images[0].shape[-2] * 16
+                p.width, p.height = p.init_images[0].shape[-1] * 16, p.init_images[0].shape[-2] * 16
             else:
-                p.width = 8 * math.ceil(p.init_images[0].width / 8)
-                p.height = 8 * math.ceil(p.init_images[0].height / 8)
+                p.width, p.height = 8 * math.ceil(p.init_images[0].width / 8), 8 * math.ceil(p.init_images[0].height / 8)
+            if model.__class__.__name__ == 'FluxKontextPipeline':
+                aspect_ratio = p.width / p.height
+                vae_scale_factor = 16
+                max_area = max(p.width, p.height)**2
+                p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
+                p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
+                task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
-        if model.__class__.__name__ == 'OmniGenPipeline':
-            p.width = 16 * math.ceil(p.init_images[0].width / 16)
-            p.height = 16 * math.ceil(p.init_images[0].height / 16)
+        elif model.__class__.__name__ == 'OmniGenPipeline' or model.__class__.__name__ == 'OmniGen2Pipeline':
+            p.width, p.height = 16 * math.ceil(p.init_images[0].width / 16), 16 * math.ceil(p.init_images[0].height / 16)
             task_args = {
                 'width': p.width,
                 'height': p.height,
@@ -144,12 +148,15 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
+    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
+
     parser = 'fixed'
     prompt_attention = prompt_attention or shared.opts.prompt_attention
     if (prompt_attention != 'fixed') and ('Onnx' not in model.__class__.__name__) and ('prompt' not in p.task_args) and (
         'StableDiffusion' in model.__class__.__name__ or
         'StableCascade' in model.__class__.__name__ or
         'Flux' in model.__class__.__name__ or
+        'Chroma' in model.__class__.__name__ or
         'HiDreamImagePipeline' in model.__class__.__name__ # hidream-e1 has different embeds
     ):
         try:
@@ -163,10 +170,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     else:
         prompt_parser_diffusers.embedder = None
 
-    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
-            prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
+            prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
         if 'HiDreamImage' in model.__class__.__name__  and prompt_parser_diffusers.embedder is not None:
             args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
@@ -174,15 +180,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['prompt_embeds_llama3'] = prompt_embeds[1]
         elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
-                if 'StableCascade' in model.__class__.__name__:
-                    args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
-                elif 'XL' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-                elif 'Flux' in model.__class__.__name__:
-                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            if 'StableCascade' in model.__class__.__name__:
+                args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
+            elif 'XL' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'StableDiffusion3' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'Flux' in model.__class__.__name__:
+                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+            elif 'Chroma' in model.__class__.__name__:
+                args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
@@ -193,13 +200,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['negative_prompt_embeds_llama3'] = negative_prompt_embeds[1]
         elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['negative_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
-                if 'StableCascade' in model.__class__.__name__:
-                    args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
-                elif 'XL' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
-                elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            if 'StableCascade' in model.__class__.__name__:
+                args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
+            elif 'XL' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'StableDiffusion3' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'Chroma' in model.__class__.__name__:
+                args['negative_prompt_attention_mask'] = prompt_parser_diffusers.embedder('negative_prompt_attention_masks')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
                 args['negative_prompt'] = negative_prompts[0]
@@ -278,7 +286,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             kwargs['output_type'] = 'np' # only set latent if model has vae
 
     # model specific
-    if 'Kandinsky' in model.__class__.__name__:
+    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("guidance_scale") # remove

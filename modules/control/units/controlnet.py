@@ -137,6 +137,23 @@ def find_models():
 
 find_models()
 
+
+def api_list_models(model_type: str = None):
+    import modules.shared
+    model_type = model_type or modules.shared.sd_model_type
+    model_list = []
+    if model_type == 'sd' or model_type == 'all':
+        model_list += list(predefined_sd15)
+    if model_type == 'sdxl' or model_type == 'all':
+        model_list += list(predefined_sdxl)
+    if model_type == 'f1' or model_type == 'all':
+        model_list += list(predefined_f1)
+    if model_type == 'sd3' or model_type == 'all':
+        model_list += list(predefined_sd3)
+    model_list += sorted(find_models())
+    return model_list
+
+
 def list_models(refresh=False):
     import modules.shared
     global models # pylint: disable=global-statement
@@ -286,21 +303,29 @@ class ControlNet():
                     return
                 if self.dtype is not None:
                     self.model.to(self.dtype)
-                if "ControlNet" in opts.sdnq_quantize_weights:
+                if "Control" in opts.sdnq_quantize_weights:
                     try:
                         log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
                         from modules.model_quant import sdnq_quantize_model
                         self.model = sdnq_quantize_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model SDNQ Compression failed: id="{model_id}" {e}')
-                elif "ControlNet" in opts.optimum_quanto_weights:
+                elif "Control" in opts.optimum_quanto_weights:
                     try:
                         log.debug(f'Control {what} model Optimum Quanto: id="{model_id}"')
-                        model_quant.load_quanto('Load model: type=ControlNet')
+                        model_quant.load_quanto('Load model: type=Control')
                         from modules.model_quant import optimum_quanto_model
                         self.model = optimum_quanto_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model Optimum Quanto: id="{model_id}" {e}')
+                elif "Control" in opts.torchao_quantization:
+                    try:
+                        log.debug(f'Control {what} model Torch AO: id="{model_id}"')
+                        model_quant.load_torchao('Load model: type=Control')
+                        from modules.model_quant import torchao_quantization
+                        self.model = torchao_quantization(self.model)
+                    except Exception as e:
+                        log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
                     self.model.to(self.device)
                 t1 = time.time()

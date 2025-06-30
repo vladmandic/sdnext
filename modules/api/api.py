@@ -5,7 +5,7 @@ from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, postprocessing
-from modules.api import models, endpoints, script, helpers, server, nvml, generate, process, control, gallery, docs
+from modules.api import models, endpoints, script, helpers, server, nvml, generate, process, control, gallery, loras, docs
 
 
 errors.install()
@@ -78,6 +78,7 @@ class Api:
         self.add_api_route("/sdapi/v1/samplers", endpoints.get_samplers, methods=["GET"], response_model=List[models.ItemSampler])
         self.add_api_route("/sdapi/v1/upscalers", endpoints.get_upscalers, methods=["GET"], response_model=List[models.ItemUpscaler])
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=List[models.ItemModel])
+        self.add_api_route("/sdapi/v1/controlnets", endpoints.get_controlnets, methods=["GET"], response_model=List[str])
         self.add_api_route("/sdapi/v1/hypernetworks", endpoints.get_hypernetworks, methods=["GET"], response_model=List[models.ItemHypernetwork])
         self.add_api_route("/sdapi/v1/face-restorers", endpoints.get_detailers, methods=["GET"], response_model=List[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/prompt-styles", endpoints.get_prompt_styles, methods=["GET"], response_model=List[models.ItemStyle])
@@ -100,8 +101,9 @@ class Api:
 
         # lora api
         if shared.native:
-            self.add_api_route("/sdapi/v1/loras", endpoints.get_loras, methods=["GET"], response_model=List[dict])
-            self.add_api_route("/sdapi/v1/refresh-loras", endpoints.post_refresh_loras, methods=["POST"])
+            self.add_api_route("/sdapi/v1/lora", loras.get_lora, methods=["GET"], response_model=dict)
+            self.add_api_route("/sdapi/v1/loras", loras.get_loras, methods=["GET"], response_model=List[dict])
+            self.add_api_route("/sdapi/v1/refresh-loras", loras.post_refresh_loras, methods=["POST"])
 
         # gallery api
         gallery.register_api(self.app)

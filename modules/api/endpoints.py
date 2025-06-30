@@ -23,6 +23,10 @@ def get_sd_models():
         checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(v)})
     return checkpoints
 
+def get_controlnets(model_type: Optional[str] = None):
+    from modules.control.units.controlnet import api_list_models
+    return api_list_models(model_type)
+
 def get_hypernetworks():
     return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]
 
@@ -42,12 +46,6 @@ def get_embeddings():
         return {embedding.name: convert_embedding(embedding) for embedding in embeddings.values()}
 
     return {"loaded": convert_embeddings(db.word_embeddings), "skipped": convert_embeddings(db.skipped_embeddings)}
-
-def get_loras():
-    from modules.lora import network, lora_load
-    def create_lora_json(obj: network.NetworkOnDisk):
-        return { "name": obj.name, "alias": obj.alias, "path": obj.filename, "metadata": obj.metadata }
-    return [create_lora_json(obj) for obj in lora_load.available_networks.values()]
 
 def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, filename: Optional[str] = None, title: Optional[str] = None, fullname: Optional[str] = None, hash: Optional[str] = None): # pylint: disable=redefined-builtin
     res = []
@@ -157,10 +155,6 @@ def post_refresh_checkpoints():
 def post_refresh_vae():
     shared.refresh_vaes()
     return {}
-
-def post_refresh_loras():
-    from modules.lora import lora_load
-    return lora_load.list_available_networks()
 
 def get_extensions_list():
     from modules import extensions

@@ -13,30 +13,30 @@ debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
 try:
     from diffusers import (
         CMStochasticIterativeScheduler,
-        UniPCMultistepScheduler,
-        DDIMScheduler,
-        EulerDiscreteScheduler,
-        EulerAncestralDiscreteScheduler,
-        EDMEulerScheduler,
-        FlowMatchEulerDiscreteScheduler,
-        DEISMultistepScheduler,
-        SASolverScheduler,
-        DPMSolverSinglestepScheduler,
-        DPMSolverMultistepScheduler,
-        DPMSolverMultistepInverseScheduler,
-        EDMDPMSolverMultistepScheduler,
         CosineDPMSolverMultistepScheduler,
-        DPMSolverSDEScheduler,
-        HeunDiscreteScheduler,
-        FlowMatchHeunDiscreteScheduler,
-        LCMScheduler,
-        FlowMatchLCMScheduler,
-        PNDMScheduler,
-        IPNDMScheduler,
+        DDIMScheduler,
         DDPMScheduler,
-        LMSDiscreteScheduler,
-        KDPM2DiscreteScheduler,
+        DEISMultistepScheduler,
+        DPMSolverMultistepInverseScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSDEScheduler,
+        DPMSolverSinglestepScheduler,
+        EDMDPMSolverMultistepScheduler,
+        EDMEulerScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        FlowMatchEulerDiscreteScheduler,
+        FlowMatchHeunDiscreteScheduler,
+        FlowMatchLCMScheduler,
+        HeunDiscreteScheduler,
+        IPNDMScheduler,
         KDPM2AncestralDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        LCMScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+        SASolverScheduler,
+        UniPCMultistepScheduler,
     )
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
@@ -52,10 +52,6 @@ try:
     from modules.schedulers.scheduler_ufogen import UFOGenScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_unipc_flowmatch import FlowUniPCMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_kohaku import KohakuLoNyuYogScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_smea import SMEAScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_dy import DYScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_negative import EulerNegativeScheduler # pylint: disable=ungrouped-imports
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
@@ -74,10 +70,6 @@ config = {
     'Euler SGM': { 'steps_offset': 0, 'interpolation_type': "linear", 'rescale_betas_zero_snr': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'trailing', 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_karras_sigmas': False, 'prediction_type': "sample" },
     'Euler EDM': { 'sigma_schedule': "karras" },
     'Euler FlowMatch': { 'timestep_spacing': "linspace", 'shift': 1, 'use_dynamic_shifting': False, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False },
-    # 'Euler SMEA': {},
-    # 'Euler DY': {},
-    # 'Euler Negative': {},
-    # 'Kohaku LoNyu': {},
 
     'DPM++': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 1 },
     'DPM++ 2M': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 2 },
@@ -135,9 +127,6 @@ samplers_data_diffusers = [
     SamplerData('Euler SGM', lambda model: DiffusionSampler('Euler SGM', EulerDiscreteScheduler, model), [], {}),
     SamplerData('Euler EDM', lambda model: DiffusionSampler('Euler EDM', EDMEulerScheduler, model), [], {}),
     SamplerData('Euler FlowMatch', lambda model: DiffusionSampler('Euler FlowMatch', FlowMatchEulerDiscreteScheduler, model), [], {}),
-    # SamplerData('Euler SMEA', lambda model: DiffusionSampler('Euler SMEA', SMEAScheduler, model), [], {}),
-    # SamplerData('Euler DY', lambda model: DiffusionSampler('Euler DY', DYScheduler, model), [], {}),
-    # SamplerData('Euler Negative', lambda model: DiffusionSampler('Euler Negative', EulerNegativeScheduler, model), [], {}),
 
     SamplerData('DPM++', lambda model: DiffusionSampler('DPM++', DPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM++ 2M', lambda model: DiffusionSampler('DPM++ 2M', DPMSolverMultistepScheduler, model), [], {}),
@@ -185,7 +174,6 @@ samplers_data_diffusers = [
     SamplerData('TDD', lambda model: DiffusionSampler('TDD', TDDScheduler, model), [], {}),
     SamplerData('PeRFlow', lambda model: DiffusionSampler('PeRFlow', PeRFlowScheduler, model), [], {}),
     SamplerData('UFOGen', lambda model: DiffusionSampler('UFOGen', UFOGenScheduler, model), [], {}),
-    # SamplerData('Kohaku LoNyu', lambda model: DiffusionSampler('Kohaku LoNyu', KohakuLoNyuYogScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]

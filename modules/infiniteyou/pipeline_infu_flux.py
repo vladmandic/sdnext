@@ -151,7 +151,7 @@ class InfUFluxPipeline:
         local_path = snapshot_download(repo_id='ByteDance/InfiniteYou', cache_dir=shared.opts.hfcache_dir)
         infiniteyou_path = os.path.join(local_path, f'infu_flux_{infu_flux_version}', model_version)
         infusenet_path = os.path.join(infiniteyou_path, 'InfuseNetModel')
-        quant_args = model_quant.create_config(module='ControlNet')
+        quant_args = model_quant.create_config(module='Control')
         shared.log.debug(f'InfiniteYou: fn="{infusenet_path}" load infusenet')
         self.infusenet = FluxControlNetModel.from_pretrained(
             infusenet_path,

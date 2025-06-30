@@ -152,6 +152,8 @@ class StableDiffusionProcessing:
         self.positive_pooleds = []
         self.negative_embeds = []
         self.negative_pooleds = []
+        self.prompt_attention_masks = []
+        self.negative_prompt_attention_masks = []
         self.disable_extra_networks = False
         self.iteration = 0
         self.network_data = {}
@@ -256,7 +258,8 @@ class StableDiffusionProcessing:
         self.all_subseeds = None
 
         # a1111 compatibility items
-        shared.opts.data['clip_skip'] = int(self.clip_skip) # for compatibility with a1111 sd_hijack_clip
+        if not shared.native:
+            shared.opts.data['clip_skip'] = int(self.clip_skip) # for compatibility with a1111 sd_hijack_clip
         self.seed_enable_extras: bool = True
         self.is_using_inpainting_conditioning = False # a111 compatibility
         self.batch_index = 0
@@ -321,6 +324,8 @@ class StableDiffusionProcessing:
         self.positive_pooleds = []
         self.negative_embeds = []
         self.negative_pooleds = []
+        self.prompt_attention_masks = []
+        self.negative_prompt_attention_mask = []
 
     def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'
@@ -459,8 +464,8 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if all_subseeds is not None:
             self.all_subseeds = all_subseeds
 
-        if self.sampler_name == "PLMS":
-            self.sampler_name = 'UniPC'
+        if self.sampler_name == 'PLMS':
+            self.sampler_name = 'Default'
         if not shared.native:
             self.sampler = sd_samplers.create_sampler(self.sampler_name, self.sd_model)
             if hasattr(self.sampler, "initialize"):

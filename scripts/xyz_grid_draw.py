@@ -22,9 +22,9 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
         def index(ix, iy, iz):
             return ix + iy * len(xs) + iz * len(xs) * len(ys)
 
-        p0 = time.time()
-        processed: processing.Processed = cell(x, y, z, ix, iy, iz)
-        p1 = time.time()
+        res = cell(x, y, z, ix, iy, iz)
+        processed: processing.Processed = res[0] if isinstance(res, tuple) else res
+        elapsed = res[1] if isinstance(res, tuple) else 0
         if processed_result is None:
             processed_result = copy(processed)
             if processed_result is None:
@@ -48,13 +48,13 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
                 if len(z_labels[iz]) > 0:
                     overlay_text += f'{z_labels[iz]}\n'
             if include_time:
-                overlay_text += f'Time: {p1 - p0:.2f}'
+                overlay_text += f'Time: {elapsed:.2f}'
             if len(overlay_text) > 0:
                 processed_result.images[idx] = images.draw_overlay(processed_result.images[idx], overlay_text)
             processed_result.all_prompts[idx] = processed.prompt
             processed_result.all_seeds[idx] = processed.seed
             processed_result.infotexts[idx] = processed.infotexts[0]
-            processed_result.time[idx] = round(p1 - p0, 2)
+            processed_result.time[idx] = round(elapsed, 2)
         else:
             cell_mode = "P"
             cell_size = (processed_result.width, processed_result.height)

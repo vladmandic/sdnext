@@ -18,6 +18,7 @@ class SdVersion(enum.Enum):
     SC = 5
     F1 = 6
     HV = 7
+    CHROMA = 8
 
 
 class NetworkOnDisk:
@@ -59,6 +60,8 @@ class NetworkOnDisk:
             return 'f1'
         if base.startswith("hunyuan_video"):
             return 'hv'
+        if base.startswith("chroma"):
+            return 'chroma'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'
@@ -70,6 +73,8 @@ class NetworkOnDisk:
             return 'f1'
         if arch.startswith("hunyuan-video"):
             return 'hv'
+        if arch.startswith("chroma"):
+            return 'chroma'
 
         if "v1-5" in str(self.metadata.get('ss_sd_model_name', "")):
             return 'sd1'
@@ -79,6 +84,8 @@ class NetworkOnDisk:
             return 'f1'
         if 'xl' in self.name.lower():
             return 'xl'
+        if 'chroma' in self.name.lower():
+            return 'chroma'
 
         return ''
 
@@ -89,6 +96,27 @@ class NetworkOnDisk:
     def read_hash(self):
         if not self.hash:
             self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
+
+    def get_info(self):
+        data = {}
+        if shared.cmd_opts.no_metadata:
+            return data
+        if self.filename is not None:
+            fn = os.path.splitext(self.filename)[0] + '.json'
+            if os.path.exists(fn):
+                data = shared.readfile(fn, silent=True)
+                if type(data) is list:
+                    data = data[0]
+        return data
+
+    def get_desc(self):
+        if shared.cmd_opts.no_metadata:
+            return None
+        if self.filename is not None:
+            fn = os.path.splitext(self.filename)[0] + '.txt'
+            if os.path.exists(fn):
+                return shared.readfile(fn, silent=True)
+        return None
 
     def get_alias(self):
         if shared.opts.lora_preferred_name == "filename":
@@ -124,7 +152,10 @@ class NetworkModule:
         self.sd_key = weights.sd_key
         self.sd_module = weights.sd_module
         if hasattr(self.sd_module, 'weight'):
-            self.shape = self.sd_module.weight.shape
+            if hasattr(self.sd_module, "sdnq_dequantizer"):
+                self.shape = self.sd_module.sdnq_dequantizer.original_shape
+            else:
+                self.shape = self.sd_module.weight.shape
         self.dim = None
         self.bias = weights.w.get("bias")
         self.alpha = weights.w["alpha"].item() if "alpha" in weights.w else None

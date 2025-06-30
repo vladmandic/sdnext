@@ -129,6 +129,13 @@ def setup_logging():
         def get(self):
             return self.buffer
 
+    class LogFilter(logging.Filter):
+        def __init__(self):
+            super().__init__()
+
+        def filter(self, record):
+            return len(record.getMessage()) > 2
+
     t_start = time.time()
     from functools import partial, partialmethod
     from logging.handlers import RotatingFileHandler
@@ -147,7 +154,7 @@ def setup_logging():
     logging.Logger.trace = partialmethod(logging.Logger.log, logging.TRACE)
     logging.trace = partial(logging.log, logging.TRACE)
 
-    level = logging.DEBUG if args.debug else logging.INFO
+    level = logging.DEBUG if (args.debug or args.trace) else logging.INFO
     log.setLevel(logging.DEBUG) # log to file is always at level debug for facility `sd`
     log.print = rprint
     global console # pylint: disable=global-statement
@@ -173,22 +180,30 @@ def setup_logging():
     while log.hasHandlers() and len(log.handlers) > 0:
         log.removeHandler(log.handlers[0])
 
+    log_filter = LogFilter()
     # handlers
     rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=False, rich_tracebacks=True, log_time_format='%H:%M:%S-%f', level=level, console=console)
+    if args.trace:
+        rh.formatter = logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s')
+    rh.addFilter(log_filter)
     rh.setLevel(level)
     log.addHandler(rh)
 
     fh = RotatingFileHandler(log_file, maxBytes=32*1024*1024, backupCount=9, encoding='utf-8', delay=True) # 10MB default for log rotation
+    if args.trace:
+        fh.formatter = logging.Formatter(f'%(asctime)s | {hostname} | %(name)s | %(levelname)s | %(module)s | | %(pathname)s:%(lineno)d | %(message)s')
+    else:
+        fh.formatter = logging.Formatter(f'%(asctime)s | {hostname} | %(name)s | %(levelname)s | %(module)s | %(message)s')
+    fh.addFilter(log_filter)
+    fh.setLevel(logging.DEBUG)
+    log.addHandler(fh)
     global log_rolled # pylint: disable=global-statement
     if not log_rolled and args.debug and not args.log:
         fh.doRollover()
         log_rolled = True
 
-    fh.formatter = logging.Formatter(f'%(asctime)s | {hostname} | %(name)s | %(levelname)s | %(module)s | %(message)s')
-    fh.setLevel(logging.DEBUG)
-    log.addHandler(fh)
-
     rb = RingBuffer(100) # 100 entries default in log ring buffer
+    rb.addFilter(log_filter)
     rb.setLevel(level)
     log.addHandler(rb)
     log.buffer = rb.buffer
@@ -520,9 +535,9 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
-            log.warning(f"Python version experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} recommended 3.{supported_minors}")
+            log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         else:
-            log.error(f"Python version incompatible: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
+            log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
                 log.error(reason)
             if not args.ignore and not args.experimental:
@@ -546,7 +561,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    sha = '8adc6003ba4dbf5b61bb4f1ce571e9e55e145a99' # diffusers commit hash
+    sha = '00f95b9755718aabb65456e791b8408526ae6e76' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
     cur = opts.get('diffusers_version', '') if minor > 0 else ''
@@ -752,8 +767,8 @@ def install_openvino():
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.1.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.16.0'), 'nncf')
+    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.2.0'), 'openvino')
+    install(os.environ.get('NNCF_COMMAND', 'nncf==2.17.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
         os.environ.setdefault('NEOReadDebugKeys', '1')
@@ -1528,7 +1543,8 @@ def add_args(parser):
 
     group_log = parser.add_argument_group('Logging')
     group_log.add_argument("--log", type=str, default=os.environ.get("SD_LOG", None), help="Set log file, default: %(default)s")
-    group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run installer with debug logging, default: %(default)s")
+    group_log.add_argument('--debug', default=os.environ.get("SD_DEBUG",False), action='store_true', help="Run with debug logging, default: %(default)s")
+    group_log.add_argument("--trace", default=os.environ.get("SD_TRACE", False), action='store_true', help="Run with trace logging, default: %(default)s")
     group_log.add_argument("--profile", default=os.environ.get("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
     group_log.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
     group_log.add_argument("--api-log", default=os.environ.get("SD_APILOG", False), action='store_true', help="Log all API requests")

@@ -1,4 +1,5 @@
 import os
+import copy
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te
 from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
@@ -37,7 +38,7 @@ def load_model(selected: models_def.Model):
 
     # transformer
     try:
-        quant_args = model_quant.create_config(module='Video')
+        quant_args = model_quant.create_config(module='Model')
         debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         transformer = selected.dit_cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit or selected.repo,
@@ -70,6 +71,9 @@ def load_model(selected: models_def.Model):
         errors.display(e, 'video')
 
     t1 = time.time()
+    if shared.sd_model.__class__.__name__.startswith("LTX"):
+        shared.sd_model.scheduler.config.use_dynamic_shifting = False
+    shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler) if hasattr(shared.sd_model, "scheduler") else None
     shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(selected.repo)
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model)

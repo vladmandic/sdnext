@@ -26,7 +26,7 @@ class FluxPosEmbed(torch.nn.Module):
         n_axes = ids.shape[-1]
         cos_out = []
         sin_out = []
-        pos = ids.float()
+        pos = ids.to(dtype=torch.float32)
         for i in range(n_axes):
             cos, sin = diffusers.models.embeddings.get_1d_rotary_pos_embed(
                 self.axes_dim[i],
@@ -99,12 +99,12 @@ def apply_rotary_emb(x, freqs_cis, use_real: bool = True, use_real_unbind_dim: i
         else:
             raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
 
-        out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
+        out = (x.to(dtype=torch.float32) * cos + x_rotated.to(dtype=torch.float32) * sin).to(x.dtype)
         return out
     else:
         # used for lumina
         # force cpu with Alchemist
-        x_rotated = torch.view_as_complex(x.to("cpu").float().reshape(*x.shape[:-1], -1, 2))
+        x_rotated = torch.view_as_complex(x.to("cpu").to(dtype=torch.float32).reshape(*x.shape[:-1], -1, 2))
         freqs_cis = freqs_cis.to("cpu").unsqueeze(2)
         x_out = torch.view_as_real(x_rotated * freqs_cis).flatten(3)
         return x_out.type_as(x).to(x.device)
@@ -122,5 +122,6 @@ def ipex_diffusers(device_supports_fp64=False):
         diffusers.models.embeddings.apply_rotary_emb = apply_rotary_emb
         diffusers.models.transformers.transformer_flux.FluxPosEmbed = FluxPosEmbed
         diffusers.models.transformers.transformer_lumina2.apply_rotary_emb = apply_rotary_emb
-        diffusers.models.controlnets.controlnet_flux.FluxPosEmbed = FluxPosEmbed
         diffusers.models.transformers.transformer_hidream_image.rope = hidream_rope
+        diffusers.models.transformers.transformer_chroma.FluxPosEmbed = FluxPosEmbed
+        diffusers.models.controlnets.controlnet_flux.FluxPosEmbed = FluxPosEmbed

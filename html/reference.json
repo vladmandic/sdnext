@@ -158,24 +158,18 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "Black Forest Labs FLUX.1 Dev qint8": {
-    "path": "Disty0/FLUX.1-dev-qint8",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
+  "Black Forest Labs FLUX.1 Kontext Dev": {
+    "path": "black-forest-labs/FLUX.1-Kontext-dev",
+    "preview": "black-forest-labs--FLUX.1-Kontext-dev.jpg",
+    "desc": "FLUX.1 Kontext [dev] is a 12 billion parameter rectified flow transformer capable of editing images based on text instructions.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "Black Forest Labs FLUX.1 Dev qint4": {
-    "path": "Disty0/FLUX.1-dev-qint4",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
-  "Black Forest Labs FLUX.1 Dev nf4": {
-    "path": "sayakpaul/flux.1-dev-nf4",
-    "preview": "black-forest-labs--FLUX.1-dev.jpg",
-    "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
+
+  "lodestones Chroma": {
+    "path": "lodestones/Chroma",
+    "preview": "lodestones--Chroma.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
@@ -236,12 +230,32 @@
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
-  }, 
+  },
+
+  "nVidia Cosmos-Predict2 T2I 2B": {
+    "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
+    "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
+    "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
+    "skip": true
+  },
+  "nVidia Cosmos-Predict2 T2I 14B": {
+    "path": "nvidia/Cosmos-Predict2-14B-Text2Image",
+    "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
+    "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
+    "skip": true
+  },
 
   "VectorSpaceLab OmniGen v1": {
-    "path": "Shitao/OmniGen-v1",
+    "path": "Shitao/OmniGen-v1-diffusers",
     "desc": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It is designed to be simple, flexible and easy to use.",
     "preview": "Shitao--OmniGen-v1.jpg",
+    "skip": true
+  }, 
+
+  "VectorSpaceLab OmniGen v2": {
+    "path": "OmniGen2/OmniGen2",
+    "desc": "OmniGen2 is a powerful and efficient unified multimodal model. Unlike OmniGen v1, OmniGen2 features two distinct decoding pathways for text and image modalities, utilizing unshared parameters and a decoupled image tokenizer.",
+    "preview": "OmniGen2--OmniGen2.jpg",
     "skip": true
   }, 
 

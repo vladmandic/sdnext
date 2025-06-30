@@ -29,6 +29,7 @@ script_path = os.path.dirname(modules_path)
 data_path = cli.data_dir
 models_config = cli.models_dir or config.get('models_dir') or 'models'
 models_path = models_config if os.path.isabs(models_config) else os.path.join(data_path, models_config)
+params_path = os.environ.get('SD_PATH_PARAMS', os.path.join(data_path, "params.txt"))
 extensions_dir = cli.extensions_dir or os.path.join(data_path, "extensions")
 extensions_builtin_dir = "extensions-builtin"
 sd_configs_path = os.path.join(script_path, "configs")

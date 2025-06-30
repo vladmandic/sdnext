@@ -130,7 +130,7 @@ def full_vae_decode(latents, model):
     # normalize latents
     latents_mean = model.vae.config.get("latents_mean", None)
     latents_std = model.vae.config.get("latents_std", None)
-    scaling_factor = model.vae.config.get("scaling_factor", None)
+    scaling_factor = model.vae.config.get("scaling_factor", 1.0)
     shift_factor = model.vae.config.get("shift_factor", None)
     if latents_mean and latents_std:
         latents_mean = (torch.tensor(latents_mean).view(1, -1, 1, 1).to(latents.device, latents.dtype))
@@ -298,9 +298,9 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latent_num_frames = (frames - 1) // model.vae_temporal_compression_ratio + 1
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access
         latents = model._denormalize_latents(latents, model.vae.latents_mean, model.vae.latents_std, model.vae.config.scaling_factor) # pylint: disable=protected-access
-    if hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None: # FLUX
+    if hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None and latents.ndim == 3: # FLUX
         latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
-    if len(latents.shape) == 3: # lost a batch dim in hires
+    if latents.ndim == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()

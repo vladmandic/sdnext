@@ -32,21 +32,23 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
         inpaint_masks = [f for f in inpaint_masks if filetype.is_image(f)]
         is_inpaint_batch = len(inpaint_masks) > 0
         shared.log.info(f'Process batch: mask folder="{input_dir}" images={len(inpaint_masks)}')
-    save_normally = output_dir == ''
     p.do_not_save_grid = True
-    p.do_not_save_samples = not save_normally
+    p.do_not_save_samples = True
     p.default_prompt = p.prompt
+    if p.n_iter > 1:
+        p.n_iter = 1
+        shared.log.warning(f'Process batch: batch_count={p.n_iter} forced to 1')
     shared.state.job_count = len(image_files) * p.n_iter
     if shared.opts.batch_frame_mode: # SBM Frame mode is on, process each image in batch with same seed
         window_size = p.batch_size
         btcrept = 1
         p.seed = [p.seed] * window_size # SBM MONKEYPATCH: Need to change processing to support a fixed seed value.
         p.subseed = [p.subseed] * window_size # SBM MONKEYPATCH
-        shared.log.info(f"Process batch: inputs={len(image_files)} parallel={window_size} outputs={p.n_iter} per input ")
+        shared.log.info(f"Process batch: inputs={len(image_files)} outputs={p.n_iter}x{len(image_files)} parallel={window_size}")
     else: # SBM Frame mode is off, standard operation of repeating same images with sequential seed.
         window_size = 1
         btcrept = p.batch_size
-        shared.log.info(f"Process batch: inputs={len(image_files)} outputs={p.n_iter * p.batch_size} per input")
+        shared.log.info(f"Process batch: inputs={len(image_files)} outputs={p.n_iter*p.batch_size}x{len(image_files)}")
     for i in range(0, len(image_files), window_size):
         if shared.state.skipped:
             shared.state.skipped = False
@@ -117,8 +119,7 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
                 basename = ''
             if output_dir == '':
                 output_dir = shared.opts.outdir_img2img_samples
-            if not save_normally:
-                os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
             geninfo, items = images.read_info_from_image(image)
             for k, v in items.items():
                 image.info[k] = v

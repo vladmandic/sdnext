@@ -37,7 +37,14 @@ def create_ui():
                     model = modelstats.analyze()
                     desc = f"Model: {model.name}<br>Type: {model.type}<br>Class: {model.cls}<br>Size: {model.size} bytes<br>Modified: {model.mtime}<br>"
                     meta = model.meta
-                    components = [(m.name, m.cls, m.device, m.dtype, m.params, m.modules, str(m.config)) for m in model.modules]
+                    components = []
+                    for m in model.modules:
+                        try:
+                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, str(m.config))
+                            components.append(component)
+                        except Exception:
+                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, '')
+                            components.append(component)
                     return [desc, components, meta]
 
                 with gr.Row():

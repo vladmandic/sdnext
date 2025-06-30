@@ -27,6 +27,7 @@ pipelines = {
     'DeepFloyd IF': getattr(diffusers, 'IFPipeline', None),
     'FLUX': getattr(diffusers, 'FluxPipeline', None),
     'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
+    'Chroma': getattr(diffusers, 'ChromaPipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),
@@ -41,10 +42,11 @@ pipelines = {
     'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
+    'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
+    'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'OmniGenPipeline': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
 }
