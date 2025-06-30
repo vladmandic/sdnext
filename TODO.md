@@ -8,7 +8,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - Refactor: Move `model_*` stuff into subfolder  
 - Refactor: sampler options  
-- Simplify Control tab  
 - Common repo for `T5` and `CLiP`  
 - Upgrade: unblock `numpy`: see `gradio`
 - Upgrade: unblock `pydantic`: see <https://github.com/Cschlaefli/automatic>

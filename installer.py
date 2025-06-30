@@ -535,9 +535,9 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
-            log.warning(f"Python version experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} recommended 3.{supported_minors}")
+            log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         else:
-            log.error(f"Python version incompatible: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
+            log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
                 log.error(reason)
             if not args.ignore and not args.experimental:
