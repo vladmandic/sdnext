@@ -1,6 +1,19 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-29
+## Update for 2025-06-30
+
+### Highlights for 2025-06-30
+
+New release with ~100 commits...So what's new? Well, its been a busy few weeks with new models coming out quite frequently:  
+- New T2I/I2I models: **OmniGen-2, Cosmos-Predict2, FLUX.1-Kontext, Chroma**  
+- Additional VLM models: **JoyCaption Beta, MoonDream 2**  
+- Additional upscalers: **UltraSharp v2**  
+
+And (as always) many bugfixes and improvements to existing features!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-06-30
 
 - **Models**
   - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
@@ -88,24 +101,20 @@
   - Support for Python 3.13  
   - TeaCache support for Lumina 2  
   - Custom UNet and VAE loading support for Lumina 2  
-
 - **Changes**  
   - Increase the medvram mode threshold from 8GB to 12GB  
   - Set CPU backend to use FP32 by default  
   - Relax Python version checks for Zluda  
   - Make VAE options not require model reload  
   - Add warning about incompatible attention processors  
-
 - **Torch**  
   - Set default to `torch==2.7.1`  
   - Force upgrade pip when installing Torch  
-
 - **ROCm**  
   - Support ROCm 6.4 with `--use-nightly`  
   - Don't override user set gfx version  
   - Don't override gfx version with RX 9000  
   - Fix flash-atten repo  
-
 - **SDNQ Quantization**  
   - Add group size support for convolutional layers  
   - Add quantized matmul support for for convolutional layers  
@@ -116,7 +125,6 @@
   - Fix VAE with conv quant  
   - Don't ignore the Quantize with GPU option with offload mode `none` and `model`  
   - High VRAM usage with Lumina 2  
-
 - **Fixes**  
   - Meissonic with multiple generators  
   - OmniGen with new transformers  
