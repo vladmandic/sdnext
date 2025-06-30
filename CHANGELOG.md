@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2025-07-01
+
+- **UI**
+  - major update to modernui layout
+   
+
 ## Update for 2025-06-30
 
 ### Highlights for 2025-06-30
