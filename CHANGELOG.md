@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-06-27
+## Update for 2025-06-29
 
 - **Models**
   - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
@@ -77,7 +77,8 @@
   - Fix process batch double image save  
   - Fix unapply texture tiling  
   - Fix nunchaku batch support  
-  - Fix LoRA change detection on pipeline type change
+  - Fix LoRA change detection on pipeline type change  
+  - Fix LoRA load order when it includes text-encoder data  
   - Suppress torch empty logging  
   - Improve TAESD live preview downscale handling  
 
