@@ -1176,7 +1176,7 @@ def install_gradio():
     install('gradio==3.43.2', no_deps=True)
     install('gradio-client==0.5.0', no_deps=True, quiet=True)
     install('dctorch==0.1.2', no_deps=True, quiet=True)
-    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart']
+    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart', 'matplotlib']
     for pkg in pkgs:
         if not installed(pkg, quiet=True):
             install(pkg, quiet=True)
