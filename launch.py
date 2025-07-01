@@ -112,8 +112,8 @@ def check_run(command): # compatbility function
 
 
 @lru_cache()
-def is_installed(package): # compatbility function
-    return installer.installed(package)
+def is_installed(pkg): # compatbility function
+    return installer.installed(pkg)
 
 
 @lru_cache()

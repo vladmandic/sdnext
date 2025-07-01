@@ -28,6 +28,7 @@ fasteners
 orjson
 ruff
 pylint
+sqlalchemy
 invisible-watermark
 pi-heif
 
