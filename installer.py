@@ -1,4 +1,3 @@
-from functools import lru_cache
 import os
 import sys
 import json
@@ -254,7 +253,6 @@ def print_profile(profiler: cProfile.Profile, msg: str):
     profile(profiler, msg)
 
 
-@lru_cache()
 def package_version(package):
     try:
         return pkg_resources.get_distribution(package).version
@@ -262,7 +260,6 @@ def package_version(package):
         return None
 
 
-@lru_cache()
 def package_spec(package):
     spec = pkg_resources.working_set.by_key.get(package, None) # more reliable than importlib
     if spec is None:
@@ -273,7 +270,6 @@ def package_spec(package):
 
 
 # check if package is installed
-@lru_cache()
 def installed(package, friendly: str = None, reload = False, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
     ok = True
@@ -341,7 +337,6 @@ def run(cmd: str, arg: str):
     return txt
 
 
-@lru_cache()
 def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
@@ -376,7 +371,6 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 
 
 # install package using pip if not already installed
-@lru_cache()
 def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False):
     t_start = time.time()
     res = ''
@@ -396,7 +390,6 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
 
 
 # execute git command
-@lru_cache()
 def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
     t_start = time.time()
     if args.skip_git:

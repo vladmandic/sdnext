@@ -353,7 +353,7 @@ def start_ui():
     timer.startup.record("app-started")
 
     time_sorted = sorted(modules.scripts.time_setup.items(), key=lambda x: x[1], reverse=True)
-    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.01]
+    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.03]
     time_total = sum(modules.scripts.time_setup.values())
     shared.log.debug(f'Scripts setup: time={time_total:.3f} {time_script}')
     time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts.time_component.items() if v > 0.005]

@@ -12,6 +12,7 @@
   - better handle startup import errors  
 - **Fixes**
   - allow theme type `None` to be set in config  
+  - installer dont cache installed state  
 
 
 ## Update for 2025-06-30
