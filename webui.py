@@ -371,9 +371,11 @@ def webui(restart=False):
     app = start_ui()
     modules.script_callbacks.after_ui_callback()
     modules.sd_models.write_metadata()
+
     load_model()
     mount_subpath(app)
     shared.opts.save(shared.config_filename)
+
     if shared.cmd_opts.profile:
         for k, v in modules.script_callbacks.callback_map.items():
             shared.log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')

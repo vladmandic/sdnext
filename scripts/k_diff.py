@@ -1,6 +1,6 @@
 import inspect
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts, processing, shared, sd_models, ui_common
 
 
 class Script(scripts.Script):
@@ -17,7 +17,8 @@ class Script(scripts.Script):
         with gr.Row():
             gr.HTML('<a href="https://github.com/crowsonkb/k-diffusion">&nbsp K-Diffusion Samplers</a><br>')
         with gr.Row():
-            sampler = gr.Dropdown(label="Sampler", choices=self.samplers())
+            sampler = gr.Dropdown(label="Sampler", choices=[])
+            _refresh = ui_common.create_refresh_button(sampler, self.samplers, lambda: {"choices": self.samplers()})
         return [sampler]
 
     def samplers(self):

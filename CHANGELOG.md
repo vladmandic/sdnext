@@ -2,9 +2,17 @@
 
 ## Update for 2025-07-01
 
-- **UI**
-  - major update to modernui layout
-   
+- **UI**  
+  - major update to modernui layout  
+- **Core**  
+  - override `gradio` installer  
+  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
+  - patch `insightface`  
+  - patch `k-diffusion`  
+  - better handle startup import errors  
+- **Fixes**
+  - allow theme type `None` to be set in config  
+
 
 ## Update for 2025-06-30
 

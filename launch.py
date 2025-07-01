@@ -260,6 +260,7 @@ def main():
         installer.set_environment()
     if args.uv:
         installer.install("uv", "uv")
+    installer.install_gradio()
     installer.check_torch()
     installer.check_onnx()
     installer.check_diffusers()

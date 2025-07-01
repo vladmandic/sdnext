@@ -14,7 +14,22 @@ errors.install()
 logging.getLogger("DeepSpeed").disabled = True
 
 
-# os.environ.setdefault('TORCH_LOGS', '-all')
+np = None
+try:
+    import numpy as np # pylint: disable=W0611,C0411
+    import numpy.random # pylint: disable=W0611,C0411 # this causes failure if numpy version changed
+except Exception as e:
+    errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
+    errors.log.error('Please restart the app to fix this issue')
+    sys.exit(1)
+
+try:
+    import scipy # pylint: disable=W0611,C0411
+except Exception as e:
+    errors.log.error(f'Loader: scipy=={np.__version__ if np is not None else None} {e}')
+    errors.log.error('Please restart the app to fix this issue')
+    sys.exit(1)
+
 import torch # pylint: disable=C0411
 if torch.__version__.startswith('2.5.0'):
     errors.log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
@@ -34,6 +49,7 @@ logging.getLogger("pytorch_lightning").disabled = True
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
 warnings.filterwarnings(action="ignore", category=FutureWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
+warnings.filterwarnings(action="ignore", message="numpy.dtype size changed")
 try:
     import torch._logging # pylint: disable=ungrouped-imports
     torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
@@ -139,7 +155,7 @@ try:
 except Exception:
     pass
 
-try: # fix changed import in torchvision 0.17+, which breaks basicsr
+try:
     import torchvision.transforms.functional_tensor # pylint: disable=unused-import, ungrouped-imports
 except ImportError:
     try:
@@ -160,4 +176,4 @@ diffusers.utils.deprecate = deprecate_warn
 
 
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__}')
+errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__}')

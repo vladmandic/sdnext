@@ -308,10 +308,7 @@ def temp_disable_extensions():
         modules.shared.opts.data['theme_type'] = 'Modern'
         modules.shared.opts.data['gradio_theme'] = theme_name[7:]
         disable_themes.remove('sdnext-modernui')
-    elif theme_name.lower().startswith('gradio'):
-        modules.shared.opts.data['theme_type'] = 'None'
-        modules.shared.opts.data['gradio_theme'] = theme_name
-    elif theme_name.lower().startswith('huggingface'):
+    elif theme_name.lower().startswith('huggingface') or theme_name.lower().startswith('gradio') or theme_name.lower().startswith('none'):
         modules.shared.opts.data['theme_type'] = 'None'
         modules.shared.opts.data['gradio_theme'] = theme_name
     else:

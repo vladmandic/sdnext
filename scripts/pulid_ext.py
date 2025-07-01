@@ -30,7 +30,7 @@ class Script(scripts.Script):
     def dependencies(self):
         from installer import install, installed, reload
         if not installed('insightface==0.7.3', reload=False, quiet=True):
-            install('insightface==0.7.3', ignore=False)
+            install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
             install('albumentations==1.4.3', ignore=False, reinstall=True)
             install('pydantic==1.10.21', ignore=False, reinstall=True, force=True)
             reload('pydantic')

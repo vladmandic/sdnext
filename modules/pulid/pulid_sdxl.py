@@ -1,7 +1,6 @@
 from typing import Union
 import os
 import cv2
-import insightface
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,6 +13,7 @@ from safetensors.torch import load_file
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
 
+import insightface
 from basicsr.utils import img2tensor, tensor2img
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper

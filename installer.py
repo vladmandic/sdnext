@@ -346,7 +346,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
-    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force", "").replace(" ", " ").strip()
+    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
@@ -360,7 +360,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             err = result.stderr.decode(encoding="utf8", errors="ignore")
-            log.warning('Install: cannot use uv, fallback to pip')
+            log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {err}')
             return pip(originalArg, ignore, quiet, uv=False)
         else:
@@ -385,7 +385,7 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
         quick_allowed = False
     if (args.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
         deps = '' if not no_deps else '--no-deps '
-        cmd = f"install{' --upgrade' if not args.uv else ''}{' --force' if force else ''} {deps}{package}"
+        cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{package}"
         res = pip(cmd, ignore=ignore, uv=package != "uv" and not package.startswith('git+'))
         try:
             importlib.reload(pkg_resources)
@@ -827,6 +827,7 @@ def check_cudnn():
 
 # check torch version
 def check_torch():
+    log.info('Verifying torch installation')
     t_start = time.time()
     if args.skip_torch:
         log.info('Torch: skip tests')
@@ -1163,10 +1164,22 @@ def ensure_base_requirements():
         update_setuptools()
 
     # used by installler itself so must be installed before requirements
-    install('rich', 'rich', quiet=True)
+    install('rich==14.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
-    install('requests', 'requests', quiet=True)
+    install('requests==2.32.3', 'requests', quiet=True)
     ts('base', t_start)
+
+
+def install_gradio():
+    # pip install gradio==3.43.2 installs:
+    # aiofiles-23.2.1 altair-5.5.0 annotated-types-0.7.0 anyio-4.9.0 attrs-25.3.0 certifi-2025.6.15 charset_normalizer-3.4.2 click-8.2.1 contourpy-1.3.2 cycler-0.12.1 fastapi-0.115.14 ffmpy-0.6.0 filelock-3.18.0 fonttools-4.58.4 fsspec-2025.5.1 gradio-3.43.2 gradio-client-0.5.0 h11-0.16.0 hf-xet-1.1.5 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-0.33.1 idna-3.10 importlib-resources-6.5.2 jinja2-3.1.6 jsonschema-4.24.0 jsonschema-specifications-2025.4.1 kiwisolver-1.4.8 markupsafe-2.1.5 matplotlib-3.10.3 narwhals-1.45.0 numpy-1.26.4 orjson-3.10.18 packaging-25.0 pandas-2.3.0 pillow-10.4.0 pydantic-2.11.7 pydantic-core-2.33.2 pydub-0.25.1 pyparsing-3.2.3 python-dateutil-2.9.0.post0 python-multipart-0.0.20 pytz-2025.2 pyyaml-6.0.2 referencing-0.36.2 requests-2.32.4 rpds-py-0.25.1 semantic-version-2.10.0 six-1.17.0 sniffio-1.3.1 starlette-0.46.2 tqdm-4.67.1 typing-extensions-4.14.0 typing-inspection-0.4.1 tzdata-2025.2 urllib3-2.5.0 uvicorn-0.35.0 websockets-11.0.3
+    install('gradio==3.43.2', no_deps=True)
+    install('gradio-client==0.5.0', no_deps=True, quiet=True)
+    install('dctorch==0.1.2', no_deps=True, quiet=True)
+    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart']
+    for pkg in pkgs:
+        if not installed(pkg, quiet=True):
+            install(pkg, quiet=True)
 
 
 def install_optional():
@@ -1174,20 +1187,20 @@ def install_optional():
     log.info('Installing optional requirements...')
     install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
     install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
-    install('clean-fid')
-    install('pillow-jxl-plugin==1.3.3', ignore=True)
-    install('optimum-quanto==0.2.7', ignore=True)
-    install('torchao==0.10.0', ignore=True)
-    install('bitsandbytes==0.45.5', ignore=True)
-    install('pynvml', ignore=True)
-    install('ultralytics==8.3.40', ignore=True)
-    install('Cython', ignore=True)
-    install('insightface==0.7.3', ignore=True) # problematic build
-    install('albumentations==1.4.3', ignore=True)
-    install('pydantic==1.10.21', ignore=True)
+    install('clean-fid', quiet=True)
+    install('pillow-jxl-plugin==1.3.3', ignore=True, quiet=True)
+    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
+    install('torchao==0.10.0', ignore=True, quiet=True)
+    install('bitsandbytes==0.45.5', ignore=True, quiet=True)
+    install('pynvml', ignore=True, quiet=True)
+    install('ultralytics==8.3.40', ignore=True, quiet=True)
+    install('Cython', ignore=True, quiet=True)
+    install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
+    install('albumentations==1.4.3', ignore=True, quiet=True)
+    install('pydantic==1.10.21', ignore=True, quiet=True)
     reload('pydantic', '1.10.21')
     install('gguf', ignore=True)
-    install('av', ignore=True)
+    install('av', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')

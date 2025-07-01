@@ -9,8 +9,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Refactor: Move `model_*` stuff into subfolder  
 - Refactor: sampler options  
 - Common repo for `T5` and `CLiP`  
-- Upgrade: unblock `numpy`: see `gradio`
-- Upgrade: unblock `pydantic`: see <https://github.com/Cschlaefli/automatic>
+- Upgrade: unblock `pydantic` and `albumentations`
+  - see <https://github.com/Cschlaefli/automatic>
+  - blocked by `insightface`
 
 ### Complete Features
 
