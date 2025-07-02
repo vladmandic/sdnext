@@ -6,6 +6,12 @@
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
 - **UI**  
   - major update to modernui layout  
+- **Compute**
+  - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
+    provides 10-15% performance improvement over default SDPA for transformer-based models!  
+    enable in *settings -> compute settings -> sdp options*  
+    *note*: SD.Next will use either SageAttention v1 or v2, depending which one is installed  
+    until authors provide pre-build wheels for v2, you need to install it manually or SD.Next will auto-install v1  
 - **Core**  
   - override `gradio` installer  
   - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
