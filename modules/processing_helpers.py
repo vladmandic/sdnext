@@ -462,11 +462,11 @@ def fix_prompts(p, prompts, negative_prompts, prompts_2, negative_prompts_2):
 def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
-    if not is_txt2img():
-        cls = shared.sd_model.__class__.__name__
+    cls = shared.sd_model.__class__.__name__
+    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+        steps = p.steps
+    elif not is_txt2img():
         if cls in sd_models.i2i_pipes:
-            steps = p.steps
-        elif 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
             steps = p.steps
         elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)
@@ -483,9 +483,10 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
 
 
 def calculate_hires_steps(p):
-    # if len(getattr(p, 'timesteps', [])) > 0:
-    #    return None
-    if p.hr_second_pass_steps > 0:
+    cls = shared.sd_model.__class__.__name__
+    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+        steps = p.steps
+    elif p.hr_second_pass_steps > 0:
         steps = (p.hr_second_pass_steps // p.denoising_strength) + 1
     elif p.denoising_strength > 0:
         steps = (p.steps // p.denoising_strength) + 1
@@ -496,18 +497,17 @@ def calculate_hires_steps(p):
 
 
 def calculate_refiner_steps(p):
-    # if len(getattr(p, 'timesteps', [])) > 0:
-    #    return None
-    if "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
+    cls = shared.sd_model.__class__.__name__
+    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+        steps = p.steps
+    elif "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
         if p.refiner_start > 0 and p.refiner_start < 1:
-            #steps = p.refiner_steps // (1 - p.refiner_start) # SDXL with denoise strenght
             steps = (p.refiner_steps // (1 - p.refiner_start) // 2) + 1
         elif p.denoising_strength > 0:
             steps = (p.refiner_steps // p.denoising_strength) + 1
         else:
             steps = 0
     else:
-        #steps = p.refiner_steps # SD 1.5 with denoise strenght
         steps = (p.refiner_steps * 1.25) + 1
     debug_steps(f'Steps: type=refiner input={p.refiner_steps} output={steps} start={p.refiner_start} denoise={p.denoising_strength}')
     return max(1, int(steps))

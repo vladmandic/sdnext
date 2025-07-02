@@ -1,7 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-01
+## Update for 2025-07-02
 
+- **Models**
+  - Add **FLUX.1-Kontext-Dev** inpaint workflow  
 - **UI**  
   - major update to modernui layout  
 - **Core**  
@@ -13,6 +15,7 @@
 - **Fixes**
   - allow theme type `None` to be set in config  
   - installer dont cache installed state  
+  - fix Cosmos-Predict2 retrying TAESD download  
 
 
 ## Update for 2025-06-30

@@ -63,6 +63,7 @@ def get_model(model_type = 'decoder', variant = None):
         model_cls = 'sdxl'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+        return None
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
     os.makedirs(folder, exist_ok=True)
