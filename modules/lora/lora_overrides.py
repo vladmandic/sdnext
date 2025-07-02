@@ -32,6 +32,7 @@ force_models_diffusers = [ # forced always
     'kandinsky',
     'hunyuandit',
     'auraflow',
+    'lumina2',
     # video models
     'hunyuanvideo',
     'cogvideo',
