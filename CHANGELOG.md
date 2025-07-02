@@ -23,7 +23,6 @@
   - installer dont cache installed state  
   - fix Cosmos-Predict2 retrying TAESD download  
 
-
 ## Update for 2025-06-30
 
 ### Highlights for 2025-06-30

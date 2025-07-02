@@ -9,15 +9,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Refactor: Move `model_*` stuff into subfolder  
 - Refactor: sampler options  
 - Common repo for `T5` and `CLiP`  
+- Video: API support  
+- LoRA: add OMI format support for SD35/FLUX.1  
+
+### Blocked items
+
 - Upgrade: unblock `pydantic` and `albumentations`
   - see <https://github.com/Cschlaefli/automatic>
   - blocked by `insightface`
-
-### Complete Features
-
-- Python==3.13 improved support  
-- Video: API support  
-- LoRA: add OMI format support for SD35/FLUX.1  
 
 ### Under Consideration
 
@@ -34,9 +33,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [S3Diff diffusion upscaler](https://github.com/ArcticHare105/S3Diff)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
-
-### Monitoring
-
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)
 
 ### New models
