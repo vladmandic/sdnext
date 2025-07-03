@@ -343,16 +343,14 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             allow_post_quant = True
         elif model_type in ['FLUX']:
             from pipelines.model_flux import load_flux
-            sd_model = load_flux(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
+            sd_model, allow_post_quant = load_flux(checkpoint_info, diffusers_load_config)
         elif model_type in ['FLEX']:
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Chroma']:
             from pipelines.model_chroma import load_chroma
-            sd_model = load_chroma(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
+            sd_model, allow_post_quant = load_chroma(checkpoint_info, diffusers_load_config)
         elif model_type in ['Lumina 2']:
             from pipelines.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)

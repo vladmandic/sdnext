@@ -202,6 +202,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
 def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_checkpoint change
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
+    allow_post_quant = False
 
     prequantized = model_quant.get_quant(checkpoint_info.path)
     shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={prequantized} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
@@ -335,6 +336,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
     if fn.endswith('.safetensors') and os.path.isfile(fn):
         pipe = cls.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
+        allow_post_quant = True
     else:
         pipe = cls.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
 
@@ -351,4 +353,4 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         kwargs[k] = None
     sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True)
-    return pipe
+    return pipe, allow_post_quant
