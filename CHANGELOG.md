@@ -6,6 +6,7 @@
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
 - **UI**  
   - major update to modernui layout  
+  - redesign of the Flat UI theme
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
@@ -23,6 +24,7 @@
   - patch `insightface`  
   - patch `k-diffusion`  
   - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
+  - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
   - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  
   - cleanup `/modules`: global rename `modules.scripts` to avoid conflict with `/scripts`  
   - stronger lint rules  
