@@ -7,6 +7,7 @@
   - redesign of the Flat UI theme
 - **Models**
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
+  - Support **FLUX.1** all-in-one safetensors  
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  

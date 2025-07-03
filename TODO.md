@@ -10,9 +10,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
 - Feature: Merge FramePack into core  
 - Refactor: sampler options  
-- Remove: legacy LoRA loader
-- Remove: Original backend
-- Remove: Agent Scheduler
+- Remove: legacy LoRA loader  
+- Remove: Original backend  
+- Remove: Agent Scheduler  
 - Video: API support  
 - ModernUI: Lite vs Expert mode  
 
