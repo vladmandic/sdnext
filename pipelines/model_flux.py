@@ -339,7 +339,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
         kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
     # kwargs = model_quant.create_config(kwargs, allow_quant)
     if fn.endswith('.safetensors') and os.path.isfile(fn):
-        pipe = diffusers.FluxPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
+        pipe = cls.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
     else:
         pipe = cls.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
 

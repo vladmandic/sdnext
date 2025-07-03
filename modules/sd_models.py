@@ -1163,7 +1163,7 @@ def unload_model_weights(op='model'):
 def hf_auth_check(checkpoint_info):
     login = None
     try:
-        if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json')): # skip check for already downloaded models
+        if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)) or (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for already downloaded models
             return True
     except Exception:
         pass
