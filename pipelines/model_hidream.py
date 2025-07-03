@@ -21,8 +21,8 @@ def load_transformer(repo_id, diffusers_load_config={}):
         # from modules import ggml
         # transformer = ggml.load_gguf(fn, cls=diffusers.HiDreamImageTransformer2DModel, compute_dtype=devices.dtype)
     elif fn is not None and 'safetensors' in fn.lower():
-        shared.log.debug(f'Load model: type=HiDream transformer="{repo_id}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
-        transformer = diffusers.HiDreamImageTransformer2DModel.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, **load_args)
+        shared.log.debug(f'Load model: type=HiDream transformer="{repo_id}" offload={shared.opts.diffusers_offload_mode} quant="{model_quant.get_quant(repo_id)}" args={load_args}')
+        transformer = diffusers.HiDreamImageTransformer2DModel.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args)
     # elif model_quant.check_nunchaku('Model'):
     #     shared.log.error(f'Load model: type=HiDream transformer="{repo_id}" quant="Nunchaku" unsupported')
     #     transformer = None

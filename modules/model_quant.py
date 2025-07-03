@@ -153,7 +153,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
 
 def check_quant(module: str = ''):
     from modules import shared
-    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization or module in shared.opts.sdnq_quantize_weights:
+    if module in shared.opts.sdnq_quantize_weights or module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization:
         return True
     return False
 

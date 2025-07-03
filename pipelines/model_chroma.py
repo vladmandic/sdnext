@@ -110,17 +110,18 @@ def load_chroma_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=u
     return transformer, text_encoder
 
 
-def load_quants(kwargs, pretrained_model_name_or_path, cache_dir, allow_quant):
+def load_quants(kwargs, repo_id, cache_dir, allow_quant):
     try:
+        diffusers_load_config = {
+            "torch_dtype": devices.dtype,
+            "cache_dir": cache_dir,
+        }
         if 'transformer' not in kwargs and model_quant.check_nunchaku('Model'):
             raise NotImplementedError('Nunchaku does not support Chroma Model yet. See https://github.com/mit-han-lab/nunchaku/issues/167')
         elif 'transformer' not in kwargs and model_quant.check_quant('Model'):
-            quant_args = model_quant.create_config(allow=allow_quant, module='Model', modules_to_not_convert=["distilled_guidance_layer"])
+            load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
             if quant_args:
-                if os.path.isfile(pretrained_model_name_or_path):
-                    kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-                else:
-                    kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(pretrained_model_name_or_path, subfolder="transformer", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
+                kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", **load_args, **quant_args)
         if 'text_encoder' not in kwargs and model_quant.check_nunchaku('TE'):
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
@@ -128,12 +129,9 @@ def load_quants(kwargs, pretrained_model_name_or_path, cache_dir, allow_quant):
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
             kwargs['text_encoder'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
         elif 'text_encoder' not in kwargs and model_quant.check_quant('TE'):
-            quant_args = model_quant.create_config(allow=allow_quant, module='TE')
+            load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
             if quant_args:
-                if os.path.isfile(pretrained_model_name_or_path):
-                    kwargs['text_encoder'] = transformers.T5EncoderModel.from_single_file(pretrained_model_name_or_path, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
-                else:
-                    kwargs['text_encoder'] = transformers.T5EncoderModel.from_pretrained(pretrained_model_name_or_path, subfolder="text_encoder", cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_args)
+                kwargs['text_encoder'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder", **load_args, **quant_args)
     except Exception as e:
         shared.log.error(f'Quantization: {e}')
         errors.display(e, 'Quantization:')
@@ -146,7 +144,6 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
     transformer = None
     quant = model_quant.get_quant(file_path)
     diffusers_load_config = {
-        "low_cpu_mem_usage": True,
         "torch_dtype": devices.dtype,
         "cache_dir": shared.opts.hfcache_dir,
     }
@@ -157,25 +154,18 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         _transformer = ggml.load_gguf(file_path, cls=diffusers.ChromaTransformer2DModel, compute_dtype=devices.dtype)
         if _transformer is not None:
             transformer = _transformer
-    elif quant == 'qint8' or quant == 'qint4':
+    elif quant in {'qint8', 'qint4'}:
         _transformer, _text_encoder = load_chroma_quanto(file_path)
         if _transformer is not None:
             transformer = _transformer
-    elif quant == 'fp8' or quant == 'fp4' or quant == 'nf4':
+    elif quant in {'fp8', 'fp4', 'nf4'}:
         _transformer, _text_encoder = load_chroma_bnb(file_path, diffusers_load_config)
         if _transformer is not None:
             transformer = _transformer
     else:
-        quant_args = model_quant.create_config(module='Model', modules_to_not_convert=["distilled_guidance_layer"])
-        if quant_args:
-            shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=torchao dtype={devices.dtype}')
-            transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config, **quant_args)
-            if transformer is not None:
-                return transformer
-        shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=none dtype={devices.dtype}')
-        # TODO model load: chroma transformer from-single-file with quant
-        # shared.log.warning('Load module: type=UNet/Transformer does not support load-time quantization')
-        # transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config)
+        load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, modules_to_not_convert=["distilled_guidance_layer"])
+        shared.log.debug(f'Load model: type=Chroma transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} args={load_args}')
+        transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **load_args, **quant_args)
     if transformer is None:
         shared.log.error('Failed to load UNet model')
         shared.opts.sd_unet = 'Default'
@@ -270,12 +260,11 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
 
     allow_quant = 'gguf' not in (sd_unet.loaded_unet or '') and (prequantized is None or prequantized == 'none')
     if (fn is None) or (not os.path.exists(fn) or os.path.isdir(fn)):
-        kwargs = load_quants(kwargs, repo_id or fn, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
-    # kwargs = model_quant.create_config(kwargs, allow_quant, modules_to_not_convert=["distilled_guidance_layer"])
+        kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir, allow_quant=allow_quant)
     if fn.endswith('.safetensors') and os.path.isfile(fn):
-        pipe = diffusers.ChromaPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
+        pipe = cls.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
     else:
-        pipe = cls.from_pretrained(repo_id or fn, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
+        pipe = cls.from_pretrained(repo_id, cache_dir=shared.opts.diffusers_dir, **kwargs, **diffusers_load_config)
 
     if shared.opts.teacache_enabled and model_quant.check_nunchaku('Model'):
         from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
