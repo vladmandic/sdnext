@@ -797,7 +797,7 @@ def install_torch_addons():
     if opts.get('torchao_quantization', False):
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.3', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.4', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
     ts('addons', t_start)
@@ -1181,7 +1181,7 @@ def install_optional():
     install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
     install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
     install('clean-fid', quiet=True)
-    install('pillow-jxl-plugin==1.3.3', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
     install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     install('torchao==0.10.0', ignore=True, quiet=True)
     install('bitsandbytes==0.45.5', ignore=True, quiet=True)

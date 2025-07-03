@@ -125,7 +125,6 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Tuple = torch.xpu.Tuple
                 torch.cuda.List = torch.xpu.List
 
-
             # Memory:
             if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
