@@ -1,7 +1,6 @@
 import os
 import transformers
 import diffusers
-from huggingface_hub import repo_exists
 from modules import errors, shared, sd_models, sd_unet, sd_hijack_te, devices, modelloader, model_quant
 
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -22,8 +21,6 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
     transformer, text_encoder, vae = None, None, None
     repo_id = sd_models.path_to_repo(checkpoint_info)
-    if os.path.isdir(checkpoint_info.filename) and not repo_exists(repo_id):
-        repo_id = checkpoint_info.filename
 
     if shared.opts.teacache_enabled:
         from modules import teacache
