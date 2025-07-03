@@ -348,6 +348,8 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
 
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
     if model.__class__.__name__ == "ChromaTransformer2DModel":
         modules_to_not_convert.append("distilled_guidance_layer")
 

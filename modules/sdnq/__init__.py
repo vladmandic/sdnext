@@ -329,6 +329,10 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
+        elif getattr(model, "_keep_in_fp32_modules", None) is not None:
+            self.modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+            self.modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
         self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
         self.quantization_config.modules_to_not_convert = self.modules_to_not_convert
         model.config.quantization_config = self.quantization_config
