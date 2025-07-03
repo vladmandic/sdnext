@@ -1465,17 +1465,12 @@ def get_weighted_text_embeddings_chroma(
         pipe.tokenizer, neg_prompt, add_special_tokens=False
     )
 
-    padded_tokens, padded_weights, padded_masks = pad_prompt_tokens_to_same_size_chroma(
+    prompt_tokens, prompt_weights, prompt_masks = pad_prompt_tokens_to_length_chroma(
         pipe,
-        [prompt_tokens, neg_prompt_tokens],
-        [prompt_weights, neg_prompt_weights],
-        [prompt_masks, neg_prompt_masks],
-        add_eos_token=True
+        prompt_tokens,
+        prompt_weights,
+        prompt_masks
     )
-
-    prompt_tokens = padded_tokens[0]
-    prompt_weights = padded_weights[0]
-    prompt_masks = padded_masks[0]
 
     prompt_embeds, prompt_masks = get_weighted_prompt_embeds_with_attention_mask_chroma(
         pipe,
@@ -1485,9 +1480,12 @@ def get_weighted_text_embeddings_chroma(
         device=device,
         dtype=dtype)
 
-    neg_prompt_tokens = padded_tokens[1]
-    neg_prompt_weights = padded_weights[1]
-    neg_prompt_masks = padded_masks[1]
+    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = pad_prompt_tokens_to_length_chroma(
+        pipe,
+        neg_prompt_tokens,
+        neg_prompt_weights,
+        neg_prompt_masks
+    )
 
     neg_prompt_embeds, neg_prompt_masks = get_weighted_prompt_embeds_with_attention_mask_chroma(
         pipe,
@@ -1496,20 +1494,9 @@ def get_weighted_text_embeddings_chroma(
         neg_prompt_masks,
         device=device,
         dtype=dtype)
-
     # debug, will be removed later
-    prompt_with_mask, prompt_without_mask = debug_masked_tokens(pipe, prompt_tokens, prompt_masks.detach().tolist()[0])
-    neg_prompt_with_mask, neg_prompt_without_mask = debug_masked_tokens(pipe, neg_prompt_tokens, neg_prompt_masks.detach().tolist()[0])
 
     return prompt_embeds, prompt_masks, neg_prompt_embeds, neg_prompt_masks
-
-
-# debug, will be removed later
-def debug_masked_tokens(pipe, prompt_tokens, prompt_masks):
-    prompt_with_mask = pipe.tokenizer.decode([token for token, mask in zip(prompt_tokens, prompt_masks) if mask == 1], skip_special_tokens=False)
-    prompt_without_mask = pipe.tokenizer.decode(prompt_tokens, skip_special_tokens=False)
-
-    return prompt_with_mask, prompt_without_mask
 
 
 def get_weighted_prompt_embeds_with_attention_mask_chroma(
@@ -1530,7 +1517,7 @@ def get_weighted_prompt_embeds_with_attention_mask_chroma(
     return prompt_embeds, prompt_masks
 
 
-def pad_prompt_tokens_to_same_size_chroma(pipe, input_tokens, input_weights, input_masks, min_length=3, add_eos_token=True):
+def pad_prompt_tokens_to_length_chroma(pipe, input_tokens, input_weights, input_masks, min_length=5, add_eos_token=True):
     """
     Implementation of Chroma's padding for prompt embeddings.
     Pads the embeddings to the maximum length found in the batch, while ensuring
@@ -1539,75 +1526,35 @@ def pad_prompt_tokens_to_same_size_chroma(pipe, input_tokens, input_weights, inp
     https://huggingface.co/lodestones/Chroma#tldr-masking-t5-padding-tokens-enhanced-fidelity-and-increased-stability-during-training
     """
 
-    input_tokens = input_tokens.copy()
-    input_weights = input_weights.copy()
-    input_masks = input_masks.copy()
+    output_tokens = input_tokens.copy()
+    output_weights = input_weights.copy()
+    output_masks = input_masks.copy()
 
     pad_token_id = pipe.tokenizer.pad_token_id
     eos_token_id = pipe.tokenizer.eos_token_id
 
-    for tokens, mask in zip(input_tokens, input_masks):
-        for j, token in enumerate(tokens):
-            if token == pad_token_id:
-                mask[j] = 0
+    pad_length = 1
 
-    max_token_count = max([len(x) for x in input_tokens] + [min_length])
+    for j, token in enumerate(output_tokens):
+        if token == pad_token_id:
+            output_masks[j] = 0
+            pad_length = 0
 
-    padded_tokens = []
-    padded_weights = []
-    padded_masks = []
+    current_length = len(output_tokens)
 
-    for tokens, weights, mask in zip(input_tokens, input_weights, input_masks):
-        current_length = len(tokens)
+    if current_length < min_length:
+        pad_length = min_length - current_length
 
-        pad_length = 0
+    if pad_length > 0:
+        output_tokens += [pad_token_id] * pad_length
+        output_weights += [1.0] * pad_length
+        output_masks += [0] * pad_length
 
-        if current_length < max_token_count:
-            pad_length = max_token_count - current_length
+    output_masks[-1] = 1
 
-        elif pad_token_id not in tokens:
-            pad_length = 1
+    if add_eos_token and output_tokens[-1] != eos_token_id:
+        output_tokens += [eos_token_id]
+        output_weights += [1.0]
+        output_masks += [1]
 
-        if pad_length > 0:
-            token_pad = [pad_token_id] * pad_length
-            weight_pad = [1.0] * pad_length
-            mask_pad = [0] * pad_length
-
-            tokens = tokens + token_pad
-            weights = weights + weight_pad
-            mask = mask + mask_pad
-
-        padded_tokens.append(tokens)
-        padded_weights.append(weights)
-        padded_masks.append(mask)
-
-    max_token_count = max([len(x) for x in padded_tokens])
-
-    for i, (tokens, weights, mask) in enumerate(zip(padded_tokens, padded_weights, padded_masks)):
-        if pad_token_id in tokens:
-            if tokens[-1] == pad_token_id:
-                mask[-1] = 1
-                continue
-
-        padded_tokens[i] = tokens + [pad_token_id]
-        padded_weights[i] = weights + [1.0]
-        padded_masks[i] = mask + [1]
-        max_token_count = max(max_token_count, len(padded_tokens[i]))
-
-    if add_eos_token:
-        max_token_count += 1  # eos token
-
-    for i in range(len(padded_tokens)):
-        if len(padded_tokens[i]) < max_token_count:
-            pad_length = max_token_count - len(padded_tokens[i])
-            padded_weights[i] += [1.0] * pad_length
-            padded_masks[i][-1] = 0
-            padded_masks[i] += [0] * (pad_length - 1) + [1]
-
-            if add_eos_token:
-                padded_tokens[i] += [pad_token_id] * (pad_length - 1) + [eos_token_id]
-                padded_masks[i][-2] = 1
-            else:
-                padded_tokens[i] += [pad_token_id] * pad_length
-
-    return padded_tokens, padded_weights, padded_masks
+    return output_tokens, output_weights, output_masks
