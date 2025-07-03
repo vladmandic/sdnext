@@ -123,7 +123,7 @@ class StableDiffusionXLPuLIDPipeline:
         if sampler is not None:
             self.sampler = sampler
         else:
-            from modules.pulid import sampling
+            from scripts.pulid import sampling
             self.sampler = sampling.sample_dpmpp_sde
 
     @property

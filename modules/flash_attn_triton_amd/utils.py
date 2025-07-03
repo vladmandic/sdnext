@@ -42,7 +42,7 @@ class MetaData():
     rotary_cos: Optional[torch.Tensor] = None
     rotary_interleaved: bool = False
     rotary_conjunction: bool = False
-    
+
 
     def __repr__(self) -> str:
         return (f"MetaData(\n"
@@ -161,7 +161,7 @@ def generate_varlen_tensor(
     if batch_size is None:
         valid_batch_sizes = [bs for bs in [1, 2, 4, 8, 16, 32, 64] if bs <= total_seqlen]
         batch_size = random.choice(valid_batch_sizes)
-    
+
     # get seqlens
     if equal_seqlens:
         seqlens = torch.full(
@@ -241,14 +241,14 @@ def input_helper(
         TOTAL_SEQLENS_Q = BATCH * N_CTX_Q
         TOTAL_SEQLENS_K = BATCH * N_CTX_K
         equal_seqlens=False
-        
+
         # gen tensors
         # TODO: the gen functions should maybe have different gen modes like random, ones, increasing seqlen
         q, cu_seqlens_q, max_seqlen_q = generate_varlen_tensor(TOTAL_SEQLENS_Q, HQ, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)
         k, cu_seqlens_k, max_seqlen_k = generate_varlen_tensor(TOTAL_SEQLENS_K, HK, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)
         v, _, _ = generate_varlen_tensor(TOTAL_SEQLENS_K, HK, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)
         do = torch.ones_like(q) if DEBUG_INPUT else torch.randn_like(q)
-        
+
         # setup metadata
         if DEBUG_INPUT:
             sm_scale = 1
@@ -369,7 +369,7 @@ def get_shape_from_layout(
             raise ValueError("cu_seqlens must be provided for varlen (thd) layout") 
         if max_seqlen is None:
             raise ValueError("max_seqlen must be provided for varlen (thd) layout")
-        
+
         batch, max_seqlen_final, num_heads, head_dim = len(cu_seqlens) - 1, max_seqlen, num_heads, head_dim
     else:
         assert False, "Got unsupported layout."
@@ -380,7 +380,7 @@ def get_shape_from_layout(
 def get_shapes_from_layout(q, k, layout, cu_seqlens_q = None, cu_seqlens_k = None, max_seqlen_q=None, max_seqlen_k=None):
     batch_q, seqlen_q, nheads_q, head_size_q = get_shape_from_layout(q, layout, cu_seqlens_q, max_seqlen_q)
     batch_k, seqlen_k, nheads_k, head_size_k = get_shape_from_layout(k, layout, cu_seqlens_k, max_seqlen_k)
-    
+
     # assert
     assert batch_q == batch_k
     assert head_size_q == head_size_k
@@ -458,22 +458,22 @@ def write_dropout_mask(x, tensor_name = "tensor"):
                 if True:
                     BLOCK_M = 64
                     BLOCK_N = 64
-                
+
                     # Calculate number of blocks in each dimension
                     m_blocks = math.ceil(seqlen_m / BLOCK_M)
                     n_blocks = math.ceil(seqlen_n / BLOCK_N)
-                    
+
                     # Process each block
                     for m_block in range(m_blocks):
                         # Calculate row range for current block
                         row_start = m_block * BLOCK_M
                         row_end = min(row_start + BLOCK_M, seqlen_m)
-                        
+
                         for n_block in range(n_blocks):
                             # Calculate column range for current block
                             col_start = n_block * BLOCK_N
                             col_end = min(col_start + BLOCK_N, seqlen_n)
-                            
+
                             # Extract and write the current block
                             for row_idx in range(row_start, row_end):
                                 row_data = dropout_mask[row_idx][col_start:col_end]

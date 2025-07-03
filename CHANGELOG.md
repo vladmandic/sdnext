@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-02
+## Update for 2025-07-03
 
 - **Models**
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
@@ -12,16 +12,20 @@
     enable in *settings -> compute settings -> sdp options*  
     *note*: SD.Next will use either SageAttention v1 or v2, depending which one is installed  
     until authors provide pre-build wheels for v2, you need to install it manually or SD.Next will auto-install v1  
-- **Core**  
-  - override `gradio` installer  
-  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
-  - patch `insightface`  
-  - patch `k-diffusion`  
-  - better handle startup import errors  
 - **Fixes**
   - allow theme type `None` to be set in config  
   - installer dont cache installed state  
   - fix Cosmos-Predict2 retrying TAESD download  
+  - better handle startup import errors  
+- **Refactoring**  
+  - override `gradio` installer  
+  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
+  - patch `insightface`  
+  - patch `k-diffusion`  
+  - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
+  - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  
+  - cleanup `/modules`: global rename `modules.scripts` to avoid conflict with `/scripts`  
+  - stronger lint rules  
 
 ## Update for 2025-06-30
 

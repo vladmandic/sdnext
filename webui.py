@@ -19,7 +19,7 @@ import modules.devices
 import modules.sd_checkpoint
 import modules.sd_samplers
 import modules.lowvram
-import modules.scripts
+import modules.scripts_manager
 import modules.sd_models
 import modules.sd_vae
 import modules.sd_unet
@@ -109,7 +109,7 @@ def initialize():
     timer.startup.record("extensions")
 
     log.info('Load extensions')
-    t_timer, t_total = modules.scripts.load_scripts()
+    t_timer, t_total = modules.scripts_manager.load_scripts()
     timer.startup.record("extensions")
     timer.startup.records["extensions"] = t_total # scripts can reset the time
     log.debug(f'Extensions init time: {t_timer.summary()}')
@@ -352,11 +352,11 @@ def start_ui():
     modules.script_callbacks.app_started_callback(shared.demo, app)
     timer.startup.record("app-started")
 
-    time_sorted = sorted(modules.scripts.time_setup.items(), key=lambda x: x[1], reverse=True)
+    time_sorted = sorted(modules.scripts_manager.time_setup.items(), key=lambda x: x[1], reverse=True)
     time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.03]
-    time_total = sum(modules.scripts.time_setup.values())
+    time_total = sum(modules.scripts_manager.time_setup.values())
     shared.log.debug(f'Scripts setup: time={time_total:.3f} {time_script}')
-    time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts.time_component.items() if v > 0.005]
+    time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts_manager.time_component.items() if v > 0.005]
     if len(time_component) > 0:
         shared.log.debug(f'Scripts components: {time_component}')
     return app
@@ -381,10 +381,10 @@ def webui(restart=False):
             shared.log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')
     debug = log.trace if os.environ.get('SD_SCRIPT_DEBUG', None) is not None else lambda *args, **kwargs: None
     debug('Trace: SCRIPTS')
-    for m in modules.scripts.scripts_data:
+    for m in modules.scripts_manager.scripts_data:
         debug(f'  {m}')
     debug('Loaded postprocessing scripts:')
-    for m in modules.scripts.postprocessing_scripts_data:
+    for m in modules.scripts_manager.postprocessing_scripts_data:
         debug(f'  {m}')
     modules.script_callbacks.print_timers()
 

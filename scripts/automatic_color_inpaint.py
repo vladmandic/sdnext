@@ -1,7 +1,7 @@
 import gradio as gr
 from PIL import Image
 import numpy as np
-from modules import shared, scripts, processing, masking
+from modules import shared, scripts_manager, processing, masking
 
 """
 Automatic Color Inpaint Script for SD.NEXT - SD & SDXL Support
@@ -28,7 +28,7 @@ img2img = True
 
 ### Script definition
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return title
 

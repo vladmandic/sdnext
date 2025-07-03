@@ -6,7 +6,7 @@ import platform
 import subprocess
 from functools import reduce
 import gradio as gr
-from modules import call_queue, shared, prompt_parser, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts, script_callbacks, infotext
+from modules import call_queue, shared, prompt_parser, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
 
 
 folder_symbol = ui_symbols.folder
@@ -304,11 +304,11 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 )
 
             if tabname == "txt2img":
-                paste_field_names = scripts.scripts_txt2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_txt2img.paste_field_names
             elif tabname == "img2img":
-                paste_field_names = scripts.scripts_img2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_img2img.paste_field_names
             elif tabname == "control":
-                paste_field_names = scripts.scripts_control.paste_field_names
+                paste_field_names = scripts_manager.scripts_control.paste_field_names
             else:
                 paste_field_names = []
             debug(f'Paste field: tab={tabname} fields={paste_field_names}')

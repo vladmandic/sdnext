@@ -1,6 +1,6 @@
 import os
 import diffusers
-from modules import errors, shared, devices, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant
 
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 

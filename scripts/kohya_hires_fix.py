@@ -1,9 +1,9 @@
 import gradio as gr
 import diffusers
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Kohya HiRes Fix'
 

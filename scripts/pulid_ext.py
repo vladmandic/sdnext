@@ -4,7 +4,7 @@ import time
 import contextlib
 import gradio as gr
 from PIL import Image
-from modules import shared, devices, errors, scripts, processing, processing_helpers, sd_models
+from modules import shared, devices, errors, scripts_manager, processing, processing_helpers, sd_models
 
 
 debug = os.environ.get('SD_PULID_DEBUG', None) is not None
@@ -13,7 +13,7 @@ registered = False
 uploaded_images = []
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         self.pulid = None
         self.cache = None
@@ -144,7 +144,7 @@ class Script(scripts.Script):
         if self.pulid is None:
             self.dependencies()
             try:
-                from modules import pulid # pylint: disable=redefined-outer-name
+                from scripts import pulid # pylint: disable=redefined-outer-name
                 self.pulid = pulid
                 from diffusers import pipelines
                 pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["pulid"] = pulid.StableDiffusionXLPuLIDPipeline

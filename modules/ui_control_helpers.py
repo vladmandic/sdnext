@@ -1,7 +1,7 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import shared, scripts, masking, video # pylint: disable=ungrouped-imports
+from modules import shared, scripts_manager, masking, video # pylint: disable=ungrouped-imports
 
 
 gr_height = None
@@ -43,8 +43,8 @@ def initialize():
         os.makedirs(masking.cache_dir, exist_ok=True)
     except Exception:
         pass
-    scripts.scripts_current = scripts.scripts_control
-    scripts.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
+    scripts_manager.scripts_current = scripts_manager.scripts_control
+    scripts_manager.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
 
 
 def interrogate():

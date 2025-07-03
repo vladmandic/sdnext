@@ -306,7 +306,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
     shared.sd_model = None
     try:
         if model_type in ['Stable Cascade']: # forced pipeline
-            from modules.model_stablecascade import load_cascade_combined
+            from pipelines.model_stablecascade import load_cascade_combined
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['InstaFlow']: # forced pipeline
@@ -315,77 +315,77 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['SegMoE']: # forced pipeline
-            from modules.segmoe.segmoe_model import SegMoEPipeline
+            from pipelines.segmoe.segmoe_model import SegMoEPipeline
             sd_model = SegMoEPipeline(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model = sd_model.pipe # segmoe pipe does its stuff in __init__ and __call__ is the original pipeline
             allow_post_quant = True
             shared_items.pipelines['SegMoE'] = SegMoEPipeline
         elif model_type in ['PixArt Sigma']: # forced pipeline
-            from modules.model_pixart import load_pixart
+            from pipelines.model_pixart import load_pixart
             sd_model = load_pixart(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Sana']: # forced pipeline
-            from modules.model_sana import load_sana
+            from pipelines.model_sana import load_sana
             sd_model = load_sana(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Lumina-Next']: # forced pipeline
-            from modules.model_lumina import load_lumina
+            from pipelines.model_lumina import load_lumina
             sd_model = load_lumina(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['Kolors']: # forced pipeline
-            from modules.model_kolors import load_kolors
+            from pipelines.model_kolors import load_kolors
             sd_model = load_kolors(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['AuraFlow']: # forced pipeline
-            from modules.model_auraflow import load_auraflow
+            from pipelines.model_auraflow import load_auraflow
             sd_model = load_auraflow(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['FLUX']:
-            from modules.model_flux import load_flux
+            from pipelines.model_flux import load_flux
             sd_model = load_flux(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['FLEX']:
-            from modules.model_flex import load_flex
+            from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Chroma']:
-            from modules.model_chroma import load_chroma
+            from pipelines.model_chroma import load_chroma
             sd_model = load_chroma(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Lumina 2']:
-            from modules.model_lumina import load_lumina2
+            from pipelines.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Stable Diffusion 3']:
-            from modules.model_sd3 import load_sd3
+            from pipelines.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
             allow_post_quant = False
         elif model_type in ['CogView 3']: # forced pipeline
-            from modules.model_cogview import load_cogview3
+            from pipelines.model_cogview import load_cogview3
             sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['CogView 4']: # forced pipeline
-            from modules.model_cogview import load_cogview4
+            from pipelines.model_cogview import load_cogview4
             sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Meissonic']: # forced pipeline
-            from modules.model_meissonic import load_meissonic
+            from pipelines.model_meissonic import load_meissonic
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['OmniGen2']: # forced pipeline
-            from modules.model_omnigen2 import load_omnigen2
+            from pipelines.model_omnigen2 import load_omnigen2
             sd_model = load_omnigen2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['OmniGen']: # forced pipeline
-            from modules.model_omnigen import load_omnigen
+            from pipelines.model_omnigen import load_omnigen
             sd_model = load_omnigen(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['HiDream']:
-            from modules.model_hidream import load_hidream
+            from pipelines.model_hidream import load_hidream
             sd_model = load_hidream(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Cosmos']:
-            from modules.model_cosmos import load_cosmos_t2i
+            from pipelines.model_cosmos import load_cosmos_t2i
             sd_model = load_cosmos_t2i(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
@@ -480,7 +480,7 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
                         shared.log.debug(f'Load {op}: config="{model_config}"')
                     diffusers_load_config['config'] = model_config
         if model_type.startswith('Stable Diffusion 3'):
-            from modules.model_sd3 import load_sd3
+            from pipelines.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info=checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
@@ -1069,7 +1069,7 @@ def reload_model_weights(sd_model=None, info=None, reuse_dict=False, op='model',
             unload_model_weights(op=op)
             sd_model = None
     timer = Timer()
-    # TODO model loader: implement model in-memory caching
+    # TODO model load: implement model in-memory caching
     state_dict = get_checkpoint_state_dict(checkpoint_info, timer) if not shared.native else None
     checkpoint_config = sd_models_config.find_checkpoint_config(state_dict, checkpoint_info)
     timer.record("config")

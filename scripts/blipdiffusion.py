@@ -1,8 +1,8 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts_manager, processing, shared, sd_models
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'BLIP Diffusion: Controllable Generation and Editing'
 

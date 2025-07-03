@@ -2,10 +2,10 @@ import gradio as gr
 import torch
 import diffusers
 from huggingface_hub import hf_hub_download
-from modules import scripts, processing, shared, sd_models, devices, ipadapter
+from modules import scripts_manager, processing, shared, sd_models, devices, ipadapter
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -40,7 +40,7 @@ class Script(scripts.Script):
             shared.log.warning(f'InstantIR: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         start, end, hq, multistep, adastep, image = args
-        from modules import instantir as ir
+        from scripts import instantir as ir
         if shared.sd_model_type == "sdxl":
             if shared.sd_model.__class__.__name__ != "InstantIRPipeline":
                 self.orig_pipe = shared.sd_model

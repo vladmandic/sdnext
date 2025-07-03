@@ -1,12 +1,12 @@
 import sys
 import gradio as gr
-from modules import scripts, processing, shared
+from modules import scripts_manager, processing, shared
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.register()

@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import cv2
 from PIL import Image, ImageOps
-from modules import shared, devices, images, scripts, masking, sd_samplers, sd_models, processing_helpers
+from modules import shared, devices, images, scripts_manager, masking, sd_samplers, sd_models, processing_helpers
 from modules.sd_hijack_hypertile import hypertile_set
 
 
@@ -278,7 +278,7 @@ class StableDiffusionProcessing:
         self.prompt_for_display: str = None
 
         # scripts
-        self.scripts_value: scripts.ScriptRunner = field(default=None, init=False)
+        self.scripts_value: scripts_manager.ScriptRunner = field(default=None, init=False)
         self.script_args_value: list = field(default=None, init=False)
         self.scripts_setup_complete: bool = field(default=False, init=False)
         self.script_args = script_args

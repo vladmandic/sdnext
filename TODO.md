@@ -8,9 +8,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - Refactor: Move `model_*` stuff into subfolder  
 - Refactor: sampler options  
-- Common repo for `T5` and `CLiP`  
+- Feature: Common repo for `T5` and `CLiP`  
+- Feature: LoRA add OMI format support for SD35/FLUX.1  
+- Feature: Merge FramePack into core  
+- Remove: legacy LoRA loader
+- Remove: Original backend
+- Remove: Agent Scheduler
 - Video: API support  
-- LoRA: add OMI format support for SD35/FLUX.1  
+- ModernUI: Lite vs Expert mode  
 
 ### Blocked items
 
@@ -66,11 +71,13 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Code TODO
 
-> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g'
+> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g' | sort
  
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
+- flux transformer from-single-file with quant
+- flux: loader for civitai nf4 models
 - hypertile: vae breaks when using non-standard sizes
 - install: enable ROCm for windows when available
 - loader: load receipe
@@ -78,11 +85,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
+- lora: support pre-quantized flux
+- model fix: cogview4: balanced offload does not work for GlmModel
+- model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
+- model load: chroma transformer from-single-file with quant
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model loader: implement model in-memory caching
+- model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
-- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
-- nunchaku: batch support
-- nunchaku: cache-dir for transformer and t5 loader
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent

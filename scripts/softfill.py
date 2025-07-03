@@ -1604,10 +1604,10 @@ class StableDiffusionXLSoftFillPipeline(
 
 import gradio as gr
 from installer import install
-from modules import shared, scripts, processing, sd_models
+from modules import shared, scripts_manager, processing, sd_models
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     orig_pipeline = None
 
     def title(self):

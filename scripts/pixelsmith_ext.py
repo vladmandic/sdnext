@@ -1,9 +1,9 @@
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, sd_models, devices, images
+from modules import scripts_manager, processing, shared, sd_models, devices, images
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -49,7 +49,7 @@ class Script(scripts.Script):
         supported_model_list = ['sdxl']
         if shared.sd_model_type not in supported_model_list:
             shared.log.warning(f'PixelSmith: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
-        from modules.pixelsmith import PixelSmithXLPipeline, PixelSmithVAE
+        from scripts.pixelsmith import PixelSmithXLPipeline, PixelSmithVAE
         self.orig_pipe = shared.sd_model
         self.orig_vae = shared.sd_model.vae
         if self.vae is None:

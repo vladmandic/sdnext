@@ -7,7 +7,7 @@ TODO text2video items:
 """
 
 import gradio as gr
-from modules import scripts, processing, shared, images, sd_models, modelloader
+from modules import scripts_manager, processing, shared, images, sd_models, modelloader
 
 
 MODELS = [
@@ -21,7 +21,7 @@ MODELS = [
 ]
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: ModelScope'
 
@@ -55,7 +55,7 @@ class Script(scripts.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, model_name, use_default, num_frames, video_type, duration, gif_loop, mp4_pad, mp4_interpolate): # pylint: disable=arguments-differ, unused-argument
         if model_name == 'None':
-            return
+            return None
         model = [m for m in MODELS if m['name'] == model_name][0]
         shared.log.debug(f'Text2Video: model={model} defaults={use_default} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
 
@@ -69,7 +69,7 @@ class Script(scripts.Script):
                 sd_models.list_models()
             if checkpoint is None:
                 shared.log.error(f'Text2Video: failed to find model={model["path"]}')
-                return
+                return None
             shared.log.debug(f'Text2Video loading: model={checkpoint}')
             shared.opts.sd_model_checkpoint = checkpoint.name
             sd_models.reload_model_weights(op='model')
@@ -84,7 +84,7 @@ class Script(scripts.Script):
             p.task_args['num_frames'] = num_frames
         else:
             shared.log.error('Text2Video: invalid number of frames')
-            return
+            return None
 
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         shared.log.debug(f'Text2Video: args={p.task_args}')

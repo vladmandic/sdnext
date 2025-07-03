@@ -1,14 +1,14 @@
-from modules import scripts, processing, shared, devices
+from modules import scripts_manager, processing, shared, devices
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     standalone = False
 
     def title(self):
         return 'Init Latents'
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible if shared.native else False
+        return scripts_manager.AlwaysVisible if shared.native else False
 
     @staticmethod
     def get_latents(p):

@@ -24,9 +24,6 @@ def load_transformer(repo_id, diffusers_load_config={}):
     elif fn is not None and 'safetensors' in fn.lower():
         shared.log.debug(f'Load model: type=FLEX transformer="{repo_id}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
         transformer = diffusers.FluxTransformer2DModel.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, **load_args)
-    # elif model_quant.check_nunchaku('Model'):
-    #     shared.log.error(f'Load model: type=HiDream transformer="{repo_id}" quant="Nunchaku" unsupported')
-    #     transformer = None
     else:
         shared.log.debug(f'Load model: type=FLEX transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
         transformer = diffusers.FluxTransformer2DModel.from_pretrained(
@@ -71,7 +68,7 @@ def load_flex(checkpoint_info, diffusers_load_config={}):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=FLEX model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    from modules.flex2 import Flex2Pipeline
+    from pipelines.flex2 import Flex2Pipeline
     pipe = Flex2Pipeline.from_pretrained(
         repo_id,
         # custom_pipeline=repo_id,

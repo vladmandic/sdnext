@@ -35,8 +35,8 @@ def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_s
 def create_ui():
     shared.log.debug('UI initialize: img2img')
     import modules.img2img # pylint: disable=redefined-outer-name
-    modules.scripts.scripts_current = modules.scripts.scripts_img2img
-    modules.scripts.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
+    modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_img2img
+    modules.scripts_manager.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
     with gr.Blocks(analytics_enabled=False) as _img2img_interface:
         img2img_prompt, img2img_prompt_styles, img2img_negative_prompt, img2img_submit, img2img_reprocess, img2img_paste, img2img_extra_networks_button, img2img_token_counter, img2img_token_button, img2img_negative_token_counter, img2img_negative_token_button = ui_sections.create_toprow(is_img2img=True, id_part="img2img")
         img2img_prompt_img = gr.File(label="", elem_id="img2img_prompt_image", file_count="single", type="binary", visible=False)
@@ -156,7 +156,7 @@ def create_ui():
                     override_settings = ui_common.create_override_inputs('img2img')
 
                 with gr.Group(elem_id="img2img_script_container"):
-                    img2img_script_inputs = modules.scripts.scripts_img2img.setup_ui(parent='img2img', accordion=True)
+                    img2img_script_inputs = modules.scripts_manager.scripts_img2img.setup_ui(parent='img2img', accordion=True)
 
             img2img_gallery, img2img_generation_info, img2img_html_info, _img2img_html_info_formatted, img2img_html_log = ui_common.create_output_panel("img2img", prompt=img2img_prompt)
 
@@ -304,7 +304,7 @@ def create_ui():
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
-                *modules.scripts.scripts_img2img.infotext_fields
+                *modules.scripts_manager.scripts_img2img.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("img2img", img_init, img2img_paste_fields, override_settings)
             generation_parameters_copypaste.add_paste_fields("sketch", img_sketch, img2img_paste_fields, override_settings)

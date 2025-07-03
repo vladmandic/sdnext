@@ -7,7 +7,7 @@ encoder: `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`=3.94GB
 import os
 import importlib
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 repo = 'https://github.com/vladmandic/IP-Instruct'
@@ -16,7 +16,7 @@ encoder = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
 folder = os.path.join('repositories', 'ip_instruct')
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

@@ -1,9 +1,9 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 from installer import install
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'T-Gate: Accelerate via Gating Attention'
 

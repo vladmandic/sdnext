@@ -3,7 +3,7 @@ import torch
 import gradio as gr
 import transformers
 import diffusers
-from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, sd_samplers, model_quant, timer, sd_hijack_te
+from modules import scripts_manager, processing, shared, images, devices, sd_models, sd_checkpoint, sd_samplers, model_quant, timer, sd_hijack_te
 
 
 default_template = """Describe the video by detailing the following aspects:
@@ -48,7 +48,7 @@ def hijack_decode(*args, **kwargs):
     return res
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: Hunyuan Video (Legacy)'
 

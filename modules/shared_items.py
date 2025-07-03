@@ -61,8 +61,8 @@ onnx_pipelines = {
 
 
 def postprocessing_scripts():
-    import modules.scripts
-    return modules.scripts.scripts_postproc.scripts
+    import modules.scripts_manager
+    return modules.scripts_manager.scripts_postproc.scripts
 
 
 def sd_vae_items():

@@ -12,10 +12,10 @@ ported to modules/consistory
 import time
 import gradio as gr
 import diffusers
-from modules import scripts, devices, errors, processing, shared, sd_models, sd_samplers
+from modules import scripts_manager, devices, errors, processing, shared, sd_models, sd_samplers
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.anchor_cache_first_stage = None
@@ -66,7 +66,7 @@ class Script(scripts.Script):
 
     def create_model(self):
         diffusers.models.embeddings.PositionNet = diffusers.models.embeddings.GLIGENTextBoundingboxProjection # patch as renamed in https://github.com/huggingface/diffusers/pull/6244/files
-        import modules.consistory as cs
+        import scripts.consistory as cs
         if shared.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
             shared.log.debug('ConsiStory init')
             t0 = time.time()
@@ -128,7 +128,7 @@ class Script(scripts.Script):
         return concepts, anchors, prompts, alpha, steps, seed
 
     def create_anchors(self, anchors, concepts, seed, steps, dropout, same, queries, sdsa, injection, alpha):
-        import modules.consistory as cs
+        import scripts.consistory as cs
         t0 = time.time()
         if len(anchors) == 0:
             shared.log.warning('ConsiStory: no anchors')
@@ -159,7 +159,7 @@ class Script(scripts.Script):
         return images
 
     def create_extra(self, prompt, concepts, seed, steps, dropout, same, queries, sdsa, injection, alpha):
-        import modules.consistory as cs
+        import scripts.consistory as cs
         t0 = time.time()
         images = []
         shared.log.debug(f'ConsiStory extra: concepts={concepts} prompt="{prompt}"')

@@ -2,7 +2,7 @@ import gradio as gr
 import torch
 import numpy as np
 import diffusers
-from modules import scripts, processing, shared, devices
+from modules import scripts_manager, processing, shared, devices
 
 
 handler = None
@@ -11,7 +11,7 @@ supported_model_list = ['sdxl']
 orig_prompt_attention = None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Style Aligned Image Generation'
 
@@ -27,9 +27,9 @@ class Script(scripts.Script):
     def preset(self, preset):
         if preset == 'text':
             return [['attention', 'adain_queries', 'adain_keys'], 1.0, 0, 0.0]
-        if preset == 'image':
+        elif preset == 'image':
             return [['group_norm', 'layer_norm', 'attention', 'adain_queries', 'adain_keys'], 1.0, 2, 0.0]
-        if preset == 'all':
+        else:
             return [['group_norm', 'layer_norm', 'attention', 'adain_queries', 'adain_keys', 'adain_values', 'full_attention_share'], 1.0, 1, 0.5]
 
     def ui(self, _is_img2img): # ui elements
@@ -64,7 +64,7 @@ class Script(scripts.Script):
             shared.log.warning(f'SA: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
 
-        from modules.style_aligned import sa_handler, inversion
+        from scripts.style_aligned import sa_handler, inversion
 
         handler = sa_handler.Handler(shared.sd_model)
         sa_args = sa_handler.StyleAlignedArgs(
@@ -108,6 +108,7 @@ class Script(scripts.Script):
             p.task_args['callback_on_step_end'] = inversion_callback
 
         shared.log.info(f'SA: batch={p.batch_size} type={"image" if zts is not None else "text"} config={sa_args.__dict__}')
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=unused-argument
         global handler # pylint: disable=global-statement

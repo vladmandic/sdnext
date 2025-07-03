@@ -731,7 +731,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
 
         for z in range(len(neg_weight_tensor_2)):
             if neg_weight_tensor_2[z] != 1.0:
-                ow = neg_weight_tensor_2[z] - 1
+                # ow = neg_weight_tensor_2[z] - 1
                 # neg_weight = 1 + (math.exp(ow)/(math.exp(ow) + 1) - 0.5) * 2
 
                 # add weight method 1:
@@ -1330,7 +1330,6 @@ def get_weighted_text_embeddings_sd3(
     sd3_neg_prompt_embeds = torch.cat([clip_neg_prompt_embeds, t5_neg_prompt_embeds], dim=-2)
 
     # padding
-    import torch.nn.functional as F
     size_diff = sd3_neg_prompt_embeds.size(1) - sd3_prompt_embeds.size(1)
     # Calculate padding. Format for pad is (padding_left, padding_right, padding_top, padding_bottom, padding_front, padding_back)
     # Since we are padding along the second dimension (axis=1), we need (0, 0, padding_top, padding_bottom, 0, 0)

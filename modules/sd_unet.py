@@ -25,7 +25,7 @@ def load_unet(model):
         if shared.opts.sd_unet == loaded_unet or shared.opts.sd_unet in failed_unet:
             pass
         elif "StableCascade" in model.__class__.__name__:
-            from modules.model_stablecascade import load_prior
+            from pipelines.model_stablecascade import load_prior
             prior_unet, prior_text_encoder = load_prior(unet_dict[shared.opts.sd_unet], config_file=config_file)
             loaded_unet = shared.opts.sd_unet
             if prior_unet is not None:
@@ -38,7 +38,7 @@ def load_unet(model):
             loaded_unet = shared.opts.sd_unet
             sd_models.load_diffuser() # TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
             """
-            from modules.model_flux import load_transformer
+            from pipelines.model_flux import load_transformer
             transformer = load_transformer(unet_dict[shared.opts.sd_unet])
             if transformer is not None:
                 model.transformer = None

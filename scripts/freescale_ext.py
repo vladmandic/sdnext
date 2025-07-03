@@ -1,11 +1,11 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts_manager, processing, shared, sd_models
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -58,7 +58,7 @@ class Script(scripts.Script):
                 shared.log.warning('FreeScale: missing input image')
                 return None
 
-        from modules.freescale import StableDiffusionXLFreeScale, StableDiffusionXLFreeScaleImg2Img
+        from scripts.freescale import StableDiffusionXLFreeScale, StableDiffusionXLFreeScaleImg2Img
         self.orig_pipe = shared.sd_model
         self.orig_slice = shared.opts.diffusers_vae_slicing
         self.orig_tile = shared.opts.diffusers_vae_tiling

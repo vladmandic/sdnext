@@ -1,7 +1,6 @@
 import math
 import gradio as gr
-import modules.scripts as scripts
-from modules import images
+from modules import images, scripts_manager
 from modules.processing import process_images
 from modules.shared import opts, state, log
 import modules.sd_samplers
@@ -21,7 +20,7 @@ def draw_xy_grid(xs, ys, x_label, y_label, cell):
         for ix, x in enumerate(xs):
             state.job = f"{ix + iy * len(xs) + 1} out of {len(xs) * len(ys)}"
 
-            processed, t = cell(x, y)
+            processed, _t = cell(x, y)
             if first_processed is None:
                 first_processed = processed
 
@@ -37,7 +36,7 @@ def draw_xy_grid(xs, ys, x_label, y_label, cell):
     return first_processed
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Prompt matrix"
 

@@ -21,7 +21,7 @@
     "localize": "node cli/localize.js",
     "ruff": ". venv/bin/activate && ruff check",
     "eslint": "eslint javascript/ extensions-builtin/sdnext-modernui/javascript/",
-    "pylint": ". venv/bin/activate && pylint *.py modules/ extensions-builtin/ | grep -v '^*'",
+    "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "lint": "npm run eslint && npm run ruff && npm run pylint",
     "test": "cli/test.sh"
   },

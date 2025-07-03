@@ -1,8 +1,7 @@
 import copy
 import ast
 import gradio as gr
-import modules.scripts as scripts
-
+from modules import scripts_manager
 from modules.processing import Processed
 from modules.shared import opts, cmd_opts, state # pylint: disable=unused-import
 
@@ -28,14 +27,15 @@ def exec_with_return(code, module):
     last_ast = copy.deepcopy(code_ast)
     last_ast.body = code_ast.body[-1:]
 
-    exec(compile(init_ast, "<ast>", "exec"), module.__dict__)
+    exec(compile(init_ast, "<ast>", "exec"), module.__dict__) # pylint: disable=exec-used
     if type(last_ast.body[0]) == ast.Expr:
-        return eval(compile(convertExpr2Expression(last_ast.body[0]), "<ast>", "eval"), module.__dict__)
+        return eval(compile(convertExpr2Expression(last_ast.body[0]), "<ast>", "eval"), module.__dict__) # pylint: disable=eval-used
     else:
-        exec(compile(last_ast, "<ast>", "exec"), module.__dict__)
+        exec(compile(last_ast, "<ast>", "exec"), module.__dict__) # pylint: disable=exec-used
+    return None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
 
     def title(self):
         return "Custom code"
@@ -60,7 +60,7 @@ return process_images(p)
 
         return [code, indent_level]
 
-    def run(self, p, code, indent_level):
+    def run(self, p, code, indent_level): # pylint: disable=arguments-differ
         assert cmd_opts.allow_code, '--allow-code option must be enabled'
 
         display_result_data = [[], -1, ""]

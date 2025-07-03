@@ -4,13 +4,13 @@ import torch
 import diffusers
 import gradio as gr
 import huggingface_hub as hf
-from modules import errors, shared, devices, scripts, processing, sd_models, sd_samplers
+from modules import errors, shared, devices, scripts_manager, processing, sd_models, sd_samplers
 
 
 adapter = None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'X-Adapter'
 
@@ -35,11 +35,11 @@ class Script(scripts.Script):
         return model, sampler, width, height, start, scale, lora
 
     def run(self, p: processing.StableDiffusionProcessing, model, sampler, width, height, start, scale, lora): # pylint: disable=arguments-differ, unused-argument
-        from modules.xadapter.xadapter_hijacks import PositionNet
+        from scripts.xadapter.xadapter_hijacks import PositionNet
         diffusers.models.embeddings.PositionNet = PositionNet # patch diffusers==0.26 from diffusers==0.20
-        from modules.xadapter.adapter import Adapter_XL
-        from modules.xadapter.pipeline_sd_xl_adapter import StableDiffusionXLAdapterPipeline
-        from modules.xadapter.unet_adapter import UNet2DConditionModel as UNet2DConditionModelAdapter
+        from scripts.xadapter.adapter import Adapter_XL
+        from scripts.xadapter.pipeline_sd_xl_adapter import StableDiffusionXLAdapterPipeline
+        from scripts.xadapter.unet_adapter import UNet2DConditionModel as UNet2DConditionModelAdapter
 
         global adapter # pylint: disable=global-statement
         if model == 'None':

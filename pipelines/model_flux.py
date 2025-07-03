@@ -175,7 +175,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         if _transformer is not None:
             transformer = _transformer
     elif 'nf4' in quant: # TODO flux: loader for civitai nf4 models
-        from modules.model_flux_nf4 import load_flux_nf4
+        from pipelines.model_flux_nf4 import load_flux_nf4
         _transformer, _text_encoder_2 = load_flux_nf4(file_path, prequantized=True)
         if _transformer is not None:
             transformer = _transformer
@@ -183,7 +183,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         quant_args = model_quant.create_bnb_config({})
         if quant_args:
             shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=bnb dtype={devices.dtype}')
-            from modules.model_flux_nf4 import load_flux_nf4
+            from pipelines.model_flux_nf4 import load_flux_nf4
             transformer, _text_encoder_2 = load_flux_nf4(file_path, prequantized=False)
             if transformer is not None:
                 return transformer
@@ -275,7 +275,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     # load quantized components if any
     if prequantized == 'nf4':
         try:
-            from modules.model_flux_nf4 import load_flux_nf4
+            from pipelines.model_flux_nf4 import load_flux_nf4
             _transformer, _text_encoder = load_flux_nf4(checkpoint_info)
             if _transformer is not None:
                 transformer = _transformer

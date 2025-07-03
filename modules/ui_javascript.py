@@ -3,7 +3,7 @@ import gradio.routes
 import gradio.utils
 from modules import shared, theme
 from modules.paths import script_path, data_path
-import modules.scripts
+import modules.scripts_manager
 
 
 def webpath(fn):
@@ -22,12 +22,12 @@ def html_head():
         script_js = os.path.join(script_path, "javascript", js)
         head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
     added = []
-    for script in modules.scripts.list_scripts("javascript", ".js"):
+    for script in modules.scripts_manager.list_scripts("javascript", ".js"):
         if script.filename in main or script.filename in skip:
             continue
         head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
-    for script in modules.scripts.list_scripts("javascript", ".mjs"):
+    for script in modules.scripts_manager.list_scripts("javascript", ".mjs"):
         head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
     added = [a.replace(script_path, '').replace('\\', '/') for a in added]
@@ -59,7 +59,7 @@ def html_css(css: str):
     head = ''
     if css is not None:
         head += stylesheet(os.path.join(script_path, 'javascript', css))
-    for cssfile in modules.scripts.list_files_with_name("style.css"):
+    for cssfile in modules.scripts_manager.list_files_with_name("style.css"):
         if not os.path.isfile(cssfile):
             continue
         head += stylesheet(cssfile)

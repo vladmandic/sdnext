@@ -1,5 +1,5 @@
 from safetensors.torch import load_file
-from modules.layerdiffuse.layerdiffuse_model import LoraLoader, AttentionSharingProcessor
+from scripts.layerdiffuse.layerdiffuse_model import LoraLoader, AttentionSharingProcessor
 
 
 def merge_delta_weights_into_unet(pipe, delta_weights):

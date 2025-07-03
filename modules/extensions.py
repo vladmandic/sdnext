@@ -77,7 +77,7 @@ class Extension:
                 self.remote = None
 
     def list_files(self, subdir, extension):
-        from modules import scripts
+        from modules import scripts_manager
         dirpath = os.path.join(self.path, subdir)
         if not os.path.isdir(dirpath):
             return []
@@ -89,7 +89,7 @@ class Extension:
             if os.path.isfile(os.path.join(dirpath, "..", ".priority")):
                 with open(os.path.join(dirpath, "..", ".priority"), "r", encoding="utf-8") as f:
                     priority = str(f.read().strip())
-            res.append(scripts.ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
+            res.append(scripts_manager.ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
             if priority != '50':
                 shared.log.debug(f'Extension priority override: {os.path.dirname(dirpath)}:{priority}')
         res = [x for x in res if os.path.splitext(x.path)[1].lower() == extension and os.path.isfile(x.path)]

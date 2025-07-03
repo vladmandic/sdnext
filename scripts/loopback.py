@@ -1,13 +1,12 @@
 import math
 
 import gradio as gr
-import modules.scripts as scripts
-from modules import images, processing
+from modules import images, processing, scripts_manager
 from modules.processing import Processed
 from modules.shared import opts, state
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Loopback"
 

@@ -6,7 +6,7 @@ from diffusers.models.lora import LoRACompatibleConv
 from torch import Tensor
 from torch.nn import functional as F
 from torch.nn.modules.utils import _pair
-from modules import scripts, processing, shared
+from modules import scripts_manager, processing, shared
 
 
 modex = 'constant'
@@ -21,7 +21,7 @@ def asymmetricConv2DConvForward(self, input: Tensor, weight: Tensor, bias: Optio
     return F.conv2d(working, weight, bias, self.stride, _pair(0), self.dilation, self.groups)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -71,7 +71,7 @@ class Script(scripts.Script):
                 cl._orig_conv_forward = cl._conv_forward # pylint: disable=protected-access
             cl._conv_forward = asymmetricConv2DConvForward.__get__(cl, torch.nn.Conv2d) # pylint: disable=protected-access, no-value-for-parameter
         shared.log.info(f'Tiling: x={tilex}:{numx} y={tiley}:{numy}')
-
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, tilex:bool=False, numx:int=1, tiley:bool=False, numy:int=1): # pylint: disable=arguments-differ, unused-argument
         if len(self.conv_layers) == 0:

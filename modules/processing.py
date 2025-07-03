@@ -4,7 +4,7 @@ import time
 from contextlib import nullcontext
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts, memstats, lowvram, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration, token_merge
+from modules import shared, devices, errors, images, scripts_manager, memstats, lowvram, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration, token_merge
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import StableDiffusionProcessing, StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, StableDiffusionProcessingControl, StableDiffusionProcessingVideo # pylint: disable=unused-import
 from modules.processing_info import create_infotext
@@ -128,7 +128,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     debug(f'Process images: {vars(p)}')
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
         return None
-    if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+    if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.before_process(p)
     stored_opts = {}
     for k, v in p.override_settings.copy().items():
@@ -290,7 +290,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     process_init(p)
     if not shared.native and os.path.exists(shared.opts.embeddings_dir) and not p.do_not_reload_embeddings:
         modules.sd_hijack.model_hijack.embedding_db.load_textual_inversion_embeddings(force_reload=False)
-    if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+    if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.process(p)
 
     ema_scope_context = p.sd_model.ema_scope if not shared.native else nullcontext
@@ -324,19 +324,19 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
             p.seeds = p.all_seeds[n * p.batch_size:(n+1) * p.batch_size]
             p.subseeds = p.all_subseeds[n * p.batch_size:(n+1) * p.batch_size]
-            if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
             if len(p.prompts) == 0:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
             if not shared.native:
                 extra_networks.activate(p, p.network_data)
-            if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
 
             samples = None
             timer.process.record('init')
-            if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 processed = p.scripts.process_images(p)
                 if processed is not None:
                     samples = processed.images
@@ -358,12 +358,12 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if not shared.native and (shared.cmd_opts.lowvram or shared.cmd_opts.medvram):
                 lowvram.send_everything_to_cpu()
                 devices.torch_gc()
-            if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
-            if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
                 p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
-                batch_params = scripts.PostprocessBatchListArgs(list(samples))
+                batch_params = scripts_manager.PostprocessBatchListArgs(list(samples))
                 p.scripts.postprocess_batch_list(p, batch_params, batch_number=n)
                 samples = batch_params.images
 
@@ -402,8 +402,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                         images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")
                     image = apply_color_correction(p.color_corrections[i], image)
-                if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner):
-                    pp = scripts.PostprocessImageArgs(image)
+                if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+                    pp = scripts_manager.PostprocessImageArgs(image)
                     p.scripts.postprocess_image(p, pp)
                     if pp.image is not None:
                         image = pp.image
@@ -496,7 +496,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         index_of_first_image=index_of_first_image,
         infotexts=infotexts,
     )
-    if p.scripts is not None and isinstance(p.scripts, scripts.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
+    if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
         p.scripts.postprocess(p, processed)
     timer.process.record('post')
     if not p.disable_extra_networks:

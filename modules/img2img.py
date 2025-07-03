@@ -3,8 +3,7 @@ import itertools # SBM Batch frames
 import numpy as np
 import filetype
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageChops, UnidentifiedImageError
-import modules.scripts
-from modules import shared, processing, images
+from modules import scripts_manager, shared, processing, images
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html
 from modules.memstats import memory_stats
@@ -100,7 +99,7 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
 
         batch_image_files = batch_image_files * btcrept # List used for naming later.
 
-        processed = modules.scripts.scripts_img2img.run(p, *args)
+        processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:
             processed = processing.process_images(p)
 
@@ -124,7 +123,7 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
             for k, v in items.items():
                 image.info[k] = v
             images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, short_filename=True, no_prompt=True, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
-        processed = modules.scripts.scripts_img2img.after(p, processed, *args)
+        processed = scripts_manager.scripts_img2img.after(p, processed, *args)
         shared.log.debug(f'Processed: images={len(batch_image_files)} memory={memory_stats()} batch')
 
 
@@ -289,7 +288,7 @@ def img2img(id_task: str, state: str, mode: int,
         # override
         override_settings=override_settings,
     )
-    p.scripts = modules.scripts.scripts_img2img
+    p.scripts = scripts_manager.scripts_img2img
     p.script_args = args
     p.state = state
     if mask:
@@ -304,10 +303,10 @@ def img2img(id_task: str, state: str, mode: int,
         process_batch(p, img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir, args)
         processed = processing.Processed(p, [], p.seed, "")
     else:
-        processed = modules.scripts.scripts_img2img.run(p, *args)
+        processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:
             processed = processing.process_images(p)
-        processed = modules.scripts.scripts_img2img.after(p, processed, *args)
+        processed = scripts_manager.scripts_img2img.after(p, processed, *args)
     p.close()
     generation_info_js = processed.js() if processed is not None else ''
     if processed is None:

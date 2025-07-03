@@ -173,7 +173,7 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
             if transformer is not None:
                 return transformer
         shared.log.info(f'Load module: type=UNet/Transformer file="{file_path}" offload={shared.opts.diffusers_offload_mode} quant=none dtype={devices.dtype}')
-        # TODO chroma transformer from-single-file with quant
+        # TODO model load: chroma transformer from-single-file with quant
         # shared.log.warning('Load module: type=UNet/Transformer does not support load-time quantization')
         # transformer = diffusers.ChromaTransformer2DModel.from_single_file(file_path, **diffusers_load_config)
     if transformer is None:
@@ -261,8 +261,8 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     if vae is not None:
         kwargs['vae'] = vae
 
-    # TODO add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
-    # TODO Chroma will support inpainting *after* its training has finished: https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
+    # TODO model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
+    # Chroma will support inpainting *after* its training has finished: https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
     cls = diffusers.ChromaPipeline
     shared.log.debug(f'Load model: type=Chroma cls={cls.__name__} preloaded={list(kwargs)} revision={diffusers_load_config.get("revision", None)}')
     for c in kwargs:

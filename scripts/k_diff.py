@@ -1,9 +1,9 @@
 import inspect
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, ui_common
+from modules import scripts_manager, processing, shared, sd_models, ui_common
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     supported_models = ['sd', 'sdxl']
     orig_pipe = None
 
@@ -65,6 +65,7 @@ class Script(scripts.Script):
         #     params['disable'] = False
         shared.log.info(f'K-diffusion apply: class={shared.sd_model.__class__.__name__} sampler={sampler} params={params}')
         p.extra_generation_params["Sampler"] = sampler
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, sampler): # pylint: disable=arguments-differ, unused-argument
         if self.orig_pipe is None:

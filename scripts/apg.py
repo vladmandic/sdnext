@@ -1,11 +1,11 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts_manager, processing, shared, sd_models
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -71,6 +71,7 @@ class Script(scripts.Script):
         shared.log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={shared.sd_model.__class__.__name__}')
         p.extra_generation_params["APG"] = f'ETA={apg.eta} Momentum={apg.momentum} Threshold={apg.threshold}'
         # processed = processing.process_images(p)
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, eta, momentum, threshold): # pylint: disable=arguments-differ, unused-argument
         from modules import apg

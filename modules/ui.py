@@ -2,7 +2,7 @@ import mimetypes
 import gradio as gr
 import gradio.routes
 import gradio.utils
-from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts
+from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager
 from modules.paths import script_path, data_path # pylint: disable=unused-import
 
 
@@ -76,7 +76,7 @@ def create_ui(startup_timer = None):
         timer.startup = timer.Timer()
     ui_javascript.reload_javascript()
     generation_parameters_copypaste.reset()
-    scripts.scripts_current = None
+    scripts_manager.scripts_current = None
 
     with gr.Blocks(analytics_enabled=False) as txt2img_interface:
         from modules import ui_txt2img

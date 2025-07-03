@@ -4,7 +4,7 @@
 
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 prefix = 'InfiniteYou'
@@ -22,7 +22,7 @@ def verify_insightface():
 
 
 def load_infiniteyou(model: str):
-    from modules.infiniteyou import InfUFluxPipeline
+    from scripts.infiniteyou import InfUFluxPipeline
     shared.sd_model = InfUFluxPipeline(
         pipe=shared.sd_model,
         model_version=model,
@@ -31,7 +31,7 @@ def load_infiniteyou(model: str):
     sd_models.set_diffuser_options(shared.sd_model)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return f'{prefix}: Flexible Photo Recrafting'
 

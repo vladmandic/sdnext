@@ -2,10 +2,10 @@
 
 import gradio as gr
 from diffusers import StableDiffusionXLPipeline
-from modules import shared, scripts, processing, processing_helpers, sd_models, devices
+from modules import shared, scripts_manager, processing, processing_helpers, sd_models, devices
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Ctrl-X: Controlling Structure and Appearance'
 
@@ -44,9 +44,9 @@ class Script(scripts.Script):
             return None
 
         import yaml
-        from modules.ctrlx import CtrlXStableDiffusionXLPipeline
-        from modules.ctrlx.sdxl import get_control_config, register_control
-        from modules.ctrlx.utils import get_self_recurrence_schedule
+        from scripts.ctrlx import CtrlXStableDiffusionXLPipeline
+        from scripts.ctrlx.sdxl import get_control_config, register_control
+        from scripts.ctrlx.utils import get_self_recurrence_schedule
 
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'

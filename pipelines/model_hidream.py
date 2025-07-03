@@ -102,7 +102,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
     if 'I1' in repo_id:
         cls = diffusers.HiDreamImagePipeline
     elif 'E1' in repo_id:
-        from modules.hidream.pipeline_hidream_image_editing import HiDreamImageEditingPipeline
+        from pipelines.hidream.pipeline_hidream_image_editing import HiDreamImageEditingPipeline
         cls = HiDreamImageEditingPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["hidream-e1"] = diffusers.HiDreamImagePipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["hidream-e1"] = HiDreamImageEditingPipeline

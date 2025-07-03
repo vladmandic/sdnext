@@ -4,7 +4,7 @@ import torch
 import gradio as gr
 import diffusers
 import transformers
-from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer, sd_hijack_te
+from modules import scripts_manager, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant, timer, sd_hijack_te
 
 
 repos = {
@@ -39,7 +39,7 @@ def hijack_decode(*args, **kwargs):
     return res
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: LTX Video (Legacy)'
 

@@ -9,7 +9,7 @@ from modules.control.units import xs # vislearn ControlNet-XS
 from modules.control.units import lite # vislearn ControlNet-XS
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # reference pipeline
-from modules import errors, shared, progress, ui_components, ui_symbols, ui_common, ui_sections, generation_parameters_copypaste, call_queue, scripts, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
+from modules import errors, shared, progress, ui_components, ui_symbols, ui_common, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
 from modules import ui_control_helpers as helpers
 
 
@@ -539,7 +539,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             setting.change(fn=processors.update_settings, inputs=settings, outputs=[])
 
             with gr.Row(elem_id="control_script_container"):
-                input_script_args = scripts.scripts_current.setup_ui(parent='control', accordion=True)
+                input_script_args = scripts_manager.scripts_current.setup_ui(parent='control', accordion=True)
 
             # handlers
             for btn in input_buttons:
@@ -709,7 +709,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
-                *scripts.scripts_control.infotext_fields
+                *scripts_manager.scripts_control.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)
             bindings = generation_parameters_copypaste.ParamBinding(paste_button=btn_paste, tabname="control", source_text_component=prompt, source_image_component=output_gallery)

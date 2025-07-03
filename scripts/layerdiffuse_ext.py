@@ -1,8 +1,8 @@
 import gradio as gr
-from modules import shared, scripts, sd_models
+from modules import shared, scripts_manager, sd_models
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
 
     def title(self):
         return 'LayerDiffuse: Transparent Image'
@@ -11,7 +11,7 @@ class Script(scripts.Script):
         return True if shared.native else False
 
     def apply(self):
-        from modules import layerdiffuse
+        from scripts import layerdiffuse
         if not shared.sd_loaded:
             shared.log.error('LayerDiffuse: model not loaded')
             return self.is_active()

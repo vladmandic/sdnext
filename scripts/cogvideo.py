@@ -13,14 +13,14 @@ import torch
 from torchvision import transforms
 import diffusers
 import numpy as np
-from modules import scripts, shared, devices, errors, sd_models, processing
+from modules import scripts_manager, shared, devices, errors, sd_models, processing
 from modules.processing_callbacks import diffusers_callback, set_callbacks_p
 
 
 debug = (os.environ.get('SD_LOAD_DEBUG', None) is not None) or (os.environ.get('SD_PROCESS_DEBUG', None) is not None)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: CogVideoX (Legacy)'
 

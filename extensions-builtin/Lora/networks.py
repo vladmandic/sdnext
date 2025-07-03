@@ -17,7 +17,7 @@ import network_overrides
 import lora_convert
 import torch
 import diffusers.models.lora
-from modules import shared, devices, sd_models, sd_models_compile, errors, scripts, files_cache, model_quant
+from modules import shared, devices, sd_models, sd_models_compile, errors, scripts_manager, files_cache, model_quant
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
@@ -580,7 +580,7 @@ def list_available_networks():
 
 
 def infotext_pasted(infotext, params): # pylint: disable=W0613
-    if "AddNet Module 1" in [x[1] for x in scripts.scripts_txt2img.infotext_fields]:
+    if "AddNet Module 1" in [x[1] for x in scripts_manager.scripts_txt2img.infotext_fields]:
         return  # if the other extension is active, it will handle those fields, no need to do anything
     added = []
     for k in params:

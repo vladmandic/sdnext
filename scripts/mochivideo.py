@@ -2,13 +2,13 @@ import time
 import torch
 import gradio as gr
 import diffusers
-from modules import scripts, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant
+from modules import scripts_manager, processing, shared, images, devices, sd_models, sd_checkpoint, model_quant
 
 
 repo_id = 'genmo/mochi-1-preview'
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: Mochi.1 Video (Legacy)'
 

@@ -13,7 +13,7 @@ from modules.control.units import xs # VisLearn ControlNet-XS
 from modules.control.units import lite # Kohya ControlLLLite
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # ControlNet-Reference
-from modules import devices, shared, errors, processing, images, sd_models, scripts, masking
+from modules import devices, shared, errors, processing, images, sd_models, scripts_manager, masking
 from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
@@ -737,10 +737,10 @@ def control_run(state: str = '',
                         if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
                             sd_models.move_model(pipe.vae, devices.device)
 
-                        p.scripts = scripts.scripts_control
+                        p.scripts = scripts_manager.scripts_control
                         p.script_args = input_script_args or []
                         if len(p.script_args) == 0:
-                            script_runner = scripts.scripts_control
+                            script_runner = scripts_manager.scripts_control
                             if not script_runner.scripts:
                                 script_runner.initialize_scripts(False)
                             p.script_args = script.init_default_script_args(script_runner)

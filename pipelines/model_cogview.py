@@ -76,6 +76,6 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     if shared.opts.diffusers_eval:
         pipe.text_encoder.eval()
         pipe.transformer.eval()
-    pipe.enable_model_cpu_offload() # TODO cogview4: balanced offload does not work for GlmModel
+    pipe.enable_model_cpu_offload() # TODO model fix: cogview4: balanced offload does not work for GlmModel
     devices.torch_gc()
     return pipe

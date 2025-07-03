@@ -1,13 +1,13 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, images
+from modules import scripts_manager, processing, shared, images
 
 
 debug = shared.log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     original_pipeline = None
     original_prompt_attention = None
 

@@ -24,7 +24,7 @@ class AxisOptionTxt2Img(AxisOption):
         self.is_img2img = False
 
 
-class SharedSettingsStackHelper(object):
+class SharedSettingsStackHelper():
     sd_model_checkpoint = None
     sd_model_refiner = None
     sd_model_dict = None
