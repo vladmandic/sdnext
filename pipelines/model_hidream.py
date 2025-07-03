@@ -1,7 +1,6 @@
 import os
 import transformers
 import diffusers
-from huggingface_hub import auth_check
 from modules import shared, devices, sd_models, model_quant, modelloader, sd_hijack_te
 
 
@@ -60,7 +59,7 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
 
-    auth_check(llama_repo)
+    sd_models.hf_auth_check(llama_repo)
     text_encoder_4 = transformers.LlamaForCausalLM.from_pretrained(
         llama_repo,
         output_hidden_states=True,
@@ -80,13 +79,8 @@ def load_text_encoders(repo_id, diffusers_load_config={}):
 
 
 def load_hidream(checkpoint_info, diffusers_load_config={}):
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    login = modelloader.hf_login()
-    try:
-        auth_check(repo_id)
-    except Exception as e:
-        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
-        return False
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
     transformer = load_transformer(repo_id, diffusers_load_config)
     text_encoder_3, text_encoder_4, tokenizer_4 = load_text_encoders(repo_id, diffusers_load_config)

@@ -6,7 +6,7 @@ debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None el
 
 
 def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
     vae = None
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')

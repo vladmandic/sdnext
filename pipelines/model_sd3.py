@@ -1,7 +1,6 @@
 import os
 import diffusers
 import transformers
-from huggingface_hub import auth_check
 from modules import shared, devices, errors, sd_models, sd_unet, model_quant, model_tools, modelloader
 
 
@@ -90,14 +89,8 @@ def load_missing(kwargs, fn, cache_dir):
 
 
 def load_sd3(checkpoint_info, cache_dir=None, config=None):
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    login = modelloader.hf_login()
-    try:
-        auth_check(repo_id)
-    except Exception as e:
-        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
-        return False
-
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
     fn = checkpoint_info.path
 
     kwargs = {}

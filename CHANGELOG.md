@@ -2,22 +2,27 @@
 
 ## Update for 2025-07-03
 
-- **Models**
-  - Add **FLUX.1-Kontext-Dev** inpaint workflow  
 - **UI**  
   - major update to modernui layout  
   - redesign of the Flat UI theme
+- **Models**
+  - Add **FLUX.1-Kontext-Dev** inpaint workflow  
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
     enable in *settings -> compute settings -> sdp options*  
-    *note*: SD.Next will use either SageAttention v1 or v2, depending which one is installed  
-    until authors provide pre-build wheels for v2, you need to install it manually or SD.Next will auto-install v1  
+    *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
+    until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
 - **Fixes**
   - allow theme type `None` to be set in config  
   - installer dont cache installed state  
   - fix Cosmos-Predict2 retrying TAESD download  
   - better handle startup import errors  
+  - fix diffusers models non-unique hash  
+  - fix loading of manually downloaded diffuser models  
+  - improve model type autodetection  
+  - improve model auth check for hf repos  
+  - improve Chroma prompt padding as per recommendations  
 - **Refactoring**  
   - override `gradio` installer  
   - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  

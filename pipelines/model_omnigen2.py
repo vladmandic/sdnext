@@ -5,7 +5,7 @@ debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None el
 
 
 def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
 
     from pipelines.omnigen2 import OmniGen2Pipeline, OmniGen2Transformer2DModel, Qwen2_5_VLForConditionalGeneration
     import diffusers

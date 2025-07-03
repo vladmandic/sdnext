@@ -21,7 +21,7 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
 
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
     transformer, text_encoder, vae = None, None, None
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
     if os.path.isdir(checkpoint_info.filename) and not repo_exists(repo_id):
         repo_id = checkpoint_info.filename
 

@@ -8,6 +8,7 @@ from enum import Enum
 import diffusers
 import diffusers.loaders.single_file_utils
 import torch
+import huggingface_hub as hf
 from installer import log
 from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.timer import Timer, process as process_timer
@@ -1157,3 +1158,19 @@ def unload_model_weights(op='model'):
         model_data.sd_refiner = None
         devices.torch_gc(force=True)
         shared.log.debug(f'Unload {op}: {memory_stats()}')
+
+
+def hf_auth_check(checkpoint_info):
+    login = None
+    try:
+        if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json')): # skip check for already downloaded models
+            return True
+    except Exception:
+        pass
+    try:
+        login = modelloader.hf_login()
+        repo_id = path_to_repo(checkpoint_info)
+        hf.auth_check(repo_id)
+    except Exception as e:
+        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
+        return False

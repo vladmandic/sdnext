@@ -166,7 +166,8 @@ def run_settings_single(value, key, progress=False):
         from modules.dml import directml_override_opts
         directml_override_opts()
     shared.opts.save(shared.config_filename)
-    shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
+    if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet']:
+        shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
     return get_value_for_setting(key), shared.opts.dumpjson()
 
 

@@ -227,13 +227,16 @@ class ExtraNetworksPage:
             return f"<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'></div><div id='{tabname}_{self_name_id}_cards' class='extra-network-cards'>Network page not ready<br>Click refresh to try again</div>"
         subdirs = {}
         allowed_folders = [os.path.abspath(x) for x in self.allowed_directories_for_previews() if os.path.exists(x)]
+        diffusers_base = os.path.basename(shared.opts.diffusers_dir)
         for parentdir, dirs in {d: files_cache.walk(d, cached=True, recurse=files_cache.not_hidden) for d in allowed_folders}.items():
             for tgt in dirs:
                 tgt = tgt.path
                 if os.path.join(paths.models_path, 'Reference') in tgt and shared.opts.extra_network_reference_enable:
                     subdirs['Reference'] = 1
+                    continue
                 if shared.native and shared.opts.diffusers_dir in tgt:
-                    subdirs[os.path.basename(shared.opts.diffusers_dir)] = 1
+                    subdirs[diffusers_base] = 1
+                    continue
                 if 'models--' in tgt:
                     continue
                 subdir = tgt[len(parentdir):].replace("\\", "/")
@@ -247,7 +250,7 @@ class ExtraNetworksPage:
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
-            subdirs[os.path.basename(shared.opts.diffusers_dir)] = 1
+            subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
@@ -291,7 +294,7 @@ class ExtraNetworksPage:
             htmls.append(self.create_html(item, tabname))
         self.html += ''.join(htmls)
         self.page_time = time.time()
-        self.html = f"<div id='~tabname_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"
+        self.html = f"<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"
         shared.log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
         if len(self.missing_thumbs) > 0:
             threading.Thread(target=self.create_thumb).start()
@@ -386,13 +389,17 @@ class ExtraNetworksPage:
             if item.get('local_preview', None) is None:
                 item['local_preview'] = f'{base}.{shared.opts.samples_format}'
             if shared.opts.diffusers_dir in base:
-                match = re.search(r"models--([^/^\\]+)[/\\]", base)
-                if match is None:
-                    match = re.search(r"models--(.*)", base)
-                base = os.path.join(reference_path, match[1])
-                model_path = os.path.join(shared.opts.diffusers_dir, match[0])
-                item['local_preview'] = f'{os.path.join(model_path, match[1])}.{shared.opts.samples_format}'
-                all_previews += list(files_cache.list_files(model_path, ext_filter=exts, recursive=False))
+                if 'models--' in base:
+                    match = re.search(r"models--([^/^\\]+)[/\\]", base)
+                    if match is None:
+                        match = re.search(r"models--(.*)", base)
+                    base = os.path.join(reference_path, match[1])
+                    model_path = os.path.join(shared.opts.diffusers_dir, match[0])
+                    item['local_preview'] = f'{os.path.join(model_path, match[1])}.{shared.opts.samples_format}'
+                    all_previews += list(files_cache.list_files(model_path, ext_filter=exts, recursive=False))
+                else:
+                    if os.path.isdir(base):
+                        item['local_preview'] = os.path.join(base, f'{os.path.basename(base)}.{shared.opts.samples_format}')
             base = os.path.basename(base)
             for file in [f'{base}{mid}{ext}' for ext in exts for mid in ['.thumb.', '.', '.preview.']]:
                 if file in all_previews_fn:

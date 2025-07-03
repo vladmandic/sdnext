@@ -8,7 +8,7 @@ debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None el
 
 
 def load_auraflow(checkpoint_info, diffusers_load_config={}):
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
     if 'torch_dtype' not in diffusers_load_config:
         diffusers_load_config['torch_dtype'] = torch.float16
     debug(f'Load model: type=AuraFlow repo="{repo_id}" config={diffusers_load_config}')

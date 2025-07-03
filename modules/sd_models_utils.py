@@ -32,16 +32,21 @@ def get_call(cls):
     return signature.parameters
 
 
-def path_to_repo(fn: str = ''):
-    if isinstance(fn, CheckpointInfo):
-        fn = fn.name
-    repo_id = fn.replace('\\', '/')
-    if 'models--' in repo_id:
+def path_to_repo(checkpoint_info):
+    if isinstance(checkpoint_info, CheckpointInfo):
+        if os.path.exists(checkpoint_info.path) and 'models--' not in checkpoint_info.path:
+            return checkpoint_info.path # local models
+        repo_id = checkpoint_info.name
+    else:
+        repo_id = checkpoint_info # fallback if fn is used with str param
+    repo_id = repo_id.replace('\\', '/')
+    if repo_id.startswith('Diffusers/'):
+        repo_id = repo_id.split('Diffusers/')[-1]
+    if repo_id.startswith('models--'):
         repo_id = repo_id.split('models--')[-1]
-        repo_id = repo_id.split('/')[0]
-    repo_id = repo_id.split('/')
-    repo_id = '/'.join(repo_id[-2:] if len(repo_id) > 1 else repo_id)
-    repo_id = repo_id.replace('models--', '').replace('--', '/')
+    repo_id = repo_id.replace('--', '/')
+    if repo_id.count('/') != 1:
+        shared.log.warning(f'Model: repo="{repo_id}" repository not recognized')
     return repo_id
 
 

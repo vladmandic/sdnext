@@ -12,7 +12,7 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
     shared_items.pipelines['Meissonic'] = PipelineMeissonic
 
     modelloader.hf_login()
-    fn = sd_models.path_to_repo(checkpoint_info.path)
+    fn = sd_models.path_to_repo(checkpoint_info)
     cache_dir = shared.opts.diffusers_dir
 
     diffusers_load_config['variant'] = 'fp16'

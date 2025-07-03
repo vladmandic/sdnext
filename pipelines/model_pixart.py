@@ -6,7 +6,7 @@ from huggingface_hub import file_exists
 def load_pixart(checkpoint_info, diffusers_load_config={}):
     from modules import shared, devices, modelloader, sd_models, model_quant
     modelloader.hf_login()
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
     repo_id_tenc = repo_id
     repo_id_pipe = repo_id
 

@@ -26,8 +26,7 @@ def load_quants(kwargs, repo_id, cache_dir):
 
 def load_sana(checkpoint_info, kwargs={}):
     modelloader.hf_login()
-    fn = checkpoint_info if isinstance(checkpoint_info, str) else checkpoint_info.path
-    repo_id = sd_models.path_to_repo(fn)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
 
     kwargs.pop('load_connected_pipeline', None)
     kwargs.pop('safety_checker', None)

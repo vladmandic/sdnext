@@ -4,7 +4,7 @@ import torch
 import diffusers
 import transformers
 from safetensors.torch import load_file
-from huggingface_hub import hf_hub_download, auth_check
+from huggingface_hub import hf_hub_download
 from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 
@@ -24,7 +24,7 @@ def load_flux_quanto(checkpoint_info):
         quantization_map = os.path.join(repo_path, "transformer", "quantization_map.json")
         debug(f'Load model: type=FLUX quantization map="{quantization_map}" repo="{checkpoint_info.name}" component="transformer"')
         if not os.path.exists(quantization_map):
-            repo_id = sd_models.path_to_repo(checkpoint_info.name)
+            repo_id = sd_models.path_to_repo(checkpoint_info)
             quantization_map = hf_hub_download(repo_id, subfolder='transformer', filename='quantization_map.json', cache_dir=shared.opts.diffusers_dir)
         with open(quantization_map, "r", encoding='utf8') as f:
             quantization_map = json.load(f)
@@ -50,7 +50,7 @@ def load_flux_quanto(checkpoint_info):
         quantization_map = os.path.join(repo_path, "text_encoder_2", "quantization_map.json")
         debug(f'Load model: type=FLUX quantization map="{quantization_map}" repo="{checkpoint_info.name}" component="text_encoder_2"')
         if not os.path.exists(quantization_map):
-            repo_id = sd_models.path_to_repo(checkpoint_info.name)
+            repo_id = sd_models.path_to_repo(checkpoint_info)
             quantization_map = hf_hub_download(repo_id, subfolder='text_encoder_2', filename='quantization_map.json', cache_dir=shared.opts.diffusers_dir)
         with open(quantization_map, "r", encoding='utf8') as f:
             quantization_map = json.load(f)
@@ -204,13 +204,8 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
 
 
 def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_checkpoint change
-    repo_id = sd_models.path_to_repo(checkpoint_info.name)
-    login = modelloader.hf_login()
-    try:
-        auth_check(repo_id)
-    except Exception as e:
-        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
-        return False
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
     prequantized = model_quant.get_quant(checkpoint_info.path)
     shared.log.debug(f'Load model: type=FLUX model="{checkpoint_info.name}" repo="{repo_id}" unet="{shared.opts.sd_unet}" te="{shared.opts.sd_text_encoder}" vae="{shared.opts.sd_vae}" quant={prequantized} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')

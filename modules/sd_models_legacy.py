@@ -50,7 +50,6 @@ def repair_config(sd_config):
 
 
 def load_model_weights(model, checkpoint_info, state_dict, timer):
-    # _pipeline, _model_type = sd_detect.detect_pipeline(checkpoint_info.path, 'model')
     from modules.modeldata import model_data
     from modules.memstats import memory_stats
     from modules import devices, sd_vae
