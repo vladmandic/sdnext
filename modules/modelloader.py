@@ -326,7 +326,7 @@ def load_diffusers_models(clear=True):
                 folder = os.path.join(place, folder)
                 friendly = os.path.join(place, name)
                 if os.path.exists(os.path.join(folder, 'model_index.json')): # direct download of diffusers model
-                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': '', 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': os.path.join(folder, 'model_index.json') }
+                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': None, 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': os.path.join(folder, 'model_index.json') }
                     diffuser_repos.append(repo)
                     continue
                 snapshots = os.listdir(os.path.join(folder, "snapshots"))
