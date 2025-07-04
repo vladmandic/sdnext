@@ -1,7 +1,7 @@
 import os
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, model_quant, modelloader, sd_hijack_te
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 
 
 def load_transformer(repo_id, diffusers_load_config={}):

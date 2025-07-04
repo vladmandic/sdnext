@@ -11,7 +11,7 @@ class Script(scripts_manager.Script):
         return True if shared.native else False
 
     def apply(self):
-        from scripts import layerdiffuse
+        from scripts import layerdiffuse # pylint: disable=no-name-in-module
         if not shared.sd_loaded:
             shared.log.error('LayerDiffuse: model not loaded')
             return self.is_active()

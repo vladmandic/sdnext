@@ -1168,7 +1168,7 @@ def hf_auth_check(checkpoint_info):
     try:
         login = modelloader.hf_login()
         repo_id = path_to_repo(checkpoint_info)
-        hf.auth_check(repo_id)
+        return hf.auth_check(repo_id)
     except Exception as e:
         shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
         return False

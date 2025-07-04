@@ -26,18 +26,17 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
-- [Refactor attention](https://github.com/huggingface/diffusers/pull/11311)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
-- [LBM](https://github.com/gojasper/LBM)  
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
 - [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
 - [HiDream GGUF](https://github.com/huggingface/diffusers/pull/11550)  
-- [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)  
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
-- [S3Diff diffusion upscaler](https://github.com/ArcticHare105/S3Diff)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
-- [TensorRT](https://github.com/huggingface/diffusers/pull/11173)
+
+### Future Considerations
+- [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
+- [Modular guiders](https://github.com/huggingface/diffusers/pull/11311)  
 
 ### New models
 

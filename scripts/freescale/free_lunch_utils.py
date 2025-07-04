@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.fft as fft
 from diffusers.utils import is_torch_version
+from modules import devices
 
 """ Borrowed from https://github.com/ChenyangSi/FreeU/blob/main/demo/free_lunch_utils.py
 """
@@ -29,7 +30,7 @@ def Fourier_filter(x, threshold, scale):
     x_freq = fft.fftshift(x_freq, dim=(-2, -1))
 
     B, C, H, W = x_freq.shape
-    mask = torch.ones((B, C, H, W)).cuda() 
+    mask = torch.ones((B, C, H, W)).to(device=devices.device)
 
     crow, ccol = H // 2, W //2
     mask[..., crow - threshold:crow + threshold, ccol - threshold:ccol + threshold] = scale

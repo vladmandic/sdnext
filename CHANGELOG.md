@@ -2,13 +2,19 @@
 
 ## Update for 2025-07-04
 
-- **UI**  
-  - major update to modernui layout  
-  - redesign of the Flat UI theme
 - **Models**
+  - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
+    very fast automatic image background replacement methods with relightning!  
+    *simple*: automatic background replacement using [BiRefNet](https://github.com/ZhengPeng7/BiRefNet)  
+    *relighting*: automatic background replacement with reglighting so source image fits desired background  
+    with optional composite blending  
+    available in *img2img or control -> scripts*  
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
   - Support **FLUX.1** all-in-one safetensors  
-  - Support TAESD preview and remote VAE for **HunyuanDit**
+  - Support TAESD preview and remote VAE for **HunyuanDit**  
+- **UI**  
+  - major update to modernui layout  
+  - redesign of the Flat UI theme  
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  

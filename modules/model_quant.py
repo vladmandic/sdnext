@@ -314,7 +314,7 @@ def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_co
         load_args["torch_dtype"] = storage_dtype
         model = load_model_func(repo_path, **load_args)
         model = upcast_non_layerwise_modules(model, devices.dtype)
-        model._skip_layerwise_casting_patterns = None
+        model._skip_layerwise_casting_patterns = None # pylint: disable=protected-access
         model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=False, skip_modules_pattern=[])
         model.layerwise_storage_dtype = storage_dtype
         model.quantization_method = 'LayerWise'
@@ -345,7 +345,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
         try:
             cls = getattr(sd_model, module).__class__.__name__
             m = getattr(sd_model, module)
-            if getattr(m, "quantization_method", None) in {'LayerWise', quantization_config.QuantizationMethod.LAYERWISE}:
+            if getattr(m, "quantization_method", None) in {'LayerWise', quantization_config.QuantizationMethod.LAYERWISE}: # pylint: disable=no-member
                 storage_dtype = getattr(m, "layerwise_storage_dtype", storage_dtype)
                 m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
             elif module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):

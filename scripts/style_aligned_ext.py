@@ -64,7 +64,7 @@ class Script(scripts_manager.Script):
             shared.log.warning(f'SA: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
 
-        from scripts.style_aligned import sa_handler, inversion
+        from scripts.style_aligned import sa_handler, inversion # pylint: disable=no-name-in-module
 
         handler = sa_handler.Handler(shared.sd_model)
         sa_args = sa_handler.StyleAlignedArgs(

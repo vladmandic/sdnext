@@ -85,7 +85,7 @@ class Script(scripts_manager.Script):
         [x_tiles, y_tiles, x_overlap, y_overlap], prompts = args[:4], args[4:]
         if max(x_tiles, y_tiles) <= 1:
             return None
-        from scripts.mod import StableDiffusionXLTilingPipeline
+        from scripts.mod import StableDiffusionXLTilingPipeline # pylint: disable=no-name-in-module
         self.orig_pipe = shared.sd_model
         self.orig_attn = shared.opts.prompt_attention
 

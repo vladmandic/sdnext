@@ -101,7 +101,7 @@ def extract_arcface_bgr_embedding(in_image, landmark, arcface_model=None, in_set
     arc_face_image = face_align.norm_crop(in_image, landmark=np.array(kps), image_size=112)
     arc_face_image = torch.from_numpy(arc_face_image).unsqueeze(0).permute(0,3,1,2) / 255.
     arc_face_image = 2 * arc_face_image - 1
-    arc_face_image = arc_face_image.cuda().contiguous()
+    arc_face_image = arc_face_image.to(device=devices.device).contiguous()
     if arcface_model is None:
         arcface_model = init_recognition_model('arcface', device=devices.device)
     face_emb = arcface_model(arc_face_image)[0] # [512], normalized
@@ -252,7 +252,7 @@ class InfUFluxPipeline:
         face_info = sorted(face_info, key=lambda x:(x['bbox'][2]-x['bbox'][0])*(x['bbox'][3]-x['bbox'][1]))[-1] # only use the maximum face
         landmark = face_info['kps']
         id_embed = extract_arcface_bgr_embedding(id_image_cv2, landmark, self.arcface_model)
-        id_embed = id_embed.clone().unsqueeze(0).float().cuda()
+        id_embed = id_embed.clone().unsqueeze(0).float()
         id_embed = id_embed.reshape([1, -1, 512])
         id_embed = id_embed.to(device=devices.device, dtype=devices.dtype)
         with torch.no_grad():

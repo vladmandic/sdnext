@@ -5,7 +5,7 @@ import diffusers
 import transformers
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
-from modules import shared, errors, devices, modelloader, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
+from modules import shared, errors, devices, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -108,7 +108,7 @@ def load_flux_bnb(checkpoint_info, diffusers_load_config): # pylint: disable=unu
     return transformer, text_encoder_2
 
 
-def load_quants(kwargs, repo_id, cache_dir, allow_quant):
+def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unused-argument
     try:
         diffusers_load_config = {
             "torch_dtype": devices.dtype,
