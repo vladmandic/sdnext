@@ -328,7 +328,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         apply_balanced_offload_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         apply_balanced_offload_to_module(sd_model.decoder_pipe)
-    if shared.opts.layerwise_quantization:
+    if shared.opts.layerwise_quantization or (hasattr(sd_model, "transformer") and getattr(sd_model.transformer, 'quantization_method', None) == 'LayerWise'):
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
     set_accelerate(sd_model)
     t = time.time() - t0

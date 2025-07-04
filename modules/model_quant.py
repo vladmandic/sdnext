@@ -316,6 +316,7 @@ def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_co
         model = upcast_non_layerwise_modules(model, devices.dtype)
         model._skip_layerwise_casting_patterns = None
         model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=False, skip_modules_pattern=[])
+        model.layerwise_storage_dtype = storage_dtype
         model.quantization_method = 'LayerWise'
     except Exception as e:
         log.error(f"Load model: Failed to load FP8 model: {e}")
@@ -343,22 +344,26 @@ def apply_layerwise(sd_model, quiet:bool=False):
             continue
         try:
             cls = getattr(sd_model, module).__class__.__name__
-            if module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):
-                m = getattr(sd_model, module)
+            m = getattr(sd_model, module)
+            if getattr(m, "quantization_method", None) in {'LayerWise', quantization_config.QuantizationMethod.LAYERWISE}:
+                storage_dtype = getattr(m, "layerwise_storage_dtype", storage_dtype)
+                m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+            elif module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
-            if module.startswith('transformer') and ('Model' in shared.opts.layerwise_quantization):
-                m = getattr(sd_model, module)
+            elif module.startswith('transformer') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
-            if module.startswith('text_encoder') and ('TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
-                m = getattr(sd_model, module)
+            elif module.startswith('text_encoder') and ('TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = quantization_config.QuantizationMethod.LAYERWISE # pylint: disable=no-member
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
         except Exception as e:
