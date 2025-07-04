@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-03
+## Update for 2025-07-04
 
 - **UI**  
   - major update to modernui layout  
@@ -8,6 +8,7 @@
 - **Models**
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
   - Support **FLUX.1** all-in-one safetensors  
+  - Support TAESD preview and remote VAE for **HunyuanDit**
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
