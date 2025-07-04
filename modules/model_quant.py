@@ -277,6 +277,52 @@ def load_quanto(msg='', silent=False):
     return None
 
 
+def upcast_non_layerwise_modules(model, dtype): # pylint: disable=unused-argument
+    from diffusers.hooks.layerwise_casting import SUPPORTED_PYTORCH_LAYERS
+    model_children = list(model.children())
+    if not model_children:
+        if not isinstance(model, SUPPORTED_PYTORCH_LAYERS):
+            model = model.to(dtype)
+        return model
+    for module in model_children:
+        has_children = list(module.children())
+        if not has_children:
+            if not isinstance(module, SUPPORTED_PYTORCH_LAYERS):
+                module = module.to(dtype)
+        else:
+            module = upcast_non_layerwise_modules(module, dtype)
+    return model
+
+
+def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_config):
+    model = None
+    if isinstance(checkpoint_info, str):
+        repo_path = checkpoint_info
+    else:
+        repo_path = checkpoint_info.path
+    try:
+        import torch
+        from modules import devices
+        from diffusers.quantizers import quantization_config
+        if not hasattr(quantization_config.QuantizationMethod, 'LAYERWISE'):
+            setattr(quantization_config.QuantizationMethod, 'LAYERWISE', 'layerwise') # noqa: B010
+        if "e5m2" in repo_path.lower():
+            storage_dtype = torch.float8_e5m2
+        else:
+            storage_dtype= torch.float8_e4m3fn
+        load_args = diffusers_load_config.copy()
+        load_args["torch_dtype"] = storage_dtype
+        model = load_model_func(repo_path, **load_args)
+        model = upcast_non_layerwise_modules(model, devices.dtype)
+        model._skip_layerwise_casting_patterns = None
+        model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=False, skip_modules_pattern=[])
+        model.quantization_method = 'LayerWise'
+    except Exception as e:
+        log.error(f"Load model: Failed to load FP8 model: {e}")
+        model = None
+    return model
+
+
 def apply_layerwise(sd_model, quiet:bool=False):
     import torch
     from diffusers.quantizers import quantization_config

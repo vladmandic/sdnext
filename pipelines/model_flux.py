@@ -169,6 +169,10 @@ def load_transformer(file_path): # triggered by opts.sd_unet change
         _transformer = ggml.load_gguf(file_path, cls=diffusers.FluxTransformer2DModel, compute_dtype=devices.dtype)
         if _transformer is not None:
             transformer = _transformer
+    elif quant == "fp8":
+        _transformer = model_quant.load_fp8_model_layerwise(file_path, diffusers.FluxTransformer2DModel.from_single_file, diffusers_load_config)
+        if _transformer is not None:
+            transformer = _transformer
     elif quant in {'qint8', 'qint4'}:
         _transformer, _text_encoder_2 = load_flux_quanto(file_path)
         if _transformer is not None:
