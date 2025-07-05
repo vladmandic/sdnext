@@ -54,8 +54,8 @@ class FMPipelineOutput(BaseOutput):
     Output class for OmniGen2 pipeline.
 
     Args:
-        images (Union[List[PIL.Image.Image], np.ndarray]): 
-            List of denoised PIL images of length `batch_size` or numpy array of shape 
+        images (Union[List[PIL.Image.Image], np.ndarray]):
+            List of denoised PIL images of length `batch_size` or numpy array of shape
             `(batch_size, height, width, num_channels)`. Contains the generated images.
     """
     images: Union[List[PIL.Image.Image], np.ndarray]

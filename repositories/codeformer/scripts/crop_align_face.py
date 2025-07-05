@@ -124,7 +124,7 @@ def align_face(filepath, out_path):
         img = img.resize(rsize, PIL.Image.ANTIALIAS)
         quad /= shrink
         qsize /= shrink
- 
+
     # Crop.
     border = max(int(np.rint(qsize * 0.1)), 3)
     crop = (int(np.floor(min(quad[:, 0]))), int(np.floor(min(quad[:, 1]))),
@@ -187,6 +187,6 @@ if __name__ == '__main__':
     img_list = sorted(img_list)
 
     for in_path in img_list:
-        out_path = os.path.join(args.out_dir, in_path.split("/")[-1])        
+        out_path = os.path.join(args.out_dir, in_path.split("/")[-1])
         out_path = out_path.replace('.jpg', '.png')
         size_ = align_face(in_path, out_path)

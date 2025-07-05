@@ -26,8 +26,6 @@ voluptuous
 yapf
 fasteners
 orjson
-ruff
-pylint
 sqlalchemy
 invisible-watermark
 pi-heif
@@ -69,6 +67,11 @@ torchdiffeq
 scikit-image
 seam-carving
 sentencepiece
+
+# lint
+ruff
+pylint
+pre-commit
 
 # block
 torch!=2.5.0

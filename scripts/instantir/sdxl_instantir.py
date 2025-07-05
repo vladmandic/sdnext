@@ -396,7 +396,7 @@ class InstantIRPipeline(
         self.unet.disable_adapters()
 
         return lora_alpha
-    
+
     # Copied from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(
         self,

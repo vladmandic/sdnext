@@ -54,7 +54,7 @@ class Pipeline(DiffusionPipeline):
     vqvae: VQModel
     tokenizer: CLIPTokenizer
     text_encoder: CLIPTextModelWithProjection
-    transformer: Transformer2DModel 
+    transformer: Transformer2DModel
     scheduler: Scheduler
     # tokenizer_t5: T5Tokenizer
     # text_encoder_t5: T5ForConditionalGeneration
@@ -66,7 +66,7 @@ class Pipeline(DiffusionPipeline):
         vqvae: VQModel,
         tokenizer: CLIPTokenizer,
         text_encoder: CLIPTextModelWithProjection,
-        transformer: Transformer2DModel, 
+        transformer: Transformer2DModel,
         scheduler: Scheduler,
         # tokenizer_t5: T5Tokenizer,
         # text_encoder_t5: T5ForConditionalGeneration,
@@ -226,8 +226,8 @@ class Pipeline(DiffusionPipeline):
                 #     truncation=True,
                 #     max_length=512,
                 # ).input_ids.to(self._execution_device)
-                
-       
+
+
                 outputs = self.text_encoder(input_ids, return_dict=True, output_hidden_states=True)
                 # outputs_t5 = self.text_encoder_t5(input_ids_t5, decoder_input_ids = input_ids_t5 ,return_dict=True, output_hidden_states=True)
                 prompt_embeds = outputs.text_embeds
@@ -265,8 +265,8 @@ class Pipeline(DiffusionPipeline):
                 negative_prompt_embeds = outputs.text_embeds
                 negative_encoder_hidden_states = outputs.hidden_states[-2]
                 # negative_encoder_hidden_states = outputs_t5.encoder_hidden_states[-2]
-                
-              
+
+
 
             negative_prompt_embeds = negative_prompt_embeds.repeat(num_images_per_prompt, 1)
             negative_encoder_hidden_states = negative_encoder_hidden_states.repeat(num_images_per_prompt, 1, 1)

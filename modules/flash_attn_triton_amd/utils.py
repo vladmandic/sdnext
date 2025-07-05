@@ -366,7 +366,7 @@ def get_shape_from_layout(
     elif  layout == 'thd':
         total_seqlen, num_heads, head_dim = x.shape
         if cu_seqlens is None:
-            raise ValueError("cu_seqlens must be provided for varlen (thd) layout") 
+            raise ValueError("cu_seqlens must be provided for varlen (thd) layout")
         if max_seqlen is None:
             raise ValueError("max_seqlen must be provided for varlen (thd) layout")
 
@@ -389,7 +389,7 @@ def get_shapes_from_layout(q, k, layout, cu_seqlens_q = None, cu_seqlens_k = Non
 
 def get_stride_from_layout(x: torch.Tensor, layout:Literal["bshd", "bhsd", "thd"]):
     if layout == 'thd':
-        strides = (0, x.stride(1), x.stride(0), x.stride(2))  
+        strides = (0, x.stride(1), x.stride(0), x.stride(2))
     elif layout == 'bhsd':
         strides = (x.stride(0), x.stride(1), x.stride(2), x.stride(3))
     elif layout == 'bshd':

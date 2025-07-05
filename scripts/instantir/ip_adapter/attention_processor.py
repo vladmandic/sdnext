@@ -723,7 +723,7 @@ class AdditiveKV_AttnProcessor2_0(torch.nn.Module):
         temb=None,
     ):
         assert temb is not None, "Timestep embedding is needed for a time-aware attention processor."
-        
+
         residual = hidden_states
 
         if attn.spatial_norm is not None:
@@ -834,7 +834,7 @@ class TA_AdditiveKV_AttnProcessor2_0(torch.nn.Module):
         temb=None,
     ):
         assert temb is not None, "Timestep embedding is needed for a time-aware attention processor."
-        
+
         residual = hidden_states
 
         if attn.spatial_norm is not None:
@@ -1163,7 +1163,7 @@ class TA_IPAttnProcessor2_0(torch.nn.Module):
         # for ip-adapter
         ip_key = self.to_k_ip(ip_hidden_states)
         ip_value = self.to_v_ip(ip_hidden_states)
-        
+
         # time-dependent adaLN
         ip_key = self.ln_k_ip(ip_key, temb)
         ip_value = self.ln_v_ip(ip_value, temb)

@@ -254,8 +254,8 @@ class PerceptualLoss(nn.Module):
 
 @LOSS_REGISTRY.register()
 class LPIPSLoss(nn.Module):
-    def __init__(self, 
-            loss_weight=1.0, 
+    def __init__(self,
+            loss_weight=1.0,
             use_input_norm=True,
             range_norm=False,):
         super(LPIPSLoss, self).__init__()

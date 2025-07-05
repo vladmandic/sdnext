@@ -135,7 +135,7 @@ def resize_eva_pos_embed(state_dict, model, interpolation: str = 'bicubic', seq_
             patch_size = model.visual.patch_embed.patch_size
             state_dict['patch_embed.proj.weight'] = torch.nn.functional.interpolate(
                 patch_embed_proj.float(), size=patch_size, mode='bicubic', align_corners=False)
-                
+
 
 def resize_rel_pos_embed(state_dict, model, interpolation: str = 'bicubic', seq_dim=1):
     all_keys = list(state_dict.keys())

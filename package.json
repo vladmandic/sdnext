@@ -22,7 +22,8 @@
     "eslint": "eslint javascript/ extensions-builtin/sdnext-modernui/javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
-    "lint": "npm run eslint && npm run ruff && npm run pylint | grep -v TODO",
+    "format": ". venv/bin/activate && pre-commit run -a",
+    "lint": "npm run eslint && npm run format && npm run ruff && npm run pylint | grep -v TODO",
     "todo": "npm run pylint | grep W0511 | awk -F'TODO ' '{print \"- \"$NF}' | sed 's/ (fixme)//g' | sort",
     "test": ". venv/bin/activate; python launch.py --debug --test"
   },

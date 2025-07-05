@@ -34,7 +34,7 @@ from diffusers.models.normalization import AdaLayerNormContinuous, AdaLayerNormZ
 from diffusers.utils import USE_PEFT_BACKEND, is_torch_version, logging, scale_lora_layers, unscale_lora_layers
 from diffusers.utils.torch_utils import maybe_allow_in_graph
 from diffusers.models.embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings,TimestepEmbedding, get_timestep_embedding #,FluxPosEmbed
-from diffusers.models.modeling_outputs import Transformer2DModelOutput 
+from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.resnet import Downsample2D, Upsample2D
 
 from typing import List
@@ -794,8 +794,8 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         guidance_embeds (`bool`, defaults to False): Whether to use guidance embeddings.
     """
 
-    _supports_gradient_checkpointing = False #True 
-    # Due to NotImplementedError: DDPOptimizer backend: Found a higher order op in the graph. This is not supported. Please turn off DDP optimizer using torch._dynamo.config.optimize_ddp=False. Note that this can cause performance degradation because there will be one bucket for the entire Dynamo graph. 
+    _supports_gradient_checkpointing = False #True
+    # Due to NotImplementedError: DDPOptimizer backend: Found a higher order op in the graph. This is not supported. Please turn off DDP optimizer using torch._dynamo.config.optimize_ddp=False. Note that this can cause performance degradation because there will be one bucket for the entire Dynamo graph.
     # Please refer to this issue - https://github.com/pytorch/pytorch/issues/104674.
     _no_split_modules = ["TransformerBlock", "SingleTransformerBlock"]
 
@@ -819,7 +819,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
     ):
         super().__init__()
         self.out_channels = in_channels
-        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim 
+        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
 
         self.pos_embed = FluxPosEmbed(theta=10000, axes_dim=axes_dims_rope)
         text_time_guidance_cls = (
@@ -830,7 +830,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         )
 
         self.context_embedder = nn.Linear(self.config.joint_attention_dim, self.inner_dim)
-     
+
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
@@ -856,7 +856,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
 
         self.gradient_checkpointing = False
 
-        in_channels_embed = self.inner_dim 
+        in_channels_embed = self.inner_dim
         ln_elementwise_affine = True
         layer_norm_eps = 1e-06
         use_bias = False
@@ -867,7 +867,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         self.mlm_layer = ConvMlmLayer(
             self.inner_dim, in_channels_embed, use_bias, ln_elementwise_affine, layer_norm_eps, self.config.codebook_size
         )
-        self.cond_embed = TimestepEmbedding( 
+        self.cond_embed = TimestepEmbedding(
             micro_cond_embed_dim + self.config.pooled_projection_dim, self.inner_dim, sample_proj_bias=use_bias
         )
         self.encoder_proj_layer_norm = RMSNorm(self.inner_dim, layer_norm_eps, ln_elementwise_affine)
@@ -875,9 +875,9 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         self.project_to_hidden = nn.Linear(in_channels_embed, self.inner_dim, bias=use_bias)
         self.project_from_hidden_norm = RMSNorm(self.inner_dim, layer_norm_eps, ln_elementwise_affine)
         self.project_from_hidden = nn.Linear(self.inner_dim, in_channels_embed, bias=use_bias)
-        
+
         self.down_block = Simple_UVitBlock(
-            self.inner_dim, 
+            self.inner_dim,
             ln_elementwise_affine,
             layer_norm_eps,
             use_bias,
@@ -892,7 +892,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
             False,
             upsample=upsample,
         )
-       
+
         # self.fuse_qkv_projections()
 
     @property
@@ -1043,26 +1043,26 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         micro_cond_encode_dim = 256 # same as self.config.micro_cond_encode_dim = 256 from amused
         micro_cond_embeds = get_timestep_embedding(
             micro_conds.flatten(), micro_cond_encode_dim, flip_sin_to_cos=True, downscale_freq_shift=0
-        ) 
-        micro_cond_embeds = micro_cond_embeds.reshape((hidden_states.shape[0], -1)) 
+        )
+        micro_cond_embeds = micro_cond_embeds.reshape((hidden_states.shape[0], -1))
 
         pooled_projections = torch.cat([pooled_projections, micro_cond_embeds], dim=1)
         pooled_projections = pooled_projections.to(dtype=self.dtype)
-        pooled_projections = self.cond_embed(pooled_projections).to(encoder_hidden_states.dtype)    
-       
+        pooled_projections = self.cond_embed(pooled_projections).to(encoder_hidden_states.dtype)
 
-        hidden_states = self.embed(hidden_states) 
 
-        encoder_hidden_states = self.context_embedder(encoder_hidden_states) 
+        hidden_states = self.embed(hidden_states)
+
+        encoder_hidden_states = self.context_embedder(encoder_hidden_states)
         encoder_hidden_states = self.encoder_proj_layer_norm(encoder_hidden_states)
         hidden_states = self.down_block(hidden_states)
 
         batch_size, channels, height, width = hidden_states.shape
         hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_size, height * width, channels)
-        hidden_states = self.project_to_hidden_norm(hidden_states) 
+        hidden_states = self.project_to_hidden_norm(hidden_states)
         hidden_states = self.project_to_hidden(hidden_states)
 
-       
+
         if joint_attention_kwargs is not None:
             joint_attention_kwargs = joint_attention_kwargs.copy()
             lora_scale = joint_attention_kwargs.pop("scale", 1.0)
@@ -1083,11 +1083,11 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
             guidance = guidance.to(hidden_states.dtype) * 1000
         else:
             guidance = None
-        temb = (      
+        temb = (
             self.time_text_embed(timestep, pooled_projections)
             if guidance is None
             else self.time_text_embed(timestep, guidance, pooled_projections)
-        ) 
+        )
 
         if txt_ids.ndim == 3:
             logger.warning(
@@ -1102,8 +1102,8 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
             )
             img_ids = img_ids[0]
         ids = torch.cat((txt_ids, img_ids), dim=0)
-       
-        image_rotary_emb = self.pos_embed(ids) 
+
+        image_rotary_emb = self.pos_embed(ids)
 
         for index_block, block in enumerate(self.transformer_blocks):
             if self.training and self.gradient_checkpointing:
@@ -1131,10 +1131,10 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
                 encoder_hidden_states, hidden_states = block(
                     hidden_states=hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
-                    temb=temb,  
+                    temb=temb,
                     image_rotary_emb=image_rotary_emb,
                 )
-                
+
 
             # controlnet residual
             if controlnet_block_samples is not None:
@@ -1181,12 +1181,12 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
                     + controlnet_single_block_samples[index_block // interval_control]
                 )
 
-        hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...] 
+        hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
 
-       
+
         hidden_states = self.project_from_hidden_norm(hidden_states)
         hidden_states = self.project_from_hidden(hidden_states)
-       
+
 
         hidden_states = hidden_states.reshape(batch_size, height, width, channels).permute(0, 3, 1, 2)
 
@@ -1195,11 +1195,11 @@ class Transformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         if USE_PEFT_BACKEND:
             # remove `lora_scale` from each PEFT layer
             unscale_lora_layers(self, lora_scale)
-        
+
         output = self.mlm_layer(hidden_states)
         # self.unfuse_qkv_projections()
         if not return_dict:
             return (output,)
 
-    
+
         return output

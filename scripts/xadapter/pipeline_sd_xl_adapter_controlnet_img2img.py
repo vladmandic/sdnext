@@ -1910,4 +1910,3 @@ class StableDiffusionXLAdapterControlnetI2IPipeline(DiffusionPipeline, FromSingl
         # image.save(f'./test_img/noisy_image_sd1_5_{int(timestep)}.jpg')
 
         return init_latents
-

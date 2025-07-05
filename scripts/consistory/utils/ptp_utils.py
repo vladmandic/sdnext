@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # MIT License
-# 
+#
 # Copyright (c) 2023 AttendAndExcite
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -175,9 +175,9 @@ class AttentionStore:
         attn_mask = self.last_mask_dropout[width]
         if attn_mask is None:
             return None
-        
+
         n_patches = width**2
-        
+
 
         output_attn_mask = torch.zeros((attn_mask.shape[0] * attn_mask.shape[1],), device=attn_mask.device, dtype=torch.bool)
         for j in range(attn_mask.shape[0]):

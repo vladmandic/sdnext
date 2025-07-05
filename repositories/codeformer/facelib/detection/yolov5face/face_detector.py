@@ -119,9 +119,9 @@ class YoloDetector:
         origimgs = copy.deepcopy(images)
 
         images = self._preprocess(images)
-        
+
         if IS_HIGH_VERSION:
-            with torch.inference_mode():  # for pytorch>=1.9 
+            with torch.inference_mode():  # for pytorch>=1.9
                 pred = self.detector(images)[0]
         else:
             with torch.no_grad():  # for pytorch<1.9

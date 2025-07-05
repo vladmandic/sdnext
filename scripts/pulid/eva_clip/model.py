@@ -231,7 +231,7 @@ class CLIP(nn.Module):
     def set_grad_checkpointing(self, enable=True):
         self.visual.set_grad_checkpointing(enable)
         self.transformer.grad_checkpointing = enable
-    
+
     @torch.jit.ignore
     def no_weight_decay(self):
         return {'logit_scale'}
@@ -309,7 +309,7 @@ def convert_weights_to_lp(model: nn.Module, dtype=torch.float16):
     """Convert applicable model parameters to low-precision (bf16 or fp16)"""
 
     def _convert_weights(l):
-        
+
         if isinstance(l, (nn.Conv1d, nn.Conv2d, nn.Linear)):
             l.weight.data = l.weight.data.to(dtype)
             if l.bias is not None:

@@ -13,7 +13,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 
 def download_pretrained_models(file_ids, save_path_root):
     import gdown
-    
+
     os.makedirs(save_path_root, exist_ok=True)
 
     for file_name, file_id in file_ids.items():

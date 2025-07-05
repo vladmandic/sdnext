@@ -60,7 +60,7 @@ ignore-patterns=.*test*.py$,
                 .*_model.py$,
                 .*_arch.py$,
                 .*_model_arch.py*,
-                .*_model_arch_v2.py$, 
+                .*_model_arch_v2.py$,
 ignored-modules=
 jobs=0
 limit-inference-results=100

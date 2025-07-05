@@ -209,9 +209,9 @@ class RealESRGANer():
                 if img_mode == 'L':
                     output_img = cv2.cvtColor(output_img, cv2.COLOR_BGR2GRAY)
             del output_img_t
-            torch.cuda.empty_cache()        
+            torch.cuda.empty_cache()
         except RuntimeError as error:
-            print(f"Failed inference for RealESRGAN: {error}")      
+            print(f"Failed inference for RealESRGAN: {error}")
 
         # ------------------- process the alpha channel if necessary ------------------- #
         if img_mode == 'RGBA':

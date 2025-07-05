@@ -26,7 +26,7 @@ pipe = pipe.to(device)
 
 steps = 64
 guidance_scale = 9
-resolution = 1024 
+resolution = 1024
 negative = "worst quality, low quality, low res, blurry, distortion, watermark, logo, signature, text, jpeg artifacts, signature, sketch, duplicate, ugly, identifying mark"
 prompt = "Beautiful young woman posing on a lake with snow covered mountains in the background"
 image = pipe(prompt=prompt, negative_prompt=negative, height=resolution, width=resolution, guidance_scale=guidance_scale, num_inference_steps=steps).images[0]

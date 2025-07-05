@@ -68,7 +68,7 @@ class SFT(nn.Module):
         self.add = nn.Conv2d(nhidden, norm_nc, kernel_size=ks, padding=pw)
 
     def forward(self, hidden_states, mask=False):
-        
+
         c, h = hidden_states
         mask = mask or self.mask
         assert mask is False
@@ -750,7 +750,7 @@ class Aggregator(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             image_embeds = self.encoder_hid_proj(image_embeds)
             encoder_hidden_states = (encoder_hidden_states, image_embeds)
         return encoder_hidden_states
-    
+
     def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
         if isinstance(module, (CrossAttnDownBlock2D, DownBlock2D)):
             module.gradient_checkpointing = value

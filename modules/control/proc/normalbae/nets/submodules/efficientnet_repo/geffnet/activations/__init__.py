@@ -133,5 +133,3 @@ def get_act_layer(name='relu'):
     if use_jit and name in _ACT_FN_JIT:  # jit scripted models should be okay for export/scripting
         return _ACT_LAYER_JIT[name]
     return _ACT_LAYER_DEFAULT[name]
-
-

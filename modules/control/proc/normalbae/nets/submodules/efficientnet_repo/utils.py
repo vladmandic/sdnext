@@ -49,4 +49,3 @@ def get_outdir(path, *paths, inc=False):
         outdir = outdir_inc
         os.makedirs(outdir)
     return outdir
-

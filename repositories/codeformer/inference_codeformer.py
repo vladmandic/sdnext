@@ -52,20 +52,20 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-i', '--input_path', type=str, default='./inputs/whole_imgs', 
+    parser.add_argument('-i', '--input_path', type=str, default='./inputs/whole_imgs',
             help='Input image, video or folder. Default: inputs/whole_imgs')
-    parser.add_argument('-o', '--output_path', type=str, default=None, 
+    parser.add_argument('-o', '--output_path', type=str, default=None,
             help='Output folder. Default: results/<input_name>_<w>')
-    parser.add_argument('-w', '--fidelity_weight', type=float, default=0.5, 
+    parser.add_argument('-w', '--fidelity_weight', type=float, default=0.5,
             help='Balance the quality and fidelity. Default: 0.5')
-    parser.add_argument('-s', '--upscale', type=int, default=2, 
+    parser.add_argument('-s', '--upscale', type=int, default=2,
             help='The final upsampling scale of the image. Default: 2')
     parser.add_argument('--has_aligned', action='store_true', help='Input are cropped and aligned faces. Default: False')
     parser.add_argument('--only_center_face', action='store_true', help='Only restore the center face. Default: False')
     parser.add_argument('--draw_box', action='store_true', help='Draw the bounding box for the detected faces. Default: False')
     # large det_model: 'YOLOv5l', 'retinaface_resnet50'
     # small det_model: 'YOLOv5n', 'retinaface_mobile0.25'
-    parser.add_argument('--detection_model', type=str, default='retinaface_resnet50', 
+    parser.add_argument('--detection_model', type=str, default='retinaface_resnet50',
             help='Face detector. Optional: retinaface_resnet50, retinaface_mobile0.25, YOLOv5l, YOLOv5n. \
                 Default: retinaface_resnet50')
     parser.add_argument('--bg_upsampler', type=str, default='None', help='Background upsampler. Optional: realesrgan')
@@ -91,7 +91,7 @@ if __name__ == '__main__':
             input_img_list.append(image)
             image = vidreader.get_frame()
         audio = vidreader.get_audio()
-        fps = vidreader.get_fps() if args.save_video_fps is None else args.save_video_fps   
+        fps = vidreader.get_fps() if args.save_video_fps is None else args.save_video_fps
         video_name = os.path.basename(args.input_path)[:-4]
         result_root = f'results/{video_name}_{w}'
         input_video = True
@@ -127,11 +127,11 @@ if __name__ == '__main__':
         face_upsampler = None
 
     # ------------------ set up CodeFormer restorer -------------------
-    net = ARCH_REGISTRY.get('CodeFormer')(dim_embd=512, codebook_size=1024, n_head=8, n_layers=9, 
+    net = ARCH_REGISTRY.get('CodeFormer')(dim_embd=512, codebook_size=1024, n_head=8, n_layers=9,
                                             connect_list=['32', '64', '128', '256']).to(device)
-    
+
     # ckpt_path = 'weights/CodeFormer/codeformer.pth'
-    ckpt_path = load_file_from_url(url=pretrain_model_url['restoration'], 
+    ckpt_path = load_file_from_url(url=pretrain_model_url['restoration'],
                                     model_dir='weights/CodeFormer', progress=True, file_name=None)
     checkpoint = torch.load(ckpt_path)['params_ema']
     net.load_state_dict(checkpoint)
@@ -140,9 +140,9 @@ if __name__ == '__main__':
     # ------------------ set up FaceRestoreHelper -------------------
     # large det_model: 'YOLOv5l', 'retinaface_resnet50'
     # small det_model: 'YOLOv5n', 'retinaface_mobile0.25'
-    if not args.has_aligned: 
+    if not args.has_aligned:
         print(f'Face detection model: {args.detection_model}')
-    if bg_upsampler is not None: 
+    if bg_upsampler is not None:
         print(f'Background upsampling: True, Face upsampling: {args.face_upsample}')
     else:
         print(f'Background upsampling: False, Face upsampling: {args.face_upsample}')
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     for i, img_path in enumerate(input_img_list):
         # clean all the intermediate results to process the next image
         face_helper.clean_all()
-        
+
         if isinstance(img_path, str):
             img_name = os.path.basename(img_path)
             basename, ext = os.path.splitext(img_name)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
             print(f'[{i+1}/{test_img_num}] Processing: {img_name}')
             img = img_path
 
-        if args.has_aligned: 
+        if args.has_aligned:
             # the input faces are already cropped and aligned
             img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_LINEAR)
             face_helper.is_gray = is_gray(img, threshold=5)
@@ -218,7 +218,7 @@ if __name__ == '__main__':
                 bg_img = None
             face_helper.get_inverse_affine(None)
             # paste each restored face to the input image
-            if args.face_upsample and face_upsampler is not None: 
+            if args.face_upsample and face_upsampler is not None:
                 restored_img = face_helper.paste_faces_to_input_image(upsample_img=bg_img, draw_box=args.draw_box, face_upsampler=face_upsampler)
             else:
                 restored_img = face_helper.paste_faces_to_input_image(upsample_img=bg_img, draw_box=args.draw_box)
@@ -226,7 +226,7 @@ if __name__ == '__main__':
         # save faces
         for idx, (cropped_face, restored_face) in enumerate(zip(face_helper.cropped_faces, face_helper.restored_faces)):
             # save cropped face
-            if not args.has_aligned: 
+            if not args.has_aligned:
                 save_crop_path = os.path.join(result_root, 'cropped_faces', f'{basename}_{idx:02d}.png')
                 imwrite(cropped_face, save_crop_path)
             # save restored face
@@ -261,7 +261,7 @@ if __name__ == '__main__':
             video_name = f'{video_name}_{args.suffix}.png'
         save_restore_path = os.path.join(result_root, f'{video_name}.mp4')
         vidwriter = VideoWriter(save_restore_path, height, width, fps, audio)
-         
+
         for f in video_frames:
             vidwriter.write_frame(f)
         vidwriter.close()

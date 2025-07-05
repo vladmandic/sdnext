@@ -1153,7 +1153,7 @@ class ConsistorySDXLUNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditio
                     upsample_size=upsample_size,
                     scale=lora_scale,
                 )
-            
+
             self.latent_store(sample.detach(), t=timestep, layer_index=i)
 
         # 6. post-process

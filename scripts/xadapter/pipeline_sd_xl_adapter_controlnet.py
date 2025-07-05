@@ -1824,4 +1824,3 @@ class StableDiffusionXLAdapterControlnetPipeline(DiffusionPipeline, FromSingleFi
         init_latents = self.scheduler.add_noise(init_latents, noise, timestep)
 
         return init_latents
-

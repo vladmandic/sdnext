@@ -82,7 +82,7 @@ class ConsistoryExtendAttnSDXLPipeline(
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-        
+
         attention_store_kwargs: Optional[Dict] = None,
         extended_attn_kwargs: Optional[Dict] = None,
         share_queries: bool = False,
@@ -422,8 +422,8 @@ class ConsistoryExtendAttnSDXLPipeline(
                         t,
                         encoder_hidden_states=prompt_embeds,
                         timestep_cond=timestep_cond,
-                        cross_attention_kwargs={'query_store': query_store, 
-                                                'perform_extend_attn': False, 
+                        cross_attention_kwargs={'query_store': query_store,
+                                                'perform_extend_attn': False,
                                                 'record_attention': False},
                         added_cond_kwargs=added_cond_kwargs,
                         return_dict=False,
@@ -436,9 +436,9 @@ class ConsistoryExtendAttnSDXLPipeline(
                         t,
                         encoder_hidden_states=prompt_embeds,
                         timestep_cond=timestep_cond,
-                        cross_attention_kwargs={'query_store': query_store, 
-                                                'perform_extend_attn': True, 
-                                                'record_attention': True, 
+                        cross_attention_kwargs={'query_store': query_store,
+                                                'perform_extend_attn': True,
+                                                'record_attention': True,
                                                 'feature_injector': feature_injector,
                                                 'anchors_cache': anchors_cache},
                         added_cond_kwargs=added_cond_kwargs,
@@ -483,7 +483,7 @@ class ConsistoryExtendAttnSDXLPipeline(
                 if XLA_AVAILABLE:
                     # xm.mark_step()
                     pass
-                
+
                 # Update attention store mask
                 self.attention_store.aggregate_last_steps_attention()
 

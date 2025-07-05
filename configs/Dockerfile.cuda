@@ -39,7 +39,7 @@ ENV SD_MODELSDIR="/mnt/models"
 ENV SD_DOCKER=true
 
 # tcmalloc is not required but it is highly recommended
-ENV LD_PRELOAD=libtcmalloc.so.4  
+ENV LD_PRELOAD=libtcmalloc.so.4
 # sdnext will run all necessary pip install ops and then exit
 RUN ["python", "/app/launch.py", "--debug", "--uv", "--use-cuda", "--log", "sdnext.log", "--test", "--optional"]
 # preinstall additional packages to avoid installation during runtime
