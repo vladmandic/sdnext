@@ -267,9 +267,7 @@ def model_hash(filename):
 
 def select_checkpoint(op='model'):
     model_checkpoint = shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None)
-    if len(model_checkpoint) < 3:
-        return None
-    if model_checkpoint is None or model_checkpoint == 'None':
+    if model_checkpoint is None or model_checkpoint == 'None' or len(model_checkpoint) < 3:
         return None
     checkpoint_info = get_closet_checkpoint_match(model_checkpoint)
     if checkpoint_info is not None:
