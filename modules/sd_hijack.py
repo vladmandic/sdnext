@@ -4,6 +4,10 @@ import diffusers
 from modules import devices # pylint: disable=ungrouped-imports
 
 
+def model_hijack(): # a111 compatibility item
+    pass
+
+
 def register_buffer(self, name, attr):
     """
     Fix register buffer bug for Mac OS.

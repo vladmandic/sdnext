@@ -67,6 +67,7 @@ def compatibility_args():
     group_compat = parser.add_argument_group('Compatibility options')
     group_compat.add_argument('--backend', type=str, default=os.environ.get("SD_BACKEND", None), choices=['diffusers', 'original'], required=False, help='obsolete')
     group_compat.add_argument("--allow-code", default=os.environ.get("SD_ALLOWCODE", False), action='store_true', help=argparse.SUPPRESS)
+    group_compat.add_argument("--enable_insecure_extension_access", default=os.environ.get("SD_INSECURE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--use-cpu", nargs='+', default=[], type=str.lower, help=argparse.SUPPRESS)
     group_compat.add_argument("-f", action='store_true', help=argparse.SUPPRESS)  # allows running as root; implemented outside of webui
     group_compat.add_argument('--vae', type=str, default=os.environ.get("SD_VAE", None), help=argparse.SUPPRESS)
