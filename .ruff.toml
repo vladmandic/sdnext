@@ -5,6 +5,7 @@ exclude = [
     ".vscode",
 
     "modules/cfgzero",
+    "modules/facelib",
     "modules/flash_attn_triton_amd",
     "modules/hidiffusion",
     "modules/intel/ipex",

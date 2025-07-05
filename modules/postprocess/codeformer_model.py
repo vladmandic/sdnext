@@ -23,9 +23,6 @@ def setup_model(dirname):
             os.makedirs(model_path)
     except Exception:
         pass
-    path = modules.paths.paths.get("CodeFormer", None)
-    if path is None:
-        return
 
     try:
         class FaceRestorerCodeFormer(modules.detailer.Detailer):
@@ -40,10 +37,11 @@ def setup_model(dirname):
             def create_models(self):
                 try:
                     from modules.postprocess.codeformer_arch import CodeFormer
-                    from facelib.utils.face_restoration_helper import FaceRestoreHelper
-                    from facelib.detection.retinaface import retinaface
+                    from modules.facelib.utils.face_restoration_helper import FaceRestoreHelper
+                    from modules.facelib.detection.retinaface import retinaface
                 except Exception as e:
                     shared.log.error(f"CodeFormer error: {e}")
+                    errors.display(e, 'codeformer')
                     return None, None
                 if self.net is not None and self.face_helper is not None:
                     self.net.to(devices.device)

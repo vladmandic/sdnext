@@ -47,9 +47,9 @@ if os.environ.get('SD_PATH_DEBUG', None) is not None:
 def register_paths():
     log.debug('Register paths')
     sys.path.insert(0, script_path)
-    sd_path = os.path.join(script_path, 'repositories')
+    # sd_path = os.path.join(script_path, 'repositories')
     path_dirs = [
-        (os.path.join(sd_path, 'codeformer'), 'inference_codeformer.py', 'CodeFormer', []),
+        # (os.path.join(sd_path, 'codeformer'), 'inference_codeformer.py', 'CodeFormer', []),
     ]
     for d, must_exist, what, _options in path_dirs:
         must_exist_path = os.path.abspath(os.path.join(script_path, d, must_exist))

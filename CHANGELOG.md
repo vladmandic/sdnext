@@ -37,16 +37,19 @@
   - improve model auth check for hf repos  
   - improve Chroma prompt padding as per recommendations  
 - **Refactoring**  
+  *note*: none of the removals result in loss-of-functionality since all those features are already re-implemented  
+  goal here is to remove legacy code, code duplication and reduce code complexity  
   - obsolete **original backend**  
   - remove majority of legacy **a1111** codebase  
   - remove legacy ldm codebase: `/repositories/ldm`  
   - remove legacy blip codebase: `/repositories/blip`  
-  - remove legacy clip model: `/models/karlo`  
+  - remove legacy codeformer codebase: `/repositories/codeformer`  
+  - remove legacy clip patch model: `/models/karlo`  
   - remove legacy model configs: `/configs/*.yaml`  
   - remove legacy submodule: `/modules/k-diffusion`  
   - remove legacy hypernetworks support: `/modules/hypernetworks`  
-  - remove legacy lora support: `/extensions-builtin/Lora` (does not impact current lora support)  
-  - remove legacy clip/blip interrogate module (does not impact current interrogate support)  
+  - remove legacy lora support: `/extensions-builtin/Lora`
+  - remove legacy clip/blip interrogate module
   - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
   - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
   - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
@@ -55,6 +58,7 @@
   - override `gradio` installer  
   - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
   - patch `insightface`  
+  - patch `facelib`
   - stronger lint rules  
     add separate `npm run lint`, `npm run todo`, `npm run test`, `npm run format` macros  
 
