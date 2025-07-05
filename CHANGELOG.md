@@ -2,6 +2,9 @@
 
 ## Update for 2025-07-05
 
+- **License**  
+  - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
+    this means that SD.Next is now fully compatible with commercial use and redistribution regardless of modifications!  
 - **Models**
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
     very fast automatic image background replacement methods with relightning!  
