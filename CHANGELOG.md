@@ -12,6 +12,7 @@
     *relighting*: automatic background replacement with reglighting so source image fits desired background  
     with optional composite blending  
     available in *img2img or control -> scripts*  
+  - **TAESD** is now default preview type since its the only one that supports most new models  
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
   - Support **FLUX.1** all-in-one safetensors  
   - Support TAESD preview and remote VAE for **HunyuanDit**  
