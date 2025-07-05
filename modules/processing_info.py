@@ -42,6 +42,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     ops = list(set(p.ops))
     args = {
         # basic
+        "Pipeline": shared.sd_model.__class__.__name__,
+        "TE": None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder,
+        "UNet": None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet,
         "Steps": p.steps,
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
         "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
@@ -60,7 +63,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Styles": "; ".join(p.styles) if p.styles is not None and len(p.styles) > 0 else None,
         "App": 'SD.Next',
         "Version": git_commit,
-        "Backend": 'Legacy' if not shared.native else None,
         "Parser": shared.opts.prompt_attention if shared.opts.prompt_attention != 'native' else None,
         "Comment": comment,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
@@ -80,12 +82,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Index'] = f'{p.iteration + 1}x{index + 1}'
     if grid is not None:
         args['Grid'] = grid
-    if shared.native:
-        args['Pipeline'] = shared.sd_model.__class__.__name__
-        args['TE'] = None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder
-        args['UNet'] = None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet
-    else:
-        args['Pipeline'] = 'LDM'
     if 'txt2img' in p.ops:
         args["Variation seed"] = all_subseeds[index] if p.subseed_strength > 0 else None
         args["Variation strength"] = p.subseed_strength if p.subseed_strength > 0 else None

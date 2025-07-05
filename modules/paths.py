@@ -49,11 +49,7 @@ def register_paths():
     sys.path.insert(0, script_path)
     sd_path = os.path.join(script_path, 'repositories')
     path_dirs = [
-        (sd_path, 'ldm', 'ldm', []),
-        (sd_path, 'taming', 'Taming Transformers', []),
-        (os.path.join(sd_path, 'blip'), 'models/blip.py', 'BLIP', []),
         (os.path.join(sd_path, 'codeformer'), 'inference_codeformer.py', 'CodeFormer', []),
-        (os.path.join(modules_path, 'k-diffusion'), 'k_diffusion/sampling.py', 'k_diffusion', ["atstart"]),
     ]
     for d, must_exist, what, _options in path_dirs:
         must_exist_path = os.path.abspath(os.path.join(script_path, d, must_exist))
@@ -113,7 +109,6 @@ def create_paths(opts):
     create_path(fix_path('lora_dir'))
     create_path(fix_path('tunable_dir'))
     create_path(fix_path('embeddings_dir'))
-    create_path(fix_path('hypernetwork_dir'))
     create_path(fix_path('onnx_temp_dir'))
     create_path(fix_path('outdir_samples'))
     create_path(fix_path('outdir_txt2img_samples'))

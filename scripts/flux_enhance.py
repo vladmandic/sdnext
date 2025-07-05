@@ -30,7 +30,7 @@ class Script(scripts_manager.Script):
         return 'Flux Prompt enhance (Legacy)'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     def load(self):
         with load_lock:

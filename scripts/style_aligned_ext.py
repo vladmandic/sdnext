@@ -16,7 +16,7 @@ class Script(scripts_manager.Script):
         return 'Style Aligned Image Generation'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     def reset(self):
         global handler, zts # pylint: disable=global-statement

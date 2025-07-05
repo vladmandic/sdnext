@@ -57,26 +57,6 @@ def interrogate():
     return prompt
 
 
-def interrogate_clip(): # legacy function
-    prompt = None
-    try:
-        from modules.interrogate import openclip
-        prompt = openclip.interrogator.interrogate(input_source[0])
-    except Exception:
-        pass
-    return gr.update() if prompt is None else prompt
-
-
-def interrogate_booru(): # legacy function
-    prompt = None
-    try:
-        from modules.interrogate import deepbooru
-        prompt = deepbooru.model.tag(input_source[0])
-    except Exception:
-        pass
-    return gr.update() if prompt is None else prompt
-
-
 def display_units(num_units):
     num_units = num_units or 1
     return (num_units * [gr.update(visible=True)]) + ((max_units - num_units) * [gr.update(visible=False)])

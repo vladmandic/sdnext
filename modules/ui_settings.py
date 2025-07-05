@@ -142,9 +142,9 @@ def run_settings(*args):
         if shared.opts.cuda_compile_backend != "openvino_fx":
             shared.log.warning("OpenVINO: Setting Torch Compiler backend to OpenVINO FX")
             shared.opts.cuda_compile_backend = "openvino_fx"
-        if shared.opts.sd_backend != "diffusers":
-            shared.log.warning("OpenVINO: Setting backend to Diffusers")
-            shared.opts.sd_backend = "diffusers"
+    if shared.opts.sd_backend != "diffusers":
+        shared.log.error('Legacy option: backend=original is no longer supported')
+        shared.opts.sd_backend = "diffusers"
     try:
         if len(changed) > 0:
             shared.opts.save(shared.config_filename)

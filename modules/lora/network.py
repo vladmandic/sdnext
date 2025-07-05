@@ -119,10 +119,7 @@ class NetworkOnDisk:
         return None
 
     def get_alias(self):
-        if shared.opts.lora_preferred_name == "filename":
-            return self.name
-        else:
-            return self.alias
+        return self.name
 
 
 class Network:  # LoraModule

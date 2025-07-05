@@ -186,7 +186,7 @@ def context_hypertile_vae(p):
     error_reported = False
     set_resolution(p)
     max_h, max_w = 0, 0
-    vae = getattr(p.sd_model, "vae", None) if shared.native else getattr(p.sd_model, "first_stage_model", None)
+    vae = getattr(p.sd_model, "vae", None)
     if height == 0 or width == 0:
         log.warning('Hypertile VAE disabled: resolution unknown')
         return nullcontext()
@@ -214,7 +214,7 @@ def context_hypertile_unet(p):
     error_reported = False
     set_resolution(p)
     max_h, max_w = 0, 0
-    unet = getattr(p.sd_model, "unet", None) if shared.native else getattr(p.sd_model.model, "diffusion_model", None)
+    unet = getattr(p.sd_model, "unet", None)
     if height == 0 or width == 0:
         log.warning('Hypertile VAE disabled: resolution unknown')
         return nullcontext()

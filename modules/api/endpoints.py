@@ -17,18 +17,15 @@ def get_upscalers():
     return [{"name": upscaler.name, "model_name": upscaler.scaler.model_name, "model_path": upscaler.data_path, "model_url": None, "scale": upscaler.scale} for upscaler in shared.sd_upscalers]
 
 def get_sd_models():
-    from modules import sd_checkpoint, sd_models_config
+    from modules import sd_checkpoint
     checkpoints = []
     for v in sd_checkpoint.checkpoints_list.values():
-        checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(v)})
+        checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256})
     return checkpoints
 
 def get_controlnets(model_type: Optional[str] = None):
     from modules.control.units.controlnet import api_list_models
     return api_list_models(model_type)
-
-def get_hypernetworks():
-    return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]
 
 def get_detailers():
     return [{"name":x.name(), "cmd_dir": getattr(x, "cmd_dir", None)} for x in shared.detailers]
@@ -37,15 +34,10 @@ def get_prompt_styles():
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
 
 def get_embeddings():
-    from modules import sd_hijack
-    db = sd_hijack.model_hijack.embedding_db
-    def convert_embedding(embedding):
-        return {"step": embedding.step, "sd_checkpoint": embedding.sd_checkpoint, "sd_checkpoint_name": embedding.sd_checkpoint_name, "shape": embedding.shape, "vectors": embedding.vectors}
-
-    def convert_embeddings(embeddings):
-        return {embedding.name: convert_embedding(embedding) for embedding in embeddings.values()}
-
-    return {"loaded": convert_embeddings(db.word_embeddings), "skipped": convert_embeddings(db.skipped_embeddings)}
+    db = getattr(shared.sd_model, 'embedding_db', None) if shared.sd_loaded else None
+    if db is None:
+        return models.ResEmbeddings(loaded=[], skipped=[])
+    return models.ResEmbeddings(loaded=list(db.word_embeddings.keys()), skipped=list(db.skipped_embeddings.keys()))
 
 def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, filename: Optional[str] = None, title: Optional[str] = None, fullname: Optional[str] = None, hash: Optional[str] = None): # pylint: disable=redefined-builtin
     res = []
@@ -76,21 +68,14 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
 
 def get_interrogate():
     from modules.interrogate.openclip import refresh_clip_models
-    return ['clip', 'deepdanbooru'] + refresh_clip_models()
+    return ['deepdanbooru'] + refresh_clip_models()
 
 def post_interrogate(req: models.ReqInterrogate):
     if req.image is None or len(req.image) < 64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    if req.model == "clip":
-        try:
-            from modules.interrogate import openclip
-            caption = openclip.interrogator.interrogate(image)
-        except Exception as e:
-            caption = str(e)
-        return models.ResInterrogate(caption=caption)
-    elif req.model == "deepdanbooru" or req.model == 'deepbooru':
+    if req.model == "deepdanbooru" or req.model == 'deepbooru':
         from modules.interrogate import deepbooru
         caption = deepbooru.model.tag(image)
         return models.ResInterrogate(caption=caption)
@@ -123,8 +108,10 @@ def post_unload_checkpoint():
     sd_models.unload_model_weights(op='refiner')
     return {}
 
-def post_reload_checkpoint():
+def post_reload_checkpoint(force:bool=False):
     from modules import sd_models
+    if force:
+        sd_models.unload_model_weights(op='model')
     sd_models.reload_model_weights()
     return {}
 

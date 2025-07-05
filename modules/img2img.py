@@ -122,7 +122,7 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
             geninfo, items = images.read_info_from_image(image)
             for k, v in items.items():
                 image.info[k] = v
-            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, short_filename=True, no_prompt=True, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
+            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
         processed = scripts_manager.scripts_img2img.after(p, processed, *args)
         shared.log.debug(f'Processed: images={len(batch_image_files)} memory={memory_stats()} batch')
 
@@ -139,7 +139,6 @@ def img2img(id_task: str, state: str, mode: int,
             steps,
             sampler_index,
             mask_blur, mask_alpha,
-            inpainting_fill,
             vae_type, tiling, hidiffusion,
             detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
             n_iter, batch_size,
@@ -253,7 +252,6 @@ def img2img(id_task: str, state: str, mode: int,
         init_images=[image],
         mask=mask,
         mask_blur=mask_blur,
-        inpainting_fill=inpainting_fill,
         resize_mode=resize_mode,
         resize_name=resize_name,
         resize_context=resize_context,
@@ -295,7 +293,6 @@ def img2img(id_task: str, state: str, mode: int,
         p.extra_generation_params["Mask blur"] = mask_blur
         p.extra_generation_params["Mask alpha"] = mask_alpha
         p.extra_generation_params["Mask invert"] = inpainting_mask_invert
-        p.extra_generation_params["Mask content"] = inpainting_fill
         p.extra_generation_params["Mask area"] = inpaint_full_res
         p.extra_generation_params["Mask padding"] = inpaint_full_res_padding
     p.is_batch = mode == 5

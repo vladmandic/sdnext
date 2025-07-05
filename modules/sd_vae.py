@@ -2,7 +2,7 @@ import os
 import glob
 from copy import deepcopy
 import torch
-from modules import shared, errors, paths, devices, script_callbacks, sd_models, sd_detect
+from modules import shared, errors, paths, devices, sd_models, sd_detect
 
 
 vae_ignore_keys = {"model_ema.decay", "model_ema.num_updates"}
@@ -55,36 +55,16 @@ def refresh_vae_list():
     vae_path = shared.opts.vae_dir
     vae_dict.clear()
     vae_paths = []
-    if not shared.native:
-        if sd_models.model_path is not None and os.path.isdir(sd_models.model_path):
-            vae_paths += [
-                os.path.join(sd_models.model_path, 'VAE', '**/*.vae.ckpt'),
-                os.path.join(sd_models.model_path, 'VAE', '**/*.vae.pt'),
-                os.path.join(sd_models.model_path, 'VAE', '**/*.vae.safetensors'),
-            ]
-        if shared.opts.ckpt_dir is not None and os.path.isdir(shared.opts.ckpt_dir):
-            vae_paths += [
-                os.path.join(shared.opts.ckpt_dir, '**/*.vae.ckpt'),
-                os.path.join(shared.opts.ckpt_dir, '**/*.vae.pt'),
-                os.path.join(shared.opts.ckpt_dir, '**/*.vae.safetensors'),
-            ]
-        if shared.opts.vae_dir is not None and os.path.isdir(shared.opts.vae_dir):
-            vae_paths += [
-                os.path.join(shared.opts.vae_dir, '**/*.ckpt'),
-                os.path.join(shared.opts.vae_dir, '**/*.pt'),
-                os.path.join(shared.opts.vae_dir, '**/*.safetensors'),
-            ]
-    elif shared.native:
-        if sd_models.model_path is not None and os.path.isdir(sd_models.model_path):
-            vae_paths += [os.path.join(sd_models.model_path, 'VAE', '**/*.vae.safetensors')]
-        if shared.opts.ckpt_dir is not None and os.path.isdir(shared.opts.ckpt_dir):
-            vae_paths += [os.path.join(shared.opts.ckpt_dir, '**/*.vae.safetensors')]
-        if shared.opts.vae_dir is not None and os.path.isdir(shared.opts.vae_dir):
-            vae_paths += [os.path.join(shared.opts.vae_dir, '**/*.safetensors')]
-        vae_paths += [
-            os.path.join(sd_models.model_path, 'VAE', '**/*.json'),
-            os.path.join(shared.opts.vae_dir, '**/*.json'),
-        ]
+    if sd_models.model_path is not None and os.path.isdir(sd_models.model_path):
+        vae_paths += [os.path.join(sd_models.model_path, 'VAE', '**/*.vae.safetensors')]
+    if shared.opts.ckpt_dir is not None and os.path.isdir(shared.opts.ckpt_dir):
+        vae_paths += [os.path.join(shared.opts.ckpt_dir, '**/*.vae.safetensors')]
+    if shared.opts.vae_dir is not None and os.path.isdir(shared.opts.vae_dir):
+        vae_paths += [os.path.join(shared.opts.vae_dir, '**/*.safetensors')]
+    vae_paths += [
+        os.path.join(sd_models.model_path, 'VAE', '**/*.json'),
+        os.path.join(shared.opts.vae_dir, '**/*.json'),
+    ]
     candidates = []
     for path in vae_paths:
         candidates += glob.iglob(path, recursive=True)
@@ -93,13 +73,10 @@ def refresh_vae_list():
         name = get_filename(filepath)
         if name == 'VAE':
             continue
-        if not shared.native:
-            vae_dict[name] = filepath
+        if filepath.endswith(".json"):
+            vae_dict[name] = os.path.dirname(filepath)
         else:
-            if filepath.endswith(".json"):
-                vae_dict[name] = os.path.dirname(filepath)
-            else:
-                vae_dict[name] = filepath
+            vae_dict[name] = filepath
     shared.log.info(f'Available VAEs: path="{vae_path}" items={len(vae_dict)}')
     return vae_dict
 
@@ -257,7 +234,6 @@ unspecified = object()
 
 
 def reload_vae_weights(sd_model=None, vae_file=unspecified):
-    from modules import lowvram, sd_hijack
     if not sd_model:
         sd_model = shared.sd_model
     if sd_model is None:
@@ -276,27 +252,15 @@ def reload_vae_weights(sd_model=None, vae_file=unspecified):
             return None
     if loaded_vae_file == vae_file:
         return None
-    if not shared.native and (shared.cmd_opts.lowvram or shared.cmd_opts.medvram):
-        lowvram.send_everything_to_cpu()
 
-    if not shared.native:
-        sd_hijack.model_hijack.undo_hijack(sd_model)
-        if shared.cmd_opts.rollback_vae and devices.dtype_vae == torch.bfloat16:
-            devices.dtype_vae = torch.float16
-        load_vae(sd_model, vae_file, vae_source)
-        sd_hijack.model_hijack.hijack(sd_model)
-        script_callbacks.model_loaded_callback(sd_model)
-        if vae_file is not None:
-            shared.log.info(f"VAE weights loaded: {vae_file}")
-    else:
-        if hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
-            vae = load_vae_diffusers(sd_model.sd_checkpoint_info.filename, vae_file, vae_source)
-            if vae is not None:
-                if not hasattr(sd_model, 'original_vae'):
-                    sd_model.original_vae = sd_model.vae
-                    sd_models.move_model(sd_model.original_vae, devices.cpu)
-                sd_models.set_diffuser_options(sd_model, vae=vae, op='vae')
-                apply_vae_config(sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
+    if hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
+        vae = load_vae_diffusers(sd_model.sd_checkpoint_info.filename, vae_file, vae_source)
+        if vae is not None:
+            if not hasattr(sd_model, 'original_vae'):
+                sd_model.original_vae = sd_model.vae
+                sd_models.move_model(sd_model.original_vae, devices.cpu)
+            sd_models.set_diffuser_options(sd_model, vae=vae, op='vae')
+            apply_vae_config(sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
 
     if not shared.cmd_opts.lowvram and not shared.cmd_opts.medvram:
         sd_models.move_model(sd_model, devices.device)

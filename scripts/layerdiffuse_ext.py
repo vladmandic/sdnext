@@ -8,7 +8,7 @@ class Script(scripts_manager.Script):
         return 'LayerDiffuse: Transparent Image'
 
     def show(self, is_img2img):
-        return True if shared.native else False
+        return True
 
     def apply(self):
         from scripts import layerdiffuse # pylint: disable=no-name-in-module

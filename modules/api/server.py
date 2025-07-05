@@ -16,8 +16,6 @@ def get_motd():
     ver = shared.get_version()
     if ver.get('updated', None) is not None:
         motd = f"version <b>{ver['hash']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>"
-    if not shared.native:
-        motd += "<span style='color: orange'>Legacy mode</span><br>"
     if shared.opts.motd:
         try:
             res = requests.get('https://vladmandic.github.io/sdnext/motd', timeout=3)

@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-04
+## Update for 2025-07-05
 
 - **Models**
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
@@ -28,19 +28,31 @@
   - better handle startup import errors  
   - fix diffusers models non-unique hash  
   - fix loading of manually downloaded diffuser models  
+  - fix api `/sdapi/v1/embeddings` endpoint
   - improve model type autodetection  
   - improve model auth check for hf repos  
   - improve Chroma prompt padding as per recommendations  
 - **Refactoring**  
-  - override `gradio` installer  
-  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
-  - patch `insightface`  
-  - patch `k-diffusion`  
+  - obsolete **original backend**  
+  - remove majority of legacy **a1111** codebase  
+  - remove legacy ldm codebase: `/repositories/ldm`  
+  - remove legacy blip codebase: `/repositories/blip`  
+  - remove legacy clip model: `/models/karlo`  
+  - remove legacy model configs: `/configs/*.yaml`  
+  - remove legacy submodule: `/modules/k-diffusion`  
+  - remove legacy hypernetworks support: `/modules/hypernetworks`  
+  - remove legacy lora support: `/extensions-builtin/Lora` (does not impact current lora support)  
+  - remove legacy clip/blip interrogate module (does not impact current interrogate support)  
+  - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
   - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
   - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
   - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  
   - cleanup `/modules`: global rename `modules.scripts` to avoid conflict with `/scripts`  
+  - override `gradio` installer  
+  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
+  - patch `insightface`  
   - stronger lint rules  
+    add separate `npm run lint`, `npm run todo`, `npm run test` macros  
 
 ## Update for 2025-06-30
 
@@ -3578,7 +3590,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - lightweight native implementation of T2I adapters which can guide generation towards specific image style  
     - supports most T2I models, not limited to SD 1.5  
     - models are auto-downloaded on first use
-    - for IP adapter support in *Original* backend, use standard *ControlNet* extension  
   - **AnimateDiff**
     - lightweight native implementation of AnimateDiff models:  
       *AnimateDiff 1.4, 1.5 v1, 1.5 v2, AnimateFace*
@@ -3586,7 +3597,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - models are auto-downloaded on first use  
     - for video saving support, see video support section
     - can be combined with IP-Adapter for even better results!  
-    - for AnimateDiff support in *Original* backend, use standard *AnimateDiff* extension  
   - **HDR latent control**, based on [article](https://huggingface.co/blog/TimothyAlexisVass/explaining-the-sdxl-latent-space#long-prompts-at-high-guidance-scales-becoming-possible)  
     - in *Advanced* params
     - allows control of *latent clamping*, *color centering* and *range maximization*  

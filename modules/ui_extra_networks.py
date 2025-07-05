@@ -234,7 +234,7 @@ class ExtraNetworksPage:
                 if os.path.join(paths.models_path, 'Reference') in tgt and shared.opts.extra_network_reference_enable:
                     subdirs['Reference'] = 1
                     continue
-                if shared.native and shared.opts.diffusers_dir in tgt:
+                if shared.opts.diffusers_dir in tgt:
                     subdirs[diffusers_base] = 1
                     continue
                 if 'models--' in tgt:
@@ -486,23 +486,19 @@ def register_pages():
     shared.extra_networks.clear()
     allowed_dirs.clear()
     from modules.ui_extra_networks_checkpoints import ExtraNetworksPageCheckpoints
-    from modules.ui_extra_networks_vae import ExtraNetworksPageVAEs
-    from modules.ui_extra_networks_styles import ExtraNetworksPageStyles
     register_page(ExtraNetworksPageCheckpoints())
+    from modules.ui_extra_networks_vae import ExtraNetworksPageVAEs
     register_page(ExtraNetworksPageVAEs())
+    from modules.ui_extra_networks_styles import ExtraNetworksPageStyles
     register_page(ExtraNetworksPageStyles())
+    from modules.ui_extra_networks_lora import ExtraNetworksPageLora
+    register_page(ExtraNetworksPageLora())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
-    if not shared.opts.lora_legacy:
-        from modules.ui_extra_networks_lora import ExtraNetworksPageLora
-        register_page(ExtraNetworksPageLora())
-    if shared.opts.hypernetwork_enabled:
-        from modules.ui_extra_networks_hypernets import ExtraNetworksPageHypernetworks
-        register_page(ExtraNetworksPageHypernetworks())
 
 
 def get_pages(title=None):

@@ -89,16 +89,14 @@ def create_ui(startup_timer = None):
         timer.startup.record("ui-img2img")
 
     with gr.Blocks(analytics_enabled=False) as control_interface:
-        if shared.native:
-            from modules import ui_control
-            ui_control.create_ui()
-            timer.startup.record("ui-control")
+        from modules import ui_control
+        ui_control.create_ui()
+        timer.startup.record("ui-control")
 
     with gr.Blocks(analytics_enabled=False) as video_interface:
-        if shared.native:
-            from modules import ui_video
-            ui_video.create_ui()
-            timer.startup.record("ui-video")
+        from modules import ui_video
+        ui_video.create_ui()
+        timer.startup.record("ui-video")
 
     with gr.Blocks(analytics_enabled=False) as extras_interface:
         from modules import ui_postprocessing

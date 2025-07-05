@@ -169,7 +169,7 @@ def clean_server():
     modules_to_remove = ['webui', 'modules', 'scripts', 'gradio',
                          'onnx', 'torch', 'pytorch', 'lightning', 'tensor', 'diffusers', 'transformers', 'tokenize', 'safetensors', 'gguf', 'accelerate', 'peft', 'triton', 'huggingface',
                          'PIL', 'cv2', 'timm', 'numpy', 'scipy', 'sympy', 'sklearn', 'skimage', 'sqlalchemy', 'flash_attn', 'bitsandbytes', 'xformers', 'matplotlib', 'optimum', 'pandas', 'pi', 'git', 're', 'altair',
-                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'k_diffusion', 'gfpgan', 'war',
+                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'gfpgan', 'war',
                          'fastapi', 'urllib', 'uvicorn', 'web', 'http', 'google', 'starlette', 'socket']
     removed_removed = []
     for module_loaded in modules_loaded:

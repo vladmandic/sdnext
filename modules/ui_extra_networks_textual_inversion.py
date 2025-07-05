@@ -1,6 +1,6 @@
 import json
 import os
-from modules import shared, sd_hijack, sd_models, ui_extra_networks, files_cache
+from modules import shared, sd_models, ui_extra_networks, files_cache
 from modules.textual_inversion.textual_inversion import Embedding
 
 
@@ -13,9 +13,7 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
     def refresh(self):
         if sd_models.model_data.sd_model is None:
             return
-        if not shared.native:
-            sd_hijack.model_hijack.embedding_db.load_textual_inversion_embeddings(force_reload=True)
-        elif hasattr(sd_models.model_data.sd_model, 'embedding_db'):
+        if hasattr(sd_models.model_data.sd_model, 'embedding_db'):
             sd_models.model_data.sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)
 
     def create_item(self, embedding: Embedding):
@@ -48,8 +46,6 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
                 for embedding_path
                 in candidates
             ]
-        elif not shared.native:
-            self.embeddings = list(sd_hijack.model_hijack.embedding_db.word_embeddings.values())
         elif hasattr(sd_models.model_data.sd_model, 'embedding_db'):
             self.embeddings = list(sd_models.model_data.sd_model.embedding_db.word_embeddings.values())
         else:
@@ -61,4 +57,4 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
         return items
 
     def allowed_directories_for_previews(self):
-        return list(sd_hijack.model_hijack.embedding_db.embedding_dirs)
+        return [shared.opts.embeddings_dir]

@@ -18,12 +18,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
             return []
         for k, v in shared.reference_models.items():
-            if not shared.native:
-                if not v.get('original', False):
-                    continue
-                url = v.get('alt', None) or v['path']
-            else:
-                url = v['path']
+            url = v['path']
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
@@ -83,7 +78,4 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         return items
 
     def allowed_directories_for_previews(self):
-        if shared.native:
-            return [v for v in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, reference_dir] if v is not None]
-        else:
-            return [v for v in [shared.opts.ckpt_dir, reference_dir, sd_models.model_path] if v is not None]
+        return [v for v in [shared.opts.ckpt_dir, reference_dir, sd_models.model_path] if v is not None]

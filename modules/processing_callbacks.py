@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import numpy as np
-from modules import shared, devices, processing_correction, extra_networks, timer, prompt_parser_diffusers
+from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
 
 
 p = None
@@ -69,8 +69,6 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
             if shared.state.interrupted or shared.state.skipped:
                 raise AssertionError('Interrupted...')
             time.sleep(0.1)
-    if hasattr(p, "stepwise_lora") and shared.native:
-        extra_networks.activate(p, step=step)
     if latents is None:
         return kwargs
     elif shared.opts.nan_skip:

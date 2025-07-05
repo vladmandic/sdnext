@@ -10,7 +10,7 @@ class Script(scripts_manager.Script):
         return 'Ctrl-X: Controlling Structure and Appearance'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     def ui(self, _is_img2img):
         with gr.Row():

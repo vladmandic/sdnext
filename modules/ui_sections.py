@@ -181,18 +181,18 @@ def create_advanced_inputs(tab, base=True):
                 cfg_scale, cfg_end = None, None
             with gr.Row():
                 image_cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Refine guidance', value=6.0, elem_id=f"{tab}_image_cfg_scale")
-                diffusers_guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Rescale guidance', value=0.0, elem_id=f"{tab}_image_cfg_rescale", visible=shared.native)
+                diffusers_guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Rescale guidance', value=0.0, elem_id=f"{tab}_image_cfg_rescale")
             with gr.Row():
-                diffusers_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='Attention guidance', value=0.0, elem_id=f"{tab}_pag_scale", visible=shared.native)
-                diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive", visible=shared.native)
+                diffusers_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='Attention guidance', value=0.0, elem_id=f"{tab}_pag_scale")
+                diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive")
             with gr.Row():
                 clip_skip = gr.Slider(label='CLiP skip', value=1, minimum=0, maximum=12, step=0.1, elem_id=f"{tab}_clip_skip", interactive=shared.opts.clip_skip_enabled)
     return vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, diffusers_pag_scale, diffusers_pag_adaptive, cfg_end
 
 
 def create_correction_inputs(tab):
-    with gr.Accordion(open=False, label="Corrections", elem_id=f"{tab}_corrections", elem_classes=["small-accordion"], visible=shared.native):
-        with gr.Group(visible=shared.native):
+    with gr.Accordion(open=False, label="Corrections", elem_id=f"{tab}_corrections", elem_classes=["small-accordion"]):
+        with gr.Group():
             with gr.Row(elem_id=f"{tab}_hdr_mode_row"):
                 hdr_mode = gr.Dropdown(label="Correction mode", choices=["Relative values", "Absolute values"], type="index", value="Relative values", elem_id=f"{tab}_hdr_mode", show_label=False)
                 gr.HTML('<br>')
@@ -225,12 +225,6 @@ def create_sampler_and_steps_selection(choices, tabname):
 
 
 def create_sampler_options(tabname):
-    def set_sampler_original_options(sampler_options, sampler_algo):
-        shared.opts.data['schedulers_brownian_noise'] = 'brownian noise' in sampler_options
-        shared.opts.data['schedulers_discard_penultimate'] = 'discard penultimate sigma' in sampler_options
-        shared.opts.data['schedulers_sigma'] = sampler_algo
-        shared.opts.save(shared.config_filename, silent=True)
-
     def set_sampler_options(sampler_options):
         shared.opts.data['schedulers_dynamic_shift'] = 'dynamic' in sampler_options
         shared.opts.data['schedulers_use_thresholding'] = 'thresholding' in sampler_options
@@ -289,57 +283,43 @@ def create_sampler_options(tabname):
             return '999,845,730,587,443,310,193,116,53,13'
         return ''
 
-    if not shared.native:
-        with gr.Row(elem_classes=['flex-break']):
-            options = ['brownian noise', 'discard penultimate sigma']
-            values = []
-            values += ['brownian noise'] if shared.opts.data.get('schedulers_brownian_noise', False) else []
-            values += ['discard penultimate sigma'] if shared.opts.data.get('schedulers_discard_penultimate', True) else []
-            sampler_options = gr.CheckboxGroup(label='Sampler options', elem_id=f"{tabname}_sampler_options", choices=options, value=values, type='value')
-        with gr.Row(elem_classes=['flex-break']):
-            shared.opts.data['schedulers_sigma'] = shared.opts.data.get('schedulers_sigma', 'default')
-            sampler_algo = gr.Dropdown(label='Sigma algorithm', elem_id=f"{tabname}_sigma_algo", choices=['default', 'karras', 'exponential', 'polyexponential'], value=shared.opts.schedulers_sigma, type='value')
-        sampler_options.change(fn=set_sampler_original_options, inputs=[sampler_options, sampler_algo], outputs=[])
-        sampler_algo.change(fn=set_sampler_original_options, inputs=[sampler_options, sampler_algo], outputs=[])
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
+        sampler_spacing = gr.Dropdown(label='Timestep spacing', elem_id=f"{tabname}_sampler_spacing", choices=['default', 'linspace', 'leading', 'trailing'], value=shared.opts.schedulers_timestep_spacing, type='value')
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid'], value=shared.opts.schedulers_beta_schedule, type='value')
+        sampler_prediction = gr.Dropdown(label='Prediction method', elem_id=f"{tabname}_sampler_prediction", choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value=shared.opts.schedulers_prediction_type, type='value')
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')
+        sampler_timesteps = gr.Textbox(label='Timesteps override', elem_id=f"{tabname}_sampler_timesteps", value=shared.opts.schedulers_timesteps)
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_sigma_adjust_val = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Sigma adjust', value=shared.opts.schedulers_sigma_adjust, elem_id=f"{tabname}_sampler_sigma_adjust")
+        sampler_sigma_adjust_min = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust start', value=shared.opts.schedulers_sigma_adjust_min, elem_id=f"{tabname}_sampler_sigma_adjust_min")
+        sampler_sigma_adjust_max = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust end', value=shared.opts.schedulers_sigma_adjust_max, elem_id=f"{tabname}_sampler_sigma_adjust_max")
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_order = gr.Slider(minimum=0, maximum=5, step=1, label="Sampler order", value=shared.opts.schedulers_solver_order, elem_id=f"{tabname}_sampler_order")
+        sampler_shift = gr.Slider(minimum=0, maximum=10, step=0.1, label="Flow shift", value=shared.opts.schedulers_shift, elem_id=f"{tabname}_sampler_shift")
+    with gr.Row(elem_classes=['flex-break']):
+        options = ['low order', 'thresholding', 'dynamic', 'rescale']
+        values = []
+        values += ['low order'] if shared.opts.data.get('schedulers_use_loworder', True) else []
+        values += ['thresholding'] if shared.opts.data.get('schedulers_use_thresholding', False) else []
+        values += ['dynamic'] if shared.opts.data.get('schedulers_dynamic_shift', False) else []
+        values += ['rescale'] if shared.opts.data.get('schedulers_rescale_betas', False) else []
+        sampler_options = gr.CheckboxGroup(label='Options', elem_id=f"{tabname}_sampler_options", choices=options, value=values, type='value')
 
-    else: # shared.native
-        with gr.Row(elem_classes=['flex-break']):
-            sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
-            sampler_spacing = gr.Dropdown(label='Timestep spacing', elem_id=f"{tabname}_sampler_spacing", choices=['default', 'linspace', 'leading', 'trailing'], value=shared.opts.schedulers_timestep_spacing, type='value')
-        with gr.Row(elem_classes=['flex-break']):
-            sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid'], value=shared.opts.schedulers_beta_schedule, type='value')
-            sampler_prediction = gr.Dropdown(label='Prediction method', elem_id=f"{tabname}_sampler_prediction", choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value=shared.opts.schedulers_prediction_type, type='value')
-        with gr.Row(elem_classes=['flex-break']):
-            sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')
-            sampler_timesteps = gr.Textbox(label='Timesteps override', elem_id=f"{tabname}_sampler_timesteps", value=shared.opts.schedulers_timesteps)
-        with gr.Row(elem_classes=['flex-break']):
-            sampler_sigma_adjust_val = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Sigma adjust', value=shared.opts.schedulers_sigma_adjust, elem_id=f"{tabname}_sampler_sigma_adjust")
-            sampler_sigma_adjust_min = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust start', value=shared.opts.schedulers_sigma_adjust_min, elem_id=f"{tabname}_sampler_sigma_adjust_min")
-            sampler_sigma_adjust_max = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust end', value=shared.opts.schedulers_sigma_adjust_max, elem_id=f"{tabname}_sampler_sigma_adjust_max")
-        with gr.Row(elem_classes=['flex-break']):
-            sampler_order = gr.Slider(minimum=0, maximum=5, step=1, label="Sampler order", value=shared.opts.schedulers_solver_order, elem_id=f"{tabname}_sampler_order")
-            sampler_shift = gr.Slider(minimum=0, maximum=10, step=0.1, label="Flow shift", value=shared.opts.schedulers_shift, elem_id=f"{tabname}_sampler_shift")
-        with gr.Row(elem_classes=['flex-break']):
-            options = ['low order', 'thresholding', 'dynamic', 'rescale']
-            values = []
-            values += ['low order'] if shared.opts.data.get('schedulers_use_loworder', True) else []
-            values += ['thresholding'] if shared.opts.data.get('schedulers_use_thresholding', False) else []
-            values += ['dynamic'] if shared.opts.data.get('schedulers_dynamic_shift', False) else []
-            values += ['rescale'] if shared.opts.data.get('schedulers_rescale_betas', False) else []
-            sampler_options = gr.CheckboxGroup(label='Options', elem_id=f"{tabname}_sampler_options", choices=options, value=values, type='value')
-
-        sampler_sigma.change(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
-        sampler_spacing.change(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
-        sampler_presets.change(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
-        sampler_timesteps.change(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
-        sampler_beta.change(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
-        sampler_prediction.change(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
-        sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
-        sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift], outputs=[])
-        sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
-        sampler_sigma_adjust_val.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
-        sampler_sigma_adjust_min.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
-        sampler_sigma_adjust_max.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma.change(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
+    sampler_spacing.change(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
+    sampler_presets.change(fn=set_sampler_preset, inputs=[sampler_presets], outputs=[sampler_timesteps])
+    sampler_timesteps.change(fn=set_sampler_timesteps, inputs=[sampler_timesteps], outputs=[])
+    sampler_beta.change(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
+    sampler_prediction.change(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
+    sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
+    sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift], outputs=[])
+    sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
+    sampler_sigma_adjust_val.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma_adjust_min.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma_adjust_max.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
 
 
 def create_hires_inputs(tab):
@@ -354,7 +334,7 @@ def create_hires_inputs(tab):
             with gr.Row(elem_id=f"{tab}_hires_row2"):
                 hr_second_pass_steps = gr.Slider(minimum=0, maximum=99, step=1, label='HiRes steps', elem_id=f"{tab}_steps_alt", value=20)
                 denoising_strength = gr.Slider(minimum=0.0, maximum=0.99, step=0.01, label='Strength', value=0.3, elem_id=f"{tab}_denoising_strength")
-        with gr.Group(visible=shared.native):
+        with gr.Group():
             with gr.Row(elem_id=f"{tab}_refiner_row1", variant="compact"):
                 refiner_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Refiner start', value=0.0, elem_id=f"{tab}_refiner_start")
                 refiner_steps = gr.Slider(minimum=0, maximum=99, step=1, label="Refiner steps", elem_id=f"{tab}_refiner_steps", value=20)

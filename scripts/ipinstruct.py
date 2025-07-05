@@ -27,7 +27,7 @@ class Script(scripts_manager.Script):
 
     def show(self, is_img2img):
         if shared.cmd_opts.experimental:
-            return not is_img2img if shared.native else False
+            return not is_img2img
         else:
             return False
 

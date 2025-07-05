@@ -1224,7 +1224,7 @@ class Script(scripts_manager.Script):
         return 'DemoFusion: High-Resolution Image Generation'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

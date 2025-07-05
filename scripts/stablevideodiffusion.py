@@ -19,7 +19,7 @@ class Script(scripts_manager.Script):
         return 'Video: Stable Video Diffusion'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     # return signature is array of gradio components
     def ui(self, is_img2img):

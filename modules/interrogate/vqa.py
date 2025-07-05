@@ -563,7 +563,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         question = prompt
     if len(question) < 2:
         question = "Describe the image."
-    if shared.native and shared.sd_loaded:
+    if shared.sd_loaded:
         from modules.sd_models import apply_balanced_offload # prevent circular import
         apply_balanced_offload(shared.sd_model)
 

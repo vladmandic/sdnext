@@ -145,7 +145,6 @@ def create_ui():
                         with gr.Row():
                             inpainting_mask_invert = gr.Radio(label='Inpaint Mode', choices=['masked', 'invert'], value='masked', type="index", elem_id="img2img_mask_mode")
                             inpaint_full_res = gr.Radio(label="Inpaint area", choices=["full", "masked"], type="index", value="full", elem_id="img2img_inpaint_full_res")
-                            inpainting_fill = gr.Radio(label='Masked content', choices=['fill', 'original', 'noise', 'nothing'], value='original', type="index", elem_id="img2img_inpainting_fill", visible=not shared.native)
 
                         def select_img2img_tab(tab):
                             return gr.update(visible=tab in [2, 3, 4]), gr.update(visible=tab == 3)
@@ -174,7 +173,6 @@ def create_ui():
                 steps,
                 sampler_index,
                 mask_blur, mask_alpha,
-                inpainting_fill,
                 vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
                 batch_count, batch_size,
@@ -230,8 +228,8 @@ def create_ui():
             )
             interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
 
-            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt, steps], outputs=[img2img_token_counter])
-            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt, steps], outputs=[img2img_negative_token_counter])
+            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter])
+            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter])
 
             ui_extra_networks.setup_ui(extra_networks_ui_img2img, img2img_gallery)
             img2img_paste_fields = [
@@ -298,7 +296,6 @@ def create_ui():
                 (mask_blur, "Mask blur"),
                 (mask_alpha, "Mask alpha"),
                 (inpainting_mask_invert, "Mask invert"),
-                (inpainting_fill, "Masked content"),
                 (inpaint_full_res, "Mask area"),
                 (inpaint_full_res_padding, "Masked padding"),
                 # hidden

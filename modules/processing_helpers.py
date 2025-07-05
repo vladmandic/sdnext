@@ -3,7 +3,6 @@ import time
 import math
 import random
 import warnings
-from einops import repeat, rearrange
 import torch
 import numpy as np
 import cv2
@@ -247,105 +246,6 @@ def old_hires_fix_first_pass_dimensions(width, height):
     return width, height
 
 
-def txt2img_image_conditioning(p, x, width=None, height=None):
-    width = width or p.width
-    height = height or p.height
-    if p.sd_model.model.conditioning_key in {'hybrid', 'concat'}: # Inpainting models
-        image_conditioning = torch.zeros(x.shape[0], 3, height, width, device=x.device)
-        image_conditioning = p.sd_model.get_first_stage_encoding(p.sd_model.encode_first_stage(image_conditioning))
-        image_conditioning = torch.nn.functional.pad(image_conditioning, (0, 0, 0, 0, 1, 0), value=1.0) # pylint: disable=not-callable
-        image_conditioning = image_conditioning.to(x.dtype)
-        return image_conditioning
-    elif p.sd_model.model.conditioning_key == "crossattn-adm": # UnCLIP models
-        return x.new_zeros(x.shape[0], 2*p.sd_model.noise_augmentor.time_embed.dim, dtype=x.dtype, device=x.device)
-    else:
-        return x.new_zeros(x.shape[0], 5, 1, 1, dtype=x.dtype, device=x.device)
-
-
-def img2img_image_conditioning(p, source_image, latent_image, image_mask=None):
-    from ldm.models.diffusion.ddpm import LatentDepth2ImageDiffusion
-    source_image = devices.cond_cast_float(source_image)
-
-    def depth2img_image_conditioning(source_image):
-        # Use the AddMiDaS helper to Format our source image to suit the MiDaS model
-        from ldm.data.util import AddMiDaS
-        transformer = AddMiDaS(model_type="dpt_hybrid")
-        transformed = transformer({"jpg": rearrange(source_image[0], "c h w -> h w c")})
-        midas_in = torch.from_numpy(transformed["midas_in"][None, ...]).to(device=shared.device)
-        midas_in = repeat(midas_in, "1 ... -> n ...", n=p.batch_size)
-        conditioning_image = p.sd_model.get_first_stage_encoding(p.sd_model.encode_first_stage(source_image))
-        conditioning = torch.nn.functional.interpolate(
-            p.sd_model.depth_model(midas_in),
-            size=conditioning_image.shape[2:],
-            mode="bicubic",
-            align_corners=False,
-        )
-        (depth_min, depth_max) = torch.aminmax(conditioning)
-        conditioning = 2. * (conditioning - depth_min) / (depth_max - depth_min) - 1.
-        return conditioning
-
-    def edit_image_conditioning(source_image):
-        conditioning_image = p.sd_model.encode_first_stage(source_image).mode()
-        return conditioning_image
-
-    def unclip_image_conditioning(source_image):
-        c_adm = p.sd_model.embedder(source_image)
-        if p.sd_model.noise_augmentor is not None:
-            noise_level = 0
-            c_adm, noise_level_emb = p.sd_model.noise_augmentor(c_adm, noise_level=repeat(torch.tensor([noise_level]).to(c_adm.device), '1 -> b', b=c_adm.shape[0]))
-            c_adm = torch.cat((c_adm, noise_level_emb), 1)
-        return c_adm
-
-    def inpainting_image_conditioning(source_image, latent_image, image_mask=None):
-        # Handle the different mask inputs
-        if image_mask is not None:
-            if torch.is_tensor(image_mask):
-                conditioning_mask = image_mask
-            else:
-                conditioning_mask = np.array(image_mask.convert("L"))
-                conditioning_mask = conditioning_mask.astype(np.float32) / 255.0
-                conditioning_mask = torch.from_numpy(conditioning_mask[None, None])
-                # Inpainting model uses a discretized mask as input, so we round to either 1.0 or 0.0
-                conditioning_mask = torch.round(conditioning_mask)
-        else:
-            conditioning_mask = source_image.new_ones(1, 1, *source_image.shape[-2:])
-        # Create another latent image, this time with a masked version of the original input.
-        # Smoothly interpolate between the masked and unmasked latent conditioning image using a parameter.
-        conditioning_mask = conditioning_mask.to(device=source_image.device, dtype=source_image.dtype)
-        conditioning_image = torch.lerp(
-            source_image,
-            source_image * (1.0 - conditioning_mask),
-            getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight)
-        )
-        # Encode the new masked image using first stage of network.
-        conditioning_image = p.sd_model.get_first_stage_encoding(p.sd_model.encode_first_stage(conditioning_image))
-        # Create the concatenated conditioning tensor to be fed to `c_concat`
-        conditioning_mask = torch.nn.functional.interpolate(conditioning_mask, size=latent_image.shape[-2:])
-        conditioning_mask = conditioning_mask.expand(conditioning_image.shape[0], -1, -1, -1)
-        image_conditioning = torch.cat([conditioning_mask, conditioning_image], dim=1)
-        image_conditioning = image_conditioning.to(device=shared.device, dtype=source_image.dtype)
-        return image_conditioning
-
-    def diffusers_image_conditioning(_source_image, latent_image, _image_mask=None):
-        # shared.log.warning('Diffusers not implemented: img2img_image_conditioning')
-        return latent_image.new_zeros(latent_image.shape[0], 5, 1, 1)
-
-    # HACK: Using introspection as the Depth2Image model doesn't appear to uniquely
-    # identify itself with a field common to all models. The conditioning_key is also hybrid.
-    if shared.native:
-        return diffusers_image_conditioning(source_image, latent_image, image_mask)
-    if isinstance(p.sd_model, LatentDepth2ImageDiffusion):
-        return depth2img_image_conditioning(source_image)
-    if hasattr(p.sd_model, 'cond_stage_key') and p.sd_model.cond_stage_key == "edit":
-        return edit_image_conditioning(source_image)
-    if hasattr(p.sampler, 'conditioning_key') and p.sampler.conditioning_key in {'hybrid', 'concat'}:
-        return inpainting_image_conditioning(source_image, latent_image, image_mask=image_mask)
-    if hasattr(p.sampler, 'conditioning_key') and p.sampler.conditioning_key == "crossattn-adm":
-        return unclip_image_conditioning(source_image)
-    # Dummy zero conditioning if we're not using inpainting or depth model.
-    return latent_image.new_zeros(latent_image.shape[0], 5, 1, 1)
-
-
 def validate_sample(tensor):
     t0 = time.time()
     if not isinstance(tensor, np.ndarray) and not isinstance(tensor, torch.Tensor):
@@ -359,7 +259,8 @@ def validate_sample(tensor):
         sample = tensor
     else:
         shared.log.warning(f'Decode: type={type(tensor)} unknown sample')
-    sample = 255.0 * np.moveaxis(sample, 0, 2) if not shared.native else 255.0 * sample
+        return tensor
+    sample = 255.0 * sample
     with warnings.catch_warnings(record=True) as w:
         cast = sample.astype(np.uint8)
     if len(w) > 0:

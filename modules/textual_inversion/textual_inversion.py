@@ -234,7 +234,6 @@ class EmbeddingDatabase:
         self.ids_lookup = {}
         self.word_embeddings = {}
         self.skipped_embeddings = {}
-        self.expected_shape = -1
         self.embedding_dirs = {}
         self.previously_displayed_embeddings = ()
         self.embeddings_used = []
@@ -258,14 +257,6 @@ class EmbeddingDatabase:
             self.ids_lookup[first_id] = []
         self.ids_lookup[first_id] = sorted(self.ids_lookup[first_id] + [(ids, embedding)], key=lambda x: len(x[0]), reverse=True)
         return embedding
-
-    def get_expected_shape(self):
-        if shared.native:
-            return 0
-        if not shared.sd_loaded:
-            return 0
-        vec = shared.sd_model.cond_stage_model.encode_embedding_init_text(",", 1)
-        return vec.shape[1]
 
     def load_diffusers_embedding(self, filename: Union[str, List[str]] = None, data: dict = None):
         """
@@ -353,22 +344,6 @@ class EmbeddingDatabase:
         else:
             raise RuntimeError(f"Couldn't identify {filename} as textual inversion embedding")
 
-        if shared.native:
-            return
-
-        vec = emb.detach().to(devices.device, dtype=torch.float32)
-        # name = data.get('name', name)
-        embedding = Embedding(vec=vec, name=name, filename=path)
-        embedding.tag = data.get('name', None)
-        embedding.step = data.get('step', None)
-        embedding.sd_checkpoint = data.get('sd_checkpoint', None)
-        embedding.sd_checkpoint_name = data.get('sd_checkpoint_name', None)
-        embedding.vectors = vec.shape[0]
-        embedding.shape = vec.shape[-1]
-        if self.expected_shape == -1 or self.expected_shape == embedding.shape:
-            self.register_embedding(embedding, shared.sd_model)
-        else:
-            self.skipped_embeddings[name] = embedding
 
     def load_from_dir(self, embdir):
         if not shared.sd_loaded:
@@ -377,16 +352,7 @@ class EmbeddingDatabase:
         if not os.path.isdir(embdir.path):
             return
         file_paths = list_embeddings(embdir.path)
-        if shared.native:
-            self.load_diffusers_embedding(file_paths)
-        else:
-            for file_path in file_paths:
-                try:
-                    fn = os.path.basename(file_path)
-                    self.load_from_file(file_path, fn)
-                except Exception as e:
-                    errors.display(e, f'Load embeding={fn}')
-                    continue
+        self.load_diffusers_embedding(file_paths)
 
     def load_textual_inversion_embeddings(self, force_reload=False):
         if not shared.sd_loaded:
@@ -406,7 +372,6 @@ class EmbeddingDatabase:
         self.word_embeddings.clear()
         self.skipped_embeddings.clear()
         self.embeddings_used.clear()
-        self.expected_shape = self.get_expected_shape()
         for embdir in self.embedding_dirs.values():
             self.load_from_dir(embdir)
             embdir.update()

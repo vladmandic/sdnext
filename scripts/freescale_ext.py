@@ -18,7 +18,7 @@ class Script(scripts_manager.Script):
 
     def show(self, is_img2img):
         self.is_img2img = is_img2img
-        return shared.native
+        return True
 
     def ui(self, _is_img2img): # ui elements
         with gr.Row():

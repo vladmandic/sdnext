@@ -84,18 +84,6 @@ def full_vqgan_decode(latents, model):
     return decoded
 
 
-def vae_interpose(latents, target):
-    from modules.interposer import Interposer
-    interposer = Interposer()
-    converted = interposer.convert(src=shared.sd_model_type, dst=target, latents=latents)
-    if converted is None:
-        return None
-    interposer.vae = interposer.vae.to(device=devices.device, dtype=devices.dtype)
-    decoded = interposer.vae.decode(converted, return_dict=False)[0]
-    interposer.vae = interposer.vae.to(device=devices.cpu)
-    return decoded
-
-
 def full_vae_decode(latents, model):
     t0 = time.time()
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
@@ -106,10 +94,6 @@ def full_vae_decode(latents, model):
     if debug:
         devices.torch_gc(force=True)
         shared.mem_mon.reset()
-
-    # decoded = vae_interpose(latents, shared.opts.vae_interpose)
-    # if decoded is not None:
-    #    return decoded
 
     base_device = None
     if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False):

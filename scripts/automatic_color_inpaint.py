@@ -33,9 +33,7 @@ class Script(scripts_manager.Script):
         return title
 
     def show(self, is_img2img):
-        if shared.native:
-            return img2img if is_img2img else txt2img
-        return False
+        return img2img if is_img2img else txt2img
 
     # Define UI for pipeline
     def ui(self, _is_img2img):

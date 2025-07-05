@@ -112,11 +112,9 @@ def setup_model():
     list_models()
     sd_hijack_accelerate.hijack_hfhub()
     # sd_hijack_accelerate.hijack_torch_conv()
-    if not shared.native:
-        enable_midas_autodownload()
 
 
-def checkpoint_titles(use_short=False): # pylint: disable=unused-argument
+def checkpoint_titles():
     def convert(name):
         return int(name) if name.isdigit() else name.lower()
     def alphanumeric_key(key):
@@ -268,12 +266,7 @@ def model_hash(filename):
 
 
 def select_checkpoint(op='model'):
-    if op == 'dict':
-        model_checkpoint = shared.opts.sd_model_dict
-    elif op == 'refiner':
-        model_checkpoint = shared.opts.data.get('sd_model_refiner', None)
-    else:
-        model_checkpoint = shared.opts.sd_model_checkpoint
+    model_checkpoint = shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None)
     if len(model_checkpoint) < 3:
         return None
     if model_checkpoint is None or model_checkpoint == 'None':
@@ -379,42 +372,6 @@ def read_metadata_from_safetensors(filename):
     # except Exception as e:
     #    shared.log.error(f"Error reading metadata from: {filename} {e}")
     return res
-
-
-def enable_midas_autodownload():
-    """
-    Gives the ldm.modules.midas.api.load_model function automatic downloading.
-
-    When the 512-depth-ema model, and other future models like it, is loaded,
-    it calls midas.api.load_model to load the associated midas depth model.
-    This function applies a wrapper to download the model to the correct
-    location automatically.
-    """
-    from urllib import request
-    import ldm.modules.midas.api
-    midas_path = os.path.join(paths.models_path, 'midas')
-    for k, v in ldm.modules.midas.api.ISL_PATHS.items():
-        file_name = os.path.basename(v)
-        ldm.modules.midas.api.ISL_PATHS[k] = os.path.join(midas_path, file_name)
-    midas_urls = {
-        "dpt_large": "https://github.com/intel-isl/DPT/releases/download/1_0/dpt_large-midas-2f21e586.pt",
-        "dpt_hybrid": "https://github.com/intel-isl/DPT/releases/download/1_0/dpt_hybrid-midas-501f0c75.pt",
-        "midas_v21": "https://github.com/AlexeyAB/MiDaS/releases/download/midas_dpt/midas_v21-f6b98070.pt",
-        "midas_v21_small": "https://github.com/AlexeyAB/MiDaS/releases/download/midas_dpt/midas_v21_small-70d6b9c8.pt",
-    }
-    ldm.modules.midas.api.load_model_inner = ldm.modules.midas.api.load_model
-
-    def load_model_wrapper(model_type):
-        path = ldm.modules.midas.api.ISL_PATHS[model_type]
-        if not os.path.exists(path):
-            if not os.path.exists(midas_path):
-                os.mkdir(midas_path)
-            shared.log.info(f"Downloading midas model weights for {model_type} to {path}")
-            request.urlretrieve(midas_urls[model_type], path)
-            shared.log.info(f"{model_type} downloaded")
-        return ldm.modules.midas.api.load_model_inner(model_type)
-
-    ldm.modules.midas.api.load_model = load_model_wrapper
 
 
 def scrub_dict(dict_obj, keys):

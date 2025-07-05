@@ -17,7 +17,7 @@ class Script(scripts_manager.Script):
         return 'Mixture-of-Diffusers: Tile Control'
 
     def show(self, is_img2img): # pylint: disable=unused-argument
-        return shared.native
+        return True
 
     def update_ui(self, x_tiles, y_tiles):
         updates = []

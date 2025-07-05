@@ -229,7 +229,7 @@ def control_set(kwargs):
         p_extra_args[k] = v
 
 
-def control_run(state: str = '',
+def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 units: List[unit.Unit] = [], inputs: List[Image.Image] = [], inits: List[Image.Image] = [], mask: Image.Image = None, unit_type: str = None, is_generator: bool = True,
                 input_type: int = 0,
                 prompt: str = '', negative_prompt: str = '', styles: List[str] = [],

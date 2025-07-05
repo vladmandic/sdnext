@@ -33,12 +33,8 @@ def list_samplers():
     global samplers # pylint: disable=global-statement
     global samplers_for_img2img # pylint: disable=global-statement
     global samplers_map # pylint: disable=global-statement
-    if not shared.native:
-        from modules import sd_samplers_compvis, sd_samplers_kdiffusion
-        all_samplers = [*sd_samplers_compvis.samplers_data_compvis, *sd_samplers_kdiffusion.samplers_data_k_diffusion]
-    else:
-        from modules import sd_samplers_diffusers
-        all_samplers = [*sd_samplers_diffusers.samplers_data_diffusers]
+    from modules import sd_samplers_diffusers
+    all_samplers = [*sd_samplers_diffusers.samplers_data_diffusers]
     all_samplers_map = {x.name: x for x in all_samplers}
     samplers = all_samplers
     samplers_for_img2img = all_samplers
@@ -84,47 +80,37 @@ def create_sampler(name, model):
         # shared.log.warning(f'Sampler: sampler="{name}" not found')
         return None
     sampler = None
-    if not shared.native:
-        sampler = config.constructor(model)
-        sampler.config = config
-        sampler.name = name
-        sampler.initialize(p=None)
-        shared.log.debug(f'Sampler: "{name}" config={config.options}')
-        return sampler
-    elif shared.native:
-        if 'KDiffusion' in model.__class__.__name__:
-            return None
-        if not any(x in model.__class__.__name__ for x in flow_models) and 'FlowMatch' in name:
-            shared.log.warning(f'Sampler: default={current} target="{name}" class={model.__class__.__name__} flow-match scheduler unsupported')
-            return None
-        sampler = config.constructor(model)
-        if sampler is None:
-            sampler = config.constructor(model)
-        if model is not None:
-            if sampler is None or sampler.sampler is None:
-                model.scheduler = copy.deepcopy(model.default_scheduler)
-            else:
-                model.scheduler = sampler.sampler
-            if not hasattr(model, 'scheduler_config'):
-                model.scheduler_config = sampler.sampler.config.copy() if hasattr(sampler, 'sampler') and hasattr(sampler.sampler, 'config') else {}
-            if hasattr(model, "prior_pipe") and hasattr(model.prior_pipe, "scheduler"):
-                model.prior_pipe.scheduler = sampler.sampler
-                model.prior_pipe.scheduler.config.clip_sample = False
-            if "flow" in model.scheduler.__class__.__name__.lower():
-                shared.state.prediction_type = "flow_prediction"
-            elif hasattr(model.scheduler, "config") and hasattr(model.scheduler.config, "prediction_type"):
-                shared.state.prediction_type = model.scheduler.config.prediction_type
-        if model is not None:
-            clean_config = {k: v for k, v in model.scheduler.config.items() if not k.startswith('_') and v is not None and v is not False}
-            cls = model.scheduler.__class__.__name__
-        else:
-            clean_config = {k: v for k, v in sampler.sampler.config.items() if not k.startswith('_') and v is not None and v is not False}
-            cls = sampler.sampler.__class__.__name__
-        name = sampler.name if sampler is not None and sampler.sampler is not None else 'Default'
-        shared.log.debug(f'Sampler: "{name}" class={cls} config={clean_config}')
-        return sampler.sampler
-    else:
+    if 'KDiffusion' in model.__class__.__name__:
         return None
+    if not any(x in model.__class__.__name__ for x in flow_models) and 'FlowMatch' in name:
+        shared.log.warning(f'Sampler: default={current} target="{name}" class={model.__class__.__name__} flow-match scheduler unsupported')
+        return None
+    sampler = config.constructor(model)
+    if sampler is None:
+        sampler = config.constructor(model)
+    if model is not None:
+        if sampler is None or sampler.sampler is None:
+            model.scheduler = copy.deepcopy(model.default_scheduler)
+        else:
+            model.scheduler = sampler.sampler
+        if not hasattr(model, 'scheduler_config'):
+            model.scheduler_config = sampler.sampler.config.copy() if hasattr(sampler, 'sampler') and hasattr(sampler.sampler, 'config') else {}
+        if hasattr(model, "prior_pipe") and hasattr(model.prior_pipe, "scheduler"):
+            model.prior_pipe.scheduler = sampler.sampler
+            model.prior_pipe.scheduler.config.clip_sample = False
+        if "flow" in model.scheduler.__class__.__name__.lower():
+            shared.state.prediction_type = "flow_prediction"
+        elif hasattr(model.scheduler, "config") and hasattr(model.scheduler.config, "prediction_type"):
+            shared.state.prediction_type = model.scheduler.config.prediction_type
+    if model is not None:
+        clean_config = {k: v for k, v in model.scheduler.config.items() if not k.startswith('_') and v is not None and v is not False}
+        cls = model.scheduler.__class__.__name__
+    else:
+        clean_config = {k: v for k, v in sampler.sampler.config.items() if not k.startswith('_') and v is not None and v is not False}
+        cls = sampler.sampler.__class__.__name__
+    name = sampler.name if sampler is not None and sampler.sampler is not None else 'Default'
+    shared.log.debug(f'Sampler: "{name}" class={cls} config={clean_config}')
+    return sampler.sampler
 
 
 def set_samplers():

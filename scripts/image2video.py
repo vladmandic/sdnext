@@ -16,7 +16,7 @@ class Script(scripts_manager.Script):
         return 'Video: VGen Image-to-Video'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
         # return False
 
     # return signature is array of gradio components

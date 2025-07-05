@@ -8,7 +8,7 @@ class Script(scripts_manager.Script):
         return 'T-Gate: Accelerate via Gating Attention'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

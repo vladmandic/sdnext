@@ -34,7 +34,7 @@ class Script(scripts_manager.Script):
         return 'LBM: Latent Bridge Matching'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

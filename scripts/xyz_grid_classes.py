@@ -1,4 +1,4 @@
-from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, apply_sdnq_quant,  apply_sdnq_quant_te, format_value_add_label, format_bool, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
+from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, apply_sdnq_quant,  apply_sdnq_quant_te, format_value_add_label, format_bool, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
 
 
@@ -27,7 +27,6 @@ class AxisOptionTxt2Img(AxisOption):
 class SharedSettingsStackHelper():
     sd_model_checkpoint = None
     sd_model_refiner = None
-    sd_model_dict = None
     sd_vae = None
     sd_unet = None
     sd_text_encoder = None
@@ -82,7 +81,6 @@ class SharedSettingsStackHelper():
         self.cfgzero_enabled = shared.opts.cfgzero_enabled
         self.sd_model_checkpoint = shared.opts.sd_model_checkpoint
         self.sd_model_refiner = shared.opts.sd_model_refiner
-        self.sd_model_dict = shared.opts.sd_model_dict
         self.sd_vae = shared.opts.sd_vae
         self.sd_unet = shared.opts.sd_unet
         self.sd_text_encoder = shared.opts.sd_text_encoder
@@ -126,9 +124,6 @@ class SharedSettingsStackHelper():
         if self.sd_model_refiner != shared.opts.sd_model_refiner:
             shared.opts.data["sd_model_refiner"] = self.sd_model_refiner
             sd_models.reload_model_weights(op='refiner')
-        if self.sd_model_dict != shared.opts.sd_model_dict:
-            shared.opts.data["sd_model_dict"] = self.sd_model_dict
-            sd_models.reload_model_weights(op='dict')
         if self.sd_vae != shared.opts.sd_vae:
             shared.opts.data["sd_vae"] = self.sd_vae
             sd_vae.reload_vae_weights()
@@ -150,7 +145,6 @@ axis_options = [
     AxisOption("[Model] VAE", str, apply_vae, cost=0.6, choices=lambda: ['None'] + list(sd_vae.vae_dict)),
     AxisOption("[Model] Refiner", str, apply_refiner, cost=0.8, fmt=format_value_add_label, choices=lambda: ['None'] + sorted(sd_models.checkpoints_list)),
     AxisOption("[Model] Text encoder", str, apply_te, cost=0.7, choices=shared_items.sd_te_items),
-    AxisOption("[Model] Dictionary", str, apply_dict, fmt=format_value_add_label, cost=0.9, choices=lambda: ['None'] + list(sd_models.checkpoints_list)),
     AxisOption("[Prompt] Search & replace", str, apply_prompt_primary, fmt=format_value_add_label),
     AxisOption("[Prompt] Search & replace refine", str, apply_prompt_refine, fmt=format_value_add_label),
     AxisOption("[Prompt] Search & replace detailer", str, apply_prompt_detailer, fmt=format_value_add_label),

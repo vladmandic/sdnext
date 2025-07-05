@@ -25,7 +25,7 @@ class Script(scripts_manager.Script):
         return 'ConsiStory: Consistent Image Generation'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     def reset(self):
         self.anchor_cache_first_stage = None

@@ -8,7 +8,7 @@ class Script(scripts_manager.Script):
         return 'Init Latents'
 
     def show(self, is_img2img):
-        return scripts_manager.AlwaysVisible if shared.native else False
+        return scripts_manager.AlwaysVisible
 
     @staticmethod
     def get_latents(p):
@@ -29,7 +29,7 @@ class Script(scripts_manager.Script):
         p.generator = generator if p.subseed_strength <= 0.5 else var_generator
 
     def process_batch(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=arguments-differ
-        if not shared.native or not shared.sd_loaded or not hasattr(shared.sd_model, 'unet'):
+        if not shared.sd_loaded or not hasattr(shared.sd_model, 'unet'):
             return
         from modules.processing_helpers import create_random_tensors
         args = list(args)

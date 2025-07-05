@@ -119,11 +119,6 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
 def create_ui(_blocks: gr.Blocks=None):
     helpers.initialize()
 
-    if not shared.native:
-        with gr.Blocks(analytics_enabled = False) as control_ui:
-            pass
-        return [(control_ui, 'Control', 'control')]
-
     with gr.Blocks(analytics_enabled = False) as control_ui:
         prompt, styles, negative, btn_generate, btn_reprocess, btn_paste, btn_extra, prompt_counter, btn_prompt_counter, negative_counter, btn_negative_counter  = ui_sections.create_toprow(is_img2img=False, id_part='control')
         txt_prompt_img = gr.File(label="", elem_id="control_prompt_image", file_count="single", type="binary", visible=False)
@@ -555,8 +550,8 @@ def create_ui(_blocks: gr.Blocks=None):
             show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             show_preview.change(fn=lambda x: gr.update(visible=x), inputs=[show_preview], outputs=[column_preview])
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
-            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt, steps], outputs=[prompt_counter])
-            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative, steps], outputs=[negative_counter])
+            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter])
+            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter])
             btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
 
             select_fields = [input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder]

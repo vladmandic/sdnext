@@ -49,7 +49,7 @@ class Script(scripts_manager.Script):
         return 'MuLan: Multi Language Prompts'
 
     def show(self, is_img2img):
-        return True if shared.native else False
+        return True
 
     def ui(self, _is_img2img):
         with gr.Row():

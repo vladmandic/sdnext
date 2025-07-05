@@ -120,8 +120,6 @@ def parse(infotext):
 
 
 mapping = [
-    # Backend
-    ('Backend', 'sd_backend'),
     # Models
     ('Model hash', 'sd_model_checkpoint'),
     ('Refiner', 'sd_model_refiner'),

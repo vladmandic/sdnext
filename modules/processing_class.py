@@ -4,12 +4,9 @@ import inspect
 import hashlib
 from typing import Any, Dict, List
 from dataclasses import dataclass, field
-import torch
 import numpy as np
-import cv2
 from PIL import Image, ImageOps
-from modules import shared, devices, images, scripts_manager, masking, sd_samplers, sd_models, processing_helpers
-from modules.sd_hijack_hypertile import hypertile_set
+from modules import shared, images, scripts_manager, masking, sd_models, processing_helpers
 
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -258,8 +255,6 @@ class StableDiffusionProcessing:
         self.all_subseeds = None
 
         # a1111 compatibility items
-        if not shared.native:
-            shared.opts.data['clip_skip'] = int(self.clip_skip) # for compatibility with a1111 sd_hijack_clip
         self.seed_enable_extras: bool = True
         self.is_using_inpainting_conditioning = False # a111 compatibility
         self.batch_index = 0
@@ -268,8 +263,6 @@ class StableDiffusionProcessing:
         self.all_hr_prompts = []
         self.hr_negative_prompt = ''
         self.all_hr_negative_prompts = []
-        self.truncate_x = 0
-        self.truncate_y = 0
         self.comments = {}
         self.sampler = None
         self.nmask = None
@@ -283,16 +276,6 @@ class StableDiffusionProcessing:
         self.scripts_setup_complete: bool = field(default=False, init=False)
         self.script_args = script_args
         self.per_script_args = {}
-
-        # settings to processing
-        self.ddim_discretize = shared.opts.ddim_discretize
-        self.s_min_uncond = shared.opts.s_min_uncond
-        self.s_churn = shared.opts.s_churn
-        self.s_noise = shared.opts.s_noise
-        self.s_min = shared.opts.s_min
-        self.s_max = shared.opts.s_max
-        self.s_tmin = shared.opts.s_tmin
-        self.s_tmax = float('inf')  # not representable as a standard ui option
 
         # ip adapter
         self.ip_adapter_names = []
@@ -364,9 +347,6 @@ class StableDiffusionProcessing:
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
         pass
 
-    def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
-        raise NotImplementedError
-
     def close(self):
         self.sampler = None
         self.scripts = None
@@ -387,8 +367,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
         super().__init__(**kwargs)
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
-        if shared.native:
-            shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         self.width = self.width or 1024
         self.height = self.height or 1024
         if all_prompts is not None:
@@ -411,34 +390,10 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
             elif self.hr_resize_x == 0:
                 self.hr_upscale_to_x = self.hr_resize_y * self.width // self.height
                 self.hr_upscale_to_y = self.hr_resize_y
-            elif self.hr_resize_x > 0 and self.hr_resize_y > 0 and shared.native:
+            elif self.hr_resize_x > 0 and self.hr_resize_y > 0:
                 self.hr_upscale_to_x = self.hr_resize_x
                 self.hr_upscale_to_y = self.hr_resize_y
-            else:
-                target_w = self.hr_resize_x
-                target_h = self.hr_resize_y
-                src_ratio = self.width / self.height
-                dst_ratio = self.hr_resize_x / self.hr_resize_y
-                if src_ratio < dst_ratio:
-                    self.hr_upscale_to_x = self.hr_resize_x
-                    self.hr_upscale_to_y = self.hr_resize_x * self.height // self.width
-                else:
-                    self.hr_upscale_to_x = self.hr_resize_y * self.width // self.height
-                    self.hr_upscale_to_y = self.hr_resize_y
-                self.truncate_x = (self.hr_upscale_to_x - target_w) // 8
-                self.truncate_y = (self.hr_upscale_to_y - target_h) // 8
-        if not shared.native: # diffusers are handled in processing_diffusers
-            if (self.hr_upscale_to_x == self.width and self.hr_upscale_to_y == self.height) or upscaler is None or upscaler == 'None': # special case: the user has chosen to do nothing
-                self.is_hr_pass = False
-                return
-            self.is_hr_pass = True
-            hypertile_set(self, hr=True)
-            shared.state.job_count = 2 * self.n_iter
         shared.log.debug(f'Init hires: upscaler="{self.hr_upscaler}" sampler="{self.hr_sampler_name}" resize={self.hr_resize_x}x{self.hr_resize_y} upscale={self.hr_upscale_to_x}x{self.hr_upscale_to_y}')
-
-    def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
-        from modules import processing_original
-        return processing_original.sample_txt2img(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts)
 
 
 class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
@@ -452,9 +407,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 self.width = int(8 * (self.init_images[0].width * self.scale_by // 8))
             if self.height is None or self.height == 0:
                 self.height = int(8 * (self.init_images[0].height * self.scale_by // 8))
-        if shared.native and getattr(self, 'image_mask', None) is not None:
+        if getattr(self, 'image_mask', None) is not None:
             shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-        elif shared.native and getattr(self, 'init_images', None) is not None:
+        elif getattr(self, 'init_images', None) is not None:
             shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
 
         if all_prompts is not None:
@@ -463,14 +418,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.all_seeds = all_seeds
         if all_subseeds is not None:
             self.all_subseeds = all_subseeds
-
-        if self.sampler_name == 'PLMS':
-            self.sampler_name = 'Default'
-        if not shared.native:
-            self.sampler = sd_samplers.create_sampler(self.sampler_name, self.sd_model)
-            if hasattr(self.sampler, "initialize"):
-                self.sampler.initialize(self)
-
         if self.image_mask is not None:
             self.ops.append('inpaint')
         elif hasattr(self, 'init_images') and self.init_images is not None:
@@ -480,21 +427,10 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if self.image_mask is not None:
             if type(self.image_mask) == list:
                 self.image_mask = self.image_mask[0]
-            if not shared.native: # original way of processing mask
-                self.image_mask = processing_helpers.create_binary_mask(self.image_mask)
-                if self.inpainting_mask_invert:
-                    self.image_mask = ImageOps.invert(self.image_mask)
-                if self.mask_blur > 0:
-                    np_mask = np.array(self.image_mask)
-                    kernel_size = 2 * int(2.5 * self.mask_blur + 0.5) + 1
-                    np_mask = cv2.GaussianBlur(np_mask, (kernel_size, 1), self.mask_blur)
-                    np_mask = cv2.GaussianBlur(np_mask, (1, kernel_size), self.mask_blur)
-                    self.image_mask = Image.fromarray(np_mask)
-            elif shared.native:
-                if 'control' in self.ops:
-                    self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
-                else:
-                    self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
+            if 'control' in self.ops:
+                self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
+            else:
+                self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
             if self.inpaint_full_res: # mask only inpaint
                 self.mask_for_overlay = self.image_mask
                 mask = self.image_mask.convert('L')
@@ -558,47 +494,12 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.overlay_images = self.overlay_images * self.batch_size
         if self.color_corrections is not None and len(self.color_corrections) == 1:
             self.color_corrections = self.color_corrections * self.batch_size
-        if shared.native:
-            return # we've already set self.init_images and self.mask and we dont need any more processing
-        elif not shared.native:
-            self.init_images = [np.moveaxis((np.array(image).astype(np.float32) / 255.0), 2, 0) for image in self.init_images]
-            if len(self.init_images) == 1:
-                batch_images = np.expand_dims(self.init_images[0], axis=0).repeat(self.batch_size, axis=0)
-            elif len(self.init_images) <= self.batch_size:
-                batch_images = np.array(self.init_images)
-            else:
-                batch_images = np.array(self.init_images[:self.batch_size])
-            image = torch.from_numpy(batch_images)
-            image = 2. * image - 1.
-            image = image.to(device=shared.device, dtype=devices.dtype_vae)
-            self.init_latent = self.sd_model.get_first_stage_encoding(self.sd_model.encode_first_stage(image))
-            if self.image_mask is not None:
-                init_mask = latent_mask
-                latmask = init_mask.convert('RGB').resize((self.init_latent.shape[3], self.init_latent.shape[2]))
-                latmask = np.moveaxis(np.array(latmask, dtype=np.float32), 2, 0) / 255
-                latmask = latmask[0]
-                latmask = np.tile(latmask[None], (4, 1, 1))
-                latmask = np.around(latmask)
-                self.mask = torch.asarray(1.0 - latmask).to(device=shared.device, dtype=self.sd_model.dtype)
-                self.nmask = torch.asarray(latmask).to(device=shared.device, dtype=self.sd_model.dtype)
-                if self.inpainting_fill == 2:
-                    self.init_latent = self.init_latent * self.mask + processing_helpers.create_random_tensors(self.init_latent.shape[1:], all_seeds[0:self.init_latent.shape[0]]) * self.nmask
-                elif self.inpainting_fill == 3:
-                    self.init_latent = self.init_latent * self.mask
-            self.image_conditioning = processing_helpers.img2img_image_conditioning(self, image, self.init_latent, self.image_mask)
-
-    def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
-        from modules import processing_original
-        return processing_original.sample_img2img(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts)
 
 
 class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
     def __init__(self, **kwargs):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
-
-    def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts): # abstract
-        pass
 
     def init_hr(self, scale = None, upscaler = None, force = False):
         scale = scale or self.scale_by

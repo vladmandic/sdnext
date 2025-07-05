@@ -140,8 +140,6 @@ def save_image(image,
                prompt=None,
                extension=shared.opts.samples_format,
                info=None,
-               short_filename=False,
-               no_prompt=False,
                grid=False,
                pnginfo_section_name='parameters',
                p=None,
@@ -149,7 +147,7 @@ def save_image(image,
                forced_filename=None,
                suffix='',
                save_to_dirs=None,
-            ): # pylint: disable=unused-argument
+            ):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     debug(f'Save: fn={fn}') # pylint: disable=protected-access
     if image is None:
@@ -162,7 +160,10 @@ def save_image(image,
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
-    if shared.opts.save_to_dirs:
+    if save_to_dirs is not None and isinstance(save_to_dirs, str) and len(save_to_dirs) > 0:
+        dirname = save_to_dirs
+        path = os.path.join(path, dirname)
+    elif shared.opts.save_to_dirs:
         dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
         path = os.path.join(path, dirname)
     if forced_filename is None:

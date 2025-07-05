@@ -8,7 +8,6 @@ exclude = [
     "modules/flash_attn_triton_amd",
     "modules/hidiffusion",
     "modules/intel/ipex",
-    "modules/k-diffusion",
     "modules/pag",
     "modules/schedulers",
     "modules/teacache",

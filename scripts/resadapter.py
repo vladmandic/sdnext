@@ -22,7 +22,7 @@ class Script(scripts_manager.Script):
         return 'ResAdapter: Domain Consistent Resolution'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):
@@ -34,7 +34,7 @@ class Script(scripts_manager.Script):
         return [model, weight]
 
     def run(self, p: processing.StableDiffusionProcessing, model, weight): # pylint: disable=arguments-differ
-        if not shared.native or model == 'None':
+        if model == 'None':
             return None
         if shared.sd_model_type == 'sd':
             if not model.startswith('SD15'):

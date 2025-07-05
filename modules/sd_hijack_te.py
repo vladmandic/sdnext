@@ -11,7 +11,7 @@ def hijack_encode_prompt(*args, **kwargs):
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
         shared.log.error(f'Eencode prompt: {e}')
-        errors.display(e, 'Video encode prompt')
+        errors.display(e, 'Encode prompt')
         res = None
     t1 = time.time()
     timer.process.add('te', t1-t0)

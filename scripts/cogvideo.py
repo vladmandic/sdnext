@@ -25,7 +25,7 @@ class Script(scripts_manager.Script):
         return 'Video: CogVideoX (Legacy)'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
 
     def ui(self, is_img2img):

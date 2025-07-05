@@ -21,11 +21,10 @@ class Script(scripts_manager.Script):
             final_denoising_strength = gr.Slider(minimum=0, maximum=1, step=0.01, label='Final denoising strength', value=0.5, elem_id=self.elem_id("final_denoising_strength"))
         with gr.Row():
             denoising_curve = gr.Dropdown(label="Denoising strength curve", choices=["Aggressive", "Linear", "Lazy"], value="Linear")
-            append_interrogation = gr.Dropdown(label="Append interrogated prompt at each iteration", choices=["None", "CLIP", "DeepBooru"], value="None")
 
-        return [loops, final_denoising_strength, denoising_curve, append_interrogation]
+        return [loops, final_denoising_strength, denoising_curve]
 
-    def run(self, p, loops, final_denoising_strength, denoising_curve, append_interrogation): # pylint: disable=arguments-differ
+    def run(self, p, loops, final_denoising_strength, denoising_curve): # pylint: disable=arguments-differ
         processing.fix_seed(p)
         batch_count = p.n_iter
         p.extra_generation_params = {
@@ -44,7 +43,6 @@ class Script(scripts_manager.Script):
         grids = []
         all_images = []
         original_init_image = p.init_images
-        original_prompt = p.prompt
         original_inpainting_fill = p.inpainting_fill
         state.job_count = loops * batch_count
 
@@ -85,15 +83,6 @@ class Script(scripts_manager.Script):
 
                 if opts.img2img_color_correction:
                     p.color_corrections = initial_color_corrections
-
-                if append_interrogation != "None":
-                    p.prompt = f"{original_prompt}, " if original_prompt else ""
-                    if append_interrogation == "CLIP":
-                        from modules.interrogate import openclip
-                        p.prompt += openclip.interrogator.interrogate(p.init_images[0])
-                    elif append_interrogation == "DeepBooru":
-                        from modules.interrogate import deepbooru
-                        p.prompt += deepbooru.model.tag(p.init_images[0])
 
                 state.job = f"loopback iteration {i+1}/{loops} batch {n+1}/{batch_count}"
 

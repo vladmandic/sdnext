@@ -71,9 +71,6 @@ def set_accelerate(sd_model):
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
-    if not shared.native:
-        shared.log.warning('Attempting to use offload with backend=original')
-        return
     if sd_model is None:
         shared.log.warning(f'{op} is not loaded')
         return

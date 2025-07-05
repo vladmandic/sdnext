@@ -18,7 +18,6 @@ from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_cal
 import modules.devices
 import modules.sd_checkpoint
 import modules.sd_samplers
-import modules.lowvram
 import modules.scripts_manager
 import modules.sd_models
 import modules.sd_vae
@@ -33,15 +32,12 @@ import modules.upscaler_simple
 import modules.extra_networks
 import modules.ui_extra_networks
 import modules.textual_inversion.textual_inversion
-import modules.hypernetworks.hypernetwork
 import modules.script_callbacks
 import modules.api.middleware
 
 
 if not modules.loader.initialized:
     timer.startup.record("libraries")
-    import modules.sd_hijack # runs conditional load of ldm if not shared.native
-    timer.startup.record("ldm")
 modules.loader.initialized = True
 
 
@@ -88,10 +84,9 @@ def initialize():
     modules.sd_models.setup_model()
     timer.startup.record("models")
 
-    if not shared.opts.lora_legacy:
-        from modules.lora import lora_load
-        lora_load.list_available_networks()
-        timer.startup.record("lora")
+    from modules.lora import lora_load
+    lora_load.list_available_networks()
+    timer.startup.record("lora")
 
     shared.prompt_styles.reload()
     timer.startup.record("styles")
@@ -116,10 +111,6 @@ def initialize():
 
     modelloader.load_upscalers()
     timer.startup.record("upscalers")
-
-    if shared.opts.hypernetwork_enabled:
-        shared.reload_hypernetworks()
-        timer.startup.record("hypernetworks")
 
     modules.ui_extra_networks.initialize()
     modules.ui_extra_networks.register_pages()
@@ -169,11 +160,9 @@ def load_model():
     timer.startup.record("checkpoint")
     shared.opts.onchange("sd_model_checkpoint", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
-    shared.opts.onchange("sd_model_dict", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='dict')), call=False)
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
     shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
-    shared.opts.onchange("sd_backend", wrap_queued_call(lambda: modules.sd_models.change_backend()), call=False)
     shared.opts.onchange("temp_dir", gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")
 
@@ -240,6 +229,9 @@ def start_common():
     paths.create_paths(shared.opts)
     async_policy()
     initialize()
+    if shared.cmd_opts.backend == 'original':
+        shared.log.error('Legacy option: backend=original is no longer supported')
+        shared.cmd_opts.backend = 'diffusers'
     try:
         from installer import diffusers_commit
         if diffusers_commit != 'unknown':

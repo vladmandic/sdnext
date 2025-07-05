@@ -25,7 +25,7 @@ class Script(scripts_manager.Script):
         return 'PuLID: ID Customization'
 
     def show(self, _is_img2img):
-        return shared.native
+        return True
 
     def dependencies(self):
         from installer import install, installed, reload

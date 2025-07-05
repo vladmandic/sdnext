@@ -10,13 +10,12 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_config, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
+from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.timer import Timer, process as process_timer
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
-from modules.sd_models_legacy import get_checkpoint_state_dict, load_model_weights, load_model, repair_config # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, patch_diffuser_config, convert_to_faketensors, read_state_dict, get_state_dict_from_checkpoint, apply_function_to_model # pylint: disable=unused-import
 
 
@@ -56,19 +55,6 @@ i2i_pipes = [
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
 ]
-
-
-def change_backend():
-    shared.log.info(f'Backend changed: from={shared.backend} to={shared.opts.sd_backend}')
-    shared.log.warning('Full server restart required to apply all changes')
-    unload_model_weights()
-    shared.backend = shared.Backend.ORIGINAL if shared.opts.sd_backend == 'original' else shared.Backend.DIFFUSERS
-    shared.native = shared.backend == shared.Backend.DIFFUSERS
-    from modules.sd_samplers import list_samplers
-    list_samplers()
-    list_models()
-    from modules.sd_vae import refresh_vae_list
-    refresh_vae_list()
 
 
 def copy_diffuser_options(new_pipe, orig_pipe):
@@ -183,18 +169,6 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
 
 def move_model(model, device=None, force=False):
     if model is None or device is None:
-        return
-
-    if not shared.native:
-        if type(model).__name__ == 'LatentDiffusion':
-            model = model.to(device)
-            if hasattr(model, 'model'):
-                model.model = model.model.to(device)
-            if hasattr(model, 'first_stage_model'):
-                model.first_stage_model = model.first_stage_model.to(device)
-            if hasattr(model, 'cond_stage_model'):
-                model.cond_stage_model = model.cond_stage_model.to(device)
-        devices.torch_gc()
         return
 
     if hasattr(model, 'pipe'):
@@ -541,7 +515,7 @@ def set_defaults(sd_model, checkpoint_info):
         sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=80, colour='#327fba')
 
 
-def load_diffuser(checkpoint_info=None, already_loaded_state_dict=None, timer=None, op='model', revision=None): # pylint: disable=unused-argument
+def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): # pylint: disable=unused-argument
     if timer is None:
         timer = Timer()
     logging.getLogger("diffusers").setLevel(logging.ERROR)
@@ -1033,22 +1007,14 @@ def reload_text_encoder(initial=False):
         set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
 
 
-def reload_model_weights(sd_model=None, info=None, reuse_dict=False, op='model', force=False, revision=None):
-    load_dict = shared.opts.sd_model_dict != model_data.sd_dict
-    from modules import lowvram, sd_hijack
+def reload_model_weights(sd_model=None, info=None, op='model', force=False, revision=None):
     checkpoint_info = info or select_checkpoint(op=op) # are we selecting model or dictionary
-    next_checkpoint_info = info or select_checkpoint(op='dict' if load_dict else 'model') if load_dict else None
     if checkpoint_info is None:
         unload_model_weights(op=op)
         return None
     orig_state = copy.deepcopy(shared.state)
     shared.state = shared_state.State()
     shared.state.begin('Load')
-    if load_dict:
-        shared.log.debug(f'Load {op} dict: target="{checkpoint_info.filename}" existing={sd_model is not None} info={info}')
-    else:
-        model_data.sd_dict = 'None'
-        # shared.log.debug(f'Load {op}: target="{checkpoint_info.filename}" existing={sd_model is not None} info={info}')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
     if sd_model is None:  # previous model load failed
@@ -1057,69 +1023,33 @@ def reload_model_weights(sd_model=None, info=None, reuse_dict=False, op='model',
         current_checkpoint_info = getattr(sd_model, 'sd_checkpoint_info', None)
         if current_checkpoint_info is not None and checkpoint_info is not None and current_checkpoint_info.filename == checkpoint_info.filename and not force:
             return None
-        if not shared.native and (shared.cmd_opts.lowvram or shared.cmd_opts.medvram):
-            lowvram.send_everything_to_cpu()
         else:
             move_model(sd_model, devices.cpu)
-        if (reuse_dict or shared.opts.model_reuse_dict) and not getattr(sd_model, 'has_accelerate', False):
-            shared.log.info(f'Load {op}: reusing dictionary')
-            sd_hijack.model_hijack.undo_hijack(sd_model)
-        else:
-            unload_model_weights(op=op)
-            sd_model = None
+        unload_model_weights(op=op)
+        sd_model = None
     timer = Timer()
     # TODO model load: implement model in-memory caching
-    state_dict = get_checkpoint_state_dict(checkpoint_info, timer) if not shared.native else None
-    checkpoint_config = sd_models_config.find_checkpoint_config(state_dict, checkpoint_info)
     timer.record("config")
-    if sd_model is None or checkpoint_config != getattr(sd_model, 'used_config', None) or force:
+    if sd_model is None or force:
         sd_model = None
-        if not shared.native:
-            load_model(checkpoint_info, already_loaded_state_dict=state_dict, timer=timer, op=op)
-            model_data.sd_dict = shared.opts.sd_model_dict
-        else:
-            load_diffuser(checkpoint_info, already_loaded_state_dict=state_dict, timer=timer, op=op, revision=revision)
-        if load_dict and next_checkpoint_info is not None:
-            model_data.sd_dict = shared.opts.sd_model_dict
-            shared.opts.data["sd_model_checkpoint"] = next_checkpoint_info.title
-            reload_model_weights(reuse_dict=True) # ok we loaded dict now lets redo and load model on top of it
+        load_diffuser(checkpoint_info, timer=timer, op=op, revision=revision)
         shared.state.end()
         shared.state = orig_state
-        # data['sd_model_checkpoint']
-        if op == 'model' or op == 'dict':
+        if op == 'model':
             shared.opts.data["sd_model_checkpoint"] = checkpoint_info.title
             return model_data.sd_model
         else:
             shared.opts.data["sd_model_refiner"] = checkpoint_info.title
             return model_data.sd_refiner
-
-    # fallback
-    shared.log.info(f"Load {op} using fallback: model={checkpoint_info.title}")
-    try:
-        load_model_weights(sd_model, checkpoint_info, state_dict, timer)
-    except Exception:
-        shared.log.error("Load model failed: restoring previous")
-        load_model_weights(sd_model, current_checkpoint_info, None, timer)
-    finally:
-        sd_hijack.model_hijack.hijack(sd_model)
-        timer.record("hijack")
-        script_callbacks.model_loaded_callback(sd_model)
-        timer.record("callbacks")
-        if sd_model is not None and not shared.cmd_opts.lowvram and not shared.cmd_opts.medvram:
-            move_model(sd_model, devices.device)
-            timer.record("device")
-    shared.state.end()
-    shared.state = orig_state
-    shared.log.info(f"Load {op}: time={timer.summary()}")
-    return sd_model
+    return None # should not be here
 
 
 def clear_caches():
-    if not shared.opts.lora_legacy:
-        from modules.lora import lora_common, lora_load
-        lora_common.loaded_networks.clear()
-        lora_common.previously_loaded_networks.clear()
-        lora_load.lora_cache.clear()
+    from modules.lora import lora_common, lora_load
+    lora_common.loaded_networks.clear()
+    lora_common.previously_loaded_networks.clear()
+    lora_load.lora_cache.clear()
+
     from modules import prompt_parser_diffusers, memstats, sd_offload
     sd_offload.offload_hook_instance = None
     prompt_parser_diffusers.cache.clear()
@@ -1134,11 +1064,7 @@ def unload_model_weights(op='model'):
         shared.compiled_model_state.partitioned_modules.clear()
     if (op == 'model' or op == 'dict') and model_data.sd_model:
         shared.log.debug(f'Current {op}: {memory_stats()}')
-        if not shared.native:
-            from modules import sd_hijack
-            move_model(model_data.sd_model, devices.cpu)
-            sd_hijack.model_hijack.undo_hijack(model_data.sd_model)
-        elif not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+        if not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
@@ -1146,13 +1072,8 @@ def unload_model_weights(op='model'):
         shared.log.debug(f'Unload {op}: {memory_stats()} after')
     elif (op == 'refiner') and model_data.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
-        if not shared.native:
-            from modules import sd_hijack
-            move_model(model_data.sd_refiner, devices.cpu)
-            sd_hijack.model_hijack.undo_hijack(model_data.sd_refiner)
-        else:
-            disable_offload(model_data.sd_refiner)
-            move_model(model_data.sd_refiner, 'meta')
+        disable_offload(model_data.sd_refiner)
+        move_model(model_data.sd_refiner, 'meta')
         model_data.sd_refiner = None
         devices.torch_gc(force=True)
         shared.log.debug(f'Unload {op}: {memory_stats()}')

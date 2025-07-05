@@ -1,10 +1,9 @@
 import os
 import json
 import time
-from contextlib import nullcontext
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, lowvram, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration, token_merge
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration, token_merge
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import StableDiffusionProcessing, StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, StableDiffusionProcessingControl, StableDiffusionProcessingVideo # pylint: disable=unused-import
 from modules.processing_info import create_infotext
@@ -20,8 +19,6 @@ create_binary_mask = processing_helpers.create_binary_mask
 apply_overlay = processing_helpers.apply_overlay
 apply_color_correction = processing_helpers.apply_color_correction
 setup_color_correction = processing_helpers.setup_color_correction
-txt2img_image_conditioning = processing_helpers.txt2img_image_conditioning
-img2img_image_conditioning = processing_helpers.img2img_image_conditioning
 fix_seed = processing_helpers.fix_seed
 get_fixed_seed = processing_helpers.get_fixed_seed
 create_random_tensors = processing_helpers.create_random_tensors
@@ -65,12 +62,6 @@ class Processed:
         self.job_timestamp = shared.state.job_timestamp
         self.clip_skip = p.clip_skip
         self.eta = p.eta
-        self.ddim_discretize = p.ddim_discretize
-        self.s_churn = p.s_churn
-        self.s_tmin = p.s_tmin
-        self.s_tmax = p.s_tmax
-        self.s_noise = p.s_noise
-        self.s_min_uncond = p.s_min_uncond
         self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
         self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
         self.seed = int(self.seed if type(self.seed) != list else self.seed[0]) if self.seed is not None else -1
@@ -170,7 +161,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
         if 'Model' not in shared.opts.cuda_compile:
             token_merge.apply_token_merging(p.sd_model)
             from modules import sd_hijack_freeu, para_attention, teacache
-            sd_hijack_freeu.apply_freeu(p, not shared.native)
+            sd_hijack_freeu.apply_freeu(p)
             para_attention.apply_first_block_cache()
             teacache.apply_teacache(p)
 
@@ -207,8 +198,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                     shared.log.debug(f'Torch profile: {profile_args}')
                     shared.profiler = torch.profiler.profile(**profile_args)
                 shared.profiler.start()
-                if not shared.native:
-                    shared.profiler.step()
                 processed = process_images_inner(p)
                 errors.profile_torch(shared.profiler, 'Process')
         else:
@@ -279,25 +268,16 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     else:
         assert p.prompt is not None
 
-    if not shared.native:
-        import modules.sd_hijack # pylint: disable=redefined-outer-name
-        modules.sd_hijack.model_hijack.apply_circular(p.tiling)
-        modules.sd_hijack.model_hijack.clear_comments()
     comments = {}
     infotexts = []
     output_images = []
 
     process_init(p)
-    if not shared.native and os.path.exists(shared.opts.embeddings_dir) and not p.do_not_reload_embeddings:
-        modules.sd_hijack.model_hijack.embedding_db.load_textual_inversion_embeddings(force_reload=False)
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.process(p)
 
-    ema_scope_context = p.sd_model.ema_scope if not shared.native else nullcontext
-    if not shared.native:
-        shared.state.job_count = p.n_iter
     shared.state.batch_count = p.n_iter
-    with devices.inference_context(), ema_scope_context():
+    with devices.inference_context():
         t0 = time.time()
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
@@ -316,9 +296,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 shared.log.debug(f'Process interrupted: {n+1}/{p.n_iter}')
                 break
 
-            if shared.native:
-                from modules import ipadapter
-                ipadapter.apply(shared.sd_model, p)
+            from modules import ipadapter
+            ipadapter.apply(shared.sd_model, p)
             if not hasattr(p, 'keep_prompts'):
                 p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
                 p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
@@ -329,8 +308,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if len(p.prompts) == 0:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
-            if not shared.native:
-                extra_networks.activate(p, p.network_data)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
 
@@ -342,22 +319,13 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     samples = processed.images
                     infotexts += processed.infotexts
             if samples is None:
-                if not shared.native:
-                    from modules.processing_original import process_original
-                    samples = process_original(p)
-                elif shared.native:
-                    from modules.processing_diffusers import process_diffusers
-                    samples = process_diffusers(p)
-                else:
-                    raise ValueError(f"Unknown backend {shared.backend}")
+                from modules.processing_diffusers import process_diffusers
+                samples = process_diffusers(p)
             timer.process.record('process')
 
             if not shared.opts.keep_incomplete and shared.state.interrupted:
                 samples = []
 
-            if not shared.native and (shared.cmd_opts.lowvram or shared.cmd_opts.medvram):
-                lowvram.send_everything_to_cpu()
-                devices.torch_gc()
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -444,15 +412,11 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             timer.process.record('post')
             del samples
 
-            if not shared.native:
-                extra_networks.deactivate(p, p.network_data)
-
             devices.torch_gc()
 
         if hasattr(shared.sd_model, 'restore_pipeline') and shared.sd_model.restore_pipeline is not None:
             shared.sd_model.restore_pipeline()
-        if shared.native: # reset pipeline for each iteration
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
         t1 = time.time()
 
@@ -471,9 +435,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if shared.opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True, suffix="-grid") # main save grid
 
-    if shared.native:
-        from modules import ipadapter
-        ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
+    from modules import ipadapter
+    ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
 
     if shared.opts.include_mask:
         if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
