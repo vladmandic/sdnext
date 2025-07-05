@@ -1,7 +1,7 @@
 import json
 import os
 from modules import shared, sd_models, ui_extra_networks, files_cache
-from modules.textual_inversion.textual_inversion import Embedding
+from modules.textual_inversion import Embedding
 
 
 class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):

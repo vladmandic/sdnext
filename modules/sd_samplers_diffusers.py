@@ -319,9 +319,6 @@ class DiffusionSampler:
                 return
 
         self.sampler = sampler
-        if name == 'DC Solver':
-            if not hasattr(self.sampler, 'dc_ratios'):
-                pass
 
         # shared.log.debug_log(f'Sampler: class="{self.sampler.__class__.__name__}" config={self.sampler.config}')
         self.sampler.name = name

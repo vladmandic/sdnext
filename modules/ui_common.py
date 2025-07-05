@@ -323,19 +323,6 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args = No
     return refresh_button
 
 
-def create_browse_button(browse_component, elem_id):
-    def browse(folder):
-        # import subprocess
-        if folder is not None:
-            return gr.update(value = folder)
-        return gr.update()
-
-    browse_button = ui_components.ToolButton(value=ui_symbols.folder, elem_id=elem_id)
-    browse_button.click(fn=browse, _js="async () => await browseFolder()", inputs=[browse_component], outputs=[browse_component])
-    # browse_button.click(fn=browse, inputs=[browse_component], outputs=[browse_component])
-    return browse_button
-
-
 def create_override_inputs(tab): # pylint: disable=unused-argument
     with gr.Row(elem_id=f"{tab}_override_settings_row"):
         override_settings = gr.Dropdown([], value=None, label="Override settings", visible=False, elem_id=f"{tab}_override_settings", multiselect=True)

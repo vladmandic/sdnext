@@ -159,13 +159,6 @@ def get_gpu_info():
             return { 'error': ex }
 
 
-def extract_device_id(args, name): # pylint: disable=redefined-outer-name
-    for x in range(len(args)):
-        if name in args[x]:
-            return args[x + 1]
-    return None
-
-
 def get_cuda_device_string():
     from modules.shared import cmd_opts
     if backend == 'ipex':
@@ -194,13 +187,6 @@ def get_optimal_device_name():
 
 def get_optimal_device():
     return torch.device(get_optimal_device_name())
-
-
-def get_device_for(task): # pylint: disable=unused-argument
-    # if task in cmd_opts.use_cpu:
-    #    log.debug(f'Forcing CPU for task: {task}')
-    #    return cpu
-    return get_optimal_device()
 
 
 def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
@@ -581,14 +567,6 @@ def set_cuda_params():
     except Exception:
         tunable = [False, False]
     log.info(f'Torch parameters: backend={backend} device={device_name} config={opts.cuda_dtype} dtype={dtype} context={inference_context.__name__} nohalf={opts.no_half} nohalfvae={opts.no_half_vae} upcast={opts.upcast_sampling} deterministic={opts.cudnn_deterministic} tunable={tunable} fp16={"pass" if fp16_ok else "fail"} bf16={"pass" if bf16_ok else "fail"} optimization="{opts.cross_attention_optimization}"')
-
-
-def cond_cast_unet(tensor):
-    return tensor.to(dtype_unet) if unet_needs_upcast else tensor
-
-
-def cond_cast_float(tensor):
-    return tensor.float() if unet_needs_upcast else tensor
 
 
 def randn(seed, shape=None):

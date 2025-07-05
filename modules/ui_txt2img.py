@@ -1,17 +1,7 @@
 import gradio as gr
 from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call
-from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing, processing_vae, devices, images
+from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing_vae, images
 from modules.ui_components import ToolButton # pylint: disable=unused-import
-
-
-def calc_resolution_hires(width, height, hr_scale, hr_resize_x, hr_resize_y, hr_upscaler):
-    if hr_upscaler == "None":
-        return "Hires resize: None"
-    p = processing.StableDiffusionProcessingTxt2Img(width=width, height=height, enable_hr=True, hr_scale=hr_scale, hr_resize_x=hr_resize_x, hr_resize_y=hr_resize_y)
-    p.init_hr()
-    with devices.autocast():
-        p.init([""], [0], [0])
-    return f"Hires resize: from <span class='resolution'>{p.width}x{p.height}</span> to <span class='resolution'>{p.hr_resize_x or p.hr_upscale_to_x}x{p.hr_resize_y or p.hr_upscale_to_y}</span>"
 
 
 def create_ui():

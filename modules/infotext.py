@@ -28,40 +28,6 @@ def unquote(text):
         return text
 
 
-# disabled by default can be enabled if needed
-def check_lora(params):
-    try:
-        from modules.lora import lora_load
-        from modules.errors import log # pylint: disable=redefined-outer-name
-    except Exception:
-        return
-    loras = [s.strip() for s in params.get('LoRA hashes', '').split(',')]
-    found = []
-    missing = []
-    for l in loras:
-        lora = lora_load.available_network_hash_lookup.get(l, None)
-        if lora is not None:
-            found.append(lora.name)
-        else:
-            missing.append(l)
-    loras = [s.strip() for s in params.get('LoRA networks', '').split(',')]
-    for l in loras:
-        lora = lora_load.available_network_aliases.get(l, None)
-        if lora is not None:
-            found.append(lora.name)
-        else:
-            missing.append(l)
-    # networks.available_network_aliases.get(name, None)
-    loras = re_lora.findall(params.get('Prompt', ''))
-    for l in loras:
-        lora = lora_load.available_network_aliases.get(l, None)
-        if lora is not None:
-            found.append(lora.name)
-        else:
-            missing.append(l)
-    log.debug(f'LoRA: found={list(set(found))} missing={list(set(missing))}')
-
-
 def parse(infotext):
     if not isinstance(infotext, str):
         return {}
@@ -115,7 +81,6 @@ def parse(infotext):
             params[key] = val
         debug(f'Param parsed: type={type(params[key])} "{key}"={params[key]} raw="{val}"')
 
-    # check_lora(params)
     return params
 
 

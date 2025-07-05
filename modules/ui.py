@@ -67,10 +67,6 @@ def setup_progressbar(*args, **kwargs): # pylint: disable=unused-argument
     pass
 
 
-def ordered_ui_categories():
-    return ['dimensions', 'sampler', 'seed', 'denoising', 'cfg', 'checkboxes', 'accordions', 'override_settings', 'scripts'] # a1111 compatibility item, not implemented
-
-
 def create_ui(startup_timer = None):
     if startup_timer is None:
         timer.startup = timer.Timer()

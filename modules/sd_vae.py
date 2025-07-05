@@ -1,6 +1,5 @@
 import os
 import glob
-from copy import deepcopy
 import torch
 from modules import shared, errors, paths, devices, sd_models, sd_detect
 
@@ -12,35 +11,13 @@ loaded_vae_file = None
 checkpoint_info = None
 vae_path = os.path.abspath(os.path.join(paths.models_path, 'VAE'))
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
+unspecified = object()
 
 
-def get_base_vae(model):
-    if base_vae is not None and checkpoint_info == model.sd_checkpoint_info and model:
-        return base_vae
-    return None
-
-
-def store_base_vae(model):
-    global base_vae, checkpoint_info # pylint: disable=global-statement
-    if checkpoint_info != model.sd_checkpoint_info:
-        assert not loaded_vae_file, "Trying to store non-base VAE!"
-        base_vae = deepcopy(model.first_stage_model.state_dict())
-        checkpoint_info = model.sd_checkpoint_info
-
-
-def delete_base_vae():
-    global base_vae, checkpoint_info # pylint: disable=global-statement
-    base_vae = None
-    checkpoint_info = None
-
-
-def restore_base_vae(model):
-    global loaded_vae_file # pylint: disable=global-statement
-    if base_vae is not None and checkpoint_info == model.sd_checkpoint_info:
-        shared.log.info("Restoring base VAE")
-        _load_vae_dict(model, base_vae)
-        loaded_vae_file = None
-    delete_base_vae()
+def load_vae_dict(filename):
+    vae_ckpt = sd_models.read_state_dict(filename, what='vae')
+    vae_dict_1 = {k: v for k, v in vae_ckpt.items() if k[0:4] != "loss" and k not in vae_ignore_keys}
+    return vae_dict_1
 
 
 def get_filename(filepath):
@@ -112,35 +89,6 @@ def resolve_vae(checkpoint_file):
             return vae_from_options, 'settings'
         shared.log.warning(f"VAE not found: {shared.opts.sd_vae}")
     return None, None
-
-
-def load_vae_dict(filename):
-    vae_ckpt = sd_models.read_state_dict(filename, what='vae')
-    vae_dict_1 = {k: v for k, v in vae_ckpt.items() if k[0:4] != "loss" and k not in vae_ignore_keys}
-    return vae_dict_1
-
-
-def load_vae(model, vae_file=None, vae_source="unknown-source"):
-    global loaded_vae_file # pylint: disable=global-statement
-    if vae_file:
-        try:
-            if not os.path.isfile(vae_file):
-                shared.log.error(f"VAE not found: model={vae_file} source={vae_source}")
-                return
-            store_base_vae(model)
-            vae_dict_1 = load_vae_dict(vae_file)
-            _load_vae_dict(model, vae_dict_1)
-        except Exception as e:
-            shared.log.error(f"Load VAE failed: model={vae_file} source={vae_source} {e}")
-            if debug:
-                errors.display(e, 'VAE')
-            restore_base_vae(model)
-        vae_opt = get_filename(vae_file)
-        if vae_opt not in vae_dict:
-            vae_dict[vae_opt] = vae_file
-    elif loaded_vae_file:
-        restore_base_vae(model)
-    loaded_vae_file = vae_file
 
 
 def apply_vae_config(model_file, vae_file, sd_model):
@@ -217,20 +165,6 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
         if debug:
             errors.display(e, 'VAE')
     return None
-
-
-# don't call this from outside
-def _load_vae_dict(model, vae_dict_1):
-    model.first_stage_model.load_state_dict(vae_dict_1)
-    model.first_stage_model.to(devices.dtype_vae)
-
-
-def clear_loaded_vae():
-    global loaded_vae_file # pylint: disable=global-statement
-    loaded_vae_file = None
-
-
-unspecified = object()
 
 
 def reload_vae_weights(sd_model=None, vae_file=unspecified):

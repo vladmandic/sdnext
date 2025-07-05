@@ -162,9 +162,6 @@ class ExtraNetworksPage:
         preview = f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
-    def is_empty(self, folder):
-        return any(files_cache.list_files(folder, ext_filter=['.ckpt', '.safetensors', '.pt', '.json']))
-
     def create_thumb(self):
         debug(f'EN create-thumb: {self.name}')
         created = 0

@@ -99,20 +99,6 @@ def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None
     return button_interrogate
 
 
-def create_interrogate_buttons(tab): # legacy function
-    button_interrogate = gr.Button(ui_symbols.int_clip, elem_id=f"{tab}_interrogate", elem_classes=['interrogate-clip'])
-    button_deepbooru = gr.Button(ui_symbols.int_blip, elem_id=f"{tab}_deepbooru", elem_classes=['interrogate-blip'])
-    return button_interrogate, button_deepbooru
-
-
-def create_sampler_inputs(tab, accordion=True):
-    with gr.Accordion(open=False, label="Sampler", elem_id=f"{tab}_sampler", elem_classes=["small-accordion"]) if accordion else gr.Group():
-        with gr.Row(elem_id=f"{tab}_row_sampler"):
-            sd_samplers.set_samplers()
-            steps, sampler_index = create_sampler_and_steps_selection(sd_samplers.samplers, tab)
-    return steps, sampler_index
-
-
 def create_batch_inputs(tab, accordion=True):
     with gr.Accordion(open=False, label="Batch", elem_id=f"{tab}_batch", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_row_batch"):

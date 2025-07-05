@@ -620,7 +620,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
         if debug_load:
             shared.log.trace(f'Model components: {list(get_signature(sd_model).values())}')
 
-        from modules.textual_inversion import textual_inversion
+        from modules import textual_inversion
         sd_model.embedding_db = textual_inversion.EmbeddingDatabase()
         sd_model.embedding_db.add_embedding_dir(shared.opts.embeddings_dir)
         sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)

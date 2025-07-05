@@ -115,20 +115,5 @@ def reload_javascript():
     gradio.routes.templates.TemplateResponse = template_response
 
 
-def setup_ui_api(app):
-    from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
-    from typing import List
-
-    class QuicksettingsHint(BaseModel): # pylint: disable=too-few-public-methods
-        name: str = Field(title="Name of the quicksettings field")
-        label: str = Field(title="Label of the quicksettings field")
-
-    def quicksettings_hint():
-        return [QuicksettingsHint(name=k, label=v.label) for k, v in shared.opts.data_labels.items()]
-
-    app.add_api_route("/internal/quicksettings-hint", quicksettings_hint, methods=["GET"], response_model=List[QuicksettingsHint])
-    app.add_api_route("/internal/ping", lambda: {}, methods=["GET"])
-
-
 if not hasattr(shared, 'GradioTemplateResponseOriginal'):
     shared.GradioTemplateResponseOriginal = gradio.routes.templates.TemplateResponse

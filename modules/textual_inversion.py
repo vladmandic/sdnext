@@ -3,9 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
-from PIL import Image
 from modules import shared, devices, errors
-from modules.textual_inversion.image_embedding import embedding_from_b64, extract_image_data_embed
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
 
@@ -241,9 +239,6 @@ class EmbeddingDatabase:
     def add_embedding_dir(self, path):
         self.embedding_dirs[path] = DirWithTextualInversionEmbeddings(path)
 
-    def clear_embedding_dirs(self):
-        self.embedding_dirs.clear()
-
     def register_embedding(self, embedding, model):
         self.word_embeddings[embedding.name] = embedding
         if hasattr(model, 'cond_stage_model'):
@@ -306,45 +301,6 @@ class EmbeddingDatabase:
                     errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
         return
 
-    def load_from_file(self, path, filename):
-        name, ext = os.path.splitext(filename)
-        ext = ext.upper()
-
-        if ext in ['.PNG', '.WEBP', '.JXL', '.AVIF']:
-            if '.preview' in filename.lower():
-                return
-            embed_image = Image.open(path)
-            if hasattr(embed_image, 'text') and 'sd-ti-embedding' in embed_image.text:
-                data = embedding_from_b64(embed_image.text['sd-ti-embedding'])
-            else:
-                data = extract_image_data_embed(embed_image)
-                if not data: # if data is None, means this is not an embeding, just a preview image
-                    return
-        elif ext in ['.BIN', '.PT']:
-            data = torch.load(path, map_location="cpu")
-        elif ext in ['.SAFETENSORS']:
-            data = safetensors.torch.load_file(path, device="cpu")
-        else:
-            return
-
-        # textual inversion embeddings
-        if 'string_to_param' in data:
-            param_dict = data['string_to_param']
-            param_dict = getattr(param_dict, '_parameters', param_dict)  # fix for torch 1.12.1 loading saved file from torch 1.11
-            assert len(param_dict) == 1, 'embedding file has multiple terms in it'
-            emb = next(iter(param_dict.items()))[1]
-        # diffuser concepts
-        elif type(data) == dict and type(next(iter(data.values()))) == torch.Tensor:
-            if len(data.keys()) != 1:
-                self.skipped_embeddings[name] = Embedding(None, name=name, filename=path)
-                return
-            emb = next(iter(data.values()))
-            if len(emb.shape) == 1:
-                emb = emb.unsqueeze(0)
-        else:
-            raise RuntimeError(f"Couldn't identify {filename} as textual inversion embedding")
-
-
     def load_from_dir(self, embdir):
         if not shared.sd_loaded:
             shared.log.info('Skipping embeddings load: model not loaded')
@@ -387,14 +343,3 @@ class EmbeddingDatabase:
             self.previously_displayed_embeddings = displayed_embeddings
             t1 = time.time()
             shared.log.info(f"Network load: type=embeddings loaded={len(self.word_embeddings)} skipped={len(self.skipped_embeddings)} time={t1-t0:.2f}")
-
-
-    def find_embedding_at_position(self, tokens, offset):
-        token = tokens[offset]
-        possible_matches = self.ids_lookup.get(token, None)
-        if possible_matches is None:
-            return None, None
-        for ids, embedding in possible_matches:
-            if tokens[offset:offset + len(ids)] == ids:
-                return embedding, len(ids)
-        return None, None

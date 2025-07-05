@@ -84,10 +84,6 @@ def reset_stats():
         pass
 
 
-def memory_cache():
-    return mem
-
-
 def ram_stats():
     try:
         process = psutil.Process(os.getpid())

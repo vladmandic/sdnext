@@ -48,10 +48,6 @@ def get_value_for_setting(key):
     return gr.update(value=value, **args)
 
 
-def ordered_ui_categories():
-    return ['dimensions', 'sampler', 'seed', 'denoising', 'cfg', 'checkboxes', 'accordions', 'override_settings', 'scripts'] # a1111 compatibility item, not implemented
-
-
 def create_setting_component(key, is_quicksettings=False):
     def fun():
         return shared.opts.data[key] if key in shared.opts.data else shared.opts.data_labels[key].default
@@ -88,7 +84,6 @@ def create_setting_component(key, is_quicksettings=False):
     elif info.folder is not None:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
-            # ui_common.create_browse_button(res, f"folder_{key}")
     else:
         try:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
