@@ -1,7 +1,7 @@
 import os
 import sys
 import argparse
-from modules.paths import data_path
+from modules.paths import data_path, models_path
 
 
 parser = argparse.ArgumentParser(description="SD.Next", conflict_handler='resolve', epilog='For other options see UI Settings page', prog='', add_help=True, formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=55, indent_increment=2, width=200))
@@ -66,7 +66,7 @@ def compatibility_args():
     # removed args are added here as hidden in fixed format for compatbility reasons
     group_compat = parser.add_argument_group('Compatibility options')
     group_compat.add_argument('--backend', type=str, choices=['diffusers', 'original'], help=argparse.SUPPRESS)
-    group_compat.add_argument('--hypernetwork-dir', default='.', help=argparse.SUPPRESS)
+    group_compat.add_argument('--hypernetwork-dir', default=os.path.join(models_path, 'hypernetworks'), help=argparse.SUPPRESS)
     group_compat.add_argument("--allow-code", default=os.environ.get("SD_ALLOWCODE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--enable_insecure_extension_access", default=os.environ.get("SD_INSECURE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--use-cpu", nargs='+', default=[], type=str.lower, help=argparse.SUPPRESS)
