@@ -12,13 +12,33 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from transformers import ImageProcessingMixin
 
 
-def img_to_pixelart(image: PipelineImageInput, block_size: int = 8, return_type: str = "pil", device: torch.device = "cpu") -> PipelineImageInput:
+def img_to_pixelart(image: PipelineImageInput, sharpen: float = 0, block_size: int = 8, return_type: str = "pil", device: torch.device = "cpu") -> PipelineImageInput:
     block_size_sq = block_size * block_size
     processor = JPEGEncoder(block_size=block_size, cbcr_downscale=1)
     new_image = processor.encode(image, device=device)
-    new_image[:,1:block_size_sq,:,:] = 0
-    new_image[:,1+block_size_sq:block_size_sq*2,:,:] = 0
-    new_image[:,1+(block_size_sq*2):,:,:] = 0
+    y = new_image[:,0,:,:].unsqueeze(1)
+    cb = new_image[:,block_size_sq,:,:].unsqueeze(1)
+    cr = new_image[:,block_size_sq*2,:,:].unsqueeze(1)
+
+    if sharpen > 0:
+        ycbcr = torch.cat([y,cb,cr], dim=1)
+        laplacian_kernel = torch.tensor(
+            [
+                [[[ 0, 1, 0], [1, -4, 1], [ 0, 1, 0]]],
+                [[[ 0, 1, 0], [1, -4, 1], [ 0, 1, 0]]],
+                [[[ 0, 1, 0], [1, -4, 1], [ 0, 1, 0]]],
+            ],
+            dtype=torch.float32,
+        ).to(device)
+        ycbcr = ycbcr - (sharpen * torch.nn.functional.conv2d(ycbcr, laplacian_kernel, padding=1, groups=3))
+        y = ycbcr[:,0,:,:].unsqueeze(1)
+        cb = ycbcr[:,1,:,:].unsqueeze(1)
+        cr = ycbcr[:,2,:,:].unsqueeze(1)
+
+    new_image = torch.zeros_like(new_image)
+    new_image[:,0,:,:] = y
+    new_image[:,block_size_sq,:,:] = cb
+    new_image[:,block_size_sq*2,:,:] = cr
     new_image = processor.decode(new_image, return_type=return_type)
     return new_image
 
@@ -50,7 +70,7 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
     weight_map = weight_map * image_weight
 
     new_image = (new_image * weight_map) + (min_pool * (1-weight_map))
-    new_image = new_image.permute(0,2,3,1) * 255
+    new_image = new_image.permute(0,2,3,1).clamp(0, 1) * 255
     return new_image
 
 

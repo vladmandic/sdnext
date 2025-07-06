@@ -13,10 +13,18 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
             with gr.Row():
                 pixelart_block_size = gr.Slider(minimum=2, maximum=64, step=1, value=8, label="PixelArt block size", elem_id="extras_pixelart_block_size")
                 pixelart_edge_block_size = gr.Slider(minimum=2, maximum=64, step=1, value=4, label="PixelArt block size for edge detection", elem_id="extras_pixelart_edge_block_size")
-                pixelart_image_weight = gr.Slider(minimum=0, maximum=2.0, step=0.05, value=1.0, label="PixelArt edge detection image weight", elem_id="extras_pixelart_image_weight")
-        return { "pixelart_enabled": pixelart_enabled, "pixelart_block_size": pixelart_block_size, "pixelart_edge_block_size": pixelart_edge_block_size, "pixelart_use_edge_detection": pixelart_use_edge_detection, "pixelart_image_weight": pixelart_image_weight }
+                pixelart_image_weight = gr.Slider(minimum=0.0, maximum=2.0, step=0.01, value=1.0, label="PixelArt edge detection image weight", elem_id="extras_pixelart_image_weight")
+                pixelart_sharpen_amount = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.1, label="PixelArt sharpen amount", elem_id="extras_pixelart_sharpen_amount")
+        return {
+            "pixelart_enabled": pixelart_enabled,
+            "pixelart_block_size": pixelart_block_size,
+            "pixelart_edge_block_size": pixelart_edge_block_size,
+            "pixelart_use_edge_detection": pixelart_use_edge_detection,
+            "pixelart_image_weight": pixelart_image_weight,
+            "pixelart_sharpen_amount": pixelart_sharpen_amount,
+        }
 
-    def process(self, pp: scripts_postprocessing.PostprocessedImage, pixelart_enabled: bool, pixelart_use_edge_detection: bool, pixelart_block_size: int, pixelart_edge_block_size: int, pixelart_image_weight: float):
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, pixelart_enabled: bool, pixelart_use_edge_detection: bool, pixelart_block_size: int, pixelart_edge_block_size: int, pixelart_image_weight: float, pixelart_sharpen_amount: float):
         if not pixelart_enabled:
             return
         from modules.postprocess.pixelart import img_to_pixelart, edge_detect_for_pixelart
@@ -27,7 +35,7 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
             pixel_image = edge_detect_for_pixelart(pixel_image, image_weight=pixelart_image_weight, block_size=pixelart_edge_block_size, device=device)
             pp.info["PixelArt edge block size"] = pixelart_edge_block_size
 
-        pixel_image = img_to_pixelart(pixel_image, block_size=pixelart_block_size, device=device)
+        pixel_image = img_to_pixelart(pixel_image, sharpen=pixelart_sharpen_amount, block_size=pixelart_block_size, device=device)
         if len(pixel_image) == 1:
             pixel_image = pixel_image[0]
         pp.image = pixel_image

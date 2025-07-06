@@ -56,6 +56,7 @@ And (as always) many bugfixes and improvements to existing features!
   - Control add setting to run hires with or without control  
   - Update OpenVINO to 2025.2.0  
   - Simplified and unified quantization enabled for options  
+  - Add PixelArt filter to processing tab  
 - **SDNQ Quantization**  
   - Add `auto` quantization mode  
   - Add `modules_to_not_convert` support for post mode  
