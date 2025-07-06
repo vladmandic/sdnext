@@ -354,7 +354,13 @@ def create_html(search_text, sort_column):
         visible = 'table-row'
         if search_text:
             s = search_text.strip().lower()
-            if s not in html.escape(ext.get("name", "unknown")).lower() and s not in html.escape(ext.get("description", "")).lower() and s not in html.escape(tags_string).lower() and s not in author.lower():
+            if (
+                s not in html.escape(ext.get("name", "unknown")).lower()
+                and s not in html.escape(ext.get("description", "")).lower()
+                and s not in html.escape(ext.get("url", "")).lower()
+                and s not in html.escape(tags_string).lower()
+                and s not in author.lower()
+               ):
                 stats['hidden'] += 1
                 visible = 'none'
         stats['processed'] += 1

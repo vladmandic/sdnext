@@ -115,6 +115,11 @@ def post_reload_checkpoint(force:bool=False):
     sd_models.reload_model_weights()
     return {}
 
+def post_lock_checkpoint(lock:bool=False):
+    from modules import modeldata
+    modeldata.model_data.locked = lock
+    return {}
+
 def get_checkpoint():
     if not shared.sd_loaded or shared.sd_model is None:
         checkpoint = {

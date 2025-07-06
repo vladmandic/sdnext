@@ -12,7 +12,6 @@
     *relighting*: automatic background replacement with reglighting so source image fits desired background  
     with optional composite blending  
     available in *img2img or control -> scripts*  
-  - **TAESD** is now default preview type since its the only one that supports most new models  
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
   - Support **FLUX.1** all-in-one safetensors  
   - Support TAESD preview and remote VAE for **HunyuanDit**  
@@ -25,14 +24,22 @@
     enable in *settings -> compute settings -> sdp options*  
     *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
     until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
+- **Other**  
+  - **TAESD** is now default preview type since its the only one that supports most new models  
+  - SD.Next now starts with *locked* state preventing model loading until startup is complete  
+- **API**  
+  - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
+    if model is locked, it cannot be changed using normal load or unload methods  
 - **Fixes**
   - allow theme type `None` to be set in config  
   - installer dont cache installed state  
   - fix Cosmos-Predict2 retrying TAESD download  
   - better handle startup import errors  
+  - fix ansi controle output from scripts/extensions  
   - fix diffusers models non-unique hash  
   - fix loading of manually downloaded diffuser models  
   - fix api `/sdapi/v1/embeddings` endpoint
+  - improve extensions ui search  
   - improve model type autodetection  
   - improve model auth check for hf repos  
   - improve Chroma prompt padding as per recommendations  

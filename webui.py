@@ -13,7 +13,7 @@ import modules.loader
 import modules.hashes
 
 from installer import log, git_commit, custom_excepthook
-from modules import timer, paths, shared, extensions, gr_tempdir, modelloader
+from modules import timer, paths, shared, extensions, gr_tempdir, modelloader, modeldata
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.devices
 import modules.sd_checkpoint
@@ -146,6 +146,7 @@ def initialize():
 
 
 def load_model():
+    modeldata.model_data.locked = False
     if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
         log.info('Model: autoload=False')
     else:

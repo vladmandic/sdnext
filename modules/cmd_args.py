@@ -65,7 +65,8 @@ def main_args():
 def compatibility_args():
     # removed args are added here as hidden in fixed format for compatbility reasons
     group_compat = parser.add_argument_group('Compatibility options')
-    group_compat.add_argument('--backend', type=str, default=os.environ.get("SD_BACKEND", None), choices=['diffusers', 'original'], required=False, help='obsolete')
+    group_compat.add_argument('--backend', type=str, choices=['diffusers', 'original'], help=argparse.SUPPRESS)
+    group_compat.add_argument('--hypernetwork-dir', default='.', help=argparse.SUPPRESS)
     group_compat.add_argument("--allow-code", default=os.environ.get("SD_ALLOWCODE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--enable_insecure_extension_access", default=os.environ.get("SD_INSECURE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--use-cpu", nargs='+', default=[], type=str.lower, help=argparse.SUPPRESS)
