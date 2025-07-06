@@ -34,9 +34,9 @@ def parse(infotext):
     debug(f'Raw: {infotext}')
 
     remaining = infotext.replace('\nSteps:', ' Steps:')
-    params = [' steps:', ' seed:', ' width:', ' height:', ' sampler:', ' size:', ' cfg scale:'] # first param is one of those
-    params += ['\nsteps:', '\nseed:', '\nwidth:', '\nheight:', '\nsampler:', '\nsize:', '\ncfg scale:']
-    params += ['.steps:', '.seed:', '.width:', '.height:', '.sampler:', '.size:', '.cfg scale:']
+    params = [' steps:', ' seed:', ' width:', ' height:', ' sampler:', ' size:', ' cfg scale:', ' pipeline:'] # first param is one of those
+    params += ['\nsteps:', '\nseed:', '\nwidth:', '\nheight:', '\nsampler:', '\nsize:', '\ncfg scale:', '\npipeline:']
+    params += ['.steps:', '.seed:', '.width:', '.height:', '.sampler:', '.size:', '.cfg scale:', '.pipeline:']
 
     prompt_end = [remaining.lower().find(p) for p in params if p in remaining.lower()]
     prompt_end += [remaining.lower().find('negative prompt:')]

@@ -1,5 +1,6 @@
 from PIL import Image
 from modules.upscaler import Upscaler, UpscalerData
+from modules.shared import log
 
 
 class UpscalerNone(Upscaler):
@@ -71,7 +72,8 @@ class UpscalerLatent(Upscaler):
         if isinstance(img, torch.Tensor) and (len(img.shape) == 4):
             _batch, _channel, h, w = img.shape
         else:
-            raise ValueError(f"Latent upscale: image={img.shape if isinstance(img, torch.Tensor) else img} type={type(img)} if not supported")
+            log.error(f"Upscale: type=latent image={img.shape if isinstance(img, torch.Tensor) else img} type={type(img)} if not supported")
+            return img
         h, w = int((8 * h * self.scale) // 8), int((8 * w * self.scale) // 8)
         mode, antialias = '', ''
         if selected_model == "Latent Nearest":
@@ -89,7 +91,8 @@ class UpscalerLatent(Upscaler):
         elif selected_model == "Latent Bicubic antialias":
             mode, antialias = 'bicubic', True
         else:
-            raise ValueError(f"Latent upscale: model={selected_model} unknown")
+            raise log.error(f"Upscale: type=latent model={selected_model} unknown")
+            return img
         return F.interpolate(img, size=(h, w), mode=mode, antialias=antialias)
 
 

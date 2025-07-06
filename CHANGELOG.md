@@ -40,7 +40,8 @@
   - fix ansi controle output from scripts/extensions  
   - fix diffusers models non-unique hash  
   - fix loading of manually downloaded diffuser models  
-  - fix api `/sdapi/v1/embeddings` endpoint
+  - fix api `/sdapi/v1/embeddings` endpoint  
+  - improve infotext param parsing  
   - improve extensions ui search  
   - improve model type autodetection  
   - improve model auth check for hf repos  
