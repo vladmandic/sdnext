@@ -12,6 +12,7 @@ from modules.detailer import Detailer
 predefined = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/main>
     'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/face-yolo8n.pt',
+    'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/face-yolo8m.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/hand_yolov8n.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/person_yolov8n-seg.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/eyes-v1.pt',
