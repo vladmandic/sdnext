@@ -11,6 +11,7 @@ __pycache__
 /webui-user.sh
 /html/extensions.json
 /html/themes.json
+config_states
 node_modules
 pnpm-lock.yaml
 package-lock.json

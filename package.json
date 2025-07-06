@@ -19,7 +19,7 @@
     "venv": ". venv/bin/activate",
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
-    "eslint": "eslint javascript/ extensions-builtin/sdnext-modernui/javascript/",
+    "eslint": "eslint . javascript/ extensions-builtin/sdnext-modernui/javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "format": ". venv/bin/activate && pre-commit run -a",

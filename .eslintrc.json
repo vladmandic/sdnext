@@ -1,20 +1,26 @@
 {
+  "root": true,
   "parserOptions": {
-    "ecmaVersion": 2020
+    "ecmaVersion": "latest",
+    "sourceType": "module"
   },
-  "plugins": ["html", "json"],
+  "plugins": [
+    "html",
+    "json"
+  ],
   "extends": [
-    "plugin:json/recommended",
-    "plugin:node/recommended",
     "eslint:recommended",
-    "airbnb-base"
+    "airbnb-base",
+    "plugin:css/recommended",
+    "plugin:json/recommended",
+    "plugin:node/recommended"
   ],
   "env": {
     "browser": true,
     "commonjs": false,
     "node": false,
     "jquery": false,
-    "es2020": true
+    "es2021": true
   },
   "rules": {
     "max-len": [1, 275, 3],
@@ -29,6 +35,7 @@
     "no-loop-func":"off",
     "no-mixed-operators":"off",
     "no-param-reassign":"off",
+    "no-process-exit":"off",
     "no-plusplus":"off",
     "no-restricted-globals":"off",
     "no-restricted-syntax":"off",

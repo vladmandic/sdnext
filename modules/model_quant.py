@@ -228,7 +228,7 @@ def load_bnb(msg='', silent=False):
     if not installed('bitsandbytes'):
         if devices.backend == 'cuda':
             # forcing a version will uninstall the multi-backend-refactor branch of bnb
-            install('bitsandbytes==0.45.5', quiet=True)
+            install('bitsandbytes==0.46.1', quiet=True)
             log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
