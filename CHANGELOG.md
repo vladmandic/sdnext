@@ -25,6 +25,8 @@
     *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
     until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
 - **Other**  
+  - **Styles** can now include both generation params and server settings  
+    see [Styles wiki](https://github.com/vladmandic/sdnext/wiki/Styles) for details  
   - **TAESD** is now default preview type since its the only one that supports most new models  
   - SD.Next now starts with *locked* state preventing model loading until startup is complete  
 - **API**  
