@@ -28,14 +28,13 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
         if not pixelart_enabled:
             return
         from modules.postprocess.pixelart import img_to_pixelart, edge_detect_for_pixelart
-        device = devices.device if devices.backend != "ipex" else devices.cpu
         pixel_image = pp.image
 
         if pixelart_use_edge_detection:
-            pixel_image = edge_detect_for_pixelart(pixel_image, image_weight=pixelart_image_weight, block_size=pixelart_edge_block_size, device=device)
+            pixel_image = edge_detect_for_pixelart(pixel_image, image_weight=pixelart_image_weight, block_size=pixelart_edge_block_size, device=devices.device)
             pp.info["PixelArt edge block size"] = pixelart_edge_block_size
 
-        pixel_image = img_to_pixelart(pixel_image, sharpen=pixelart_sharpen_amount, block_size=pixelart_block_size, device=device)
+        pixel_image = img_to_pixelart(pixel_image, sharpen=pixelart_sharpen_amount, block_size=pixelart_block_size, device=devices.device)
         if len(pixel_image) == 1:
             pixel_image = pixel_image[0]
         pp.image = pixel_image
