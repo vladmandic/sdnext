@@ -25,6 +25,8 @@ vlm_models = {
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
     "Moondream 2": "vikhyatk/moondream2", # 3.7GB
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
+    "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
+    "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "Alibaba Qwen VL2 2B": "Qwen/Qwen2-VL-2B-Instruct",
@@ -168,7 +170,11 @@ def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: st
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        model = transformers.Gemma3ForConditionalGeneration.from_pretrained(
+        if '3n' in repo:
+            cls = transformers.Gemma3nForConditionalGeneration
+        else:
+            cls = transformers.Gemma3ForConditionalGeneration
+        model = cls.from_pretrained(
             repo,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,

@@ -12,7 +12,8 @@ We also switched project license to **Apache-2.0** which means that SD.Next is n
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
-- Compute improvements with support for **SageAttention2++**  
+- New LLM/VLM models available for captioning and prompt enhance  
+- Compute improvements  
 
 And (as always) many bugfixes and improvements to existing features!  
 
@@ -35,7 +36,8 @@ Although upgrades and existing installations are tested and should work fine!
     available in *img2img or control -> scripts*  
   - Add **FLUX.1-Kontext-Dev** inpaint workflow  
   - Support **FLUX.1** all-in-one safetensors  
-  - Support TAESD preview and remote VAE for **HunyuanDit**  
+  - Support **TAESD** preview and remote VAE for **HunyuanDit**  
+  - Support for [Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models in **prompt enhance** and process **captioning**  
 - **UI**  
   - major update to modernui layout  
   - redesign of the Flat UI theme  

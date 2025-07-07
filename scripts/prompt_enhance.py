@@ -35,6 +35,8 @@ class Options:
     models = {
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
+        'google/gemma-3n-E2B-it': {},
+        'google/gemma-3n-E4B-it': {},
         'Qwen/Qwen3-0.6B-FP8': {},
         'Qwen/Qwen3-1.7B-FP8': {},
         'Qwen/Qwen3-4B-FP8': {},
