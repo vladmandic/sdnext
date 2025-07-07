@@ -1,10 +1,31 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-05
+## Update for 2025-07-07
+
+### Highlights for 2025-07-07
+
+In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
+This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~680 files](https://github.com/vladmandic/sdnext/pull/4017)!  
+
+We also switched project license to **Apache-2.0** which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+
+Feature highlights include:  
+- **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
+- New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
+- Compute improvements with support for **SageAttention2++**  
+
+And (as always) many bugfixes and improvements to existing features!  
+
+*Note*: We recommend clean install for this release due to sheer size of changes  
+Although upgrades and existing installations are tested and should work fine!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-07-07
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
-    this means that SD.Next is now fully compatible with commercial use and redistribution regardless of modifications!  
+    this means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 - **Models**
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
     very fast automatic image background replacement methods with relightning!  
@@ -18,6 +39,8 @@
 - **UI**  
   - major update to modernui layout  
   - redesign of the Flat UI theme  
+- **WIKI**  
+  - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
@@ -26,7 +49,7 @@
     until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
 - **Other**  
   - **Styles** can now include both generation params and server settings  
-    see [Styles wiki](https://github.com/vladmandic/sdnext/wiki/Styles) for details  
+    see [Styles docs](https://vladmandic.github.io/sdnext-docs/Styles/) for details  
   - **TAESD** is now default preview type since its the only one that supports most new models  
   - SD.Next now starts with *locked* state preventing model loading until startup is complete  
 - **API**  
@@ -128,7 +151,7 @@ And (as always) many bugfixes and improvements to existing features!
   - Control add setting to run hires with or without control  
   - Update OpenVINO to 2025.2.0  
   - Simplified and unified quantization enabled for options  
-  - Add PixelArt filter to processing tab  
+  - Add **PixelArt** filter to processing tab  
 - **SDNQ Quantization**  
   - Add `auto` quantization mode  
   - Add `modules_to_not_convert` support for post mode  
