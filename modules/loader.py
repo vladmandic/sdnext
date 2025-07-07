@@ -18,10 +18,16 @@ np = None
 try:
     import numpy as np # pylint: disable=W0611,C0411
     import numpy.random # pylint: disable=W0611,C0411 # this causes failure if numpy version changed
+    def obj2sctype(obj):
+        return np.dtype(obj).type
+    np.obj2sctype = obj2sctype # noqa: NPY201
+    np.bool8 = np.bool
+    np.float_ = np.float64 # noqa: NPY201
 except Exception as e:
     errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
+timer.startup.record("numpy")
 
 try:
     import scipy # pylint: disable=W0611,C0411
@@ -29,6 +35,7 @@ except Exception as e:
     errors.log.error(f'Loader: scipy=={np.__version__ if np is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
+timer.startup.record("scipy")
 
 import torch # pylint: disable=C0411
 if torch.__version__.startswith('2.5.0'):
@@ -64,12 +71,12 @@ if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)
 timer.startup.record("torch")
 
-
 try:
     import bitsandbytes # pylint: disable=W0611,C0411
 except Exception:
     from diffusers.utils import import_utils
     import_utils._bitsandbytes_available = False # pylint: disable=protected-access
+timer.startup.record("bnb")
 
 import transformers # pylint: disable=W0611,C0411
 from transformers import logging as transformers_logging # pylint: disable=W0611,C0411

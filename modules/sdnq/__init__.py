@@ -54,7 +54,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         else:
             is_linear_type = True
             reduction_axes = -1
-            output_channel_size, channel_size = layer.weight.shape
+            try:
+                output_channel_size, channel_size = layer.weight.shape
+            except Exception as e:
+                raise ValueError(f"SDNQ: layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
             if use_quantized_matmul:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul:

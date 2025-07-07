@@ -93,7 +93,8 @@ Although upgrades and existing installations are tested and should work fine!
   - override `gradio` installer  
   - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
   - patch `insightface`  
-  - patch `facelib`
+  - patch `facelib`  
+  - patch `numpy`  
   - stronger lint rules  
     add separate `npm run lint`, `npm run todo`, `npm run test`, `npm run format` macros  
 

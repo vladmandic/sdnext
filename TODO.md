@@ -4,16 +4,15 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- Bug: FramePack with SQND  
+
 ## Future Candidates
 
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
 - Feature: Merge FramePack into core  
 - Refactor: sampler options  
-- Refactor: cleanup `/repositories/codeformer`  
-- Remove: Agent Scheduler  
 - Video: API support  
-- ModernUI: Lite vs Expert mode  
 
 ### Blocked items
 
@@ -32,6 +31,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
+- Remove: Agent Scheduler  
+- ModernUI: Lite vs Expert mode  
 
 ### Future Considerations
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
