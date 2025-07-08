@@ -2,7 +2,7 @@
 
 ## Update for 2025-07-07
 
-### Highlights for 2025-07-07
+### Highlights for 2025-07-08
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
 This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~680 files](https://github.com/vladmandic/sdnext/pull/4017)!  

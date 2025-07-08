@@ -22,6 +22,7 @@ import modules.scripts_manager
 import modules.sd_models
 import modules.sd_vae
 import modules.sd_unet
+import modules.sd_hijack
 import modules.model_te
 import modules.progress
 import modules.ui
