@@ -56,8 +56,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "CFG true": p.pag_scale if p.pag_scale > 1 else None,
         "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
-        "Model": None if (not shared.opts.add_model_name_to_info) or (not shared.sd_model.sd_checkpoint_info.model_name) else shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', ''),
-        "Model hash": getattr(p, 'sd_model_hash', None if (not shared.opts.add_model_hash_to_info) or (not shared.sd_model.sd_model_hash) else shared.sd_model.sd_model_hash),
         "Refiner prompt": p.refiner_prompt if len(p.refiner_prompt) > 0 else None,
         "Refiner negative": p.refiner_negative if len(p.refiner_negative) > 0 else None,
         "Styles": "; ".join(p.styles) if p.styles is not None and len(p.styles) > 0 else None,
@@ -67,17 +65,20 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Comment": comment,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
     }
+    if shared.opts.add_model_name_to_info:
+        if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
+            args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
+    if shared.opts.add_model_hash_to_info:
+        if getattr(p, 'sd_model_hash', None) is not None:
+            args["Model hash"] = p.sd_model_hash
+        elif getattr(shared.sd_model, 'sd_model_hash', None) is not None:
+            args["Model hash"] = shared.sd_model.sd_model_hash
     if p.vae_type == 'Full':
         args["VAE"] = (None if not shared.opts.add_model_name_to_info or sd_vae.loaded_vae_file is None else os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0])
     elif p.vae_type == 'Tiny':
         args["VAE"] = 'TAESD'
     elif p.vae_type == 'Remote':
         args["VAE"] = 'Remote'
-    if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
-        args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-    if getattr(shared.sd_model, 'sd_model_hash', None) is not None:
-        args["Model hash"] = shared.sd_model.sd_model_hash
-    # native
     if grid is None and (p.n_iter > 1 or p.batch_size > 1) and index >= 0:
         args['Index'] = f'{p.iteration + 1}x{index + 1}'
     if grid is not None:
