@@ -488,7 +488,6 @@ function setupExtraNetworksForTab(tabname) {
           en.style.top = '13em';
           en.style.transition = 'width 0.3s ease';
           en.style.zIndex = 100;
-          // gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = `${100 - 2 - window.opts.extra_networks_sidebar_width}vw`;
           gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = `calc(100vw - 2em - min(${window.opts.extra_networks_sidebar_width}vw, 50vw))`;
         } else {
           en.style.position = 'relative';
@@ -506,6 +505,7 @@ function setupExtraNetworksForTab(tabname) {
         if (window.opts.extra_networks_card_cover === 'sidebar') en.style.width = 0;
         gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = 'unset';
       }
+      if (tabname === 'video') gradioApp().getElementById('framepack_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
     }
   });
   intersectionObserver.observe(en); // monitor visibility

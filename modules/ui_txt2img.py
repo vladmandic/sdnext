@@ -21,7 +21,7 @@ def create_ui():
             timer.startup.record('ui-networks')
 
         with gr.Row(elem_id="txt2img_interface", equal_height=False):
-            with gr.Column(variant='compact', elem_id="txt2img_settings"):
+            with gr.Column(variant='compact', elem_id="txt2img_settings", elem_classes=['settings-column']):
 
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('txt2img')

@@ -10,7 +10,7 @@ from torch.nn import functional as F
 
 try:
     from timm.models.layers import trunc_normal_
-except:
+except Exception:
     from timm.layers import trunc_normal_
 
 from .rope import VisionRotaryEmbedding, VisionRotaryEmbeddingFast

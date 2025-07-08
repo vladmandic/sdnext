@@ -129,7 +129,7 @@ def create_ui(_blocks: gr.Blocks=None):
             with gr.Row(elem_id='control_status'):
                 result_txt = gr.HTML(elem_classes=['control-result'], elem_id='control-result')
 
-            with gr.Row(elem_id='control_settings'):
+            with gr.Row(elem_id='control_settings', elem_classes=['settings-column']):
 
                 state = gr.Textbox(value='', visible=False)
 

@@ -1001,5 +1001,5 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     return ui
 
 
-def setup_ui(ui, gallery):
+def setup_ui(ui, gallery: gr.Gallery = None):
     ui.gallery = gallery

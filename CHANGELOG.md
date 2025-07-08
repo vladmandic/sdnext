@@ -38,6 +38,7 @@ Although upgrades and existing installations are tested and should work fine!
   - Support **FLUX.1** all-in-one safetensors  
   - Support **TAESD** preview and remote VAE for **HunyuanDit**  
   - Support for [Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models in **prompt enhance** and process **captioning**  
+  - **FramePack** support is now fully integrated instead of being a separate extension  
 - **UI**  
   - major update to modernui layout  
   - redesign of the Flat UI theme  

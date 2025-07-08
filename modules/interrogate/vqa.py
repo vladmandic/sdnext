@@ -164,14 +164,11 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
 
 def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
     global processor, model, loaded # pylint: disable=global-statement
-    if not hasattr(transformers, 'Gemma3ForConditionalGeneration'):
-        shared.log.error(f'Interrogate: vlm="{repo}" gemma is not available')
-        return ''
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
         if '3n' in repo:
-            cls = transformers.Gemma3nForConditionalGeneration
+            cls = transformers.Gemma3nForConditionalGeneration # pylint: disable=no-member
         else:
             cls = transformers.Gemma3ForConditionalGeneration
         model = cls.from_pretrained(

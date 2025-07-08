@@ -264,6 +264,25 @@ function submit_video(...args) {
   return res;
 }
 
+function submit_framepack(...args) {
+  const id = randomId();
+  log('submitFramepack', id);
+  requestProgress(id, null, null);
+  window.submit_state = '';
+  args[0] = id;
+  return args;
+}
+
+function submit_video_wrapper(...args) {
+  log('submitVideoWrapper', args);
+  if (!args || args.length === 0) {
+    log('submitVideoWrapper: no args');
+    return;
+  }
+  const btn = gradioApp().getElementById(`${args[0]}_generate_btn`);
+  if (btn) btn.click();
+}
+
 function submit_postprocessing(...args) {
   log('SubmitExtras');
   clearGallery('extras');

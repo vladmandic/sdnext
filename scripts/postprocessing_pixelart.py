@@ -24,7 +24,7 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
             "pixelart_sharpen_amount": pixelart_sharpen_amount,
         }
 
-    def process(self, pp: scripts_postprocessing.PostprocessedImage, pixelart_enabled: bool, pixelart_use_edge_detection: bool, pixelart_block_size: int, pixelart_edge_block_size: int, pixelart_image_weight: float, pixelart_sharpen_amount: float):
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, pixelart_enabled: bool, pixelart_use_edge_detection: bool, pixelart_block_size: int, pixelart_edge_block_size: int, pixelart_image_weight: float, pixelart_sharpen_amount: float): # pylint: disable=arguments-differ
         if not pixelart_enabled:
             return
         from modules.postprocess.pixelart import img_to_pixelart, edge_detect_for_pixelart

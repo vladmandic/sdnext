@@ -47,7 +47,7 @@ def create_ui():
             timer.startup.record('ui-networks')
 
         with gr.Row(elem_id="img2img_interface", equal_height=False):
-            with gr.Column(variant='compact', elem_id="img2img_settings"):
+            with gr.Column(variant='compact', elem_id="img2img_settings", elem_classes=['settings-column']):
                 copy_image_buttons = []
                 copy_image_destinations = {}
 

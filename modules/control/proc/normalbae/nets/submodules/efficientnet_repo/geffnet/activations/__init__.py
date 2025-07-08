@@ -58,8 +58,8 @@ _ACT_LAYER_ME = dict(
     hard_sigmoid=HardSigmoidMe
 )
 
-_OVERRIDE_FN = dict()
-_OVERRIDE_LAYER = dict()
+_OVERRIDE_FN = {}
+_OVERRIDE_LAYER = {}
 
 
 def add_override_act_fn(name, fn):
@@ -75,7 +75,7 @@ def update_override_act_fn(overrides):
 
 def clear_override_act_fn():
     global _OVERRIDE_FN
-    _OVERRIDE_FN = dict()
+    _OVERRIDE_FN = {}
 
 
 def add_override_act_layer(name, fn):
@@ -90,7 +90,7 @@ def update_override_act_layer(overrides):
 
 def clear_override_act_layer():
     global _OVERRIDE_LAYER
-    _OVERRIDE_LAYER = dict()
+    _OVERRIDE_LAYER = {}
 
 
 def get_act_fn(name='relu'):

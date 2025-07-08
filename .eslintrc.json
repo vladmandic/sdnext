@@ -49,15 +49,12 @@
     "node/shebang": "off"
   },
   "globals": {
-    // asssets
     "panzoom": "readonly",
-    // logger.js
     "log": "readonly",
     "debug": "readonly",
     "error": "readonly",
     "xhrGet": "readonly",
     "xhrPost": "readonly",
-    // script.js
     "gradioApp": "readonly",
     "executeCallbacks": "readonly",
     "onAfterUiUpdate": "readonly",
@@ -73,11 +70,8 @@
     "getUICurrentTabContent": "readonly",
     "waitForFlag": "readonly",
     "logFn": "readonly",
-    // contextmenus.js
     "generateForever": "readonly",
-    // contributors.js
     "showContributors": "readonly",
-    // ui.js
     "opts": "writable",
     "sortUIElements": "readonly",
     "all_gallery_buttons": "readonly",
@@ -97,40 +91,29 @@
     "toggleCompact": "readonly",
     "setFontSize": "readonly",
     "setTheme": "readonly",
-    // settings.js
     "registerDragDrop": "readonly",
-    // extraNetworks.js
     "getENActiveTab": "readonly",
     "quickApplyStyle": "readonly",
     "quickSaveStyle": "readonly",
     "setupExtraNetworks": "readonly",
     "showNetworks": "readonly",
-    // from python
     "localization": "readonly",
-    // progressbar.js
     "randomId": "readonly",
     "requestProgress": "readonly",
     "setRefreshInterval": "readonly",
-    // imageviewer.js
     "modalPrevImage": "readonly",
     "modalNextImage": "readonly",
     "galleryClickEventHandler": "readonly",
     "getExif": "readonly",
-    // logMonitor.js
     "jobStatusEl": "readonly",
-    // loader.js
     "removeSplash": "readonly",
-    // nvml.js
     "initNVML": "readonly",
     "disableNVML": "readonly",
-    // indexdb.js
     "idbGet": "readonly",
     "idbPut": "readonly",
     "idbDel": "readonly",
     "idbAdd": "readonly",
-    // changelog.js
     "initChangelog": "readonly",
-    // notification.js
     "sendNotification": "readonly"
   },
   "ignorePatterns": [

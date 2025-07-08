@@ -362,7 +362,7 @@ class InstantIRPipeline(
             f'{k.replace("unet.", "")}': v for k, v in lora_state_dict.items() if k.startswith("unet.")
         }
         unet_state_dict = convert_unet_state_dict_to_peft(unet_state_dict)
-        lora_state_dict = dict()
+        lora_state_dict = {}
         for k, v in unet_state_dict.items():
             if "ip" in k:
                 k = k.replace("attn2", "attn2.processor")

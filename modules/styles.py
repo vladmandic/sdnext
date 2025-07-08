@@ -171,7 +171,7 @@ def apply_styles_to_extra(p, style: Style):
             k = name_map[k]
         if k in name_exclude: # exclude some fields
             continue
-        elif hasattr(p, k):
+        if hasattr(p, k):
             orig = getattr(p, k)
             if (type(orig) != type(v)) and (orig is not None):
                 if not (type(orig) == int and type(v) == float): # dont convert float to int

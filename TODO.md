@@ -4,13 +4,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- Bug: FramePack with SQND  
-
 ## Future Candidates
 
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
-- Feature: Merge FramePack into core  
 - Refactor: sampler options  
 - Video: API support  
 

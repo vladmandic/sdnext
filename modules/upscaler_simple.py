@@ -92,7 +92,6 @@ class UpscalerLatent(Upscaler):
             mode, antialias = 'bicubic', True
         else:
             raise log.error(f"Upscale: type=latent model={selected_model} unknown")
-            return img
         return F.interpolate(img, size=(h, w), mode=mode, antialias=antialias)
 
 
@@ -170,7 +169,6 @@ class UpscalerVIPS(Upscaler):
         if selected_model is None:
             return img
         from installer import install
-        from modules.shared import log
         install('pyvips')
         try:
             import pyvips
