@@ -1,6 +1,6 @@
 # (Generic) EfficientNets for PyTorch
 
-A 'generic' implementation of EfficientNet, MixNet, MobileNetV3, etc. that covers most of the compute/parameter efficient architectures derived from the MobileNet V1/V2 block sequence, including those found via automated neural architecture search. 
+A 'generic' implementation of EfficientNet, MixNet, MobileNetV3, etc. that covers most of the compute/parameter efficient architectures derived from the MobileNet V1/V2 block sequence, including those found via automated neural architecture search.
 
 All models are implemented by GenEfficientNet or MobileNetV3 classes, with string based architecture definitions to configure the block layouts (idea from [here](https://github.com/tensorflow/tpu/blob/master/models/official/mnasnet/mnasnet_models.py))
 
@@ -20,7 +20,7 @@ All models are implemented by GenEfficientNet or MobileNetV3 classes, with strin
   * 4.5M param MobileNet-V2 110d @ 75%
   * 6.1M param MobileNet-V2 140 @ 76.5%
   * 5.8M param MobileNet-V2 120d @ 77.3%
-  
+
 ### March 23, 2020
  * Add EfficientNet-Lite models w/ weights ported from [Tensorflow TPU](https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/lite)
  * Add PyTorch trained MobileNet-V3 Large weights with 75.77% top-1
@@ -39,7 +39,7 @@ All models are implemented by GenEfficientNet or MobileNetV3 classes, with strin
 ### Nov 22, 2019
  * New top-1 high! Ported official TF EfficientNet AdvProp (https://arxiv.org/abs/1911.09665) weights and B8 model spec. Created a new set of `ap` models since they use a different
  preprocessing (Inception mean/std) from the original EfficientNet base/AA/RA weights.
- 
+
 ### Nov 15, 2019
  * Ported official TF MobileNet-V3 float32 large/small/minimalistic weights
  * Modifications to MobileNet-V3 model and components to support some additional config needed for differences between TF MobileNet-V3 and mine
@@ -50,7 +50,7 @@ All models are implemented by GenEfficientNet or MobileNetV3 classes, with strin
  * Add JIT optimized mem-efficient Swish/Mish autograd.fn in addition to memory-efficient autgrad.fn
  * Activation factory to select best version of activation by name or override one globally
  * Add pretrained checkpoint load helper that handles input conv and classifier changes
- 
+
 ### Oct 27, 2019
  * Add CondConv EfficientNet variants ported from https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet/condconv
  * Add RandAug weights for TF EfficientNet B5 and B7 from https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet
@@ -75,8 +75,8 @@ Implemented models include:
   * MobileNet-V3 (https://arxiv.org/abs/1905.02244)
   * FBNet-C (https://arxiv.org/abs/1812.03443)
   * Single-Path NAS (https://arxiv.org/abs/1904.02877)
-    
-I originally implemented and trained some these models with code [here](https://github.com/rwightman/pytorch-image-models), this repository contains just the GenEfficientNet models, validation, and associated ONNX/Caffe2 export code. 
+
+I originally implemented and trained some these models with code [here](https://github.com/rwightman/pytorch-image-models), this repository contains just the GenEfficientNet models, validation, and associated ONNX/Caffe2 export code.
 
 ## Pretrained
 
@@ -117,7 +117,7 @@ More pretrained models to come...
 
 The weights ported from Tensorflow checkpoints for the EfficientNet models do pretty much match accuracy in Tensorflow once a SAME convolution padding equivalent is added, and the same crop factors, image scaling, etc (see table) are used via cmd line args.
 
-**IMPORTANT:** 
+**IMPORTANT:**
 * Tensorflow ported weights for EfficientNet AdvProp (AP), EfficientNet EdgeTPU, EfficientNet-CondConv, EfficientNet-Lite, and MobileNet-V3 models use Inception style (0.5, 0.5, 0.5) for mean and std.
 * Enabling the Tensorflow preprocessing pipeline with `--tf-preprocessing` at validation time will improve scores by 0.1-0.5%, very close to original TF impl.
 
@@ -130,7 +130,7 @@ To run validation w/ TF preprocessing for tf_efficientnet_b5:
 To run validation for a model with Inception preprocessing, ie EfficientNet-B8 AdvProp:
 `python validate.py /path/to/imagenet/validation/ --model tf_efficientnet_b8_ap -b 48 --num-gpu 2 --img-size 672 --crop-pct 0.954 --mean 0.5 --std 0.5`
 
-|Model | Prec@1 (Err) | Prec@5 (Err) | Param # | Image Scaling  | Image Size | Crop | 
+|Model | Prec@1 (Err) | Prec@5 (Err) | Param # | Image Scaling  | Image Size | Crop |
 |---|---|---|---|---|---|---|
 | tf_efficientnet_l2_ns *tfp | 88.352 (11.648) | 98.652 (1.348) | 480 | bicubic | 800 | N/A |
 | tf_efficientnet_l2_ns      | TBD | TBD | 480 | bicubic | 800 | 0.961 |
@@ -308,7 +308,7 @@ Scripts are included to
 As an example, to export the MobileNet-V3 pretrained model and then run an Imagenet validation:
 ```
 python onnx_export.py --model mobilenetv3_large_100 ./mobilenetv3_100.onnx
-python onnx_validate.py /imagenet/validation/ --onnx-input ./mobilenetv3_100.onnx 
+python onnx_validate.py /imagenet/validation/ --onnx-input ./mobilenetv3_100.onnx
 ```
 
 These scripts were tested to be working as of PyTorch 1.6 and ONNX 1.7 w/ ONNX runtime 1.4. Caffe2 compatible
