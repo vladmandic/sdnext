@@ -274,12 +274,11 @@ function submit_framepack(...args) {
 }
 
 function submit_video_wrapper(...args) {
-  log('submitVideoWrapper', args);
-  if (!args || args.length === 0) {
-    log('submitVideoWrapper: no args');
-    return;
-  }
-  const btn = gradioApp().getElementById(`${args[0]}_generate_btn`);
+  const modernEl = gradioApp().querySelector('.video_output.fade-in');
+  let id = modernEl ? modernEl.id : args[0];
+  id = id.replace('video-selector-', '');
+  log('submitVideoWrapper', id);
+  const btn = gradioApp().getElementById(`${id}_generate_btn`);
   if (btn) btn.click();
 }
 

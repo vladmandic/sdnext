@@ -26,7 +26,7 @@ def create_ui(prompt, negative, styles, _overrides):
                 mp4_interpolate = gr.Slider(label="Interpolation", minimum=0, maximum=10, value=0, step=1)
             with gr.Row():
                 section_html = gr.HTML(show_label=False, elem_id="framepack_section_html")
-            with gr.Accordion(label="Inputs", open=True):
+            with gr.Accordion(label="Inputs", open=False):
                 with gr.Row():
                     input_image = gr.Image(sources='upload', type="numpy", label="Init image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_input_image")
                     end_image = gr.Image(sources='upload', type="numpy", label="End image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_end_image")

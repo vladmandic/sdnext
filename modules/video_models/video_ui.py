@@ -28,8 +28,7 @@ def model_change(engine, model):
     found = [model.name for model in models_def.models.get(engine, [])]
     selected = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     url = video_utils.get_url(selected.url if selected else None)
-    i2v = 'i2v' in selected.name.lower() if selected else False
-    return url, gr.update(visible=i2v)
+    return url
 
 
 def model_load(engine, model):
@@ -95,7 +94,7 @@ def create_ui(prompt, negative, styles, overrides):
                     seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed")
                     reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed")
-            with gr.Accordion(open=True, label="Parameters", elem_id='video_parameters_accordion'):
+            with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
@@ -103,17 +102,17 @@ def create_ui(prompt, negative, styles, overrides):
                 with gr.Row():
                     guidance_scale = gr.Slider(label='Guidance scale', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_scale")
                     guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
-            with gr.Accordion(open=True, label="Decode", elem_id='video_decode_accordion'):
+            with gr.Accordion(open=False, label="Decode", elem_id='video_decode_accordion'):
                 with gr.Row():
                     vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
                     vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
-            with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion', visible=False) as init_accordion:
+            with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
                 init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
                 gr.HTML("<br>&nbsp Init image")
                 init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
                 gr.HTML("<br>&nbsp Last image")
                 last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
-            with gr.Accordion(open=True, label="Output", elem_id='video_output_accordion'):
+            with gr.Accordion(open=False, label="Output", elem_id='video_output_accordion'):
                 with gr.Row():
                     save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
                 with gr.Row():
@@ -132,7 +131,7 @@ def create_ui(prompt, negative, styles, overrides):
     random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
     # handle engine and model change
     engine.change(fn=engine_change, inputs=[engine], outputs=[model])
-    model.change(fn=model_change, inputs=[engine, model], outputs=[url, init_accordion])
+    model.change(fn=model_change, inputs=[engine, model], outputs=[url])
     btn_load.click(fn=model_load, inputs=[engine, model], outputs=[html_log])
     # hidden fields
     task_id = gr.Textbox(visible=False, value='')
