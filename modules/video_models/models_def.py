@@ -71,6 +71,12 @@ models = {
     ],
     'LTX Video': [
         Model(name='None'),
+        Model(name='LTXVideo 0.9.7 13B',
+              url='https://huggingface.co/Lightricks/LTX-Video-0.9.7-dev',
+              repo='a-r-r-o-w/LTX-Video-0.9.7-diffusers',
+              repo_cls=diffusers.LTXConditionPipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.LTXVideoTransformer3DModel),
         Model(name='LTXVideo 0.9.6 2B T2V',
               url='https://huggingface.co/Lightricks/LTX-Video',
               repo='Lightricks/LTX-Video',

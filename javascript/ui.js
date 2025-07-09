@@ -273,6 +273,15 @@ function submit_framepack(...args) {
   return args;
 }
 
+function submit_ltx(...args) {
+  const id = randomId();
+  log('submitFramepack', id);
+  requestProgress(id, null, null);
+  window.submit_state = '';
+  args[0] = id;
+  return args;
+}
+
 function submit_video_wrapper(...args) {
   const modernEl = gradioApp().querySelector('.video_output.fade-in');
   let id = modernEl ? modernEl.id : args[0];
@@ -280,6 +289,7 @@ function submit_video_wrapper(...args) {
   log('submitVideoWrapper', id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
   if (btn) btn.click();
+  else console.log('submit_video_wrapper: no button found', id);
 }
 
 function submit_postprocessing(...args) {

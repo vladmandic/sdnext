@@ -55,11 +55,11 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
     t0 = time.time()
     if devices.backend == "zluda":
         torch.cuda.synchronize(devices.device)
-    if p is None:
-        return kwargs
     latents = kwargs.get('latents', None)
     if debug:
         debug_callback(f'Callback: step={step} timestep={timestep} latents={latents.shape if latents is not None else None} kwargs={list(kwargs)}')
+    if shared.state.sampling_steps == 0 and getattr(pipe, 'num_timesteps', 0) > 0:
+        shared.state.sampling_steps = pipe.num_timesteps
     shared.state.step()
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
@@ -73,6 +73,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
         return kwargs
     elif shared.opts.nan_skip:
         assert not torch.isnan(latents[..., 0, 0]).all(), f'NaN detected at step {step}: Skipping...'
+    if p is None:
+        return kwargs
     if len(getattr(p, 'ip_adapter_names', [])) > 0 and p.ip_adapter_names[0] != 'None':
         ip_adapter_scales = list(p.ip_adapter_scales)
         ip_adapter_starts = list(p.ip_adapter_starts)

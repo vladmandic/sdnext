@@ -505,7 +505,10 @@ function setupExtraNetworksForTab(tabname) {
         if (window.opts.extra_networks_card_cover === 'sidebar') en.style.width = 0;
         gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = 'unset';
       }
-      if (tabname === 'video') gradioApp().getElementById('framepack_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
+      if (tabname === 'video') {
+        gradioApp().getElementById('framepack_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
+        gradioApp().getElementById('ltx_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
+      }
     }
   });
   intersectionObserver.observe(en); // monitor visibility
