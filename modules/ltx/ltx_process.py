@@ -7,10 +7,10 @@
 - modernui
 - lora loader
 """
+# import diffusers.LTXConditionPipeline
 import os
 import time
 import threading
-import diffusers
 from modules import shared, sd_models, errors, timer, memstats, progress
 from modules.processing_callbacks import diffusers_callback
 from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, get_conditions, get_generator, get_prompts, vae_decode
@@ -113,12 +113,11 @@ def run_ltx(task_id,
         timer.process.add('offload', t1 - t0)
         timer.process.add('base', t2 - t1)
         timer.process.add('offload', t3 - t2)
-        # diffusers.LTXConditionPipeline
 
         if upsample_enable:
             t4 = time.time()
             shared.state.begin('Upsample')
-            global upsample_pipe
+            global upsample_pipe # python-lint: disable=global-statement
             upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id)
             upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
             upscale_args = {

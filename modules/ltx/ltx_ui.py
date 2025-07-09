@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import shared, sd_models, ui_sections, ui_symbols
+from modules import shared, ui_sections, ui_symbols
 from modules.ui_components import ToolButton
 from modules.ltx import ltx_process
 

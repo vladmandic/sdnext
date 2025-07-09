@@ -46,12 +46,11 @@ def get_conditions(condition_image, condition_image_strength, condition_video, c
     def get_video_frames(fn: str):
         pass
 
+    from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
     conditions = []
     if condition_image is not None:
-        from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXImageCondition
-        conditions.append(LTXImageCondition(image=condition_image, strength=condition_image_strength))
+        conditions.append(LTXVideoCondition(image=condition_image, strength=condition_image_strength))
     if condition_video is not None:
-        from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
         condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames)
         conditions.append(LTXVideoCondition(video=condition_frames, frame_index=0, strength=condition_video_strength))
     return conditions
@@ -78,7 +77,7 @@ def vae_decode(latents, decode_timestep, seed):
     shared.state.begin('VAE')
     shared.log.debug(f'Video: cls={shared.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep}')
     from diffusers.utils.torch_utils import randn_tensor
-    latents = shared.sd_model._denormalize_latents(
+    latents = shared.sd_model._denormalize_latents( # pylint: disable=protected-access
         latents,
         shared.sd_model.vae.latents_mean,
         shared.sd_model.vae.latents_std,
