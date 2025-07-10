@@ -76,10 +76,10 @@ def guess_by_name(fn, current_guess):
         return 'Meissonic'
     elif 'monetico' in fn.lower():
         return 'Monetico'
-    elif 'omnigen' in fn.lower():
-        return 'OmniGen'
     elif 'omnigen2' in fn.lower():
         return 'OmniGen2'
+    elif 'omnigen' in fn.lower():
+        return 'OmniGen'
     elif 'sd3' in fn.lower():
         return 'Stable Diffusion 3'
     elif 'hidream' in fn.lower():
@@ -112,8 +112,6 @@ def guess_by_diffusers(fn, current_guess):
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:
                     return k, v
-        else:
-            return 'unknown', pipeline
     return current_guess, None
 
 
