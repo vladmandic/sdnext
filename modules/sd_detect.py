@@ -131,7 +131,6 @@ def guess_variant(fn, current_guess):
 
 def detect_pipeline(f: str, op: str = 'model'):
     guess = shared.opts.diffusers_pipeline
-    size = 0
     pipeline = None
     if guess == 'Autodetect':
         try:
@@ -141,8 +140,8 @@ def detect_pipeline(f: str, op: str = 'model'):
             guess, pipeline = guess_by_diffusers(f, guess)
             guess = guess_variant(f, guess)
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
+            shared.log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
             if debug_load is not None:
-                shared.log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}" size={size}MB')
                 t0 = time.time()
                 keys = model_tools.get_safetensor_keys(f)
                 if keys is not None and len(keys) > 0:
@@ -164,7 +163,7 @@ def detect_pipeline(f: str, op: str = 'model'):
             shared.log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
 
     if pipeline is None:
-        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" size={size} not recognized')
+        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" not recognized')
         pipeline = diffusers.DiffusionPipeline
     return pipeline, guess
 
