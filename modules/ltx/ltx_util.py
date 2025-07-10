@@ -1,5 +1,6 @@
 import time
 import torch
+from PIL import Image
 from modules import devices, shared, sd_models, timer, extra_networks
 
 
@@ -42,17 +43,43 @@ def load_upsample(upsample_pipe, upsample_repo_id):
     return upsample_pipe
 
 
-def get_conditions(condition_image, condition_image_strength, condition_video, condition_video_strength, condition_video_frames):
-    def get_video_frames(fn: str):
-        pass
-
+def get_conditions(width, height, condition_strength, condition_image, condition_files, condition_video, condition_video_frames, condition_video_skip):
     from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
     conditions = []
     if condition_image is not None:
-        conditions.append(LTXVideoCondition(image=condition_image, strength=condition_image_strength))
+        try:
+            if isinstance(condition_image, str):
+                from modules.api.api import decode_base64_to_image
+                condition_image = decode_base64_to_image(condition_image)
+            condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+            conditions.append(LTXVideoCondition(image=condition_image, frame_index=0, strength=condition_strength))
+            shared.log.debug(f'Video condition: image={condition_image.size} strength={condition_strength}')
+        except Exception as e:
+            shared.log.error(f'LTX condition image: {e}')
+    if condition_files is not None:
+        condition_images = []
+        for fn in condition_files:
+            try:
+                if hasattr(fn, 'name'):
+                    condition_image = Image.open(fn.name).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                else:
+                    condition_image = fn.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                condition_images.append(condition_image)
+            except Exception as e:
+                shared.log.error(f'LTX condition files: {e}')
+        if len(condition_images) > 0:
+            conditions.append(LTXVideoCondition(video=condition_images, frame_index=0, strength=condition_strength))
+            shared.log.debug(f'Video condition: files={len(condition_images)} size={condition_images[0].size} strength={condition_strength}')
     if condition_video is not None:
-        condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames)
-        conditions.append(LTXVideoCondition(video=condition_frames, frame_index=0, strength=condition_video_strength))
+        from modules.video_models.video_utils import get_video_frames
+        try:
+            condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames, skip_frames=condition_video_skip)
+            condition_frames = [f.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS) for f in condition_frames]
+            if len(condition_frames) > 0:
+                conditions.append(LTXVideoCondition(video=condition_frames, frame_index=0, strength=condition_strength))
+                shared.log.debug(f'Video condition: frames={len(condition_frames)} size={condition_frames[0].size} strength={condition_strength}')
+        except Exception as e:
+            shared.log.error(f'LTX condition video: {e}')
     return conditions
 
 
@@ -91,9 +118,11 @@ def vae_decode(latents, decode_timestep, seed):
         timestep = torch.tensor([decode_timestep], device=devices.device, dtype=latents.dtype)
         noise_scale = torch.tensor([decode_timestep], device=devices.device, dtype=devices.dtype)[:, None, None, None, None]
         latents = (1 - noise_scale) * latents + noise_scale * noise
-    frames = shared.sd_model.vae.decode(latents, timestep, return_dict=False)[0]
-    frames = shared.sd_model.video_processor.postprocess_video(frames, output_type='pil')
+    frames = shared.sd_model.vae.decode(latents, timestep, return_dict=False)[0] # n, c, f, h, w
+    # frames = frames.squeeze(0) if frames.ndim == 5 else frames
+    # frames = frames.permute(1, 2, 3, 0)
+    # frames = shared.sd_model.video_processor.postprocess_video(frames, output_type='pil')
     shared.state.end()
     t1 = time.time()
     timer.process.add('vae', t1 - t0)
-    return frames[0]
+    return frames

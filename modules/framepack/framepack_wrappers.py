@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import gradio as gr
 from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm
+from modules.video_models.video_utils import check_av
 from modules.framepack import framepack_install # pylint: disable=wrong-import-order
 from modules.framepack import framepack_load # pylint: disable=wrong-import-order
 from modules.framepack import framepack_worker # pylint: disable=wrong-import-order
@@ -18,38 +19,6 @@ git_repo = 'https://github.com/lllyasviel/framepack'
 git_commit = 'c5d375661a2557383f0b8da9d11d14c23b0c4eaf'
 queue_lock = threading.Lock()
 loaded_variant = None
-
-
-def check_av():
-    try:
-        import av
-    except Exception as e:
-        shared.log.error(f'av package: {e}')
-        return False
-    return av
-
-
-def get_codecs():
-    av = check_av()
-    if av is None:
-        return []
-    codecs = []
-    for codec in av.codecs_available:
-        try:
-            c = av.Codec(codec, mode='w')
-            if c.type == 'video' and c.is_encoder and len(c.video_formats) > 0:
-                if not any(c.name == ca.name for ca in codecs):
-                    codecs.append(c)
-        except Exception:
-            pass
-    hw_codecs = [c for c in codecs if (c.capabilities & 0x40000 > 0) or (c.capabilities & 0x80000 > 0)]
-    sw_codecs = [c for c in codecs if c not in hw_codecs]
-    shared.log.debug(f'Video codecs: hardware={len(hw_codecs)} software={len(sw_codecs)}')
-    # for c in hw_codecs:
-    #     shared.log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=True')
-    # for c in sw_codecs:
-    #     shared.log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
-    return ['none'] + [c.name for c in hw_codecs + sw_codecs]
 
 
 def prepare_image(image, resolution):

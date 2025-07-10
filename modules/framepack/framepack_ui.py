@@ -1,8 +1,9 @@
 import gradio as gr
 from modules import ui_sections, ui_common, ui_video_vlm
+from modules.video_models.video_utils import get_codecs
 from modules.framepack import framepack_load
 from modules.framepack.framepack_worker import get_latent_paddings
-from modules.framepack.framepack_wrappers import get_codecs, load_model, unload_model
+from modules.framepack.framepack_wrappers import load_model, unload_model
 from modules.framepack.framepack_wrappers import run_framepack # pylint: disable=wrong-import-order
 
 

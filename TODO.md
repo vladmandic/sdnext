@@ -10,6 +10,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
 - Refactor: sampler options  
 - Video: API support  
+- Remove: CodeFormer  
+- Remove: GFPGAN  
+- Video: LTX TeaCache and others  
+- Video: LTX API  
+- Video: LTX PromptEnhance
+- Video: LTX Condition preprocess
 
 ### Blocked items
 
@@ -40,7 +46,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 #### Stable
 - [Diffusers-0.34.0](https://github.com/huggingface/diffusers/releases/tag/v0.34.0)  
 - [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
-- [LTXVideo-0.9.7](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file#diffusers-integration)(https://github.com/huggingface/diffusers/pull/11516)  
 - [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 #### Pending
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  

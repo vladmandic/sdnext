@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-09
+## Update for 2025-07-10
 
-### Highlights for 2025-07-09
+### Highlights for 2025-07-10
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
 This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~680 files](https://github.com/vladmandic/sdnext/pull/4017)!  
@@ -11,19 +11,19 @@ We also switched project license to [Apache-2.0](https://github.com/vladmandic/s
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
-- Redesigned **Video** interface with native **FramePack** support  
+- Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
 - New **LLM/VLM** models available for captioning and prompt enhance  
 - Compute improvements  
 
-And (as always) many bugfixes and improvements to existing features!  
+And (*as always*) many bugfixes and improvements to existing features!  
 
 *Note*: We recommend clean install for this release due to sheer size of changes  
 Although upgrades and existing installations are tested and should work fine!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-09
+### Details for 2025-07-10
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -35,14 +35,27 @@ Although upgrades and existing installations are tested and should work fine!
     *relighting*: automatic background replacement with reglighting so source image fits desired background  
     with optional composite blending  
     available in *img2img or control -> scripts*  
-  - Add **FLUX.1-Kontext-Dev** inpaint workflow  
-  - Support **FLUX.1** all-in-one safetensors  
-  - Support **TAESD** preview and remote VAE for **HunyuanDit**  
-  - Support for [Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models in **prompt enhance** and process **captioning**  
-  - **FramePack** support is now fully integrated instead of being a separate extension  
+  - add **FLUX.1-Kontext-Dev** inpaint workflow  
+  - support **FLUX.1** all-in-one safetensors  
+  - support **TAESD** preview and remote VAE for **HunyuanDit**  
+  - support for [Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models in **prompt enhance** and process **captioning**  
+- **Video**
+  - redesigned **Video** interface  
+  - support for **Generic** video models  
+    includes support for many video models without specific per-model optimizations  
+    included: *Hunyuan, LTX, WAN, Mochi, Latte, Allegro, Cog*  
+    supports quantization, offloading, frame interpolation, etc.  
+  - support for optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
+    with *t2i, i2i, flf2v* workflows  
+    LoRA support, prompt enhance, etc.  
+    now fully integrated instead of being a separate extension  
+  - support for optmized [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX)  
+    with *t2i, i2i, v2v* workflows  
+    optional native upsampling and video refine workflows  
+    LoRA support with different conditioning types such as Canny/Depth/Pose, etc.  
 - **UI**  
   - major update to modernui layout  
-  - redesign of the Flat UI theme  
+  - redesign of the *Flat* UI theme  
 - **WIKI**  
   - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
 - **Compute**
@@ -68,6 +81,7 @@ Although upgrades and existing installations are tested and should work fine!
   - fix diffusers models non-unique hash  
   - fix loading of manually downloaded diffuser models  
   - fix api `/sdapi/v1/embeddings` endpoint  
+  - fix incorrect reporting of deleted and modified files  
   - improve infotext param parsing  
   - improve extensions ui search  
   - improve model type autodetection  

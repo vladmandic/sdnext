@@ -90,12 +90,12 @@ def create_ui(prompt, negative, styles, overrides):
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
                 with gr.Row():
-                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=15, elem_id="video_frames")
+                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=17, elem_id="video_frames")
                     seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id="video_random_seed")
                     reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_reuse_seed")
             with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
-                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video")
+                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=50)
                 with gr.Row():
                     sampler_shift = gr.Slider(label='Sampler shift', minimum=-1.0, maximum=20.0, step=0.1, value=-1.0, elem_id="video_scheduler_shift")
                     dynamic_shift = gr.Checkbox(label='Dynamic shift', value=False, elem_id="video_dynamic_shift")

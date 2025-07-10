@@ -949,10 +949,10 @@ def check_modified_files():
         files = [x for x in files if len(x) > 0 and (not x.startswith('extensions')) and (not x.startswith('wiki')) and (not x.endswith('.json')) and ('.log' not in x)]
         deleted = [x for x in files if not os.path.exists(x)]
         if len(deleted) > 0:
-            log.warning(f'Deleted files: {files}')
-        files = [x for x in files if os.path.exists(x) and not os.path.isdir(x)]
-        if len(files) > 0:
-            log.warning(f'Modified files: {files}')
+            log.warning(f'Deleted files: {deleted}')
+        modified = [x for x in files if os.path.exists(x) and not os.path.isdir(x)]
+        if len(modified) > 0:
+            log.warning(f'Modified files: {modified}')
     except Exception:
         pass
     ts('files', t_start)

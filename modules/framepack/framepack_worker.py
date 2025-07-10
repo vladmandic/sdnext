@@ -4,7 +4,7 @@ import rich.progress as rp
 from modules import shared, errors ,devices, sd_models, timer, memstats
 from modules.framepack import framepack_vae # pylint: disable=wrong-import-order
 from modules.framepack import framepack_hijack # pylint: disable=wrong-import-order
-from modules.framepack import framepack_video # pylint: disable=wrong-import-order
+from modules.video_models.video_save import save_video # pylint: disable=wrong-import-order
 
 
 stream = None # AsyncStream
@@ -302,12 +302,12 @@ def worker(
                 if is_last_section:
                     break
 
-            total_generated_frames = framepack_video.save_video(history_pixels, mp4_fps, mp4_codec, mp4_opt, mp4_ext, mp4_sf, mp4_video, mp4_frames, mp4_interpolate, pbar=pbar, stream=stream, metadata=metadata)
+            total_generated_frames, _video_filename = save_video(history_pixels, mp4_fps, mp4_codec, mp4_opt, mp4_ext, mp4_sf, mp4_video, mp4_frames, mp4_interpolate, pbar=pbar, stream=stream, metadata=metadata)
 
     except AssertionError:
         shared.log.info('FramePack: interrupted')
         if shared.opts.keep_incomplete:
-            framepack_video.save_video(history_pixels, mp4_fps, mp4_codec, mp4_opt, mp4_ext, mp4_sf, mp4_video, mp4_frames, mp4_interpolate=0, stream=stream, metadata=metadata)
+            save_video(history_pixels, mp4_fps, mp4_codec, mp4_opt, mp4_ext, mp4_sf, mp4_video, mp4_frames, mp4_interpolate=0, stream=stream, metadata=metadata)
     except Exception as e:
         shared.log.error(f'FramePack: {e}')
         errors.display(e, 'FramePack')
