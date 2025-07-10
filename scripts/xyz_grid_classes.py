@@ -202,7 +202,7 @@ axis_options = [
     AxisOption("[HDR] Clamp boundary", float, apply_field("hdr_boundary")),
     AxisOption("[HDR] Clamp threshold", float, apply_field("hdr_threshold")),
     AxisOption("[HDR] Maximize center shift", float, apply_field("hdr_max_center")),
-    AxisOption("[HDR] Maximize boundary", float, apply_field("hdr_max_boundry")),
+    AxisOption("[HDR] Maximize boundary", float, apply_field("hdr_max_boundary")),
     AxisOption("[HDR] Tint color hex", str, apply_field("hdr_color_picker")),
     AxisOption("[HDR] Tint ratio", float, apply_field("hdr_tint_ratio")),
     AxisOption("[Token Merging] ToMe ratio", float, apply_setting('tome_ratio')),

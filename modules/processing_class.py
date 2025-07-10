@@ -66,7 +66,7 @@ class StableDiffusionProcessing:
                  hdr_threshold: float = 0.95,
                  hdr_maximize: bool = False,
                  hdr_max_center: float = 0.6,
-                 hdr_max_boundry: float = 1.0,
+                 hdr_max_boundary: float = 1.0,
                  hdr_color_picker: str = None,
                  hdr_tint_ratio: float = 0,
                  # img2img
@@ -295,7 +295,7 @@ class StableDiffusionProcessing:
         self.hdr_threshold=hdr_threshold
         self.hdr_maximize=hdr_maximize
         self.hdr_max_center=hdr_max_center
-        self.hdr_max_boundry=hdr_max_boundry
+        self.hdr_max_boundary=hdr_max_boundary
         self.hdr_color_picker=hdr_color_picker
         self.hdr_tint_ratio=hdr_tint_ratio
 
