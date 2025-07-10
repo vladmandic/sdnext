@@ -87,7 +87,7 @@ def guess_by_name(fn, current_guess):
     elif 'chroma' in fn.lower():
         return 'Chroma'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
-        size = round(os.path.getsize(fn) / 1024 / 1024)
+        size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
         if size > 11000 and size < 16000:
             shared.log.warning(f'Model detected as FLUX UNET model, but attempting to load a base model: file="{fn}" size={size} MB')
         return 'FLUX'
