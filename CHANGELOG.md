@@ -58,6 +58,7 @@ Although upgrades and existing installations are tested and should work fine!
   - redesign of the *Flat* UI theme  
 - **WIKI**  
   - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
+    massive thanks to @CalamitousFelicitousness for bringing this to life!  
 - **Compute**
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
