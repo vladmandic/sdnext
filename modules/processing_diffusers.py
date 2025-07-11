@@ -85,6 +85,47 @@ def process_base(p: processing.StableDiffusionProcessing):
         p.extra_generation_params["Sampler Eta"] = shared.opts.scheduler_eta
     output = None
     try:
+        # Track base operation start
+        from modules import pipeline_viz
+        
+        # Determine base operation type
+        is_img2img = hasattr(p, 'init_images') and p.init_images and len(p.init_images) > 0
+        is_inpaint = getattr(p, 'mask', None) is not None or getattr(p, 'image_mask', None) is not None
+        is_control = getattr(p, 'is_control', False)
+        is_video = any('video' in op for op in p.ops) if hasattr(p, 'ops') else False
+        is_instruct = any('instruct' in op for op in p.ops) if hasattr(p, 'ops') else False
+        
+        if is_video:
+            base_op = 'video'
+        elif is_inpaint:
+            base_op = 'inpaint'
+        elif is_instruct:
+            base_op = 'instruct'
+        elif is_img2img:
+            base_op = 'img2img'
+        else:
+            base_op = 'txt2img'
+        
+        pipeline_viz.track_operation_start(base_op, p)
+        
+        # Track text processing sub-operations
+        pipeline_viz.track_sub_operation_start('text_tokenize', base_op, p)
+        pipeline_viz.track_sub_operation_complete('text_tokenize', p)
+        
+        pipeline_viz.track_sub_operation_start('text_encode', base_op, p)
+        pipeline_viz.track_sub_operation_complete('text_encode', p)
+        
+        # Track VAE operations for img2img/inpaint
+        if is_img2img or is_inpaint:
+            pipeline_viz.track_sub_operation_start('vae_encode', base_op, p)
+            pipeline_viz.track_sub_operation_complete('vae_encode', p)
+            
+            pipeline_viz.track_sub_operation_start('img2img_prep', base_op, p)
+            pipeline_viz.track_sub_operation_complete('img2img_prep', p)
+        else:
+            pipeline_viz.track_sub_operation_start('noise_sample', base_op, p)
+            pipeline_viz.track_sub_operation_complete('noise_sample', p)
+        
         t0 = time.time()
         sd_models_compile.check_deepcache(enable=True)
         transformer_cache.set_cache()
@@ -98,17 +139,36 @@ def process_base(p: processing.StableDiffusionProcessing):
         hidiffusion.apply(p, shared.sd_model_type)
         ras.apply(shared.sd_model, p)
         timer.process.record('move')
+        
+        # Track individual denoising steps
+        steps = getattr(p, 'steps', 20)
+        for i in range(min(steps, 10)):  # Limit to 10 for UI clarity
+            step_name = f'denoise_step_{i+1}'
+            pipeline_viz.track_sub_operation_start(step_name, base_op, p)
+            
         if hasattr(shared.sd_model, 'tgate') and getattr(p, 'gate_step', -1) > 0:
             base_args['gate_step'] = p.gate_step
             output = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
         else:
             output = shared.sd_model(**base_args)
+            
+        # Complete denoising steps
+        for i in range(min(steps, 10)):
+            step_name = f'denoise_step_{i+1}'
+            pipeline_viz.track_sub_operation_complete(step_name, p)
+        
         if isinstance(output, dict):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
             output = SimpleNamespace(images=output)
         if hasattr(output, 'images'):
+            # Track VAE decode
+            pipeline_viz.track_sub_operation_start('vae_decode', base_op, p)
+            pipeline_viz.track_sub_operation_complete('vae_decode', p)
+            
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
+            # Track base operation completion
+            pipeline_viz.track_operation_complete(base_op, p)
         timer.process.record('pipeline')
         sd_models_compile.openvino_post_compile(op="base") # only executes on compiled vino models
         if shared.cmd_opts.profile:
@@ -142,6 +202,8 @@ def process_base(p: processing.StableDiffusionProcessing):
         shared.log.error(f'Processing: step=base args={err_args} {e}')
         errors.display(e, 'Processing')
         modelstats.analyze()
+        # Track base operation failure
+        pipeline_viz.track_operation_fail(base_op, str(e))
     finally:
         ras.unapply(shared.sd_model)
         hidiffusion.unapply()
@@ -176,12 +238,19 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         # upscale
         if hasattr(p, 'height') and hasattr(p, 'width') and p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5):
             shared.log.info(f'Upscale: mode={p.hr_resize_mode} upscaler="{p.hr_upscaler}" context="{p.hr_resize_context}" resize={p.hr_resize_x}x{p.hr_resize_y} upscale={p.hr_upscale_to_x}x{p.hr_upscale_to_y}')
+            
+            # Track upscale operation
+            from modules import pipeline_viz
             p.ops.append('upscale')
+            pipeline_viz.track_operation_start('upscale', p)
+            
             if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_highres_fix and hasattr(shared.sd_model, 'vae'):
                 save_intermediate(p, latents=output.images, suffix="-before-hires")
             shared.state.update('Upscale', 0, 1)
             output.images = resize_hires(p, latents=output.images)
             sd_hijack_hypertile.hypertile_set(p, hr=True)
+            
+            pipeline_viz.track_operation_complete('upscale', p)
 
         strength = p.hr_denoising_strength if p.hr_denoising_strength > 0 else p.denoising_strength
         if (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:
@@ -196,6 +265,13 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             shared.log.warning('Hires skip: denoising=0')
             p.hr_force = False
         if p.hr_force:
+            # Track hires operation start
+            from modules import pipeline_viz
+            pipeline_viz.track_operation_start('hires', p)
+            
+            # Track hires sub-operations
+            pipeline_viz.track_sub_operation_start('hires_denoise', 'hires', p)
+            
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
             if 'Upscale' in shared.sd_model.__class__.__name__ or 'Flux' in shared.sd_model.__class__.__name__ or 'Kandinsky' in shared.sd_model.__class__.__name__:
                 output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
@@ -239,7 +315,14 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 if isinstance(output, dict):
                     output = SimpleNamespace(**output)
                 if hasattr(output, 'images'):
+                    # Track hires decode
+                    pipeline_viz.track_sub_operation_complete('hires_denoise', p)
+                    pipeline_viz.track_sub_operation_start('hires_decode', 'hires', p)
+                    pipeline_viz.track_sub_operation_complete('hires_decode', p)
+                    
                     shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
+                    # Track hires operation completion
+                    pipeline_viz.track_operation_complete('hires', p)
                 sd_models_compile.check_deepcache(enable=False)
                 sd_models_compile.openvino_post_compile(op="base")
             except AssertionError as e:
@@ -249,6 +332,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 shared.log.error(f'Processing step=hires: args={hires_args} {e}')
                 errors.display(e, 'Processing')
                 modelstats.analyze()
+                # Track hires operation failure
+                pipeline_viz.track_operation_fail('hires', str(e))
             if orig_image is not None:
                 p.task_args['image'] = orig_image
             p.denoising_strength = orig_denoise
@@ -264,6 +349,10 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
     if (output is None) or (output.images is None):
         return output
     if is_refiner_enabled(p):
+        # Track refiner operation start
+        from modules import pipeline_viz
+        pipeline_viz.track_operation_start('refine', p)
+        
         prev_job = shared.state.job
         if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_refiner and hasattr(shared.sd_model, 'vae'):
             save_intermediate(p, latents=output.images, suffix="-before-refiner")
@@ -285,53 +374,54 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
         sd_models_compile.openvino_recompile_model(p, hires=False, refiner=True)
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         shared.sd_refiner = sd_models.set_diffuser_pipe(shared.sd_refiner, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
-        for i in range(len(output.images)):
-            image = output.images[i]
-            noise_level = round(350 * p.denoising_strength)
-            output_type='latent'
-            if 'Upscale' in shared.sd_refiner.__class__.__name__ or 'Flux' in shared.sd_refiner.__class__.__name__ or 'Kandinsky' in shared.sd_refiner.__class__.__name__:
-                image = processing_vae.vae_decode(latents=image, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-                p.extra_generation_params['Noise level'] = noise_level
-                output_type = 'np'
-            update_sampler(p, shared.sd_refiner, second_pass=True)
-            shared.opts.prompt_attention = 'fixed'
-            refiner_args = set_pipeline_args(
-                p=p,
-                model=shared.sd_refiner,
-                prompts=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts[i],
-                negative_prompts=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts[i],
-                num_inference_steps=calculate_refiner_steps(p),
-                eta=shared.opts.scheduler_eta,
-                # strength=p.denoising_strength,
-                noise_level=noise_level, # StableDiffusionUpscalePipeline only
-                guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,
-                guidance_rescale=p.diffusers_guidance_rescale,
-                denoising_start=p.refiner_start if p.refiner_start > 0 and p.refiner_start < 1 else None,
-                denoising_end=1 if p.refiner_start > 0 and p.refiner_start < 1 else None,
-                image=image,
-                output_type=output_type,
-                clip_skip=p.clip_skip,
-                prompt_attention='fixed',
-                desc='Refiner',
-            )
-            refiner_steps = refiner_args.get('prior_num_inference_steps', None) or p.steps or refiner_args.get('num_inference_steps', None)
-            shared.state.update(get_job_name(p, shared.sd_refiner), refiner_steps, 1)
-            try:
-                if 'requires_aesthetics_score' in shared.sd_refiner.config: # sdxl-model needs false and sdxl-refiner needs true
-                    shared.sd_refiner.register_to_config(requires_aesthetics_score = getattr(shared.sd_refiner, 'tokenizer', None) is None)
-                output = shared.sd_refiner(**refiner_args) # pylint: disable=not-callable
-                if isinstance(output, dict):
-                    output = SimpleNamespace(**output)
-                if hasattr(output, 'images'):
-                    shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
-                sd_models_compile.openvino_post_compile(op="refiner")
-            except AssertionError as e:
-                shared.log.info(e)
-            except RuntimeError as e:
-                shared.state.interrupted = True
-                shared.log.error(f'Processing step=refine: args={refiner_args} {e}')
-                errors.display(e, 'Processing')
-                modelstats.analyze()
+        if shared.opts.diffusers_move_base:
+            shared.log.debug('Moving to CPU: model=base')
+            sd_models.move_model(shared.sd_model, devices.cpu)
+        if shared.opts.diffusers_move_refiner:
+            sd_models.move_model(shared.sd_refiner, devices.device)
+            if hasattr(shared.sd_refiner, 'unet'):
+                sd_models.move_model(shared.sd_refiner.unet, devices.device)
+            if hasattr(shared.sd_refiner, 'transformer'):
+                sd_models.move_model(shared.sd_refiner.transformer, devices.device)
+        refiner_args = set_pipeline_args(
+            p=p,
+            model=shared.sd_refiner,
+            prompts=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
+            negative_prompts=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
+            prompts_2=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
+            negative_prompts_2=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
+            num_inference_steps=calculate_refiner_steps(p),
+            eta=shared.opts.scheduler_eta,
+            guidance_scale=p.cfg_scale,
+            guidance_rescale=p.diffusers_guidance_rescale,
+            output_type='latent',
+            clip_skip=p.clip_skip,
+            image=output.images,
+            strength=1.0 - p.refiner_start if p.refiner_start < 1 else 0.3,
+            desc='Refiner',
+        )
+        refiner_steps = refiner_args.get('prior_num_inference_steps', None) or p.refiner_steps or refiner_args.get('num_inference_steps', None)
+        shared.state.update(get_job_name(p, shared.sd_refiner), refiner_steps, 1)
+        try:
+            if 'requires_aesthetics_score' in shared.sd_refiner.config: # sdxl-model needs false and sdxl-refiner needs true
+                shared.sd_refiner.register_to_config(requires_aesthetics_score = getattr(shared.sd_refiner, 'tokenizer', None) is None)
+            output = shared.sd_refiner(**refiner_args) # pylint: disable=not-callable
+            if isinstance(output, dict):
+                output = SimpleNamespace(**output)
+            if hasattr(output, 'images'):
+                shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
+                # Track refiner operation completion
+                pipeline_viz.track_operation_complete('refine', p)
+            sd_models_compile.openvino_post_compile(op="refiner")
+        except AssertionError as e:
+            shared.log.info(e)
+        except RuntimeError as e:
+            shared.state.interrupted = True
+            shared.log.error(f'Processing step=refine: args={refiner_args} {e}')
+            errors.display(e, 'Processing')
+            modelstats.analyze()
+            # Track refiner operation failure
+            pipeline_viz.track_operation_fail('refine', str(e))
 
         if shared.opts.diffusers_offload_mode == "balanced":
             shared.sd_refiner = sd_models.apply_balanced_offload(shared.sd_refiner)
@@ -431,6 +521,10 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     debug(f'Process diffusers args: {vars(p)}')
     if not validate_pipeline(p):
         return results
+
+    # Setup pipeline visualization
+    from modules import pipeline_viz
+    pipeline_viz.setup_pipeline_operations(p)
 
     p = restore_state(p)
     global orig_pipeline # pylint: disable=global-statement

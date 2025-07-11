@@ -187,3 +187,9 @@ def get_latent_history():
 def post_latent_history(req: models.ReqLatentHistory):
     shared.history.index = shared.history.find(req.name)
     return shared.history.index
+
+
+def get_pipeline_viz():
+    from modules.pipeline_viz import get_current_pipeline_state
+    pipeline_state = get_current_pipeline_state()
+    return models.ResPipelineViz(**pipeline_state)

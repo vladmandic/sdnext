@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #f8f9fa;
+        }
+        .btn.primary {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .btn.primary:hover {
+            background: #0056b3;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .status-dot.pending { background: #6c757d; }
+        .status-dot.running { background: #ffc107; }
+        .status-dot.completed { background: #28a745; }
+        .status-dot.failed { background: #dc3545; }
+        .status-dot.skipped { background: #6c757d; }
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        .visualization-container {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            min-height: 600px;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .help-text {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Pipeline Visualization</h1>
+            <div class="controls">
+                <button class="btn" onclick="pipelineViz.reset()">Reset View</button>
+                <button class="btn" onclick="toggleAutoRefresh()">Auto Refresh</button>
+                <button class="btn primary" onclick="pipelineViz.fetchData()">Refresh</button>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot" id="overall-status"></span>
+                <span id="overall-status-text">No active pipeline</span>
+            </div>
+            <div class="status-item">
+                <span id="duration-text">Duration: --</span>
+            </div>
+            <div class="status-item">
+                <span id="last-update">Last update: --</span>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="status-dot pending"></span>
+                <span>Pending</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-dot running"></span>
+                <span>Running</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-dot completed"></span>
+                <span>Completed</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-dot failed"></span>
+                <span>Failed</span>
+            </div>
+            <div class="legend-item">
+                <span class="status-dot skipped"></span>
+                <span>Skipped</span>
+            </div>
+        </div>
+
+        <div class="visualization-container">
+            <div id="pipeline-viz"></div>
+            <div id="no-data" class="no-data" style="display: none;">
+                No pipeline data available. Start an image generation to see the pipeline visualization.
+            </div>
+        </div>
+
+        <div class="help-text">
+            <strong>How to use:</strong>
+            <ul>
+                <li>Mouse wheel to zoom in/out</li>
+                <li>Click and drag to pan around</li>
+                <li>Hover over nodes to see detailed information</li>
+                <li>Each node represents a specific processing step</li>
+                <li>Arrows show the dependency flow between operations</li>
+                <li>Colors indicate the current status of each operation</li>
+            </ul>
+            
+            <strong>Operation Types:</strong>
+            <ul>
+                <li><strong>Text Operations:</strong> tokenize → encode (CLIP/T5)</li>
+                <li><strong>Preparation:</strong> VAE encode, noise sampling, image prep</li>
+                <li><strong>Generation:</strong> Individual denoising steps (diffusion process)</li>
+                <li><strong>Post-process:</strong> VAE decode, upscaling, high-res pass</li>
+                <li><strong>Enhancement:</strong> Face detection/restoration, color correction, refiner</li>
+            </ul>
+            
+            <strong>Benefits:</strong>
+            <ul>
+                <li>See exactly which operations run and their timing</li>
+                <li>Understand the diffusion process step-by-step</li>
+                <li>Identify bottlenecks and performance issues</li>
+                <li>Learn how different settings affect the pipeline</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/javascript/pipeline-viz.js"></script>
+    <script>
+        let pipelineViz;
+        let autoRefreshEnabled = true;
+        let autoRefreshInterval;
+
+        function init() {
+            pipelineViz = new PipelineVisualization('pipeline-viz');
+            
+            // Override the original fetchData to update UI
+            const originalFetchData = pipelineViz.fetchData.bind(pipelineViz);
+            pipelineViz.fetchData = async function() {
+                try {
+                    await originalFetchData();
+                    updateStatusBar();
+                    updateLastUpdate();
+                } catch (error) {
+                    console.error('Failed to fetch pipeline data:', error);
+                    showError('Failed to connect to API');
+                }
+            };
+        }
+
+        function updateStatusBar() {
+            const statusDot = document.getElementById('overall-status');
+            const statusText = document.getElementById('overall-status-text');
+            const durationText = document.getElementById('duration-text');
+            
+            if (pipelineViz.data && pipelineViz.data.status) {
+                statusDot.className = `status-dot ${pipelineViz.data.status}`;
+                statusText.textContent = `Pipeline: ${pipelineViz.data.status}`;
+                
+                if (pipelineViz.data.total_duration > 0) {
+                    durationText.textContent = `Duration: ${pipelineViz.data.total_duration.toFixed(2)}s`;
+                } else {
+                    durationText.textContent = 'Duration: --';
+                }
+            } else {
+                statusDot.className = 'status-dot pending';
+                statusText.textContent = 'No active pipeline';
+                durationText.textContent = 'Duration: --';
+            }
+        }
+
+        function updateLastUpdate() {
+            const lastUpdate = document.getElementById('last-update');
+            const now = new Date();
+            lastUpdate.textContent = `Last update: ${now.toLocaleTimeString()}`;
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const btn = event.target;
+            btn.textContent = autoRefreshEnabled ? 'Auto Refresh' : 'Manual';
+            btn.classList.toggle('primary', !autoRefreshEnabled);
+        }
+
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const existing = container.querySelector('.error');
+            if (existing) {
+                existing.remove();
+            }
+            
+            const error = document.createElement('div');
+            error.className = 'error';
+            error.textContent = message;
+            container.insertBefore(error, container.firstChild.nextSibling);
+            
+            setTimeout(() => {
+                error.remove();
+            }, 5000);
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

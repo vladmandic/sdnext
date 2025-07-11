@@ -377,6 +377,13 @@ class ReqLatentHistory(BaseModel):
 class ResVQA(BaseModel):
     answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
 
+class ResPipelineViz(BaseModel):
+    pipeline_id: Optional[str] = Field(default=None, title="Pipeline ID", description="Unique identifier for the pipeline")
+    nodes: List[Dict[str, Any]] = Field(default=[], title="Nodes", description="List of operation nodes in the pipeline")
+    edges: List[Dict[str, Any]] = Field(default=[], title="Edges", description="List of edges connecting operations")
+    total_duration: float = Field(default=0, title="Total Duration", description="Total pipeline execution time in seconds")
+    status: str = Field(default="pending", title="Status", description="Overall pipeline status")
+
 class ResTrain(BaseModel):
     info: str = Field(title="Train info", description="Response string from train embedding task.")
 

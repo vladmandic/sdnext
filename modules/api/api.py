@@ -98,6 +98,7 @@ class Api:
         self.add_api_route("/sdapi/v1/refresh-vae", endpoints.post_refresh_vae, methods=["POST"])
         self.add_api_route("/sdapi/v1/latents", endpoints.get_latent_history, methods=["GET"], response_model=List[str])
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int)
+        self.add_api_route("/sdapi/v1/pipeline-viz", endpoints.get_pipeline_viz, methods=["GET"], response_model=models.ResPipelineViz)
 
         # lora api
         self.add_api_route("/sdapi/v1/lora", loras.get_lora, methods=["GET"], response_model=dict)

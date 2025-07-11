@@ -55,7 +55,11 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
     global pipe, instance # pylint: disable=global-statement
     pipe = None
     if has_models:
+        # Track control operation
+        from modules import pipeline_viz
         p.ops.append('control')
+        pipeline_viz.track_operation_start('control', p)
+        
         p.extra_generation_params["Control type"] = unit_type # overriden later with pretty-print
         p.extra_generation_params["Control model"] = ';'.join([(m.model_id or '') for m in active_model if m.model is not None])
         p.extra_generation_params["Control conditioning"] = control_conditioning if isinstance(control_conditioning, list) else [control_conditioning]
@@ -830,6 +834,11 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     p.close()
     restore_pipeline()
     debug_log(f'Ready: {image_txt}')
+
+    # Track control operation completion
+    if has_models and 'control' in p.ops:
+        from modules import pipeline_viz
+        pipeline_viz.track_operation_complete('control', p)
 
     html_txt = f'<p>Ready {image_txt}</p>' if image_txt != '' else ''
     if len(info_txt) > 0:
