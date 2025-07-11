@@ -263,6 +263,7 @@ def main():
     installer.install_gradio()
     installer.check_torch()
     installer.check_onnx()
+    installer.check_transformers()
     installer.check_diffusers()
     installer.check_modified_files()
     if args.test:

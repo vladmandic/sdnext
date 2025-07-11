@@ -262,7 +262,6 @@ def select_checkpoint(op='model'):
         shared.log.error("No models found")
         shared.log.info("Set system paths to use existing folders")
         shared.log.info("  or use --models-dir <path-to-folder> to specify base folder with all models")
-        shared.log.info("  or use --ckpt-dir <path-to-folder> to specify folder with sd models")
         shared.log.info("  or use --ckpt <path-to-checkpoint> to force using specific model")
         return None
     if model_checkpoint is not None:

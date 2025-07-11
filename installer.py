@@ -552,14 +552,14 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
-    if args.skip_all or args.skip_git or args.experimental:
+    if args.skip_all or args.skip_git:
         return
-    sha = 'd6fa3298fa14db874b71b3fc5ebcefae99e15f45' # diffusers commit hash
+    sha = '00f95b9755718aabb65456e791b8408526ae6e76' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
-    minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
-    cur = opts.get('diffusers_version', '') if minor > 0 else ''
-    if (minor == 0) or (cur != sha):
-        if minor == 0:
+    minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
+    cur = opts.get('diffusers_version', '') if minor > -1 else ''
+    if (minor == -1) or ((cur != sha) and (not args.experimental)):
+        if minor == -1:
             log.info(f'Diffusers install: commit={sha}')
         else:
             log.info(f'Diffusers update: package={pkg} current={cur} target={sha}')
@@ -568,6 +568,24 @@ def check_diffusers():
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = sha
     ts('diffusers', t_start)
+
+
+# check transformers version
+def check_transformers():
+    t_start = time.time()
+    if args.skip_all or args.skip_git or args.experimental:
+        return
+    pkg = pkg_resources.working_set.by_key.get('transformers', None)
+    if args.use_directml:
+        if (pkg is None) or ((pkg.version != '4.52.4') and not (args.experimental)):
+            log.warning('DirectML backend requires transformers==4.52.4')
+            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+            pip(f'install --upgrade transformers==4.52.4', ignore=False, quiet=True, uv=False)
+    else:
+        if (pkg is None) or ((pkg.version != '4.53.2') and not (args.experimental)):
+            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+            pip(f'install --upgrade transformers==4.53.2', ignore=False, quiet=True, uv=False)
+    ts('transformers', t_start)
 
 
 # check onnx version
@@ -865,7 +883,7 @@ def check_torch():
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
             elif allow_directml and args.use_directml and ('arm' not in machine and 'aarch' not in machine):
                 log.info('DirectML: selected')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml==0.2.4.dev240913')
                 if 'torch' in torch_command and not args.version:
                     install(torch_command, 'torch torchvision')
                 install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
