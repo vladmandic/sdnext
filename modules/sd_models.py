@@ -91,7 +91,7 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
             sd_model.enable_vae_slicing()
         else:
             sd_model.disable_vae_slicing()
-    if hasattr(sd_model, "enable_vae_tiling"):
+    if hasattr(sd_model, "enable_vae_tiling") and hasattr(sd_model, "disable_vae_tiling"):
         if shared.opts.diffusers_vae_tiling:
             if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
                 if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
@@ -360,6 +360,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['Cosmos']:
             from pipelines.model_cosmos import load_cosmos_t2i
             sd_model = load_cosmos_t2i(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['FLite']:
+            from pipelines.model_flite import load_flite
+            sd_model = load_flite(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')

@@ -5,7 +5,7 @@
 ### Highlights for 2025-07-11
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
-This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~680 files](https://github.com/vladmandic/sdnext/pull/4017)!  
+This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
 
 We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 
@@ -35,6 +35,9 @@ Although upgrades and existing installations are tested and should work fine!
     *relighting*: automatic background replacement with reglighting so source image fits desired background  
     with optional composite blending  
     available in *img2img or control -> scripts*  
+  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
+    F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+    available via *networks -> models -> reference*  
   - add **FLUX.1-Kontext-Dev** inpaint workflow  
   - support **FLUX.1** all-in-one safetensors  
   - support **TAESD** preview and remote VAE for **HunyuanDit**  

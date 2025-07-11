@@ -189,6 +189,14 @@
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
 
+  "Freepik F-Lite": {
+    "path": "Freepik/F-Lite",
+    "preview": "Freepik--F-Lite.jpg",
+    "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+
   "NVLabs Sana 1.5 1.6B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
     "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",

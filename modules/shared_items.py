@@ -51,6 +51,7 @@ pipelines = {
     'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'FLite': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 initialize_onnx()

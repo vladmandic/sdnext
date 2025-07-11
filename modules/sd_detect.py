@@ -95,6 +95,8 @@ def guess_by_name(fn, current_guess):
         return 'FLEX'
     elif 'cosmos-predict2' in fn.lower():
         return 'Cosmos'
+    elif 'f-lite' in fn.lower():
+        return 'FLite'
     return current_guess
 
 

@@ -50,6 +50,8 @@ def get_model_type(pipe):
         model_type = 'h1'
     elif "Cosmos2TextToImage" in name:
         model_type = 'cosmos'
+    elif "FLite" in name:
+        model_type = 'flite'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
