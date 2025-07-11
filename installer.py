@@ -554,7 +554,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git:
         return
-    sha = '00f95b9755718aabb65456e791b8408526ae6e76' # diffusers commit hash
+    sha = '7a935a0bbe5f30847e7b27bda4df1d6d7b4b0aee' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -562,7 +562,7 @@ def check_diffusers():
         if minor == -1:
             log.info(f'Diffusers install: commit={sha}')
         else:
-            log.info(f'Diffusers update: package={pkg} current={cur} target={sha}')
+            log.info(f'Diffusers update: current={pkg.version} hash={cur} target={sha}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{sha}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
@@ -577,14 +577,16 @@ def check_transformers():
         return
     pkg = pkg_resources.working_set.by_key.get('transformers', None)
     if args.use_directml:
-        if (pkg is None) or ((pkg.version != '4.52.4') and not (args.experimental)):
-            log.warning('DirectML backend requires transformers==4.52.4')
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade transformers==4.52.4', ignore=False, quiet=True, uv=False)
+        target = '4.52.4'
     else:
-        if (pkg is None) or ((pkg.version != '4.53.2') and not (args.experimental)):
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade transformers==4.53.2', ignore=False, quiet=True, uv=False)
+        target = '4.53.2'
+    if (pkg is None) or ((pkg.version != target) and not (args.experimental)):
+        if pkg is None:
+            log.info(f'Transformers install: version={target}')
+        else:
+            log.info(f'Transformers update: current={pkg.version} target={target}')
+        pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+        pip(f'install --upgrade transformers=={target}', ignore=False, quiet=True, uv=False)
     ts('transformers', t_start)
 
 
