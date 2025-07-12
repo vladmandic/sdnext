@@ -2,6 +2,12 @@ from dataclasses import dataclass
 from installer import log
 
 
+def options_section(section_identifier, options_dict):
+    for v in options_dict.values():
+        v.section = section_identifier
+    return options_dict
+
+
 class OptionInfo:
     def __init__(
             self,

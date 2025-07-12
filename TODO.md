@@ -39,7 +39,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Future Considerations
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
-- [Modular guiders](https://github.com/huggingface/diffusers/pull/11311)  
+- [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 
 ### New models
 

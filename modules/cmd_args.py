@@ -4,8 +4,16 @@ import argparse
 from modules.paths import data_path, models_path
 
 
+parsed = None
 parser = argparse.ArgumentParser(description="SD.Next", conflict_handler='resolve', epilog='For other options see UI Settings page', prog='', add_help=True, formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=55, indent_increment=2, width=200))
 parser._optionals = parser.add_argument_group('Other options') # pylint: disable=protected-access
+
+
+def parse_args():
+    global parsed # pylint: disable=global-statement
+    if parsed is None:
+        parsed, _ = parser.parse_known_args()
+    return parsed
 
 
 def main_args():
@@ -152,7 +160,6 @@ def settings_args(opts, args):
     opts.data['clip_skip'] = 1
 
     opts.onchange("lora_dir", lambda: setattr(args, "lora_dir", opts.lora_dir))
-    opts.onchange("lyco_dir", lambda: setattr(args, "lyco_dir", opts.lyco_dir))
 
     if "USED_VSCODE_COMMAND_PICKARGS" in os.environ:
         import shlex
