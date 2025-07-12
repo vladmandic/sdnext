@@ -255,6 +255,10 @@ def move_base(model, device):
 
 
 def load_diffuser_initial(diffusers_load_config, op='model'):
+    # Track initial model loading
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('model_load_text', {'operation': 'initial_load', 'model_type': op})
+    
     sd_model = None
     checkpoint_info = None
     ckpt_basename = os.path.basename(shared.cmd_opts.ckpt)
@@ -263,14 +267,19 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
         shared.log.info(f'Load model {op}: path="{model_name}"')
         model_file = modelloader.download_diffusers_model(hub_id=model_name, variant=diffusers_load_config.get('variant', None))
         try:
+            pipeline_viz.safe_track_operation('model_load_unet', {'model_path': model_file, 'operation': 'initial_load'})
             shared.log.debug(f'Load {op}: config={diffusers_load_config}')
             sd_model = diffusers.DiffusionPipeline.from_pretrained(model_file, **diffusers_load_config)
+            pipeline_viz.safe_track_operation_complete('model_load_unet', {'success': True, 'model_class': sd_model.__class__.__name__})
         except Exception as e:
             shared.log.error(f'Failed loading model: {model_file} {e}')
             errors.display(e, f'Load {op}: path="{model_file}"')
+            pipeline_viz.safe_track_operation_fail('model_load_unet', str(e))
+            pipeline_viz.safe_track_operation_fail('model_load_text', str(e))
             return None, None
         list_models() # rescan for downloaded model
         checkpoint_info = CheckpointInfo(model_name)
+        pipeline_viz.safe_track_operation_complete('model_load_text', {'success': True, 'checkpoint': model_name})
     return sd_model, checkpoint_info
 
 
@@ -520,6 +529,10 @@ def set_defaults(sd_model, checkpoint_info):
 
 
 def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): # pylint: disable=unused-argument
+    # Track model loading start
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('model_load_text', {'operation': 'diffuser_load', 'model_type': op})
+    
     if timer is None:
         timer = Timer()
     logging.getLogger("diffusers").setLevel(logging.ERROR)
@@ -574,31 +587,50 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             return
         vae_file = None
         if model_type.startswith('Stable Diffusion') and (op == 'model' or op == 'refiner'): # preload vae for sd models
+            pipeline_viz.safe_track_operation('model_load_vae', {'vae_file': vae_file, 'model_type': model_type})
             vae_file, vae_source = sd_vae.resolve_vae(checkpoint_info.filename)
             vae = sd_vae.load_vae_diffusers(checkpoint_info.path, vae_file, vae_source)
             if vae is not None:
                 diffusers_load_config["vae"] = vae
-                timer.record("vae")
+                pipeline_viz.safe_track_operation_complete('model_load_vae', {'success': True, 'vae_source': vae_source})
+            else:
+                pipeline_viz.safe_track_operation_complete('model_load_vae', {'success': False, 'vae_source': vae_source})
+            timer.record("vae")
 
         # load with custom loader
         if sd_model is None:
+            pipeline_viz.safe_track_operation('model_load_unet', {'model_type': model_type, 'loader': 'custom'})
             sd_model, allow_post_quant = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
             if sd_model is not None and not sd_model:
                 shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
+                pipeline_viz.safe_track_operation_fail('model_load_unet', f'Failed to load {model_type}')
                 return
+            elif sd_model is not None:
+                pipeline_viz.safe_track_operation_complete('model_load_unet', {'success': True, 'model_class': sd_model.__class__.__name__})
 
         # load from hf folder-style
         if sd_model is None:
             if os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface' or checkpoint_info.type == 'transformer':
+                pipeline_viz.safe_track_operation('model_load_unet', {'model_type': model_type, 'loader': 'folder'})
                 sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
+                if sd_model is not None:
+                    pipeline_viz.safe_track_operation_complete('model_load_unet', {'success': True, 'model_class': sd_model.__class__.__name__})
+                else:
+                    pipeline_viz.safe_track_operation_fail('model_load_unet', 'Failed to load from folder')
 
         # load from single-file
         if sd_model is None:
             if os.path.isfile(checkpoint_info.path) and checkpoint_info.path.lower().endswith('.safetensors'):
+                pipeline_viz.safe_track_operation('model_load_unet', {'model_type': model_type, 'loader': 'single_file'})
                 sd_model = load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
+                if sd_model is not None:
+                    pipeline_viz.safe_track_operation_complete('model_load_unet', {'success': True, 'model_class': sd_model.__class__.__name__})
+                else:
+                    pipeline_viz.safe_track_operation_fail('model_load_unet', 'Failed to load from single file')
 
         if sd_model is None:
             shared.log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
+            pipeline_viz.safe_track_operation_fail('model_load_text', 'No model loaded')
             return
 
         set_defaults(sd_model, checkpoint_info)
@@ -625,9 +657,11 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             shared.log.trace(f'Model components: {list(get_signature(sd_model).values())}')
 
         from modules import textual_inversion
+        pipeline_viz.safe_track_operation('embedding_load', {'embeddings_dir': shared.opts.embeddings_dir})
         sd_model.embedding_db = textual_inversion.EmbeddingDatabase()
         sd_model.embedding_db.add_embedding_dir(shared.opts.embeddings_dir)
         sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)
+        pipeline_viz.safe_track_operation_complete('embedding_load', {'success': True})
         timer.record("embeddings")
 
         from modules import prompt_parser_diffusers
@@ -645,9 +679,13 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
                 sd_vae.apply_vae_config(shared.sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
         if op == 'refiner' and shared.opts.diffusers_move_refiner:
             shared.log.debug('Moving refiner model to CPU')
+            pipeline_viz.safe_track_operation('model_move_cpu', {'model_type': 'refiner'})
             move_model(sd_model, devices.cpu)
+            pipeline_viz.safe_track_operation_complete('model_move_cpu', {'success': True})
         else:
+            pipeline_viz.safe_track_operation('model_move_gpu', {'model_type': op})
             move_model(sd_model, devices.device)
+            pipeline_viz.safe_track_operation_complete('model_move_gpu', {'success': True})
         timer.record("move")
 
         if shared.opts.ipex_optimize:
@@ -660,11 +698,15 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
     except Exception as e:
         shared.log.error(f"Load {op}: {e}")
         errors.display(e, "Model")
+        pipeline_viz.safe_track_operation_fail('model_load_text', str(e))
 
     if shared.opts.diffusers_offload_mode != 'balanced':
+        pipeline_viz.safe_track_operation('memory_cleanup', {'cleanup_type': 'model_load'})
         devices.torch_gc(force=True)
+        pipeline_viz.safe_track_operation_complete('memory_cleanup', {'success': True})
     if sd_model is not None:
         script_callbacks.model_loaded_callback(sd_model)
+        pipeline_viz.safe_track_operation_complete('model_load_text', {'success': True, 'model_type': shared.sd_model_type})
 
     if debug_load:
         from modules import modelstats
@@ -1061,6 +1103,10 @@ def clear_caches():
 
 
 def unload_model_weights(op='model'):
+    # Track model unloading
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('model_offload', {'model_type': op})
+    
     clear_caches()
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
@@ -1070,17 +1116,27 @@ def unload_model_weights(op='model'):
         shared.log.debug(f'Current {op}: {memory_stats()}')
         if not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
             disable_offload(model_data.sd_model)
+            pipeline_viz.safe_track_operation('model_move_cpu', {'model_type': op, 'destination': 'meta'})
             move_model(model_data.sd_model, 'meta')
+            pipeline_viz.safe_track_operation_complete('model_move_cpu', {'success': True})
         model_data.sd_model = None
+        pipeline_viz.safe_track_operation('memory_cleanup', {'cleanup_type': 'model_unload'})
         devices.torch_gc(force=True)
+        pipeline_viz.safe_track_operation_complete('memory_cleanup', {'success': True})
         shared.log.debug(f'Unload {op}: {memory_stats()} after')
     elif (op == 'refiner') and model_data.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
         disable_offload(model_data.sd_refiner)
+        pipeline_viz.safe_track_operation('model_move_cpu', {'model_type': op, 'destination': 'meta'})
         move_model(model_data.sd_refiner, 'meta')
+        pipeline_viz.safe_track_operation_complete('model_move_cpu', {'success': True})
         model_data.sd_refiner = None
+        pipeline_viz.safe_track_operation('memory_cleanup', {'cleanup_type': 'refiner_unload'})
         devices.torch_gc(force=True)
+        pipeline_viz.safe_track_operation_complete('memory_cleanup', {'success': True})
         shared.log.debug(f'Unload {op}: {memory_stats()}')
+    
+    pipeline_viz.safe_track_operation_complete('model_offload', {'success': True})
 
 
 def hf_auth_check(checkpoint_info):

@@ -77,20 +77,62 @@ def vae_decode_full(latents):
 
 
 def vae_decode(latents, vae_type):
+    # Track framepack VAE decode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_decode', {
+        'latents_shape': str(latents.shape) if hasattr(latents, 'shape') else None,
+        'vae_type': f'framepack_{vae_type.lower()}',
+        'framepack_variant': vae_type
+    })
+    
     latents = latents.to(device=devices.device, dtype=devices.dtype)
-    if vae_type == 'Tiny':
-        return vae_decode_tiny(latents)
-    elif vae_type == 'Preview':
-        return vae_decode_simple(latents)
-    elif vae_type == 'Remote':
-        return vae_decode_remote(latents)
-    else: # vae_type == 'Full'
-        return vae_decode_full(latents)
+    try:
+        if vae_type == 'Tiny':
+            result = vae_decode_tiny(latents)
+        elif vae_type == 'Preview':
+            result = vae_decode_simple(latents)
+        elif vae_type == 'Remote':
+            result = vae_decode_remote(latents)
+        else: # vae_type == 'Full'
+            result = vae_decode_full(latents)
+            
+        # Complete framepack VAE decode tracking
+        pipeline_viz.safe_track_operation_complete('vae_decode', {
+            'success': result is not None,
+            'output_shape': str(result.shape) if hasattr(result, 'shape') else None,
+            'vae_type': f'framepack_{vae_type.lower()}'
+        })
+        
+        return result
+    except Exception as e:
+        shared.log.error(f'Framepack VAE decode: {e}')
+        pipeline_viz.safe_track_operation_fail('vae_decode', str(e))
+        return None
 
 
 def vae_encode(image):
-    with devices.inference_context():
-        vae = shared.sd_model.vae
-        latents = vae.encode(image.to(device=vae.device, dtype=vae.dtype)).latent_dist.sample()
-        latents = latents * vae.config.scaling_factor
-    return latents
+    # Track framepack VAE encode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_encode', {
+        'image_shape': str(image.shape) if hasattr(image, 'shape') else None,
+        'vae_type': 'framepack_full'
+    })
+    
+    try:
+        with devices.inference_context():
+            vae = shared.sd_model.vae
+            latents = vae.encode(image.to(device=vae.device, dtype=vae.dtype)).latent_dist.sample()
+            latents = latents * vae.config.scaling_factor
+            
+        # Complete framepack VAE encode tracking
+        pipeline_viz.safe_track_operation_complete('vae_encode', {
+            'success': latents is not None,
+            'output_shape': str(latents.shape) if hasattr(latents, 'shape') else None,
+            'vae_type': 'framepack_full'
+        })
+        
+        return latents
+    except Exception as e:
+        shared.log.error(f'Framepack VAE encode: {e}')
+        pipeline_viz.safe_track_operation_fail('vae_encode', str(e))
+        return None

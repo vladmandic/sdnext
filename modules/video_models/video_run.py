@@ -82,6 +82,11 @@ def generate(*args, **kwargs):
     p.task_args['height'] = p.height
     p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
     p.ops.append('video')
+    
+    # Track video operation start
+    from modules import pipeline_viz
+    pipeline_viz.track_operation_start('video', p)
+    
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
@@ -100,6 +105,8 @@ def generate(*args, **kwargs):
     except Exception as e:
         err = str(e)
         errors.display(e, 'video')
+        # Track video operation failure
+        pipeline_viz.track_operation_fail('video', str(e))
     t1 = time.time()
     shared.state.disable_preview = False
     shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
@@ -111,6 +118,10 @@ def generate(*args, **kwargs):
         return video_utils.queue_err(err)
     if processed is None or len(processed.images) == 0:
         return video_utils.queue_err('processing failed')
+    
+    # Track video operation completion
+    pipeline_viz.track_operation_complete('video', p)
+    
     shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
     video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
     generation_info_js = processed.js() if processed is not None else ''

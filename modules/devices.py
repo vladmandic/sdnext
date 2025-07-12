@@ -190,6 +190,16 @@ def get_optimal_device():
 
 
 def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
+    # Track memory cleanup operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('memory_cleanup', {
+        'cleanup_type': 'torch_gc',
+        'force': force,
+        'fast': fast,
+        'reason': reason,
+        'backend': backend
+    })
+    
     def get_stats():
         mem_dict = memstats.memory_stats()
         gpu_dict = mem_dict.get('gpu', {})
@@ -209,51 +219,82 @@ def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
     from modules import timer, memstats
     from modules.shared import cmd_opts
 
-    t0 = time.time()
-    gpu, used_gpu, ram, _used_ram, oom = get_stats()
-    threshold = 0 if (cmd_opts.lowvram and not cmd_opts.use_zluda) else opts.torch_gc_threshold
-    collected = 0
-    if reason is None and force:
-        reason='force'
-    if threshold == 0 or used_gpu >= threshold:
-        force = True
-        if reason is None:
-            reason = 'threshold'
-    if oom > previous_oom:
-        previous_oom = oom
-        log.warning(f'Torch GPU out-of-memory error: {memstats.memory_stats()}')
-        force = True
-        if reason is None:
-            reason = 'oom'
-    if debug:
-        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        log.trace(f'GC: run={force} fast={fast} used={used_gpu} threshold={threshold} fn={fn}')
-    if force:
-        # actual gc
-        collected = gc.collect() if not fast else 0 # python gc
-        if cuda_ok:
-            try:
-                with torch.cuda.device(get_cuda_device_string()):
-                    torch.cuda.synchronize()
-                    torch.cuda.empty_cache() # cuda gc
-                    torch.cuda.ipc_collect()
-            except Exception:
-                pass
-    else:
-        return gpu, ram
-    t1 = time.time()
-    timer.process.add('gc', t1 - t0)
-    if fast:
-        return gpu, ram
+    try:
+        t0 = time.time()
+        gpu, used_gpu, ram, _used_ram, oom = get_stats()
+        threshold = 0 if (cmd_opts.lowvram and not cmd_opts.use_zluda) else opts.torch_gc_threshold
+        collected = 0
+        if reason is None and force:
+            reason='force'
+        if threshold == 0 or used_gpu >= threshold:
+            force = True
+            if reason is None:
+                reason = 'threshold'
+        if oom > previous_oom:
+            previous_oom = oom
+            log.warning(f'Torch GPU out-of-memory error: {memstats.memory_stats()}')
+            force = True
+            if reason is None:
+                reason = 'oom'
+        if debug:
+            fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            log.trace(f'GC: run={force} fast={fast} used={used_gpu} threshold={threshold} fn={fn}')
+        if force:
+            # actual gc
+            collected = gc.collect() if not fast else 0 # python gc
+            if cuda_ok:
+                try:
+                    with torch.cuda.device(get_cuda_device_string()):
+                        torch.cuda.synchronize()
+                        torch.cuda.empty_cache() # cuda gc
+                        torch.cuda.ipc_collect()
+                except Exception:
+                    pass
+        else:
+            pipeline_viz.safe_track_operation_complete('memory_cleanup', {
+                'success': True,
+                'cleanup_performed': False,
+                'reason': 'threshold_not_reached',
+                'used_gpu': used_gpu,
+                'threshold': threshold
+            })
+            return gpu, ram
+        t1 = time.time()
+        timer.process.add('gc', t1 - t0)
+        if fast:
+            pipeline_viz.safe_track_operation_complete('memory_cleanup', {
+                'success': True,
+                'cleanup_performed': True,
+                'fast_mode': True,
+                'time': t1 - t0,
+                'reason': reason
+            })
+            return gpu, ram
 
-    new_gpu, new_used_gpu, new_ram, new_used_ram, oom = get_stats()
-    before = { 'gpu': gpu, 'ram': ram }
-    after = { 'gpu': new_gpu, 'ram': new_ram, 'oom': oom }
-    utilization = { 'gpu': new_used_gpu, 'ram': new_used_ram }
-    results = { 'gpu': round(gpu - new_gpu, 2), 'py': collected }
-    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f'GC: current={after} prev={before} load={utilization} gc={results} fn={fn} why={reason} time={t1-t0:.2f}')
-    return new_gpu, new_ram
+        new_gpu, new_used_gpu, new_ram, new_used_ram, oom = get_stats()
+        before = { 'gpu': gpu, 'ram': ram }
+        after = { 'gpu': new_gpu, 'ram': new_ram, 'oom': oom }
+        utilization = { 'gpu': new_used_gpu, 'ram': new_used_ram }
+        results = { 'gpu': round(gpu - new_gpu, 2), 'py': collected }
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.debug(f'GC: current={after} prev={before} load={utilization} gc={results} fn={fn} why={reason} time={t1-t0:.2f}')
+        
+        # Complete memory cleanup tracking
+        pipeline_viz.safe_track_operation_complete('memory_cleanup', {
+            'success': True,
+            'cleanup_performed': True,
+            'python_collected': collected,
+            'gpu_freed': results['gpu'],
+            'memory_before': before,
+            'memory_after': after,
+            'time': t1 - t0,
+            'reason': reason
+        })
+        
+        return new_gpu, new_ram
+    except Exception as e:
+        pipeline_viz.safe_track_operation_fail('memory_cleanup', str(e))
+        raise
 
 
 def set_cuda_sync_mode(mode):

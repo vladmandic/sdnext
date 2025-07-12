@@ -163,6 +163,18 @@ def efficient_dot_product_attention(
       Returns:
         Output of shape `[batch * num_heads, query_tokens, channels_per_head]`.
       """
+    # Track sub-quadratic attention operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('attention_chunking', {
+        'operation_type': 'sub_quadratic_attention',
+        'query_shape': str(query.shape),
+        'key_shape': str(key.shape),
+        'value_shape': str(value.shape),
+        'query_chunk_size': query_chunk_size,
+        'kv_chunk_size': kv_chunk_size,
+        'use_checkpoint': use_checkpoint
+    })
+    
     _batch_x_heads, q_tokens, q_channels_per_head = query.shape
     _, k_tokens, _ = key.shape
     scale = q_channels_per_head ** -0.5
@@ -180,7 +192,20 @@ def efficient_dot_product_attention(
         )
 
     summarize_chunk: SummarizeChunk = partial(_summarize_chunk, scale=scale)
-    summarize_chunk: SummarizeChunk = partial(checkpoint, summarize_chunk) if use_checkpoint else summarize_chunk
+    if use_checkpoint:
+        # Track gradient checkpointing in attention
+        pipeline_viz.safe_track_operation('gradient_checkpoint', {
+            'operation_type': 'attention_checkpoint',
+            'chunk_size': kv_chunk_size
+        })
+        summarize_chunk: SummarizeChunk = partial(checkpoint, summarize_chunk)
+        pipeline_viz.safe_track_operation_complete('gradient_checkpoint', {
+            'success': True,
+            'operation_type': 'attention_checkpoint'
+        })
+    else:
+        summarize_chunk: SummarizeChunk = summarize_chunk
+        
     compute_query_chunk_attn: ComputeQueryChunkAttn = partial(
         _get_attention_scores_no_kv_chunking,
         scale=scale
@@ -193,19 +218,33 @@ def efficient_dot_product_attention(
         )
     )
 
-    if q_tokens <= query_chunk_size:
-        # fast-path for when there's just 1 query chunk
-        return compute_query_chunk_attn(
-            query=query,
-            key=key,
-            value=value,
-        )
-
-    res = torch.cat([
-        compute_query_chunk_attn(
-            query=get_query_chunk(i * query_chunk_size),
-            key=key,
-            value=value,
-        ) for i in range(math.ceil(q_tokens / query_chunk_size))
-    ], dim=1)
-    return res
+    try:
+        if q_tokens <= query_chunk_size:
+            # fast-path for when there's just 1 query chunk
+            result = compute_query_chunk_attn(
+                query=query,
+                key=key,
+                value=value,
+            )
+        else:
+            result = torch.cat([
+                compute_query_chunk_attn(
+                    query=get_query_chunk(i * query_chunk_size),
+                    key=key,
+                    value=value,
+                ) for i in range(math.ceil(q_tokens / query_chunk_size))
+            ], dim=1)
+            
+        # Complete sub-quadratic attention tracking
+        pipeline_viz.safe_track_operation_complete('attention_chunking', {
+            'success': True,
+            'operation_type': 'sub_quadratic_attention',
+            'output_shape': str(result.shape),
+            'final_kv_chunk_size': kv_chunk_size,
+            'num_query_chunks': math.ceil(q_tokens / query_chunk_size)
+        })
+        
+        return result
+    except Exception as e:
+        pipeline_viz.safe_track_operation_fail('attention_chunking', str(e))
+        raise

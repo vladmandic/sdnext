@@ -192,6 +192,18 @@ class OpenposeDetector:
         return results
 
     def __call__(self, input_image, detect_resolution=512, image_resolution=512, include_body=True, include_hand=False, include_face=False, hand_and_face=None, output_type="pil", **kwargs):
+        # Track OpenPose detection operation
+        from modules import pipeline_viz
+        pipeline_viz.safe_track_operation('pose_detect', {
+            'detect_resolution': detect_resolution,
+            'image_resolution': image_resolution,
+            'include_body': include_body,
+            'include_hand': include_hand,
+            'include_face': include_face,
+            'pose_detector': 'openpose',
+            'pose_model': 'body_25'
+        })
+        
         self.to(devices.device)
         if hand_and_face is not None:
             warnings.warn("hand_and_face is deprecated. Use include_hand and include_face instead.", DeprecationWarning)
@@ -204,20 +216,51 @@ class OpenposeDetector:
             warnings.warn("Passing `True` or `False` to `output_type` is deprecated and will raise an error in future versions")
             if output_type:
                 output_type = "pil"
-        if not isinstance(input_image, np.ndarray):
-            input_image = np.array(input_image, dtype=np.uint8)
-        input_image = HWC3(input_image)
-        input_image = resize_image(input_image, detect_resolution)
-        H, W, _C = input_image.shape
-        poses = self.detect_poses(input_image, include_hand, include_face)
-        canvas = draw_poses(poses, H, W, draw_body=include_body, draw_hand=include_hand, draw_face=include_face)
-        detected_map = canvas
-        detected_map = HWC3(detected_map)
-        img = resize_image(input_image, image_resolution)
-        H, W, _C = img.shape
-        detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_LINEAR)
-        if opts.control_move_processor:
-            self.to('cpu')
-        if output_type == "pil":
-            detected_map = Image.fromarray(detected_map)
-        return detected_map
+        
+        try:
+            if not isinstance(input_image, np.ndarray):
+                input_image = np.array(input_image, dtype=np.uint8)
+            input_image = HWC3(input_image)
+            input_image = resize_image(input_image, detect_resolution)
+            H, W, _C = input_image.shape
+            
+            # Track OpenPose extraction operation
+            pipeline_viz.safe_track_operation('openpose_extract', {
+                'input_size': f"{W}x{H}",
+                'include_body': include_body,
+                'include_hand': include_hand,
+                'include_face': include_face
+            })
+            
+            poses = self.detect_poses(input_image, include_hand, include_face)
+            canvas = draw_poses(poses, H, W, draw_body=include_body, draw_hand=include_hand, draw_face=include_face)
+            detected_map = canvas
+            detected_map = HWC3(detected_map)
+            img = resize_image(input_image, image_resolution)
+            H, W, _C = img.shape
+            detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_LINEAR)
+            if opts.control_move_processor:
+                self.to('cpu')
+            if output_type == "pil":
+                detected_map = Image.fromarray(detected_map)
+                
+            # Complete OpenPose operations tracking
+            pipeline_viz.safe_track_operation_complete('openpose_extract', {
+                'success': True,
+                'output_size': f"{W}x{H}",
+                'poses_detected': len(poses),
+                'output_type': output_type
+            })
+            
+            pipeline_viz.safe_track_operation_complete('pose_detect', {
+                'success': True,
+                'output_size': f"{W}x{H}",
+                'poses_detected': len(poses),
+                'model_moved_to_cpu': opts.control_move_processor
+            })
+            
+            return detected_map
+        except Exception as e:
+            pipeline_viz.safe_track_operation_fail('openpose_extract', str(e))
+            pipeline_viz.safe_track_operation_fail('pose_detect', str(e))
+            raise
