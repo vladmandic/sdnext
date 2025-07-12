@@ -85,11 +85,20 @@ def full_vqgan_decode(latents, model):
 
 
 def full_vae_decode(latents, model):
+    # Track VAE decode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_decode', {
+        'latents_shape': str(latents.shape) if hasattr(latents, 'shape') else None,
+        'model_class': model.__class__.__name__ if model else None,
+        'vae_type': 'full'
+    })
+    
     t0 = time.time()
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if model is None or not hasattr(model, 'vae'):
         shared.log.error('VAE not found in model')
+        pipeline_viz.safe_track_operation_fail('vae_decode', 'VAE not found in model')
         return []
     if debug:
         devices.torch_gc(force=True)
@@ -143,6 +152,7 @@ def full_vae_decode(latents, model):
         shared.log.error(f'VAE decode: {e}')
         if 'out of memory' not in str(e) and 'no data' not in str(e):
             errors.display(e, 'VAE decode')
+        pipeline_viz.safe_track_operation_fail('vae_decode', str(e))
         decoded = []
 
     if hasattr(model.vae, "orig_dtype"):
@@ -164,10 +174,28 @@ def full_vae_decode(latents, model):
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
     shared.log.debug(f'Decode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device}:{latents.dtype} time={t1-t0:.3f}')
+    
+    # Complete VAE decode tracking
+    pipeline_viz.safe_track_operation_complete('vae_decode', {
+        'success': len(decoded) > 0 if isinstance(decoded, list) else decoded is not None,
+        'output_shape': str(decoded.shape) if hasattr(decoded, 'shape') else None,
+        'vae_name': vae_name,
+        'upcast': upcast,
+        'time': t1-t0
+    })
+    
     return decoded
 
 
 def full_vae_encode(image, model):
+    # Track VAE encode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_encode', {
+        'image_shape': str(image.shape) if hasattr(image, 'shape') else None,
+        'model_class': model.__class__.__name__ if model else None,
+        'vae_type': 'full'
+    })
+    
     t0 = time.time()
     if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and hasattr(model, 'unet'):
         log_debug('Moving to CPU: model=UNet')
@@ -187,7 +215,12 @@ def full_vae_encode(image, model):
             model.vae.orig_dtype = model.vae.dtype
             model.vae = model.vae.to(dtype=torch.float32)
 
-    encoded = model.vae.encode(image.to(model.vae.device, model.vae.dtype)).latent_dist.sample()
+    try:
+        encoded = model.vae.encode(image.to(model.vae.device, model.vae.dtype)).latent_dist.sample()
+    except Exception as e:
+        shared.log.error(f'VAE encode: {e}')
+        pipeline_viz.safe_track_operation_fail('vae_encode', str(e))
+        return None
 
     if hasattr(model.vae, "orig_dtype"):
         model.vae = model.vae.to(dtype=model.vae.orig_dtype)
@@ -197,27 +230,80 @@ def full_vae_encode(image, model):
         sd_models.move_model(model.unet, unet_device)
     t1 = time.time()
     shared.log.debug(f'Encode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={encoded.shape}:{encoded.device}:{encoded.dtype} time={t1-t0:.3f}')
+    
+    # Complete VAE encode tracking
+    pipeline_viz.safe_track_operation_complete('vae_encode', {
+        'success': encoded is not None,
+        'output_shape': str(encoded.shape) if hasattr(encoded, 'shape') else None,
+        'vae_name': vae_name,
+        'upcast': upcast,
+        'time': t1-t0
+    })
+    
     return encoded
 
 
 def taesd_vae_decode(latents):
+    # Track TAESD VAE decode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_decode', {
+        'latents_shape': str(latents.shape) if hasattr(latents, 'shape') else None,
+        'vae_type': 'taesd'
+    })
+    
     t0 = time.time()
     if len(latents) == 0:
+        pipeline_viz.safe_track_operation_fail('vae_decode', 'Empty latents')
         return []
-    if shared.opts.diffusers_vae_slicing and len(latents) > 1:
-        decoded = torch.zeros((len(latents), 3, latents.shape[2] * 8, latents.shape[3] * 8), dtype=devices.dtype_vae, device=devices.device)
-        for i in range(latents.shape[0]):
-            decoded[i] = sd_vae_taesd.decode(latents[i])
-    else:
-        decoded = sd_vae_taesd.decode(latents)
+    try:
+        if shared.opts.diffusers_vae_slicing and len(latents) > 1:
+            decoded = torch.zeros((len(latents), 3, latents.shape[2] * 8, latents.shape[3] * 8), dtype=devices.dtype_vae, device=devices.device)
+            for i in range(latents.shape[0]):
+                decoded[i] = sd_vae_taesd.decode(latents[i])
+        else:
+            decoded = sd_vae_taesd.decode(latents)
+    except Exception as e:
+        shared.log.error(f'TAESD VAE decode: {e}')
+        pipeline_viz.safe_track_operation_fail('vae_decode', str(e))
+        return []
+        
     t1 = time.time()
     shared.log.debug(f'Decode: vae="taesd" latents={latents.shape}:{latents.dtype}:{latents.device} time={t1-t0:.3f}')
+    
+    # Complete TAESD VAE decode tracking
+    pipeline_viz.safe_track_operation_complete('vae_decode', {
+        'success': decoded is not None,
+        'output_shape': str(decoded.shape) if hasattr(decoded, 'shape') else None,
+        'vae_name': 'taesd',
+        'time': t1-t0
+    })
+    
     return decoded
 
 
 def taesd_vae_encode(image):
+    # Track TAESD VAE encode operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('vae_encode', {
+        'image_shape': str(image.shape) if hasattr(image, 'shape') else None,
+        'vae_type': 'taesd'
+    })
+    
     shared.log.debug(f'Encode: vae="taesd" image={image.shape}')
-    encoded = sd_vae_taesd.encode(image)
+    try:
+        encoded = sd_vae_taesd.encode(image)
+    except Exception as e:
+        shared.log.error(f'TAESD VAE encode: {e}')
+        pipeline_viz.safe_track_operation_fail('vae_encode', str(e))
+        return None
+    
+    # Complete TAESD VAE encode tracking
+    pipeline_viz.safe_track_operation_complete('vae_encode', {
+        'success': encoded is not None,
+        'output_shape': str(encoded.shape) if hasattr(encoded, 'shape') else None,
+        'vae_name': 'taesd'
+    })
+    
     return encoded
 
 

@@ -100,6 +100,14 @@ def teacache_flux_forward(
         ip_hidden_states = self.encoder_hid_proj(ip_adapter_image_embeds)
         joint_attention_kwargs.update({"ip_hidden_states": ip_hidden_states})
 
+    # Track TeaCache attention operations
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('attention_slicing', {
+        'operation_type': 'teacache_flux',
+        'enable_teacache': getattr(self, 'enable_teacache', False),
+        'hidden_states_shape': str(hidden_states.shape) if hasattr(hidden_states, 'shape') else None
+    })
+
     if self.enable_teacache:
         inp = hidden_states.clone()
         temb_ = temb.clone()
@@ -128,6 +136,12 @@ def teacache_flux_forward(
             ori_hidden_states = hidden_states.clone()
             for index_block, block in enumerate(self.transformer_blocks):
                 if torch.is_grad_enabled() and self.gradient_checkpointing:
+                    # Track gradient checkpointing
+                    pipeline_viz.safe_track_operation('gradient_checkpoint', {
+                        'operation_type': 'transformer_block',
+                        'block_index': index_block,
+                        'total_blocks': len(self.transformer_blocks)
+                    })
 
                     def create_custom_forward4(module, return_dict=None):
                         def custom_forward(*inputs):
@@ -147,6 +161,12 @@ def teacache_flux_forward(
                         image_rotary_emb,
                         **ckpt_kwargs,
                     )
+                    
+                    # Complete gradient checkpointing tracking
+                    pipeline_viz.safe_track_operation_complete('gradient_checkpoint', {
+                        'success': True,
+                        'block_index': index_block
+                    })
 
                 else:
                     encoder_hidden_states, hidden_states = block(
@@ -172,6 +192,12 @@ def teacache_flux_forward(
 
             for index_block, block in enumerate(self.single_transformer_blocks):
                 if torch.is_grad_enabled() and self.gradient_checkpointing:
+                    # Track gradient checkpointing for single blocks
+                    pipeline_viz.safe_track_operation('gradient_checkpoint', {
+                        'operation_type': 'single_transformer_block',
+                        'block_index': index_block,
+                        'total_blocks': len(self.single_transformer_blocks)
+                    })
 
                     def create_custom_forward2(module, return_dict=None):
                         def custom_forward(*inputs):
@@ -190,6 +216,13 @@ def teacache_flux_forward(
                         image_rotary_emb,
                         **ckpt_kwargs,
                     )
+                    
+                    # Complete gradient checkpointing tracking
+                    pipeline_viz.safe_track_operation_complete('gradient_checkpoint', {
+                        'success': True,
+                        'block_index': index_block,
+                        'operation_type': 'single_transformer_block'
+                    })
 
                 else:
                     hidden_states = block(
@@ -213,6 +246,12 @@ def teacache_flux_forward(
     else:
         for index_block, block in enumerate(self.transformer_blocks):
             if torch.is_grad_enabled() and self.gradient_checkpointing:
+                # Track gradient checkpointing (non-TeaCache path)
+                pipeline_viz.safe_track_operation('gradient_checkpoint', {
+                    'operation_type': 'transformer_block_standard',
+                    'block_index': index_block,
+                    'total_blocks': len(self.transformer_blocks)
+                })
 
                 def create_custom_forward1(module, return_dict=None):
                     def custom_forward(*inputs):
@@ -232,6 +271,13 @@ def teacache_flux_forward(
                     image_rotary_emb,
                     **ckpt_kwargs,
                 )
+                
+                # Complete gradient checkpointing tracking
+                pipeline_viz.safe_track_operation_complete('gradient_checkpoint', {
+                    'success': True,
+                    'block_index': index_block,
+                    'operation_type': 'transformer_block_standard'
+                })
 
             else:
                 encoder_hidden_states, hidden_states = block(
@@ -257,6 +303,12 @@ def teacache_flux_forward(
 
         for index_block, block in enumerate(self.single_transformer_blocks):
             if torch.is_grad_enabled() and self.gradient_checkpointing:
+                # Track gradient checkpointing for single blocks (non-TeaCache path)
+                pipeline_viz.safe_track_operation('gradient_checkpoint', {
+                    'operation_type': 'single_transformer_block_standard',
+                    'block_index': index_block,
+                    'total_blocks': len(self.single_transformer_blocks)
+                })
 
                 def create_custom_forward3(module, return_dict=None):
                     def custom_forward(*inputs):
@@ -275,6 +327,13 @@ def teacache_flux_forward(
                     image_rotary_emb,
                     **ckpt_kwargs,
                 )
+                
+                # Complete gradient checkpointing tracking
+                pipeline_viz.safe_track_operation_complete('gradient_checkpoint', {
+                    'success': True,
+                    'block_index': index_block,
+                    'operation_type': 'single_transformer_block_standard'
+                })
 
             else:
                 hidden_states = block(
@@ -301,6 +360,13 @@ def teacache_flux_forward(
     if USE_PEFT_BACKEND:
         # remove `lora_scale` from each PEFT layer
         unscale_lora_layers(self, lora_scale)
+
+    # Complete TeaCache attention operation tracking
+    pipeline_viz.safe_track_operation_complete('attention_slicing', {
+        'success': True,
+        'operation_type': 'teacache_flux',
+        'output_shape': str(output.shape) if hasattr(output, 'shape') else None
+    })
 
     if not return_dict:
         return (output,)

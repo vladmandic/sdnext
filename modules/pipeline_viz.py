@@ -818,4 +818,142 @@ def track_sub_operation_complete(op_name: str, p=None):
     details = {}
     if p:
         details = get_operation_details(op_name, p)
-    pipeline_viz.complete_operation(op_name, details) 
+    pipeline_viz.complete_operation(op_name, details)
+
+
+# Helper functions for easier integration
+def track_model_loading(operation_name: str, model_type: str = None, model_path: str = None, **kwargs):
+    """Helper to track model loading operations"""
+    if not pipeline_viz.enabled:
+        return
+    
+    details = {
+        'model_type': model_type,
+        'model_path': model_path,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.start_operation(operation_name, details)
+
+
+def track_model_loading_complete(operation_name: str, model_type: str = None, success: bool = True, **kwargs):
+    """Helper to complete model loading operations"""
+    if not pipeline_viz.enabled:
+        return
+    
+    details = {
+        'model_type': model_type,
+        'success': success,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.complete_operation(operation_name, details)
+
+
+def track_vae_operation(operation_name: str, input_shape: tuple = None, vae_type: str = None, **kwargs):
+    """Helper to track VAE operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'input_shape': str(input_shape) if input_shape else None,
+        'vae_type': vae_type,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.start_operation(operation_name, details)
+
+
+def track_vae_operation_complete(operation_name: str, output_shape: tuple = None, success: bool = True, **kwargs):
+    """Helper to complete VAE operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'output_shape': str(output_shape) if output_shape else None,
+        'success': success,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.complete_operation(operation_name, details)
+
+
+def track_attention_operation(operation_name: str, operation_type: str = None, **kwargs):
+    """Helper to track attention/memory operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'operation_type': operation_type,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.start_operation(operation_name, details)
+
+
+def track_attention_operation_complete(operation_name: str, success: bool = True, **kwargs):
+    """Helper to complete attention/memory operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'success': success,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.complete_operation(operation_name, details)
+
+
+def track_control_operation(operation_name: str, control_type: str = None, input_shape: tuple = None, **kwargs):
+    """Helper to track control operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'control_type': control_type,
+        'input_shape': str(input_shape) if input_shape else None,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.start_operation(operation_name, details)
+
+
+def track_control_operation_complete(operation_name: str, output_shape: tuple = None, success: bool = True, **kwargs):
+    """Helper to complete control operations"""
+    if not pipeline_viz.enabled:
+        return
+        
+    details = {
+        'output_shape': str(output_shape) if output_shape else None,
+        'success': success,
+        'timestamp': time.time(),
+        **kwargs
+    }
+    pipeline_viz.complete_operation(operation_name, details)
+
+
+def safe_track_operation(operation_name: str, details: dict = None):
+    """Safely track an operation without errors"""
+    try:
+        if pipeline_viz.enabled:
+            pipeline_viz.start_operation(operation_name, details or {})
+    except Exception:
+        pass  # Silently ignore tracking errors to not break main functionality
+
+
+def safe_track_operation_complete(operation_name: str, details: dict = None):
+    """Safely complete tracking an operation without errors"""
+    try:
+        if pipeline_viz.enabled:
+            pipeline_viz.complete_operation(operation_name, details or {})
+    except Exception:
+        pass  # Silently ignore tracking errors to not break main functionality
+
+
+def safe_track_operation_fail(operation_name: str, error: str):
+    """Safely track a failed operation without errors"""
+    try:
+        if pipeline_viz.enabled:
+            pipeline_viz.fail_operation(operation_name, error)
+    except Exception:
+        pass  # Silently ignore tracking errors to not break main functionality

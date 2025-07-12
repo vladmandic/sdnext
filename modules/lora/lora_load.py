@@ -258,6 +258,16 @@ def gather_networks(names):
 
 
 def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None):
+    # Track LoRA loading operation
+    from modules import pipeline_viz
+    pipeline_viz.safe_track_operation('lora_load', {
+        'lora_names': names[:5] if len(names) > 5 else names,  # Limit to first 5 names
+        'total_loras': len(names),
+        'te_multipliers': te_multipliers[:5] if te_multipliers and len(te_multipliers) > 5 else te_multipliers,
+        'unet_multipliers': unet_multipliers[:5] if unet_multipliers and len(unet_multipliers) > 5 else unet_multipliers,
+        'lora_cache_size': len(lora_cache)
+    })
+    
     networks_on_disk = gather_networks(names)
     failed_to_load_networks = []
     recompile_model, skip_lora_load = maybe_recompile_model(names, te_multipliers)
@@ -267,70 +277,102 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
     diffuser_scales.clear()
     t0 = time.time()
 
-    for i, (network_on_disk, name) in enumerate(zip(networks_on_disk, names)):
-        net = None
-        if network_on_disk is not None:
-            shorthash = getattr(network_on_disk, 'shorthash', '').lower()
-            if l.debug:
-                shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
+    try:
+        for i, (network_on_disk, name) in enumerate(zip(networks_on_disk, names)):
+            net = None
+            if network_on_disk is not None:
+                shorthash = getattr(network_on_disk, 'shorthash', '').lower()
+                if l.debug:
+                    shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
+                try:
+                    if recompile_model:
+                        shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
+                    lora_method = lora_overrides.get_method(shorthash)
+                    if shared.opts.lora_force_diffusers or lora_method == 'diffusers': # OpenVINO only works with Diffusers LoRa loading
+                        net = load_diffusers(name, network_on_disk, lora_scale=te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier)
+                    elif lora_method == 'nunchaku':
+                        pass # handled directly from extra_networks_lora.load_nunchaku
+                    else:
+                        net = load_safetensors(name, network_on_disk)
+                    if net is not None:
+                        net.mentioned_name = name
+                        network_on_disk.read_hash()
+                except Exception as e:
+                    shared.log.error(f'Network load: type=LoRA file="{network_on_disk.filename}" {e}')
+                    if l.debug:
+                        errors.display(e, 'LoRA')
+                    continue
+            if net is None:
+                failed_to_load_networks.append(name)
+                shared.log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} failed')
+                continue
+            if hasattr(shared.sd_model, 'embedding_db'):
+                shared.sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
+            net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
+            net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
+            net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
+            l.loaded_networks.append(net)
+
+        while len(lora_cache) > shared.opts.lora_in_memory_limit:
+            name = next(iter(lora_cache))
+            lora_cache.pop(name, None)
+
+        if not skip_lora_load and len(diffuser_loaded) > 0:
+            # Track LoRA application operation
+            pipeline_viz.safe_track_operation('lora_apply', {
+                'loaded_adapters': diffuser_loaded[:5] if len(diffuser_loaded) > 5 else diffuser_loaded,
+                'total_adapters': len(diffuser_loaded),
+                'adapter_scales': diffuser_scales[:5] if len(diffuser_scales) > 5 else diffuser_scales,
+                'lora_fuse': shared.opts.lora_fuse_diffusers
+            })
+            
+            shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
             try:
-                if recompile_model:
-                    shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
-                lora_method = lora_overrides.get_method(shorthash)
-                if shared.opts.lora_force_diffusers or lora_method == 'diffusers': # OpenVINO only works with Diffusers LoRa loading
-                    net = load_diffusers(name, network_on_disk, lora_scale=te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier)
-                elif lora_method == 'nunchaku':
-                    pass # handled directly from extra_networks_lora.load_nunchaku
-                else:
-                    net = load_safetensors(name, network_on_disk)
-                if net is not None:
-                    net.mentioned_name = name
-                    network_on_disk.read_hash()
+                t1 = time.time()
+                if l.debug:
+                    shared.log.trace(f'Network load: type=LoRA list={shared.sd_model.get_list_adapters()}')
+                    shared.log.trace(f'Network load: type=LoRA active={shared.sd_model.get_active_adapters()}')
+                shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
+                if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
+                    shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
+                    shared.sd_model.unload_lora_weights()
+                l.timer.activate += time.time() - t1
+                
+                # Complete LoRA application tracking
+                pipeline_viz.safe_track_operation_complete('lora_apply', {
+                    'success': True,
+                    'applied_adapters': len(diffuser_loaded),
+                    'fused': shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse(),
+                    'apply_time': time.time() - t1
+                })
             except Exception as e:
-                shared.log.error(f'Network load: type=LoRA file="{network_on_disk.filename}" {e}')
+                shared.log.error(f'Network load: type=LoRA {e}')
                 if l.debug:
                     errors.display(e, 'LoRA')
-                continue
-        if net is None:
-            failed_to_load_networks.append(name)
-            shared.log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} failed')
-            continue
-        if hasattr(shared.sd_model, 'embedding_db'):
-            shared.sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
-        net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
-        net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
-        net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
-        l.loaded_networks.append(net)
+                pipeline_viz.safe_track_operation_fail('lora_apply', str(e))
 
-    while len(lora_cache) > shared.opts.lora_in_memory_limit:
-        name = next(iter(lora_cache))
-        lora_cache.pop(name, None)
+        if len(l.loaded_networks) > 0 and l.debug:
+            shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)}')
 
-    if not skip_lora_load and len(diffuser_loaded) > 0:
-        shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={shared.sd_model.get_list_adapters()} active={shared.sd_model.get_active_adapters()} scales={diffuser_scales}')
-        try:
-            t1 = time.time()
-            if l.debug:
-                shared.log.trace(f'Network load: type=LoRA list={shared.sd_model.get_list_adapters()}')
-                shared.log.trace(f'Network load: type=LoRA active={shared.sd_model.get_active_adapters()}')
-            shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
-            if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
-                shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
-                shared.sd_model.unload_lora_weights()
-            l.timer.activate += time.time() - t1
-        except Exception as e:
-            shared.log.error(f'Network load: type=LoRA {e}')
-            if l.debug:
-                errors.display(e, 'LoRA')
+        if recompile_model:
+            shared.log.info("Network load: type=LoRA recompiling model")
+            backup_lora_model = shared.compiled_model_state.lora_model
+            if 'Model' in shared.opts.cuda_compile:
+                shared.sd_model = sd_models_compile.compile_diffusers(shared.sd_model)
+            shared.compiled_model_state.lora_model = backup_lora_model
 
-    if len(l.loaded_networks) > 0 and l.debug:
-        shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)}')
-
-    if recompile_model:
-        shared.log.info("Network load: type=LoRA recompiling model")
-        backup_lora_model = shared.compiled_model_state.lora_model
-        if 'Model' in shared.opts.cuda_compile:
-            shared.sd_model = sd_models_compile.compile_diffusers(shared.sd_model)
-        shared.compiled_model_state.lora_model = backup_lora_model
-
-    l.timer.load = time.time() - t0
+        l.timer.load = time.time() - t0
+        
+        # Complete LoRA loading tracking
+        pipeline_viz.safe_track_operation_complete('lora_load', {
+            'success': True,
+            'loaded_networks': len(l.loaded_networks),
+            'failed_networks': len(failed_to_load_networks),
+            'total_time': time.time() - t0,
+            'recompiled_model': recompile_model,
+            'cache_size': len(lora_cache)
+        })
+        
+    except Exception as e:
+        pipeline_viz.safe_track_operation_fail('lora_load', str(e))
+        raise
