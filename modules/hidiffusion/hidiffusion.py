@@ -8,7 +8,7 @@ from diffusers.pipelines import auto_pipeline
 
 current_steps = 50
 def sd15_hidiffusion_key():
-    modified_key = dict()
+    modified_key = {}
     modified_key['down_module_key'] = ['down_blocks.0.downsamplers.0.conv']
     modified_key['down_module_key_extra'] = ['down_blocks.1']
     modified_key['up_module_key'] = ['up_blocks.2.upsamplers.0.conv']
@@ -22,7 +22,7 @@ def sd15_hidiffusion_key():
     return modified_key
 
 def sdxl_hidiffusion_key():
-    modified_key = dict()
+    modified_key = {}
     modified_key['down_module_key'] = ['down_blocks.1']
     modified_key['down_module_key_extra'] = ['down_blocks.1.downsamplers.0.conv']
     modified_key['up_module_key'] = ['up_blocks.1']
@@ -42,7 +42,7 @@ def sdxl_hidiffusion_key():
 
 
 def sdxl_turbo_hidiffusion_key():
-    modified_key = dict()
+    modified_key = {}
     modified_key['down_module_key'] = ['down_blocks.1']
     modified_key['up_module_key'] = ['up_blocks.1']
     modified_key['windown_attn_module_key'] = [

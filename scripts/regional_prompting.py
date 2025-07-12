@@ -3,7 +3,7 @@
 
 import gradio as gr
 from diffusers.pipelines import pipeline_utils
-from modules import shared, devices, scripts, processing, sd_models, prompt_parser_diffusers
+from modules import shared, devices, scripts_manager, processing, sd_models, prompt_parser_diffusers
 
 
 def hijack_register_modules(self, **kwargs):
@@ -21,12 +21,12 @@ def hijack_register_modules(self, **kwargs):
         setattr(self, name, module)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Regional prompting'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     def change(self, mode):
         return [gr.update(visible='Col' in mode or 'Row' in mode), gr.update(visible='Prompt' in mode)]
@@ -45,7 +45,7 @@ class Script(scripts.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, mode, grid, power, threshold): # pylint: disable=arguments-differ
         if mode is None or mode == 'None':
-            return
+            return None
         # backup pipeline and params
         orig_pipeline = shared.sd_model
         orig_dtype = devices.dtype
@@ -53,7 +53,7 @@ class Script(scripts.Script):
         # create pipeline
         if shared.sd_model_type != 'sd':
             shared.log.error(f'Regional prompting: incorrect base model: {shared.sd_model.__class__.__name__}')
-            return
+            return None
 
         pipeline_utils.DiffusionPipeline.register_modules = hijack_register_modules
         prompt_parser_diffusers.EmbeddingsProvider._encode_token_ids_to_embeddings = prompt_parser_diffusers.orig_encode_token_ids_to_embeddings # pylint: disable=protected-access
@@ -62,7 +62,7 @@ class Script(scripts.Script):
         if shared.sd_model.__class__.__name__ != 'RegionalPromptingStableDiffusionPipeline': # switch failed
             shared.log.error(f'Regional prompting: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
             shared.sd_model = orig_pipeline
-            return
+            return None
         sd_models.set_diffuser_options(shared.sd_model)
         shared.opts.data['prompt_attention'] = 'fixed' # this pipeline is not compatible with embeds
         processing.fix_seed(p)

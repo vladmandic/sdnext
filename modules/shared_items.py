@@ -47,8 +47,11 @@ pipelines = {
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'Monetico': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'FLite': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 initialize_onnx()
@@ -61,8 +64,8 @@ onnx_pipelines = {
 
 
 def postprocessing_scripts():
-    import modules.scripts
-    return modules.scripts.scripts_postproc.scripts
+    import modules.scripts_manager
+    return modules.scripts_manager.scripts_postproc.scripts
 
 
 def sd_vae_items():

@@ -1,6 +1,6 @@
 import gradio as gr
 import torch
-from modules import shared, devices, scripts, processing, sd_models
+from modules import shared, devices, scripts_manager, processing, sd_models
 
 
 checked_ok = False
@@ -24,12 +24,12 @@ def check_dependencies():
         return False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Mixture Tiling: Scene Composition'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     def ui(self, _is_img2img):
         with gr.Row():
@@ -47,11 +47,11 @@ class Script(scripts.Script):
     def run(self, p: processing.StableDiffusionProcessing, x_size, y_size, x_overlap, y_overlap): # pylint: disable=arguments-differ
         if not checked_ok:
             if not check_dependencies():
-                return
+                return None
         prompts = p.prompt.splitlines()
         if len(prompts) != x_size * y_size:
             shared.log.error(f'Mixture tiling prompt count mismatch: prompts={len(prompts)} required={x_size * y_size}')
-            return
+            return None
         # backup pipeline and params
         orig_pipeline = shared.sd_model
         orig_dtype = devices.dtype
@@ -59,12 +59,12 @@ class Script(scripts.Script):
         # create pipeline
         if shared.sd_model_type != 'sd':
             shared.log.error(f'Mixture tiling: incorrect base model: {shared.sd_model.__class__.__name__}')
-            return
+            return None
         shared.sd_model = sd_models.switch_pipe('mixture_tiling', shared.sd_model)
         if shared.sd_model.__class__.__name__ != 'StableDiffusionTilingPipeline': # switch failed
             shared.log.error(f'Mixture tiling: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
             shared.sd_model = orig_pipeline
-            return
+            return None
         sd_models.set_diffuser_options(shared.sd_model)
         shared.opts.data['prompt_attention'] = 'fixed' # this pipeline is not compatible with embeds
         shared.sd_model.to(torch.float32) # this pipeline unet is not compatible with fp16

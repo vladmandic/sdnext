@@ -3,7 +3,7 @@
         "bin_centers_type": "normed",
         "img_size": [384, 768]
     },
-    
+
     "train": {
     },
 

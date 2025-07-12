@@ -740,7 +740,7 @@ class DCSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         t_ = ratio * (t_prev_list[-1] - t_prev_list[-2]) + t_prev_list[-2]
 
         inter_order = min(self.dc_order + 1, 4)
-        
+
         if inter_order is not None:
             model_t_dc = torch.zeros_like(model_prev_list[-1])
             for i in range(inter_order):
@@ -768,7 +768,7 @@ class DCSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         else:
             scalar_t = 0
         ratio_param = torch.nn.Parameter(torch.tensor([param_initial], device=sample.device), requires_grad=True)
-        
+
         sample_clone = sample.clone()
 
         index = np.where(self.ddim_gt['ts'] >= scalar_t)[0].max()

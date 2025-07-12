@@ -11,8 +11,8 @@ def restore(np_image, name, session, strength): # pylint: disable=unused-argumen
     t0 = time.time()
     global face_helper # pylint: disable=global-statement
     try:
-        from facelib.utils.face_restoration_helper import FaceRestoreHelper
-        from facelib.detection.retinaface import retinaface
+        from modules.facelib.utils.face_restoration_helper import FaceRestoreHelper
+        from modules.facelib.detection.retinaface import retinaface
     except Exception as e:
         shared.log.error(f"FaceRestorer error: {e}")
         return np_image

@@ -77,8 +77,8 @@ Plus Docker container receipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](https:
 
 - Get started with **SD.Next** by following the [installation instructions](https://vladmandic.github.io/sdnext-docs/Installation/)  
 - For more details, check out [advanced installation](https://vladmandic.github.io/sdnext-docs/Advanced-Install/) guide  
-- List and explanation of [command line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/)
-- Install walkthrough [video](https://www.youtube.com/watch?v=nWTnTyFTuAs)
+- List and explanation of [command line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/)  
+- Install walkthrough [video](https://www.youtube.com/watch?v=nWTnTyFTuAs)  
 
 > [!TIP]
 > And for platform specific information, check out  

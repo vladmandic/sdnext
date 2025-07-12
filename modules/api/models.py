@@ -262,7 +262,6 @@ class ReqProcess(BaseModel):
     upscaler_1: str = Field(default="None", title="Main upscaler", description=f"The name of the main upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     upscaler_2: str = Field(default="None", title="Refine upscaler", description=f"The name of the secondary upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     extras_upscaler_2_visibility: float = Field(default=0, title="Refine upscaler visibility", ge=0, le=1, allow_inf_nan=False, description="Sets the visibility of secondary upscaler, values should be between 0 and 1.")
-    upscale_first: bool = Field(default=False, title="Upscale first", description="Should the upscaler run before restoring faces?")
 
 class ResProcess(BaseModel):
     html_info: str = Field(title="HTML info", description="A series of HTML tags containing the process info.")
@@ -379,10 +378,10 @@ class ResVQA(BaseModel):
     answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
 
 class ResTrain(BaseModel):
-    info: str = Field(title="Train info", description="Response string from train embedding or hypernetwork task.")
+    info: str = Field(title="Train info", description="Response string from train embedding task.")
 
 class ResCreate(BaseModel):
-    info: str = Field(title="Create info", description="Response string from create embedding or hypernetwork task.")
+    info: str = Field(title="Create info", description="Response string from create embedding task.")
 
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
@@ -413,8 +412,8 @@ for key in _options:
 FlagsModel = create_model("Flags", **flags)
 
 class ResEmbeddings(BaseModel):
-    loaded: Dict[str, ItemEmbedding] = Field(title="Loaded", description="Embeddings loaded for the current model")
-    skipped: Dict[str, ItemEmbedding] = Field(title="Skipped", description="Embeddings skipped for the current model (likely due to architecture incompatibility)")
+    loaded: list = Field(default=None, title="loaded", description="List of loaded embeddings")
+    skipped: list = Field(default=None, title="skipped", description="List of skipped embeddings")
 
 class ResMemory(BaseModel):
     ram: dict = Field(title="RAM", description="System memory stats")

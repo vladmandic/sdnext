@@ -10,6 +10,7 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 
 def load_model(selected: models_def.Model):
+    shared.state.begin('Load')
     if selected is None:
         return ''
     global loaded_model # pylint: disable=global-statement
@@ -83,14 +84,20 @@ def load_model(selected: models_def.Model):
         shared.sd_model.vae.orig_encode = shared.sd_model.vae.encode
         shared.sd_model.vae.encode = video_vae.hijack_vae_encode
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
-        shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
+        # shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
         sd_hijack_te.init_hijack(shared.sd_model)
     if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image
         shared.sd_model.encode_image = video_utils.hijack_encode_image
     if hasattr(shared.sd_model.vae, 'enable_slicing'):
         shared.sd_model.vae.enable_slicing()
+    if hasattr(shared.sd_model.vae, 'enable_tiling'):
+        shared.sd_model.vae.enable_tiling()
+    if hasattr(shared.sd_model, "set_progress_bar_config"):
+        shared.sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m', ncols=80, colour='#327fba')
+
     loaded_model = selected.name
     msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     shared.log.info(msg)
+    shared.state.end()
     return msg

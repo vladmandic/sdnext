@@ -4,9 +4,8 @@ import os
 import shutil
 import platform
 import subprocess
-from functools import reduce
 import gradio as gr
-from modules import call_queue, shared, prompt_parser, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts, script_callbacks, infotext
+from modules import call_queue, shared, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
 
 
 folder_symbol = ui_symbols.folder
@@ -220,24 +219,6 @@ def open_folder(result_gallery, gallery_index = 0):
             subprocess.Popen(["xdg-open", path]) # pylint: disable=consider-using-with
 
 
-def interrogate_clip(image): # legacy function
-    if image is None:
-        shared.log.error("Interrogate: no image selected")
-        return gr.update()
-    from modules.interrogate import openclip
-    prompt = openclip.interrogator.interrogate(image)
-    return gr.update() if prompt is None else prompt
-
-
-def interrogate_booru(image): # legacy function
-    if image is None:
-        shared.log.error("Interrogate: no image selected")
-        return gr.update()
-    from modules.interrogate import deepbooru
-    prompt = deepbooru.model.tag(image)
-    return gr.update() if prompt is None else prompt
-
-
 def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1):
     with gr.Column(variant='panel', elem_id=f"{tabname}_results", scale=scale):
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
@@ -271,10 +252,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 save = gr.Button('Save', elem_id=f'save_{tabname}')
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
                 if transfer:
-                    if not shared.native:
-                        buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
-                    else:
-                        buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
+                    buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
                 else:
                     buttons = None
 
@@ -304,11 +282,11 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 )
 
             if tabname == "txt2img":
-                paste_field_names = scripts.scripts_txt2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_txt2img.paste_field_names
             elif tabname == "img2img":
-                paste_field_names = scripts.scripts_img2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_img2img.paste_field_names
             elif tabname == "control":
-                paste_field_names = scripts.scripts_control.paste_field_names
+                paste_field_names = scripts_manager.scripts_control.paste_field_names
             else:
                 paste_field_names = []
             debug(f'Paste field: tab={tabname} fields={paste_field_names}')
@@ -343,19 +321,6 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args = No
     refresh_button = ui_components.ToolButton(value=ui_symbols.refresh, elem_id=elem_id, visible=visible)
     refresh_button.click(fn=refresh, inputs=[], outputs=[refresh_component])
     return refresh_button
-
-
-def create_browse_button(browse_component, elem_id):
-    def browse(folder):
-        # import subprocess
-        if folder is not None:
-            return gr.update(value = folder)
-        return gr.update()
-
-    browse_button = ui_components.ToolButton(value=ui_symbols.folder, elem_id=elem_id)
-    browse_button.click(fn=browse, _js="async () => await browseFolder()", inputs=[browse_component], outputs=[browse_component])
-    # browse_button.click(fn=browse, inputs=[browse_component], outputs=[browse_component])
-    return browse_button
 
 
 def create_override_inputs(tab): # pylint: disable=unused-argument
@@ -398,7 +363,7 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed: gr.Button, generation_info: 
         reuse_seed.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text, steps):
+def update_token_counter(text):
     token_count = 0
     max_length = 75
     if shared.state.job_count > 0:
@@ -406,24 +371,13 @@ def update_token_counter(text, steps):
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
-    if not shared.native:
-        from modules import sd_hijack
-        try:
-            _, prompt_flat_list, _ = prompt_parser.get_multicond_prompt_list([text])
-            prompt_schedules = prompt_parser.get_learned_conditioning_prompt_schedules(prompt_flat_list, steps)
-        except Exception:
-            prompt_schedules = [[[steps, text]]]
-        flat_prompts = reduce(lambda list1, list2: list1+list2, prompt_schedules)
-        prompts = [prompt_text for _step, prompt_text in flat_prompts]
-        token_count, max_length = max([sd_hijack.model_hijack.get_prompt_lengths(prompt) for prompt in prompts], key=lambda args: args[0])
-    elif shared.native:
-        if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-            has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
-            has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
-            ids = shared.sd_model.tokenizer(prompt)
-            ids = getattr(ids, 'input_ids', [])
-            token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-            max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
-            if max_length is None or max_length < 0 or max_length > 10000:
-                max_length = 0
+    if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
+        has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
+        has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
+        ids = shared.sd_model.tokenizer(prompt)
+        ids = getattr(ids, 'input_ids', [])
+        token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
+        max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
+        if max_length is None or max_length < 0 or max_length > 10000:
+            max_length = 0
     return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)

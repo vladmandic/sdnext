@@ -304,7 +304,6 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
 
 
 def load_diffusers_models(clear=True):
-    excluded_models = []
     # t0 = time.time()
     place = shared.opts.diffusers_dir
     if place is None or len(place) == 0 or not os.path.isdir(place):
@@ -315,20 +314,21 @@ def load_diffusers_models(clear=True):
     try:
         for folder in os.listdir(place):
             try:
-                if any([x in folder for x in excluded_models]): # noqa:C419 # pylint: disable=use-a-generator
-                    continue
-                if "--" not in folder:
-                    continue
-                if folder.endswith("-prior"):
-                    continue
-                _, name = folder.split("--", maxsplit=1)
-                name = name.replace("--", "/")
+                name = folder[8:] if folder.startswith('models--') else folder
                 folder = os.path.join(place, folder)
+                if name.endswith("-prior"):
+                    continue
+                if not os.path.isdir(folder):
+                    continue
+                name = name.replace("--", "/")
                 friendly = os.path.join(place, name)
-                if os.path.exists(os.path.join(folder, 'model_index.json')): # direct download of diffusers model
-                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': '', 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': os.path.join(folder, 'model_index.json') }
+                has_index = os.path.exists(os.path.join(folder, 'model_index.json'))
+
+                if has_index: # direct download of diffusers model
+                    repo = { 'name': name, 'filename': name, 'friendly': friendly, 'folder': folder, 'path': folder, 'hash': None, 'mtime': os.path.getmtime(folder), 'model_info': os.path.join(folder, 'model_info.json'), 'model_index': os.path.join(folder, 'model_index.json') }
                     diffuser_repos.append(repo)
                     continue
+
                 snapshots = os.listdir(os.path.join(folder, "snapshots"))
                 if len(snapshots) == 0:
                     shared.log.warning(f'Diffusers folder has no snapshots: location="{place}" folder="{folder}" name="{name}"')

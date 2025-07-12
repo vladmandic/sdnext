@@ -1,12 +1,12 @@
 import sys
 import gradio as gr
-from modules import scripts, processing, shared
+from modules import scripts_manager, processing, shared
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.register()
@@ -15,7 +15,7 @@ class Script(scripts.Script):
         return 'SLG: Skip Layer Guidance'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

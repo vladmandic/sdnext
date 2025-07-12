@@ -1,14 +1,14 @@
 import diffusers
 import gradio as gr
-from modules import scripts, processing, shared, devices, sd_models
+from modules import scripts_manager, processing, shared, devices, sd_models
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'LEdits: Limitless Image Editing'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

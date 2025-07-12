@@ -1,13 +1,12 @@
 import math
 import gradio as gr
 from PIL import Image, ImageDraw
-import modules.scripts as scripts
-from modules import images, devices
+from modules import images, devices, scripts_manager
 from modules.processing import Processed, process_images
 from modules.shared import opts, state, log
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Outpainting alternative"
 

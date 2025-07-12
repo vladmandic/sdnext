@@ -1604,17 +1604,17 @@ class StableDiffusionXLSoftFillPipeline(
 
 import gradio as gr
 from installer import install
-from modules import shared, scripts, processing, sd_models
+from modules import shared, scripts_manager, processing, sd_models
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     orig_pipeline = None
 
     def title(self):
         return 'SoftFill: Inpaint with Differential diffusion'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     def ui(self, _is_img2img):
         with gr.Row():

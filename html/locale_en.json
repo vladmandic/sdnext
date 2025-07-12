@@ -19,7 +19,7 @@
   {"id":"","label":"🖼️","localized":"","hint":"Show preview"},
   {"id":"","label":"♻","localized":"","hint":"Interrogate image"},
   {"id":"","label":"↶","localized":"","hint":"Apply selected style to prompt"},
-  {"id":"","label":"↷","localized":"","hint":"Save current prompt to style"} 
+  {"id":"","label":"↷","localized":"","hint":"Save current prompt to style"}
 ],
 "main": [
   {"id":"","label":"Prompt","localized":"","hint":"Describe image you want to generate"},

@@ -114,25 +114,25 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             The DPMSolver order which can be `2` or `3`. It is recommended to use `solver_order=2` for guided
             sampling, and `solver_order=3` for unconditional sampling.
         algorithm_type (`str`, defaults to `dpmsolver++2M`):
-            Algorithm type for the solver; can be `dpmsolver2`, `dpmsolver2A`, `dpmsolver++2M`, `dpmsolver++2S`, `dpmsolver++sde`, `dpmsolver++2Msde`, 
+            Algorithm type for the solver; can be `dpmsolver2`, `dpmsolver2A`, `dpmsolver++2M`, `dpmsolver++2S`, `dpmsolver++sde`, `dpmsolver++2Msde`,
             or `dpmsolver++3Msde`.
         solver_type (`str`, defaults to `midpoint`):
             Solver type for the second-order solver; can be `midpoint` or `heun`. The solver type slightly affects the
             sample quality, especially for a small number of steps. It is recommended to use `midpoint` solvers.
-        sigma_schedule (`str`, *optional*, defaults to None (beta)): Sigma schedule to compute the `sigmas`. Optionally, we use 
-            the schedule "karras" introduced in the EDM paper (https://arxiv.org/abs/2206.00364). Other acceptable values are 
-            "exponential". The exponential schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl. 
-            Other acceptable values are "lambdas". The uniform-logSNR for step sizes proposed by Lu's DPM-Solver in the 
+        sigma_schedule (`str`, *optional*, defaults to None (beta)): Sigma schedule to compute the `sigmas`. Optionally, we use
+            the schedule "karras" introduced in the EDM paper (https://arxiv.org/abs/2206.00364). Other acceptable values are
+            "exponential". The exponential schedule was incorporated in this model: https://huggingface.co/stabilityai/cosxl.
+            Other acceptable values are "lambdas". The uniform-logSNR for step sizes proposed by Lu's DPM-Solver in the
             noise schedule during the sampling process. The sigmas and time steps are determined according to a sequence of `lambda(t)`.
             "betas" for step sizes in the noise schedule during the sampling process. Refer to [Beta
             Sampling is All You Need](https://huggingface.co/papers/2407.12173) for more information.
         use_noise_sampler for BrownianTreeNoiseSampler (only valid for `dpmsolver++2S`, `dpmsolver++sde`, `dpmsolver++2Msde`, or `dpmsolver++3Msde`.
-            A noise sampler backed by a torchsde increasing the stability of convergence. Default strategy 
+            A noise sampler backed by a torchsde increasing the stability of convergence. Default strategy
             (random noise) has it jumping all over the place, but Brownian sampling is more stable. Utilizes the model generation seed provided.
         midpoint_ratio (`float`, *optional*, range: 0.4 to 0.6, default=0.5): Only valid for (`dpmsolver++sde`, `dpmsolver++2S`).
             Higher values may result in smoothing, more vivid colors and less noise at the expense of more detail and effect.
-        s_noise (`float`, *optional*, defaults to 1.0): Sigma noise strength: range 0 - 1.1 (only valid for `dpmsolver++2S`, `dpmsolver++sde`, 
-            `dpmsolver++2Msde`, or `dpmsolver++3Msde`). The amount of additional noise to counteract loss of detail during sampling. A 
+        s_noise (`float`, *optional*, defaults to 1.0): Sigma noise strength: range 0 - 1.1 (only valid for `dpmsolver++2S`, `dpmsolver++sde`,
+            `dpmsolver++2Msde`, or `dpmsolver++3Msde`). The amount of additional noise to counteract loss of detail during sampling. A
             reasonable range is [1.000, 1.011]. Defaults to 1.0 from the original implementation.
         use_beta_sigmas: (`bool` defaults to False for FLUX and True for SD3). Based on original interpretation of using beta values for determining sigmas.
         use_dynamic_shifting (`bool` defaults to False for SD3 and True for FLUX). When `True`, shift is ignored.

@@ -1,7 +1,7 @@
 import torch
 import gradio as gr
 import diffusers
-from modules import scripts, processing, shared, images, sd_models, devices
+from modules import scripts_manager, processing, shared, images, sd_models, devices
 
 
 MODELS = [
@@ -11,12 +11,12 @@ MODELS = [
 ]
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: VGen Image-to-Video'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
         # return False
 
     # return signature is array of gradio components
@@ -53,9 +53,9 @@ class Script(scripts.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, model_name, num_frames, video_type, duration, gif_loop, mp4_pad, mp4_interpolate, fi_method, fi_iters, fi_order, fi_spatial, fi_temporal, vg_chunks, vg_fps): # pylint: disable=arguments-differ, unused-argument
         if model_name == 'None':
-            return
+            return None
         if p.init_images is None or len(p.init_images) == 0:
-            return
+            return None
         model = [m for m in MODELS if m['name'] == model_name][0]
         repo_id = model['url']
         shared.log.debug(f'Image2Video: model={model_name} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
@@ -66,7 +66,7 @@ class Script(scripts.Script):
         if model_name == 'PIA':
             if shared.sd_model_type != 'sd':
                 shared.log.error('Image2Video PIA: base model must be SD15')
-                return
+                return None
             shared.log.info(f'Image2Video PIA load: model={repo_id}')
             motion_adapter = diffusers.MotionAdapter.from_pretrained(repo_id)
             sd_models.move_model(motion_adapter, devices.device)

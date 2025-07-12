@@ -2,7 +2,7 @@ import mimetypes
 import gradio as gr
 import gradio.routes
 import gradio.utils
-from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts
+from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager
 from modules.paths import script_path, data_path # pylint: disable=unused-import
 
 
@@ -67,16 +67,12 @@ def setup_progressbar(*args, **kwargs): # pylint: disable=unused-argument
     pass
 
 
-def ordered_ui_categories():
-    return ['dimensions', 'sampler', 'seed', 'denoising', 'cfg', 'checkboxes', 'accordions', 'override_settings', 'scripts'] # a1111 compatibility item, not implemented
-
-
 def create_ui(startup_timer = None):
     if startup_timer is None:
         timer.startup = timer.Timer()
     ui_javascript.reload_javascript()
     generation_parameters_copypaste.reset()
-    scripts.scripts_current = None
+    scripts_manager.scripts_current = None
 
     with gr.Blocks(analytics_enabled=False) as txt2img_interface:
         from modules import ui_txt2img
@@ -89,16 +85,14 @@ def create_ui(startup_timer = None):
         timer.startup.record("ui-img2img")
 
     with gr.Blocks(analytics_enabled=False) as control_interface:
-        if shared.native:
-            from modules import ui_control
-            ui_control.create_ui()
-            timer.startup.record("ui-control")
+        from modules import ui_control
+        ui_control.create_ui()
+        timer.startup.record("ui-control")
 
     with gr.Blocks(analytics_enabled=False) as video_interface:
-        if shared.native:
-            from modules import ui_video
-            ui_video.create_ui()
-            timer.startup.record("ui-video")
+        from modules import ui_video
+        ui_video.create_ui()
+        timer.startup.record("ui-video")
 
     with gr.Blocks(analytics_enabled=False) as extras_interface:
         from modules import ui_postprocessing

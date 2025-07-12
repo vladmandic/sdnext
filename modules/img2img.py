@@ -3,8 +3,7 @@ import itertools # SBM Batch frames
 import numpy as np
 import filetype
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageChops, UnidentifiedImageError
-import modules.scripts
-from modules import shared, processing, images
+from modules import scripts_manager, shared, processing, images
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html
 from modules.memstats import memory_stats
@@ -100,7 +99,7 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
 
         batch_image_files = batch_image_files * btcrept # List used for naming later.
 
-        processed = modules.scripts.scripts_img2img.run(p, *args)
+        processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:
             processed = processing.process_images(p)
 
@@ -123,8 +122,8 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
             geninfo, items = images.read_info_from_image(image)
             for k, v in items.items():
                 image.info[k] = v
-            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, short_filename=True, no_prompt=True, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
-        processed = modules.scripts.scripts_img2img.after(p, processed, *args)
+            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
+        processed = scripts_manager.scripts_img2img.after(p, processed, *args)
         shared.log.debug(f'Processed: images={len(batch_image_files)} memory={memory_stats()} batch')
 
 
@@ -140,7 +139,6 @@ def img2img(id_task: str, state: str, mode: int,
             steps,
             sampler_index,
             mask_blur, mask_alpha,
-            inpainting_fill,
             vae_type, tiling, hidiffusion,
             detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
             n_iter, batch_size,
@@ -158,7 +156,7 @@ def img2img(id_task: str, state: str, mode: int,
             resize_mode, resize_name, resize_context,
             inpaint_full_res, inpaint_full_res_padding, inpainting_mask_invert,
             img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir,
-            hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio,
+            hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
             enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative,
             override_settings_texts,
             *args):
@@ -254,7 +252,6 @@ def img2img(id_task: str, state: str, mode: int,
         init_images=[image],
         mask=mask,
         mask_blur=mask_blur,
-        inpainting_fill=inpainting_fill,
         resize_mode=resize_mode,
         resize_name=resize_name,
         resize_context=resize_context,
@@ -269,7 +266,7 @@ def img2img(id_task: str, state: str, mode: int,
         inpaint_full_res_padding=inpaint_full_res_padding,
         inpainting_mask_invert=inpainting_mask_invert,
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
-        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundry=hdr_max_boundry, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
+        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
         # refiner
         enable_hr=enable_hr,
         hr_denoising_strength=hr_denoising_strength,
@@ -289,14 +286,13 @@ def img2img(id_task: str, state: str, mode: int,
         # override
         override_settings=override_settings,
     )
-    p.scripts = modules.scripts.scripts_img2img
+    p.scripts = scripts_manager.scripts_img2img
     p.script_args = args
     p.state = state
     if mask:
         p.extra_generation_params["Mask blur"] = mask_blur
         p.extra_generation_params["Mask alpha"] = mask_alpha
         p.extra_generation_params["Mask invert"] = inpainting_mask_invert
-        p.extra_generation_params["Mask content"] = inpainting_fill
         p.extra_generation_params["Mask area"] = inpaint_full_res
         p.extra_generation_params["Mask padding"] = inpaint_full_res_padding
     p.is_batch = mode == 5
@@ -304,10 +300,10 @@ def img2img(id_task: str, state: str, mode: int,
         process_batch(p, img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir, args)
         processed = processing.Processed(p, [], p.seed, "")
     else:
-        processed = modules.scripts.scripts_img2img.run(p, *args)
+        processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:
             processed = processing.process_images(p)
-        processed = modules.scripts.scripts_img2img.after(p, processed, *args)
+        processed = scripts_manager.scripts_img2img.after(p, processed, *args)
     p.close()
     generation_info_js = processed.js() if processed is not None else ''
     if processed is None:

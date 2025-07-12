@@ -1,6 +1,6 @@
 from threading import Lock
 from fastapi.responses import JSONResponse
-from modules import errors, shared, scripts, ui
+from modules import errors, shared, scripts_manager, ui
 from modules.api import models, script, helpers
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images
 
@@ -85,7 +85,7 @@ class APIGenerate():
 
     def post_text2img(self, txt2imgreq: models.ReqTxt2Img):
         self.prepare_face_module(txt2imgreq)
-        script_runner = scripts.scripts_txt2img
+        script_runner = scripts_manager.scripts_txt2img
         if not script_runner.scripts:
             script_runner.initialize_scripts(False)
             ui.create_ui(None)
@@ -113,10 +113,10 @@ class APIGenerate():
             script_args = script.init_script_args(p, txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
             p.script_args = tuple(script_args) # Need to pass args as tuple here
             if selectable_scripts is not None:
-                processed = scripts.scripts_txt2img.run(p, *script_args) # Need to pass args as list here
+                processed = scripts_manager.scripts_txt2img.run(p, *script_args) # Need to pass args as list here
             else:
                 processed = process_images(p)
-            processed = scripts.scripts_txt2img.after(p, processed, *script_args)
+            processed = scripts_manager.scripts_txt2img.after(p, processed, *script_args)
             p.close()
             shared.state.end(api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
@@ -135,7 +135,7 @@ class APIGenerate():
         mask = img2imgreq.mask
         if mask:
             mask = helpers.decode_base64_to_image(mask)
-        script_runner = scripts.scripts_img2img
+        script_runner = scripts_manager.scripts_img2img
         if not script_runner.scripts:
             script_runner.initialize_scripts(True)
             ui.create_ui(None)
@@ -165,10 +165,10 @@ class APIGenerate():
             script_args = script.init_script_args(p, img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner)
             p.script_args = tuple(script_args) # Need to pass args as tuple here
             if selectable_scripts is not None:
-                processed = scripts.scripts_img2img.run(p, *script_args) # Need to pass args as list here
+                processed = scripts_manager.scripts_img2img.run(p, *script_args) # Need to pass args as list here
             else:
                 processed = process_images(p)
-            processed = scripts.scripts_img2img.after(p, processed, *script_args)
+            processed = scripts_manager.scripts_img2img.after(p, processed, *script_args)
             p.close()
             shared.state.end(api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:

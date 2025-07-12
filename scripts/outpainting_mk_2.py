@@ -2,8 +2,7 @@ import math
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-import modules.scripts as scripts
-from modules import images
+from modules import images, scripts_manager
 from modules.processing import Processed, process_images
 from modules.shared import opts, state
 
@@ -100,7 +99,7 @@ def get_matched_noise(_np_src_image, np_mask_rgb, noise_q=1, color_variation=0.0
     return np.clip(matched_noise, 0., 1.)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Outpainting"
 

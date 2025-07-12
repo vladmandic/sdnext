@@ -219,7 +219,7 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
             self.betas = rescale_zero_terminal_snr(self.betas)
 
         self.alphas = 1.0 - self.betas #may have to add something for last step
-        
+
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
         # At every step in ddim, we are looking into the previous alphas_cumprod
         # For the final step, there is no previous alphas_cumprod because we are already at 0
@@ -357,7 +357,7 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
     ) -> Union[DDIMSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE.
-        
+
         Args:
             model_output (torch.Tensor): Direct output from learned diffusion model
             timestep (int): Current discrete timestep in the diffusion chain
@@ -458,15 +458,15 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
             alpha_prod_t_next = self.alphas_cumprod[next_timestep]
             alpha_i_plus_1 = alpha_prod_t_next ** 0.5
             sigma_i_plus_1 = (1 - alpha_prod_t_next) ** 0.5
-            
+
             if debug:
                 print(f"alpha_i_plus_1: {alpha_i_plus_1}")
                 print(f"sigma_i_plus_1: {sigma_i_plus_1}")
-            
+
             a = alpha_i_plus_1 * pred_original_sample + sigma_i_plus_1 * pred_epsilon
             bdia_step = (
-                self.config.gamma * self.next_sample[-2] + 
-                ddim_step - 
+                self.config.gamma * self.next_sample[-2] +
+                ddim_step -
                 (self.config.gamma * a)
             )
             self.update_next_sample_BDIA(bdia_step)
@@ -477,7 +477,7 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
         if eta > 0:
             if debug:
                 print(f"\nApplying variance noise with eta: {eta}")
-            
+
             if variance_noise is not None and generator is not None:
                 raise ValueError(
                     "Cannot pass both generator and variance_noise. Use either `generator` or `variance_noise`."
@@ -496,7 +496,7 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
             return (prev_sample,)
 
         return DDIMSchedulerOutput(prev_sample=prev_sample, pred_original_sample=pred_original_sample)
-    
+
     def add_noise(
         self,
         original_samples: torch.Tensor,
@@ -542,7 +542,7 @@ class BDIA_DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
         return velocity
-    
+
     def update_next_sample_BDIA(self, new_value):
         self.next_sample.append(new_value.clone())
 

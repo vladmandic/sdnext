@@ -80,7 +80,7 @@ def optimized_scale(positive_flat, negative_flat):
 
     # st_star = v_cond^T * v_uncond / ||v_uncond||^2
     st_star = dot_product / squared_norm
-    
+
     return st_star
 
 # Copied from diffusers.pipelines.flux.pipeline_flux.calculate_shift
@@ -1088,8 +1088,8 @@ class StableDiffusion3CFGZeroPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
 
                     if use_cfg_zero_star:
-                        positive_flat = noise_pred_text.view(batch_size, -1)  
-                        negative_flat = noise_pred_uncond.view(batch_size, -1)  
+                        positive_flat = noise_pred_text.view(batch_size, -1)
+                        negative_flat = noise_pred_uncond.view(batch_size, -1)
 
                         alpha = optimized_scale(positive_flat,negative_flat)
                         alpha = alpha.view(batch_size, *([1] * (len(noise_pred_text.shape) - 1)))

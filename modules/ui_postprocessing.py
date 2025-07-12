@@ -1,6 +1,6 @@
 import json
 import gradio as gr
-from modules import scripts, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
+from modules import scripts_manager, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
 
 
 def submit_info(image):
@@ -32,7 +32,7 @@ def create_ui():
             with gr.Row():
                 save_output = gr.Checkbox(label='Save output', value=True, elem_id="extras_save_output")
 
-            script_inputs = scripts.scripts_postproc.setup_ui()
+            script_inputs = scripts_manager.scripts_postproc.setup_ui()
         with gr.Column():
             id_part = 'extras'
             with gr.Row(elem_id=f"{id_part}_generate_box", elem_classes="generate-box"):
@@ -56,7 +56,7 @@ def create_ui():
     tab_batch.select(fn=lambda: 1, inputs=[], outputs=[tab_index])
     tab_batch_dir.select(fn=lambda: 2, inputs=[], outputs=[tab_index])
     extras_image.change(fn=submit_info, inputs=[extras_image], outputs=[html_info_formatted, exif_info, gen_info])
-    extras_image.change(fn=scripts.scripts_postproc.image_changed, inputs=[], outputs=[])
+    extras_image.change(fn=scripts_manager.scripts_postproc.image_changed, inputs=[], outputs=[])
     submit.click(
         _js="submit_postprocessing",
         fn=call_queue.wrap_gradio_gpu_call(submit_process, extra_outputs=[None, ''], name='Postprocess'),

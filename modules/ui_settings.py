@@ -48,10 +48,6 @@ def get_value_for_setting(key):
     return gr.update(value=value, **args)
 
 
-def ordered_ui_categories():
-    return ['dimensions', 'sampler', 'seed', 'denoising', 'cfg', 'checkboxes', 'accordions', 'override_settings', 'scripts'] # a1111 compatibility item, not implemented
-
-
 def create_setting_component(key, is_quicksettings=False):
     def fun():
         return shared.opts.data[key] if key in shared.opts.data else shared.opts.data_labels[key].default
@@ -88,7 +84,6 @@ def create_setting_component(key, is_quicksettings=False):
     elif info.folder is not None:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
-            # ui_common.create_browse_button(res, f"folder_{key}")
     else:
         try:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
@@ -142,9 +137,9 @@ def run_settings(*args):
         if shared.opts.cuda_compile_backend != "openvino_fx":
             shared.log.warning("OpenVINO: Setting Torch Compiler backend to OpenVINO FX")
             shared.opts.cuda_compile_backend = "openvino_fx"
-        if shared.opts.sd_backend != "diffusers":
-            shared.log.warning("OpenVINO: Setting backend to Diffusers")
-            shared.opts.sd_backend = "diffusers"
+    if shared.opts.sd_backend != "diffusers":
+        shared.log.error('Legacy option: backend=original is no longer supported')
+        shared.opts.sd_backend = "diffusers"
     try:
         if len(changed) > 0:
             shared.opts.save(shared.config_filename)
@@ -166,7 +161,8 @@ def run_settings_single(value, key, progress=False):
         from modules.dml import directml_override_opts
         directml_override_opts()
     shared.opts.save(shared.config_filename)
-    shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
+    if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet']:
+        shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
     return get_value_for_setting(key), shared.opts.dumpjson()
 
 

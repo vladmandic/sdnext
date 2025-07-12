@@ -18,7 +18,7 @@
         "inverse_midas": false,
         "img_size": [384, 512]
     },
-    
+
     "train": {
         "train_midas": true,
         "use_pretrained_midas": true,

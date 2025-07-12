@@ -198,20 +198,6 @@ def apply_unet(p, x, xs):
     shared.log.debug(f'XYZ grid apply unet: "{x}"')
 
 
-def apply_dict(p, x, xs):
-    if x == shared.opts.sd_model_dict:
-        return
-    info_dict = sd_models.get_closet_checkpoint_match(x)
-    info_ckpt = sd_models.get_closet_checkpoint_match(shared.opts.sd_model_checkpoint)
-    if info_dict is None or info_ckpt is None:
-        shared.log.warning(f"XYZ grid: apply dict unknown checkpoint: {x}")
-    else:
-        shared.opts.sd_model_dict = info_dict.name # this will trigger reload_model_weights via onchange handler
-        p.override_settings['sd_model_checkpoint'] = info_ckpt.name
-        p.override_settings['sd_model_dict'] = info_dict.name
-    shared.log.debug(f'XYZ grid apply model dict: "{x}"')
-
-
 def apply_clip_skip(p, x, xs):
     p.clip_skip = x
     shared.log.debug(f'XYZ grid apply clip-skip: "{x}"')

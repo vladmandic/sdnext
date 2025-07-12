@@ -62,7 +62,7 @@ class HCounter(PDH_HCOUNTER):
         itemBuffer = cast(malloc(c_size_t(bufferSize.value)), PPDH_FMT_COUNTERVALUE_ITEM_W)
         if PdhGetFormattedCounterArrayW(self, DWORD(flag | PDH_FMT_NOSCALE), byref(bufferSize), byref(itemCount), itemBuffer) != PDH_OK:
             raise PDHError("Couldn't get formatted counter array.")
-        result: dict[str, T] = dict()
+        result: dict[str, T] = {}
         for i in range(0, itemCount.value):
             item = itemBuffer[i]
             result[item.szName] = getattr(item.FmtValue.u, attr_name)

@@ -13,7 +13,7 @@ import gradio as gr
 from scripts.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
 from scripts.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
 from scripts.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
-from modules import shared, errors, scripts, images, processing
+from modules import shared, errors, scripts_manager, images, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs
 import modules.ui_symbols as symbols
@@ -24,11 +24,11 @@ xyz_results_cache = None
 debug = shared.log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     current_axis_options = []
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible
+        return scripts_manager.AlwaysVisible
 
     def title(self):
         return "XYZ Grid"
@@ -178,7 +178,7 @@ class Script(scripts.Script):
         global active, xyz_results_cache # pylint: disable=W0603
         xyz_results_cache = None
         if not enabled or active:
-            return
+            return None
         active = True
         if not no_fixed_seeds:
             processing.fix_seed(p)

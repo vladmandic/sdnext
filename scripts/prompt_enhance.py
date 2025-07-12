@@ -8,7 +8,7 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts, shared, devices, errors, processing, sd_models, sd_modules
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -35,6 +35,8 @@ class Options:
     models = {
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
+        'google/gemma-3n-E2B-it': {},
+        'google/gemma-3n-E4B-it': {},
         'Qwen/Qwen3-0.6B-FP8': {},
         'Qwen/Qwen3-1.7B-FP8': {},
         'Qwen/Qwen3-4B-FP8': {},
@@ -83,7 +85,7 @@ class Options:
     thinking_mode: bool = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     prompt: gr.Textbox = None
     image: gr.Image = None
     model: str = None
@@ -96,7 +98,7 @@ class Script(scripts.Script):
         return 'Prompt enhance'
 
     def show(self, _is_img2img):
-        return scripts.AlwaysVisible
+        return scripts_manager.AlwaysVisible
 
     def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
         name = name or self.options.default
@@ -515,4 +517,3 @@ class Script(scripts.Script):
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
-

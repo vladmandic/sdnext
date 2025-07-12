@@ -13,16 +13,16 @@ import modules.loader
 import modules.hashes
 
 from installer import log, git_commit, custom_excepthook
-from modules import timer, paths, shared, extensions, gr_tempdir, modelloader
+from modules import timer, paths, shared, extensions, gr_tempdir, modelloader, modeldata
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.devices
 import modules.sd_checkpoint
 import modules.sd_samplers
-import modules.lowvram
-import modules.scripts
+import modules.scripts_manager
 import modules.sd_models
 import modules.sd_vae
 import modules.sd_unet
+import modules.sd_hijack
 import modules.model_te
 import modules.progress
 import modules.ui
@@ -32,16 +32,13 @@ import modules.upscaler
 import modules.upscaler_simple
 import modules.extra_networks
 import modules.ui_extra_networks
-import modules.textual_inversion.textual_inversion
-import modules.hypernetworks.hypernetwork
+import modules.textual_inversion
 import modules.script_callbacks
 import modules.api.middleware
 
 
 if not modules.loader.initialized:
     timer.startup.record("libraries")
-    import modules.sd_hijack # runs conditional load of ldm if not shared.native
-    timer.startup.record("ldm")
 modules.loader.initialized = True
 
 
@@ -88,10 +85,9 @@ def initialize():
     modules.sd_models.setup_model()
     timer.startup.record("models")
 
-    if not shared.opts.lora_legacy:
-        from modules.lora import lora_load
-        lora_load.list_available_networks()
-        timer.startup.record("lora")
+    from modules.lora import lora_load
+    lora_load.list_available_networks()
+    timer.startup.record("lora")
 
     shared.prompt_styles.reload()
     timer.startup.record("styles")
@@ -109,17 +105,13 @@ def initialize():
     timer.startup.record("extensions")
 
     log.info('Load extensions')
-    t_timer, t_total = modules.scripts.load_scripts()
+    t_timer, t_total = modules.scripts_manager.load_scripts()
     timer.startup.record("extensions")
     timer.startup.records["extensions"] = t_total # scripts can reset the time
     log.debug(f'Extensions init time: {t_timer.summary()}')
 
     modelloader.load_upscalers()
     timer.startup.record("upscalers")
-
-    if shared.opts.hypernetwork_enabled:
-        shared.reload_hypernetworks()
-        timer.startup.record("hypernetworks")
 
     modules.ui_extra_networks.initialize()
     modules.ui_extra_networks.register_pages()
@@ -155,6 +147,7 @@ def initialize():
 
 
 def load_model():
+    modeldata.model_data.locked = False
     if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
         log.info('Model: autoload=False')
     else:
@@ -169,11 +162,9 @@ def load_model():
     timer.startup.record("checkpoint")
     shared.opts.onchange("sd_model_checkpoint", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
-    shared.opts.onchange("sd_model_dict", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='dict')), call=False)
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
     shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
-    shared.opts.onchange("sd_backend", wrap_queued_call(lambda: modules.sd_models.change_backend()), call=False)
     shared.opts.onchange("temp_dir", gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")
 
@@ -240,6 +231,9 @@ def start_common():
     paths.create_paths(shared.opts)
     async_policy()
     initialize()
+    if shared.cmd_opts.backend == 'original':
+        shared.log.error('Legacy option: backend=original is no longer supported')
+        shared.cmd_opts.backend = 'diffusers'
     try:
         from installer import diffusers_commit
         if diffusers_commit != 'unknown':
@@ -352,11 +346,11 @@ def start_ui():
     modules.script_callbacks.app_started_callback(shared.demo, app)
     timer.startup.record("app-started")
 
-    time_sorted = sorted(modules.scripts.time_setup.items(), key=lambda x: x[1], reverse=True)
-    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.01]
-    time_total = sum(modules.scripts.time_setup.values())
+    time_sorted = sorted(modules.scripts_manager.time_setup.items(), key=lambda x: x[1], reverse=True)
+    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.03]
+    time_total = sum(modules.scripts_manager.time_setup.values())
     shared.log.debug(f'Scripts setup: time={time_total:.3f} {time_script}')
-    time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts.time_component.items() if v > 0.005]
+    time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts_manager.time_component.items() if v > 0.005]
     if len(time_component) > 0:
         shared.log.debug(f'Scripts components: {time_component}')
     return app
@@ -371,18 +365,20 @@ def webui(restart=False):
     app = start_ui()
     modules.script_callbacks.after_ui_callback()
     modules.sd_models.write_metadata()
+
     load_model()
     mount_subpath(app)
     shared.opts.save(shared.config_filename)
+
     if shared.cmd_opts.profile:
         for k, v in modules.script_callbacks.callback_map.items():
             shared.log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')
     debug = log.trace if os.environ.get('SD_SCRIPT_DEBUG', None) is not None else lambda *args, **kwargs: None
     debug('Trace: SCRIPTS')
-    for m in modules.scripts.scripts_data:
+    for m in modules.scripts_manager.scripts_data:
         debug(f'  {m}')
     debug('Loaded postprocessing scripts:')
-    for m in modules.scripts.postprocessing_scripts_data:
+    for m in modules.scripts_manager.postprocessing_scripts_data:
         debug(f'  {m}')
     modules.script_callbacks.print_timers()
 

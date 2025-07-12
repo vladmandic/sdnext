@@ -98,5 +98,3 @@ class HardSigmoid(nn.Module):
 
     def forward(self, x):
         return hard_sigmoid(x, self.inplace)
-
-
