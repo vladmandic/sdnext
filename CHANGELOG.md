@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-11
+## Update for 2025-07-12
 
-### Highlights for 2025-07-11
+### Highlights for 2025-07-12
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
 This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
@@ -23,7 +23,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-11
+### Details for 2025-07-12
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -87,6 +87,7 @@ Although upgrades and existing installations are tested and should work fine!
   - fix loading of manually downloaded diffuser models  
   - fix api `/sdapi/v1/embeddings` endpoint  
   - fix incorrect reporting of deleted and modified files  
+  - allow upscaling with models that have implicit VAE processing  
   - improve infotext param parsing  
   - improve extensions ui search  
   - improve model type autodetection  

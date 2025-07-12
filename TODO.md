@@ -6,12 +6,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- Refactor: Sampler options  
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
-- Refactor: sampler options  
-- Video: API support  
-- Remove: CodeFormer  
-- Remove: GFPGAN  
+- Video: Generic API support  
 - Video: LTX TeaCache and others  
 - Video: LTX API  
 - Video: LTX PromptEnhance
@@ -35,6 +33,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
 - Remove: Agent Scheduler  
+- Remove: CodeFormer  
+- Remove: GFPGAN  
 - ModernUI: Lite vs Expert mode  
 
 ### Future Considerations
