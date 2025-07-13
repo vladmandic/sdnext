@@ -91,8 +91,6 @@ def worker(
         shared.state.textinfo = 'Text encode'
         stream.output_queue.push(('progress', (None, 'Text encoding...')))
         sd_models.apply_balanced_offload(shared.sd_model)
-        sd_models.move_model(text_encoder, devices.device, force=True) # required as hunyuan.encode_prompt_conds checks device before calling model
-        sd_models.move_model(text_encoder_2, devices.device, force=True)
         framepack_hijack.set_prompt_template(prompt, system_prompt, optimized_prompt, unmodified_prompt)
         llama_vec, clip_l_pooler = hunyuan.encode_prompt_conds(prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2)
         metadata['comment'] = prompt
@@ -102,6 +100,7 @@ def worker(
             llama_vec_n, clip_l_pooler_n = torch.zeros_like(llama_vec), torch.zeros_like(clip_l_pooler)
         llama_vec, llama_attention_mask = utils.crop_or_pad_yield_mask(llama_vec, length=512)
         llama_vec_n, llama_attention_mask_n = utils.crop_or_pad_yield_mask(llama_vec_n, length=512)
+        sd_models.apply_balanced_offload(shared.sd_model)
         timer.process.add('prompt', time.time()-t0)
         return llama_vec, llama_vec_n, llama_attention_mask, llama_attention_mask_n, clip_l_pooler, clip_l_pooler_n
 
@@ -112,7 +111,6 @@ def worker(
         torch.manual_seed(seed)
         stream.output_queue.push(('progress', (None, 'VAE encoding...')))
         sd_models.apply_balanced_offload(shared.sd_model)
-        sd_models.move_model(vae, devices.device, force=True)
         if input_image is not None:
             input_image_pt = torch.from_numpy(input_image).float() / 127.5 - 1
             input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
@@ -126,6 +124,7 @@ def worker(
             end_latent = framepack_vae.vae_encode(end_image_pt)
         else:
             end_latent = None
+        sd_models.apply_balanced_offload(shared.sd_model)
         timer.process.add('encode', time.time()-t0)
         return start_latent, end_latent
 
@@ -136,6 +135,7 @@ def worker(
         shared.state.textinfo = 'Vision encode'
         stream.output_queue.push(('progress', (None, 'Vision encoding...')))
         sd_models.apply_balanced_offload(shared.sd_model)
+        # siglip doesn't work with offload
         sd_models.move_model(feature_extractor, devices.device, force=True)
         sd_models.move_model(image_encoder, devices.device, force=True)
         preprocessed = feature_extractor.preprocess(images=input_image, return_tensors="pt").to(device=image_encoder.device, dtype=image_encoder.dtype)
@@ -146,8 +146,9 @@ def worker(
             end_image_encoder_output = image_encoder(**preprocessed)
             end_image_encoder_last_hidden_state = end_image_encoder_output.last_hidden_state
             image_encoder_last_hidden_state = (image_encoder_last_hidden_state * start_weight) + (end_image_encoder_last_hidden_state * end_weight) / (start_weight + end_weight) # use weighted approach
-        timer.process.add('vision', time.time()-t0)
         image_encoder_last_hidden_state = image_encoder_last_hidden_state * vision_weight
+        sd_models.apply_balanced_offload(shared.sd_model)
+        timer.process.add('vision', time.time()-t0)
         return image_encoder_last_hidden_state
 
     def step_callback(d):
@@ -284,7 +285,6 @@ def worker(
 
                 t_vae = time.time()
                 sd_models.apply_balanced_offload(shared.sd_model)
-                sd_models.move_model(vae, devices.device, force=True)
                 if history_pixels is None:
                     history_pixels = framepack_vae.vae_decode(real_history_latents, vae_type=vae_type).cpu()
                 else:
@@ -297,6 +297,7 @@ def worker(
                         section_latent_frames = (latent_window_size * 2 + 1) if is_last_section else (latent_window_size * 2)
                         current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, :section_latent_frames], vae_type=vae_type).cpu()
                         history_pixels = utils.soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
+                sd_models.apply_balanced_offload(shared.sd_model)
                 timer.process.add('vae', time.time()-t_vae)
 
                 if is_last_section:

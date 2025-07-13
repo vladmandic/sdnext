@@ -1,5 +1,6 @@
 import torch
 from diffusers.pipelines.hunyuan_video.pipeline_hunyuan_video import DEFAULT_PROMPT_TEMPLATE
+from modules import devices
 
 
 @torch.no_grad()
@@ -24,8 +25,8 @@ def encode_prompt_conds(prompt, text_encoder, text_encoder_2, tokenizer, tokeniz
         return_attention_mask=True,
     )
 
-    llama_input_ids = llama_inputs.input_ids.to(text_encoder.device)
-    llama_attention_mask = llama_inputs.attention_mask.to(text_encoder.device)
+    llama_input_ids = llama_inputs.input_ids.to(devices.device)
+    llama_attention_mask = llama_inputs.attention_mask.to(devices.device)
     llama_attention_length = int(llama_attention_mask.sum())
 
     llama_outputs = text_encoder(
@@ -51,7 +52,7 @@ def encode_prompt_conds(prompt, text_encoder, text_encoder_2, tokenizer, tokeniz
         return_length=False,
         return_tensors="pt",
     ).input_ids
-    clip_l_pooler = text_encoder_2(clip_l_input_ids.to(text_encoder_2.device), output_hidden_states=False).pooler_output
+    clip_l_pooler = text_encoder_2(clip_l_input_ids.to(devices.device), output_hidden_states=False).pooler_output
 
     return llama_vec, clip_l_pooler
 
@@ -93,9 +94,9 @@ def vae_decode(latents, vae, image_mode=False):
     latents = latents / vae.config.scaling_factor
 
     if not image_mode:
-        image = vae.decode(latents.to(device=vae.device, dtype=vae.dtype)).sample
+        image = vae.decode(latents.to(device=devices.device, dtype=devices.dtype)).sample
     else:
-        latents = latents.to(device=vae.device, dtype=vae.dtype).unbind(2)
+        latents = latents.to(device=devices.device, dtype=devices.dtype).unbind(2)
         image = [vae.decode(l.unsqueeze(2)).sample for l in latents]
         image = torch.cat(image, dim=2)
 
@@ -104,6 +105,6 @@ def vae_decode(latents, vae, image_mode=False):
 
 @torch.no_grad()
 def vae_encode(image, vae):
-    latents = vae.encode(image.to(device=vae.device, dtype=vae.dtype)).latent_dist.sample()
+    latents = vae.encode(image.to(device=devices.device, dtype=devices.dtype)).latent_dist.sample()
     latents = latents * vae.config.scaling_factor
     return latents
