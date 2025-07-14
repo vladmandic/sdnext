@@ -4,6 +4,7 @@ from modules import shared, errors, timer, sd_models
 
 
 def hijack_encode_prompt(*args, **kwargs):
+    shared.state.begin('TE')
     t0 = time.time()
     if 'max_sequence_length' in kwargs:
         kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], os.environ.get('HIDREAM_MAX_SEQUENCE_LENGTH', 256))
@@ -18,6 +19,7 @@ def hijack_encode_prompt(*args, **kwargs):
     if hasattr(shared.sd_model, "maybe_free_model_hooks"):
         shared.sd_model.maybe_free_model_hooks()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    shared.state.end()
     return res
 
 

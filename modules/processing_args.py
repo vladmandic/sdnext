@@ -345,19 +345,21 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     continue
             args[arg] = kwargs[arg]
 
+    # handle task specific args
     task_kwargs = task_specific_kwargs(p, model)
-    for arg in task_kwargs:
-        # if arg in possible and arg not in args: # task specific args should not override args
-        if arg in possible:
-            args[arg] = task_kwargs[arg]
-    task_args = getattr(p, 'task_args', {})
+    pipe_args = getattr(p, 'task_args', {})
+    model_args = getattr(model, 'task_args', {})
+    task_kwargs.update(pipe_args)
+    task_kwargs.update(model_args)
     if debug_enabled:
-        debug_log(f'Process task args: {task_args}')
-    for k, v in task_args.items():
+        debug_log(f'Process task args: {task_kwargs}')
+    for k, v in task_kwargs.items():
         if k in possible:
             args[k] = v
         else:
             debug_log(f'Process unknown task args: {k}={v}')
+
+    # handle cross-attention args
     cross_attention_args = getattr(p, 'cross_attention_kwargs', {})
     if debug_enabled:
         debug_log(f'Process cross-attention args: {cross_attention_args}')

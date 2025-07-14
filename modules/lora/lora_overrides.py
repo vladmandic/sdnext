@@ -36,7 +36,7 @@ force_models_diffusers = [ # forced always
     # video models
     'hunyuanvideo',
     'cogvideo',
-    'wanvideo',
+    'wanai',
     'ltxvideo',
     'mochivideo',
     'allegrovideo',

@@ -29,15 +29,21 @@ Although upgrades and existing installations are tested and should work fine!
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
     this means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 - **Models**
+  - [WanAI Wan 2.1](https://wan.video/) 1.3B and 14B T2V models for T2I workflows  
+    Wan 2.1 is originally designed for *video* workflows, Wan 2.1 model can now also be used for *text-to-image* workflows!  
+    supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
+    can also load unet/transformer fine-tunes in safetensors format using UNET loader  
+    simply select in *networks -> models -> reference*  
+    *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB so aggressive quantization and offloading are recommended  
+  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
+    F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+    available via *networks -> models -> reference*  
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
     very fast automatic image background replacement methods with relightning!  
     *simple*: automatic background replacement using [BiRefNet](https://github.com/ZhengPeng7/BiRefNet)  
     *relighting*: automatic background replacement with reglighting so source image fits desired background  
     with optional composite blending  
     available in *img2img or control -> scripts*  
-  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
-    F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
-    available via *networks -> models -> reference*  
   - add **FLUX.1-Kontext-Dev** inpaint workflow  
   - support **FLUX.1** all-in-one safetensors  
   - support for [Google Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models  
@@ -79,6 +85,7 @@ Although upgrades and existing installations are tested and should work fine!
   - **TAESD** is now default preview type since its the only one that supports most new models  
   - support **TAESD** preview and remote VAE for **HunyuanDit**  
   - support **TAESD** preview and remote VAE for **AuraFlow**  
+  - support **TAESD** preview for **WanAI**  
   - SD.Next now starts with *locked* state preventing model loading until startup is complete  
   - warn when modifying legacy settings that are no longer supported, but available for compatibilty  
 - **API**  

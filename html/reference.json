@@ -189,6 +189,21 @@
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
 
+  "Wan-AI Wan2.1 1.3B": {
+    "path": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
+    "preview": "Wan-AI--Wan2.1.jpg",
+    "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "Wan-AI Wan2.1 14B": {
+    "path": "Wan-AI/Wan2.1-T2V-14B-Diffusers",
+    "preview": "Wan-AI--Wan2.1.jpg",
+    "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+
   "Freepik F-Lite": {
     "path": "Freepik/F-Lite",
     "preview": "Freepik--F-Lite.jpg",

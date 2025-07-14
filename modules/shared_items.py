@@ -44,6 +44,7 @@ pipelines = {
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
     'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
+    'WanAI': getattr(diffusers, 'WanPipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser

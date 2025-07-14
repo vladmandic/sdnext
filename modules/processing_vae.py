@@ -125,6 +125,11 @@ def full_vae_decode(latents, model):
     if shift_factor:
         latents = latents + shift_factor
 
+    # check dims
+    if model.vae.__class__.__name__ in ['AutoencoderKLWan'] and latents.ndim == 4:
+        latents = latents.unsqueeze(2) # wan is __nhw
+
+    # handle quants
     if getattr(model.vae, "post_quant_conv", None) is not None:
         if getattr(model.vae.post_quant_conv, "bias", None) is not None:
             latents = latents.to(model.vae.post_quant_conv.bias.dtype)

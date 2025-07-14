@@ -52,23 +52,24 @@ def get_model_type(pipe):
         model_type = 'cosmos'
     elif "FLite" in name:
         model_type = 'flite'
+    elif "PixArtSigma" in name:
+        model_type = 'pixartsigma'
+    elif "PixArtAlpha" in name:
+        model_type = 'pixartalpha'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
     elif 'HunyuanVideoPipeline' in name or 'HunyuanSkyreels' in name:
         model_type = 'hunyuanvideo'
-    elif 'Wan' in name:
-        model_type = 'wanvideo'
     elif 'LTX' in name:
         model_type = 'ltxvideo'
     elif "Mochi" in name:
         model_type = 'mochivideo'
     elif "Allegro" in name:
         model_type = 'allegrovideo'
-    elif "PixArtSigma" in name:
-        model_type = 'pixartsigma'
-    elif "PixArtAlpha" in name:
-        model_type = 'pixartalpha'
+    # hybrid models
+    elif 'Wan' in name:
+        model_type = 'wanai'
     else:
         model_type = name
     return model_type

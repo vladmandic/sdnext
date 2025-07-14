@@ -101,7 +101,6 @@ def get_generator(seed):
 
 def vae_decode(latents, decode_timestep, seed):
     t0 = time.time()
-    shared.state.begin('VAE')
     shared.log.debug(f'Video: cls={shared.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep}')
     from diffusers.utils.torch_utils import randn_tensor
     latents = shared.sd_model._denormalize_latents( # pylint: disable=protected-access
@@ -122,7 +121,6 @@ def vae_decode(latents, decode_timestep, seed):
     # frames = frames.squeeze(0) if frames.ndim == 5 else frames
     # frames = frames.permute(1, 2, 3, 0)
     # frames = shared.sd_model.video_processor.postprocess_video(frames, output_type='pil')
-    shared.state.end()
     t1 = time.time()
     timer.process.add('vae', t1 - t0)
     return frames

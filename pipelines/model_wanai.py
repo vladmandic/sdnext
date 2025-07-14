@@ -16,14 +16,18 @@ def load_transformer(repo_id, diffusers_load_config={}):
         fn = sd_unet.unet_dict[shared.opts.sd_unet] if os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]) else None
 
     if fn is not None and 'gguf' in fn.lower():
-        shared.log.error('Load model: type=Cosmos format="gguf" unsupported')
+        shared.log.error('Load model: type=WanAI format="gguf" unsupported')
         transformer = None
     elif fn is not None and 'safetensors' in fn.lower():
-        shared.log.debug(f'Load model: type=Cosmos transformer="{fn}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
-        transformer = diffusers.CosmosTransformer3DModel.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, **load_args)
+        shared.log.debug(f'Load model: type=WanAI transformer="{fn}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
+        transformer = diffusers.WanTransformer3DModel.from_single_file(
+            fn,
+            cache_dir=shared.opts.hfcache_dir,
+            **load_args,
+        )
     else:
-        shared.log.debug(f'Load model: type=Cosmos transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-        transformer = diffusers.CosmosTransformer3DModel.from_pretrained(
+        shared.log.debug(f'Load model: type=WanAI transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+        transformer = diffusers.WanTransformer3DModel.from_pretrained(
             repo_id,
             subfolder="transformer",
             cache_dir=shared.opts.hfcache_dir,
@@ -37,8 +41,8 @@ def load_transformer(repo_id, diffusers_load_config={}):
 
 def load_text_encoder(repo_id, diffusers_load_config={}):
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
-    shared.log.debug(f'Load model: type=Cosmos te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    text_encoder = transformers.T5EncoderModel.from_pretrained(
+    shared.log.debug(f'Load model: type=WanAI te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    text_encoder = transformers.UMT5EncoderModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
         cache_dir=shared.opts.hfcache_dir,
@@ -50,26 +54,28 @@ def load_text_encoder(repo_id, diffusers_load_config={}):
     return text_encoder
 
 
-def load_cosmos_t2i(checkpoint_info, diffusers_load_config={}):
+def load_wan(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
     transformer = load_transformer(repo_id, diffusers_load_config)
     text_encoder = load_text_encoder(repo_id, diffusers_load_config)
-    safety_checker = Fake_safety_checker()
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=Cosmos model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    cls = diffusers.Cosmos2TextToImagePipeline
+    cls = diffusers.WanPipeline
     pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder=text_encoder,
-        safety_checker=safety_checker,
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
+    pipe.task_args = {
+        'num_frames': 1,
+        'output_type': 'np',
+    }
 
     del text_encoder
     del transformer
@@ -81,21 +87,3 @@ def load_cosmos_t2i(checkpoint_info, diffusers_load_config={}):
 
     devices.torch_gc()
     return pipe
-
-
-class Fake_safety_checker:
-    def __init__(self):
-        from diffusers.utils import import_utils
-        import_utils._cosmos_guardrail_available = True # pylint: disable=protected-access
-
-    def __call__(self, *args, **kwargs): # pylint: disable=unused-argument
-        return
-
-    def to(self, _device):
-        pass
-
-    def check_text_safety(self, _prompt):
-        return True
-
-    def check_video_safety(self, vid):
-        return vid
