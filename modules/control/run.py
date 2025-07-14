@@ -318,7 +318,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
-        inpainting_fill = 1,
         # hdr
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
         hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,

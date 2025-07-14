@@ -261,7 +261,6 @@ class YoloRestorer(Detailer):
                 'styles': [],
                 'inpaint_full_res': True,
                 'inpainting_mask_invert': 0,
-                'inpainting_fill': 1, # no fill
                 'mask_blur': shared.opts.detailer_blur,
                 'inpaint_full_res_padding': shared.opts.detailer_padding,
                 'width': resolution,

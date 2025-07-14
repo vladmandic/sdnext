@@ -85,7 +85,7 @@ class StableDiffusionProcessing:
                  mask_for_overlay: Any = None,
                  mask_blur: int = 4,
                  paste_to: Any = None,
-                 inpainting_fill: int = 0,
+                 inpainting_fill: int = 1, # obsolete
                  inpaint_full_res: bool = False,
                  inpaint_full_res_padding: int = 0,
                  inpainting_mask_invert: int = 0,
@@ -483,8 +483,8 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 image = image.crop(crop_region)
                 if image.width != self.width or image.height != self.height:
                     image = images.resize_image(3, image, self.width, self.height, self.resize_name)
-            if self.image_mask is not None and self.inpainting_fill != 1:
-                image = masking.fill(image, latent_mask)
+            # if self.image_mask is not None and self.inpainting_fill != 1:
+            #     image = masking.fill(image, latent_mask)
             if add_color_corrections:
                 self.color_corrections.append(processing_helpers.setup_color_correction(image))
             processed_images.append(image)

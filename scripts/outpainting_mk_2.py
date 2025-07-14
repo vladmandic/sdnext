@@ -126,7 +126,6 @@ class Script(scripts_manager.Script):
         process_height = p.height
         p.mask_blur = mask_blur*4
         p.inpaint_full_res = False
-        p.inpainting_fill = 1
         p.do_not_save_samples = True
         p.do_not_save_grid = True
         left = pixels if "left" in direction else 0

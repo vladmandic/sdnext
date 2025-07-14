@@ -104,7 +104,6 @@ class Script(scripts_manager.Script):
 
                 last_image = processed.images[0]
                 p.init_images = [last_image]
-                p.inpainting_fill = 1 # Set "masked content" to "original" for next loop.
 
                 if batch_count == 1:
                     history.append(last_image)
