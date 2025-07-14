@@ -50,6 +50,7 @@ class Options:
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
         'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
+        'HuggingFaceTB/SmolLM3-3B': {},
         'meta-llama/Llama-3.2-1B-Instruct': {},
         'meta-llama/Llama-3.2-3B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},

@@ -273,6 +273,12 @@
     "preview": "fal--AuraFlow-v0.3.jpg",
     "skip": true
   },
+  "AuraFlow 0.2": {
+    "path": "fal/AuraFlow-v0.2",
+    "desc": "AuraFlow v0.2 is the fully open-sourced largest flow-based text-to-image generation model. The model was trained with more compute compared to the previous version, AuraFlow-v0.1",
+    "preview": "fal--AuraFlow-v0.3.jpg",
+    "skip": true
+  },
 
   "Segmind Vega": {
     "path": "huggingface/segmind/Segmind-Vega",
