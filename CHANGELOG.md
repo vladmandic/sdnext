@@ -11,6 +11,7 @@ We also switched project license to [Apache-2.0](https://github.com/vladmandic/s
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
+- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows and [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
 - New **LLM/VLM** models available for captioning and prompt enhance  
