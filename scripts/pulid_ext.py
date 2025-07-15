@@ -47,15 +47,17 @@ class Script(scripts_manager.Script):
             return fun
 
         import sys
-        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k][0]
-        options = [
-            xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
-            xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
-            xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
-        ]
-        for option in options:
-            if option not in xyz_classes.axis_options:
-                xyz_classes.axis_options.append(option)
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
+                xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
+                xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
 
 
     def decode_image(self,  b64):

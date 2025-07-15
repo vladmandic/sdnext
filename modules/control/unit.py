@@ -18,9 +18,9 @@ unit_types = ['t2i adapter', 'controlnet', 'xs', 'lite', 'reference', 'ip']
 class Unit(): # mashup of gradio controls and mapping to actual implementation classes
     def update_choices(self, model_id=None):
         name = model_id or self.model_name
-        if name == 'InstantX Union':
+        if name == 'InstantX Union F1':
             self.choices = ['canny', 'tile', 'depth', 'blur', 'pose', 'gray', 'lq']
-        elif name == 'Shakker-Labs Union':
+        elif name == 'Shakker-Labs Union F1':
             self.choices = ['canny', 'tile', 'depth', 'blur', 'pose', 'gray', 'lq']
         elif name == 'Xinsir Union XL':
             self.choices = ['openpose', 'depth', 'scribble', 'canny', 'normal']

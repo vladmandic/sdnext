@@ -77,19 +77,19 @@ predefined_sdxl = {
     # 'StabilityAI Sketch R256': 'stabilityai/control-lora/control-LoRAs-rank256/control-lora-sketch-rank256.safetensors',
 }
 predefined_f1 = {
-    "InstantX Union": 'InstantX/FLUX.1-dev-Controlnet-Union',
-    "InstantX Canny": 'InstantX/FLUX.1-dev-Controlnet-Canny',
-    "JasperAI Depth": 'jasperai/Flux.1-dev-Controlnet-Depth',
-    "BlackForrestLabs Canny LoRA": '/huggingface.co/black-forest-labs/FLUX.1-Canny-dev-lora/flux1-canny-dev-lora.safetensors',
-    "BlackForrestLabs Depth LoRA": '/huggingface.co/black-forest-labs/FLUX.1-Depth-dev-lora/flux1-depth-dev-lora.safetensors',
-    "JasperAI Surface Normals": 'jasperai/Flux.1-dev-Controlnet-Surface-Normals',
-    "JasperAI Upscaler": 'jasperai/Flux.1-dev-Controlnet-Upscaler',
-    "Shakker-Labs Union": 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro',
-    "Shakker-Labs Pose": 'Shakker-Labs/FLUX.1-dev-ControlNet-Pose',
-    "Shakker-Labs Depth": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
-    "XLabs-AI Canny": 'XLabs-AI/flux-controlnet-canny-diffusers',
-    "XLabs-AI Depth": 'XLabs-AI/flux-controlnet-depth-diffusers',
-    "XLabs-AI HED": 'XLabs-AI/flux-controlnet-hed-diffusers'
+    "InstantX Union F1": 'InstantX/FLUX.1-dev-Controlnet-Union',
+    "InstantX Canny F1": 'InstantX/FLUX.1-dev-Controlnet-Canny',
+    "JasperAI Depth F1": 'jasperai/Flux.1-dev-Controlnet-Depth',
+    "BlackForrestLabs Canny LoRA F1": '/huggingface.co/black-forest-labs/FLUX.1-Canny-dev-lora/flux1-canny-dev-lora.safetensors',
+    "BlackForrestLabs Depth LoRA F1": '/huggingface.co/black-forest-labs/FLUX.1-Depth-dev-lora/flux1-depth-dev-lora.safetensors',
+    "JasperAI Surface Normals F1": 'jasperai/Flux.1-dev-Controlnet-Surface-Normals',
+    "JasperAI Upscaler F1": 'jasperai/Flux.1-dev-Controlnet-Upscaler',
+    "Shakker-Labs Union F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro',
+    "Shakker-Labs Pose F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Pose',
+    "Shakker-Labs Depth F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
+    "XLabs-AI Canny F1": 'XLabs-AI/flux-controlnet-canny-diffusers',
+    "XLabs-AI Depth F1": 'XLabs-AI/flux-controlnet-depth-diffusers',
+    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers'
 }
 predefined_sd3 = {
     "StabilityAI Canny SD35": 'diffusers-internal-dev/sd35-controlnet-canny-8b',
@@ -452,6 +452,7 @@ class ControlNetPipeline():
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')
 
     def restore(self):
-        self.pipeline.unload_lora_weights()
+        if self.pipeline is not None:
+            self.pipeline.unload_lora_weights()
         self.pipeline = None
         return self.orig_pipeline

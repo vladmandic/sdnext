@@ -1,31 +1,51 @@
 import diffusers.pipelines as p
 
 
-def is_sd15(model):
+def is_compatible(model, compatible):
     if model is None:
         return False
-    if hasattr(model, '__name__'):
-        return model.__name__ == p.StableDiffusionPipeline.__name__ or model.__name__ == p.StableDiffusionImg2ImgPipeline.__name__ or model.__name__ == p.StableDiffusionInpaintPipeline.__name__
-    return isinstance(model, p.StableDiffusionPipeline) or isinstance(model, p.StableDiffusionImg2ImgPipeline) or isinstance(model, p.StableDiffusionInpaintPipeline)
+    if hasattr(model, '__class__'):
+        return any(model.__class__.__name__ == c.__name__ for c in compatible)
+    return any(isinstance(model, c) for c in compatible)
+
+
+def is_sd15(model):
+    compatible = [
+        p.StableDiffusionPipeline,
+        p.StableDiffusionImg2ImgPipeline,
+        p.StableDiffusionInpaintPipeline,
+        p.StableDiffusionControlNetPipeline,
+    ]
+    return is_compatible(model, compatible)
 
 
 def is_sdxl(model):
-    if model is None:
-        return False
-    if hasattr(model, '__name__'):
-        return model.__name__ == p.StableDiffusionXLPipeline.__name__ or model.__name__ == p.StableDiffusionXLImg2ImgPipeline.__name__ or model.__name__ == p.StableDiffusionXLInpaintPipeline.__name__
-    return isinstance(model, p.StableDiffusionXLPipeline) or isinstance(model, p.StableDiffusionXLImg2ImgPipeline) or isinstance(model, p.StableDiffusionXLInpaintPipeline)
+    compatible = [
+        p.StableDiffusionXLPipeline,
+        p.StableDiffusionXLImg2ImgPipeline,
+        p.StableDiffusionXLInpaintPipeline,
+        p.StableDiffusionXLControlNetPipeline,
+        p.StableDiffusionXLControlNetImg2ImgPipeline,
+        p.StableDiffusionXLControlNetUnionPipeline,
+    ]
+    return is_compatible(model, compatible)
+
 
 def is_f1(model):
-    if model is None:
-        return False
-    if hasattr(model, '__name__'):
-        return model.__name__ == p.FluxPipeline.__name__ or model.__name__ == p.FluxImg2ImgPipeline.__name__ or model.__name__ == p.FluxInpaintPipeline.__name__
-    return isinstance(model, p.FluxPipeline) or isinstance(model, p.FluxImg2ImgPipeline) or isinstance(model, p.FluxInpaintPipeline)
+    compatible = [
+        p.FluxPipeline,
+        p.FluxImg2ImgPipeline,
+        p.FluxInpaintPipeline,
+        p.FluxControlNetPipeline,
+    ]
+    return is_compatible(model, compatible)
+
 
 def is_sd3(model):
-    if model is None:
-        return False
-    if hasattr(model, '__name__'):
-        return model.__name__ == p.StableDiffusion3Pipeline.__name__ or model.__name__ == p.StableDiffusion3Img2ImgPipeline.__name__ or model.__name__ == p.StableDiffusion3InpaintPipeline.__name__
-    return isinstance(model, p.StableDiffusion3Pipeline) or isinstance(model, p.StableDiffusion3Img2ImgPipeline) or isinstance(model, p.StableDiffusion3InpaintPipeline)
+    compatible = [
+        p.StableDiffusion3Pipeline,
+        p.StableDiffusion3Img2ImgPipeline,
+        p.StableDiffusion3InpaintPipeline,
+        p.StableDiffusion3ControlNetPipeline,
+    ]
+    return is_compatible(model, compatible)

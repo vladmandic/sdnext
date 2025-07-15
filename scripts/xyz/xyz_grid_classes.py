@@ -1,5 +1,47 @@
-from scripts.xyz_grid_shared import apply_field, apply_task_arg, apply_task_args, apply_setting, apply_prompt_primary, apply_prompt_refine, apply_prompt_detailer, apply_prompt_all, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, apply_sdnq_quant,  apply_sdnq_quant_te, format_value_add_label, format_bool, format_value, format_value_join_list, do_nothing, format_nothing, str_permutations # pylint: disable=no-name-in-module, unused-import
+from scripts.xyz.xyz_grid_shared import (
+    apply_field,
+    apply_task_arg,
+    apply_task_args,
+    apply_setting,
+    apply_prompt_primary,
+    apply_prompt_refine,
+    apply_prompt_detailer,
+    apply_prompt_all,
+    apply_order,
+    apply_sampler,
+    apply_hr_sampler_name,
+    confirm_samplers,
+    apply_checkpoint,
+    apply_refiner,
+    apply_unet,
+    apply_clip_skip,
+    apply_vae,
+    list_lora,
+    apply_lora,
+    apply_lora_strength,
+    apply_te,
+    apply_styles,
+    apply_upscaler,
+    apply_context,
+    apply_detailer,
+    apply_override,
+    apply_processing,
+    apply_options,
+    apply_seed,
+    apply_sdnq_quant,
+    apply_sdnq_quant_te,
+    apply_control,
+    format_value_add_label,
+    format_bool,
+    format_value,
+    format_value_join_list,
+    do_nothing,
+    format_nothing,
+    str_permutations,
+ ) # pylint: disable=no-name-in-module, unused-import
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
+from modules.control.units import controlnet, t2iadapter
+from modules.control.processors_list import processors
 
 
 class AxisOption:
@@ -215,6 +257,13 @@ axis_options = [
     AxisOption("[IP adapter] Scale", float, apply_field('ip_adapter_scales')),
     AxisOption("[IP adapter] Starts", float, apply_field('ip_adapter_starts')),
     AxisOption("[IP adapter] Ends", float, apply_field('ip_adapter_ends')),
+    AxisOption("[Control] ControlNet", str, apply_control('controlnet'), cost=0.9, choices=lambda: list(controlnet.all_models)),
+    AxisOption("[Control] T2IAdapter", str, apply_control('t2i adapter'), cost=0.9, choices=lambda: list(t2iadapter.all_models)),
+    AxisOption("[Control] Processor", str, apply_control('processor'), cost=2.0, choices=lambda: processors),
+    AxisOption("[Control] Strength", float, apply_control('control_strength')),
+    AxisOption("[Control] Start", float, apply_control('control_start')),
+    AxisOption("[Control] End", float, apply_control('control_end')),
+
     AxisOption("[HiDiffusion] T1", float, apply_override('hidiffusion_t1')),
     AxisOption("[HiDiffusion] T2", float, apply_override('hidiffusion_t2')),
     AxisOption("[HiDiffusion] Agression step", float, apply_field('hidiffusion_steps')),

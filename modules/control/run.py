@@ -51,8 +51,7 @@ def is_unified_model():
     return shared.sd_model.__class__.__name__ in unified_models
 
 
-def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits):
-    print('HERE SET PIPE')
+def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits=None):
     global pipe, instance # pylint: disable=global-statement
     pipe = None
     if has_models:
@@ -119,12 +118,13 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
             p.strength = active_strength[0]
         pipe = shared.sd_model
         instance = None
+    if (pipe is not None) and (pipe.__class__.__name__ != shared.sd_model.__class__.__name__):
+        sd_models.copy_diffuser_options(pipe, shared.sd_model) # copy options from original pipeline
     debug_log(f'Control: run type={unit_type} models={has_models} pipe={pipe.__class__.__name__ if pipe is not None else None}')
     return pipe
 
 
 def check_active(p, unit_type, units):
-    print('HERE CHECK ACTIVE')
     active_process: List[processors.Processor] = [] # all active preprocessors
     active_model: List[Union[controlnet.ControlNet, xs.ControlNetXS, t2iadapter.Adapter]] = [] # all active models
     active_strength: List[float] = [] # strength factors for all active models
@@ -194,7 +194,6 @@ def check_active(p, unit_type, units):
 
 
 def check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end):
-    print('HERE CHECK ENABLED')
     has_models = False
     selected_models: List[Union[controlnet.ControlNetModel, xs.ControlNetXSModel, t2iadapter.AdapterModel]] = None
     control_conditioning = None
@@ -233,7 +232,6 @@ def control_set(kwargs):
 
 
 def init_units(units: List[unit.Unit]):
-    print('HERE INIT UNITS')
     for u in units:
         if not u.enabled:
             continue
@@ -397,8 +395,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
         p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / 8), 8 * int(hr_resize_y / 8)
 
-    if is_unified_model():
-        p.init_images = inputs
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():
@@ -420,6 +416,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     info_txt = []
 
     p.is_tile = p.is_tile and has_models
+    if is_unified_model():
+        p.init_images = inputs
 
     pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
     debug_log(f'Control pipeline: class={pipe.__class__.__name__} args={vars(p)}')

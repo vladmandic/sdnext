@@ -235,6 +235,8 @@ class Processor():
         if image_input is None:
             # log.error('Control Processor: no input')
             return image_process
+        if isinstance(image_input, list):
+            image_input = image_input[0]
         if self.processor_id not in config:
             return image_process
         if config[self.processor_id].get('dirty', False):

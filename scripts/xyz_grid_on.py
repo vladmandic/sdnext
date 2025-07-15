@@ -10,9 +10,9 @@ from io import StringIO
 from PIL import Image
 import numpy as np
 import gradio as gr
-from scripts.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
-from scripts.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
-from scripts.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
 from modules import shared, errors, scripts_manager, images, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs

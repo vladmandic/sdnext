@@ -311,6 +311,7 @@ class StableDiffusionProcessing:
         self.negative_pooleds = []
         self.prompt_attention_masks = []
         self.negative_prompt_attention_mask = []
+        self.xyz = xyz
 
     def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'
