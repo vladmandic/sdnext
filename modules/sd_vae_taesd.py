@@ -36,7 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanai', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanai', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen']
 
 
 def warn_once(msg, variant=None):

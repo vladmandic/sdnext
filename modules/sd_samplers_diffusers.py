@@ -288,7 +288,6 @@ class DiffusionSampler:
         possible = signature.parameters.keys()
         for key in self.config.copy().keys():
             if key not in possible:
-                # shared.log.warning(f'Sampler: sampler="{name}" config={self.config} invalid={key}')
                 del self.config[key]
         debug_log(f'Sampler: name="{name}"')
         debug_log(f'Sampler: config={self.config}')
@@ -298,7 +297,7 @@ class DiffusionSampler:
         try:
             sampler = constructor(**self.config)
         except Exception as e:
-            shared.log.error(f'Sampler: sampler="{name}" {e}')
+            shared.log.error(f'Sampler: "{name}" {e}')
             if debug:
                 errors.display(e, 'Samplers')
             self.sampler = None
@@ -308,13 +307,13 @@ class DiffusionSampler:
             accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accept_scale_noise = hasattr(sampler, "scale_noise")
-            debug_log(f'Sampler: sampler="{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
+            debug_log(f'Sampler: "{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
             if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
-                shared.log.warning(f'Sampler: sampler="{name}" does not accept sigmas')
+                shared.log.warning(f'Sampler: "{name}" does not accept sigmas')
                 self.sampler = None
                 return
             if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
-                shared.log.warning(f'Sampler: sampler="{name}" does not implement scale noise')
+                shared.log.warning(f'Sampler: "{name}" does not implement scale noise')
                 self.sampler = None
                 return
 

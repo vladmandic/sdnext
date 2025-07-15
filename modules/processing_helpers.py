@@ -484,10 +484,14 @@ def update_sampler(p, sd_model, second_pass=False):
             return
         sampler = sd_samplers.find_sampler(sampler_selection)
         if sampler is None:
-            shared.log.warning(f'Sampler: sampler="{sampler_selection}" not found')
+            shared.log.warning(f'Sampler: "{sampler_selection}" not found')
             sampler = sd_samplers.all_samplers_map.get("UniPC")
         sampler = sd_samplers.create_sampler(sampler.name, sd_model)
         if sampler is None or sampler_selection == 'Default':
+            if second_pass:
+                p.hr_sampler = 'Default'
+            else:
+                p.sampler_name = 'Default'
             return
         sampler_options = []
         if sampler.config.get('rescale_betas_zero_snr', False) and shared.opts.schedulers_rescale_betas != shared.opts.data_labels.get('schedulers_rescale_betas').default:

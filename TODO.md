@@ -44,7 +44,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 ### New models
 
 #### Stable
-- [Diffusers-0.34.0](https://github.com/huggingface/diffusers/releases/tag/v0.34.0)  
 - [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
 - [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 #### Pending

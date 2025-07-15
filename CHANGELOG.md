@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-14
+## Update for 2025-07-15
 
-### Highlights for 2025-07-14
+### Highlights for 2025-07-15
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
 This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
@@ -24,7 +24,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-14
+### Details for 2025-07-15
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -89,6 +89,7 @@ Although upgrades and existing installations are tested and should work fine!
   - support **TAESD** preview for **WanAI**  
   - SD.Next now starts with *locked* state preventing model loading until startup is complete  
   - warn when modifying legacy settings that are no longer supported, but available for compatibilty  
+  - warn on incompatible sampler and automatically restore default sampler  
 - **API**  
   - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
     if model is locked, it cannot be changed using normal load or unload methods  
@@ -102,6 +103,7 @@ Although upgrades and existing installations are tested and should work fine!
   - fix loading of manually downloaded diffuser models  
   - fix api `/sdapi/v1/embeddings` endpoint  
   - fix incorrect reporting of deleted and modified files  
+  - fix SD3.x loader and TAESD preview  
   - allow upscaling with models that have implicit VAE processing  
   - sdnq use inference context during quantization  
   - framepack improve offloading  

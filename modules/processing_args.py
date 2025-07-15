@@ -245,7 +245,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 except Exception as e:
                     shared.log.error(f'Sampler timesteps: {e}')
             else:
-                shared.log.warning(f'Sampler: sampler={model.scheduler.__class__.__name__} timesteps not supported')
+                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} timesteps not supported')
     if 'sigmas' in possible:
         sigmas = re.split(',| ', shared.opts.schedulers_timesteps)
         sigmas = [float(x)/1000.0 for x in sigmas if x.isdigit()]
@@ -260,7 +260,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 except Exception as e:
                     shared.log.error(f'Sampler sigmas: {e}')
             else:
-                shared.log.warning(f'Sampler: sampler={model.scheduler.__class__.__name__} sigmas not supported')
+                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} sigmas not supported')
 
     if hasattr(model, 'scheduler') and hasattr(model.scheduler, 'noise_sampler_seed') and hasattr(model.scheduler, 'noise_sampler'):
         model.scheduler.noise_sampler = None # noise needs to be reset instead of using cached values

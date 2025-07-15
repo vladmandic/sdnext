@@ -19,7 +19,7 @@ pipelines = {
     'Stable Diffusion XL Instruct': getattr(diffusers, 'StableDiffusionXLInstructPix2PixPipeline', None),
     'Stable Diffusion XL Refiner': getattr(diffusers, 'StableDiffusionXLImg2ImgPipeline', None),
     'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
-    'Stable Diffusion 3.x': getattr(diffusers, 'StableDiffusion3Pipeline', None),
+    'Stable Diffusion 3': getattr(diffusers, 'StableDiffusion3Pipeline', None),
     'Latent Consistency Model': getattr(diffusers, 'LatentConsistencyModelPipeline', None),
     'PixArt Alpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
     'PixArt Sigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
@@ -140,7 +140,7 @@ def get_repo(model):
         return 'stable-diffusion-v1-5/stable-diffusion-v1-5'
     elif model == 'StableDiffusionXLPipeline' or model == 'Stable Diffusion XL':
         return 'stabilityai/stable-diffusion-xl-base-1.0'
-    elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3.x':
+    elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3':
         return 'stabilityai/stable-diffusion-3.5-medium'
     elif model == 'FluxPipeline' or model == 'FLUX':
         return 'black-forest-labs/FLUX.1-dev'
