@@ -115,6 +115,8 @@ class StableDiffusionProcessing:
                  outpath_grids=None,
                  do_not_save_samples: bool = False,
                  do_not_save_grid: bool = False,
+                 # xyz flag
+                 xyz: bool = False,
                  # scripts
                  script_args: list = [],
                  # overrides

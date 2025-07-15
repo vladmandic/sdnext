@@ -170,7 +170,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         prev_job = shared.state.job
 
         # hires runs on original pipeline
-        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and not shared.opts.control_hires:
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
             shared.sd_model.restore_pipeline()
 
         # upscale

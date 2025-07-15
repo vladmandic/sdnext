@@ -89,7 +89,6 @@ def create_sampler(name, model):
         return restore_default(model)
     sampler = config.constructor(model)
     if sampler.sampler is None:
-        print('HERE')
         return restore_default(model)
     is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (getattr(sampler.sampler.config, 'prediction_type', None) == 'flow_prediction')
 

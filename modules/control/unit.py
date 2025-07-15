@@ -30,7 +30,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
             self.choices = ['default']
 
     def __str__(self):
-        return f'Unit: type={self.type} enabled={self.enabled} strength={self.strength} start={self.start} end={self.end} mode={self.mode} tile={self.tile}'
+        return f'Unit(index={self.index} enabled={self.enabled} type="{self.type}" strength={self.strength} start={self.start} end={self.end}{self.process}{self.controlnet})'
 
     def __init__(self,
                  # values

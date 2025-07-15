@@ -33,7 +33,7 @@ def restore_pipeline():
     global pipe, instance # pylint: disable=global-statement
     if instance is not None and hasattr(instance, 'restore'):
         instance.restore()
-    if original_pipeline is not None and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
+    if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
         debug_log(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__}')
         shared.sd_model = original_pipeline
     pipe = None
@@ -52,6 +52,7 @@ def is_unified_model():
 
 
 def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits):
+    print('HERE SET PIPE')
     global pipe, instance # pylint: disable=global-statement
     pipe = None
     if has_models:
@@ -123,6 +124,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
 
 
 def check_active(p, unit_type, units):
+    print('HERE CHECK ACTIVE')
     active_process: List[processors.Processor] = [] # all active preprocessors
     active_model: List[Union[controlnet.ControlNet, xs.ControlNetXS, t2iadapter.Adapter]] = [] # all active models
     active_strength: List[float] = [] # strength factors for all active models
@@ -192,6 +194,7 @@ def check_active(p, unit_type, units):
 
 
 def check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end):
+    print('HERE CHECK ENABLED')
     has_models = False
     selected_models: List[Union[controlnet.ControlNetModel, xs.ControlNetXSModel, t2iadapter.AdapterModel]] = None
     control_conditioning = None
@@ -229,6 +232,23 @@ def control_set(kwargs):
         p_extra_args[k] = v
 
 
+def init_units(units: List[unit.Unit]):
+    print('HERE INIT UNITS')
+    for u in units:
+        if not u.enabled:
+            continue
+        if u.process_name is not None and u.process_name != '' and u.process_name != 'None':
+            u.process.load(u.process_name, force=False)
+        if u.model_name is not None and u.model_name != '' and u.model_name != 'None':
+            if u.type == 't2i adapter':
+                u.adapter.load(u.model_name, force=False)
+            else:
+                u.controlnet.load(u.model_name, force=False)
+                u.update_choices(u.model_name)
+        if u.process is not None and u.process.override is None and u.override is not None:
+            u.process.override = u.override
+
+
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 units: List[unit.Unit] = [], inputs: List[Image.Image] = [], inits: List[Image.Image] = [], mask: Image.Image = None, unit_type: str = None, is_generator: bool = True,
                 input_type: int = 0,
@@ -249,23 +269,10 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
                 *input_script_args,
         ):
-    # handle optional initialization via ui
-    for u in units:
-        if not u.enabled:
-            continue
-        if u.process_name is not None and u.process_name != '' and u.process_name != 'None':
-            u.process.load(u.process_name, force=False)
-        if u.model_name is not None and u.model_name != '' and u.model_name != 'None':
-            if u.type == 't2i adapter':
-                u.adapter.load(u.model_name, force=False)
-            else:
-                u.controlnet.load(u.model_name, force=False)
-                u.update_choices(u.model_name)
-        if u.process is not None and u.process.override is None and u.override is not None:
-            u.process.override = u.override
-
     global pipe, original_pipeline # pylint: disable=global-statement
+
     debug_log(f'Control: type={unit_type} input={inputs} init={inits} type={input_type}')
+    init_units(units)
     if inputs is None or (type(inputs) is list and len(inputs) == 0):
         inputs = [None]
     output_images: List[Image.Image] = [] # output images

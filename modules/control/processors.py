@@ -133,6 +133,9 @@ class Processor():
         if processor_id is not None:
             self.load()
 
+    def __str__(self):
+        return f' Processor(id={self.processor_id} model={self.model.__class__.__name__})' if self.processor_id and self.model else ''
+
     def reset(self, processor_id: str = None):
         if self.model is not None:
             debug(f'Control Processor unloaded: id="{self.processor_id}"')

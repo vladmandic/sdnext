@@ -368,9 +368,12 @@ class Script(scripts_manager.Script):
                 include_text=include_text,
             )
 
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
+            shared.sd_model.restore_pipeline()
+
         if not processed.images:
             return processed # something broke, no further handling needed.
-        # processed.images = (1)*grid + (z > 1 ? z : 0)*subgrids + (x*y*z)*images
+
         have_grid = 1 if include_grid else 0
         have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
         have_images = processed.images[have_grid+have_subgrids:]

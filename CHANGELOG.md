@@ -104,6 +104,7 @@ Although upgrades and existing installations are tested and should work fine!
   - fix api `/sdapi/v1/embeddings` endpoint  
   - fix incorrect reporting of deleted and modified files  
   - fix SD3.x loader and TAESD preview  
+  - fix xyz with control enabled  
   - allow upscaling with models that have implicit VAE processing  
   - sdnq use inference context during quantization  
   - framepack improve offloading  
