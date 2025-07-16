@@ -289,44 +289,56 @@ def apply_detailer(p, opt, x):
 
 def apply_control(field):
     def fun(p, x, xs):
-        shared.log.debug(f'XYZ grid apply control: {field}={x}')
-        if field in ['controlnet', 't2i adapter']:
-            from modules.control import run
-            vals = x.split(':')
-            model_id = vals[0].strip() if len(vals) > 0 else None
-            process_id = vals[1].strip() if len(vals) > 1 else None
-            strength = float(vals[2].strip()) if len(vals) > 2 else 1.0
-            start = float(vals[3].strip()) if len(vals) > 3 else 0.0
-            end = float(vals[4].strip()) if len(vals) > 4 else 1.0
+        if getattr(p, 'xyz_init_images', None) is not None and len(getattr(p, 'xyz_init_images', [])) > 0: # backup init images since they get modified
+            p.init_images = getattr(p, 'xyz_init_images', None)
+        else:
+            p.xyz_init_images = getattr(p, 'init_images', None)
+        if getattr(p, 'init_images', None) is None or len(getattr(p, 'init_images', [])) == 0:
+            shared.log.error(f'XYZ grid apply control: init image is required')
+            return x
+        if field in ['controlnet', 't2i adapter', 'processor']:
+            from modules.control import run, processor
+            unit_type = 'controlnet' # set default
+            if field in ['controlnet', 't2i adapter']:
+                unit_type = field
+                model_id = x
+                process_id = run.unit.current[0].process_id if len(run.unit.current) > 0 else None
+            elif field == 'processor':
+                model_id = run.unit.current[0].model_id if len(run.unit.current) > 0 else None
+                process_id = x
+            start = run.unit.current[0].start if len(run.unit.current) > 0 else 0
+            end = run.unit.current[0].end if len(run.unit.current) > 0 else 1.0
+            strength = run.unit.current[0].model_strength if len(run.unit.current) > 0 else 1.0
             unit = run.unit.Unit(
-                    index=0,
-                    enabled=True,
-                    unit_type=field,
-                    model_id=model_id,
-                    process_id=process_id,
-                    strength=strength,
-                    start=start,
-                    end=end,
+                    index = 0,
+                    enabled = True,
+                    unit_type = unit_type,
+                    model_id = getattr(model_id, 'value', model_id), # gradio-component-to-string
+                    process_id = getattr(process_id, 'value', process_id),
+                    start = getattr(start, 'value', start),
+                    end = getattr(end, 'value', end),
+                    strength = getattr(strength, 'value', strength),
             )
-            run.init_units([unit])
-            active_process, active_model, active_strength, active_start, active_end = run.check_active(p, unit.type, [unit])
-            has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = run.check_enabled(p, unit.type, [unit], active_model, active_strength, active_start, active_end)
+            shared.log.debug(f'XYZ grid apply control: {field}="{x}" unit={unit}')
+            if len(run.unit.current) > 0:
+                run.unit.current[0] = unit
+            else:
+                run.unit.current = [unit]
+            run.init_units(run.unit.current)
+            active_process, active_model, active_strength, active_start, active_end = run.check_active(p, unit.type, run.unit.current)
+            has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = run.check_enabled(p, unit.type, run.unit.current, active_model, active_strength, active_start, active_end)
             pipe = run.set_pipe(p, has_models, unit.type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end)
+            processed_image = processor.preprocess_image(p, pipe, input_image=p.init_images[0], unit_type=unit.type, active_process=active_process, active_model=active_model, selected_models=selected_models, has_models=has_models)
             if pipe is not None:
                 shared.sd_model = pipe
-        elif field == 'processor':
-            from modules.control.processors import Processor
-            processor = Processor(x)
-            if processor is not None:
-                processor.reset()
-                # p.task_args['image'] = [processor(p.init_images)]
-                p.task_args['image'] = processor(p.init_images)
-                p.init_images = None
         elif field == 'control_start':
+            shared.log.debug(f'XYZ grid apply control: {field}={x}')
             p.task_args['control_guidance_start'] = float(x)
         elif field == 'control_end':
+            shared.log.debug(f'XYZ grid apply control: {field}={x}')
             p.task_args['control_guidance_end'] = float(x)
         elif field == 'control_strength':
+            shared.log.debug(f'XYZ grid apply control: {field}={x}')
             p.task_args['adapter_conditioning_scale'] = float(x)
             p.task_args['controlnet_conditioning_scale'] = float(x)
     return fun

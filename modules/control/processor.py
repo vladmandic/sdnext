@@ -39,15 +39,15 @@ processors = [
 def preprocess_image(
         p:StableDiffusionProcessingControl,
         pipe,
-        input_image:Image.Image,
-        init_image:Image.Image,
-        input_mask:Image.Image,
-        input_type:str,
-        unit_type:str,
-        active_process:list,
-        active_model:list,
-        selected_models:list,
-        has_models:bool,
+        input_image:Image.Image = None,
+        init_image:Image.Image = None,
+        input_mask:Image.Image = None,
+        input_type:str = 0,
+        unit_type:str = 'controlnet',
+        active_process:list = [],
+        active_model:list = [],
+        selected_models:list = [],
+        has_models:bool = False,
     ):
     t0 = time.time()
 

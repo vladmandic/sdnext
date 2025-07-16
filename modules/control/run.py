@@ -12,9 +12,9 @@ from modules.control.units import xs # VisLearn ControlNet-XS
 from modules.control.units import lite # Kohya ControlLLLite
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # ControlNet-Reference
+from modules.control.processor import preprocess_image
 from modules import devices, shared, errors, processing, images, sd_models, scripts_manager, masking
 from modules.processing_class import StableDiffusionProcessingControl
-from modules.processing_info import create_infotext
 from modules.ui_common import infotext_to_html
 from modules.api import script
 
@@ -505,7 +505,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    from modules.control.processor import preprocess_image
                     processed_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
 
                     # final check

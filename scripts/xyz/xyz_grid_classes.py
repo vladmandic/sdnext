@@ -259,7 +259,7 @@ axis_options = [
     AxisOption("[IP adapter] Ends", float, apply_field('ip_adapter_ends')),
     AxisOption("[Control] ControlNet", str, apply_control('controlnet'), cost=0.9, choices=lambda: list(controlnet.all_models)),
     AxisOption("[Control] T2IAdapter", str, apply_control('t2i adapter'), cost=0.9, choices=lambda: list(t2iadapter.all_models)),
-    AxisOption("[Control] Processor", str, apply_control('processor'), cost=2.0, choices=lambda: processor.processors),
+    AxisOption("[Control] Processor", str, apply_control('processor'), cost=0.6, choices=lambda: processor.processors),
     AxisOption("[Control] Strength", float, apply_control('control_strength')),
     AxisOption("[Control] Start", float, apply_control('control_start')),
     AxisOption("[Control] End", float, apply_control('control_end')),

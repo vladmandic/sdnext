@@ -59,6 +59,8 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                  result_txt = None,
                  extra_controls: list = [],
         ):
+        self.model_id = model_id
+        self.process_id = process_id
         self.controls = [gr.Label(value=unit_type, visible=False)] # separator
         self.index = index
         self.enabled = enabled or False
@@ -81,8 +83,6 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         # global settings but passed per-unit
         self.factor = 1.0
         self.guess = False
-        self.start = 0
-        self.end = 1
         # reference settings
         self.attention = 'Attention'
         self.fidelity = 0.5
