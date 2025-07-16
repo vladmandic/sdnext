@@ -107,7 +107,7 @@ valid-metaclass-classmethod-first-arg=mcs
 [DESIGN]
 exclude-too-few-public-methods=
 ignored-parents=
-max-args=99
+max-args=199
 max-attributes=99
 max-bool-expr=99
 max-branches=199

@@ -479,9 +479,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     # get input
                     if isinstance(input_image, str):
                         try:
-                            input_image = Image.open(inputs[i])
+                            input_image = Image.open(input_image)
                         except Exception as e:
-                            shared.log.error(f'Control: image open failed: path={inputs[i]} type=control error={e}')
+                            shared.log.error(f'Control: image open failed: path={input_image} type=control error={e}')
                             continue
                     # match init input
                     if input_type == 1:

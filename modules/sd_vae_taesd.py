@@ -136,7 +136,6 @@ def get_model(model_type = 'decoder', variant = None):
 
 def decode(latents):
     with lock:
-        from modules import shared
         vae, variant = get_model(model_type='decoder')
         if vae is None or max(latents.shape) > 256: # safetey check of large tensors
             return latents

@@ -1,4 +1,4 @@
-from scripts.xyz.xyz_grid_shared import (
+from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, unused-import
     apply_field,
     apply_task_arg,
     apply_task_args,
@@ -38,10 +38,10 @@ from scripts.xyz.xyz_grid_shared import (
     do_nothing,
     format_nothing,
     str_permutations,
- ) # pylint: disable=no-name-in-module, unused-import
+ )
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
 from modules.control.units import controlnet, t2iadapter
-from modules.control import processors, processor
+from modules.control import processor
 
 
 class AxisOption:

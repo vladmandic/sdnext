@@ -295,7 +295,7 @@ def apply_control(field):
             p.xyz_init_images = getattr(p, 'init_images', None)
         if getattr(p, 'init_images', None) is None or len(getattr(p, 'init_images', [])) == 0:
             shared.log.error('XYZ grid apply control: init image is required')
-            return x
+            return
         if field in ['controlnet', 't2i adapter', 'processor']:
             from modules.control import run, processor
             unit_type = 'controlnet' # set default
@@ -306,6 +306,9 @@ def apply_control(field):
             elif field == 'processor':
                 model_id = run.unit.current[0].model_id if len(run.unit.current) > 0 else None
                 process_id = x
+            else:
+                model_id = None
+                process_id = None
             start = run.unit.current[0].start if len(run.unit.current) > 0 else 0
             end = run.unit.current[0].end if len(run.unit.current) > 0 else 1.0
             strength = run.unit.current[0].model_strength if len(run.unit.current) > 0 else 1.0
