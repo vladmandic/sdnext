@@ -387,37 +387,52 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 else:
                     image.info["parameters"] = info
                     output_images.append(image)
-                if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:
-                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                    if isinstance(image, list):
-                        for img in image:
-                            images.save_image(img, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
-                    else:
-                        images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
-                if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
-                    image_mask = p.mask_for_overlay.convert('RGB')
-                    image1 = image.convert('RGBA').convert('RGBa')
-                    image2 = Image.new('RGBa', image.size)
-                    mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
-                    image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
-                    if shared.opts.save_mask:
-                        images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
-                    if shared.opts.save_mask_composite:
-                        images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
-                    if shared.opts.return_mask:
-                        output_images.append(image_mask)
-                    if shared.opts.return_mask_composite:
-                        output_images.append(image_mask_composite)
+
+                is_grid = len(output_images) == p.batch_size * p.n_iter + 1 and i == 0
+                for image in output_images:
+                    # resize after
+                    if p.selected_scale_tab_after == 1:
+                        p.width_after, p.height_after = int(image.width * p.scale_by_after), int(image.height * p.scale_by_after)
+                    if p.resize_mode_after != 0 and p.resize_name_after != 'None' and not is_grid:
+                        image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
+
+                    # save images
+                    if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:
+                        info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                        if isinstance(image, list):
+                            for img in image:
+                                images.save_image(img, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
+                        else:
+                            images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
+
+                    # add masks
+                    if shared.opts.include_mask and not script_run:
+                        if processed_image is not None and isinstance(processed_image, Image.Image):
+                            output_images.append(processed_image)
+                    if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
+                        image_mask = p.mask_for_overlay.convert('RGB')
+                        image1 = image.convert('RGBA').convert('RGBa')
+                        image2 = Image.new('RGBa', image.size)
+                        mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
+                        image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
+                        if shared.opts.save_mask:
+                            images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
+                        if shared.opts.save_mask_composite:
+                            images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
+                        if shared.opts.return_mask:
+                            output_images.append(image_mask)
+                        if shared.opts.return_mask_composite:
+                            output_images.append(image_mask_composite)
 
             timer.process.record('post')
             del samples
 
             devices.torch_gc()
 
-        # if not p.xyz:
-        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
-            shared.sd_model.restore_pipeline()
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        if not p.xyz:
+            if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
+                shared.sd_model.restore_pipeline()
+            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
         t1 = time.time()
 

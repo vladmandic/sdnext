@@ -382,20 +382,6 @@ class ControlNetPipeline():
                 feature_extractor=getattr(pipeline, 'feature_extractor', None),
                 controlnet=controlnets, # can be a list
             )
-        elif detect.is_sd15(pipeline) and len(controlnets) > 0:
-            from diffusers import StableDiffusionControlNetPipeline
-            self.pipeline = StableDiffusionControlNetPipeline(
-                vae=pipeline.vae,
-                text_encoder=pipeline.text_encoder,
-                tokenizer=pipeline.tokenizer,
-                unet=pipeline.unet,
-                scheduler=pipeline.scheduler,
-                feature_extractor=getattr(pipeline, 'feature_extractor', None),
-                requires_safety_checker=False,
-                safety_checker=None,
-                controlnet=controlnets, # can be a list
-            )
-            sd_models.move_model(self.pipeline, pipeline.device)
         elif detect.is_f1(pipeline) and len(controlnets) > 0:
             from diffusers import FluxControlNetPipeline
             self.pipeline = FluxControlNetPipeline(
@@ -422,6 +408,20 @@ class ControlNetPipeline():
                 scheduler=pipeline.scheduler,
                 controlnet=controlnets, # can be a list
             )
+        elif detect.is_sd15(pipeline) and len(controlnets) > 0:
+            from diffusers import StableDiffusionControlNetPipeline
+            self.pipeline = StableDiffusionControlNetPipeline(
+                vae=pipeline.vae,
+                text_encoder=pipeline.text_encoder,
+                tokenizer=pipeline.tokenizer,
+                unet=pipeline.unet,
+                scheduler=pipeline.scheduler,
+                feature_extractor=getattr(pipeline, 'feature_extractor', None),
+                requires_safety_checker=False,
+                safety_checker=None,
+                controlnet=controlnets, # can be a list
+            )
+            sd_models.move_model(self.pipeline, pipeline.device)
         elif len(loras) > 0:
             self.pipeline = pipeline
             for lora in loras:

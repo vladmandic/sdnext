@@ -9,6 +9,8 @@ Grid = namedtuple("Grid", ["tiles", "tile_w", "tile_h", "image_w", "image_h", "o
 
 
 def check_grid_size(imgs):
+    if imgs is None or len(imgs) == 0:
+        return False
     mp = 0
     for img in imgs:
         mp += img.width * img.height if img is not None else 0

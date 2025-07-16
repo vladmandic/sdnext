@@ -13,6 +13,7 @@ from modules.control.units import reference # pylint: disable=unused-import
 default_device = None
 default_dtype = None
 unit_types = ['t2i adapter', 'controlnet', 'xs', 'lite', 'reference', 'ip']
+current = []
 
 
 class Unit(): # mashup of gradio controls and mapping to actual implementation classes

@@ -1,8 +1,7 @@
 import os
-import time
+import sys
 from typing import List, Union
 import cv2
-import numpy as np
 from PIL import Image
 from modules.control import util # helper functions
 from modules.control import unit # control units
@@ -15,9 +14,9 @@ from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # ControlNet-Reference
 from modules import devices, shared, errors, processing, images, sd_models, scripts_manager, masking
 from modules.processing_class import StableDiffusionProcessingControl
+from modules.processing_info import create_infotext
 from modules.ui_common import infotext_to_html
 from modules.api import script
-from modules.timer import process as process_timer
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -31,10 +30,11 @@ unified_models = ['Flex2Pipeline'] # models that have controlnet builtin
 
 def restore_pipeline():
     global pipe, instance # pylint: disable=global-statement
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     if instance is not None and hasattr(instance, 'restore'):
         instance.restore()
     if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
-        debug_log(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__}')
+        debug_log(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
         shared.sd_model = original_pipeline
     pipe = None
     instance = None
@@ -269,6 +269,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         ):
     global pipe, original_pipeline # pylint: disable=global-statement
 
+    unit.current = units
     debug_log(f'Control: type={unit_type} input={inputs} init={inits} type={input_type}')
     init_units(units)
     if inputs is None or (type(inputs) is list and len(inputs) == 0):
@@ -297,6 +298,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         subseed_strength = subseed_strength,
         seed_resize_from_h = seed_resize_from_h,
         seed_resize_from_w = seed_resize_from_w,
+        denoising_strength = denoising_strength,
         # advanced
         cfg_scale = cfg_scale,
         cfg_end = cfg_end,
@@ -308,18 +310,53 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         vae_type = vae_type,
         tiling = tiling,
         hidiffusion = hidiffusion,
+        # resize
+        width = width_before,
+        height = height_before,
+        width_before = width_before,
+        width_after = width_after,
+        width_mask = width_mask,
+        height_before = height_before,
+        height_after = height_after,
+        height_mask = height_mask,
+        resize_name_before = resize_name_before,
+        resize_name_after = resize_name_after,
+        resize_name_mask = resize_name_mask,
+        resize_mode_before = resize_mode_before if resize_name_before != 'None' and inputs is not None and len(inputs) > 0 else 0,
+        resize_mode_after = resize_mode_after if resize_name_after != 'None' else 0,
+        resize_mode_mask = resize_mode_mask if resize_name_mask != 'None' else 0,
+        resize_context_before = resize_context_before,
+        resize_context_after = resize_context_after,
+        resize_context_mask = resize_context_mask,
+        selected_scale_tab_before = selected_scale_tab_before,
+        selected_scale_tab_after = selected_scale_tab_after,
+        selected_scale_tab_mask = selected_scale_tab_mask,
+        scale_by_before = scale_by_before,
+        scale_by_after = scale_by_after,
+        scale_by_mask = scale_by_mask,
+        # hires
+        enable_hr = enable_hr,
+        hr_sampler_name = processing.get_sampler_name(hr_sampler_index),
+        hr_denoising_strength = hr_denoising_strength,
+        hr_resize_mode = hr_resize_mode if enable_hr else 0,
+        hr_resize_context = hr_resize_context if enable_hr else 'None',
+        hr_upscaler = hr_upscaler if enable_hr else None,
+        hr_force = hr_force,
+        hr_second_pass_steps = hr_second_pass_steps if enable_hr else 0,
+        hr_scale = hr_scale if enable_hr else 1.0,
+        hr_resize_x = hr_resize_x if enable_hr else 0,
+        hr_resize_y = hr_resize_y if enable_hr else 0,
+        # refiner
+        refiner_steps = refiner_steps,
+        refiner_start = refiner_start,
+        refiner_prompt = refiner_prompt,
+        refiner_negative = refiner_negative,
         # detailer
         detailer_enabled = detailer_enabled,
         detailer_prompt = detailer_prompt,
         detailer_negative = detailer_negative,
         detailer_steps = detailer_steps,
         detailer_strength = detailer_strength,
-        # resize
-        resize_mode = resize_mode_before if resize_name_before != 'None' else 0,
-        resize_name = resize_name_before,
-        scale_by = scale_by_before,
-        selected_scale_tab = selected_scale_tab_before,
-        denoising_strength = denoising_strength,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
@@ -332,69 +369,23 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     )
     p.state = state
     p.is_tile = False
-    # processing.process_init(p)
-    resize_mode_before = resize_mode_before if resize_name_before != 'None' and inputs is not None and len(inputs) > 0 else 0
 
     # TODO modernui: monkey-patch for missing tabs.select event
-    if selected_scale_tab_before == 0 and resize_name_before != 'None' and scale_by_before != 1 and inputs is not None and len(inputs) > 0:
+    if p.selected_scale_tab_before == 0 and p.resize_name_before != 'None' and p.scale_by_before != 1 and inputs is not None and len(inputs) > 0:
         shared.log.debug('Control: override resize mode=before')
-        selected_scale_tab_before = 1
-    if selected_scale_tab_after == 0 and resize_name_after != 'None' and scale_by_after != 1:
+        p.selected_scale_tab_before = 1
+    if p.selected_scale_tab_after == 0 and p.resize_name_after != 'None' and p.scale_by_after != 1:
         shared.log.debug('Control: override resize mode=after')
-        selected_scale_tab_after = 1
-    if selected_scale_tab_mask == 0 and resize_name_mask != 'None' and scale_by_mask != 1:
+        p.selected_scale_tab_after = 1
+    if p.selected_scale_tab_mask == 0 and p.resize_name_mask != 'None' and p.scale_by_mask != 1:
         shared.log.debug('Control: override resize mode=mask')
-        selected_scale_tab_mask = 1
-
-    # set control sizing
-    if resize_mode_before != 0 or inputs is None or inputs == [None]:
-        p.width, p.height = width_before, height_before # pylint: disable=attribute-defined-outside-init
-        p.width_before = width_before
-        p.height_before = height_before
-        if resize_name_before != 'None':
-            p.resize_mode_before = resize_mode_before
-            p.resize_name_before = resize_name_before
-        p.scale_by_before = scale_by_before
-        p.selected_scale_tab_before = selected_scale_tab_before
-    else:
-        del p.width
-        del p.height
-    if resize_name_after != 'None':
-        p.resize_mode_after = resize_mode_after
-        p.resize_name_after = resize_name_after
-        p.width_after = width_after
-        p.height_after = height_after
-        p.scale_by_after = scale_by_after
-        p.selected_scale_tab_after = selected_scale_tab_after
-    if resize_name_mask != 'None':
-        p.resize_mode_mask = resize_mode_mask
-        p.resize_name_mask = resize_name_mask
-        p.width_mask = width_mask
-        p.height_mask = height_mask
-        p.scale_by_mask = scale_by_mask
-        p.selected_scale_tab_mask = selected_scale_tab_mask
+        p.selected_scale_tab_mask = 1
 
     # hires/refine defined outside of main init
-    p.enable_hr = enable_hr
-    p.hr_sampler_name = processing.get_sampler_name(hr_sampler_index)
-    p.hr_denoising_strength = hr_denoising_strength
-    p.hr_resize_mode = hr_resize_mode
-    p.hr_resize_context = hr_resize_context
-    p.hr_upscaler = hr_upscaler
-    p.hr_force = hr_force
-    p.hr_second_pass_steps = hr_second_pass_steps
-    p.hr_scale = hr_scale
-    p.hr_resize_x = hr_resize_x
-    p.hr_resize_y = hr_resize_y
-    p.refiner_steps = refiner_steps
-    p.refiner_start = refiner_start
-    p.refiner_prompt = refiner_prompt
-    p.refiner_negative = refiner_negative
     if p.enable_hr and (p.hr_resize_x == 0 or p.hr_resize_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(width_before * p.hr_scale / 8), 8 * int(height_before * p.hr_scale / 8)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.width_before * p.hr_scale / 8), 8 * int(p.height_before * p.hr_scale / 8)
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / 8), 8 * int(hr_resize_y / 8)
-
+        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / 8), 8 * int(p.hr_resize_y / 8)
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():
@@ -406,8 +397,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         return [], '', '', 'Error: model not loaded'
 
     unit_type = unit_type.strip().lower() if unit_type is not None else ''
-    t0 = time.time()
-
     active_process, active_model, active_strength, active_start, active_end = check_active(p, unit_type, units)
     has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end)
 
@@ -421,7 +410,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
     pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
     debug_log(f'Control pipeline: class={pipe.__class__.__name__} args={vars(p)}')
-    t1, t2, t3 = time.time(), 0, 0
     status = True
     frame = None
     video = None
@@ -517,216 +505,23 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    # resize before
-                    if resize_mode_before != 0 and resize_name_before != 'None':
-                        if selected_scale_tab_before == 1 and input_image is not None:
-                            width_before, height_before = int(input_image.width * scale_by_before), int(input_image.height * scale_by_before)
-                        if input_image is not None:
-                            p.extra_generation_params["Control resize"] = f'{resize_name_before}'
-                            debug_log(f'Control resize: op=before image={input_image} width={width_before} height={height_before} mode={resize_mode_before} name={resize_name_before} context="{resize_context_before}"')
-                            input_image = images.resize_image(resize_mode_before, input_image, width_before, height_before, resize_name_before, context=resize_context_before)
-                    if input_image is not None and init_image is not None and init_image.size != input_image.size:
-                        debug_log(f'Control resize init: image={init_image} target={input_image}')
-                        init_image = images.resize_image(resize_mode=1, im=init_image, width=input_image.width, height=input_image.height)
-                    if input_image is not None and p.override is not None and p.override.size != input_image.size:
-                        debug_log(f'Control resize override: image={p.override} target={input_image}')
-                        p.override = images.resize_image(resize_mode=1, im=p.override, width=input_image.width, height=input_image.height)
-                    if input_image is not None:
-                        p.width = input_image.width
-                        p.height = input_image.height
-                        debug_log(f'Control: input image={input_image}')
-
-                    processed_images = []
-                    if mask is not None:
-                        p.extra_generation_params["Mask only"] = masking.opts.mask_only if masking.opts.mask_only else None
-                        p.extra_generation_params["Mask auto"] = masking.opts.auto_mask if masking.opts.auto_mask != 'None' else None
-                        p.extra_generation_params["Mask invert"] = masking.opts.invert if masking.opts.invert else None
-                        p.extra_generation_params["Mask blur"] = masking.opts.mask_blur if masking.opts.mask_blur > 0 else None
-                        p.extra_generation_params["Mask erode"] = masking.opts.mask_erode if masking.opts.mask_erode > 0 else None
-                        p.extra_generation_params["Mask dilate"] = masking.opts.mask_dilate if masking.opts.mask_dilate > 0 else None
-                        p.extra_generation_params["Mask model"] = masking.opts.model if masking.opts.model is not None else None
-                        masked_image = masking.run_mask(input_image=input_image, input_mask=mask, return_type='Masked', invert=p.inpainting_mask_invert==1) if mask is not None else input_image
-                    else:
-                        masked_image = input_image
-                    for i, process in enumerate(active_process): # list[image]
-                        debug_log(f'Control: i={i+1} process="{process.processor_id}" input={masked_image} override={process.override}')
-                        processed_image = process(
-                            image_input=masked_image,
-                            mode='RGB',
-                            resize_mode=resize_mode_before,
-                            resize_name=resize_name_before,
-                            scale_tab=selected_scale_tab_before,
-                            scale_by=scale_by_before,
-                        )
-                        if processed_image is not None:
-                            processed_images.append(processed_image)
-                        if shared.opts.control_unload_processor and process.processor_id is not None:
-                            processors.config[process.processor_id]['dirty'] = True # to force reload
-                            process.model = None
-
-                    debug_log(f'Control processed: {len(processed_images)}')
-                    if len(processed_images) > 0:
-                        try:
-                            if len(p.extra_generation_params["Control process"]) == 0:
-                                p.extra_generation_params["Control process"] = None
-                            else:
-                                p.extra_generation_params["Control process"] = ';'.join([p.processor_id for p in active_process if p.processor_id is not None])
-                        except Exception:
-                            pass
-                        if any(img is None for img in processed_images):
-                            if is_generator:
-                                yield terminate('Attempting process but output is none')
-                            return [], '', '', 'Error: output is none'
-                        if len(processed_images) > 1 and len(active_process) != len(active_model):
-                            processed_image = [np.array(i) for i in processed_images]
-                            processed_image = util.blend(processed_image) # blend all processed images into one
-                            processed_image = Image.fromarray(processed_image)
-                            blended_image = processed_image
-                        elif len(processed_images) == 1:
-                            processed_image = processed_images
-                            blended_image = processed_image[0]
-                        else:
-                            blended_image = [np.array(i) for i in processed_images]
-                            blended_image = util.blend(blended_image) # blend all processed images into one
-                            blended_image = Image.fromarray(blended_image)
-                        if isinstance(selected_models, list) and len(processed_images) == len(selected_models):
-                            debug_log(f'Control: inputs match: input={len(processed_images)} models={len(selected_models)}')
-                            p.init_images = processed_images
-                        elif isinstance(selected_models, list) and len(processed_images) != len(selected_models):
-                            if is_generator:
-                                yield terminate(f'Number of inputs does not match: input={len(processed_images)} models={len(selected_models)}')
-                            return [], '', '', 'Error: number of inputs does not match'
-                        elif selected_models is not None:
-                            p.init_images = processed_image
-                    else:
-                        debug_log('Control processed: using input direct')
-                        processed_image = input_image
-
-                    if unit_type == 'reference' and has_models:
-                        p.ref_image = p.override or input_image
-                        p.task_args.pop('image', None)
-                        p.task_args['ref_image'] = p.ref_image
-                        debug_log(f'Control: process=None image={p.ref_image}')
-                        if p.ref_image is None:
-                            if is_generator:
-                                yield terminate('Attempting reference mode but image is none')
-                            return [], '', '', 'Reference mode without image'
-                    elif unit_type == 'controlnet' and has_models:
-                        if input_type == 0: # Control only
-                            if 'control_image' in possible:
-                                p.task_args['control_image'] = [p.init_images] if isinstance(p.init_images, Image.Image) else p.init_images
-                            elif 'image' in possible:
-                                p.task_args['image'] = [p.init_images] if isinstance(p.init_images, Image.Image) else p.init_images
-                            if 'control_mode' in possible:
-                                p.task_args['control_mode'] = getattr(p, 'control_mode', None)
-                            if 'strength' in possible:
-                                p.task_args['strength'] = p.denoising_strength
-                            p.init_images = None
-                        elif input_type == 1: # Init image same as control
-                            p.init_images = [p.override or input_image] * max(1, len(active_model))
-                            if 'inpaint_image' in possible: # flex
-                                p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-                                p.task_args['inpaint_mask'] = Image.new('L', p.task_args['inpaint_image'].size, int(p.denoising_strength * 255))
-                                p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-                                p.task_args['width'] = p.width
-                                p.task_args['height'] = p.height
-                            elif 'control_image' in possible:
-                                p.task_args['control_image'] = p.init_images # switch image and control_image
-                            if 'control_mode' in possible:
-                                p.task_args['control_mode'] = getattr(p, 'control_mode', None)
-                            if 'strength' in possible:
-                                p.task_args['strength'] = p.denoising_strength
-                        elif input_type == 2: # Separate init image
-                            if init_image is None:
-                                shared.log.warning('Control: separate init image not provided')
-                                init_image = input_image
-                            if 'inpaint_image' in possible: # flex
-                                p.task_args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-                                p.task_args['inpaint_mask'] = Image.new('L', p.task_args['inpaint_image'].size, int(p.denoising_strength * 255))
-                                p.task_args['control_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-                                p.task_args['width'] = p.width
-                                p.task_args['height'] = p.height
-                            elif 'control_image' in possible:
-                                p.task_args['control_image'] = p.init_images # switch image and control_image
-                            if 'control_mode' in possible:
-                                p.task_args['control_mode'] = getattr(p, 'control_mode', None)
-                            if 'strength' in possible:
-                                p.task_args['strength'] = p.denoising_strength
-                            p.init_images = [init_image] * len(active_model)
-                        if hasattr(shared.sd_model, 'controlnet') and hasattr(p.task_args, 'control_image') and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
-                            p.task_args['control_image'] = [[x] for x in p.task_args['control_image']]
-                            p.task_args['control_mode'] = [[x] for x in p.task_args['control_mode']]
-
-                    if is_generator:
-                        image_txt = f'{blended_image.width}x{blended_image.height}' if blended_image is not None else 'None'
-                        msg = f'process | {index} of {frames if video is not None else len(inputs)} | {"Image" if video is None else "Frame"} {image_txt}'
-                        debug_log(f'Control yield: {msg}')
-                        if is_generator:
-                            yield (None, blended_image, f'Control {msg}')
-                    t2 += time.time() - t2
-
-                    # determine txt2img, img2img, inpaint pipeline
-                    if unit_type == 'reference' and has_models: # special case
-                        p.is_control = True
-                        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
-                    elif not has_models: # run in txt2img/img2img/inpaint mode
-                        if mask is not None:
-                            p.task_args['strength'] = p.denoising_strength
-                            p.image_mask = mask
-                            p.init_images = input_image if isinstance(input_image, list) else [input_image]
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-                        elif processed_image is not None:
-                            p.init_images = processed_image if isinstance(processed_image, list) else [processed_image]
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
-                        else:
-                            p.init_hr(p.scale_by, p.resize_name, force=True)
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
-                    elif has_models: # actual control
-                        p.is_control = True
-                        if mask is not None:
-                            p.task_args['strength'] = denoising_strength
-                            p.image_mask = mask
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING) # only controlnet supports inpaint
-                        if hasattr(p, 'init_images') and p.init_images is not None:
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE) # only controlnet supports img2img
-                        else:
-                            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
-                            if hasattr(p, 'init_images') and p.init_images is not None and 'image' in possible:
-                                p.task_args['image'] = p.init_images # need to set explicitly for txt2img
-                                del p.init_images
-                        if unit_type == 'lite':
-                            if input_type == 0:
-                                shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
-                                shared.sd_model.no_task_switch = True
-                            elif input_type == 1:
-                                p.init_images = [input_image]
-                            elif input_type == 2:
-                                if init_image is None:
-                                    shared.log.warning('Control: separate init image not provided')
-                                    init_image = input_image
-                                p.init_images = [init_image]
-                            instance.apply(selected_models, processed_image, control_conditioning)
-                    if hasattr(p, 'init_images') and p.init_images is None: # delete empty
-                        del p.init_images
+                    from modules.control.processor import preprocess_image
+                    processed_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
 
                     # final check
-                    if has_models and shared.sd_model.__class__.__name__ not in unified_models:
-                        if unit_type in ['controlnet', 't2i adapter', 'lite', 'xs'] \
-                            and p.task_args.get('image', None) is None \
-                            and p.task_args.get('control_image', None) is None \
-                            and getattr(p, 'init_images', None) is None \
-                            and getattr(p, 'image', None) is None:
-                            if is_generator:
-                                shared.log.debug(f'Control args: {p.task_args}')
-                                yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
-                            return [], '', '', 'Error: Input image is none'
-
-                    # resize mask
-                    if mask is not None and resize_mode_mask != 0 and resize_name_mask != 'None':
-                        if selected_scale_tab_mask == 1:
-                            width_mask, height_mask = int(input_image.width * scale_by_mask), int(input_image.height * scale_by_mask)
-                        p.width, p.height = width_mask, height_mask
-                        debug_log(f'Control resize: op=mask image={mask} width={width_mask} height={height_mask} mode={resize_mode_mask} name={resize_name_mask} context="{resize_context_mask}"')
+                    if has_models:
+                        if shared.sd_model.__class__.__name__ not in unified_models:
+                            if unit_type in ['controlnet', 't2i adapter', 'lite', 'xs'] \
+                                and p.task_args.get('image', None) is None \
+                                and p.task_args.get('control_image', None) is None \
+                                and getattr(p, 'init_images', None) is None \
+                                and getattr(p, 'image', None) is None:
+                                if is_generator:
+                                    shared.log.debug(f'Control args: {p.task_args}')
+                                    yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
+                                return [], '', '', 'Error: Input image is none'
+                        if unit_type == 'lite':
+                            instance.apply(selected_models, processed_image, control_conditioning)
 
                     # pipeline
                     output = None
@@ -736,8 +531,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                             pipe.restore_pipeline = restore_pipeline
                             shared.sd_model.restore_pipeline = restore_pipeline
                         debug_log(f'Control exec pipeline: task={sd_models.get_diffusers_task(pipe)} class={pipe.__class__}')
-                        # debug_log(f'Control exec pipeline: p={vars(p)}')
-                        # debug_log(f'Control exec pipeline: args={p.task_args} image={p.task_args.get("image", None)} control={p.task_args.get("control_image", None)} mask={p.task_args.get("mask_image", None) or p.image_mask} ref={p.task_args.get("ref_image", None)}')
                         if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
                             sd_models.move_model(pipe.vae, devices.device)
 
@@ -770,21 +563,11 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         # output = pipe(**vars(p)).images # alternative direct pipe exec call
                     else: # blend all processed images and return
                         output = [processed_image]
-                    t3 += time.time() - t3
 
                     # outputs
                     output = output or []
                     for i, output_image in enumerate(output):
                         if output_image is not None:
-
-                            # resize after
-                            is_grid = len(output) == p.batch_size * p.n_iter + 1 and i == 0
-                            if selected_scale_tab_after == 1:
-                                width_after = int(output_image.width * scale_by_after)
-                                height_after = int(output_image.height * scale_by_after)
-                            if resize_mode_after != 0 and resize_name_after != 'None' and not is_grid:
-                                debug_log(f'Control resize: op=after image={output_image} width={width_after} height={height_after} mode={resize_mode_after} name={resize_name_after} context="{resize_context_after}"')
-                                output_image = images.resize_image(resize_mode_after, output_image, width_after, height_after, resize_name_after, context=resize_context_after)
 
                             output_images.append(output_image)
                             if shared.opts.include_mask and not script_run:
@@ -810,9 +593,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
             if video is not None:
                 video.release()
 
-            debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} time={t3-t0:.2f} init={t1-t0:.2f} proc={t2-t1:.2f} ctrl={t3-t2:.2f} outputs={len(output_images)}')
-            process_timer.add('init', t1-t0)
-            process_timer.add('proc', t2-t1)
+            debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
         shared.log.error(f'Control pipeline failed: type={unit_type} units={len(active_model)} error={e}')
         errors.display(e, 'Control')

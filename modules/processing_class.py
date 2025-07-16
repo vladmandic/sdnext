@@ -71,14 +71,36 @@ class StableDiffusionProcessing:
                  hdr_tint_ratio: float = 0,
                  # img2img
                  init_images: list = None,
-                 resize_mode: int = 0,
-                 resize_name: str = 'None',
-                 resize_context: str = 'None',
                  denoising_strength: float = 0.3,
                  image_cfg_scale: float = None,
                  initial_noise_multiplier: float = None, # pylint: disable=unused-argument # a1111 compatibility
+                 # resize
                  scale_by: float = 1,
                  selected_scale_tab: int = 0, # pylint: disable=unused-argument # a1111 compatibility
+                 resize_mode: int = 0,
+                 resize_name: str = 'None',
+                 resize_context: str = 'None',
+                 width_before:int = 0,
+                 width_after:int = 0,
+                 width_mask:int = 0,
+                 height_before:int = 0,
+                 height_after:int = 0,
+                 height_mask:int = 0,
+                 resize_name_before: str = 'None',
+                 resize_name_after: str = 'None',
+                 resize_name_mask: str = 'None',
+                 resize_mode_before: int = 0,
+                 resize_mode_after: int = 0,
+                 resize_mode_mask: int = 0,
+                 resize_context_before: str = 'None',
+                 resize_context_after: str = 'None',
+                 resize_context_mask: str = 'None',
+                 selected_scale_tab_before: int = 0,
+                 selected_scale_tab_after: int = 0,
+                 selected_scale_tab_mask: int = 0,
+                 scale_by_before: float = 1,
+                 scale_by_after: float = 1,
+                 scale_by_mask: float = 1,
                  # inpaint
                  mask: Any = None,
                  latent_mask: Any = None,
@@ -231,6 +253,27 @@ class StableDiffusionProcessing:
         self.mask_for_overlay = mask_for_overlay
         self.paste_to = paste_to
         self.init_latent = None
+        self.width_before = width_before
+        self.width_after = width_after
+        self.width_mask = width_mask
+        self.height_before = height_before
+        self.height_after = height_after
+        self.height_mask = height_mask
+        self.resize_name_before = resize_name_before
+        self.resize_name_after = resize_name_after
+        self.resize_name_mask = resize_name_mask
+        self.resize_mode_before = resize_mode_before
+        self.resize_mode_after = resize_mode_after
+        self.resize_mode_mask = resize_mode_mask
+        self.resize_context_before = resize_context_before
+        self.resize_context_after = resize_context_after
+        self.resize_context_mask = resize_context_mask
+        self.selected_scale_tab_before = selected_scale_tab_before
+        self.selected_scale_tab_after = selected_scale_tab_after
+        self.selected_scale_tab_mask = selected_scale_tab_mask
+        self.scale_by_before = scale_by_before
+        self.scale_by_after = scale_by_after
+        self.scale_by_mask = scale_by_mask
 
         # special handled items
         if firstphase_width != 0 or firstphase_height != 0:
@@ -405,7 +448,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         super().__init__(**kwargs)
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
-        if hasattr(self, 'init_images') and self.init_images is not None and len(self.init_images) > 0:
+        if self.init_images is not None and len(self.init_images) > 0:
             if self.width is None or self.width == 0:
                 self.width = int(8 * (self.init_images[0].width * self.scale_by // 8))
             if self.height is None or self.height == 0:
@@ -423,7 +466,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.all_subseeds = all_subseeds
         if self.image_mask is not None:
             self.ops.append('inpaint')
-        elif hasattr(self, 'init_images') and self.init_images is not None:
+        elif self.init_images is not None and len(self.init_images) > 0:
             self.ops.append('img2img')
         crop_region = None
 
@@ -456,17 +499,16 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if add_color_corrections:
             self.color_corrections = []
         processed_images = []
-        if getattr(self, 'init_images', None) is None:
+        if self.init_images is None:
             return
         if not isinstance(self.init_images, list):
             self.init_images = [self.init_images]
         for img in self.init_images:
             if img is None:
-                # shared.log.warning(f"Skipping empty image: images={self.init_images}")
                 continue
-            self.init_img_hash = hashlib.sha256(img.tobytes()).hexdigest()[0:8] # pylint: disable=attribute-defined-outside-init
-            self.init_img_width = img.width # pylint: disable=attribute-defined-outside-init
-            self.init_img_height = img.height # pylint: disable=attribute-defined-outside-init
+            self.init_img_hash = getattr(self, 'init_img_hash', hashlib.sha256(img.tobytes()).hexdigest()[0:8]) # pylint: disable=attribute-defined-outside-init
+            self.init_img_width = getattr(self, 'init_img_width', img.width) # pylint: disable=attribute-defined-outside-init
+            self.init_img_height = getattr(self, 'init_img_height', img.height) # pylint: disable=attribute-defined-outside-init
             if shared.opts.save_init_img:
                 images.save_image(img, path=shared.opts.outdir_init_images, basename=None, forced_filename=self.init_img_hash, suffix="-init-image")
             image = images.flatten(img, shared.opts.img2img_background_color)

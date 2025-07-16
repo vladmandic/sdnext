@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-15
+## Update for 2025-07-16
 
-### Highlights for 2025-07-15
+### Highlights for 2025-07-16
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
 This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
@@ -24,7 +24,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-15
+### Details for 2025-07-16
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -113,6 +113,8 @@ Although upgrades and existing installations are tested and should work fine!
   - fix incorrect reporting of deleted and modified files  
   - fix SD3.x loader and TAESD preview  
   - fix xyz with control enabled  
+  - fix control order of image save operations  
+  - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
   - sdnq use inference context during quantization  
   - framepack improve offloading  
@@ -139,7 +141,8 @@ Although upgrades and existing installations are tested and should work fine!
   - remove legacy lora support: `/extensions-builtin/Lora`
   - remove legacy clip/blip interrogate module
   - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
-  - split monolithic `shared.py`
+  - refactor control processing and separate preprocessing and image save ops  
+  - split monolithic `shared.py`  
   - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
   - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
   - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  

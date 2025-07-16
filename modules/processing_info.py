@@ -90,19 +90,21 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         is_resize = p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5)
         is_fixed = p.hr_resize_x > 0 or p.hr_resize_y > 0
         args["Refine"] = p.enable_hr
-        args["Hires force"] = p.hr_force
-        args["Hires steps"] = p.hr_second_pass_steps
-        args["HiRes mode"] = p.hr_resize_mode if is_resize else None
-        args["HiRes context"] = p.hr_resize_context if p.hr_resize_mode == 5 else None
-        args["Hires upscaler"] = p.hr_upscaler if is_resize else None
-        if is_fixed:
-            args["Hires fixed"] = f"{p.hr_resize_x}x{p.hr_resize_y}" if is_resize else None
-        else:
-            args["Hires scale"] = p.hr_scale if is_resize else None
-        args["Hires size"] = f"{p.hr_upscale_to_x}x{p.hr_upscale_to_y}" if is_resize else None
-        args["Hires strength"] = p.denoising_strength
-        args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != p.sampler_name else None
-        args["Hires CFG scale"] = p.image_cfg_scale
+        if is_resize:
+            args["HiRes mode"] = p.hr_resize_mode
+            args["HiRes context"] = p.hr_resize_context if p.hr_resize_mode == 5 else None
+            args["Hires upscaler"] = p.hr_upscaler
+            if is_fixed:
+                args["Hires fixed"] = f"{p.hr_resize_x}x{p.hr_resize_y}"
+            else:
+                args["Hires scale"] = p.hr_scale
+            args["Hires size"] = f"{p.hr_upscale_to_x}x{p.hr_upscale_to_y}"
+        if p.hr_force or ('Latent' in p.hr_upscaler):
+            args["Hires force"] = p.hr_force
+            args["Hires steps"] = p.hr_second_pass_steps
+            args["Hires strength"] = p.denoising_strength
+            args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != p.sampler_name else None
+            args["Hires CFG scale"] = p.image_cfg_scale
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr
         args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not shared.sd_refiner) or (not shared.sd_refiner.sd_checkpoint_info.model_name) else shared.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
@@ -123,23 +125,21 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         # lookup by index
         if getattr(p, 'resize_mode', None) is not None:
             args['Resize mode'] = shared.resize_modes[p.resize_mode] if shared.resize_modes[p.resize_mode] != 'None' else None
-    if hasattr(p, 'width_before') and hasattr(p, 'height_before'):
-        args['Size'] = f"{p.width_before}x{p.height_before}" # override size
-        if getattr(p, 'resize_mode_before', None) is not None:
-            args['Size before'] = f"{p.width_before}x{p.height_before}"
-            args['Size mode before'] = p.resize_mode_before
-            args['Size scale before'] = p.scale_by_before if p.scale_by_before != 1.0 else None
-            args['Size name before'] = p.resize_name_before
-    if getattr(p, 'resize_mode_after', None) is not None:
-        args['Size after'] = f"{p.width_after}x{p.height_after}" if hasattr(p, 'width_after') and hasattr(p, 'height_after') else None
-        args['Size mode after'] = p.resize_mode_after
-        args['Size scale after'] = p.scale_by_after if p.scale_by_after != 1.0 else None
-        args['Size name after'] = p.resize_name_after
-    if getattr(p, 'resize_mode_mask', None) is not None:
-        args['Size mask'] = f"{p.width_mask}x{p.height_mask}" if hasattr(p, 'width_mask') and hasattr(p, 'height_mask') else None
-        args['Size mode mask'] = p.resize_mode_mask
-        args['Size scale mask'] = p.scale_by_mask
-        args['Size name mask'] = p.resize_name_mask
+    if p.resize_mode_before != 0 and p.resize_name_before != 'None' and hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 0:
+        args['Resize before'] = f"{p.width_before}x{p.height_before}"
+        args['Resize mode before'] = p.resize_mode_before
+        args['Resize name before'] = p.resize_name_before
+        args['Resize scale before'] = p.scale_by_before if p.scale_by_before != 1.0 else None
+    if p.resize_mode_after != 0 and p.resize_name_after != 'None':
+        args['Resize after'] = f"{p.width_after}x{p.height_after}"
+        args['Resize mode after'] = p.resize_mode_after
+        args['Resize name after'] = p.resize_name_after
+        args['Resize scale after'] = p.scale_by_after if p.scale_by_after != 1.0 else None
+    if p.resize_name_mask != 'None' and p.scale_by_mask != 1.0:
+        args['Resize mask'] = f"{p.width_mask}x{p.height_mask}"
+        args['Resize mode mask'] = p.resize_mode_mask
+        args['Resize name mask'] = p.resize_name_mask
+        args['Resize scale mask'] = p.scale_by_mask
     if 'detailer' in p.ops:
         args["Detailer"] = ', '.join(shared.opts.detailer_models)
         args["Detailer steps"] = p.detailer_steps
