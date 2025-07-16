@@ -111,6 +111,7 @@ Although upgrades and existing installations are tested and should work fine!
   - fix SD3.x loader and TAESD preview  
   - fix xyz with control enabled  
   - fix control order of image save operations  
+  - fix control batch-input processing  
   - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
   - sdnq use inference context during quantization  

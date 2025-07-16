@@ -26,7 +26,7 @@ def get_signature(cls):
 
 def get_call(cls):
     if cls is None or not hasattr(cls, '__call__'): # noqa: B004
-        return []
+        return {}
     signature = inspect.signature(cls.__call__, follow_wrapped=True)
     return signature.parameters
 

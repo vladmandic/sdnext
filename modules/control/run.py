@@ -400,7 +400,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     active_process, active_model, active_strength, active_start, active_end = check_active(p, unit_type, units)
     has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end)
 
-    processed: processing.Processed = None
     image_txt = ''
     info_txt = []
 
@@ -459,14 +458,15 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     return [], '', '', 'Error: video open failed'
 
             while status:
-                if pipe is None: # pipe may have been reset externally
-                    pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
-                    debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
-                possible = sd_models.get_call(pipe).keys()
                 processed_image = None
                 if frame is not None:
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs):
+                    if pipe is None: # pipe may have been reset externally
+                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
+                        pipe.restore_pipeline = restore_pipeline
+                        shared.sd_model.restore_pipeline = restore_pipeline
+                        debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
                     debug_log(f'Control Control image: {i + 1} of {len(inputs)}')
                     if shared.state.skipped:
                         shared.state.skipped = False
@@ -526,9 +526,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     output = None
                     script_run = False
                     if pipe is not None: # run new pipeline
-                        if not hasattr(pipe, 'restore_pipeline') and video is None:
-                            pipe.restore_pipeline = restore_pipeline
-                            shared.sd_model.restore_pipeline = restore_pipeline
                         debug_log(f'Control exec pipeline: task={sd_models.get_diffusers_task(pipe)} class={pipe.__class__}')
                         if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
                             sd_models.move_model(pipe.vae, devices.device)
@@ -542,6 +539,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                             p.script_args = script.init_default_script_args(script_runner)
 
                         # actual processing
+                        processed: processing.Processed = None
                         if p.is_tile:
                             processed: processing.Processed = tile.run_tiling(p, input_image)
                         if processed is None and p.scripts is not None:
@@ -561,13 +559,12 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
                         # output = pipe(**vars(p)).images # alternative direct pipe exec call
                     else: # blend all processed images and return
-                        output = [processed_image]
+                        output = processed_image
 
                     # outputs
                     output = output or []
                     for i, output_image in enumerate(output):
                         if output_image is not None:
-
                             output_images.append(output_image)
                             if shared.opts.include_mask and not script_run:
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
