@@ -1232,15 +1232,14 @@ def install_requirements():
     if args.skip_requirements and not args.requirements:
         return
     if int(sys.version_info.minor) >= 13:
-        install('audioop-lts')
         # gcc 15 patch
         backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
         backup_cxxflags = os.environ.get('CXXFLAGS', None)
         os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
         os.environ.setdefault('CXXFLAGS', '-include cstdint')
-        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
         os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
         os.environ.setdefault('CXXFLAGS', backup_cxxflags)
+        install('audioop-lts')
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
@@ -1249,6 +1248,7 @@ def install_requirements():
     if args.optional:
         quick_allowed = False
         install_optional()
+    install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
     installed('torch', reload=True) # reload packages cache
     log.info('Install: verifying requirements')
     with open('requirements.txt', 'r', encoding='utf8') as f:
