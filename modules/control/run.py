@@ -563,7 +563,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
                     # outputs
                     output = output or []
-                    for i, output_image in enumerate(output):
+                    for _i, output_image in enumerate(output):
                         if output_image is not None:
                             output_images.append(output_image)
                             if shared.opts.include_mask and not script_run:

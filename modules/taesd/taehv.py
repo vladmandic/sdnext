@@ -220,7 +220,7 @@ class TAEHV(nn.Module):
 
     def forward(self, x):
         return self.c(x)
-    
+
     def decode(self, x, parallel=True, show_progress_bar=False, return_dict=False): # pylint: disable=unused-argument
         """Decode a sequence of frames."""
         return self.decode_video(x, parallel=False, show_progress_bar=False)

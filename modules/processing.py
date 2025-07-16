@@ -405,10 +405,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         else:
                             images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
 
-                    # add masks
-                    if shared.opts.include_mask and not script_run:
-                        if processed_image is not None and isinstance(processed_image, Image.Image):
-                            output_images.append(processed_image)
                     if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
                         image_mask = p.mask_for_overlay.convert('RGB')
                         image1 = image.convert('RGBA').convert('RGBa')

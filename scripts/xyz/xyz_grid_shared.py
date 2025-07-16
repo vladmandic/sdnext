@@ -294,7 +294,7 @@ def apply_control(field):
         else:
             p.xyz_init_images = getattr(p, 'init_images', None)
         if getattr(p, 'init_images', None) is None or len(getattr(p, 'init_images', [])) == 0:
-            shared.log.error(f'XYZ grid apply control: init image is required')
+            shared.log.error('XYZ grid apply control: init image is required')
             return x
         if field in ['controlnet', 't2i adapter', 'processor']:
             from modules.control import run, processor
@@ -328,7 +328,7 @@ def apply_control(field):
             active_process, active_model, active_strength, active_start, active_end = run.check_active(p, unit.type, run.unit.current)
             has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = run.check_enabled(p, unit.type, run.unit.current, active_model, active_strength, active_start, active_end)
             pipe = run.set_pipe(p, has_models, unit.type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end)
-            processed_image = processor.preprocess_image(p, pipe, input_image=p.init_images[0], unit_type=unit.type, active_process=active_process, active_model=active_model, selected_models=selected_models, has_models=has_models)
+            _processed_image = processor.preprocess_image(p, pipe, input_image=p.init_images[0], unit_type=unit.type, active_process=active_process, active_model=active_model, selected_models=selected_models, has_models=has_models)
             if pipe is not None:
                 shared.sd_model = pipe
         elif field == 'control_start':

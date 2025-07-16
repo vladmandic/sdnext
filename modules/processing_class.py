@@ -493,8 +493,6 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 self.mask_for_overlay = Image.fromarray(np_mask)
             self.overlay_images = []
 
-        latent_mask = self.latent_mask if self.latent_mask is not None else self.image_mask
-
         add_color_corrections = shared.opts.img2img_color_correction and self.color_corrections is None
         if add_color_corrections:
             self.color_corrections = []

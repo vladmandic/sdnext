@@ -82,7 +82,7 @@ def create_sampler(name, model):
     # restore default scheduler
     if name == 'Default' and hasattr(model, 'scheduler'):
         return restore_default(model)
- 
+
     # create sampler
     config = find_sampler_config(name)
     if config is None or config.constructor is None:

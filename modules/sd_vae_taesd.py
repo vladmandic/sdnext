@@ -154,7 +154,7 @@ def decode(latents):
                     return image
         except Exception as e:
             from modules import errors
-            errors.display(e, f'taesd"')
+            errors.display(e, 'taesd"')
             return warn_once(f'decode: {e}', variant=variant)
 
 

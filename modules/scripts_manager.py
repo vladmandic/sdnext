@@ -367,7 +367,7 @@ class ScriptRunner:
                 self.selectable_scripts.append(script)
         except Exception as e:
             errors.log.error(f'Script initialize: {path} {e}')
-            errors.display(e, f'script')
+            errors.display(e, 'script')
 
     def initialize_scripts(self, is_img2img=False, is_control=False):
         from modules import scripts_auto_postprocessing
