@@ -9,6 +9,9 @@ import random
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 
 
+debug_log = os.environ.get('SD_STYLES_DEBUG', None) is not None
+
+
 class Style():
     def __init__(self, name: str, desc: str = "", prompt: str = "", negative_prompt: str = "", extra: str = "", wildcards: str = "", filename: str = "", preview: str = "", mtime: float = 0):
         self.name = name
@@ -177,8 +180,10 @@ def apply_styles_to_extra(p, style: Style):
                 if not (type(orig) == int and type(v) == float): # dont convert float to int
                     v = type(orig)(v)
             setattr(p, k, v)
+            debug_log(f'Apply style: param {k}={v}')
             params.append(f'{k}={v}')
         elif shared.opts.data_labels.get(k, None) is not None:
+            debug_log(f'Apply style: settings {k}={v}')
             shared.opts.data[k] = v
             if k == 'sd_model_checkpoint':
                 sd_models.reload_model_weights()
@@ -186,6 +191,7 @@ def apply_styles_to_extra(p, style: Style):
                 sd_vae.reload_vae_weights()
             settings.append(f'{k}={v}')
         else:
+            debug_log(f'Apply style: skip {k}={v}')
             skipped.append(f'{k}={v}')
     shared.log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
 
