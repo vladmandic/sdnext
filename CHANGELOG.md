@@ -91,12 +91,9 @@ Although upgrades and existing installations are tested and should work fine!
   - warn when modifying legacy settings that are no longer supported, but available for compatibilty  
   - warn on incompatible sampler and automatically restore default sampler  
   - **XYZ grid** can now work with control tab:  
-    if controlnet/processor are selected in control tab main interface, they will remain active for duration of xyz grid generation  
-    if controlnet/processor are not selected, you can select them in xyz grid  
-    note that controlnet/processor must be selected as pair, so either both selected in main controls or xyz grid or none selected,  
-    you cannot have processor from control tab and controlnet from xyz grid  
+    if controlnet or processor are selected in xyz grid, they will overwrite settings from first unit in control tab,  
+    while any other units will stay as-is and can be used as normal  
     when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
-    when using controlnet/processor selected in xyz grid, you can only have one controlnet/processor active at the time  
     also freely selectable are control strength, start and end values  
 - **API**  
   - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
