@@ -92,7 +92,6 @@ Although upgrades and existing installations are tested and should work fine!
   - warn on incompatible sampler and automatically restore default sampler  
   - **XYZ grid** can now work with control tab:  
     if controlnet or processor are selected in xyz grid, they will overwrite settings from first unit in control tab,  
-    while any other units will stay as-is and can be used as normal  
     when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
     also freely selectable are control strength, start and end values  
   - **Metadata** improved parsing and detect foreign metadata  

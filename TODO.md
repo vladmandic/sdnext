@@ -6,6 +6,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
@@ -13,7 +14,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: LTX TeaCache and others  
 - Video: LTX API  
 - Video: LTX PromptEnhance
-- Video: LTX Condition preprocess
+- Video: LTX Conditioning preprocess
+- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
+- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
+- [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 
 ### Blocked items
 
@@ -39,17 +43,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Future Considerations
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
-- [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 
 ### New models
 
-#### Stable
-- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
-- [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 #### Pending
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
-- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
 #### External:Unified/MultiModal
 - [Bagel](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)(https://github.com/bytedance-seed/bagel)  
 - [Ming](https://github.com/inclusionAI/Ming)  
