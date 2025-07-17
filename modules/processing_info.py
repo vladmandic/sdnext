@@ -42,9 +42,6 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     ops = list(set(p.ops))
     args = {
         # basic
-        "Pipeline": shared.sd_model.__class__.__name__,
-        "TE": None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder,
-        "UNet": None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet,
         "Steps": p.steps,
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
         "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
@@ -63,6 +60,9 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Version": git_commit,
         "Parser": shared.opts.prompt_attention if shared.opts.prompt_attention != 'native' else None,
         "Comment": comment,
+        "Pipeline": shared.sd_model.__class__.__name__,
+        "TE": None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder,
+        "UNet": None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
     }
     if shared.opts.add_model_name_to_info:

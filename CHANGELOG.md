@@ -1,13 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-16
+## Update for 2025-07-17
 
-### Highlights for 2025-07-16
-
-In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
-This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
-
-We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+### Highlights for 2025-07-17
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
@@ -17,6 +12,11 @@ Feature highlights include:
 - New **LLM/VLM** models available for captioning and prompt enhance  
 - Compute improvements  
 
+In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
+This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
+
+We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+
 And (*as always*) many bugfixes and improvements to existing features!  
 
 *Note*: We recommend clean install for this release due to sheer size of changes  
@@ -24,7 +24,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-16
+### Details for 2025-07-17
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  

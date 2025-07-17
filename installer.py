@@ -400,20 +400,22 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
     if git_cmd != "git":
         git_cmd = os.path.abspath(git_cmd)
     result = subprocess.run(f'"{git_cmd}" {arg}', check=False, shell=True, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder or '.')
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
+    stdout = result.stdout.decode(encoding="utf8", errors="ignore")
     if len(result.stderr) > 0:
-        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
+        stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
+    stdout = stdout.strip()
     if result.returncode != 0 and not ignore:
-        if "couldn't find remote ref" in txt: # not a git repo
-            return txt
+        if "couldn't find remote ref" in stdout: # not a git repo
+            log.error(f'Git: folder="{folder}" could not identify repository')
+        elif "no submodule mapping found" in stdout:
+            log.warning(f'Git: folder="{folder}" submodules changed')
+        elif 'or stash them' in stdout:
+            log.error(f'Git: folder="{folder}" local changes detected')
+        else:
+            log.error(f'Git: folder="{folder}" arg="{arg}" output={stdout}')
         errors.append(f'git: {folder}')
-        log.error(f'Git: {folder} / {arg}')
-        if 'or stash them' in txt:
-            log.error(f'Git local changes detected: check details log="{log_file}"')
-        log.debug(f'Git output: {txt}')
     ts('git', t_start)
-    return txt
+    return stdout
 
 
 # reattach as needed as head can get detached
