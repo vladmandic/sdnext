@@ -10,6 +10,7 @@ Feature highlights include:
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
 - New **LLM/VLM** models available for captioning and prompt enhance  
+- Wiki & docs updates  
 - Compute improvements  
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
