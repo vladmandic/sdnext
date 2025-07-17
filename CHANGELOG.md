@@ -95,6 +95,8 @@ Although upgrades and existing installations are tested and should work fine!
     while any other units will stay as-is and can be used as normal  
     when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
     also freely selectable are control strength, start and end values  
+  - **Metadata** improved parsing and detect foreign metadata  
+    detect ComfyUI images  
 - **API**  
   - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
     if model is locked, it cannot be changed using normal load or unload methods  
