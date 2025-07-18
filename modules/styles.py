@@ -9,7 +9,8 @@ import random
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 
 
-debug_log = os.environ.get('SD_STYLES_DEBUG', None) is not None
+debug_enabled = os.environ.get('SD_STYLES_DEBUG', None) is not None
+debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
 class Style():
