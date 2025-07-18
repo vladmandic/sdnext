@@ -1226,6 +1226,21 @@ def install_optional():
     ts('optional', t_start)
 
 
+def install_sentencepipece():
+    if installed('sentencepiece', quiet=True):
+        pass
+    elif int(sys.version_info.minor) >= 13:
+        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
+        backup_cxxflags = os.environ.get('CXXFLAGS', None)
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
+        os.environ.setdefault('CXXFLAGS', '-include cstdint')
+        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
+        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
+    else:
+        install('sentencepiece', 'sentencepiece')
+
+
 def install_requirements():
     t_start = time.time()
     if args.profile:
@@ -1243,14 +1258,6 @@ def install_requirements():
     if args.optional:
         quick_allowed = False
         install_optional()
-    # gcc 15 patch for sentencepiece
-    backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
-    backup_cxxflags = os.environ.get('CXXFLAGS', None)
-    os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
-    os.environ.setdefault('CXXFLAGS', '-include cstdint')
-    install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
-    os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
-    os.environ.setdefault('CXXFLAGS', backup_cxxflags)
     installed('torch', reload=True) # reload packages cache
     log.info('Install: verifying requirements')
     with open('requirements.txt', 'r', encoding='utf8') as f:
