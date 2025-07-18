@@ -253,7 +253,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", type="pil", height=128, width=128, visible=False, interactive=True, show_label=False, show_download_button=False, container=False, elem_id=f'control_unit-{i}-override')
                             controlnet_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -267,7 +267,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -302,7 +302,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
                             adapter_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -316,7 +316,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -349,7 +349,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
                             controlnetxs_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -363,7 +363,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -396,7 +396,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                             lite_ui_units.append(unit_ui)
                             units.append(unit.Unit(
                                 unit_type = 'lite',
@@ -409,7 +409,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -440,7 +440,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                             units.append(unit.Unit(
                                 unit_type = 'reference',
                                 index = i,
@@ -452,7 +452,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,

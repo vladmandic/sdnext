@@ -506,7 +506,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    processed_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
+                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
+                    if is_generator:
+                        yield (None, blended_image, '') # result is control_output, proces_output
 
                     # final check
                     if has_models:

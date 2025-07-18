@@ -94,6 +94,7 @@ def preprocess_image(
 
     # run image processors
     processed_images = []
+    blended_image = None
     for i, process in enumerate(active_process): # list[image]
         debug_log(f'Control: i={i+1} process="{process.processor_id}" input={masked_image} override={process.override}')
         processed_image = process(
@@ -244,4 +245,4 @@ def preprocess_image(
 
     t1 = time.time()
     process_timer.add('proc', t1-t0)
-    return processed_image
+    return processed_image, blended_image
