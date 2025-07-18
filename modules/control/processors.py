@@ -139,8 +139,9 @@ class Processor():
     def reset(self, processor_id: str = None):
         if self.model is not None:
             debug(f'Control Processor unloaded: id="{self.processor_id}"')
-        self.model = None
-        self.processor_id = processor_id
+            self.model = None
+            self.processor_id = processor_id
+            devices.torch_gc(force=True, reason='processor')
         # self.override = None
         # devices.torch_gc()
         self.load_config = { 'cache_dir': cache_dir }

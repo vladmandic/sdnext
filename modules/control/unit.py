@@ -93,16 +93,6 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         # control tile
         self.tile = '1x1'
 
-        def reset():
-            if self.process is not None:
-                self.process.reset()
-            if self.adapter is not None:
-                self.adapter.reset()
-            if self.controlnet is not None:
-                self.controlnet.reset()
-            self.override = None
-            return [True, 'None', 'None', 1.0] # reset ui values
-
         def enabled_change(val):
             self.enabled = val
 
@@ -241,7 +231,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                 self.controls.append(process_id)
                 process_id.change(fn=self.process.load, inputs=[process_id], outputs=[result_txt], show_progress=True)
         if reset_btn is not None:
-            reset_btn.click(fn=reset, inputs=[], outputs=[enabled_cb, model_id, process_id, model_strength])
+            reset_btn.click(fn=self.reset, inputs=[], outputs=[enabled_cb, model_id, process_id, model_strength])
         if preview_btn is not None:
             preview_btn.click(fn=self.process.preview, inputs=[], outputs=[preview_process]) # return list of images for gallery
         if image_upload is not None:
@@ -262,3 +252,13 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         if control_tile is not None:
             self.controls.append(control_tile)
             control_tile.change(fn=control_tile_change, inputs=[control_tile])
+
+    def reset(self):
+        if self.process is not None:
+            self.process.reset()
+        if self.adapter is not None:
+            self.adapter.reset()
+        if self.controlnet is not None:
+            self.controlnet.reset()
+        self.override = None
+        return [True, 'None', 'None', 1.0] # reset ui values

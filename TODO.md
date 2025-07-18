@@ -74,7 +74,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
-- flux transformer from-single-file with quant
 - flux: loader for civitai nf4 models
 - hypertile: vae breaks when using non-standard sizes
 - install: enable ROCm for windows when available
@@ -84,9 +83,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
 - lora: support pre-quantized flux
-- model fix: cogview4: balanced offload does not work for GlmModel
+- model load: cogview4: balanced offload does not work for GlmModel
 - model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
-- model load: chroma transformer from-single-file with quant
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event

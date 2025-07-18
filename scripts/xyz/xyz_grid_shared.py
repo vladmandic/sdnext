@@ -321,6 +321,8 @@ def apply_control(field):
             )
             shared.log.debug(f'XYZ grid apply control: {field}="{x}" unit={unit}')
             if len(run.unit.current) > 0:
+                if hasattr(run.unit.current[0], 'reset'):
+                    run.unit.current[0].reset()
                 run.unit.current[0] = unit
             else:
                 run.unit.current = [unit]

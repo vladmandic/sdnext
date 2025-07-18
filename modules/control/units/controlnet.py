@@ -195,8 +195,9 @@ class ControlNet():
     def reset(self):
         if self.model is not None:
             debug_log(f'Control {what} model unloaded')
-        self.model = None
-        self.model_id = None
+            self.model = None
+            self.model_id = None
+            devices.torch_gc(force=True, reason='controlnet')
 
     def get_class(self, model_id:str=''):
         from modules import shared
@@ -226,7 +227,7 @@ class ControlNet():
             return None, None
         return cls, config
 
-    def load_safetensors(self, model_id, model_path):
+    def load_safetensors(self, model_id, model_path, cls, config):
         name = os.path.splitext(model_path)[0]
         config_path = None
         if not os.path.exists(model_path):
@@ -251,11 +252,7 @@ class ControlNet():
             config_path = f'{name}.json'
         if config_path is not None:
             self.load_config['original_config_file '] = config_path
-        cls, config = self.get_class(model_id)
-        if cls is None:
-            log.error(f'Control {what} model load: unknown base model')
-        else:
-            self.model = cls.from_single_file(model_path, config=config, **self.load_config)
+        self.model = cls.from_single_file(model_path, config=config, **self.load_config)
 
     def load(self, model_id: str = None, force: bool = True) -> str:
         with load_lock:
@@ -281,9 +278,13 @@ class ControlNet():
                     # log.debug(f'Control {what} model: id="{model_id}" path="{model_path}" already loaded')
                     return
                 log.debug(f'Control {what} model loading: id="{model_id}" path="{model_path}"')
-                cls, _config = self.get_class(model_id)
+                cls, config = self.get_class(model_id)
+                if cls is None:
+                    log.error(f'Control {what} model load: id="{model_id}" unknown base model')
+                    return
+                self.reset()
                 if model_path.endswith('.safetensors'):
-                    self.load_safetensors(model_id, model_path)
+                    self.load_safetensors(model_id, model_path, cls, config)
                 else:
                     kwargs = {}
                     if '/bin' in model_path:
@@ -291,9 +292,6 @@ class ControlNet():
                         self.load_config['use_safetensors'] = False
                     else:
                         self.load_config['use_safetensors'] = True
-                    if cls is None:
-                        log.error(f'Control {what} model load: id="{model_id}" unknown base model')
-                        return
                     if variants.get(model_id, None) is not None:
                         kwargs['variant'] = variants[model_id]
                     try:

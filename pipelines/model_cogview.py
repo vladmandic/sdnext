@@ -56,12 +56,12 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     shared.log.debug(f'Load model: type=CogView4 te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    text_encoder = transformers.AutoModelForCausalLM.from_pretrained(
+    text_encoder = transformers.AutoModelForCausalLM.from_pretrained( # TODO model load: cogview4 balanced offload does not work for GlmModel
         repo_id,
         subfolder="text_encoder",
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
-        **quant_args,
+        # **quant_args,
     )
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
@@ -76,6 +76,6 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     if shared.opts.diffusers_eval:
         pipe.text_encoder.eval()
         pipe.transformer.eval()
-    pipe.enable_model_cpu_offload() # TODO model fix: cogview4: balanced offload does not work for GlmModel
+    pipe.enable_model_cpu_offload()
     devices.torch_gc()
     return pipe
