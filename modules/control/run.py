@@ -369,6 +369,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     )
     p.state = state
     p.is_tile = False
+    p.orig_init_images = inputs
 
     # TODO modernui: monkey-patch for missing tabs.select event
     if p.selected_scale_tab_before == 0 and p.resize_name_before != 'None' and p.scale_by_before != 1 and inputs is not None and len(inputs) > 0:
