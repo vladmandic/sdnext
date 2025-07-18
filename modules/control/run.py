@@ -30,10 +30,10 @@ unified_models = ['Flex2Pipeline'] # models that have controlnet builtin
 
 def restore_pipeline():
     global pipe, instance # pylint: disable=global-statement
-    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     if instance is not None and hasattr(instance, 'restore'):
         instance.restore()
     if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
+        fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
         debug_log(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
         shared.sd_model = original_pipeline
     pipe = None
@@ -465,9 +465,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 for i, input_image in enumerate(inputs):
                     if pipe is None: # pipe may have been reset externally
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
-                        pipe.restore_pipeline = restore_pipeline
-                        shared.sd_model.restore_pipeline = restore_pipeline
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
+                    pipe.restore_pipeline = restore_pipeline
+                    shared.sd_model.restore_pipeline = restore_pipeline
                     debug_log(f'Control Control image: {i + 1} of {len(inputs)}')
                     if shared.state.skipped:
                         shared.state.skipped = False
