@@ -1226,7 +1226,7 @@ def install_optional():
     ts('optional', t_start)
 
 
-def install_sentencepipece():
+def install_sentencepiece():
     if installed('sentencepiece', quiet=True):
         pass
     elif int(sys.version_info.minor) >= 13:

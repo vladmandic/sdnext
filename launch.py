@@ -265,7 +265,7 @@ def main():
     installer.check_onnx()
     installer.check_transformers()
     installer.check_diffusers()
-    installer.install_sentencepipece()
+    installer.install_sentencepiece()
     installer.check_modified_files()
     if args.test:
         installer.log.info('Startup: test mode')
