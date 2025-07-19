@@ -8,6 +8,7 @@ Feature highlights include:
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
 - New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows and [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
+- Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
 - New **LLM/VLM** models available for captioning and prompt enhance  
 - Wiki & docs updates  
@@ -54,6 +55,8 @@ Although upgrades and existing installations are tested and should work fine!
     available in **prompt enhance**  
   - add [fal AuraFlow 0.2](https://huggingface.co/fal/AuraFlow-v0.2) in addition to existing [fal AuraFlow 0.3](https://huggingface.co/fal/AuraFlow-v0.3) due to large differences in model behavior  
     available via *networks -> models -> reference*  
+  - add integrated [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet) as built-in functionality  
+    *note*: used to be available as a separate [extension](https://github.com/vladmandic/sd-extension-nudenet)  
 - **Video**
   - redesigned **Video** interface  
   - support for **Generic** video models  

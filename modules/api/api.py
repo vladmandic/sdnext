@@ -5,7 +5,7 @@ from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, postprocessing
-from modules.api import models, endpoints, script, helpers, server, nvml, generate, process, control, gallery, loras, docs
+from modules.api import models, endpoints, script, helpers, server, nvml, generate, process, control, docs
 
 
 errors.install()
@@ -100,12 +100,16 @@ class Api:
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int)
 
         # lora api
-        self.add_api_route("/sdapi/v1/lora", loras.get_lora, methods=["GET"], response_model=dict)
-        self.add_api_route("/sdapi/v1/loras", loras.get_loras, methods=["GET"], response_model=List[dict])
-        self.add_api_route("/sdapi/v1/refresh-loras", loras.post_refresh_loras, methods=["POST"])
+        from modules.api import loras
+        loras.register_api()
 
         # gallery api
+        from modules.api import gallery
         gallery.register_api(self.app)
+
+        # nudenet api
+        from modules.api import nudenet
+        nudenet.register_api()
 
 
     def add_api_route(self, path: str, endpoint, **kwargs):
