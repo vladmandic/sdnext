@@ -58,7 +58,7 @@ class NudeDetector:
         from modules import shared
 
         global session # pylint: disable=global-statement
-        self.model_path = hf.hf_hub_download(
+        self.model_path = model or hf.hf_hub_download(
             repo_id='vladmandic/nudenet',
             filename='nudenet.onnx',
             cache_dir=shared.opts.diffusers_dir,

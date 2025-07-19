@@ -1,12 +1,9 @@
-# built-in imports and third party imports
 import gradio as gr
-# import required modules from sdnext
-from modules import scripts, scripts_postprocessing, script_callbacks, processing, images # pylint: disable=import-error
-# import actual nudenet module relative to extension root
-from  scripts.nudenet import nudenet # pylint: disable=wrong-import-order
-from  scripts.nudenet import langdetect # pylint: disable=wrong-import-order
-from  scripts.nudenet import imageguard # pylint: disable=wrong-import-order
-from  scripts.nudenet import bannedwords # pylint: disable=wrong-import-order
+from modules import scripts, scripts_postprocessing, processing, images
+from  scripts.nudenet import nudenet # pylint: disable=no-name-in-module
+from  scripts.nudenet import langdetect # pylint: disable=no-name-in-module
+from  scripts.nudenet import imageguard # pylint: disable=no-name-in-module
+from  scripts.nudenet import bannedwords # pylint: disable=no-name-in-module
 
 
 # main ui
@@ -80,7 +77,7 @@ def process(
                 info = processing.create_infotext(p)
                 images.save_image(nudes.output, path=p.outpath_samples, seed=p.seed, prompt=p.prompt, info=info, p=p, suffix="-censored")
         meta = '; '.join([f'{d["label"]}:{d["score"]}' for d in nudes.detections]) # add all metadata
-        nsfw = any([d["label"] in nudenet.nsfw for d in nudes.detections]) # noqa:C419
+        nsfw = any([d["label"] in nudenet.nsfw for d in nudes.detections]) # noqa:C419 # pylint: disable=use-a-generator
         if metadata and p is not None:
             p.extra_generation_params["NudeNet"] = meta
             p.extra_generation_params["NSFW"] = nsfw
