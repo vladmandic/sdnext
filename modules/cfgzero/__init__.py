@@ -15,8 +15,6 @@ supported = [
 
 
 def apply(p: processing.StableDiffusionProcessing):
-    if not shared.native:
-        return None
     if not shared.opts.cfgzero_enabled:
         return None
     cls = shared.sd_model.__class__.__name__ if shared.sd_loaded else 'None'

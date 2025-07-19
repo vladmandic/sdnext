@@ -10,9 +10,6 @@ class UpscalerAuraSR(Upscaler):
         self.name = "AuraSR"
         self.user_path = dirname
         self.model = None
-        if not shared.native:
-            super().__init__()
-            return
         self.scalers = [
             UpscalerData(name="Aura SR 4x", path="stabilityai/sd-x2-latent-upscaler", upscaler=self, model=None, scale=4),
         ]

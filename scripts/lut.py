@@ -5,15 +5,15 @@ lib: https://github.com/homm/pillow-lut-tools
 import os
 import gradio as gr
 from installer import install
-from modules import scripts, shared, processing
+from modules import scripts_manager, shared, processing
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'LUT Color grading'
 
-    def show(self, is_img2img):
-        return shared.native
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
 
     def ui(self, _is_img2img):
         with gr.Row():

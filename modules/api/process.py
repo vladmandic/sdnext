@@ -138,7 +138,7 @@ class APIProcess():
         seed = processing_helpers.get_fixed_seed(seed)
         prompt = ''
         if req.type == 'text':
-            from modules.scripts import scripts_txt2img
+            from modules.scripts_manager import scripts_txt2img
             model = 'google/gemma-3-1b-it' if req.model is None or len(req.model) < 4 else req.model
             instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
             prompt = instance.enhance(
@@ -149,7 +149,7 @@ class APIProcess():
                 nsfw=req.nsfw,
             )
         elif req.type == 'image':
-            from modules.scripts import scripts_txt2img
+            from modules.scripts_manager import scripts_txt2img
             model = 'google/gemma-3-4b-it' if req.model is None or len(req.model) < 4 else req.model
             instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
             prompt = instance.enhance(

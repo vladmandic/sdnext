@@ -71,9 +71,6 @@ def set_accelerate(sd_model):
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
-    if not shared.native:
-        shared.log.warning('Attempting to use offload with backend=original')
-        return
     if sd_model is None:
         shared.log.warning(f'{op} is not loaded')
         return
@@ -328,7 +325,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         apply_balanced_offload_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         apply_balanced_offload_to_module(sd_model.decoder_pipe)
-    if shared.opts.layerwise_quantization:
+    if shared.opts.layerwise_quantization or (hasattr(sd_model, "transformer") and getattr(sd_model.transformer, 'quantization_method', None) == 'LayerWise'):
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
     set_accelerate(sd_model)
     t = time.time() - t0

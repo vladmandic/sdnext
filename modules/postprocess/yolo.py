@@ -12,6 +12,7 @@ from modules.detailer import Detailer
 predefined = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/main>
     'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/face-yolo8n.pt',
+    'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/face-yolo8m.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/hand_yolov8n.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/person_yolov8n-seg.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/eyes-v1.pt',
@@ -260,7 +261,6 @@ class YoloRestorer(Detailer):
                 'styles': [],
                 'inpaint_full_res': True,
                 'inpainting_mask_invert': 0,
-                'inpainting_fill': 1, # no fill
                 'mask_blur': shared.opts.detailer_blur,
                 'inpaint_full_res_padding': shared.opts.detailer_padding,
                 'width': resolution,
@@ -354,7 +354,7 @@ class YoloRestorer(Detailer):
             shared.opts.save(shared.config_filename, silent=True)
             shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps}')
 
-        with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"], visible=shared.native):
+        with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"]):
             with gr.Row():
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
             with gr.Row():

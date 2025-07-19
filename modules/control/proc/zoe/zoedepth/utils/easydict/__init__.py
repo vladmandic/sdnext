@@ -143,7 +143,7 @@ class EasyDict(dict):
     __setitem__ = __setattr__
 
     def update(self, e=None, **f):
-        d = e or dict()
+        d = e or {}
         d.update(f)
         for k in d:
             setattr(self, k, d[k])

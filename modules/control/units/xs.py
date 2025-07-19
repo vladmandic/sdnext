@@ -70,6 +70,9 @@ class ControlNetXS():
         if model_id is not None:
             self.load()
 
+    def __str__(self):
+        return f' ControlNetXS(id={self.model_id} model={self.model.__class__.__name__})' if self.model_id and self.model else ''
+
     def reset(self):
         if self.model is not None:
             debug(f'Control {what} model unloaded')

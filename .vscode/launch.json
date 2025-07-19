@@ -16,8 +16,7 @@
         "--docs",
         "--api-log",
         "--log", "vscode.log",
-        "${command:pickArgs}",
-      ]
+        "${command:pickArgs}"]
     }
   ]
 }

@@ -10,7 +10,6 @@ import safetensors.torch
 from modules import paths, shared, errors
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
-from modules.sd_models_legacy import get_checkpoint_state_dict, load_model_weights, load_model, repair_config # pylint: disable=unused-import
 
 
 class NoWatermark:
@@ -27,21 +26,26 @@ def get_signature(cls):
 
 def get_call(cls):
     if cls is None or not hasattr(cls, '__call__'): # noqa: B004
-        return []
+        return {}
     signature = inspect.signature(cls.__call__, follow_wrapped=True)
     return signature.parameters
 
 
-def path_to_repo(fn: str = ''):
-    if isinstance(fn, CheckpointInfo):
-        fn = fn.name
-    repo_id = fn.replace('\\', '/')
-    if 'models--' in repo_id:
+def path_to_repo(checkpoint_info):
+    if isinstance(checkpoint_info, CheckpointInfo):
+        if os.path.exists(checkpoint_info.path) and 'models--' not in checkpoint_info.path:
+            return checkpoint_info.path # local models
+        repo_id = checkpoint_info.name
+    else:
+        repo_id = checkpoint_info # fallback if fn is used with str param
+    repo_id = repo_id.replace('\\', '/')
+    if repo_id.startswith('Diffusers/'):
+        repo_id = repo_id.split('Diffusers/')[-1]
+    if repo_id.startswith('models--'):
         repo_id = repo_id.split('models--')[-1]
-        repo_id = repo_id.split('/')[0]
-    repo_id = repo_id.split('/')
-    repo_id = '/'.join(repo_id[-2:] if len(repo_id) > 1 else repo_id)
-    repo_id = repo_id.replace('models--', '').replace('--', '/')
+    repo_id = repo_id.replace('--', '/')
+    if repo_id.count('/') != 1:
+        shared.log.warning(f'Model: repo="{repo_id}" repository not recognized')
     return repo_id
 
 

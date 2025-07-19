@@ -170,7 +170,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         prev_job = shared.state.job
 
         # hires runs on original pipeline
-        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and not shared.opts.control_hires:
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
             shared.sd_model.restore_pipeline()
 
         # upscale
@@ -415,13 +415,13 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
 
 
 def validate_pipeline(p: processing.StableDiffusionProcessing):
-    is_video_model = 'video' in shared.sd_model_type.lower() or 'video' in shared.sd_model.__class__.__name__.lower()
+    is_video_model = ('video' in shared.sd_model_type.lower()) or ('video' in shared.sd_model.__class__.__name__.lower())
     is_video_pipeline = 'video' in p.__class__.__name__.lower()
     if is_video_model and not is_video_pipeline:
-        shared.log.error(f'Mismatch: loaded={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')
+        shared.log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')
         return False
     elif not is_video_model and is_video_pipeline:
-        shared.log.error(f'Mismatch: loaded={shared.sd_model.__class__.__name__} request={p.__class__.__name__} non-video model with video pipeline')
+        shared.log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} non-video model with video pipeline')
         return False
     return True
 
@@ -441,10 +441,10 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         return results
 
     # sanitize init_images
-    if hasattr(p, 'init_images') and getattr(p, 'init_images', None) is None:
-        del p.init_images
     if hasattr(p, 'init_images') and not isinstance(getattr(p, 'init_images', []), list):
         p.init_images = [p.init_images]
+    if hasattr(p, 'init_images') and isinstance(getattr(p, 'init_images', []), list):
+        p.init_images = [i for i in p.init_images if i is not None]
     if len(getattr(p, 'init_images', [])) > 0:
         while len(p.init_images) < len(p.prompts):
             p.init_images.append(p.init_images[-1])

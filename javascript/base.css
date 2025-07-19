@@ -10,7 +10,7 @@
 .token-counter div { display: inline; }
 .token-counter span { padding: 0.1em 0.75em; }
 
-/* tooltips and statuses */ 
+/* tooltips and statuses */
 .infotext { overflow-wrap: break-word; }
 .tooltip { display: block; position: fixed; top: 1em; right: 1em; padding: 0.5em; background: var(--input-background-fill); color: var(--body-text-color); border: 1pt solid var(--button-primary-border-color);
   width: 22em; min-height: 1.3em; font-size: 0.8em; transition: opacity 0.2s ease-in; pointer-events: none; opacity: 0; z-index: 999; }
@@ -124,7 +124,7 @@ table.settings-value-table td { padding: 0.4em; border: 1px solid #ccc; max-widt
 #tab-browser-search { padding: 0; }
 #tab-browser-status { align-content: center; text-align: right; background: var(--input-background-fill); padding-right: 1em; margin-left: -1em; }
 div:has(>#tab-browser-folders) { flex-grow: 0 !important; background-color: var(--input-background-fill); min-width: max-content !important; }
-.browser-separator { background-color: var(--input-background-fill); font-size: larger; padding: 0.5em; display: block !important; } 
+.browser-separator { background-color: var(--input-background-fill); font-size: larger; padding: 0.5em; display: block !important; }
 
 /* loader */
 .splash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000; display: block; text-align: center; }

@@ -234,4 +234,3 @@ def resnext101_32x8d(pretrained=True, **kwargs):
 
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     return model
-

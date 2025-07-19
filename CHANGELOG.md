@@ -1,5 +1,164 @@
 # Change Log for SD.Next
 
+## Update for 2025-07-18
+
+### Highlights for 2025-07-18
+
+Feature highlights include:  
+- **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
+- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows and [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
+- Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
+- Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
+- New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
+- New **LLM/VLM** models available for captioning and prompt enhance  
+- Wiki & docs updates  
+- Compute improvements  
+
+In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
+This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017)!  
+
+We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+
+And (*as always*) many bugfixes and improvements to existing features!  
+
+*Note*: We recommend clean install for this release due to sheer size of changes  
+Although upgrades and existing installations are tested and should work fine!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-07-18
+
+- **License**  
+  - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
+    this means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+- **Models**
+  - [WanAI Wan 2.1](https://wan.video/) 1.3B and 14B T2V models for T2I workflows  
+    Wan 2.1 is originally designed for *video* workflows, Wan 2.1 model can now also be used for *text-to-image* workflows!  
+    supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
+    can also load unet/transformer fine-tunes in safetensors format using UNET loader  
+    simply select in *networks -> models -> reference*  
+    *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB so aggressive quantization and offloading are recommended  
+  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
+    F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+    available via *networks -> models -> reference*  
+  - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
+    very fast automatic image background replacement methods with relightning!  
+    *simple*: automatic background replacement using [BiRefNet](https://github.com/ZhengPeng7/BiRefNet)  
+    *relighting*: automatic background replacement with reglighting so source image fits desired background  
+    with optional composite blending  
+    available in *img2img or control -> scripts*  
+  - add **FLUX.1-Kontext-Dev** inpaint workflow  
+  - support **FLUX.1** all-in-one safetensors  
+  - support for [Google Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models  
+    available in **prompt enhance** and process **captioning**  
+  - support for [HuggingFace SmolLM3](https://huggingface.co/HuggingFaceTB/SmolLM3-3B) 3B LLM model  
+    available in **prompt enhance**  
+  - add [fal AuraFlow 0.2](https://huggingface.co/fal/AuraFlow-v0.2) in addition to existing [fal AuraFlow 0.3](https://huggingface.co/fal/AuraFlow-v0.3) due to large differences in model behavior  
+    available via *networks -> models -> reference*  
+  - add integrated [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet) as built-in functionality  
+    *note*: used to be available as a separate [extension](https://github.com/vladmandic/sd-extension-nudenet)  
+- **Video**
+  - redesigned **Video** interface  
+  - support for **Generic** video models  
+    includes support for many video models without specific per-model optimizations  
+    included: *Hunyuan, LTX, WAN, Mochi, Latte, Allegro, Cog*  
+    supports quantization, offloading, frame interpolation, etc.  
+  - support for optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
+    with *t2i, i2i, flf2v* workflows  
+    LoRA support, prompt enhance, etc.  
+    now fully integrated instead of being a separate extension  
+  - support for optmized [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX)  
+    with *t2i, i2i, v2v* workflows  
+    optional native upsampling and video refine workflows  
+    LoRA support with different conditioning types such as Canny/Depth/Pose, etc.  
+- **UI**  
+  - major update to modernui layout  
+  - redesign of the *Flat* UI theme  
+- **WIKI**  
+  - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
+    massive thanks to @CalamitousFelicitousness for bringing this to life!  
+  - updated *Models, Video, LTX, FramePack, Styles*, etc.
+- **Compute**
+  - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
+    provides 10-15% performance improvement over default SDPA for transformer-based models!  
+    enable in *settings -> compute settings -> sdp options*  
+    *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
+    until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
+- **Other**  
+  - **Styles** can now include both generation params and server settings  
+    see [Styles docs](https://vladmandic.github.io/sdnext-docs/Styles/) for details  
+  - **TAESD** is now default preview type since its the only one that supports most new models  
+  - support **TAESD** preview and remote VAE for **HunyuanDit**  
+  - support **TAESD** preview and remote VAE for **AuraFlow**  
+  - support **TAESD** preview for **WanAI**  
+  - SD.Next now starts with *locked* state preventing model loading until startup is complete  
+  - warn when modifying legacy settings that are no longer supported, but available for compatibilty  
+  - warn on incompatible sampler and automatically restore default sampler  
+  - **XYZ grid** can now work with control tab:  
+    if controlnet or processor are selected in xyz grid, they will overwrite settings from first unit in control tab,  
+    when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
+    also freely selectable are control strength, start and end values  
+  - **Metadata** improved parsing and detect foreign metadata  
+    detect ComfyUI images  
+- **API**  
+  - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
+    if model is locked, it cannot be changed using normal load or unload methods  
+- **Fixes**
+  - allow theme type `None` to be set in config  
+  - installer dont cache installed state  
+  - fix Cosmos-Predict2 retrying TAESD download  
+  - better handle startup import errors  
+  - fix ansi controle output from scripts/extensions  
+  - fix diffusers models non-unique hash  
+  - fix loading of manually downloaded diffuser models  
+  - fix api `/sdapi/v1/embeddings` endpoint  
+  - fix incorrect reporting of deleted and modified files  
+  - fix SD3.x loader and TAESD preview  
+  - fix xyz with control enabled  
+  - fix control order of image save operations  
+  - fix control batch-input processing  
+  - cleanup control infotext  
+  - allow upscaling with models that have implicit VAE processing  
+  - sdnq use inference context during quantization  
+  - framepack improve offloading  
+  - improve scripts error handling  
+  - improve infotext param parsing  
+  - improve extensions ui search  
+  - improve model type autodetection  
+  - improve model auth check for hf repos  
+  - improve Chroma prompt padding as per recommendations  
+  - lock directml torch to `torch-directml==0.2.4.dev240913`  
+  - lock directml transformers to `transformers==4.52.4`  
+  - improve install of `sentencepiece` tokenizer  
+- **Refactoring**  
+  *note*: none of the removals result in loss-of-functionality since all those features are already re-implemented  
+  goal here is to remove legacy code, code duplication and reduce code complexity  
+  - obsolete **original backend**  
+  - remove majority of legacy **a1111** codebase  
+  - remove legacy ldm codebase: `/repositories/ldm`  
+  - remove legacy blip codebase: `/repositories/blip`  
+  - remove legacy codeformer codebase: `/repositories/codeformer`  
+  - remove legacy clip patch model: `/models/karlo`  
+  - remove legacy model configs: `/configs/*.yaml`  
+  - remove legacy submodule: `/modules/k-diffusion`  
+  - remove legacy hypernetworks support: `/modules/hypernetworks`  
+  - remove legacy lora support: `/extensions-builtin/Lora`
+  - remove legacy clip/blip interrogate module
+  - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
+  - refactor control processing and separate preprocessing and image save ops  
+  - split monolithic `shared.py`  
+  - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
+  - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
+  - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  
+  - cleanup `/modules`: global rename `modules.scripts` to avoid conflict with `/scripts`  
+  - override `gradio` installer  
+  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
+  - patch `insightface`  
+  - patch `facelib`  
+  - patch `numpy`  
+  - stronger lint rules  
+    add separate `npm run lint`, `npm run todo`, `npm run test`, `npm run format` macros  
+
 ## Update for 2025-06-30
 
 ### Highlights for 2025-06-30
@@ -56,7 +215,7 @@ And (as always) many bugfixes and improvements to existing features!
   - Control add setting to run hires with or without control  
   - Update OpenVINO to 2025.2.0  
   - Simplified and unified quantization enabled for options  
-  - Add PixelArt filter to processing tab  
+  - Add **PixelArt** filter to processing tab  
 - **SDNQ Quantization**  
   - Add `auto` quantization mode  
   - Add `modules_to_not_convert` support for post mode  
@@ -3537,7 +3696,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - lightweight native implementation of T2I adapters which can guide generation towards specific image style  
     - supports most T2I models, not limited to SD 1.5  
     - models are auto-downloaded on first use
-    - for IP adapter support in *Original* backend, use standard *ControlNet* extension  
   - **AnimateDiff**
     - lightweight native implementation of AnimateDiff models:  
       *AnimateDiff 1.4, 1.5 v1, 1.5 v2, AnimateFace*
@@ -3545,7 +3703,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - models are auto-downloaded on first use  
     - for video saving support, see video support section
     - can be combined with IP-Adapter for even better results!  
-    - for AnimateDiff support in *Original* backend, use standard *AnimateDiff* extension  
   - **HDR latent control**, based on [article](https://huggingface.co/blog/TimothyAlexisVass/explaining-the-sdxl-latent-space#long-prompts-at-high-guidance-scales-becoming-possible)  
     - in *Advanced* params
     - allows control of *latent clamping*, *color centering* and *range maximization*  

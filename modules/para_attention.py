@@ -5,7 +5,7 @@ supported_models = ['Flux', 'HunyuanVideo', 'CogVideoX', 'Mochi']
 
 
 def apply_first_block_cache():
-    if not shared.opts.para_cache_enabled or not shared.native:
+    if not shared.opts.para_cache_enabled:
         return
     if not any(shared.sd_model.__class__.__name__.startswith(x) for x in supported_models):
         return

@@ -24,7 +24,7 @@ Examples:
 """
 
 import gradio as gr
-from modules import shared, scripts, processing, devices
+from modules import shared, scripts_manager, processing, devices
 
 
 ENCODERS =[
@@ -44,12 +44,12 @@ tokenizer = None
 text_encoder_path = None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'MuLan: Multi Language Prompts'
 
     def show(self, is_img2img):
-        return True if shared.native else False
+        return True
 
     def ui(self, _is_img2img):
         with gr.Row():
@@ -61,11 +61,11 @@ class Script(scripts.Script):
     def run(self, p: processing.StableDiffusionProcessing, selected_encoder): # pylint: disable=arguments-differ
         global pipe_type, adapter, text_encoder, tokenizer, text_encoder_path # pylint: disable=global-statement
         if not selected_encoder or selected_encoder == 'None':
-            return
+            return None
         # create pipeline
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
             shared.log.error(f'MuLan: incorrect base model: {shared.sd_model.__class__.__name__}')
-            return
+            return None
 
         adapter_path = None
         if shared.sd_model_type == 'sd':
@@ -73,7 +73,7 @@ class Script(scripts.Script):
         if shared.sd_model_type == 'sdxl':
             adapter_path = 'mulanai/mulan-lang-adapter::sdxl_aesthetic.pth'
         if adapter_path is None:
-            return
+            return None
 
         # install-on-demand
         import installer

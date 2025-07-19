@@ -1,5 +1,5 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts_manager, processing, shared, sd_models
 
 
 supported_models = ['sdxl']
@@ -7,7 +7,7 @@ max_xtiles = 4
 max_ytiles = 4
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -16,8 +16,8 @@ class Script(scripts.Script):
     def title(self):
         return 'Mixture-of-Diffusers: Tile Control'
 
-    def show(self, is_img2img):
-        return shared.native
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
 
     def update_ui(self, x_tiles, y_tiles):
         updates = []
@@ -85,7 +85,7 @@ class Script(scripts.Script):
         [x_tiles, y_tiles, x_overlap, y_overlap], prompts = args[:4], args[4:]
         if max(x_tiles, y_tiles) <= 1:
             return None
-        from modules.mod import StableDiffusionXLTilingPipeline
+        from scripts.mod import StableDiffusionXLTilingPipeline # pylint: disable=no-name-in-module
         self.orig_pipe = shared.sd_model
         self.orig_attn = shared.opts.prompt_attention
 
@@ -113,7 +113,7 @@ class Script(scripts.Script):
         shared.sd_model = sd_models.switch_pipe(StableDiffusionXLTilingPipeline, shared.sd_model)
         sd_models.set_diffuser_options(shared.sd_model)
         sd_models.apply_balanced_offload(shared.sd_model)
-
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=arguments-differ, unused-argument
         if self.orig_pipe is None:

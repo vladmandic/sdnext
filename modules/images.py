@@ -140,8 +140,6 @@ def save_image(image,
                prompt=None,
                extension=shared.opts.samples_format,
                info=None,
-               short_filename=False,
-               no_prompt=False,
                grid=False,
                pnginfo_section_name='parameters',
                p=None,
@@ -149,7 +147,7 @@ def save_image(image,
                forced_filename=None,
                suffix='',
                save_to_dirs=None,
-            ): # pylint: disable=unused-argument
+            ):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     debug(f'Save: fn={fn}') # pylint: disable=protected-access
     if image is None:
@@ -162,7 +160,10 @@ def save_image(image,
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
-    if shared.opts.save_to_dirs:
+    if save_to_dirs is not None and isinstance(save_to_dirs, str) and len(save_to_dirs) > 0:
+        dirname = save_to_dirs
+        path = os.path.join(path, dirname)
+    elif shared.opts.save_to_dirs:
         dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
         path = os.path.join(path, dirname)
     if forced_filename is None:
@@ -231,11 +232,24 @@ def safe_decode_string(s: bytes):
     return None
 
 
+def parse_comfy_metadata(data: str):
+    res = ''
+    try:
+        dct = json.loads(data)
+        version = dct['extra'].get('frontendVersion', None) if 'extra' in dct else ''
+        nodes = dct.get('nodes', []) if 'nodes' in dct else []
+        if 'ComfyUI' in data:
+            res = f"App: ComfyUI | Version: {version} | Nodes: {len(nodes)}"
+    except Exception as e:
+        shared.log.error(f'Error parsing ComfyUI metadata: {e}')
+    return res
+
+
 def read_info_from_image(image: Image, watermark: bool = False):
     if image is None:
         return '', {}
     items = image.info or {}
-    geninfo = items.pop('parameters', None) or items.pop('UserComment', None)
+    geninfo = items.pop('parameters', None) or items.pop('UserComment', None) or ''
     if geninfo is not None and len(geninfo) > 0:
         if 'UserComment' in geninfo:
             geninfo = geninfo['UserComment']
@@ -272,9 +286,10 @@ def read_info_from_image(image: Image, watermark: bool = False):
         if isinstance(val, bytes): # decode bytestring
             items[key] = safe_decode_string(val)
 
-    for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi']: # remove unwanted tags
-        items.pop(key, None)
-
+    if "prompt" in items:
+        geninfo += parse_comfy_metadata(items["prompt"])
+    if "workflow" in items:
+        geninfo += parse_comfy_metadata(items["workflow"])
     if items.get("Software", None) == "NovelAI":
         try:
             json_info = json.loads(items["Comment"])
@@ -284,6 +299,9 @@ Negative prompt: {json_info["uc"]}
 Steps: {json_info["steps"]}, Sampler: {sampler}, CFG scale: {json_info["scale"]}, Seed: {json_info["seed"]}, Size: {image.width}x{image.height}, Clip skip: 2, ENSD: 31337"""
         except Exception as e:
             errors.display(e, 'novelai image parser')
+
+    for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi']: # remove unwanted tags
+        items.pop(key, None)
 
     try:
         items['width'] = image.width

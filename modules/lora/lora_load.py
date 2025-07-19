@@ -21,8 +21,6 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
     t0 = time.time()
     name = name.replace(".", "_")
     shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_diffusers}')
-    if not shared.native:
-        return None
     if not hasattr(shared.sd_model, 'load_lora_weights'):
         shared.log.error(f'Network load: type=LoRA class={shared.sd_model.__class__} does not implement load lora')
         return None
@@ -220,10 +218,7 @@ def list_available_networks():
             available_networks[entry.name] = entry
             if entry.alias in available_network_aliases:
                 forbidden_network_aliases[entry.alias.lower()] = 1
-            if shared.opts.lora_preferred_name == 'filename':
-                available_network_aliases[entry.name] = entry
-            else:
-                available_network_aliases[entry.alias] = entry
+            available_network_aliases[entry.name] = entry
             if entry.shorthash:
                 available_network_hash_lookup[entry.shorthash] = entry
         except OSError as e: # should catch FileNotFoundError and PermissionError etc.

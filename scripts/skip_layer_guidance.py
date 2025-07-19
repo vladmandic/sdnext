@@ -1,12 +1,12 @@
 import sys
 import gradio as gr
-from modules import scripts, processing, shared
+from modules import scripts_manager, processing, shared
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.register()
@@ -15,7 +15,7 @@ class Script(scripts.Script):
         return 'SLG: Skip Layer Guidance'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):
@@ -45,13 +45,15 @@ class Script(scripts.Script):
                     p.task_args[field] = val
             return fun
 
-        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k][0]
-        options = [
-            xyz_classes.AxisOption("[SLG] Layers", str, apply_task_args("skip_guidance_layers")),
-        ]
-        for option in options:
-            if option not in xyz_classes.axis_options:
-                xyz_classes.axis_options.append(option)
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[SLG] Layers", str, apply_task_args("skip_guidance_layers")),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
 
 
     def run(self, p: processing.StableDiffusionProcessing, layers: str = '', scale: float = 1.0, start: float = 1.0, stop: float = 1.0): # pylint: disable=arguments-differ, unused-argument

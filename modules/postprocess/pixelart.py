@@ -47,7 +47,7 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
     block_size_sq = block_size * block_size
     new_image = process_image_input(image).to(device, dtype=torch.float32) / 255
     new_image = new_image.permute(0,3,1,2)
-    batch_size, channels, height, width = new_image.shape
+    batch_size, _channels, height, width = new_image.shape
 
     min_pool = -torch.nn.functional.max_pool2d(-new_image, block_size, 1, block_size//2, 1, False, False)
     min_pool = min_pool[:, :, :height, :width]
@@ -203,6 +203,7 @@ class JPEGEncoder(ImageProcessingMixin, ConfigMixin):
         self.norm = norm
         self.latents_std = latents_std
         self.latents_mean = latents_mean
+        super().__init__()
 
 
     def encode(self, images: PipelineImageInput, device: str="cpu") -> torch.FloatTensor:
