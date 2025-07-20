@@ -213,8 +213,11 @@ def compile_torch(sd_model):
 
         setup_logging() # compile messes with logging so reset is needed
         if 'precompile' in shared.opts.cuda_compile_options:
-            shared.log.debug("Model compile: task=torch precompile")
-            sd_model("dummy prompt")
+            try:
+                shared.log.debug("Model compile: task=torch precompile")
+                sd_model("dummy prompt")
+            except Exception:
+                pass
         t1 = time.time()
         shared.log.info(f"Model compile: task=torch time={t1-t0:.2f}")
     except Exception as e:

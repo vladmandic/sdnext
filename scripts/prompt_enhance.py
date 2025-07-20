@@ -3,6 +3,7 @@ import io
 import os
 import re
 import time
+import random
 import base64
 import torch
 import transformers
@@ -68,7 +69,8 @@ class Options:
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
     }
-    default = list(models)[1] # gemma-3-4b-it
+    # default = list(models)[1] # gemma-3-4b-it
+    default = 'Qwen/Qwen3-0.6B-FP8'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
     t2i_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. '
     i2i_prompt: str = 'You are a helpful assistant. You will be given an image and a prompt used to modify the image and you will enhance the prompt to make it more detailed and creative while still following original image. '
@@ -100,6 +102,12 @@ class Script(scripts_manager.Script):
 
     def show(self, _is_img2img):
         return scripts_manager.AlwaysVisible
+
+    def compile(self):
+        if self.llm is None or 'LLM' not in shared.opts.cuda_compile:
+            return
+        from modules.sd_models_compile import compile_torch
+        self.llm = compile_torch(self.llm)
 
     def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
         name = name or self.options.default
@@ -171,6 +179,7 @@ class Script(scripts_manager.Script):
             self.model = name
             t1 = time.time()
             shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
+            self.compile()
         except Exception as e:
             shared.log.error(f'Prompt enhance: load {e}')
             errors.display(e, 'Prompt enhance')
@@ -253,8 +262,10 @@ class Script(scripts_manager.Script):
         while self.busy:
             time.sleep(0.1)
         self.load(model)
-        if seed is not None and seed >= 0:
-            torch.manual_seed(seed)
+        if seed is None or seed == -1:
+            random.seed()
+            seed = int(random.randrange(4294967294))
+        torch.manual_seed(seed)
         if self.llm is None:
             shared.log.error('Prompt enhance: model not loaded')
             return prompt
@@ -394,7 +405,6 @@ class Script(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    # --- START OF CORRECTED METHOD ---
     def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode): # Added nsfw_mode
         response = self.enhance(
             prompt=prompt,
@@ -413,7 +423,6 @@ class Script(scripts_manager.Script):
         if apply_prompt:
             return [response, response]
         return [response, gr.update()]
-    # --- END OF CORRECTED METHOD ---
 
     def get_custom(self, name):
         model_repo = self.options.models.get(name, {}).get('repo', None) or name
@@ -504,6 +513,7 @@ class Script(scripts_manager.Script):
         shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
+            seed=p.seed,
             image=self_image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,

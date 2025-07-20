@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-18
+## Update for 2025-07-20
 
-### Highlights for 2025-07-18
+### Highlights for 2025-07-20
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
@@ -26,7 +26,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-18
+### Details for 2025-07-20
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -85,6 +85,7 @@ Although upgrades and existing installations are tested and should work fine!
     enable in *settings -> compute settings -> sdp options*  
     *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
     until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
+  - support for `torch.compile` for LLM: captioning/prompt-enhannce  
   - support for `torch.compile` with repeated-blocks  
     reduces time-to-compile 5x without loss of performance!  
     enable in *settings -> model compile -> repeated*  

@@ -7,7 +7,7 @@ import torch
 import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
-from modules import shared, devices, errors, sd_models, model_quant
+from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
 
 
 processor = None
@@ -129,6 +129,8 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
             **quant_args,
         )
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+        if 'LLM' in shared.opts.cuda_compile:
+            model = compile_torch(model)
         loaded = repo
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
@@ -177,6 +179,8 @@ def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: st
             cache_dir=shared.opts.hfcache_dir,
             **quant_args,
         )
+        if 'LLM' in shared.opts.cuda_compile:
+            model = compile_torch(model)
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         loaded = repo
         devices.torch_gc()
@@ -302,6 +306,8 @@ def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str
             **quant_args,
             )
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+        if 'LLM' in shared.opts.cuda_compile:
+            model = compile_torch(model)
         loaded = repo
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
