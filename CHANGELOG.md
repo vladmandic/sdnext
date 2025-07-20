@@ -98,6 +98,7 @@ Although upgrades and existing installations are tested and should work fine!
     if controlnet or processor are selected in xyz grid, they will overwrite settings from first unit in control tab,  
     when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
     also freely selectable are control strength, start and end values  
+  - **Batch** warn on unprocessable images and skip operations on errors so that other images can still be processed  
   - **Metadata** improved parsing and detect foreign metadata  
     detect ComfyUI images  
 - **API**  
