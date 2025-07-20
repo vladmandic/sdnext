@@ -399,11 +399,12 @@ def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_s
 if shared.opts.sdnq_dequantize_compile:
     try:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
-        int8_matmul = torch.compile(int8_matmul, fullgraph=True)
-        fp8_matmul = torch.compile(fp8_matmul, fullgraph=True)
-        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True)
-        conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True)
-        conv_fp8_matmul = torch.compile(conv_fp8_matmul, fullgraph=True)
-        conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True)
+        torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
+        int8_matmul = torch.compile(int8_matmul, fullgraph=True, dynamic=False)
+        fp8_matmul = torch.compile(fp8_matmul, fullgraph=True, dynamic=False)
+        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
+        conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True, dynamic=False)
+        conv_fp8_matmul = torch.compile(conv_fp8_matmul, fullgraph=True, dynamic=False)
+        conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
     except Exception as e:
         shared.log.warning(f"Quantization: type=sdnq MatMul using torch.compile is not available: {e}")
