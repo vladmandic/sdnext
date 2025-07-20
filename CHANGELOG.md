@@ -84,6 +84,10 @@ Although upgrades and existing installations are tested and should work fine!
     enable in *settings -> compute settings -> sdp options*  
     *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
     until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
+  - support for `torch.compile` with repeated-blocks  
+    reduces time-to-compile 5x without loss of performance!  
+    enable in *settings -> model compile -> repeated*  
+    *note*: torch.compile is not compatible with balanced offload  
 - **Other**  
   - **Styles** can now include both generation params and server settings  
     see [Styles docs](https://vladmandic.github.io/sdnext-docs/Styles/) for details  

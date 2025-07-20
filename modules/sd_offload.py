@@ -44,7 +44,10 @@ def disable_offload(sd_model):
         module = getattr(sd_model, module_name, None)
         if isinstance(module, torch.nn.Module):
             network_layer_name = getattr(module, "network_layer_name", None)
-            module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            try:
+                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            except Exception as e:
+                shared.log.warning(f'Offload remove hook: module={module_name} {e}')
             if network_layer_name:
                 module.network_layer_name = network_layer_name
     sd_model.has_accelerate = False
@@ -284,7 +287,10 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             network_layer_name = getattr(module, "network_layer_name", None)
             device_map = getattr(module, "balanced_offload_device_map", None)
             max_memory = getattr(module, "balanced_offload_max_memory", None)
-            module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            try:
+                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            except Exception as e:
+                shared.log.warning(f'Offload remove hook: module={module_name} {e}')
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 prev_gpu = used_gpu
@@ -308,7 +314,10 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
                 if os.environ.get('SD_MOVE_DEBUG', None):
                     errors.display(e, f'Offload: type=balanced op=apply module={module_name}')
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
-            module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
+            try:
+                module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
+            except Exception as e:
+                shared.log.warning(f'Offload add hook: module={module_name} {e}')
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             if network_layer_name:
                 module.network_layer_name = network_layer_name

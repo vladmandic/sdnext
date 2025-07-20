@@ -191,11 +191,11 @@ def compile_upscaler(model):
                     from modules.sd_models_compile import CompiledModelState
                     shared.compiled_model_state = CompiledModelState()
 
-            log_level = logging.WARNING if shared.opts.cuda_compile_verbose else logging.CRITICAL # pylint: disable=protected-access
+            log_level = logging.WARNING if 'verbose' in shared.opts.cuda_compile_options else logging.CRITICAL # pylint: disable=protected-access
             if hasattr(torch, '_logging'):
                 torch._logging.set_logs(dynamo=log_level, aot=log_level, inductor=log_level) # pylint: disable=protected-access
-            torch._dynamo.config.verbose = shared.opts.cuda_compile_verbose # pylint: disable=protected-access
-            torch._dynamo.config.suppress_errors = shared.opts.cuda_compile_errors # pylint: disable=protected-access
+            torch._dynamo.config.verbose = 'verbose' in shared.opts.cuda_compile_options # pylint: disable=protected-access
+            torch._dynamo.config.suppress_errors = 'verbose' not in shared.opts.cuda_compile_options # pylint: disable=protected-access
 
             try:
                 torch._inductor.config.conv_1x1_as_mm = True # pylint: disable=protected-access
@@ -211,8 +211,8 @@ def compile_upscaler(model):
             model = torch.compile(model,
                 mode=shared.opts.cuda_compile_mode,
                 backend=shared.opts.cuda_compile_backend,
-                fullgraph=shared.opts.cuda_compile_fullgraph,
-                dynamic=None if shared.opts.cuda_compile_backend != "openvino_fx" else False,
+                fullgraph='fullgraph' in shared.opts.cuda_compile_options,
+                dynamic='dynamic' in shared.opts.cuda_compile_options,
             ) # pylint: disable=attribute-defined-outside-init
             setup_logging() # compile messes with logging so reset is needed
             t1 = time.time()
