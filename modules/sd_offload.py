@@ -71,6 +71,30 @@ def set_accelerate(sd_model):
         set_accelerate_to_module(sd_model.decoder_pipe)
 
 
+def apply_group_offload(sd_model, op:str='model'):
+    # TODO model load: group offload
+    offload_dct = {
+        'onload_device': devices.device,
+        'offload_device': devices.cpu,
+        'offload_type': 'block_level', # 'leaf_level',
+        'num_blocks_per_group': 1,
+        'non_blocking': False,
+        'use_stream': False,
+        'record_stream': False,
+        'low_cpu_mem_usage': False,
+    }
+    shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} options={offload_dct}')
+    if hasattr(sd_model, "enable_group_offload"):
+        sd_model.enable_group_offload(**offload_dct)
+    else:
+        modules = sd_model._internal_dict.items() if hasattr(sd_model, "_internal_dict") else []# pylint: disable=protected-access
+        modules = [m for m in modules if hasattr(m, "enable_group_offload")]
+        for module in modules:
+            module.enable_group_offload(**offload_dct)
+    set_accelerate(sd_model)
+    return sd_model
+
+
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
@@ -82,6 +106,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     if accelerate_dtype_byte_size is None:
         accelerate_dtype_byte_size = accelerate.utils.modeling.dtype_byte_size
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
+
     if shared.opts.diffusers_offload_mode == "none":
         if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
@@ -90,6 +115,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
         if hasattr(sd_model, 'maybe_free_model_hooks'):
             sd_model.maybe_free_model_hooks()
             sd_model.has_accelerate = False
+
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
         try:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -105,6 +131,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
             set_accelerate(sd_model)
         except Exception as e:
             shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
     if shared.opts.diffusers_offload_mode == "sequential" and hasattr(sd_model, "enable_sequential_cpu_offload"):
         try:
             shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -125,8 +152,13 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
             set_accelerate(sd_model)
         except Exception as e:
             shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
+    if shared.opts.diffusers_offload_mode == "group":
+        sd_model = apply_group_offload(sd_model, op=op)
+
     if shared.opts.diffusers_offload_mode == "balanced":
         sd_model = apply_balanced_offload(sd_model)
+
     process_timer.add('offload', time.time() - t0)
 
 
