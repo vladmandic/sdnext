@@ -71,6 +71,7 @@ Although upgrades and existing installations are tested and should work fine!
     with *t2i, i2i, v2v* workflows  
     optional native upsampling and video refine workflows  
     LoRA support with different conditioning types such as Canny/Depth/Pose, etc.  
+  - support for post load quantization  
 - **UI**  
   - major update to modernui layout  
   - redesign of the *Flat* UI theme  
@@ -105,6 +106,9 @@ Although upgrades and existing installations are tested and should work fine!
   - **Batch** warn on unprocessable images and skip operations on errors so that other images can still be processed  
   - **Metadata** improved parsing and detect foreign metadata  
     detect ComfyUI images  
+- **SDNQ**  
+  - use inference context during quantization  
+  - use static compile  
 - **API**  
   - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
     if model is locked, it cannot be changed using normal load or unload methods  
@@ -122,9 +126,9 @@ Although upgrades and existing installations are tested and should work fine!
   - fix xyz with control enabled  
   - fix control order of image save operations  
   - fix control batch-input processing  
+  - fix torchvision bicubic upsample with ipex  
   - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
-  - sdnq use inference context during quantization  
   - framepack improve offloading  
   - improve scripts error handling  
   - improve infotext param parsing  
