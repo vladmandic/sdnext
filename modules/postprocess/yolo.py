@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 import os
+import re
 import threading
 from copy import copy
 import numpy as np
@@ -203,7 +204,10 @@ class YoloRestorer(Detailer):
             p.detailer_active = 0
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
-        models = [m.strip() for m in shared.opts.detailer_args.split(',')]
+        models = []
+        if len(shared.opts.detailer_args) > 0:
+            models = [m.strip() for m in re.split(r'\n|,|;', shared.opts.detailer_args)]
+            models = [m for m in models if len(m) > 0]
         if len(models) == 0:
             models = shared.opts.detailer_models
         if len(models) == 0:
