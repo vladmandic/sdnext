@@ -112,6 +112,7 @@ def setup_logging():
     from rich.console import Console
     from rich.padding import Padding
     from rich.segment import Segment
+    from rich import box
     from rich import print as rprint
     from rich.pretty import install as pretty_install
 
@@ -199,6 +200,7 @@ def setup_logging():
     })
 
     Padding.__rich_console__ = override_padding
+    box.ROUNDED = box.SIMPLE
     console = Console(
         log_time=True,
         log_time_format='%H:%M:%S-%f',

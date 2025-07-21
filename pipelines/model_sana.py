@@ -7,7 +7,7 @@ from modules import shared, sd_models, devices, modelloader, model_quant
 
 def load_quants(kwargs, repo_id, cache_dir):
     kwargs_copy = kwargs.copy()
-    if model_quant.check_nunchaku('Model') and 'Sana_1600M' in repo_id: # only sana-1600m
+    if 'Sana_1600M' in repo_id and model_quant.check_nunchaku('Model'): # only sana-1600m
         import nunchaku
         nunchaku_precision = nunchaku.utils.get_precision()
         nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-sana-1600m"
