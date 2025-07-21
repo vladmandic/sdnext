@@ -172,12 +172,12 @@ def save_image(image,
         else:
             file_decoration = "[seq]-[prompt_words]"
         file_decoration = namegen.apply(file_decoration)
-        file_decoration += suffix if suffix is not None else ''
+        file_decoration += suffix
         if file_decoration.startswith(basename):
             basename = ''
         filename = os.path.join(path, f"{file_decoration}.{extension}") if basename == '' else os.path.join(path, f"{basename}-{file_decoration}.{extension}")
     else:
-        forced_filename += suffix if suffix is not None else ''
+        forced_filename += suffix
         if forced_filename.startswith(basename):
             basename = ''
         filename = os.path.join(path, f"{forced_filename}.{extension}") if basename == '' else os.path.join(path, f"{basename}-{forced_filename}.{extension}")

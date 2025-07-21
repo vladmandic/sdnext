@@ -51,7 +51,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
 #### External:Unified/MultiModal
-- [Bagel](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)(https://github.com/bytedance-seed/bagel)  
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
 #### External:Image2Image/Editing
