@@ -5,7 +5,7 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from modules import shared, processing, devices, processing_class, ui_common
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols
 from modules.detailer import Detailer
 
 
@@ -46,6 +46,7 @@ class YoloRestorer(Detailer):
         super().__init__()
         self.models = {} # cache loaded models
         self.list = {}
+        self.ui_mode = True
         self.enumerate()
 
     def name(self):
@@ -202,16 +203,28 @@ class YoloRestorer(Detailer):
             p.detailer_active = 0
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
-        if len(shared.opts.detailer_models) == 0:
+        models = [m.strip() for m in shared.opts.detailer_args.split(',')]
+        if len(models) == 0:
+            models = shared.opts.detailer_models
+        if len(models) == 0:
             shared.log.warning('Detailer: model=None')
             return np_image
-        models_used = []
+        shared.log.debug(f'Detailer: models={models}')
+
         # create backups
         orig_apply_overlay = shared.opts.mask_apply_overlay
         orig_p = p.__dict__.copy()
         orig_cls = p.__class__
+        models_used = []
 
-        for i, model_name in enumerate(shared.opts.detailer_models):
+        for i, model_val in enumerate(models):
+            if ':' in model_val:
+                model_name, model_args = model_val.split(':', 1)
+            else:
+                model_name, model_args = model_val, ''
+            model_args = [m.strip() for m in model_args.split(':')]
+            model_args = {k.strip(): v.strip() for k, v in (arg.split('=') for arg in model_args if '=' in arg)}
+
             name, model = self.load(model_name)
             if model is None:
                 shared.log.warning(f'Detailer: model="{name}" not loaded')
@@ -267,6 +280,7 @@ class YoloRestorer(Detailer):
                 'height': resolution,
                 'vae_type': orig_p.get('vae_type', 'Full'),
             }
+            args.update(model_args)
             if args['denoising_strength'] == 0:
                 shared.log.debug(f'Detailer: model="{name}" strength=0 skip')
                 return np_image
@@ -286,7 +300,7 @@ class YoloRestorer(Detailer):
                 p.steps = orig_p.get('steps', 0)
 
             report = [{'label': i.label, 'score': i.score, 'size': f'{i.width}x{i.height}' } for i in items]
-            shared.log.info(f'Detailer: model="{name}" items={report} args={items[0].args} strength={p.detailer_strength} blur={p.mask_blur} width={p.width} height={p.height} padding={p.inpaint_full_res_padding}')
+            shared.log.info(f'Detailer: model="{name}" items={report} args={args}')
             models_used.append(name)
 
             mask_all = []
@@ -338,9 +352,19 @@ class YoloRestorer(Detailer):
 
         return np_image
 
+    def change_mode(self, dropdown, text):
+        self.ui_mode = not self.ui_mode
+        if self.ui_mode:
+            value = [val.split(':')[0].strip() for val in text.split(',')]
+            return gr.update(visible=True, value=value), gr.update(visible=False), gr.update(visible=True)
+        else:
+            value = ', '.join(dropdown)
+            return gr.update(visible=False), gr.update(visible=True, value=value), gr.update(visible=False)
+
     def ui(self, tab: str):
-        def ui_settings_change(detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end):
+        def ui_settings_change(detailers, text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end):
             shared.opts.detailer_models = detailers
+            shared.opts.detailer_args = text if not self.ui_mode else ''
             shared.opts.detailer_classes = classes
             shared.opts.detailer_padding = padding
             shared.opts.detailer_blur = blur
@@ -358,8 +382,11 @@ class YoloRestorer(Detailer):
             with gr.Row():
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
             with gr.Row():
-                detailers = gr.Dropdown(label="Detailer models", elem_id=f"{tab}_detailers", choices=self.list, value=shared.opts.detailer_models, multiselect=True)
-                ui_common.create_refresh_button(detailers, self.enumerate, {}, elem_id=f"{tab}_detailers_refresh")
+                detailers = gr.Dropdown(label="Detailer models", elem_id=f"{tab}_detailers", choices=self.list, value=shared.opts.detailer_models, multiselect=True, visible=True)
+                detailers_text = gr.Textbox(label="Detailer models", elem_id=f"{tab}_detailers_text", placeholder="Comma separated list of detailer models", lines=2, visible=False, interactive=True)
+                refresh_btn = ui_common.create_refresh_button(detailers, self.enumerate, {}, elem_id=f"{tab}_detailers_refresh")
+                ui_mode = ui_components.ToolButton(value=ui_symbols.view)
+                ui_mode.click(fn=self.change_mode, inputs=[detailers, detailers_text], outputs=[detailers, detailers_text, refresh_btn])
             with gr.Row():
                 classes = gr.Textbox(label="Detailer classes", placeholder="Classes", elem_id=f"{tab}_detailer_classes")
             with gr.Row():
@@ -385,15 +412,16 @@ class YoloRestorer(Detailer):
             with gr.Row(elem_classes=['flex-break']):
                 renoise_value = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Renoise', value=shared.opts.detailer_sigma_adjust, elem_id=f"{tab}_detailer_renoise")
                 renoise_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Renoise end', value=shared.opts.detailer_sigma_adjust_max, elem_id=f"{tab}_detailer_renoise_end")
-            detailers.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            classes.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            padding.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            blur.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            min_confidence.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            max_detected.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            min_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            max_size.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
-            iou.change(fn=ui_settings_change, inputs=[detailers, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            detailers.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            detailers_text.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            classes.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            padding.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            blur.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            min_confidence.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            max_detected.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            min_size.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            max_size.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
+            iou.change(fn=ui_settings_change, inputs=[detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end], outputs=[])
             return enabled, prompt, negative, steps, strength
 
 

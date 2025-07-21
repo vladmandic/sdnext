@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-20
+## Update for 2025-07-21
 
-### Highlights for 2025-07-20
+### Highlights for 2025-07-21
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
@@ -26,7 +26,7 @@ Although upgrades and existing installations are tested and should work fine!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-20
+### Details for 2025-07-21
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -79,7 +79,7 @@ Although upgrades and existing installations are tested and should work fine!
   - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
     massive thanks to @CalamitousFelicitousness for bringing this to life!  
   - updated *Models, Video, LTX, FramePack, Styles*, etc.
-- **Compute**
+- **Compute**  
   - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
     provides 10-15% performance improvement over default SDPA for transformer-based models!  
     enable in *settings -> compute settings -> sdp options*  
@@ -107,6 +107,8 @@ Although upgrades and existing installations are tested and should work fine!
   - **Batch** warn on unprocessable images and skip operations on errors so that other images can still be processed  
   - **Metadata** improved parsing and detect foreign metadata  
     detect ComfyUI images  
+  - **Detailer** add `expert` mode where list of detailer models can be converted to textbox for manual editing  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Detailer/) for more information
 - **SDNQ**  
   - use inference context during quantization  
   - use static compile  

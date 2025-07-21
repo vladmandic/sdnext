@@ -263,7 +263,6 @@ axis_options = [
     AxisOption("[Control] Strength", float, apply_control('control_strength')),
     AxisOption("[Control] Start", float, apply_control('control_start')),
     AxisOption("[Control] End", float, apply_control('control_end')),
-
     AxisOption("[HiDiffusion] T1", float, apply_override('hidiffusion_t1')),
     AxisOption("[HiDiffusion] T2", float, apply_override('hidiffusion_t2')),
     AxisOption("[HiDiffusion] Agression step", float, apply_field('hidiffusion_steps')),

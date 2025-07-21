@@ -19,6 +19,7 @@
     "venv": ". venv/bin/activate",
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
+    "update": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft compel pytorch_lightning",
     "eslint": "eslint . javascript/ extensions-builtin/sdnext-modernui/javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",

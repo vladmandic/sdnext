@@ -582,5 +582,9 @@ def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None
     if dct is not None: # post init set additional values
         for k, v in dct.items():
             if hasattr(p, k):
-                setattr(p, k, v)
+                valtype = type(getattr(p, k, None))
+                if valtype in [int, float, str]:
+                    setattr(p, k, valtype(v))
+                else:
+                    setattr(p, k, v)
     return p

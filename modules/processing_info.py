@@ -141,7 +141,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Resize name mask'] = p.resize_name_mask
         args['Resize scale mask'] = p.scale_by_mask
     if 'detailer' in p.ops:
-        args["Detailer"] = ', '.join(shared.opts.detailer_models)
+        args["Detailer"] = ', '.join(shared.opts.detailer_models) if len(shared.opts.detailer_args) == 0 else shared.opts.detailer_args
         args["Detailer steps"] = p.detailer_steps
         args["Detailer strength"] = p.detailer_strength
         args["Detailer prompt"] = p.detailer_prompt if len(p.detailer_prompt) > 0 else None
