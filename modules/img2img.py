@@ -15,11 +15,11 @@ debug('Trace: PROCESS')
 
 def validate_inputs(inputs):
     outputs = []
-    for input in inputs:
-        if filetype.is_image(input):
-            outputs.append(input)
+    for image in inputs:
+        if filetype.is_image(image):
+            outputs.append(image)
         else:
-            shared.log.warning(f'Input skip: file="{input}" filetype={filetype.guess(input)}')
+            shared.log.warning(f'Input skip: file="{image}" filetype={filetype.guess(image)}')
     return outputs
 
 

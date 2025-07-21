@@ -146,7 +146,7 @@ def setup_logging():
         def filter(self, record):
             return len(record.getMessage()) > 2
 
-    def override_padding(self, console, options):
+    def override_padding(self, console, options): # pylint: disable=redefine-outer-name
         style = console.get_style(self.style)
         width = options.max_width
         self.left = 0
