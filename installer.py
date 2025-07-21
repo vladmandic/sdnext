@@ -1,3 +1,4 @@
+from typing import List, Optional
 import os
 import sys
 import json
@@ -104,6 +105,15 @@ def install_traceback(suppress: list = []):
 
 # setup console and file logging
 def setup_logging():
+    from functools import partial, partialmethod
+    from logging.handlers import RotatingFileHandler
+    from rich.theme import Theme
+    from rich.logging import RichHandler
+    from rich.console import Console
+    from rich.padding import Padding
+    from rich.segment import Segment
+    from rich import print as rprint
+    from rich.pretty import install as pretty_install
 
     class RingBuffer(logging.StreamHandler):
         def __init__(self, capacity):
@@ -128,6 +138,7 @@ def setup_logging():
         def get(self):
             return self.buffer
 
+
     class LogFilter(logging.Filter):
         def __init__(self):
             super().__init__()
@@ -135,14 +146,35 @@ def setup_logging():
         def filter(self, record):
             return len(record.getMessage()) > 2
 
+    def override_padding(self, console, options):
+        style = console.get_style(self.style)
+        width = options.max_width
+        self.left = 0
+        render_options = options.update_width(width - self.left - self.right)
+        if render_options.height is not None:
+            render_options = render_options.update_height(height=render_options.height - self.top - self.bottom)
+        lines = console.render_lines(self.renderable, render_options, style=style, pad=False)
+        _Segment = Segment
+        left = _Segment(" " * self.left, style) if self.left else None
+        right = [_Segment.line()]
+        blank_line: Optional[List[Segment]] = None
+        if self.top:
+            blank_line = [_Segment(f'{" " * width}\n', style)]
+            yield from blank_line * self.top
+        if left:
+            for line in lines:
+                yield left
+                yield from line
+                yield from right
+        else:
+            for line in lines:
+                yield from line
+                yield from right
+        if self.bottom:
+            blank_line = blank_line or [_Segment(f'{" " * width}\n', style)]
+            yield from blank_line * self.bottom
+
     t_start = time.time()
-    from functools import partial, partialmethod
-    from logging.handlers import RotatingFileHandler
-    from rich.theme import Theme
-    from rich.logging import RichHandler
-    from rich.console import Console
-    from rich import print as rprint
-    from rich.pretty import install as pretty_install
 
     if args.log:
         global log_file # pylint: disable=global-statement
@@ -159,12 +191,14 @@ def setup_logging():
     global console # pylint: disable=global-statement
     theme = Theme({
         "traceback.border": "black",
-        "traceback.border.syntax_error": "black",
         "inspect.value.border": "black",
+        "traceback.border.syntax_error": "dark_red",
         "logging.level.info": "blue_violet",
         "logging.level.debug": "purple4",
         "logging.level.trace": "dark_blue",
     })
+
+    Padding.__rich_console__ = override_padding
     console = Console(
         log_time=True,
         log_time_format='%H:%M:%S-%f',
@@ -173,6 +207,7 @@ def setup_logging():
         safe_box=True,
         theme=theme,
     )
+
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(name)s | %(levelname)s | %(module)s | %(message)s', handlers=[logging.NullHandler()]) # redirect default logger to null
     pretty_install(console=console)
     install_traceback()

@@ -15,12 +15,10 @@ def load_quants(kwargs, repo_id, cache_dir):
         kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
     elif model_quant.check_quant('Model'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Model')
-        if quant_args:
-            kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
+        kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
     if model_quant.check_quant('TE'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='TE')
-        if quant_args:
-            kwargs['text_encoder'] = transformers.AutoModelForCausalLM.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
+        kwargs['text_encoder'] = transformers.AutoModelForCausalLM.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
     return kwargs
 
 

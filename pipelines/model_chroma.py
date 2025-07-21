@@ -118,20 +118,18 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
         }
         if 'transformer' not in kwargs and model_quant.check_nunchaku('Model'):
             raise NotImplementedError('Nunchaku does not support Chroma Model yet. See https://github.com/mit-han-lab/nunchaku/issues/167')
-        elif 'transformer' not in kwargs and model_quant.check_quant('Model'):
+        if 'transformer' not in kwargs and model_quant.check_quant('Model'):
             load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, modules_to_not_convert=["distilled_guidance_layer"])
-            if quant_args:
-                kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", **load_args, **quant_args)
+            kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", **load_args, **quant_args)
         if 'text_encoder' not in kwargs and model_quant.check_nunchaku('TE'):
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = 'mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
             kwargs['text_encoder'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
-        elif 'text_encoder' not in kwargs and model_quant.check_quant('TE'):
+        if 'text_encoder' not in kwargs and model_quant.check_quant('TE'):
             load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
-            if quant_args:
-                kwargs['text_encoder'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder", **load_args, **quant_args)
+            kwargs['text_encoder'] = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder="text_encoder", **load_args, **quant_args)
     except Exception as e:
         shared.log.error(f'Quantization: {e}')
         errors.display(e, 'Quantization:')

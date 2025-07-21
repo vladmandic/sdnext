@@ -123,6 +123,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - installer dont cache installed state  
   - fix Cosmos-Predict2 retrying TAESD download  
   - better handle startup import errors  
+  - fix traceback width preventing copy&paste  
   - fix ansi controle output from scripts/extensions  
   - fix diffusers models non-unique hash  
   - fix loading of manually downloaded diffuser models  
