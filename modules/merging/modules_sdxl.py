@@ -297,7 +297,7 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
             from modules.merging import convert_sdxl
             metadata = convert_sdxl.convert(model_path=folder, checkpoint_path=fn, metadata=get_metadata())
             if 'modelspec.thumbnail' in metadata:
-                metadata['modelspec.thumbnail'] = f"{metadata['modelspec.thumbnail'].split(',')[0]}:{len(metadata['modelspec.thumbnail'])}"
+                metadata['modelspec.thumbnail'] = f"{metadata['modelspec.thumbnail'].split(',')[0]}:{len(metadata['modelspec.thumbnail'])}" # pylint: disable=use-maxsplit-arg
             yield msg(f'metadata={metadata}')
     except Exception as e:
         shared.log.error(f'Modules merge save: {e}')
