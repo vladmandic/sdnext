@@ -2,7 +2,7 @@ import time
 import torch
 import diffusers
 import transformers
-from modules import shared, sd_models, devices, modelloader, model_quant
+from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
 
 
 def load_quants(kwargs, repo_id, cache_dir):
@@ -18,7 +18,7 @@ def load_quants(kwargs, repo_id, cache_dir):
         kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
     if model_quant.check_quant('TE'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='TE')
-        kwargs['text_encoder'] = transformers.AutoModelForCausalLM.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
+        kwargs['text_encoder'] = transformers.AutoModel.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
     return kwargs
 
 
@@ -85,6 +85,7 @@ def load_sana(checkpoint_info, kwargs={}):
     except Exception:
         pass
 
+    sd_hijack_te.init_hijack(pipe)
     t1 = time.time()
     shared.log.debug(f'Load model: type=Sana target={devices.dtype} te={pipe.text_encoder.dtype} transformer={pipe.transformer.dtype} vae={pipe.vae.dtype} time={t1-t0:.2f}')
     devices.torch_gc(force=True)
