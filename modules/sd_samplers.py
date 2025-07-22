@@ -54,6 +54,8 @@ def visible_sampler_names():
 
 
 def restore_default(model):
+    if model is None:
+        return None
     if getattr(model, "default_scheduler", None) is not None:
         model.scheduler = copy.deepcopy(model.default_scheduler)
         if hasattr(model, "prior_pipe") and hasattr(model.prior_pipe, "scheduler"):
@@ -66,6 +68,7 @@ def restore_default(model):
         shared.state.prediction_type = model.scheduler.config.prediction_type
     shared.log.debug(f'Sampler: "Default" cls={model.scheduler.__class__.__name__} config={config}')
     return model.scheduler
+
 
 def create_sampler(name, model):
     if name is None or name == 'None':

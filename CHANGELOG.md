@@ -16,7 +16,7 @@ Feature highlights include:
 - [Wiki](https://github.com/vladmandic/automatic/wiki) & [Docs](https://vladmandic.github.io/sdnext-docs/) updates, especially new end-to-end [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page  
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
-This plus major cleanup of codebase and external dependencies resulted in ~53k LoC (*lines-of-code*) reduction and spread over [~720 files](https://github.com/vladmandic/sdnext/pull/4017) in ~120 commits!  
+This plus major cleanup of codebase and external dependencies resulted in ~55k LoC (*lines-of-code*) reduction and spread over [~750 files](https://github.com/vladmandic/sdnext/pull/4017) in ~160 commits!  
 
 We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 
@@ -133,6 +133,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - fix xyz with control enabled  
   - fix control order of image save operations  
   - fix control batch-input processing  
+  - fix modules merge save model  
   - fix torchvision bicubic upsample with ipex  
   - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
