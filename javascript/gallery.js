@@ -469,6 +469,10 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   el.files = gradioApp().getElementById('tab-gallery-files');
   el.status = gradioApp().getElementById('tab-gallery-status');
   el.search = gradioApp().querySelector('#tab-gallery-search textarea');
+  if (!el.folders || !el.files || !el.status || !el.search) {
+    error('initGallery', 'Missing gallery elements');
+    return;
+  }
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
