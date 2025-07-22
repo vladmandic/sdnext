@@ -11,7 +11,7 @@ def create_ui(accordion=True):
     def update_ui(checked):
         return gr.update(visible=checked)
 
-    with gr.Accordion('NudeNet', open = False, elem_id='nudenet') if accordion else gr.Group():
+    with gr.Accordion('NudeNet', open = False, elem_id='postprocess_nudenet_accordion') if accordion else gr.Group():
         with gr.Row():
             enabled = gr.Checkbox(label = 'Enabled', value = False)
         with gr.Group(visible=False) as gr_censor:

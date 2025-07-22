@@ -7,7 +7,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
     name = "Video"
 
     def ui(self):
-        with gr.Accordion('Create video', open = False):
+        with gr.Accordion('Create video', open = False, elem_id="postprocess_video_accordion"):
             def video_type_change(video_type):
                 return [
                     gr.update(visible=video_type != 'None'),

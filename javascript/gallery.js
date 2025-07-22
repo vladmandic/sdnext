@@ -413,13 +413,13 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   let fragment = document.createDocumentFragment();
 
   ws.onmessage = (event) => {
-    numFiles++;
     t1 = performance.now();
     const data = decodeURI(event.data).split('##F##');
     if (data[0] === '#END#') {
       ws.close();
     } else {
       const file = new GalleryFile(data[0], data[1]);
+      numFiles++;
       fragment.appendChild(file);
       if (numFiles % 100 === 0) {
         el.status.innerText = `Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`;

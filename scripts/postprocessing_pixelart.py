@@ -6,15 +6,15 @@ class ScriptPixelArt(scripts_postprocessing.ScriptPostprocessing):
     order = 30000
 
     def ui(self):
-        with gr.Accordion('PixelArt', open = False):
+        with gr.Accordion('PixelArt', open = False, elem_id="postprocess_pixelart_accordion"):
             with gr.Row():
                 pixelart_enabled = gr.Checkbox(label="Enable PixelArt", value=False, elem_id="extras_pixelart_enabled")
-                pixelart_use_edge_detection = gr.Checkbox(label="Enable PixelArt edge detection", value=True, elem_id="extras_pixelart_use_edge_detection")
+                pixelart_use_edge_detection = gr.Checkbox(label="Enable edge detection", value=True, elem_id="extras_pixelart_use_edge_detection")
             with gr.Row():
                 pixelart_block_size = gr.Slider(minimum=2, maximum=64, step=1, value=8, label="PixelArt block size", elem_id="extras_pixelart_block_size")
-                pixelart_edge_block_size = gr.Slider(minimum=2, maximum=64, step=1, value=4, label="PixelArt block size for edge detection", elem_id="extras_pixelart_edge_block_size")
-                pixelart_image_weight = gr.Slider(minimum=0.0, maximum=2.0, step=0.01, value=1.0, label="PixelArt edge detection image weight", elem_id="extras_pixelart_image_weight")
-                pixelart_sharpen_amount = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.1, label="PixelArt sharpen amount", elem_id="extras_pixelart_sharpen_amount")
+                pixelart_edge_block_size = gr.Slider(minimum=2, maximum=64, step=1, value=4, label="Edge block size", elem_id="extras_pixelart_edge_block_size")
+                pixelart_image_weight = gr.Slider(minimum=0.0, maximum=2.0, step=0.01, value=1.0, label="Edge image weight", elem_id="extras_pixelart_image_weight")
+                pixelart_sharpen_amount = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.1, label="PixelArt sharpen", elem_id="extras_pixelart_sharpen_amount")
         return {
             "pixelart_enabled": pixelart_enabled,
             "pixelart_block_size": pixelart_block_size,

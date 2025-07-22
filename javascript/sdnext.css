@@ -408,8 +408,7 @@ div:has(>#tab-gallery-folders) { flex-grow: 0 !important; background-color: var(
     #img2img_actions_column { display: flex; min-width: fit-content !important; flex-direction: row;justify-content: space-evenly; align-items: center;}
     #txt2img_generate_box, #img2img_generate_box, #txt2img_enqueue_wrapper,#img2img_enqueue_wrapper {display: flex;flex-direction: column;height: 4em !important;align-items: stretch;justify-content: space-evenly;}
     #img2img_interface, #img2img_results, #img2img_footer p { text-wrap: wrap; min-width: 100% !important; max-width: 100% !important;} /* maintain single column for from image operations on larger mobile devices */
-    #txt2img_sampler, #txt2img_batch, #txt2img_seed_group, #txt2img_advanced, #txt2img_second_pass, #img2img_sampling_group, #img2img_resize_group, #img2img_batch_group, #img2img_seed_group, #img2img_denoise_group, #img2img_advanced_group { width: 100% !important; } /* fix from text/image UI
-    elements to prevent them from moving around within the UI */
+    #txt2img_sampler, #txt2img_batch, #txt2img_seed_group, #txt2img_advanced, #img2img_sampling_group, #img2img_resize_group, #img2img_batch_group, #img2img_seed_group, #img2img_denoise_group, #img2img_advanced_group { width: 100% !important; } /* fix from text/image UI elements to prevent them from moving around within the UI */
     #img2img_resize_group .gradio-radio>div { display: flex; flex-direction: column; width: unset !important; }
     #inpaint_controls div { display:flex;flex-direction: row;}
     #inpaint_controls .gradio-radio>div { display: flex; flex-direction: column !important; }
