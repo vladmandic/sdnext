@@ -147,7 +147,7 @@ def create_video_inputs(tab:str, show_always:bool=False):
 
 
 def create_cfg_inputs(tab):
-    with gr.Row():
+    with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox']):
         cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Guidance scale', value=6.0, elem_id=f"{tab}_cfg_scale")
         cfg_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance end', value=1.0, elem_id=f"{tab}_cfg_end")
     return cfg_scale, cfg_end
@@ -156,11 +156,6 @@ def create_cfg_inputs(tab):
 def create_advanced_inputs(tab, base=True):
     with gr.Accordion(open=False, label="Advanced", elem_id=f"{tab}_advanced", elem_classes=["small-accordion"]):
         with gr.Group():
-            with gr.Row(elem_id=f"{tab}_vae_options"):
-                vae_type = gr.Dropdown(label='VAE type', choices=['Full', 'Tiny', 'Remote'], value='Full', elem_id=f"{tab}_vae_type")
-            with gr.Row(elem_id=f"{tab}_advanced_options"):
-                tiling = gr.Checkbox(label='Texture tiling', value=False, elem_id=f"{tab}_tiling")
-                hidiffusion = gr.Checkbox(label='HiDiffusion', value=False, elem_id=f"{tab}_hidiffusion")
             if base:
                 cfg_scale, cfg_end = create_cfg_inputs(tab)
             else:
@@ -173,6 +168,11 @@ def create_advanced_inputs(tab, base=True):
                 diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive")
             with gr.Row():
                 clip_skip = gr.Slider(label='CLiP skip', value=1, minimum=0, maximum=12, step=0.1, elem_id=f"{tab}_clip_skip", interactive=shared.opts.clip_skip_enabled)
+            with gr.Row(elem_id=f"{tab}_vae_options"):
+                vae_type = gr.Dropdown(label='VAE type', choices=['Full', 'Tiny', 'Remote'], value='Full', elem_id=f"{tab}_vae_type")
+            with gr.Row(elem_id=f"{tab}_advanced_options"):
+                tiling = gr.Checkbox(label='Texture tiling', value=False, elem_id=f"{tab}_tiling")
+                hidiffusion = gr.Checkbox(label='HiDiffusion', value=False, elem_id=f"{tab}_hidiffusion")
     return vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, diffusers_pag_scale, diffusers_pag_adaptive, cfg_end
 
 
@@ -204,7 +204,7 @@ def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
     if choices is None:
         sd_samplers.set_samplers()
         choices = [x for x in sd_samplers.samplers if not x.name == 'Same as primary']
-    with gr.Row(elem_id=f"{tabname}_sampler_row", elem_classes=['flex-break']):
+    with gr.Row(elem_id=f"{tabname}_sampler_row", elem_classes=['flex-break', 'flexbox']):
         steps = gr.Slider(minimum=1, maximum=100, step=1, label="Steps", elem_id=f"{tabname}_steps", value=default_steps)
         sampler_index = gr.Dropdown(label='Sampling method', elem_id=f"{tabname}_sampling", choices=[x.name for x in choices], value='Default', type="index")
     return steps, sampler_index
