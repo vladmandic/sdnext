@@ -99,6 +99,8 @@ def guess_by_name(fn, current_guess):
         return 'FLite'
     elif 'wan' in fn.lower():
         return 'WanAI'
+    elif 'bria' in fn.lower():
+        return 'Bria'
     return current_guess
 
 

@@ -506,6 +506,13 @@
     "skip": true
   },
 
+  "Bria 3.2": {
+    "path": "briaai/BRIA-3.2",
+    "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
+    "preview": "briaai--BRIA-3.2.jpg",
+    "skip": true
+  },
+
   "Meissonic": {
     "path": "MeissonFlow/Meissonic",
     "desc": "Meissonic is a non-autoregressive mask image modeling text-to-image synthesis model that can generate high-resolution images. It is designed to run on consumer graphics cards.",

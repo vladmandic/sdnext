@@ -6,7 +6,7 @@
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
-- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows and [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
+- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows, [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
@@ -43,6 +43,10 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
     *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB so aggressive quantization and offloading are recommended  
   - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
     F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+    available via *networks -> models -> reference*  
+  - [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)  
+    Bria is a smaller 4B parameter model built entirely on licensed data and safe for commercial use  
+    *note*: this is a gated model, you need to [accept terms](https://huggingface.co/briaai/BRIA-3.2) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
     available via *networks -> models -> reference*  
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
     very fast automatic image background replacement methods with relightning!  

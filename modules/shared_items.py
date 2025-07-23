@@ -47,12 +47,13 @@ pipelines = {
     'WanAI': getattr(diffusers, 'WanPipeline', None),
 
     # dynamically imported and redefined later
-    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'Monetico': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
+    'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
+    'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
+    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None),
+    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None),
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
+    'Bria': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 initialize_onnx()
