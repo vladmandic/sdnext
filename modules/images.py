@@ -297,7 +297,7 @@ def parse_novelai_metadata(data: dict):
         try:
             dct = json.loads(data["Comment"])
             sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
-            geninfo = f"{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337"
+            geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337'
         except Exception as e:
             pass
     return geninfo
