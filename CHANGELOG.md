@@ -115,7 +115,9 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - **Metadata** improved parsing and detect foreign metadata  
     detect ComfyUI images  
   - **Detailer** add `expert` mode where list of detailer models can be converted to textbox for manual editing  
-    see [docs](https://vladmandic.github.io/sdnext-docs/Detailer/) for more information
+    see [docs](https://vladmandic.github.io/sdnext-docs/Detailer/) for more information  
+  - **Detailer** add option to merge multiple results from each detailer model  
+    for example, hands model can result in two hands each being processed separately or both hands can be merged into one composite job  
 - **SDNQ**  
   - use inference context during quantization  
   - use static compile  
