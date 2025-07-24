@@ -19,7 +19,15 @@
   {"id":"","label":"🖼️","localized":"","hint":"Show preview"},
   {"id":"","label":"♻","localized":"","hint":"Interrogate image"},
   {"id":"","label":"↶","localized":"","hint":"Apply selected style to prompt"},
-  {"id":"","label":"↷","localized":"","hint":"Save current prompt to style"}
+  {"id":"","label":"↷","localized":"","hint":"Save current prompt to style"},
+  {"id":"","label":"","localized":"","hint":"Sort by name, ascending"},
+  {"id":"","label":"","localized":"","hint":"Sort by name, descending"},
+  {"id":"","label":"","localized":"","hint":"Sort by size, ascending"},
+  {"id":"","label":"","localized":"","hint":"Sort by size, descending"},
+  {"id":"","label":"","localized":"","hint":"Sort by resolution, ascending"},
+  {"id":"","label":"","localized":"","hint":"Sort by resolution, descending"},
+  {"id":"","label":"","localized":"","hint":"Sort by time, ascending"},
+  {"id":"","label":"","localized":"","hint":"Sort by time, descending"}
 ],
 "main": [
   {"id":"","label":"Prompt","localized":"","hint":"Describe image you want to generate"},
