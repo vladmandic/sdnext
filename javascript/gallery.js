@@ -71,6 +71,16 @@ async function createThumb(img) {
   return dataURL;
 }
 
+async function handleSeparator(separator) {
+  separator.classList.toggle('gallery-separator-hidden');
+  const all = Array.from(el.files.children);
+  const hide = separator.classList.contains('gallery-separator-hidden');
+  separator.innerText = `${hide ? '▶' : '▼'} ${separator.title}`;
+  for (const f of all) {
+    if (separator.title.length > 0 && f.name?.startsWith(separator.title)) f.style.display = hide ? 'none' : 'unset';
+  }
+}
+
 async function addSeparators() {
   document.querySelectorAll('.gallery-separator').forEach((node) => el.files.removeChild(node));
   const all = Array.from(el.files.children);
@@ -84,8 +94,9 @@ async function addSeparators() {
       if (dir.length > 0) {
         const sep = document.createElement('div');
         sep.className = 'gallery-separator';
-        sep.innerText = dir;
+        sep.innerText = `▼ ${dir}`;
         sep.title = dir;
+        sep.onclick = () => handleSeparator(sep);
         el.files.insertBefore(sep, f);
       }
     }

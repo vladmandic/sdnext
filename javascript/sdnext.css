@@ -187,8 +187,11 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 .gradio-dropdown {
   margin-right: var(--spacing-sm) !important;
   min-width: 160px;
+  max-width: fit-content
+}
 
-max-width: fit-content
+.gradio-dropdown label span {
+  margin-bottom: 2px !important;
 }
 
 .gradio-dropdown ul.options {
@@ -659,8 +662,7 @@ div#extras_scale_to_tab div.form {
 }
 
 #txt2img_styles, #img2img_styles, #control_styles, #video_styles {
-  margin-top: 2px;
-  padding: 0;
+  padding: 0 !important;
 }
 
 #txt2img_styles:hover, #img2img_styles:hover, #control_styles:hover, #video_styles:hover {
@@ -1068,12 +1070,18 @@ table.settings-value-table td {
 }
 
 .extra-networks .search {
-  flex: 1;
-  height: 4em;
+  width: unset !important;
+  min-width: unset !important;
 }
 
+.extra-networks .search textarea {
+  width: calc(120px / 1.1);
+  resize: none;
+  margin-right: 2px;
+}
+
+
 .extra-networks .description {
-  flex: 3;
 }
 
 .extra-networks .description textarea {
@@ -1095,8 +1103,6 @@ table.settings-value-table td {
 
 .extra-networks .buttons>button {
   color: var(--primary-300) !important;
-  font-size: 20px !important;
-  height: 1.4em;
   margin-left: -0.2em;
 }
 
@@ -1143,6 +1149,7 @@ table.settings-value-table td {
   overflow-y: auto;
   width: -moz-available;
   width: -webkit-fill-available;
+  justify-content: space-evenly;
 }
 
 .extra-network-cards .card {
@@ -1326,6 +1333,7 @@ table.settings-value-table td {
   min-height: 40vh;
   overflow-y: auto;
 }
+
 
 .extra-details td:first-child {
   font-weight: bold;
@@ -1632,6 +1640,7 @@ div:has(>#tab-gallery-folders) {
   display: block !important;
   font-size: larger;
   padding: 0.5em;
+  cursor: cell;
 }
 
 #html_log_gallery {
