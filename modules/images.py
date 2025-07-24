@@ -232,17 +232,75 @@ def safe_decode_string(s: bytes):
     return None
 
 
-def parse_comfy_metadata(data: str):
-    res = ''
-    try:
-        dct = json.loads(data)
-        version = dct['extra'].get('frontendVersion', None) if 'extra' in dct else ''
-        nodes = dct.get('nodes', []) if 'nodes' in dct else []
-        if 'ComfyUI' in data:
-            res = f"App: ComfyUI | Version: {version} | Nodes: {len(nodes)}"
-    except Exception as e:
-        shared.log.error(f'Error parsing ComfyUI metadata: {e}')
-    return res
+def parse_comfy_metadata(data: dict):
+    def parse_workflow():
+        res = ''
+        try:
+            txt = data.get('workflow', {})
+            dct = json.loads(txt)
+            nodes = len(dct.get('nodes', []))
+            version = dct.get('extra', {}).get('frontendVersion', 'unknown')
+            if version is not None:
+                res = f" | Version: {version} | Nodes: {nodes}"
+        except:
+            pass
+        return res
+
+    def parse_prompt():
+        res = ''
+        try:
+            txt = data.get('prompt', {})
+            dct = json.loads(txt)
+            for val in dct.values():
+                inp = val.get('inputs', {})
+                if 'model' in inp:
+                    model = inp.get('model', None)
+                    if isinstance(model, str) and len(model) > 0:
+                        res += f" | Model: {model} | Class: {val.get('class_type', '')}"
+        except:
+            pass
+        return res
+
+    workflow = parse_workflow()
+    prompt = parse_prompt()
+    if len(workflow) > 0 or len(prompt) > 0:
+        parsed = f'App: ComfyUI{workflow}{prompt}'
+        shared.log.info(f'Image metadata: {parsed}')
+        return parsed
+    return ''
+
+
+def parse_invoke_metadata(data: dict):
+    def parse_metadtaa():
+        res = ''
+        try:
+            txt = data.get('invokeai_metadata', {})
+            dct = json.loads(txt)
+            if 'app_version' in dct:
+                version = dct['app_version']
+                if isinstance(version, str) and len(version) > 0:
+                    res += f" | Version: {version}"
+        except:
+            pass
+        return res
+
+    metadata = parse_metadtaa()
+    if len(metadata) > 0:
+        parsed = f'App: InvokeAI{metadata}'
+        shared.log.info(f'Image metadata: {parsed}')
+        return parsed
+
+
+def parse_novelai_metadata(data: dict):
+    geninfo = ''
+    if data.get("Software", None) == "NovelAI":
+        try:
+            dct = json.loads(data["Comment"])
+            sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
+            geninfo = f"{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337"
+        except Exception as e:
+            pass
+    return geninfo
 
 
 def read_info_from_image(image: Image, watermark: bool = False):
@@ -286,19 +344,9 @@ def read_info_from_image(image: Image, watermark: bool = False):
         if isinstance(val, bytes): # decode bytestring
             items[key] = safe_decode_string(val)
 
-    if "prompt" in items:
-        geninfo += parse_comfy_metadata(items["prompt"])
-    if "workflow" in items:
-        geninfo += parse_comfy_metadata(items["workflow"])
-    if items.get("Software", None) == "NovelAI":
-        try:
-            json_info = json.loads(items["Comment"])
-            sampler = sd_samplers.samplers_map.get(json_info["sampler"], "Euler a")
-            geninfo = f"""{items["Description"]}
-Negative prompt: {json_info["uc"]}
-Steps: {json_info["steps"]}, Sampler: {sampler}, CFG scale: {json_info["scale"]}, Seed: {json_info["seed"]}, Size: {image.width}x{image.height}, Clip skip: 2, ENSD: 31337"""
-        except Exception as e:
-            errors.display(e, 'novelai image parser')
+    geninfo += parse_comfy_metadata(items)
+    geninfo += parse_invoke_metadata(items)
+    geninfo += parse_novelai_metadata(items)
 
     for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi']: # remove unwanted tags
         items.pop(key, None)

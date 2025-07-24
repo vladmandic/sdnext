@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-23
+## Update for 2025-07-24
 
-### Highlights for 2025-07-23
+### Highlights for 2025-07-24
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
@@ -29,7 +29,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-07-23
+### Details for 2025-07-24
 
 - **License**  
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
@@ -114,6 +114,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - **Batch** warn on unprocessable images and skip operations on errors so that other images can still be processed  
   - **Metadata** improved parsing and detect foreign metadata  
     detect ComfyUI images  
+    detect InvokeAI images  
   - **Detailer** add `expert` mode where list of detailer models can be converted to textbox for manual editing  
     see [docs](https://vladmandic.github.io/sdnext-docs/Detailer/) for more information  
   - **Detailer** add option to merge multiple results from each detailer model  
