@@ -66,11 +66,11 @@ class Script(scripts_manager.Script):
             tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16)
         with gr.Row():
             with gr.Column():
-                override_scheduler = gr.Checkbox(label='Override sampler', value=True)
+                override_scheduler = gr.Checkbox(label='HV override sampler', value=True)
             with gr.Column():
-                scheduler_shift = gr.Slider(label='Sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0)
+                scheduler_shift = gr.Slider(label='HV sampler shift', minimum=0.0, maximum=20.0, step=0.1, value=7.0)
         with gr.Row():
-            template = gr.TextArea(label='Prompt processor', lines=3, value=default_template, visible=False)
+            template = gr.TextArea(label='HV prompt processor', lines=3, value=default_template, visible=False)
         with gr.Row():
             from modules.ui_sections import create_video_inputs
             video_type, duration, gif_loop, mp4_pad, mp4_interpolate = create_video_inputs(tab='img2img' if is_img2img else 'txt2img')

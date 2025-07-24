@@ -19,44 +19,44 @@ def create_ui(prompt, negative, styles, _overrides):
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="framepack_generate_btn", variant='primary', visible=False)
             with gr.Row():
-                variant = gr.Dropdown(label="Model variant", choices=list(framepack_load.models), value='bi-directional', type='value')
+                variant = gr.Dropdown(label="FP model variant", choices=list(framepack_load.models), value='bi-directional', type='value')
             with gr.Row():
-                resolution = gr.Slider(label="Resolution", minimum=240, maximum=1088, value=640, step=16)
-                duration = gr.Slider(label="Duration", minimum=1, maximum=120, value=4, step=0.1)
-                mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
-                mp4_interpolate = gr.Slider(label="Interpolation", minimum=0, maximum=10, value=0, step=1)
+                resolution = gr.Slider(label="FP resolution", minimum=240, maximum=1088, value=640, step=16)
+                duration = gr.Slider(label="FP duration", minimum=1, maximum=120, value=4, step=0.1)
+                mp4_fps = gr.Slider(label="FP target FPS", minimum=1, maximum=60, value=24, step=1)
+                mp4_interpolate = gr.Slider(label="FP interpolation", minimum=0, maximum=10, value=0, step=1)
             with gr.Row():
                 section_html = gr.HTML(show_label=False, elem_id="framepack_section_html")
             with gr.Accordion(label="Inputs", open=False):
                 with gr.Row():
-                    input_image = gr.Image(sources='upload', type="numpy", label="Init image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_input_image")
-                    end_image = gr.Image(sources='upload', type="numpy", label="End image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_end_image")
+                    input_image = gr.Image(sources='upload', type="numpy", label="FP init image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_input_image")
+                    end_image = gr.Image(sources='upload', type="numpy", label="FP end image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_end_image")
                 with gr.Row():
-                    start_weight = gr.Slider(label="Init strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_start_weight")
-                    end_weight = gr.Slider(label="End strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_end_weight")
-                    vision_weight = gr.Slider(label="Vision strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_vision_weight")
+                    start_weight = gr.Slider(label="FP init strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_start_weight")
+                    end_weight = gr.Slider(label="FP end strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_end_weight")
+                    vision_weight = gr.Slider(label="FP vision strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_vision_weight")
             with gr.Accordion(label="Sections", open=False):
-                section_prompt = gr.Textbox(label="Section prompts", elem_id="framepack_section_prompt", lines=2, placeholder="Optional one-line prompt suffix per each video section", interactive=True)
+                section_prompt = gr.Textbox(label="FP section prompts", elem_id="framepack_section_prompt", lines=2, placeholder="Optional one-line prompt suffix per each video section", interactive=True)
             with gr.Accordion(label="Video", open=False):
                 with gr.Row():
-                    mp4_codec = gr.Dropdown(label="Codec", choices=['none', 'libx264'], value='libx264', type='value')
+                    mp4_codec = gr.Dropdown(label="FP codec", choices=['none', 'libx264'], value='libx264', type='value')
                     ui_common.create_refresh_button(mp4_codec, get_codecs)
-                    mp4_ext = gr.Textbox(label="Format", value='mp4', elem_id="framepack_mp4_ext")
-                    mp4_opt = gr.Textbox(label="Options", value='crf:16', elem_id="framepack_mp4_ext")
+                    mp4_ext = gr.Textbox(label="FP format", value='mp4', elem_id="framepack_mp4_ext")
+                    mp4_opt = gr.Textbox(label="FP options", value='crf:16', elem_id="framepack_mp4_ext")
                 with gr.Row():
-                    mp4_video = gr.Checkbox(label='Save Video', value=True, elem_id="framepack_mp4_video")
-                    mp4_frames = gr.Checkbox(label='Save Frames', value=False, elem_id="framepack_mp4_frames")
-                    mp4_sf = gr.Checkbox(label='Save SafeTensors', value=False, elem_id="framepack_mp4_sf")
+                    mp4_video = gr.Checkbox(label='FP save video', value=True, elem_id="framepack_mp4_video")
+                    mp4_frames = gr.Checkbox(label='FP save frames', value=False, elem_id="framepack_mp4_frames")
+                    mp4_sf = gr.Checkbox(label='FP save safetensors', value=False, elem_id="framepack_mp4_sf")
             with gr.Accordion(label="Advanced", open=False):
                 seed = ui_sections.create_seed_inputs('control', reuse_visible=False, subseed_visible=False, accordion=False)[0]
-                latent_ws = gr.Slider(label="Latent window size", minimum=1, maximum=33, value=9, step=1)
+                latent_ws = gr.Slider(label=f"FP latent window size", minimum=1, maximum=33, value=9, step=1)
                 with gr.Row():
-                    steps = gr.Slider(label="Steps", minimum=1, maximum=100, value=25, step=1)
-                    shift = gr.Slider(label="Sampler shift", minimum=0.0, maximum=10.0, value=3.0, step=0.01)
+                    steps = gr.Slider(label="FP steps", minimum=1, maximum=100, value=25, step=1)
+                    shift = gr.Slider(label="FP sampler shift", minimum=0.0, maximum=10.0, value=3.0, step=0.01)
                 with gr.Row():
-                    cfg_scale = gr.Slider(label="CFG scale", minimum=1.0, maximum=32.0, value=1.0, step=0.01)
-                    cfg_distilled = gr.Slider(label="Distilled CFG scale", minimum=1.0, maximum=32.0, value=10.0, step=0.01)
-                    cfg_rescale = gr.Slider(label="CFG re-scale", minimum=0.0, maximum=1.0, value=0.0, step=0.01)
+                    cfg_scale = gr.Slider(label="FP CFG scale", minimum=1.0, maximum=32.0, value=1.0, step=0.01)
+                    cfg_distilled = gr.Slider(label="FP distilled CFG scale", minimum=1.0, maximum=32.0, value=10.0, step=0.01)
+                    cfg_rescale = gr.Slider(label="FP CFG re-scale", minimum=0.0, maximum=1.0, value=0.0, step=0.01)
 
             vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=input_image)
 
@@ -65,19 +65,19 @@ def create_ui(prompt, negative, styles, _overrides):
                     btn_load = gr.Button(value="Load model", elem_id="framepack_btn_load", interactive=True)
                     btn_unload = gr.Button(value="Unload model", elem_id="framepack_btn_unload", interactive=True)
                 with gr.Row():
-                    system_prompt = gr.Textbox(label="System prompt", elem_id="framepack_system_prompt", lines=6, placeholder="Optional system prompt for the model", interactive=True)
+                    system_prompt = gr.Textbox(label="FP system prompt", elem_id="framepack_system_prompt", lines=6, placeholder="Optional system prompt for the model", interactive=True)
                 with gr.Row():
-                    receipe = gr.Textbox(label="Model receipe", elem_id="framepack_model_receipe", lines=6, placeholder="Model receipe", interactive=True)
+                    receipe = gr.Textbox(label="FP model receipe", elem_id="framepack_model_receipe", lines=6, placeholder="Model receipe", interactive=True)
                 with gr.Row():
                     receipe_get = gr.Button(value="Get receipe", elem_id="framepack_btn_get_model", interactive=True)
                     receipe_set = gr.Button(value="Set receipe", elem_id="framepack_btn_set_model", interactive=True)
                     receipe_reset = gr.Button(value="Reset receipe", elem_id="framepack_btn_reset_model", interactive=True)
-                use_teacache = gr.Checkbox(label='Enable TeaCache', value=True)
-                optimized_prompt = gr.Checkbox(label='Use optimized system prompt', value=True)
-                use_cfgzero = gr.Checkbox(label='Enable CFGZero', value=False)
-                use_preview = gr.Checkbox(label='Enable Preview', value=True)
-                attention = gr.Dropdown(label="Attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
-                vae_type = gr.Dropdown(label="VAE", choices=['Full', 'Tiny', 'Remote'], value='Local', type='value')
+                use_teacache = gr.Checkbox(label='FP enable TeaCache', value=True)
+                optimized_prompt = gr.Checkbox(label='FP use optimized system prompt', value=True)
+                use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)
+                use_preview = gr.Checkbox(label='FP enable Preview', value=True)
+                attention = gr.Dropdown(label=f"FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
+                vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Local', type='value')
 
         with gr.Column(elem_id='framepack-output-column', scale=2) as _column_output:
             with gr.Tabs():
