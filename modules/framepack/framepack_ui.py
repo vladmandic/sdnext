@@ -49,7 +49,7 @@ def create_ui(prompt, negative, styles, _overrides):
                     mp4_sf = gr.Checkbox(label='FP save safetensors', value=False, elem_id="framepack_mp4_sf")
             with gr.Accordion(label="Advanced", open=False):
                 seed = ui_sections.create_seed_inputs('control', reuse_visible=False, subseed_visible=False, accordion=False)[0]
-                latent_ws = gr.Slider(label=f"FP latent window size", minimum=1, maximum=33, value=9, step=1)
+                latent_ws = gr.Slider(label="FP latent window size", minimum=1, maximum=33, value=9, step=1)
                 with gr.Row():
                     steps = gr.Slider(label="FP steps", minimum=1, maximum=100, value=25, step=1)
                     shift = gr.Slider(label="FP sampler shift", minimum=0.0, maximum=10.0, value=3.0, step=0.01)
@@ -76,7 +76,7 @@ def create_ui(prompt, negative, styles, _overrides):
                 optimized_prompt = gr.Checkbox(label='FP use optimized system prompt', value=True)
                 use_cfgzero = gr.Checkbox(label='FP enable CFGZero', value=False)
                 use_preview = gr.Checkbox(label='FP enable Preview', value=True)
-                attention = gr.Dropdown(label=f"FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
+                attention = gr.Dropdown(label="FP attention", choices=['Default', 'Xformers', 'FlashAttention', 'SageAttention'], value='Default', type='value')
                 vae_type = gr.Dropdown(label="FP VAE", choices=['Full', 'Tiny', 'Remote'], value='Local', type='value')
 
         with gr.Column(elem_id='framepack-output-column', scale=2) as _column_output:

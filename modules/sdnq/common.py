@@ -1,6 +1,5 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
-import sys
 import torch
 from modules import devices
 
