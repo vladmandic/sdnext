@@ -249,8 +249,8 @@ class PromptEmbedder:
                     except IndexError:
                         res.append(batch[i][0])  # if not scheduled, return default
                 return torch.cat(res)
-        except Exception:
-            pass
+        except Exception as e:
+            shared.log.error(f"Prompt encode: {e}")
         return None
 
 

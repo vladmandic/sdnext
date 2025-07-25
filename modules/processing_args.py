@@ -157,7 +157,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         'StableCascade' in model.__class__.__name__ or
         'Flux' in model.__class__.__name__ or
         'Chroma' in model.__class__.__name__ or
-        'HiDreamImagePipeline' in model.__class__.__name__ # hidream-e1 has different embeds
+        'HiDreamImagePipeline' in model.__class__.__name__
     ):
         try:
             prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
@@ -173,23 +173,28 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
             prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
-        if 'HiDreamImage' in model.__class__.__name__  and prompt_parser_diffusers.embedder is not None:
+        if ('HiDreamImage' in model.__class__.__name__) and (prompt_parser_diffusers.embedder is not None):
             args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
             args['prompt_embeds_t5'] = prompt_embeds[0]
             args['prompt_embeds_llama3'] = prompt_embeds[1]
-        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
-            args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
-            if 'StableCascade' in model.__class__.__name__:
-                args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
-            elif 'XL' in model.__class__.__name__:
-                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-            elif 'StableDiffusion3' in model.__class__.__name__:
-                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-            elif 'Flux' in model.__class__.__name__:
-                args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
-            elif 'Chroma' in model.__class__.__name__:
-                args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and ('prompt_embeds' in possible) and (prompt_parser_diffusers.embedder is not None):
+            embeds = prompt_parser_diffusers.embedder('prompt_embeds')
+            if embeds is None:
+                shared.log.warning('Prompt parser encode: empty prompt embeds')
+                args['prompt'] = prompts
+            else:
+                args['prompt_embeds'] = embeds
+                if 'StableCascade' in model.__class__.__name__:
+                    args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
+                elif 'XL' in model.__class__.__name__:
+                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+                elif 'StableDiffusion3' in model.__class__.__name__:
+                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+                elif 'Flux' in model.__class__.__name__:
+                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+                elif 'Chroma' in model.__class__.__name__:
+                    args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
@@ -406,11 +411,13 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         clean['generator'] = f'{generator[0].device}:{[g.initial_seed() for g in generator]}'
     clean['parser'] = parser
     for k, v in clean.copy().items():
-        if isinstance(v, torch.Tensor) or isinstance(v, np.ndarray):
+        if v is None:
+            clean[k] = None
+        elif isinstance(v, torch.Tensor) or isinstance(v, np.ndarray):
             clean[k] = v.shape
-        if isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
+        elif isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
             clean[k] = [x.shape for x in v]
-        if not debug_enabled and k.endswith('_embeds'):
+        elif not debug_enabled and k.endswith('_embeds'):
             del clean[k]
             clean['prompt'] = 'embeds'
     task = str(sd_models.get_diffusers_task(model)).replace('DiffusersTaskType.', '')
