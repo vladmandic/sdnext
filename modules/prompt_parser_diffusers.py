@@ -253,7 +253,7 @@ class PromptEmbedder:
                 return torch.cat(res)
         except Exception as e:
             shared.log.error(f"Prompt encode: {e}")
-            errors.display(e, 'encode')
+            # errors.display(e, 'encode')
         return None
 
 
