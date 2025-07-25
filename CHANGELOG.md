@@ -5,7 +5,7 @@
 ### Highlights for 2025-07-25
 
 Feature highlights include:  
-- **ModernUI** layout redesign which should make it more user friendly and easier to navigate  
+- **ModernUI** layout redesign which should make it more user friendly and easier to navigate and several new UI themes!  
 - New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows, [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
