@@ -81,6 +81,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - support for post load quantization  
 - **UI**  
   - major update to modernui layout  
+  - add new Windows-like *Blcoks* UI theme  
   - redesign of the *Flat* UI theme  
 - **WIKI**  
   - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
