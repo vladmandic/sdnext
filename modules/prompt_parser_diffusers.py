@@ -6,7 +6,7 @@ from collections import OrderedDict
 import torch
 from compel.embeddings_provider import BaseTextualInversionManager, EmbeddingsProvider
 from transformers import PreTrainedTokenizer
-from modules import shared, prompt_parser, devices, sd_models
+from modules import shared, prompt_parser, devices, sd_models, errors
 from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1, get_weighted_text_embeddings_chroma
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None)
@@ -73,17 +73,17 @@ class PromptEmbedder:
         earlyout = self.checkcache(p)
         if earlyout:
             return
-        pipe = prepare_model(p.sd_model)
-        if pipe is None:
+        self.pipe = prepare_model(p.sd_model)
+        if self.pipe is None:
             shared.log.error("Prompt encode: cannot find text encoder in model")
             return
         # per prompt in batch
         for batchidx, (prompt, negative_prompt) in enumerate(zip(self.prompts, self.negative_prompts)):
             self.prepare_schedule(prompt, negative_prompt)
             if self.scheduled_prompt:
-                self.scheduled_encode(pipe, batchidx)
+                self.scheduled_encode(self.pipe, batchidx)
             else:
-                self.encode(pipe, prompt, negative_prompt, batchidx)
+                self.encode(self.pipe, prompt, negative_prompt, batchidx)
         self.checkcache(p)
         debug(f"Prompt encode: time={(time.time() - t0):.3f}")
 
@@ -248,9 +248,12 @@ class PromptEmbedder:
                         res.append(batch[i][step])
                     except IndexError:
                         res.append(batch[i][0])  # if not scheduled, return default
+                if any(res[0].shape[1] != r.shape[1] for r in res):
+                    res = pad_to_same_length(self.pipe, res)
                 return torch.cat(res)
         except Exception as e:
             shared.log.error(f"Prompt encode: {e}")
+            errors.display(e, 'encode')
         return None
 
 
@@ -472,7 +475,7 @@ def prepare_embedding_providers(pipe, clip_skip) -> list[EmbeddingsProvider]:
 
 
 def pad_to_same_length(pipe, embeds, empty_embedding_providers=None):
-    if not hasattr(pipe, 'encode_prompt') and 'StableCascade' not in pipe.__class__.__name__:
+    if not hasattr(pipe, 'encode_prompt') and ('StableCascade' not in pipe.__class__.__name__):
         return embeds
     device = devices.device
     if shared.opts.diffusers_zeros_prompt_pad or 'StableDiffusion3' in pipe.__class__.__name__:
