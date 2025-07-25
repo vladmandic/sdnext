@@ -242,7 +242,7 @@ def parse_comfy_metadata(data: dict):
             version = dct.get('extra', {}).get('frontendVersion', 'unknown')
             if version is not None:
                 res = f" | Version: {version} | Nodes: {nodes}"
-        except:
+        except Exception:
             pass
         return res
 
@@ -257,7 +257,7 @@ def parse_comfy_metadata(data: dict):
                     model = inp.get('model', None)
                     if isinstance(model, str) and len(model) > 0:
                         res += f" | Model: {model} | Class: {val.get('class_type', '')}"
-        except:
+        except Exception:
             pass
         return res
 
@@ -280,7 +280,7 @@ def parse_invoke_metadata(data: dict):
                 version = dct['app_version']
                 if isinstance(version, str) and len(version) > 0:
                     res += f" | Version: {version}"
-        except:
+        except Exception:
             pass
         return res
 
@@ -299,7 +299,7 @@ def parse_novelai_metadata(data: dict):
             dct = json.loads(data["Comment"])
             sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
             geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337'
-        except Exception as e:
+        except Exception:
             pass
     return geninfo
 

@@ -6,7 +6,7 @@ from collections import OrderedDict
 import torch
 from compel.embeddings_provider import BaseTextualInversionManager, EmbeddingsProvider
 from transformers import PreTrainedTokenizer
-from modules import shared, prompt_parser, devices, sd_models, errors
+from modules import shared, prompt_parser, devices, sd_models
 from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1, get_weighted_text_embeddings_chroma
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None)
@@ -253,7 +253,6 @@ class PromptEmbedder:
                 return torch.cat(res)
         except Exception as e:
             shared.log.error(f"Prompt encode: {e}")
-            # errors.display(e, 'encode')
         return None
 
 
