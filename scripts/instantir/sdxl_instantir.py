@@ -65,6 +65,7 @@ if is_invisible_watermark_available():
 
 from peft import LoraConfig, set_peft_model_state_dict
 from .aggregator import Aggregator
+from modules import sd_models, devices
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -922,11 +923,8 @@ class InstantIRPipeline(
         else:
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
-
         image = image.repeat_interleave(repeat_by, dim=0)
-
         image = image.to(device=device, dtype=dtype)
-
         return image
 
     @torch.no_grad()
@@ -1513,6 +1511,8 @@ class InstantIRPipeline(
 
                 # prepare time_embeds in advance as adapter input
                 cross_attention_t_emb = self.unet.get_time_embed(sample=latent_model_input, timestep=t)
+                sd_models.move_model(self.unet, devices.device, force=True) # instantir does not handle offloading nicely
+
                 cross_attention_emb = self.unet.time_embedding(cross_attention_t_emb, timestep_cond)
                 cross_attention_aug_emb = None
 
