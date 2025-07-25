@@ -289,6 +289,7 @@ def parse_invoke_metadata(data: dict):
         parsed = f'App: InvokeAI{metadata}'
         shared.log.info(f'Image metadata: {parsed}')
         return parsed
+    return ''
 
 
 def parse_novelai_metadata(data: dict):
