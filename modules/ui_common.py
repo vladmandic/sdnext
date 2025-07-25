@@ -178,7 +178,7 @@ def save_files(js_data, files, html_info, index):
                 prompt = p.all_prompts[i]
                 fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
             except Exception as e:
-                shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts)}')
+                shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
                 errors.display(e, 'save')
             if fullfn is None:
                 continue
