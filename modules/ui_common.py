@@ -5,7 +5,7 @@ import shutil
 import platform
 import subprocess
 import gradio as gr
-from modules import call_queue, shared, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
+from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
 
 
 folder_symbol = ui_symbols.folder
@@ -173,7 +173,13 @@ def save_files(js_data, files, html_info, index):
                 geninfo, _ = images.read_info_from_image(image)
                 items = infotext.parse(geninfo)
                 p = PObject(items)
-            fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=p.all_seeds[i], prompt=p.all_prompts[i], info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+            try:
+                seed = p.all_seeds[i]
+                prompt = p.all_prompts[i]
+                fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+            except Exception as e:
+                shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts)}')
+                errors.display(e, 'save')
             if fullfn is None:
                 continue
             filename = os.path.relpath(fullfn, shared.opts.outdir_save)
