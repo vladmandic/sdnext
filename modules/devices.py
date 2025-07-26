@@ -455,7 +455,7 @@ def set_sdpa_params():
                 from flash_attn import flash_attn_func
                 sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_flash_atten)
-                def sdpa_flash_atten(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None):
+                def sdpa_flash_atten(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs):
                     if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
                         is_unsqueezed = False
                         if query.dim() == 3:
@@ -465,6 +465,9 @@ def set_sdpa_params():
                                 key = key.unsqueeze(0)
                             if value.dim() == 3:
                                 value = value.unsqueeze(0)
+                        if enable_gqa:
+                            key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
+                            value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
                         query = query.transpose(1, 2)
                         key = key.transpose(1, 2)
                         value = value.transpose(1, 2)
@@ -473,7 +476,9 @@ def set_sdpa_params():
                             attn_output = attn_output.squeeze(0)
                         return attn_output
                     else:
-                        return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+                        if enable_gqa:
+                            kwargs["enable_gqa"] = enable_gqa
+                        return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
                 torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten
                 log.debug('Torch attention: type="ck flash attention"')
             except Exception as err:
@@ -485,11 +490,16 @@ def set_sdpa_params():
                 from sageattention import sageattn
                 sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_sage_atten)
-                def sdpa_sage_atten(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None):
+                def sdpa_sage_atten(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs):
                     if (query.shape[-1] in {128, 96, 64}) and (attn_mask is None) and (query.dtype != torch.float32):
+                        if enable_gqa:
+                            key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
+                            value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
                         return sageattn(q=query, k=key, v=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
                     else:
-                        return sdpa_pre_sage_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+                        if enable_gqa:
+                            kwargs["enable_gqa"] = enable_gqa
+                        return sdpa_pre_sage_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
                 torch.nn.functional.scaled_dot_product_attention = sdpa_sage_atten
                 log.debug('Torch attention: type="sage attention"')
             except Exception as err:

@@ -174,10 +174,11 @@ def save_files(js_data, files, html_info, index):
                 items = infotext.parse(geninfo)
                 p = PObject(items)
             try:
-                seed = p.all_seeds[i]
-                prompt = p.all_prompts[i]
+                seed = p.all_seeds[i] if i < len(p.all_seeds) else p.seed
+                prompt = p.all_prompts[i] if i < len(p.all_prompts) else p.prompt
                 fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
             except Exception as e:
+                fullfn, txt_fullfn = None, None
                 shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
                 errors.display(e, 'save')
             if fullfn is None:
