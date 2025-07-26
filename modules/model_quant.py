@@ -639,7 +639,7 @@ def do_post_load_quant(sd_model, allow=True):
     from modules import shared
     if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
         sd_model = sdnq_quantize_weights(sd_model)
-    if shared.opts.optimum_quanto_weights:
+    if len(shared.opts.optimum_quanto_weights) > 0:
         sd_model = optimum_quanto_weights(sd_model)
     if shared.opts.torchao_quantization and (shared.opts.torchao_quantization_mode == 'post' or (allow and shared.opts.torchao_quantization_mode == 'auto')):
         sd_model = torchao_quantization(sd_model)

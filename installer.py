@@ -851,9 +851,9 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if opts.get('optimum_quanto_weights', False):
+    if len(opts.get('optimum_quanto_weights', [])):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
-    if opts.get('torchao_quantization', False):
+    if len(opts.get('torchao_quantization', [])):
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
         install('pillow-jxl-plugin==1.3.4', 'pillow-jxl-plugin')
@@ -1235,6 +1235,7 @@ def install_gradio():
 
 
 def install_optional():
+    print('HERE!!!!')
     t_start = time.time()
     log.info('Installing optional requirements...')
     install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
