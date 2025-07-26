@@ -223,6 +223,9 @@ class PromptEmbedder:
         batch = getattr(self, key)
         res = []
         try:
+            print(batch)
+            if len(batch) == 0 or len(batch[0]) == 0:
+                return None # flux has no negative prompts
             if isinstance(batch[0][0], list) and len(batch[0][0]) == 2 and isinstance(batch[0][0][1], torch.Tensor) and batch[0][0][1].shape[0] == 32:
                 # hidream uses a list of t5 + llama prompt embeds: [t5_embeds, llama_embeds]
                 # t5_embeds shape: [batch_size, seq_len, dim]
