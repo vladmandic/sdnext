@@ -83,6 +83,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - major update to modernui layout  
   - add new Windows-like *Blocks* UI theme  
   - redesign of the *Flat* UI theme  
+  - enhanced look&feel for *Gallery* tab with better search and collapsible sections, thanks to @CalamitousFelicitousness
 - **WIKI**  
   - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
     massive thanks to @CalamitousFelicitousness for bringing this to life!  
