@@ -4,9 +4,8 @@
 // Search is a bit wonky, I tried to get the separators to hide if 0 hits in seperator are found, but no luck so
 // Sorting huge amount of images is slow, might look at optimising, I don't think it's a regression.
 
-//TODO
+// TODO
 // Setting to enable or disable separator state persistence
-
 
 let ws;
 let url;
@@ -40,7 +39,7 @@ class GalleryFolder extends HTMLElement {
     const style = document.createElement('style'); // silly but necessasry since we're inside shadowdom
     if (window.opts.theme_type === 'Modern') {
       style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-secondary-color); }
+        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); }
         .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
         .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
       `;
@@ -86,22 +85,22 @@ async function createThumb(img) {
 async function handleSeparator(separator) {
   separator.classList.toggle('gallery-separator-hidden');
   const nowHidden = separator.classList.contains('gallery-separator-hidden');
-  
+
   // Store the state (true = open, false = closed)
   separatorStates.set(separator.title, !nowHidden);
-  
+
   // Update arrow and count
   const arrow = separator.querySelector('.gallery-separator-arrow');
   arrow.style.transform = nowHidden ? 'rotate(0deg)' : 'rotate(90deg)';
-  
+
   const all = Array.from(el.files.children);
   for (const f of all) {
     if (!f.name) continue; // Skip separators
-    
+
     // Check if file belongs to this exact directory
     const fileDir = f.name.match(/(.*)[\/\\]/);
     const fileDirPath = fileDir ? fileDir[1] : '';
-    
+
     if (separator.title.length > 0 && fileDirPath === separator.title) {
       f.style.display = nowHidden ? 'none' : 'unset';
     }
@@ -115,58 +114,7 @@ async function addSeparators() {
   const all = Array.from(el.files.children);
   let lastDir;
   let isFirstSeparator = true; // Flag to open the first separator by default
-  
-  // First, add the style for separators if it doesn't exist
-  if (!document.getElementById('gallery-separator-styles')) {
-    const style = document.createElement('style');
-    style.id = 'gallery-separator-styles';
-    style.textContent = `
-      .gallery-separator {
-        cursor: pointer;
-        padding: 8px;
-        background-color: var(--sd-secondary-color);
-        border-radius: var(--sd-border-radius);
-        margin: 4px 0;
-        user-select: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        max-width: 100%;
-      }
-      .gallery-separator:hover {
-        background-color: var(--sd-button-hover-color);
-      }
-      .gallery-separator:hover .gallery-separator-arrow,
-      .gallery-separator:hover .gallery-separator-name,
-      .gallery-separator:hover .gallery-separator-count {
-        color: var(--sd-input-hover-text-color);
-      }
-      .gallery-separator-arrow {
-        display: inline-block;
-        transition: transform 0.2s ease-in-out;
-        flex-shrink: 0;
-        color: var(--sd-input-text-color);
-      }
-      .gallery-separator-name {
-        flex: 1;
-        min-width: 0;
-        max-width: 300px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        margin-right: 8px;
-        color: var(--sd-input-text-color);
-      }
-      .gallery-separator-count {
-        color: var(--sd-input-placeholder-text-color);
-        font-size: 0.9em;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
+
   // First pass: create separators
   for (const f of all) {
     let dir = f.name?.match(/(.*)[\/\\]/);
@@ -183,32 +131,32 @@ async function addSeparators() {
           const fileDirPath = fileDir ? fileDir[1] : '';
           if (fileDirPath === dir) fileCount++;
         }
-        
+
         const sep = document.createElement('div');
         sep.className = 'gallery-separator';
         sep.title = dir;
-        
+
         // Default to open for the first separator if no state is saved, otherwise closed.
         const isOpen = separatorStates.has(dir) ? separatorStates.get(dir) : isFirstSeparator;
         separatorStates.set(dir, isOpen); // Ensure it's in the map
         if (isFirstSeparator) isFirstSeparator = false; // Subsequent separators will default to closed
-        
+
         if (!isOpen) {
           sep.classList.add('gallery-separator-hidden');
         }
-        
+
         // Create arrow span
         const arrow = document.createElement('span');
         arrow.className = 'gallery-separator-arrow';
         arrow.textContent = '▶';
         arrow.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-        
+
         // Create directory name span
         const dirName = document.createElement('span');
         dirName.className = 'gallery-separator-name';
         dirName.textContent = dir;
         dirName.title = dir; // Show full path on hover
-        
+
         // Create count span
         const count = document.createElement('span');
         count.className = 'gallery-separator-count';
@@ -218,17 +166,17 @@ async function addSeparators() {
         sep.appendChild(arrow);
         sep.appendChild(dirName);
         sep.appendChild(count);
-        
+
         sep.onclick = () => handleSeparator(sep);
         el.files.insertBefore(sep, f);
       }
     }
   }
-  
+
   // Second pass: hide files in closed directories
   for (const f of all) {
     if (!f.name) continue; // Skip separators
-    
+
     const dir = f.name.match(/(.*)[\/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
@@ -277,7 +225,7 @@ class GalleryFile extends HTMLElement {
     if (this.shadow.children.length > 0) {
       return;
     }
-    
+
     // Check separator state early to hide the element immediately
     const dir = this.name.match(/(.*)[\/\\]/);
     if (dir && dir[1]) {
@@ -287,7 +235,7 @@ class GalleryFile extends HTMLElement {
         this.style.display = 'none';
       }
     }
-    
+
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
@@ -368,11 +316,11 @@ class GalleryFile extends HTMLElement {
       return; // avoid double-adding
     }
     this.title = img.title;
-    
+
     // Final visibility check based on search term.
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
     if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
-        this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
+      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
     }
 
     this.shadow.appendChild(style);
@@ -397,6 +345,12 @@ async function getHash(str, algo = 'SHA-256') {
   }
 }
 
+// Helper function to update status with sort mode
+function updateStatusWithSort(message) {
+  const sortIndicator = `Sort: ${lastSortName} | `;
+  el.status.innerText = sortIndicator + message;
+}
+
 async function wsConnect(socket, timeout = 5000) {
   const intrasleep = 100;
   const ttl = timeout / intrasleep;
@@ -416,15 +370,15 @@ async function gallerySearch() {
   el.search.busy = setTimeout(async () => {
     const t0 = performance.now();
     const str = el.search.value.toLowerCase();
-    const allFiles = Array.from(el.files.children).filter(node => node.name);
-    const allSeparators = Array.from(el.files.children).filter(node => node.classList.contains('gallery-separator'));
+    const allFiles = Array.from(el.files.children).filter((node) => node.name);
+    const allSeparators = Array.from(el.files.children).filter((node) => node.classList.contains('gallery-separator'));
 
     // If search is cleared, restore original view
     if (str === '') {
-      allSeparators.forEach(sep => {
+      allSeparators.forEach((sep) => {
         sep.style.display = 'flex';
         const isOpen = separatorStates.has(sep.title) ? separatorStates.get(sep.title) : false;
-        
+
         const countSpan = sep.querySelector('.gallery-separator-count');
         if (countSpan && sep.dataset.totalFiles) {
           countSpan.textContent = `${sep.dataset.totalFiles} files`;
@@ -432,10 +386,10 @@ async function gallerySearch() {
 
         const arrow = sep.querySelector('.gallery-separator-arrow');
         sep.classList.toggle('gallery-separator-hidden', !isOpen);
-        if(arrow) arrow.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+        if (arrow) arrow.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
       });
 
-      allFiles.forEach(f => {
+      allFiles.forEach((f) => {
         const dir = f.name.match(/(.*)[\/\\]/);
         const dirPath = (dir && dir[1]) ? dir[1] : '';
         const isOpen = separatorStates.get(dirPath);
@@ -475,7 +429,7 @@ async function gallerySearch() {
         directoryMatches.set(dirPath, (directoryMatches.get(dirPath) || 0) + 1);
       }
     }
-    
+
     // Update separators based on search results
     for (const sep of allSeparators) {
       const dirPath = sep.title;
@@ -487,23 +441,22 @@ async function gallerySearch() {
 
         const arrow = sep.querySelector('.gallery-separator-arrow');
         if (arrow) arrow.style.transform = 'rotate(90deg)';
-        
+
         // Removed file count update during search as it was buggy.
       } else {
         sep.style.display = 'none'; // Hide separator
       }
     }
-    
+
     // Update file visibility
     for (const f of allFiles) {
       f.style.display = fileMatches.has(f) ? 'unset' : 'none';
     }
-    
+
     const t1 = performance.now();
     updateStatusWithSort(`Filter | ${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   }, 250);
 }
-
 
 const findDuplicates = (arr, key) => {
   const map = new Map();
@@ -514,12 +467,6 @@ const findDuplicates = (arr, key) => {
     return false;
   });
 };
-
-// Helper function to update status with sort mode
-function updateStatusWithSort(message) {
-  const sortIndicator = `Sort: ${lastSortName} | `;
-  el.status.innerText = sortIndicator + message;
-}
 
 async function gallerySort(btn) {
   const t0 = performance.now();
@@ -584,12 +531,12 @@ async function gallerySort(btn) {
   el.files.innerHTML = '';
   el.files.appendChild(fragment);
   addSeparators();
-  
+
   // After sorting and adding separators, ensure files respect separator states
   const all = Array.from(el.files.children);
   for (const f of all) {
     if (!f.name) continue; // Skip separators
-    
+
     const dir = f.name.match(/(.*)[\/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
@@ -599,7 +546,7 @@ async function gallerySort(btn) {
       }
     }
   }
-  
+
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
   updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
@@ -608,12 +555,12 @@ async function gallerySort(btn) {
 async function fetchFilesHT(evt) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(`Folder | ${evt.target.name} | in-progress`);
+  updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
   let numFiles = 0;
 
   const res = await fetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(`Folder | ${evt.target.name} | failed: ${res?.statusText}`);
+    updateStatusWithSort(`Folder: ${evt.target.name} | failed: ${res?.statusText}`);
     return;
   }
   const jsonData = await res.json();
@@ -622,9 +569,9 @@ async function fetchFilesHT(evt) {
     const fileName = data[1];
     const ext = fileName.split('.').pop().toLowerCase();
     if (SUPPORTED_EXTENSIONS.includes(ext)) {
-        numFiles++;
-        const f = new GalleryFile(data[0], fileName);
-        fragment.appendChild(f);
+      numFiles++;
+      const f = new GalleryFile(data[0], fileName);
+      fragment.appendChild(f);
     }
   }
 
@@ -632,7 +579,7 @@ async function fetchFilesHT(evt) {
 
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-  updateStatusWithSort(`Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
 }
 
@@ -653,7 +600,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     await fetchFilesHT(evt); // fallback to http
     return;
   }
-  updateStatusWithSort(`Folder | ${evt.target.name}`);
+  updateStatusWithSort(`Folder: ${evt.target.name}`);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -672,7 +619,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % 100 === 0) {
-          updateStatusWithSort(`Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -683,7 +630,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(`Folder | ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
   };
   ws.onerror = (event) => {

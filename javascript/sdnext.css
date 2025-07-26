@@ -1081,9 +1081,6 @@ table.settings-value-table td {
 }
 
 
-.extra-networks .description {
-}
-
 .extra-networks .description textarea {
   font-size: 0.8rem;
 }
@@ -1636,11 +1633,40 @@ div:has(>#tab-gallery-folders) {
 }
 
 .gallery-separator {
-  background-color: var(--input-background-fill);
-  display: block !important;
-  font-size: larger;
-  padding: 0.5em;
   cursor: cell;
+  padding: 8px;
+  background-color: var(--input-background-fill);
+  border-radius: var(--sd-border-radius);
+  max-width: 100%;
+}
+
+.gallery-separator:hover {
+  background-color: var(--button-primary-background-fill-hover);
+}
+
+.gallery-separator-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease-in-out;
+  flex-shrink: 0;
+  color: var(--sd-input-text-color);
+}
+
+.gallery-separator-name {
+  flex: 1;
+  min-width: 0;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.gallery-separator-count {
+  color: var(--color-accent);
+  font-size: 0.9em;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 #html_log_gallery {
