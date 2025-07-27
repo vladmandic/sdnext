@@ -124,6 +124,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
 - **SDNQ**  
   - use inference context during quantization  
   - use static compile  
+  - rename quantization type for text encoders `default` option to `Same as model`  
 - **API**  
   - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
     if model is locked, it cannot be changed using normal load or unload methods  
@@ -160,6 +161,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - lock directml torch to `torch-directml==0.2.4.dev240913`  
   - lock directml transformers to `transformers==4.52.4`  
   - improve install of `sentencepiece` tokenizer  
+  - add int8 matmul fallback for ipex with onednn qlinear  
 - **Refactoring**  
   *note*: none of the removals result in loss-of-functionality since all those features are already re-implemented  
   goal here is to remove legacy code, code duplication and reduce code complexity  

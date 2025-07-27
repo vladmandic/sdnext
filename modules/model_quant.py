@@ -111,7 +111,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
         if weights_dtype is None:
-            if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"same as model", "default"}:
+            if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
                 weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
             else:
                 weights_dtype = shared.opts.sdnq_quantize_weights_mode
@@ -377,7 +377,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     from modules.sdnq import apply_sdnq_to_module
 
     if weights_dtype is None:
-        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"same as model", "default"}:
+        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
         else:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode
