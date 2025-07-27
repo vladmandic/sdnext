@@ -1235,7 +1235,6 @@ def install_gradio():
 
 
 def install_optional():
-    print('HERE!!!!')
     t_start = time.time()
     log.info('Installing optional requirements...')
     install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
