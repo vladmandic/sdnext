@@ -15,12 +15,6 @@ def install(suppress=[]):
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(levelname)s | %(pathname)s | %(message)s')
 
 
-def print_error_explanation(message):
-    lines = message.strip().split("\n")
-    for line in lines:
-        log.error(line)
-
-
 def display(e: Exception, task: str, suppress=[]):
     log.error(f"{task or 'error'}: {type(e).__name__}")
     console = get_console()

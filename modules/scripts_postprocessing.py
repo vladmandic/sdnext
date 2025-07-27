@@ -72,8 +72,8 @@ class ScriptPostprocessingRunner:
 
     def scripts_in_preferred_order(self):
         if self.scripts is None:
-            import modules.scripts
-            self.initialize_scripts(modules.scripts.postprocessing_scripts_data)
+            import modules.scripts_manager
+            self.initialize_scripts(modules.scripts_manager.postprocessing_scripts_data)
         scripts_order = shared.opts.postprocessing_operation_order
 
         def script_score(name):

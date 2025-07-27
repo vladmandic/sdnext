@@ -10,7 +10,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
     order = 1000
 
     def ui(self):
-        with gr.Accordion('Postprocess Upscale', open = False):
+        with gr.Accordion('Postprocess upscale', open = False, elem_id="postprocess_upscale_accordion"):
             selected_tab = gr.State(value=0) # pylint: disable=abstract-class-instantiated
             with gr.Column():
                 with gr.Row(elem_id="extras_upscale"):

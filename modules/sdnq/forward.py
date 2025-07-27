@@ -44,15 +44,15 @@ def get_forward_func(layer_class_name: str, use_quantized_matmul: bool, is_integ
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
     input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
-    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
-    input_scale = input_scale.to(torch.float32)
+    input = torch.div(input, input_scale).clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
+    input_scale = input_scale.to(dtype=torch.float32)
     return input, input_scale
 
 
 def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
     input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
-    input = torch.div(input, input_scale).clamp_(-448, 448).to(torch.float8_e4m3fn)
+    input = torch.div(input, input_scale).clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)
@@ -62,7 +62,7 @@ def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).contiguous()
     input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(127)
-    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(torch.int8)
+    input = torch.div(input, input_scale).round_().clamp_(-128, 127).to(dtype=torch.int8)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)
@@ -399,11 +399,12 @@ def quantized_conv_transpose_3d_forward(self, input: torch.FloatTensor, output_s
 if shared.opts.sdnq_dequantize_compile:
     try:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
-        int8_matmul = torch.compile(int8_matmul, fullgraph=True)
-        fp8_matmul = torch.compile(fp8_matmul, fullgraph=True)
-        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True)
-        conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True)
-        conv_fp8_matmul = torch.compile(conv_fp8_matmul, fullgraph=True)
-        conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True)
+        torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
+        int8_matmul = torch.compile(int8_matmul, fullgraph=True, dynamic=False)
+        fp8_matmul = torch.compile(fp8_matmul, fullgraph=True, dynamic=False)
+        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
+        conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True, dynamic=False)
+        conv_fp8_matmul = torch.compile(conv_fp8_matmul, fullgraph=True, dynamic=False)
+        conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
     except Exception as e:
         shared.log.warning(f"Quantization: type=sdnq MatMul using torch.compile is not available: {e}")

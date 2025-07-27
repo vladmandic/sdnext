@@ -295,7 +295,7 @@ def attn_fwd(Q, K, V, bias, Cache_seqlens, Cache_batch_idx, # pylint: disable=un
             # The tensor allocated for L is based on MAX_SEQLENS_Q as that is
             # statically known.
             l_offset = LSE + off_z * stride_lse_z + off_h_q * stride_lse_h + cu_seqlens_q_start * stride_lse_m
-            l_ptrs = l_offset + offs_m * stride_lse_m 
+            l_ptrs = l_offset + offs_m * stride_lse_m
 
             l = tl.full([BLOCK_M], value=0.0, dtype=ACCUMULATOR_TYPE)
 
@@ -450,7 +450,7 @@ def attn_fwd(Q, K, V, bias, Cache_seqlens, Cache_batch_idx, # pylint: disable=un
 
     # write back LSE(Log Sum Exponents), the log of the normalization constant
     l_offset = LSE + off_z * stride_lse_z + off_h_q * stride_lse_h + cu_seqlens_q_start * stride_lse_m
-    l_ptrs = l_offset + offs_m * stride_lse_m 
+    l_ptrs = l_offset + offs_m * stride_lse_m
     if USE_EXP2:
         RCP_LN2: tl.constexpr = 1.4426950408889634
         LN2: tl.constexpr = 0.6931471824645996
@@ -499,9 +499,9 @@ def attention_prefill_forward_triton_impl(
                                         bias: Optional[torch.Tensor],
                                         layout: Literal["bshd", "bhsd", "thd"],
                                         # varlen
-                                        cu_seqlens_q: Optional[torch.Tensor], 
+                                        cu_seqlens_q: Optional[torch.Tensor],
                                         cu_seqlens_k: Optional[torch.Tensor],
-                                        max_seqlens_q: int, 
+                                        max_seqlens_q: int,
                                         max_seqlens_k: int,
                                         # inference
                                         cache_seqlens: Optional[Union[(int, torch.Tensor)]],
@@ -570,7 +570,7 @@ def attention_prefill_forward_triton_impl(
     attn_fwd[grid](q, k, v, bias, cache_seqlens, cache_batch_idx,
                     sm_scale, softmax_lse, o, *q_strides, *k_strides, *v_strides, *o_strides,
                     *bias_strides, stride_az, stride_ah, *scores_strides, stride_lse_z, stride_lse_h, stride_lse_m, cu_seqlens_q, cu_seqlens_k,
-                    dropout_p=dropout_p, philox_seed=philox_seed, philox_offset_base=philox_offset, sd_mask=sd_mask, dropout_mask=dropout_mask, alibi_slopes=alibi_slopes, 
+                    dropout_p=dropout_p, philox_seed=philox_seed, philox_offset_base=philox_offset, sd_mask=sd_mask, dropout_mask=dropout_mask, alibi_slopes=alibi_slopes,
                     HQ=nheads_q, HK=nheads_k, ACTUAL_BLOCK_DMODEL=head_size, MAX_SEQLENS_Q=max_seqlens_q,
                     MAX_SEQLENS_K=max_seqlens_k, IS_CAUSAL=causal, IS_VARLEN=is_varlen, IS_INFERENCE=is_inference,
                     BLOCK_DMODEL=padded_d_model, USE_BIAS=False if bias is None else True,

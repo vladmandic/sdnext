@@ -176,10 +176,11 @@ dequantizer_dict = {
 if shared.opts.sdnq_dequantize_compile:
     try:
         torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
-        dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True)
-        dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True)
-        dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True)
-        dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True)
+        torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
+        dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
+        dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
+        dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
+        dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
     except Exception as e:
         shared.log.warning(f"Quantization: type=sdnq Dequantize using torch.compile is not available: {e}")
         dequantize_asymmetric_compiled = dequantize_asymmetric

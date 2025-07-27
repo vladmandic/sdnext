@@ -1093,7 +1093,7 @@ function makeDomController(domElement, options) {
   domElement.scrollTop = 0;
 
   if (!options.disableKeyboardInteraction) {
-    owner.setAttribute('tabindex', 0);
+    if (owner) owner.setAttribute('tabindex', 0);
   }
 
   var api = {
@@ -1287,7 +1287,7 @@ function makeSvgController(svgElement, options) {
   }
 
   if (!options.disableKeyboardInteraction) {
-    owner.setAttribute('tabindex', 0);
+    if (owner) owner.setAttribute('tabindex', 0);
   }
 
   var api = {
@@ -1339,7 +1339,7 @@ function makeSvgController(svgElement, options) {
   }
 
   function applyTransform(transform) {
-    svgElement.setAttribute('transform', 'matrix(' +
+    if (svgElement) svgElement.setAttribute('transform', 'matrix(' +
       transform.scale + ' 0 0 ' +
       transform.scale + ' ' +
       transform.x + ' ' + transform.y + ')')

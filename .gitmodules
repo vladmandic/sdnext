@@ -2,10 +2,6 @@
   path = wiki
   url = https://github.com/vladmandic/sdnext.wiki
   ignore = dirty
-[submodule "modules/k-diffusion"]
-  path = modules/k-diffusion
-  url = https://github.com/crowsonkb/k-diffusion
-  ignore = dirty
 [submodule "extensions-builtin/sd-extension-system-info"]
   path = extensions-builtin/sd-extension-system-info
   url = https://github.com/vladmandic/sd-extension-system-info

@@ -1,13 +1,13 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, images
+from modules import scripts_manager, processing, shared, images
 
 
 debug = shared.log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     original_pipeline = None
     original_prompt_attention = None
 
@@ -15,7 +15,7 @@ class Script(scripts.Script):
         return 'Face: Multiple ID Transfers'
 
     def show(self, is_img2img):
-        return True if shared.native else False
+        return True
 
     def load_images(self, files):
         init_images = []
@@ -106,8 +106,6 @@ class Script(scripts.Script):
         return [mode, gallery, reswapper_model, reswapper_original, ip_model, ip_override, ip_cache, ip_strength, ip_structure, id_strength, id_conditioning, id_cache, pm_model, pm_trigger, pm_strength, pm_start, fs_cache]
 
     def run(self, p: processing.StableDiffusionProcessing, mode, input_images, reswapper_model, reswapper_original, ip_model, ip_override, ip_cache, ip_strength, ip_structure, id_strength, id_conditioning, id_cache, pm_model, pm_trigger, pm_strength, pm_start, fs_cache): # pylint: disable=arguments-differ, unused-argument
-        if not shared.native:
-            return None
         if mode == 'None':
             return None
         if input_images is None or len(input_images) == 0:

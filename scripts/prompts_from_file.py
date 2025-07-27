@@ -2,8 +2,7 @@ import copy
 import random
 import shlex
 import gradio as gr
-import modules.scripts as scripts
-from modules import sd_samplers, errors
+from modules import sd_samplers, errors, scripts_manager
 from modules.processing import Processed, process_images
 from modules.shared import state, log
 
@@ -94,7 +93,7 @@ def load_prompt_file(file):
         return None, "\n".join(lines), gr.update(lines=7)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Prompts from file"
 

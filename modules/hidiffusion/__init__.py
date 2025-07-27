@@ -6,8 +6,6 @@ from modules.hidiffusion import hidiffusion
 
 
 def apply(p, model_type):
-    if not shared.native:
-        return
     if model_type not in ['sd', 'sdxl'] and p.hidiffusion:
         shared.log.warning(f'HiDiffusion: class={shared.sd_model.__class__.__name__} not supported')
         return

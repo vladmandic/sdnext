@@ -1,20 +1,20 @@
 import json
 from PIL import Image
 import gradio as gr
-from modules import scripts, processing, shared, ipadapter, ui_common
+from modules import scripts_manager, processing, shared, ipadapter, ui_common
 
 
 MAX_ADAPTERS = 4
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     standalone = True
 
     def title(self):
         return 'IP Adapters'
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible if shared.native else False
+        return scripts_manager.AlwaysVisible
 
     def load_images(self, files):
         init_images = []
@@ -89,8 +89,6 @@ class Script(scripts.Script):
         return [num_adapters] + [unload_adapter] + adapters + scales + files + crops + starts + ends + masks + [layers_active] + [layers]
 
     def process(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
-        if not shared.native:
-            return
         args = list(args) if args is not None else []
         if len(args) == 0:
             return

@@ -364,7 +364,7 @@ def create_ui():
                     create_safetensors = gr.Checkbox(label="Save safetensors", value=True)
                     debug = gr.Checkbox(label="Debug info", value=False)
 
-                model_modules_btn = gr.Button(value="Modules", variant='primary')
+                model_modules_btn = gr.Button(value="Merge Modules", variant='primary')
                 model_modules_btn.click(
                     fn=extras.run_model_modules,
                     inputs=[

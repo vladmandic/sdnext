@@ -3,12 +3,13 @@ import io
 import os
 import re
 import time
+import random
 import base64
 import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts, shared, devices, errors, processing, sd_models, sd_modules
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -35,6 +36,8 @@ class Options:
     models = {
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
+        'google/gemma-3n-E2B-it': {},
+        'google/gemma-3n-E4B-it': {},
         'Qwen/Qwen3-0.6B-FP8': {},
         'Qwen/Qwen3-1.7B-FP8': {},
         'Qwen/Qwen3-4B-FP8': {},
@@ -48,6 +51,7 @@ class Options:
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
         'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
+        'HuggingFaceTB/SmolLM3-3B': {},
         'meta-llama/Llama-3.2-1B-Instruct': {},
         'meta-llama/Llama-3.2-3B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
@@ -65,7 +69,8 @@ class Options:
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
     }
-    default = list(models)[1] # gemma-3-4b-it
+    # default = list(models)[1] # gemma-3-4b-it
+    default = 'Qwen/Qwen3-0.6B-FP8'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
     t2i_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. '
     i2i_prompt: str = 'You are a helpful assistant. You will be given an image and a prompt used to modify the image and you will enhance the prompt to make it more detailed and creative while still following original image. '
@@ -83,7 +88,7 @@ class Options:
     thinking_mode: bool = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     prompt: gr.Textbox = None
     image: gr.Image = None
     model: str = None
@@ -96,7 +101,13 @@ class Script(scripts.Script):
         return 'Prompt enhance'
 
     def show(self, _is_img2img):
-        return scripts.AlwaysVisible
+        return scripts_manager.AlwaysVisible
+
+    def compile(self):
+        if self.llm is None or 'LLM' not in shared.opts.cuda_compile:
+            return
+        from modules.sd_models_compile import compile_torch
+        self.llm = compile_torch(self.llm)
 
     def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
         name = name or self.options.default
@@ -168,6 +179,7 @@ class Script(scripts.Script):
             self.model = name
             t1 = time.time()
             shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
+            self.compile()
         except Exception as e:
             shared.log.error(f'Prompt enhance: load {e}')
             errors.display(e, 'Prompt enhance')
@@ -250,8 +262,10 @@ class Script(scripts.Script):
         while self.busy:
             time.sleep(0.1)
         self.load(model)
-        if seed is not None and seed >= 0:
-            torch.manual_seed(seed)
+        if seed is None or seed == -1:
+            random.seed()
+            seed = int(random.randrange(4294967294))
+        torch.manual_seed(seed)
         if self.llm is None:
             shared.log.error('Prompt enhance: model not loaded')
             return prompt
@@ -391,7 +405,6 @@ class Script(scripts.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    # --- START OF CORRECTED METHOD ---
     def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode): # Added nsfw_mode
         response = self.enhance(
             prompt=prompt,
@@ -410,7 +423,6 @@ class Script(scripts.Script):
         if apply_prompt:
             return [response, response]
         return [response, gr.update()]
-    # --- END OF CORRECTED METHOD ---
 
     def get_custom(self, name):
         model_repo = self.options.models.get(name, {}).get('repo', None) or name
@@ -501,6 +513,7 @@ class Script(scripts.Script):
         shared.state.begin('LLM')
         p.prompt = self.enhance(
             prompt=p.prompt,
+            seed=p.seed,
             image=self_image,
             prefix=prompt_prefix,
             suffix=prompt_suffix,
@@ -515,4 +528,3 @@ class Script(scripts.Script):
         )
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()
-

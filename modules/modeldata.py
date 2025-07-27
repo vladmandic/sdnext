@@ -1,3 +1,4 @@
+import os
 import sys
 import threading
 from modules import shared, errors
@@ -49,23 +50,28 @@ def get_model_type(pipe):
         model_type = 'h1'
     elif "Cosmos2TextToImage" in name:
         model_type = 'cosmos'
+    elif "FLite" in name:
+        model_type = 'flite'
+    elif "PixArtSigma" in name:
+        model_type = 'pixartsigma'
+    elif "PixArtAlpha" in name:
+        model_type = 'pixartalpha'
+    elif "Bria" in name:
+        model_type = 'bria'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
     elif 'HunyuanVideoPipeline' in name or 'HunyuanSkyreels' in name:
         model_type = 'hunyuanvideo'
-    elif 'Wan' in name:
-        model_type = 'wanvideo'
     elif 'LTX' in name:
         model_type = 'ltxvideo'
     elif "Mochi" in name:
         model_type = 'mochivideo'
     elif "Allegro" in name:
         model_type = 'allegrovideo'
-    elif "PixArtSigma" in name:
-        model_type = 'pixartsigma'
-    elif "PixArtAlpha" in name:
-        model_type = 'pixartalpha'
+    # hybrid models
+    elif 'Wan' in name:
+        model_type = 'wanai'
     else:
         model_type = name
     return model_type
@@ -77,15 +83,20 @@ class ModelData:
         self.sd_refiner = None
         self.sd_dict = 'None'
         self.initial = True
+        self.locked = True
         self.lock = threading.Lock()
 
     def get_sd_model(self):
-        from modules.sd_models import reload_model_weights
-        if self.sd_model is None and shared.opts.sd_model_checkpoint != 'None' and not self.lock.locked():
+        if self.locked:
+            if self.sd_model is None:
+                fn = f'{os.path.basename(sys._getframe(2).f_code.co_filename)}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+                shared.log.warning(f'Model locked: fn={fn}')
+            return self.sd_model
+        elif (self.sd_model is None) and (shared.opts.sd_model_checkpoint != 'None') and (not self.lock.locked()):
             with self.lock:
                 try:
-                    # note: reload_model_weights directly updates model_data.sd_model and returns it at the end
-                    self.sd_model = reload_model_weights(op='model')
+                    from modules.sd_models import reload_model_weights
+                    self.sd_model = reload_model_weights(op='model') # note: reload_model_weights directly updates model_data.sd_model and returns it at the end
                     self.initial = False
                 except Exception as e:
                     shared.log.error("Failed to load stable diffusion model")
@@ -94,13 +105,14 @@ class ModelData:
         return self.sd_model
 
     def set_sd_model(self, v):
-        self.sd_model = v
+        if not self.locked:
+            self.sd_model = v
 
     def get_sd_refiner(self):
-        from modules.sd_models import reload_model_weights
-        if self.sd_refiner is None and shared.opts.sd_model_refiner != 'None' and not self.lock.locked():
+        if (self.sd_refiner is None) and (shared.opts.sd_model_refiner != 'None') and (not self.lock.locked()):
             with self.lock:
                 try:
+                    from modules.sd_models import reload_model_weights
                     self.sd_refiner = reload_model_weights(op='refiner')
                     self.initial = False
                 except Exception as e:
@@ -110,7 +122,8 @@ class ModelData:
         return self.sd_refiner
 
     def set_sd_refiner(self, v):
-        self.sd_refiner = v
+        if not self.locked:
+            self.sd_refiner = v
 
 
 # provides shared.sd_model field as a property
@@ -124,7 +137,7 @@ class Shared(sys.modules[__name__].__class__):
     def sd_model(self):
         import modules.sd_models # pylint: disable=W0621
         if modules.sd_models.model_data.sd_model is None:
-            fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            fn = f'{os.path.basename(sys._getframe(2).f_code.co_filename)}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
             shared.log.debug(f'Model requested: fn={fn}') # pylint: disable=protected-access
         return modules.sd_models.model_data.get_sd_model()
 

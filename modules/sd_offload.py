@@ -44,7 +44,10 @@ def disable_offload(sd_model):
         module = getattr(sd_model, module_name, None)
         if isinstance(module, torch.nn.Module):
             network_layer_name = getattr(module, "network_layer_name", None)
-            module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            try:
+                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            except Exception as e:
+                shared.log.warning(f'Offload remove hook: module={module_name} {e}')
             if network_layer_name:
                 module.network_layer_name = network_layer_name
     sd_model.has_accelerate = False
@@ -68,12 +71,33 @@ def set_accelerate(sd_model):
         set_accelerate_to_module(sd_model.decoder_pipe)
 
 
+def apply_group_offload(sd_model, op:str='model'):
+    # TODO model load: group offload
+    offload_dct = {
+        'onload_device': devices.device,
+        'offload_device': devices.cpu,
+        'offload_type': 'block_level', # 'leaf_level',
+        'num_blocks_per_group': 1,
+        'non_blocking': False,
+        'use_stream': False,
+        'record_stream': False,
+        'low_cpu_mem_usage': False,
+    }
+    shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} options={offload_dct}')
+    if hasattr(sd_model, "enable_group_offload"):
+        sd_model.enable_group_offload(**offload_dct)
+    else:
+        modules = sd_model._internal_dict.items() if hasattr(sd_model, "_internal_dict") else []# pylint: disable=protected-access
+        modules = [m for m in modules if hasattr(m, "enable_group_offload")]
+        for module in modules:
+            module.enable_group_offload(**offload_dct)
+    set_accelerate(sd_model)
+    return sd_model
+
+
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
-    if not shared.native:
-        shared.log.warning('Attempting to use offload with backend=original')
-        return
     if sd_model is None:
         shared.log.warning(f'{op} is not loaded')
         return
@@ -82,6 +106,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
     if accelerate_dtype_byte_size is None:
         accelerate_dtype_byte_size = accelerate.utils.modeling.dtype_byte_size
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
+
     if shared.opts.diffusers_offload_mode == "none":
         if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
@@ -90,6 +115,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
         if hasattr(sd_model, 'maybe_free_model_hooks'):
             sd_model.maybe_free_model_hooks()
             sd_model.has_accelerate = False
+
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
         try:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -105,6 +131,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
             set_accelerate(sd_model)
         except Exception as e:
             shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
     if shared.opts.diffusers_offload_mode == "sequential" and hasattr(sd_model, "enable_sequential_cpu_offload"):
         try:
             shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
@@ -125,8 +152,13 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
             set_accelerate(sd_model)
         except Exception as e:
             shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
+    if shared.opts.diffusers_offload_mode == "group":
+        sd_model = apply_group_offload(sd_model, op=op)
+
     if shared.opts.diffusers_offload_mode == "balanced":
         sd_model = apply_balanced_offload(sd_model)
+
     process_timer.add('offload', time.time() - t0)
 
 
@@ -216,7 +248,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 elif 'bitsandbytes' in str(e):
                     pass
                 else:
-                    shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} {e}')
+                    shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} cls={module.__class__ if inspect.isclass(module) else None} {e}')
                 if os.environ.get('SD_MOVE_DEBUG', None):
                     errors.display(e, f'Offload: type=balanced op=apply module={module.__name__}')
         return output
@@ -287,7 +319,10 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             network_layer_name = getattr(module, "network_layer_name", None)
             device_map = getattr(module, "balanced_offload_device_map", None)
             max_memory = getattr(module, "balanced_offload_max_memory", None)
-            module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            try:
+                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+            except Exception as e:
+                shared.log.warning(f'Offload remove hook: module={module_name} {e}')
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 prev_gpu = used_gpu
@@ -311,7 +346,10 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
                 if os.environ.get('SD_MOVE_DEBUG', None):
                     errors.display(e, f'Offload: type=balanced op=apply module={module_name}')
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
-            module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
+            try:
+                module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
+            except Exception as e:
+                shared.log.warning(f'Offload add hook: module={module_name} {e}')
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             if network_layer_name:
                 module.network_layer_name = network_layer_name
@@ -328,7 +366,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         apply_balanced_offload_to_module(sd_model.prior_pipe)
     if hasattr(sd_model, "decoder_pipe"):
         apply_balanced_offload_to_module(sd_model.decoder_pipe)
-    if shared.opts.layerwise_quantization:
+    if shared.opts.layerwise_quantization or (hasattr(sd_model, "transformer") and getattr(sd_model.transformer, 'quantization_method', None) == 'LayerWise'):
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
     set_accelerate(sd_model)
     t = time.time() - t0

@@ -125,6 +125,21 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Tuple = torch.xpu.Tuple
                 torch.cuda.List = torch.xpu.List
 
+            if torch_version < 2.9:
+                # torch._int_mm via onednn is supposed to land on pytorch with torch 2.8 or 2.9
+                # ipex 2.7+ has experimental torch._int_mm support but uses the cpu with torch.compile and also runs as slow as onednn.qlinear
+                if (not has_ipex or torch_version <= 2.7) and hasattr(torch.ops, "onednn") and hasattr(torch.ops.onednn, "qlinear_pointwise"):
+                    def onednn_mm(x: torch.Tensor, y: torch.Tensor, output_dtype=torch.float32):
+                        # supports int8, fp32, fp16, and bf16 matmul with accumulation using a different float dtype
+                        # int8 matmul with onednn is slower than 16 bit with dim_size < 4096
+                        return torch.ops.onednn.qlinear_pointwise(x, 1.0, 0, y, torch.ones(1, device=y.device), torch.zeros(1, device=y.device), None, 1.0, 0, output_dtype, "none", [], "none")
+                    torch._int_mm = onednn_mm
+                    try:
+                        # torch.compile fix
+                        from .int_mm import qlinear_unary
+                        torch._inductor.mkldnn_lowerings.register_onednn_fusion_ops.qlinear_unary = qlinear_unary
+                    except Exception as e:
+                        pass
 
             # Memory:
             if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():

@@ -14,7 +14,8 @@ from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
 
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None):
+@devices.inference_context()
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -54,7 +55,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         else:
             is_linear_type = True
             reduction_axes = -1
-            output_channel_size, channel_size = layer.weight.shape
+            try:
+                output_channel_size, channel_size = layer.weight.shape
+            except Exception as e:
+                raise ValueError(f"SDNQ: layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
             if use_quantized_matmul:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul:
@@ -259,7 +263,8 @@ class SDNQQuantizer(DiffusersQuantizer):
                             return True
                     else:
                         return True
-        param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
+        with devices.inference_context():
+            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -268,6 +273,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return self.check_if_quantized_param(*args, **kwargs)
 
+    @devices.inference_context()
     def create_quantized_param( # pylint: disable=arguments-differ
         self,
         model,
@@ -329,6 +335,10 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
+        elif getattr(model, "_keep_in_fp32_modules", None) is not None:
+            self.modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+            self.modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
         self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
         self.quantization_config.modules_to_not_convert = self.modules_to_not_convert
         model.config.quantization_config = self.quantization_config

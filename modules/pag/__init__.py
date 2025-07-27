@@ -10,8 +10,6 @@ orig_pipeline = None
 
 def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-differ
     global orig_pipeline # pylint: disable=global-statement
-    if not shared.native:
-        return None
     cls = shared.sd_model.__class__ if shared.sd_loaded else None
     if cls == StableDiffusionPAGPipeline or cls == StableDiffusionXLPAGPipeline:
         cls = unapply()

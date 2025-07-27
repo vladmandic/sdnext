@@ -73,17 +73,17 @@ class PromptEmbedder:
         earlyout = self.checkcache(p)
         if earlyout:
             return
-        pipe = prepare_model(p.sd_model)
-        if pipe is None:
+        self.pipe = prepare_model(p.sd_model)
+        if self.pipe is None:
             shared.log.error("Prompt encode: cannot find text encoder in model")
             return
         # per prompt in batch
         for batchidx, (prompt, negative_prompt) in enumerate(zip(self.prompts, self.negative_prompts)):
             self.prepare_schedule(prompt, negative_prompt)
             if self.scheduled_prompt:
-                self.scheduled_encode(pipe, batchidx)
+                self.scheduled_encode(self.pipe, batchidx)
             else:
-                self.encode(pipe, prompt, negative_prompt, batchidx)
+                self.encode(self.pipe, prompt, negative_prompt, batchidx)
         self.checkcache(p)
         debug(f"Prompt encode: time={(time.time() - t0):.3f}")
 
@@ -223,6 +223,8 @@ class PromptEmbedder:
         batch = getattr(self, key)
         res = []
         try:
+            if len(batch) == 0 or len(batch[0]) == 0:
+                return None # flux has no negative prompts
             if isinstance(batch[0][0], list) and len(batch[0][0]) == 2 and isinstance(batch[0][0][1], torch.Tensor) and batch[0][0][1].shape[0] == 32:
                 # hidream uses a list of t5 + llama prompt embeds: [t5_embeds, llama_embeds]
                 # t5_embeds shape: [batch_size, seq_len, dim]
@@ -248,9 +250,11 @@ class PromptEmbedder:
                         res.append(batch[i][step])
                     except IndexError:
                         res.append(batch[i][0])  # if not scheduled, return default
+                if any(res[0].shape[1] != r.shape[1] for r in res):
+                    res = pad_to_same_length(self.pipe, res)
                 return torch.cat(res)
-        except Exception:
-            pass
+        except Exception as e:
+            shared.log.error(f"Prompt encode: {e}")
         return None
 
 
@@ -355,8 +359,6 @@ def get_prompt_schedule(prompt, steps):
 
 def get_tokens(pipe, msg, prompt):
     global token_dict, token_type # pylint: disable=global-statement
-    if not shared.native:
-        return 0
     if shared.sd_loaded and hasattr(pipe, 'tokenizer') and pipe.tokenizer is not None:
         if token_dict is None or token_type != shared.sd_model_type:
             token_type = shared.sd_model_type
@@ -474,7 +476,7 @@ def prepare_embedding_providers(pipe, clip_skip) -> list[EmbeddingsProvider]:
 
 
 def pad_to_same_length(pipe, embeds, empty_embedding_providers=None):
-    if not hasattr(pipe, 'encode_prompt') and 'StableCascade' not in pipe.__class__.__name__:
+    if not hasattr(pipe, 'encode_prompt') and ('StableCascade' not in pipe.__class__.__name__):
         return embeds
     device = devices.device
     if shared.opts.diffusers_zeros_prompt_pad or 'StableDiffusion3' in pipe.__class__.__name__:

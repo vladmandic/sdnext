@@ -10,6 +10,18 @@ from modules import shared, upscaler
 def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: int, height: int, upscaler_name: str=None, output_type: str='image', context: str=None):
     upscaler_name = upscaler_name or shared.opts.upscaler_for_img2img
 
+    def verify_image(image):
+        try:
+            if isinstance(image, torch.Tensor):
+                image = image.float().detach().cpu().numpy()
+            if isinstance(image, np.ndarray):
+                if np.issubdtype(image.dtype, np.floating):
+                    image = (255.0 * image).astype(np.uint8)
+                image = Image.fromarray(image)
+        except Exception as e:
+            shared.log.error(f"Image verification failed: {e}")
+        return image
+
     def latent(im, scale: float, selected_upscaler: upscaler.UpscalerData):
         if isinstance(im, torch.Tensor):
             im = selected_upscaler.scaler.upscale(im, scale, selected_upscaler.name)
@@ -119,7 +131,11 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
     if isinstance(im, torch.Tensor): # latent resize only supports fixed mode
         res = resize(im, width, height)
         return res
-    elif (resize_mode == 0) or (im.width == width and im.height == height) or (width == 0 and height == 0): # none
+    im = verify_image(im)
+    if not isinstance(im, Image.Image):
+        shared.log.error(f'Image resize: image={type(im)} invalid type')
+        return im
+    if (resize_mode == 0) or ((im.width == width) and (im.height == height)) or (width == 0 and height == 0): # none
         res = im.copy()
     elif resize_mode == 1: # fixed
         res = resize(im, width, height)

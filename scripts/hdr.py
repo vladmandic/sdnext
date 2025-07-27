@@ -3,13 +3,12 @@ import cv2
 import numpy as np
 import gradio as gr
 from PIL import Image
-import modules.scripts as scripts
-from modules import images, processing, shared
+from modules import images, processing, shared, scripts_manager
 from modules.processing import Processed
 from modules.shared import opts, state
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "HDR: High Dynamic Range"
 
@@ -60,7 +59,7 @@ class Script(scripts.Script):
     def run(self, p, hdr_range, save_hdr, is_tonemap, gamma, scale, saturation): # pylint: disable=arguments-differ
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
             shared.log.error(f'HDR: incorrect base model: {shared.sd_model.__class__.__name__}')
-            return
+            return None
         p.extra_generation_params = {
             "HDR range": hdr_range,
         }

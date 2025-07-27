@@ -10,7 +10,7 @@ class ScriptPostprocessingCodeFormer(scripts_postprocessing.ScriptPostprocessing
     order = 3000
 
     def ui(self):
-        with gr.Accordion('Restore faces: CodeFormer', open = False):
+        with gr.Accordion('Restore faces: CodeFormer', open = False, elem_id="postprocess_codeformer_accordion"):
             with gr.Row():
                 codeformer_visibility = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Strength", value=0.0, elem_id="extras_codeformer_visibility")
                 codeformer_weight = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Weight", value=0.2, elem_id="extras_codeformer_weight")

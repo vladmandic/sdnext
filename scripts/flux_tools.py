@@ -3,7 +3,7 @@
 import time
 import gradio as gr
 import diffusers
-from modules import scripts, processing, shared, devices, sd_models
+from modules import scripts_manager, processing, shared, devices, sd_models
 from installer import install
 
 
@@ -14,12 +14,12 @@ processor_depth = None
 title = 'Flux Tools'
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return f'{title}'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     def ui(self, _is_img2img): # ui elements
         with gr.Row():
@@ -44,7 +44,7 @@ class Script(scripts.Script):
     def run(self, p: processing.StableDiffusionProcessing, tool: str = 'None', prompt: float = 1.0, strength: bool = True, process: bool = True): # pylint: disable=arguments-differ
         global redux_pipe, processor_canny, processor_depth # pylint: disable=global-statement
         if tool is None or tool == 'None':
-            return
+            return None
         image = getattr(p, 'init_images', None)
         if image is None or len(image) == 0:
             shared.log.error(f'{title}: tool={tool} no init_images')
@@ -147,3 +147,4 @@ class Script(scripts.Script):
 
         shared.log.debug(f'{title}: tool={tool} ready time={time.time() - t0:.2f}')
         devices.torch_gc()
+        return None

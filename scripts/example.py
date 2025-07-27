@@ -1,6 +1,6 @@
 import gradio as gr
 from diffusers.pipelines import StableDiffusionPipeline, StableDiffusionXLPipeline # pylint: disable=unused-import
-from modules import shared, scripts, processing, sd_models, devices
+from modules import shared, scripts_manager, processing, sd_models, devices
 
 """
 This is a simpler template for script for SD.Next that implements a custom pipeline
@@ -62,14 +62,12 @@ params = ['test1', 'test2', 'test3', 'test4']
 
 ### Script definition
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return title
 
     def show(self, is_img2img):
-        if shared.native:
-            return img2img if is_img2img else txt2img
-        return False
+        return img2img if is_img2img else txt2img
 
     # Define UI for pipeline
     def ui(self, _is_img2img):

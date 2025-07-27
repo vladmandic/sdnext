@@ -1,12 +1,5 @@
 {
-  "python.analysis.extraPaths": [
-    ".",
-    "./modules",
-    "./repositories/blip",
-    "./repositories/codeformer",
-    "./repositories/ldm",
-    "./repositories/taming"
-  ],
+  "python.analysis.extraPaths": [".", "./modules", "./scripts", "./pipelines"],
   "python.analysis.typeCheckingMode": "off",
   "editor.formatOnSave": false,
   "python.REPL.enableREPLSmartSend": false

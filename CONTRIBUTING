@@ -4,24 +4,24 @@ Pull requests from everyone are welcome
 
 Procedure for contributing:
 
-- Select SD.Next `dev` branch:  
-  <https://github.com/vladmandic/sdnext/tree/dev>  
-- Create a fork of the repository on github  
-  In a top right corner of a GitHub, select "Fork"  
-  Its recommended to fork latest version from main branch to avoid any possible conflicting code updates  
-- Clone your forked repository to your local system  
-  `git clone https://github.com/<your-username>/<your-fork>`  
-- Make your changes  
-- Test your changes  
-- Lint your changes against code guidelines  
-  - `ruff check`  
-  - `pylint <folder>/<filename>.py`  
-- Push changes to your fork  
-- Submit a PR (pull request)  
-  - Make sure that PR is against `dev` branch  
-  - Update your fork before createing PR so that it is based on latest code  
-  - Make sure that PR does NOT include any unrelated edits  
-  - Make sure that PR does not include changes to submodules  
+- Select SD.Next `dev` branch:
+  <https://github.com/vladmandic/sdnext/tree/dev>
+- Create a fork of the repository on github
+  In a top right corner of a GitHub, select "Fork"
+  Its recommended to fork latest version from main branch to avoid any possible conflicting code updates
+- Clone your forked repository to your local system
+  `git clone https://github.com/<your-username>/<your-fork>`
+- Make your changes
+- Test your changes
+- Lint your changes against code guidelines
+  - `ruff check`
+  - `pylint <folder>/<filename>.py`
+- Push changes to your fork
+- Submit a PR (pull request)
+  - Make sure that PR is against `dev` branch
+  - Update your fork before createing PR so that it is based on latest code
+  - Make sure that PR does NOT include any unrelated edits
+  - Make sure that PR does not include changes to submodules
 
-Your pull request will be reviewed and pending review results, merged into `dev` branch  
-Dev merges to main are performed regularly and any PRs that are merged to `dev` will be included in the next main release  
+Your pull request will be reviewed and pending review results, merged into `dev` branch
+Dev merges to main are performed regularly and any PRs that are merged to `dev` will be included in the next main release

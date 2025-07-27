@@ -15,7 +15,7 @@
                 "min_depth": 1e-3,
                 "max_depth": 80.0
             }
-        ], 
+        ],
         "bin_embedding_dim": 128,
         "bin_centers_type": "softplus",
         "n_attractors":[16, 8, 4, 1],
@@ -24,8 +24,8 @@
         "attractor_kind" : "mean",
         "attractor_type" : "inv",
         "min_temp": 0.0212,
-        "max_temp": 50.0, 
-        "memory_efficient": true, 
+        "max_temp": 50.0,
+        "memory_efficient": true,
         "midas_model_type" : "DPT_BEiT_L_384",
         "img_size": [384, 512]
     },
@@ -58,7 +58,7 @@
         "use_pretrained_midas": false,
         "force_keep_ar": true
     },
-    
+
     "eval": {
         "train_midas": false,
         "pretrained_resource": "url::https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_NK.pt",

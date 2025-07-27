@@ -99,6 +99,8 @@ def reload_gradio_theme():
             theme_name = 'black-teal'
         elif modules.shared.opts.theme_type == 'Modern':
             theme_name = 'Default'
+        elif modules.shared.opts.theme_type == 'None':
+            theme_name = 'gradio/default'
         else:
             modules.shared.opts.theme_type = 'Standard'
             theme_name = 'black-teal'

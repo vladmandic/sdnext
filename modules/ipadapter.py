@@ -302,9 +302,6 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=[], adapt
     # init code
     if pipe is None:
         return False
-    if not shared.native:
-        shared.log.warning('IP adapter: not in diffusers mode')
-        return False
     if len(adapter_images) == 0:
         shared.log.error('IP adapter: no image provided')
         adapters = [] # unload adapter if previously loaded as it will cause runtime errors

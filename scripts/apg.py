@@ -1,11 +1,11 @@
 import gradio as gr
-from modules import scripts, processing, shared, sd_models
+from modules import scripts_manager, processing, shared, sd_models
 
 
 registered = False
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -15,7 +15,7 @@ class Script(scripts.Script):
         return 'APG: Adaptive Projected Guidance'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     def ui(self, _is_img2img): # ui elements
         with gr.Row():
@@ -38,15 +38,17 @@ class Script(scripts.Script):
             return fun
 
         import sys
-        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k][0]
-        options = [
-            xyz_classes.AxisOption("[APG] ETA", float, apply_field("apg_eta")),
-            xyz_classes.AxisOption("[APG] Momentum", float, apply_field("apg_momentum")),
-            xyz_classes.AxisOption("[APG] Threshold", float, apply_field("apg_threshold")),
-        ]
-        for option in options:
-            if option not in xyz_classes.axis_options:
-                xyz_classes.axis_options.append(option)
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[APG] ETA", float, apply_field("apg_eta")),
+                xyz_classes.AxisOption("[APG] Momentum", float, apply_field("apg_momentum")),
+                xyz_classes.AxisOption("[APG] Threshold", float, apply_field("apg_threshold")),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
 
     def run(self, p: processing.StableDiffusionProcessing, eta = 0.0, momentum = 0.0, threshold = 0.0): # pylint: disable=arguments-differ
         supported_model_list = ['sd', 'sdxl', 'sc']
@@ -71,6 +73,7 @@ class Script(scripts.Script):
         shared.log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={shared.sd_model.__class__.__name__}')
         p.extra_generation_params["APG"] = f'ETA={apg.eta} Momentum={apg.momentum} Threshold={apg.threshold}'
         # processed = processing.process_images(p)
+        return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, eta, momentum, threshold): # pylint: disable=arguments-differ, unused-argument
         from modules import apg

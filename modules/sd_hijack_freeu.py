@@ -1,5 +1,4 @@
 import math
-import functools
 import torch
 from modules import shared, devices
 
@@ -17,7 +16,6 @@ transition_smoothness = 0.0
 
 # internal state
 state_enabled = False
-cat_original = None
 
 
 def to_denoising_step(number, steps=None) -> int:
@@ -145,22 +143,9 @@ def ratio_to_region(width: float, offset: float, n: int):
     return round(start), round(end), inverted
 
 
-def apply_freeu(p, backend_original):
-    from modules.sd_hijack_unet import th
+def apply_freeu(p):
     global state_enabled # pylint: disable=global-statement
-    global cat_original # pylint: disable=global-statement
-    if backend_original:
-        if shared.opts.freeu_enabled:
-            p.extra_generation_params['FreeU'] = f'b1={shared.opts.freeu_b1} b2={shared.opts.freeu_b2} s1={shared.opts.freeu_s1} s2={shared.opts.freeu_s2}'
-            if not state_enabled: # otherwise already patched
-                cat_original = th.cat
-                th.cat = functools.partial(free_u_cat_hijack, original_function=th.cat)
-                state_enabled = True
-        else:
-            if cat_original is not None:
-                th.cat = cat_original
-                state_enabled = False
-    elif hasattr(p.sd_model, 'enable_freeu'):
+    if hasattr(p.sd_model, 'enable_freeu'):
         if shared.opts.freeu_enabled:
             freeu_device = get_fft_device()
             if freeu_device != devices.cpu:

@@ -1,13 +1,12 @@
 import math
 import gradio as gr
 from PIL import Image
-import modules.scripts as scripts
-from modules import processing, shared, images, devices
+from modules import processing, shared, images, devices, scripts_manager
 from modules.processing import Processed
 from modules.shared import opts, state, log
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "SD Upscale"
 

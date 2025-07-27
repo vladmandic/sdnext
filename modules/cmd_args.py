@@ -1,17 +1,24 @@
 import os
 import sys
 import argparse
-from modules.paths import data_path
+from modules.paths import data_path, models_path
 
 
+parsed = None
 parser = argparse.ArgumentParser(description="SD.Next", conflict_handler='resolve', epilog='For other options see UI Settings page', prog='', add_help=True, formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=55, indent_increment=2, width=200))
 parser._optionals = parser.add_argument_group('Other options') # pylint: disable=protected-access
+
+
+def parse_args():
+    global parsed # pylint: disable=global-statement
+    if parsed is None:
+        parsed, _ = parser.parse_known_args()
+    return parsed
 
 
 def main_args():
     # main server args
     group_config = parser.add_argument_group('Configuration')
-    group_config.add_argument('--backend', type=str, default=os.environ.get("SD_BACKEND", None), choices=['original', 'diffusers'], required=False, help='force model pipeline type')
     group_config.add_argument("--config", type=str, default=os.environ.get("SD_CONFIG", os.path.join(data_path, 'config.json')), help="Use specific server configuration file, default: %(default)s")
     group_config.add_argument("--ui-config", type=str, default=os.environ.get("SD_UICONFIG", os.path.join(data_path, 'ui-config.json')), help="Use specific UI configuration file, default: %(default)s")
     group_config.add_argument("--medvram", default=os.environ.get("SD_MEDVRAM", False), action='store_true', help="Split model stages and keep only active part in VRAM, default: %(default)s")
@@ -66,7 +73,10 @@ def main_args():
 def compatibility_args():
     # removed args are added here as hidden in fixed format for compatbility reasons
     group_compat = parser.add_argument_group('Compatibility options')
+    group_compat.add_argument('--backend', type=str, choices=['diffusers', 'original'], help=argparse.SUPPRESS)
+    group_compat.add_argument('--hypernetwork-dir', default=os.path.join(models_path, 'hypernetworks'), help=argparse.SUPPRESS)
     group_compat.add_argument("--allow-code", default=os.environ.get("SD_ALLOWCODE", False), action='store_true', help=argparse.SUPPRESS)
+    group_compat.add_argument("--enable_insecure_extension_access", default=os.environ.get("SD_INSECURE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--use-cpu", nargs='+', default=[], type=str.lower, help=argparse.SUPPRESS)
     group_compat.add_argument("-f", action='store_true', help=argparse.SUPPRESS)  # allows running as root; implemented outside of webui
     group_compat.add_argument('--vae', type=str, default=os.environ.get("SD_VAE", None), help=argparse.SUPPRESS)
@@ -104,7 +114,6 @@ def settings_args(opts, args):
     group_compat.add_argument("--vae-dir", type=str, help=argparse.SUPPRESS, default=opts.vae_dir)
     group_compat.add_argument("--embeddings-dir", type=str, help=argparse.SUPPRESS, default=opts.embeddings_dir)
     group_compat.add_argument("--embeddings-templates-dir", type=str, help=argparse.SUPPRESS, default=opts.embeddings_templates_dir)
-    group_compat.add_argument("--hypernetwork-dir", type=str, help=argparse.SUPPRESS, default=opts.hypernetwork_dir)
     group_compat.add_argument("--codeformer-models-path", type=str, help=argparse.SUPPRESS, default=opts.codeformer_models_path)
     group_compat.add_argument("--gfpgan-models-path", type=str, help=argparse.SUPPRESS, default=opts.gfpgan_models_path)
     group_compat.add_argument("--esrgan-models-path", type=str, help=argparse.SUPPRESS, default=opts.esrgan_models_path)
@@ -125,11 +134,7 @@ def settings_args(opts, args):
     group_compat.add_argument("--sub-quad-kv-chunk-size", help=argparse.SUPPRESS, default=opts.sub_quad_kv_chunk_size)
     group_compat.add_argument("--sub-quad-chunk-threshold", help=argparse.SUPPRESS, default=opts.sub_quad_chunk_threshold)
     group_compat.add_argument("--lora-dir", help=argparse.SUPPRESS, default=opts.lora_dir)
-    group_compat.add_argument("--lyco-dir", help=argparse.SUPPRESS, default=opts.lyco_dir)
     group_compat.add_argument("--embeddings-dir", help=argparse.SUPPRESS, default=opts.embeddings_dir)
-    group_compat.add_argument("--hypernetwork-dir", help=argparse.SUPPRESS, default=opts.hypernetwork_dir)
-    group_compat.add_argument("--lyco-patch-lora", help=argparse.SUPPRESS, action='store_true', default=False)
-    group_compat.add_argument("--lyco-debug", help=argparse.SUPPRESS, action='store_true', default=False)
     group_compat.add_argument("--enable-console-prompts", help=argparse.SUPPRESS, action='store_true', default=False)
     group_compat.add_argument("--safe", help=argparse.SUPPRESS, action='store_true', default=False)
     group_compat.add_argument("--use-xformers", help=argparse.SUPPRESS, action='store_true', default=False)
@@ -155,7 +160,6 @@ def settings_args(opts, args):
     opts.data['clip_skip'] = 1
 
     opts.onchange("lora_dir", lambda: setattr(args, "lora_dir", opts.lora_dir))
-    opts.onchange("lyco_dir", lambda: setattr(args, "lyco_dir", opts.lyco_dir))
 
     if "USED_VSCODE_COMMAND_PICKARGS" in os.environ:
         import shlex
