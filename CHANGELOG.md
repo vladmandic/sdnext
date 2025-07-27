@@ -6,7 +6,7 @@
 
 Feature highlights include:  
 - **ModernUI** layout redesign which should make it more user friendly and easier to navigate plus several new UI themes!  
-- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows, [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)
+- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows, [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2), [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
@@ -16,7 +16,7 @@ Feature highlights include:
 - [Wiki](https://github.com/vladmandic/automatic/wiki) & [Docs](https://vladmandic.github.io/sdnext-docs/) updates, especially new end-to-end [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page  
 
 In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
-This plus major cleanup of codebase and external dependencies resulted in ~55k LoC (*lines-of-code*) reduction and spread over [~750 files](https://github.com/vladmandic/sdnext/pull/4017) in ~160 commits!  
+This plus major cleanup of codebase and external dependencies resulted in ~55k LoC (*lines-of-code*) reduction and spread over [~750 files](https://github.com/vladmandic/sdnext/pull/4017) in ~200 commits!  
 
 We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 
@@ -48,6 +48,12 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
     Bria is a smaller 4B parameter model built entirely on licensed data and safe for commercial use  
     *note*: this is a gated model, you need to [accept terms](https://huggingface.co/briaai/BRIA-3.2) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
     available via *networks -> models -> reference*  
+  - [bigASP 2.5](https://civitai.com/models/1789765)  
+    bigASP is an experimental SDXL finetune using Flow matching method  
+    load as usual, and leave sampler set to *Default*  
+    or you can use following samplers: *UniPC, DPM, DEIS, SA*  
+    required sampler settings: *prediction-method=flow-prediction*, *sigma-method=flowmatch*  
+    recommended sampler settings: *flow-shift=1.0*  
   - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
     very fast automatic image background replacement methods with relightning!  
     *simple*: automatic background replacement using [BiRefNet](https://github.com/ZhengPeng7/BiRefNet)  
@@ -152,6 +158,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
   - framepack improve offloading  
+  - improve prompt parser tokenizer loader  
   - improve scripts error handling  
   - improve infotext param parsing  
   - improve extensions ui search  

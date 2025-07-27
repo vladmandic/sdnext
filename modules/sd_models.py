@@ -504,6 +504,12 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
     return sd_model
 
 
+def set_overrides(sd_model, checkpoint_info):
+    if 'bigaspv25' in checkpoint_info.name.lower():
+        sd_model.scheduler = diffusers.UniPCMultistepScheduler(prediction_type="flow_prediction", use_flow_sigmas=True)
+        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler cls={sd_model.scheduler.__class__.__name__}')
+
+
 def set_defaults(sd_model, checkpoint_info):
     sd_model.sd_model_hash = checkpoint_info.calculate_shorthash() # pylint: disable=attribute-defined-outside-init
     sd_model.sd_checkpoint_info = checkpoint_info # pylint: disable=attribute-defined-outside-init
@@ -603,6 +609,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             shared.log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
             return
 
+        set_overrides(sd_model, checkpoint_info)
         set_defaults(sd_model, checkpoint_info)
 
         if "Kandinsky" in sd_model.__class__.__name__: # need a special case

@@ -41,6 +41,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Remove: CodeFormer  
 - Remove: GFPGAN  
 - ModernUI: Lite vs Expert mode  
+- [Canvas](https://konvajs.org/)  
 
 ### Future Considerations
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
