@@ -165,9 +165,11 @@ class Script(scripts_manager.Script):
                 cls = transformers.AutoProcessor # required to encode image
             else:
                 cls = transformers.AutoTokenizer
+            tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
+            if model_tokenizer:
+                tokenizer_args['subfolder'] = model_tokenizer
             self.tokenizer = cls.from_pretrained(
-                pretrained_model_name_or_path=model_repo,
-                subfolder=model_tokenizer,
+                **tokenizer_args,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.tokenizer.is_processor = model_repo in self.options.img2img
@@ -287,7 +289,7 @@ class Script(scripts_manager.Script):
         mode = 'custom' if has_system else ''
 
         if current_image is not None and isinstance(current_image, Image.Image):
-            if not self.tokenizer.is_processor:
+            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
                 shared.log.error('Prompt enhance: image not supported by model')
                 return prompt_text # Return original text part if image cannot be processed
             if prompt_text is not None and len(prompt_text) > 0:
