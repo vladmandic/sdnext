@@ -55,13 +55,13 @@ def restore_state(p: processing.StableDiffusionProcessing):
 def process_pre(p: processing.StableDiffusionProcessing):
     from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge
 
-    # apply-unapply
     try:
+        # apply-with-unapply
         sd_models_compile.check_deepcache(enable=True)
         ipadapter.apply(shared.sd_model, p)
         token_merge.apply_token_merging(p.sd_model)
         hidiffusion.apply(p, shared.sd_model_type)
-        ras.apply(shared.sd_model, p)   
+        ras.apply(shared.sd_model, p)
         pag.apply(p)
         cfgzero.apply(p)
 
