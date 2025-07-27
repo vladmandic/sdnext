@@ -198,7 +198,7 @@ def context_hypertile_vae(p):
     else:
         tile_size = shared.opts.hypertile_vae_tile if shared.opts.hypertile_vae_tile > 0 else max(128, 64 * min(p.width // 128, p.height // 128))
         min_tile_size = shared.opts.hypertile_unet_min_tile if shared.opts.hypertile_unet_min_tile > 0 else 128
-        shared.log.info(f'Applying hypertile: vae={min_tile_size}/{tile_size}')
+        shared.log.info(f'Applying HyperTile: vae={min_tile_size}/{tile_size}')
         p.extra_generation_params['Hypertile VAE'] = tile_size
         return split_attention(vae, tile_size=tile_size, min_tile_size=min_tile_size, swap_size=shared.opts.hypertile_vae_swap_size)
 
@@ -227,7 +227,7 @@ def context_hypertile_unet(p):
     else:
         tile_size = shared.opts.hypertile_unet_tile if shared.opts.hypertile_unet_tile > 0 else max(128, 64 * min(p.width // 128, p.height // 128))
         min_tile_size = shared.opts.hypertile_unet_min_tile if shared.opts.hypertile_unet_min_tile > 0 else 128
-        shared.log.info(f'Applying hypertile: unet={min_tile_size}/{tile_size}')
+        shared.log.info(f'Applying HyperTile: unet={min_tile_size}/{tile_size}')
         p.extra_generation_params['Hypertile UNet'] = tile_size
         return split_attention(unet, tile_size=tile_size, min_tile_size=min_tile_size, swap_size=shared.opts.hypertile_unet_swap_size, depth=shared.opts.hypertile_unet_depth)
 

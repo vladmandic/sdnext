@@ -16,6 +16,8 @@ def detect(pipeline):
 
 def apply(pipeline, pretrained: bool = True):
     global applied # pylint: disable=global-statement
+    if not shared.opts.enable_linfusion:
+        return
     if applied is not None:
         return
     # linfusion = LinFusion.construct_for(pipeline=pipeline)
@@ -31,14 +33,14 @@ def apply(pipeline, pretrained: bool = True):
             return
         applied = LinFusion.from_pretrained(model_path, cache_dir=shared.opts.hfcache_dir).to(device=pipeline.unet.device, dtype=pipeline.unet.dtype)
         applied.mount_to(unet=pipeline.unet)
-    shared.log.debug(f'LinFusion: apply class={applied.__class__.__name__} model="{model_path}" modules={len(applied.modules_dict)}')
+    shared.log.info(f'Applying LinFusion: class={applied.__class__.__name__} model="{model_path}" modules={len(applied.modules_dict)}')
 
 
 def unapply(pipeline):
     global applied # pylint: disable=global-statement
     if applied is None:
         return
-    shared.log.debug('LinFusion: unapply')
+    # shared.log.debug('LinFusion: unapply')
     sd_models.set_diffusers_attention(pipeline)
     devices.torch_gc()
     applied = None

@@ -156,4 +156,4 @@ def apply_freeu(p):
             p.sd_model.disable_freeu()
             state_enabled = False
     if shared.opts.freeu_enabled and state_enabled:
-        shared.log.info(f'Applying free-u: b1={shared.opts.freeu_b1} b2={shared.opts.freeu_b2} s1={shared.opts.freeu_s1} s2={shared.opts.freeu_s2}')
+        shared.log.info(f'Applying Free-U: b1={shared.opts.freeu_b1} b2={shared.opts.freeu_b2} s1={shared.opts.freeu_s1} s2={shared.opts.freeu_s2}')

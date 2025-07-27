@@ -145,12 +145,6 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
             shared.log.quiet(quiet, f'Setting {op}: fused-qkv=True')
         except Exception as e:
             shared.log.error(f'Setting {op}: fused-qkv=True {e}')
-    if shared.opts.enable_linfusion:
-        try:
-            from modules import linfusion
-            linfusion.apply(sd_model)
-        except Exception as e:
-            shared.log.error(f'Setting {op}: LinFusion=True {e}')
     if shared.opts.diffusers_eval:
         def eval_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
             if hasattr(model, "requires_grad_"):
@@ -477,7 +471,7 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
                 from diffusers.utils import import_utils
                 import_utils._accelerate_available = False # pylint: disable=protected-access
             if shared.opts.diffusers_to_gpu and model_type.startswith('Stable Diffusion'):
-                shared.log.debug(f'Setting {op}: component=accelerate: direct={shared.opts.diffusers_to_gpu}')
+                shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
                 sd_hijack_accelerate.hijack_accelerate()
             else:
                 sd_hijack_accelerate.restore_accelerate()

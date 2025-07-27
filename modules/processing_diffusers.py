@@ -53,7 +53,8 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 
 def process_pre(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge
+    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion
+    shared.log.info('Processing apply modifiers')
 
     try:
         # apply-with-unapply
@@ -64,6 +65,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
         ras.apply(shared.sd_model, p)
         pag.apply(p)
         cfgzero.apply(p)
+        linfusion.apply(shared.sd_model)
 
         # apply-only
         sd_hijack_freeu.apply_freeu(p)
@@ -84,7 +86,8 @@ def process_pre(p: processing.StableDiffusionProcessing):
 
 
 def process_post(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge
+    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion
+    shared.log.info('Processing unapply modifiers')
 
     try:
         sd_models_compile.check_deepcache(enable=False)
@@ -94,6 +97,7 @@ def process_post(p: processing.StableDiffusionProcessing):
         ras.unapply(shared.sd_model)
         pag.unapply()
         cfgzero.unapply()
+        linfusion.unapply(shared.sd_model)
     except Exception as e:
         shared.log.error(f'Processing unapply: {e}')
         errors.display(e, 'unapply')

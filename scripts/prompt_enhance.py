@@ -9,7 +9,7 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -70,7 +70,7 @@ class Options:
         },
     }
     # default = list(models)[1] # gemma-3-4b-it
-    default = 'Qwen/Qwen3-0.6B-FP8'
+    default = 'google/gemma-3-4b-it'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
     t2i_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. '
     i2i_prompt: str = 'You are a helpful assistant. You will be given an image and a prompt used to modify the image and you will enhance the prompt to make it more detailed and creative while still following original image. '
@@ -394,9 +394,8 @@ class Script(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}') # Added check for outputs
+        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}') # Added check for outputs
         if debug_enabled:
-            shared.log.trace(f'Prompt enhance: sample={sample} tokens={tokens} temperature={temperature} penalty={penalty} thinking={thinking}')
             shared.log.trace(f'Prompt enhance: prompt="{prompt_text}"')
             shared.log.trace(f'Prompt enhance: response="{response}"')
         self.busy = False
@@ -526,5 +525,6 @@ class Script(scripts_manager.Script):
             thinking=thinking_mode,
             nsfw=nsfw_mode,
         )
+        timer.process.record('prompt')
         p.extra_generation_params['LLM'] = llm_model
         shared.state.end()

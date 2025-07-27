@@ -30,8 +30,8 @@ def update_generation_info(generation_info, html_info, img_index):
     return html_info, html_info
 
 
-def plaintext_to_html(text):
-    res = '<p class="plaintext">' + "<br>\n".join([f"{html.escape(x)}" for x in text.split('\n')]) + '</p>'
+def plaintext_to_html(text, elem_classes=[]):
+    res = f'<p class="plaintext {" ".join(elem_classes)}">' + '<br>\n'.join([f"{html.escape(x)}" for x in text.split('\n')]) + '</p>'
     return res
 
 
@@ -81,7 +81,7 @@ def delete_files(js_data, files, all_files, index):
         except Exception as e:
             shared.log.error(f'Delete: image="{fn}" {e}')
     deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
-    return all_files, plaintext_to_html(f"Deleted: {deleted}")
+    return all_files, plaintext_to_html(f"Deleted: {deleted}", ['performance'])
 
 
 def save_files(js_data, files, html_info, index):
@@ -136,7 +136,6 @@ def save_files(js_data, files, html_info, index):
             p.infotexts.append(p.infotext)
         if 'name' in filedata and ('tmp' not in filedata['name']) and os.path.isfile(filedata['name']):
             fullfn = filedata['name']
-            filenames.append(os.path.basename(fullfn))
             fullfns.append(fullfn)
             destination = shared.opts.outdir_save
             namegen = images.FilenameGenerator(p, seed=p.all_seeds[i], prompt=p.all_prompts[i], image=None)  # pylint: disable=no-member
@@ -145,6 +144,8 @@ def save_files(js_data, files, html_info, index):
             destination = namegen.sanitize(destination)
             os.makedirs(destination, exist_ok = True)
             tgt_filename = os.path.join(destination, os.path.basename(fullfn))
+            relfn = os.path.relpath(tgt_filename, shared.opts.outdir_save)
+            filenames.append(relfn)
             if not os.path.exists(tgt_filename):
                 try:
                     shutil.copy(fullfn, destination)
@@ -199,7 +200,7 @@ def save_files(js_data, files, html_info, index):
                     with open(fullfns[i], mode="rb") as f:
                         zip_file.writestr(filenames[i], f.read())
         fullfns.insert(0, zip_filepath)
-    return gr.File.update(value=fullfns, visible=True), plaintext_to_html(f"Saved: {filenames[0] if len(filenames) > 0 else 'none'}")
+    return gr.File.update(value=fullfns, visible=True), plaintext_to_html(f"Saved: {filenames[0] if len(filenames) > 0 else 'none'}", ['performance'])
 
 
 def open_folder(result_gallery, gallery_index = 0):
