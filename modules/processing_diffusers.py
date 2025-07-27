@@ -76,12 +76,11 @@ def process_pre(p: processing.StableDiffusionProcessing):
         shared.log.error(f'Processing apply: {e}')
         errors.display(e, 'apply')
 
-    if hasattr(shared.sd_model, 'unet'):
-        sd_models.move_model(shared.sd_model.unet, devices.device)
-    if hasattr(shared.sd_model, 'transformer'):
-        sd_models.move_model(shared.sd_model.transformer, devices.device)
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    sd_models.move_model(shared.sd_model, devices.device)
+    # if hasattr(shared.sd_model, 'unet'):
+    #     sd_models.move_model(shared.sd_model.unet, devices.device)
+    # if hasattr(shared.sd_model, 'transformer'):
+    #     sd_models.move_model(shared.sd_model.transformer, devices.device)
     timer.process.record('pre')
 
 

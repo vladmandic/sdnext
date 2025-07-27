@@ -813,7 +813,7 @@ def backup_pipe_components(pipe):
         'sd_checkpoint_info': getattr(pipe, "sd_checkpoint_info", None),
         'sd_model_checkpoint': getattr(pipe, "sd_model_checkpoint", None),
         'embedding_db': getattr(pipe, "embedding_db", None),
-        'loaded_loras': getattr(pipe, "loaded_loras", None),
+        'loaded_loras': getattr(pipe, "loaded_loras", {}),
         'sd_model_hash': getattr(pipe, "sd_model_hash", None),
         'has_accelerate': getattr(pipe, "has_accelerate", None),
         'current_attn_name': getattr(pipe, "current_attn_name", None),
@@ -828,28 +828,24 @@ def backup_pipe_components(pipe):
 def restore_pipe_components(pipe, components):
     if pipe is None or components is None:
         return
-    if hasattr(pipe, 'sd_checkpoint_info'):
-        pipe.sd_checkpoint_info = components['sd_checkpoint_info']
-    if hasattr(pipe, 'sd_model_checkpoint'):
-        pipe.sd_model_checkpoint = components['sd_model_checkpoint']
-    if hasattr(pipe, 'embedding_db'):
-        pipe.embedding_db = components['embedding_db']
-    if hasattr(pipe, 'loaded_loras'):
-        pipe.loaded_loras = components['loaded_loras'] if components['loaded_loras'] is not None else {}
-    if hasattr(pipe, 'sd_model_hash'):
-        pipe.sd_model_hash = components['sd_model_hash']
-    if hasattr(pipe, 'has_accelerate'):
-        pipe.has_accelerate = components['has_accelerate']
-    if hasattr(pipe, 'current_attn_name'):
-        pipe.current_attn_name = components['current_attn_name']
-    if hasattr(pipe, 'default_scheduler'):
-        pipe.default_scheduler = components['default_scheduler']
-    if hasattr(pipe, 'image_encoder') and components['image_encoder'] is not None:
+    pipe.sd_checkpoint_info = components['sd_checkpoint_info']
+    pipe.sd_model_checkpoint = components['sd_model_checkpoint']
+    pipe.embedding_db = components['embedding_db']
+    pipe.loaded_loras = components['loaded_loras'] if components['loaded_loras'] is not None else {}
+    pipe.sd_model_hash = components['sd_model_hash']
+    pipe.has_accelerate = components['has_accelerate']
+    pipe.current_attn_name = components['current_attn_name']
+    pipe.default_scheduler = components['default_scheduler']
+
+    if components['image_encoder'] is not None:
         pipe.image_encoder = components['image_encoder']
-    if hasattr(pipe, 'feature_extractor') and components['feature_extractor'] is not None:
+    if components['feature_extractor'] is not None:
         pipe.feature_extractor = components['feature_extractor']
-    if hasattr(pipe, 'mask_processor') and components['mask_processor'] is not None:
+    if components['mask_processor'] is not None:
         pipe.mask_processor = components['mask_processor']
+    if components['restore_pipeline'] is not None:
+        pipe.restore_pipeline = components['restore_pipeline']
+
     if pipe.__class__.__name__ in ['FluxPipeline', 'StableDiffusion3Pipeline']:
         pipe.register_modules(image_encoder = components['image_encoder'])
         pipe.register_modules(feature_extractor = components['feature_extractor'])

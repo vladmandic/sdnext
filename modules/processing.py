@@ -117,6 +117,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     timer.process.reset()
     debug(f'Process images: {vars(p)}')
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
+        shared.log.error('Processing: incomplete model')
         return None
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.before_process(p)
