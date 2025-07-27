@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as TF
 from PIL import Image
-from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, hidiffusion, timer, modelstats, extra_networks, ras, transformer_cache
+from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks
 from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
@@ -52,6 +52,54 @@ def restore_state(p: processing.StableDiffusionProcessing):
     return p
 
 
+def process_pre(p: processing.StableDiffusionProcessing):
+    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge
+
+    # apply-unapply
+    try:
+        sd_models_compile.check_deepcache(enable=True)
+        ipadapter.apply(shared.sd_model, p)
+        token_merge.apply_token_merging(p.sd_model)
+        hidiffusion.apply(p, shared.sd_model_type)
+        ras.apply(shared.sd_model, p)   
+        pag.apply(p)
+        cfgzero.apply(p)
+
+        # apply-only
+        sd_hijack_freeu.apply_freeu(p)
+        transformer_cache.set_cache()
+        para_attention.apply_first_block_cache()
+        teacache.apply_teacache(p)
+    except Exception as e:
+        shared.log.error(f'Processing apply: {e}')
+        errors.display(e, 'apply')
+
+    if hasattr(shared.sd_model, 'unet'):
+        sd_models.move_model(shared.sd_model.unet, devices.device)
+    if hasattr(shared.sd_model, 'transformer'):
+        sd_models.move_model(shared.sd_model.transformer, devices.device)
+    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    sd_models.move_model(shared.sd_model, devices.device)
+    timer.process.record('pre')
+
+
+def process_post(p: processing.StableDiffusionProcessing):
+    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge
+
+    try:
+        sd_models_compile.check_deepcache(enable=False)
+        ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
+        token_merge.remove_token_merging(p.sd_model)
+        hidiffusion.unapply()
+        ras.unapply(shared.sd_model)
+        pag.unapply()
+        cfgzero.unapply()
+    except Exception as e:
+        shared.log.error(f'Processing unapply: {e}')
+        errors.display(e, 'unapply')
+    timer.process.record('post')
+
+
 def process_base(p: processing.StableDiffusionProcessing):
     txt2img = is_txt2img()
     use_refiner_start = is_refiner_enabled(p) and (not p.is_hr_pass)
@@ -60,6 +108,7 @@ def process_base(p: processing.StableDiffusionProcessing):
     shared.sd_model = update_pipeline(shared.sd_model, p)
     update_sampler(p, shared.sd_model)
     timer.process.record('prepare')
+    process_pre(p)
     base_args = set_pipeline_args(
         p=p,
         model=shared.sd_model,
@@ -86,18 +135,8 @@ def process_base(p: processing.StableDiffusionProcessing):
     output = None
     try:
         t0 = time.time()
-        sd_models_compile.check_deepcache(enable=True)
-        transformer_cache.set_cache()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-        sd_models.move_model(shared.sd_model, devices.device)
-        if hasattr(shared.sd_model, 'unet'):
-            sd_models.move_model(shared.sd_model.unet, devices.device)
-        if hasattr(shared.sd_model, 'transformer'):
-            sd_models.move_model(shared.sd_model.transformer, devices.device)
         extra_networks.activate(p, exclude=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
-        hidiffusion.apply(p, shared.sd_model_type)
-        ras.apply(shared.sd_model, p)
-        timer.process.record('move')
+
         if hasattr(shared.sd_model, 'tgate') and getattr(p, 'gate_step', -1) > 0:
             base_args['gate_step'] = p.gate_step
             output = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
@@ -143,9 +182,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         errors.display(e, 'Processing')
         modelstats.analyze()
     finally:
-        ras.unapply(shared.sd_model)
-        hidiffusion.unapply()
-        sd_models_compile.check_deepcache(enable=False)
+        process_post(p)
 
     shared.state.nextjob()
     return output
@@ -206,6 +243,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             orig_denoise = p.denoising_strength
             p.denoising_strength = strength
             orig_image = p.task_args.pop('image', None) # remove image override from hires
+            process_pre(p)
             hires_args = set_pipeline_args(
                 p=p,
                 model=shared.sd_model,
@@ -226,15 +264,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             hires_steps = hires_args.get('prior_num_inference_steps', None) or p.hr_second_pass_steps or hires_args.get('num_inference_steps', None)
             shared.state.update(get_job_name(p, shared.sd_model), hires_steps, 1)
             try:
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-                sd_models.move_model(shared.sd_model, devices.device)
-                if hasattr(shared.sd_model, 'unet'):
-                    sd_models.move_model(shared.sd_model.unet, devices.device)
-                if hasattr(shared.sd_model, 'transformer'):
-                    sd_models.move_model(shared.sd_model.transformer, devices.device)
                 if 'base' in p.skip:
                     extra_networks.activate(p)
-                sd_models_compile.check_deepcache(enable=True)
                 output = shared.sd_model(**hires_args) # pylint: disable=not-callable
                 if isinstance(output, dict):
                     output = SimpleNamespace(**output)
@@ -249,6 +280,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 shared.log.error(f'Processing step=hires: args={hires_args} {e}')
                 errors.display(e, 'Processing')
                 modelstats.analyze()
+            finally:
+                process_post(p)
             if orig_image is not None:
                 p.task_args['image'] = orig_image
             p.denoising_strength = orig_denoise

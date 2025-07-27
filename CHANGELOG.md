@@ -171,11 +171,12 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - remove legacy model configs: `/configs/*.yaml`  
   - remove legacy submodule: `/modules/k-diffusion`  
   - remove legacy hypernetworks support: `/modules/hypernetworks`  
-  - remove legacy lora support: `/extensions-builtin/Lora`
-  - remove legacy clip/blip interrogate module
+  - remove legacy lora support: `/extensions-builtin/Lora`  
+  - remove legacy clip/blip interrogate module  
   - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
   - refactor control processing and separate preprocessing and image save ops  
   - refactor modernui layouts to rely on accordions more than individual controls  
+  - refactore pipeline apply/unapply optional components & features  
   - split monolithic `shared.py`  
   - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
   - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  

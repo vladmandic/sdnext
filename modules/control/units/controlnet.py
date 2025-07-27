@@ -378,6 +378,7 @@ class ControlNetPipeline():
                 unet=pipeline.unet,
                 scheduler=pipeline.scheduler,
                 feature_extractor=getattr(pipeline, 'feature_extractor', None),
+                image_encoder=getattr(pipeline, 'image_encoder', None),
                 controlnet=controlnets, # can be a list
             )
         elif detect.is_f1(pipeline) and len(controlnets) > 0:
@@ -415,6 +416,7 @@ class ControlNetPipeline():
                 unet=pipeline.unet,
                 scheduler=pipeline.scheduler,
                 feature_extractor=getattr(pipeline, 'feature_extractor', None),
+                image_encoder=getattr(pipeline, 'image_encoder', None),
                 requires_safety_checker=False,
                 safety_checker=None,
                 controlnet=controlnets, # can be a list

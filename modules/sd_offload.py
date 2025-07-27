@@ -248,7 +248,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 elif 'bitsandbytes' in str(e):
                     pass
                 else:
-                    shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} {e}')
+                    shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} cls={module.__class__ if inspect.isclass(module) else None} {e}')
                 if os.environ.get('SD_MOVE_DEBUG', None):
                     errors.display(e, f'Offload: type=balanced op=apply module={module.__name__}')
         return output

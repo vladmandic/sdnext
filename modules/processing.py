@@ -3,12 +3,11 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration, token_merge
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import StableDiffusionProcessing, StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, StableDiffusionProcessingControl, StableDiffusionProcessingVideo # pylint: disable=unused-import
 from modules.processing_info import create_infotext
 from modules.modeldata import model_data
-from modules import pag, cfgzero
 
 
 opt_C = 4
@@ -158,12 +157,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
         shared.prompt_styles.apply_styles_to_extra(p)
         shared.prompt_styles.extract_comments(p)
-        if 'Model' not in shared.opts.cuda_compile:
-            token_merge.apply_token_merging(p.sd_model)
-            from modules import sd_hijack_freeu, para_attention, teacache
-            sd_hijack_freeu.apply_freeu(p)
-            para_attention.apply_first_block_cache()
-            teacache.apply_teacache(p)
 
         if p.width is not None:
             p.width = 8 * int(p.width / 8)
@@ -205,11 +198,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                 processed = process_images_inner(p)
 
     finally:
-        pag.unapply()
-        cfgzero.unapply()
-        if shared.opts.cuda_compile_backend == 'none':
-            token_merge.remove_token_merging(p.sd_model)
-
         script_callbacks.after_process_callback(p)
 
         if p.override_settings_restore_afterwards: # restore opts to original state
@@ -284,8 +272,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         debug(f'Processing inner: args={vars(p)}')
         for n in range(p.n_iter):
             shared.state.batch_no = n + 1
-            pag.apply(p)
-            cfgzero.apply(p)
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n
             if shared.state.skipped:
@@ -296,8 +282,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 shared.log.debug(f'Process interrupted: {n+1}/{p.n_iter}')
                 break
 
-            from modules import ipadapter
-            ipadapter.apply(shared.sd_model, p)
             if not hasattr(p, 'keep_prompts'):
                 p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
                 p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
@@ -446,9 +430,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     index_of_first_image = 1
                 if shared.opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True, suffix="-grid") # main save grid
-
-    from modules import ipadapter
-    ipadapter.unapply(shared.sd_model, unload=getattr(p, 'ip_adapter_unload', False))
 
     if shared.opts.include_mask:
         if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:

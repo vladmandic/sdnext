@@ -812,6 +812,55 @@ def clean_diffuser_pipe(pipe):
         pipe.register_to_config(**internal_dict)
 
 
+def backup_pipe_components(pipe):
+    if pipe is None:
+        return {}
+    return {
+        'sd_checkpoint_info': getattr(pipe, "sd_checkpoint_info", None),
+        'sd_model_checkpoint': getattr(pipe, "sd_model_checkpoint", None),
+        'embedding_db': getattr(pipe, "embedding_db", None),
+        'loaded_loras': getattr(pipe, "loaded_loras", None),
+        'sd_model_hash': getattr(pipe, "sd_model_hash", None),
+        'has_accelerate': getattr(pipe, "has_accelerate", None),
+        'current_attn_name': getattr(pipe, "current_attn_name", None),
+        'default_scheduler': getattr(pipe, "default_scheduler", None),
+        'image_encoder': getattr(pipe, "image_encoder", None),
+        'feature_extractor': getattr(pipe, "feature_extractor", None),
+        'mask_processor': getattr(pipe, "mask_processor", None),
+        'restore_pipeline': getattr(pipe, "restore_pipeline", None),
+    }
+
+
+def restore_pipe_components(pipe, components):
+    if pipe is None or components is None:
+        return
+    if hasattr(pipe, 'sd_checkpoint_info'):
+        pipe.sd_checkpoint_info = components['sd_checkpoint_info']
+    if hasattr(pipe, 'sd_model_checkpoint'):
+        pipe.sd_model_checkpoint = components['sd_model_checkpoint']
+    if hasattr(pipe, 'embedding_db'):
+        pipe.embedding_db = components['embedding_db']
+    if hasattr(pipe, 'loaded_loras'):
+        pipe.loaded_loras = components['loaded_loras'] if components['loaded_loras'] is not None else {}
+    if hasattr(pipe, 'sd_model_hash'):
+        pipe.sd_model_hash = components['sd_model_hash']
+    if hasattr(pipe, 'has_accelerate'):
+        pipe.has_accelerate = components['has_accelerate']
+    if hasattr(pipe, 'current_attn_name'):
+        pipe.current_attn_name = components['current_attn_name']
+    if hasattr(pipe, 'default_scheduler'):
+        pipe.default_scheduler = components['default_scheduler']
+    if hasattr(pipe, 'image_encoder') and components['image_encoder'] is not None:
+        pipe.image_encoder = components['image_encoder']
+    if hasattr(pipe, 'feature_extractor') and components['feature_extractor'] is not None:
+        pipe.feature_extractor = components['feature_extractor']
+    if hasattr(pipe, 'mask_processor') and components['mask_processor'] is not None:
+        pipe.mask_processor = components['mask_processor']
+    if pipe.__class__.__name__ in ['FluxPipeline', 'StableDiffusion3Pipeline']:
+        pipe.register_modules(image_encoder = components['image_encoder'])
+        pipe.register_modules(feature_extractor = components['feature_extractor'])
+
+
 def set_diffuser_pipe(pipe, new_pipe_type):
     has_errors = False
     if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
@@ -840,18 +889,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         if cls == 'StableDiffusionXLPAGPipeline':
             pipe = switch_pipe(diffusers.StableDiffusionXLPipeline, pipe)
 
-    sd_checkpoint_info = getattr(pipe, "sd_checkpoint_info", None)
-    sd_model_checkpoint = getattr(pipe, "sd_model_checkpoint", None)
-    embedding_db = getattr(pipe, "embedding_db", None)
-    loaded_loras = getattr(pipe, "loaded_loras", None)
-    sd_model_hash = getattr(pipe, "sd_model_hash", None)
-    has_accelerate = getattr(pipe, "has_accelerate", None)
-    current_attn_name = getattr(pipe, "current_attn_name", None)
-    default_scheduler = getattr(pipe, "default_scheduler", None)
-    image_encoder = getattr(pipe, "image_encoder", None)
-    feature_extractor = getattr(pipe, "feature_extractor", None)
-    mask_processor = getattr(pipe, "mask_processor", None)
-    restore_pipeline = getattr(pipe, "restore_pipeline", None)
+    components_backup = backup_pipe_components(pipe)
 
     if new_pipe is None:
         if hasattr(pipe, 'config'): # real pipeline which can be auto-switched
@@ -889,25 +927,10 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     if new_pipe is None:
         return pipe
-    new_pipe.sd_checkpoint_info = sd_checkpoint_info
-    new_pipe.sd_model_checkpoint = sd_model_checkpoint
-    new_pipe.embedding_db = embedding_db
-    new_pipe.sd_model_hash = sd_model_hash
-    new_pipe.has_accelerate = has_accelerate
-    new_pipe.current_attn_name = current_attn_name
-    new_pipe.default_scheduler = default_scheduler
-    new_pipe.loaded_loras = loaded_loras if loaded_loras is not None else {}
-    if image_encoder is not None:
-        new_pipe.image_encoder = image_encoder
-    if feature_extractor is not None:
-        new_pipe.feature_extractor = feature_extractor
-    if mask_processor is not None:
-        new_pipe.mask_processor = mask_processor
-    if restore_pipeline is not None:
-        new_pipe.restore_pipeline = restore_pipeline
-    if new_pipe.__class__.__name__ in ['FluxPipeline', 'StableDiffusion3Pipeline']:
-        new_pipe.register_modules(image_encoder = image_encoder)
-        new_pipe.register_modules(feature_extractor = feature_extractor)
+
+    restore_pipe_components(new_pipe, components_backup)
+    components_backup = None # free memory
+
     new_pipe.is_sdxl = getattr(pipe, 'is_sdxl', False) # a1111 compatibility item
     new_pipe.is_sd2 = getattr(pipe, 'is_sd2', False)
     new_pipe.is_sd1 = getattr(pipe, 'is_sd1', True)
