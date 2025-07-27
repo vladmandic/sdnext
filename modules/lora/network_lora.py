@@ -38,12 +38,12 @@ class NetworkModuleLora(network.NetworkModule):
                 module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
             else:
                 module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
-        elif is_conv and key == "lora_mid.weight":
+        elif is_conv and (key == "lora_mid.weight"):
             module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
         elif is_conv and (key == "lora_up.weight" or key == "dyn_down"):
             module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
         else:
-            raise AssertionError(f'Lora unsupported: layer={self.network_key} type={type(self.sd_module).__name__}')
+            raise AssertionError(f'Lora unsupported: linear={is_linear} conv={is_conv} key={key} layer={self.network_key} type={type(self.sd_module).__name__}')
         with torch.no_grad():
             if weight.shape != module.weight.shape:
                 weight = weight.reshape(module.weight.shape)
