@@ -118,11 +118,13 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = None
-            if 'dev' in repo_id:
+            if 'kontext' in repo_id.lower():
+                nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-{nunchaku_precision}_r32-flux.1-kontext-dev.safetensors"
+            elif 'dev' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-dev/svdq-{nunchaku_precision}_r32-flux.1-dev.safetensors"
-            elif 'schnell' in repo_id:
+            elif 'schnell' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
-            elif 'shuttle' in repo_id:
+            elif 'shuttle' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-shuttle-jaguar/svdq-{nunchaku_precision}_r32-shuttle-jaguar.safetensors"
             else:
                 shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')

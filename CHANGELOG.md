@@ -69,6 +69,8 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
     with optional composite blending  
     available in *img2img or control -> scripts*  
   - add **FLUX.1-Kontext-Dev** inpaint workflow  
+  - add **FLUX.1-Kontext-Dev** **Nunchaku** support  
+    *note*: FLUX.1 Kontext is about 2-3x faster with Nunchaku vs standard execution!  
   - support **FLUX.1** all-in-one safetensors  
   - support for [Google Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models  
     available in **prompt enhance** and process **captioning**  
