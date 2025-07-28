@@ -195,8 +195,12 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
 }))
 
 options_templates.update(options_section(('model_options', "Models Options"), {
-    "model_sd3_disable_te5": OptionInfo(False, "StableDiffusion3: T5 disable encoder"),
-    "model_h1_llama_repo": OptionInfo("Default", "HiDream: LLama repo", gr.Textbox),
+    "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
+    "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
+    "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
+    "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
+    "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
+    "model_wan_disable_t2": OptionInfo(True, "Disable second stage"),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variational Auto Encoder"), {

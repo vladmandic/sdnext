@@ -97,6 +97,7 @@ def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
     except Exception as e:
         yield msg(f'unet: {e}')
 
+
 def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
     if recipe.scheduler is None and override is None:
         return

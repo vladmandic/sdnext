@@ -506,8 +506,15 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 
 def set_overrides(sd_model, checkpoint_info):
     if 'bigaspv25' in checkpoint_info.name.lower():
-        sd_model.scheduler = diffusers.UniPCMultistepScheduler(prediction_type="flow_prediction", use_flow_sigmas=True)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler cls={sd_model.scheduler.__class__.__name__}')
+        scheduler_config = sd_model.scheduler.config
+        scheduler_config['prediction_type'] = 'flow_prediction'
+        sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
+        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
+    if 'vpred' in checkpoint_info.name.lower() or 'v-pred' in checkpoint_info.name.lower():
+        scheduler_config = sd_model.scheduler.config
+        scheduler_config['prediction_type'] = 'v_prediction'
+        sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction"')
 
 
 def set_defaults(sd_model, checkpoint_info):

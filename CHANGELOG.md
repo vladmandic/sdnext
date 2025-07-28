@@ -13,6 +13,7 @@ Feature highlights include:
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
+- Enhanced auto-detection of default sampler types/settings results in avoiding common mistakes  
 - Additional **LLM/VLM** models available for captioning and prompt enhance  
 - Number of workflow and general quality-of-life improvements, especially around **Styles**, **Detailer**, **Preview**, **Batch**, **Control**  
 - Compute improvements  
@@ -41,14 +42,16 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - [WanAI Wan 2.2](https://github.com/Wan-Video/Wan2.2) both 5B and A14B variants, for both T2V and I2V support  
     go to: *video -> generic -> wan -> pick variant*  
     optimized support with *VACE*, etc. will follow soon  
-    *note*: quantization and offloading are highly recommended!  
+    *caution* Wan2.2 on its own is ~68GB, but also includes optional second-stage for later low-noise processing which is absolutely massive at additional ~54GB  
+    you can enable second stage processing in *settings -> model options*, its disabled by default  
+    *note*: quantization and offloading are highly recommended regardless of first-stage only or both stages!  
   - [WanAI Wan](https://wan.video/) T2V models for T2I workflows  
     Wan is originally designed for *video* workflows, but now also be used for *text-to-image* workflows!  
     Supports Wan2.1 in 1.3B and 14B variants and Wan2.2 in 5B and A14B variants  
     supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
     can also load unet/transformer fine-tunes in safetensors format using UNET loader  
     simply select in *networks -> models -> reference*  
-    *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB so aggressive quantization and offloading are recommended  
+    *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB even without second-stage so aggressive quantization and offloading are recommended  
   - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
     F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
     available via *networks -> models -> reference*  
@@ -138,6 +141,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - **Detailer** add option to merge multiple results from each detailer model  
     for example, hands model can result in two hands each being processed separately or both hands can be merged into one composite job  
   - **Control** auto-update width/height on image upload  
+  - autodetect **V-prediction** models and override default sampler prediction type as needed  
 - **SDNQ**  
   - use inference context during quantization  
   - use static compile  
