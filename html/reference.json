@@ -203,9 +203,37 @@
     "skip": true,
     "extras": "sampler: Default"
   },
+  "Wan-AI Wan2.2 5B": {
+    "path": "Wan-AI/Wan2.2-TI2V-5B-Diffusers",
+    "preview": "Wan-AI--Wan2.2.jpg",
+    "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "Wan-AI Wan2.2 A14B": {
+    "path": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+    "preview": "Wan-AI--Wan2.2.jpg",
+    "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
 
   "Freepik F-Lite": {
     "path": "Freepik/F-Lite",
+    "preview": "Freepik--F-Lite.jpg",
+    "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+  "Freepik F-Lite Texture": {
+    "path": "Freepik/F-Lite-Texture",
+    "preview": "Freepik--F-Lite.jpg",
+    "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+  "Freepik F-Lite 7B": {
+    "path": "Freepik/F-Lite-7B",
     "preview": "Freepik--F-Lite.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,

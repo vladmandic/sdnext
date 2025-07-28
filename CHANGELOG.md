@@ -6,7 +6,10 @@
 
 Feature highlights include:  
 - **ModernUI** has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes!  
-- New models [WanAI Wan 2.1](https://wan.video/) for text-to-image workflows, [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2), [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
+  If you're still using StandardUI, give [ModernUI](https://vladmandic.github.io/sdnext-docs/Themes/) a try!  
+- New models:  
+  - [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
+  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2), [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
@@ -35,8 +38,13 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
     this means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 - **Models**
-  - [WanAI Wan 2.1](https://wan.video/) 1.3B and 14B T2V models for T2I workflows  
-    Wan 2.1 is originally designed for *video* workflows, Wan 2.1 model can now also be used for *text-to-image* workflows!  
+  - [WanAI Wan 2.2](https://github.com/Wan-Video/Wan2.2) both 5B and A14B variants, for both T2V and I2V support  
+    go to: *video -> generic -> wan -> pick variant*  
+    optimized support with *VACE*, etc. will follow soon  
+    *note*: quantization and offloading are highly recommended!  
+  - [WanAI Wan](https://wan.video/) T2V models for T2I workflows  
+    Wan is originally designed for *video* workflows, but now also be used for *text-to-image* workflows!  
+    Supports Wan2.1 in 1.3B and 14B variants and Wan2.2 in 5B and A14B variants  
     supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
     can also load unet/transformer fine-tunes in safetensors format using UNET loader  
     simply select in *networks -> models -> reference*  

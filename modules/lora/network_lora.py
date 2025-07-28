@@ -3,6 +3,7 @@ import diffusers.models.lora as diffusers_lora
 import modules.lora.lyco_helpers as lyco_helpers
 import modules.lora.network as network
 from modules import devices
+from modules.errors import log
 
 
 class ModuleTypeLora(network.ModuleType):
@@ -26,8 +27,9 @@ class NetworkModuleLora(network.NetworkModule):
         if weight is None and none_ok:
             return None
         linear_modules = [torch.nn.Linear, torch.nn.modules.linear.NonDynamicallyQuantizableLinear, torch.nn.MultiheadAttention, diffusers_lora.LoRACompatibleLinear]
-        is_linear = type(self.sd_module) in linear_modules or self.sd_module.__class__.__name__ in {"NNCFLinear", "QLinear", "Linear4bit"}
-        is_conv = type(self.sd_module) in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv] or self.sd_module.__class__.__name__ in {"NNCFConv2d", "QConv2d"}
+        typ = type(self.sd_module)
+        is_linear = typ in linear_modules or self.sd_module.__class__.__name__ in ["NNCFLinear", "QLinear", "Linear4bit"]
+        is_conv = (typ in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv]) or (self.sd_module.__class__.__name__ in ["NNCFConv2d", "QConv2d"]) or (typ.__name__ in ['downsampler_block', 'upsampler_block'])
         if is_linear:
             weight = weight.reshape(weight.shape[0], -1)
             module = torch.nn.Linear(weight.shape[1], weight.shape[0], bias=False)
@@ -43,7 +45,7 @@ class NetworkModuleLora(network.NetworkModule):
         elif is_conv and (key == "lora_up.weight" or key == "dyn_down"):
             module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
         else:
-            raise AssertionError(f'Lora unsupported: linear={is_linear} conv={is_conv} key={key} layer={self.network_key} type={type(self.sd_module).__name__}')
+            raise AssertionError(f'Lora unsupported: key={key} layer={self.network_key} type={typ.__name__}')
         with torch.no_grad():
             if weight.shape != module.weight.shape:
                 weight = weight.reshape(module.weight.shape)
