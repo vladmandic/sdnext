@@ -41,6 +41,8 @@ def create_ui():
                 interrupt.click(fn=lambda: shared.state.interrupt(), inputs=[], outputs=[])
                 skip = gr.Button('Skip', elem_id=f"{id_part}_skip", variant='secondary')
                 skip.click(fn=lambda: shared.state.skip(), inputs=[], outputs=[])
+                pause = gr.Button('Pause', elem_id=f"{id_part}_pause")
+                pause.click(fn=lambda: shared.state.pause(), _js='checkPaused', inputs=[], outputs=[])
             result_images, generation_info, html_info, html_info_formatted, html_log = ui_common.create_output_panel("extras")
             gr.HTML('File metadata')
             exif_info = gr.HTML(elem_id="pnginfo_html_info")

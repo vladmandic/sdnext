@@ -554,13 +554,11 @@ def create_ui(_blocks: gr.Blocks=None):
             btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter])
             btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
 
-            select_fields = [input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder]
-            select_output = [output_tabs, preview_process, result_txt]
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
-                inputs=select_fields,
-                outputs=select_output,
+                inputs=[input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder],
+                outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
                 show_progress=True,
                 queue=False,
             )

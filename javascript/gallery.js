@@ -39,9 +39,10 @@ class GalleryFolder extends HTMLElement {
     const style = document.createElement('style'); // silly but necessasry since we're inside shadowdom
     if (window.opts.theme_type === 'Modern') {
       style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); }
+        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
         .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
         .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
+        .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
       `;
     } else {
       style.textContent = `
@@ -53,7 +54,7 @@ class GalleryFolder extends HTMLElement {
     this.shadow.appendChild(style);
     const div = document.createElement('div');
     div.className = 'gallery-folder';
-    div.textContent = `\uf44a ${this.name}`;
+    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
         if (folder.name === this.name) folder.shadow.children[1].classList.add('gallery-folder-selected');
