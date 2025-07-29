@@ -3,7 +3,7 @@ import math
 import gradio as gr
 from modules import images, processing, scripts_manager
 from modules.processing import Processed
-from modules.shared import opts, state
+from modules.shared import opts, state, log
 
 
 class Script(scripts_manager.Script):
@@ -70,7 +70,7 @@ class Script(scripts_manager.Script):
                 state.job = f"loopback iteration {i+1}/{loops} batch {n+1}/{initial_batch_count}"
                 processed = processing.process_images(p)
                 if processed is None:
-                    shared.log.error("Loopback: processing output is none")
+                    log.error("Loopback: processing output is none")
                     return Processed(p, [], None, None)
                 if state.interrupted or state.skipped:
                     break

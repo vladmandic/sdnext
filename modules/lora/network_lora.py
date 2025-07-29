@@ -3,7 +3,6 @@ import diffusers.models.lora as diffusers_lora
 import modules.lora.lyco_helpers as lyco_helpers
 import modules.lora.network as network
 from modules import devices
-from modules.errors import log
 
 
 class ModuleTypeLora(network.ModuleType):
