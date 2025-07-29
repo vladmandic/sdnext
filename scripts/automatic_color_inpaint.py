@@ -1,7 +1,7 @@
 import gradio as gr
 from PIL import Image
 import numpy as np
-from modules import shared, scripts, processing, masking
+from modules import shared, scripts_manager, processing, masking
 
 """
 Automatic Color Inpaint Script for SD.NEXT - SD & SDXL Support
@@ -28,14 +28,12 @@ img2img = True
 
 ### Script definition
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return title
 
     def show(self, is_img2img):
-        if shared.native:
-            return img2img if is_img2img else txt2img
-        return False
+        return img2img if is_img2img else txt2img
 
     # Define UI for pipeline
     def ui(self, _is_img2img):

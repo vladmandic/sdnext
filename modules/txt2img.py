@@ -1,5 +1,5 @@
 import os
-from modules import shared, processing, scripts
+from modules import shared, processing, scripts_manager
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html
 
@@ -21,7 +21,7 @@ def txt2img(id_task, state,
             enable_hr, denoising_strength,
             hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_resize_x, hr_resize_y,
             refiner_steps, refiner_start, refiner_prompt, refiner_negative,
-            hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio,
+            hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
             override_settings_texts,
             *args):
 
@@ -87,16 +87,16 @@ def txt2img(id_task, state,
         refiner_prompt=refiner_prompt,
         refiner_negative=refiner_negative,
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
-        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundry=hdr_max_boundry, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
+        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
         override_settings=override_settings,
     )
-    p.scripts = scripts.scripts_txt2img
+    p.scripts = scripts_manager.scripts_txt2img
     p.script_args = args
     p.state = state
-    processed: processing.Processed = scripts.scripts_txt2img.run(p, *args)
+    processed: processing.Processed = scripts_manager.scripts_txt2img.run(p, *args)
     if processed is None:
         processed = processing.process_images(p)
-    processed = scripts.scripts_txt2img.after(p, processed, *args)
+    processed = scripts_manager.scripts_txt2img.after(p, processed, *args)
     p.close()
     if processed is None:
         return [], '', '', 'Error: processing failed'

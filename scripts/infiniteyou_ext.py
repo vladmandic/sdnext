@@ -4,7 +4,7 @@
 
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 prefix = 'InfiniteYou'
@@ -15,14 +15,14 @@ orig_pipeline, orig_prompt_attention = None, None
 def verify_insightface():
     from installer import installed, install, reload
     if not installed('insightface', reload=False, quiet=True):
-        install('insightface==0.7.3', ignore=False)
+        install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
         install('albumentations==1.4.3', ignore=False, reinstall=True)
         install('pydantic==1.10.21', ignore=False, reinstall=True, force=True)
         reload('pydantic')
 
 
 def load_infiniteyou(model: str):
-    from modules.infiniteyou import InfUFluxPipeline
+    from scripts.infiniteyou import InfUFluxPipeline
     shared.sd_model = InfUFluxPipeline(
         pipe=shared.sd_model,
         model_version=model,
@@ -31,12 +31,12 @@ def load_infiniteyou(model: str):
     sd_models.set_diffuser_options(shared.sd_model)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return f'{prefix}: Flexible Photo Recrafting'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

@@ -1,24 +1,14 @@
 import gradio as gr
 from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call
-from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing, processing_vae, devices, images
+from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing_vae, images
 from modules.ui_components import ToolButton # pylint: disable=unused-import
-
-
-def calc_resolution_hires(width, height, hr_scale, hr_resize_x, hr_resize_y, hr_upscaler):
-    if hr_upscaler == "None":
-        return "Hires resize: None"
-    p = processing.StableDiffusionProcessingTxt2Img(width=width, height=height, enable_hr=True, hr_scale=hr_scale, hr_resize_x=hr_resize_x, hr_resize_y=hr_resize_y)
-    p.init_hr()
-    with devices.autocast():
-        p.init([""], [0], [0])
-    return f"Hires resize: from <span class='resolution'>{p.width}x{p.height}</span> to <span class='resolution'>{p.hr_resize_x or p.hr_upscale_to_x}x{p.hr_resize_y or p.hr_upscale_to_y}</span>"
 
 
 def create_ui():
     shared.log.debug('UI initialize: txt2img')
     import modules.txt2img # pylint: disable=redefined-outer-name
-    modules.scripts.scripts_current = modules.scripts.scripts_txt2img
-    modules.scripts.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)
+    modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_txt2img
+    modules.scripts_manager.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)
     with gr.Blocks(analytics_enabled=False) as _txt2img_interface:
         txt2img_prompt, txt2img_prompt_styles, txt2img_negative_prompt, txt2img_submit, txt2img_reprocess, txt2img_paste, txt2img_extra_networks_button, txt2img_token_counter, txt2img_token_button, txt2img_negative_token_counter, txt2img_negative_token_button = ui_sections.create_toprow(is_img2img=False, id_part="txt2img")
 
@@ -31,7 +21,7 @@ def create_ui():
             timer.startup.record('ui-networks')
 
         with gr.Row(elem_id="txt2img_interface", equal_height=False):
-            with gr.Column(variant='compact', elem_id="txt2img_settings"):
+            with gr.Column(variant='compact', elem_id="txt2img_settings", elem_classes=['settings-column']):
 
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('txt2img')
@@ -45,14 +35,14 @@ def create_ui():
                         ui_sections.create_sampler_options('txt2img')
                     seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('txt2img')
                     vae_type, tiling, hidiffusion, _cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, _cfg_end = ui_sections.create_advanced_inputs('txt2img', base=False)
-                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
+                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
                     enable_hr, hr_sampler_index, denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength  = shared.yolo.ui('txt2img')
                     override_settings = ui_common.create_override_inputs('txt2img')
                     state = gr.Textbox(value='', visible=False)
 
                 with gr.Group(elem_id="txt2img_script_container"):
-                    txt2img_script_inputs = modules.scripts.scripts_txt2img.setup_ui(parent='txt2img', accordion=True)
+                    txt2img_script_inputs = modules.scripts_manager.scripts_txt2img.setup_ui(parent='txt2img', accordion=True)
 
             txt2img_gallery, txt2img_generation_info, txt2img_html_info, _txt2img_html_info_formatted, txt2img_html_log = ui_common.create_output_panel("txt2img", preview=True, prompt=txt2img_prompt)
             ui_common.connect_reuse_seed(seed, reuse_seed, txt2img_generation_info, is_subseed=False)
@@ -74,7 +64,7 @@ def create_ui():
                 enable_hr, denoising_strength,
                 hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_resize_x, hr_resize_y,
                 refiner_steps, refiner_start, refiner_prompt, refiner_negative,
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio,
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
                 override_settings,
             ]
             txt2img_dict = dict(
@@ -158,13 +148,13 @@ def create_ui():
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
-                *modules.scripts.scripts_txt2img.infotext_fields
+                *modules.scripts_manager.scripts_txt2img.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("txt2img", None, txt2img_paste_fields, override_settings)
             txt2img_bindings = generation_parameters_copypaste.ParamBinding(paste_button=txt2img_paste, tabname="txt2img", source_text_component=txt2img_prompt, source_image_component=None)
             generation_parameters_copypaste.register_paste_params_button(txt2img_bindings)
 
-            txt2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt, steps], outputs=[txt2img_token_counter])
-            txt2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt, steps], outputs=[txt2img_negative_token_counter])
+            txt2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = False)
+            txt2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui, txt2img_gallery)

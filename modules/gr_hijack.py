@@ -1,7 +1,7 @@
 from PIL import Image
 import gradio as gr
 import gradio.processing_utils
-from modules import scripts, patches, gr_tempdir
+from modules import scripts_manager, patches, gr_tempdir
 
 
 hijacked = False
@@ -44,14 +44,14 @@ def add_classes_to_gradio_component(comp):
 
 def IOComponent_init(self, *args, **kwargs):
     self.webui_tooltip = kwargs.pop('tooltip', None)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.before_component(self, **kwargs)
-    scripts.script_callbacks.before_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.before_component(self, **kwargs)
+    scripts_manager.script_callbacks.before_component_callback(self, **kwargs)
     res = original_IOComponent_init(self, *args, **kwargs) # pylint: disable=assignment-from-no-return
     add_classes_to_gradio_component(self)
-    scripts.script_callbacks.after_component_callback(self, **kwargs)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.after_component(self, **kwargs)
+    scripts_manager.script_callbacks.after_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.after_component(self, **kwargs)
     return res
 
 
@@ -65,14 +65,14 @@ def Block_get_config(self):
 
 
 def BlockContext_init(self, *args, **kwargs):
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.before_component(self, **kwargs)
-    scripts.script_callbacks.before_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.before_component(self, **kwargs)
+    scripts_manager.script_callbacks.before_component_callback(self, **kwargs)
     res = original_BlockContext_init(self, *args, **kwargs) # pylint: disable=assignment-from-no-return
     add_classes_to_gradio_component(self)
-    scripts.script_callbacks.after_component_callback(self, **kwargs)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.after_component(self, **kwargs)
+    scripts_manager.script_callbacks.after_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.after_component(self, **kwargs)
     return res
 
 

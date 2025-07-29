@@ -8,6 +8,9 @@ failed_unet = []
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
+dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan']
+
+
 def load_unet(model):
     global loaded_unet # pylint: disable=global-statement
     if shared.opts.sd_unet == 'Default' or shared.opts.sd_unet == 'None':
@@ -25,7 +28,7 @@ def load_unet(model):
         if shared.opts.sd_unet == loaded_unet or shared.opts.sd_unet in failed_unet:
             pass
         elif "StableCascade" in model.__class__.__name__:
-            from modules.model_stablecascade import load_prior
+            from pipelines.model_stablecascade import load_prior
             prior_unet, prior_text_encoder = load_prior(unet_dict[shared.opts.sd_unet], config_file=config_file)
             loaded_unet = shared.opts.sd_unet
             if prior_unet is not None:
@@ -34,21 +37,9 @@ def load_unet(model):
             if prior_text_encoder is not None:
                 model.prior_pipe.text_encoder = None # Prevent OOM
                 model.prior_pipe.text_encoder = prior_text_encoder.to(devices.device, dtype=devices.dtype)
-        elif "Flux" in model.__class__.__name__ or "StableDiffusion3" in model.__class__.__name__ or "HiDream" in model.__class__.__name__ or "Lumina2" in model.__class__.__name__:
+        elif any([m in model.__class__.__name__ for m in dit_models]): # noqa: C419 # pylint: disable=use-a-generator
             loaded_unet = shared.opts.sd_unet
             sd_models.load_diffuser() # TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
-            """
-            from modules.model_flux import load_transformer
-            transformer = load_transformer(unet_dict[shared.opts.sd_unet])
-            if transformer is not None:
-                model.transformer = None
-                if shared.opts.diffusers_offload_mode == 'none':
-                    sd_models.move_model(transformer, devices.device)
-                model.transformer = transformer
-                loaded_unet = shared.opts.sd_unet
-                from modules.sd_models import set_diffuser_offload
-                set_diffuser_offload(model, 'model')
-            """
         else:
             if not hasattr(model, 'unet') or model.unet is None:
                 shared.log.error('Load module: type=UNET not found in current model')

@@ -6,7 +6,10 @@ import csv
 import json
 import time
 import random
-from modules import files_cache, shared, infotext
+from modules import files_cache, shared, infotext, sd_models, sd_vae
+
+
+debug_enabled = os.environ.get('SD_STYLES_DEBUG', None) is not None
 
 
 class Style():
@@ -145,23 +148,28 @@ def apply_styles_to_extra(p, style: Style):
         'sampler': 'sampler_name',
         'size-1': 'width',
         'size-2': 'height',
+        'model': 'sd_model_checkpoint',
+        'vae': 'sd_vae',
+        'unet': 'sd_unet',
+        'te': 'sd_text_encoder',
+        'refine': 'enable_hr',
+        'hires': 'hr_force',
     }
     name_exclude = [
         'size',
     ]
     reference_style = get_reference_style()
     extra = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
-
     style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True)
     style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
     extra.pop('Negative prompt', None)
-    fields = []
+    params = []
+    settings = []
     skipped = []
     for k, v in extra.items():
-        k = k.lower()
-        k = k.replace(' ', '_')
+        k = k.lower().replace(' ', '_')
         if k in name_map: # rename some fields
             k = name_map[k]
         if k in name_exclude: # exclude some fields
@@ -172,10 +180,23 @@ def apply_styles_to_extra(p, style: Style):
                 if not (type(orig) == int and type(v) == float): # dont convert float to int
                     v = type(orig)(v)
             setattr(p, k, v)
-            fields.append(f'{k}={v}')
+            if debug_enabled:
+                shared.log.trace(f'Apply style param: {k}={v}')
+            params.append(f'{k}={v}')
+        elif shared.opts.data_labels.get(k, None) is not None:
+            if debug_enabled:
+                shared.log.trace(f'Apply style setting: {k}={v}')
+            shared.opts.data[k] = v
+            if k == 'sd_model_checkpoint':
+                sd_models.reload_model_weights()
+            if k == 'sd_vae':
+                sd_vae.reload_vae_weights()
+            settings.append(f'{k}={v}')
         else:
+            if debug_enabled:
+                shared.log.trace(f'Apply style skip: {k}={v}')
             skipped.append(f'{k}={v}')
-    shared.log.debug(f'Apply style: name="{style.name}" extra={fields} skipped={skipped} reference={True if reference_style else False}')
+    shared.log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
 
 
 class StyleDatabase:

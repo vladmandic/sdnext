@@ -69,9 +69,9 @@ def optimize_openvino(sd_model):
             shared.compiled_model_state.partitioned_modules.clear()
         shared.compiled_model_state = CompiledModelState()
         shared.compiled_model_state.is_compiled = True
-        shared.compiled_model_state.first_pass = not shared.opts.cuda_compile_precompile
-        shared.compiled_model_state.first_pass_vae = not shared.opts.cuda_compile_precompile
-        shared.compiled_model_state.first_pass_refiner = not shared.opts.cuda_compile_precompile
+        shared.compiled_model_state.first_pass = 'precompile' not in shared.opts.cuda_compile_options
+        shared.compiled_model_state.first_pass_vae = 'precompile' not in shared.opts.cuda_compile_options
+        shared.compiled_model_state.first_pass_refiner = 'precompile' not in shared.opts.cuda_compile_options
         sd_models.set_accelerate(sd_model)
     except Exception as e:
         shared.log.warning(f"Model compile: task=OpenVINO: {e}")
@@ -102,7 +102,8 @@ def compile_onediff(sd_model):
         # DW: I'm unclear whether this is also a problem with onediff
         # as it was for sfast.
         setup_logging() # compile messes with logging so reset is needed
-        if shared.opts.cuda_compile_precompile:
+        if 'precompile' in shared.opts.cuda_compile_options:
+            shared.log.debug("Model compile: task=onediff precompile")
             sd_model("dummy prompt")
         t1 = time.time()
         shared.log.info(f"Model compile: task=onediff time={t1-t0:.2f}")
@@ -130,7 +131,7 @@ def compile_stablefast(sd_model):
         pass
     import warnings
     warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
-    config.enable_cuda_graph = shared.opts.cuda_compile_fullgraph
+    config.enable_cuda_graph = 'fullgraph' in shared.opts.cuda_compile_options
     config.enable_jit_freeze = shared.opts.diffusers_eval
     config.memory_format = torch.channels_last if shared.opts.opt_channelslast else torch.contiguous_format
     # config.trace_scheduler = False
@@ -141,7 +142,8 @@ def compile_stablefast(sd_model):
         sd_model = sf.compile(sd_model, config)
         sd_model.sfast = True
         setup_logging() # compile messes with logging so reset is needed
-        if shared.opts.cuda_compile_precompile:
+        if 'precompile' in shared.opts.cuda_compile_options:
+            shared.log.debug("Model compile: task=stablefast precompile")
             sd_model("dummy prompt")
         t1 = time.time()
         shared.log.info(f"Model compile: task=stablefast config={config.__dict__} time={t1-t0:.2f}")
@@ -158,20 +160,27 @@ def compile_torch(sd_model):
         shared.log.debug(f"Model compile: task=torch backends={torch._dynamo.list_backends()}") # pylint: disable=protected-access
 
         def torch_compile_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
-            if hasattr(model, "device") and model.device.type != "meta":
+            if hasattr(model, 'compile_repeated_blocks') and 'repeated' in shared.opts.cuda_compile_options:
+                model.compile_repeated_blocks(
+                    mode=shared.opts.cuda_compile_mode,
+                    backend=shared.opts.cuda_compile_backend,
+                    fullgraph='fullgraph' in shared.opts.cuda_compile_options,
+                    dynamic='dynamic' in shared.opts.cuda_compile_options,
+                )
+            elif hasattr(model, 'device') and model.device.type != "meta":
                 return_device = model.device
                 model = torch.compile(model.to(devices.device),
                     mode=shared.opts.cuda_compile_mode,
                     backend=shared.opts.cuda_compile_backend,
-                    fullgraph=shared.opts.cuda_compile_fullgraph,
-                    dynamic=None if shared.opts.cuda_compile_backend != "openvino_fx" else False,
+                    fullgraph='fullgraph' in shared.opts.cuda_compile_options,
+                    dynamic='dynamic' in shared.opts.cuda_compile_options,
                 ).to(return_device)
             else:
                 model = torch.compile(model,
                     mode=shared.opts.cuda_compile_mode,
                     backend=shared.opts.cuda_compile_backend,
-                    fullgraph=shared.opts.cuda_compile_fullgraph,
-                    dynamic=None if shared.opts.cuda_compile_backend != "openvino_fx" else False,
+                    fullgraph='fullgraph' in shared.opts.cuda_compile_options,
+                    dynamic='dynamic' in shared.opts.cuda_compile_options,
                 )
             devices.torch_gc()
             return model
@@ -184,11 +193,11 @@ def compile_torch(sd_model):
             return sd_model
         elif shared.opts.cuda_compile_backend ==  "migraphx":
             import torch_migraphx # pylint: disable=unused-import
-        log_level = logging.WARNING if shared.opts.cuda_compile_verbose else logging.CRITICAL # pylint: disable=protected-access
+        log_level = logging.WARNING if 'verbose' in shared.opts.cuda_compile_options else logging.CRITICAL # pylint: disable=protected-access
         if hasattr(torch, '_logging'):
             torch._logging.set_logs(dynamo=log_level, aot=log_level, inductor=log_level) # pylint: disable=protected-access
-        torch._dynamo.config.verbose = shared.opts.cuda_compile_verbose # pylint: disable=protected-access
-        torch._dynamo.config.suppress_errors = shared.opts.cuda_compile_errors # pylint: disable=protected-access
+        torch._dynamo.config.verbose = 'verbose' in shared.opts.cuda_compile_options # pylint: disable=protected-access
+        torch._dynamo.config.suppress_errors = 'verbose' not in shared.opts.cuda_compile_options # pylint: disable=protected-access
 
         try:
             torch._inductor.config.conv_1x1_as_mm = True # pylint: disable=protected-access
@@ -203,8 +212,12 @@ def compile_torch(sd_model):
         sd_model = sd_models.apply_function_to_model(sd_model, function=torch_compile_model, options=shared.opts.cuda_compile, op="compile")
 
         setup_logging() # compile messes with logging so reset is needed
-        if shared.opts.cuda_compile_precompile:
-            sd_model("dummy prompt")
+        if 'precompile' in shared.opts.cuda_compile_options:
+            try:
+                shared.log.debug("Model compile: task=torch precompile")
+                sd_model("dummy prompt")
+            except Exception:
+                pass
         t1 = time.time()
         shared.log.info(f"Model compile: task=torch time={t1-t0:.2f}")
     except Exception as e:
@@ -247,7 +260,7 @@ def compile_diffusers(sd_model):
     if shared.opts.cuda_compile_backend == 'none':
         shared.log.warning('Model compile enabled but no backend specified')
         return sd_model
-    shared.log.info(f"Model compile: pipeline={sd_model.__class__.__name__} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} fullgraph={shared.opts.cuda_compile_fullgraph} compile={shared.opts.cuda_compile}")
+    shared.log.info(f"Model compile: pipeline={sd_model.__class__.__name__} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options} compile={shared.opts.cuda_compile}")
     if shared.opts.cuda_compile_backend == 'onediff':
         sd_model = compile_onediff(sd_model)
     elif shared.opts.cuda_compile_backend == 'stable-fast':

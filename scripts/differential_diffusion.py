@@ -1845,7 +1845,7 @@ import gradio as gr
 import diffusers
 from PIL import Image, ImageEnhance, ImageOps # pylint: disable=reimported
 from torchvision import transforms
-from modules import errors, shared, devices, scripts, processing, sd_models, images
+from modules import errors, shared, devices, scripts_manager, processing, sd_models, images
 
 
 detector = None
@@ -1856,12 +1856,12 @@ MODELS = {
 }
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Differential diffusion: Individual Pixel Strength'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     def ui(self, _is_img2img):
         with gr.Row():

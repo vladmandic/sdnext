@@ -1,4 +1,4 @@
-from functools import lru_cache
+from typing import List, Optional
 import os
 import sys
 import json
@@ -105,6 +105,16 @@ def install_traceback(suppress: list = []):
 
 # setup console and file logging
 def setup_logging():
+    from functools import partial, partialmethod
+    from logging.handlers import RotatingFileHandler
+    from rich.theme import Theme
+    from rich.logging import RichHandler
+    from rich.console import Console
+    from rich.padding import Padding
+    from rich.segment import Segment
+    from rich import box
+    from rich import print as rprint
+    from rich.pretty import install as pretty_install
 
     class RingBuffer(logging.StreamHandler):
         def __init__(self, capacity):
@@ -129,6 +139,7 @@ def setup_logging():
         def get(self):
             return self.buffer
 
+
     class LogFilter(logging.Filter):
         def __init__(self):
             super().__init__()
@@ -136,14 +147,35 @@ def setup_logging():
         def filter(self, record):
             return len(record.getMessage()) > 2
 
+    def override_padding(self, console, options): # pylint: disable=redefined-outer-name
+        style = console.get_style(self.style)
+        width = options.max_width
+        self.left = 0
+        render_options = options.update_width(width - self.left - self.right)
+        if render_options.height is not None:
+            render_options = render_options.update_height(height=render_options.height - self.top - self.bottom)
+        lines = console.render_lines(self.renderable, render_options, style=style, pad=False)
+        _Segment = Segment
+        left = _Segment(" " * self.left, style) if self.left else None
+        right = [_Segment.line()]
+        blank_line: Optional[List[Segment]] = None
+        if self.top:
+            blank_line = [_Segment(f'{" " * width}\n', style)]
+            yield from blank_line * self.top
+        if left:
+            for line in lines:
+                yield left
+                yield from line
+                yield from right
+        else:
+            for line in lines:
+                yield from line
+                yield from right
+        if self.bottom:
+            blank_line = blank_line or [_Segment(f'{" " * width}\n', style)]
+            yield from blank_line * self.bottom
+
     t_start = time.time()
-    from functools import partial, partialmethod
-    from logging.handlers import RotatingFileHandler
-    from rich.theme import Theme
-    from rich.logging import RichHandler
-    from rich.console import Console
-    from rich import print as rprint
-    from rich.pretty import install as pretty_install
 
     if args.log:
         global log_file # pylint: disable=global-statement
@@ -160,12 +192,15 @@ def setup_logging():
     global console # pylint: disable=global-statement
     theme = Theme({
         "traceback.border": "black",
-        "traceback.border.syntax_error": "black",
         "inspect.value.border": "black",
+        "traceback.border.syntax_error": "dark_red",
         "logging.level.info": "blue_violet",
         "logging.level.debug": "purple4",
         "logging.level.trace": "dark_blue",
     })
+
+    Padding.__rich_console__ = override_padding
+    box.ROUNDED = box.SIMPLE
     console = Console(
         log_time=True,
         log_time_format='%H:%M:%S-%f',
@@ -174,6 +209,7 @@ def setup_logging():
         safe_box=True,
         theme=theme,
     )
+
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(name)s | %(levelname)s | %(module)s | %(message)s', handlers=[logging.NullHandler()]) # redirect default logger to null
     pretty_install(console=console)
     install_traceback()
@@ -254,7 +290,6 @@ def print_profile(profiler: cProfile.Profile, msg: str):
     profile(profiler, msg)
 
 
-@lru_cache()
 def package_version(package):
     try:
         return pkg_resources.get_distribution(package).version
@@ -262,7 +297,6 @@ def package_version(package):
         return None
 
 
-@lru_cache()
 def package_spec(package):
     spec = pkg_resources.working_set.by_key.get(package, None) # more reliable than importlib
     if spec is None:
@@ -273,7 +307,6 @@ def package_spec(package):
 
 
 # check if package is installed
-@lru_cache()
 def installed(package, friendly: str = None, reload = False, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
     ok = True
@@ -341,12 +374,11 @@ def run(cmd: str, arg: str):
     return txt
 
 
-@lru_cache()
 def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
-    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force", "").replace(" ", " ").strip()
+    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
@@ -360,7 +392,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             err = result.stderr.decode(encoding="utf8", errors="ignore")
-            log.warning('Install: cannot use uv, fallback to pip')
+            log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {err}')
             return pip(originalArg, ignore, quiet, uv=False)
         else:
@@ -376,7 +408,6 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 
 
 # install package using pip if not already installed
-@lru_cache()
 def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False):
     t_start = time.time()
     res = ''
@@ -385,7 +416,7 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
         quick_allowed = False
     if (args.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
         deps = '' if not no_deps else '--no-deps '
-        cmd = f"install{' --upgrade' if not args.uv else ''}{' --force' if force else ''} {deps}{package}"
+        cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{package}"
         res = pip(cmd, ignore=ignore, uv=package != "uv" and not package.startswith('git+'))
         try:
             importlib.reload(pkg_resources)
@@ -396,7 +427,6 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
 
 
 # execute git command
-@lru_cache()
 def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
     t_start = time.time()
     if args.skip_git:
@@ -407,20 +437,22 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
     if git_cmd != "git":
         git_cmd = os.path.abspath(git_cmd)
     result = subprocess.run(f'"{git_cmd}" {arg}', check=False, shell=True, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=folder or '.')
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
+    stdout = result.stdout.decode(encoding="utf8", errors="ignore")
     if len(result.stderr) > 0:
-        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
+        stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
+    stdout = stdout.strip()
     if result.returncode != 0 and not ignore:
-        if "couldn't find remote ref" in txt: # not a git repo
-            return txt
+        if "couldn't find remote ref" in stdout: # not a git repo
+            log.error(f'Git: folder="{folder}" could not identify repository')
+        elif "no submodule mapping found" in stdout:
+            log.warning(f'Git: folder="{folder}" submodules changed')
+        elif 'or stash them' in stdout:
+            log.error(f'Git: folder="{folder}" local changes detected')
+        else:
+            log.error(f'Git: folder="{folder}" arg="{arg}" output={stdout}')
         errors.append(f'git: {folder}')
-        log.error(f'Git: {folder} / {arg}')
-        if 'or stash them' in txt:
-            log.error(f'Git local changes detected: check details log="{log_file}"')
-        log.debug(f'Git output: {txt}')
     ts('git', t_start)
-    return txt
+    return stdout
 
 
 # reattach as needed as head can get detached
@@ -559,22 +591,42 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
-    if args.skip_all or args.skip_git or args.experimental:
+    if args.skip_all or args.skip_git:
         return
-    sha = '00f95b9755718aabb65456e791b8408526ae6e76' # diffusers commit hash
+    sha = '56d438727036b0918b30bbe3110c5fe1634ed19d' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
-    minor = int(pkg.version.split('.')[1] if pkg is not None else 0)
-    cur = opts.get('diffusers_version', '') if minor > 0 else ''
-    if (minor == 0) or (cur != sha):
-        if minor == 0:
+    minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
+    cur = opts.get('diffusers_version', '') if minor > -1 else ''
+    if (minor == -1) or ((cur != sha) and (not args.experimental)):
+        if minor == -1:
             log.info(f'Diffusers install: commit={sha}')
         else:
-            log.info(f'Diffusers update: package={pkg} current={cur} target={sha}')
+            log.info(f'Diffusers update: current={pkg.version} hash={cur} target={sha}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{sha}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = sha
     ts('diffusers', t_start)
+
+
+# check transformers version
+def check_transformers():
+    t_start = time.time()
+    if args.skip_all or args.skip_git or args.experimental:
+        return
+    pkg = pkg_resources.working_set.by_key.get('transformers', None)
+    if args.use_directml:
+        target = '4.52.4'
+    else:
+        target = '4.53.2'
+    if (pkg is None) or ((pkg.version != target) and (not args.experimental)):
+        if pkg is None:
+            log.info(f'Transformers install: version={target}')
+        else:
+            log.info(f'Transformers update: current={pkg.version} target={target}')
+        pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+        pip(f'install --upgrade transformers=={target}', ignore=False, quiet=True, uv=False)
+    ts('transformers', t_start)
 
 
 # check onnx version
@@ -799,12 +851,12 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if opts.get('optimum_quanto_weights', False):
+    if len(opts.get('optimum_quanto_weights', [])):
         install('optimum-quanto==0.2.7', 'optimum-quanto')
-    if opts.get('torchao_quantization', False):
+    if len(opts.get('torchao_quantization', [])):
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.3', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.4', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
     ts('addons', t_start)
@@ -827,6 +879,7 @@ def check_cudnn():
 
 # check torch version
 def check_torch():
+    log.info('Verifying torch installation')
     t_start = time.time()
     if args.skip_torch:
         log.info('Torch: skip tests')
@@ -871,7 +924,7 @@ def check_torch():
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
             elif allow_directml and args.use_directml and ('arm' not in machine and 'aarch' not in machine):
                 log.info('DirectML: selected')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml==0.2.4.dev240913')
                 if 'torch' in torch_command and not args.version:
                     install(torch_command, 'torch torchvision')
                 install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
@@ -955,10 +1008,10 @@ def check_modified_files():
         files = [x for x in files if len(x) > 0 and (not x.startswith('extensions')) and (not x.startswith('wiki')) and (not x.endswith('.json')) and ('.log' not in x)]
         deleted = [x for x in files if not os.path.exists(x)]
         if len(deleted) > 0:
-            log.warning(f'Deleted files: {files}')
-        files = [x for x in files if os.path.exists(x) and not os.path.isdir(x)]
-        if len(files) > 0:
-            log.warning(f'Modified files: {files}')
+            log.warning(f'Deleted files: {deleted}')
+        modified = [x for x in files if os.path.exists(x) and not os.path.isdir(x)]
+        if len(modified) > 0:
+            log.warning(f'Modified files: {modified}')
     except Exception:
         pass
     ts('files', t_start)
@@ -1163,10 +1216,22 @@ def ensure_base_requirements():
         update_setuptools()
 
     # used by installler itself so must be installed before requirements
-    install('rich', 'rich', quiet=True)
+    install('rich==14.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
-    install('requests', 'requests', quiet=True)
+    install('requests==2.32.3', 'requests', quiet=True)
     ts('base', t_start)
+
+
+def install_gradio():
+    # pip install gradio==3.43.2 installs:
+    # aiofiles-23.2.1 altair-5.5.0 annotated-types-0.7.0 anyio-4.9.0 attrs-25.3.0 certifi-2025.6.15 charset_normalizer-3.4.2 click-8.2.1 contourpy-1.3.2 cycler-0.12.1 fastapi-0.115.14 ffmpy-0.6.0 filelock-3.18.0 fonttools-4.58.4 fsspec-2025.5.1 gradio-3.43.2 gradio-client-0.5.0 h11-0.16.0 hf-xet-1.1.5 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-0.33.1 idna-3.10 importlib-resources-6.5.2 jinja2-3.1.6 jsonschema-4.24.0 jsonschema-specifications-2025.4.1 kiwisolver-1.4.8 markupsafe-2.1.5 matplotlib-3.10.3 narwhals-1.45.0 numpy-1.26.4 orjson-3.10.18 packaging-25.0 pandas-2.3.0 pillow-10.4.0 pydantic-2.11.7 pydantic-core-2.33.2 pydub-0.25.1 pyparsing-3.2.3 python-dateutil-2.9.0.post0 python-multipart-0.0.20 pytz-2025.2 pyyaml-6.0.2 referencing-0.36.2 requests-2.32.4 rpds-py-0.25.1 semantic-version-2.10.0 six-1.17.0 sniffio-1.3.1 starlette-0.46.2 tqdm-4.67.1 typing-extensions-4.14.0 typing-inspection-0.4.1 tzdata-2025.2 urllib3-2.5.0 uvicorn-0.35.0 websockets-11.0.3
+    install('gradio==3.43.2', no_deps=True)
+    install('gradio-client==0.5.0', no_deps=True, quiet=True)
+    install('dctorch==0.1.2', no_deps=True, quiet=True)
+    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart', 'matplotlib']
+    for pkg in pkgs:
+        if not installed(pkg, quiet=True):
+            install(pkg, quiet=True)
 
 
 def install_optional():
@@ -1174,20 +1239,20 @@ def install_optional():
     log.info('Installing optional requirements...')
     install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
     install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
-    install('clean-fid')
-    install('pillow-jxl-plugin==1.3.3', ignore=True)
-    install('optimum-quanto==0.2.7', ignore=True)
-    install('torchao==0.10.0', ignore=True)
-    install('bitsandbytes==0.45.5', ignore=True)
-    install('pynvml', ignore=True)
-    install('ultralytics==8.3.40', ignore=True)
-    install('Cython', ignore=True)
-    install('insightface==0.7.3', ignore=True) # problematic build
-    install('albumentations==1.4.3', ignore=True)
-    install('pydantic==1.10.21', ignore=True)
+    install('clean-fid', quiet=True)
+    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
+    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
+    install('torchao==0.10.0', ignore=True, quiet=True)
+    install('bitsandbytes==0.46.1', ignore=True, quiet=True)
+    install('pynvml', ignore=True, quiet=True)
+    install('ultralytics==8.3.40', ignore=True, quiet=True)
+    install('Cython', ignore=True, quiet=True)
+    install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
+    install('albumentations==1.4.3', ignore=True, quiet=True)
+    install('pydantic==1.10.21', ignore=True, quiet=True)
     reload('pydantic', '1.10.21')
     install('gguf', ignore=True)
-    install('av', ignore=True)
+    install('av', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
@@ -1196,6 +1261,21 @@ def install_optional():
     except Exception:
         pass
     ts('optional', t_start)
+
+
+def install_sentencepiece():
+    if installed('sentencepiece', quiet=True):
+        pass
+    elif int(sys.version_info.minor) >= 13:
+        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
+        backup_cxxflags = os.environ.get('CXXFLAGS', None)
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
+        os.environ.setdefault('CXXFLAGS', '-include cstdint')
+        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
+        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
+        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
+    else:
+        install('sentencepiece', 'sentencepiece')
 
 
 def install_requirements():
@@ -1207,14 +1287,6 @@ def install_requirements():
         return
     if int(sys.version_info.minor) >= 13:
         install('audioop-lts')
-        # gcc 15 patch
-        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
-        backup_cxxflags = os.environ.get('CXXFLAGS', None)
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
-        os.environ.setdefault('CXXFLAGS', '-include cstdint')
-        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
-        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False

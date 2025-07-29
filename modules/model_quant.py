@@ -111,7 +111,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
         if weights_dtype is None:
-            if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"same as model", "default"}:
+            if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
                 weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
             else:
                 weights_dtype = shared.opts.sdnq_quantize_weights_mode
@@ -153,7 +153,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
 
 def check_quant(module: str = ''):
     from modules import shared
-    if module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization or module in shared.opts.sdnq_quantize_weights:
+    if module in shared.opts.sdnq_quantize_weights or module in shared.opts.bnb_quantization or module in shared.opts.torchao_quantization or module in shared.opts.quanto_quantization:
         return True
     return False
 
@@ -228,7 +228,7 @@ def load_bnb(msg='', silent=False):
     if not installed('bitsandbytes'):
         if devices.backend == 'cuda':
             # forcing a version will uninstall the multi-backend-refactor branch of bnb
-            install('bitsandbytes==0.45.5', quiet=True)
+            install('bitsandbytes==0.46.1', quiet=True)
             log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
@@ -277,6 +277,53 @@ def load_quanto(msg='', silent=False):
     return None
 
 
+def upcast_non_layerwise_modules(model, dtype): # pylint: disable=unused-argument
+    from diffusers.hooks.layerwise_casting import SUPPORTED_PYTORCH_LAYERS
+    model_children = list(model.children())
+    if not model_children:
+        if not isinstance(model, SUPPORTED_PYTORCH_LAYERS):
+            model = model.to(dtype)
+        return model
+    for module in model_children:
+        has_children = list(module.children())
+        if not has_children:
+            if not isinstance(module, SUPPORTED_PYTORCH_LAYERS):
+                module = module.to(dtype)
+        else:
+            module = upcast_non_layerwise_modules(module, dtype)
+    return model
+
+
+def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_config):
+    model = None
+    if isinstance(checkpoint_info, str):
+        repo_path = checkpoint_info
+    else:
+        repo_path = checkpoint_info.path
+    try:
+        import torch
+        from modules import devices
+        from diffusers.quantizers import quantization_config
+        if not hasattr(quantization_config.QuantizationMethod, 'LAYERWISE'):
+            setattr(quantization_config.QuantizationMethod, 'LAYERWISE', 'layerwise') # noqa: B010
+        if "e5m2" in repo_path.lower():
+            storage_dtype = torch.float8_e5m2
+        else:
+            storage_dtype= torch.float8_e4m3fn
+        load_args = diffusers_load_config.copy()
+        load_args["torch_dtype"] = storage_dtype
+        model = load_model_func(repo_path, **load_args)
+        model = upcast_non_layerwise_modules(model, devices.dtype)
+        model._skip_layerwise_casting_patterns = None # pylint: disable=protected-access
+        model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=False, skip_modules_pattern=[])
+        model.layerwise_storage_dtype = storage_dtype
+        model.quantization_method = 'LayerWise'
+    except Exception as e:
+        log.error(f"Load model: Failed to load FP8 model: {e}")
+        model = None
+    return model
+
+
 def apply_layerwise(sd_model, quiet:bool=False):
     import torch
     from diffusers.quantizers import quantization_config
@@ -297,22 +344,26 @@ def apply_layerwise(sd_model, quiet:bool=False):
             continue
         try:
             cls = getattr(sd_model, module).__class__.__name__
-            if module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):
-                m = getattr(sd_model, module)
+            m = getattr(sd_model, module)
+            if getattr(m, "quantization_method", None) in {'LayerWise', quantization_config.QuantizationMethod.LAYERWISE}: # pylint: disable=no-member
+                storage_dtype = getattr(m, "layerwise_storage_dtype", storage_dtype)
+                m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+            elif module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
-            if module.startswith('transformer') and ('Model' in shared.opts.layerwise_quantization):
-                m = getattr(sd_model, module)
+            elif module.startswith('transformer') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
-            if module.startswith('text_encoder') and ('TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
-                m = getattr(sd_model, module)
+            elif module.startswith('text_encoder') and ('TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
                 if hasattr(m, 'enable_layerwise_casting'):
                     m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = quantization_config.QuantizationMethod.LAYERWISE # pylint: disable=no-member
                     log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
         except Exception as e:
@@ -326,7 +377,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     from modules.sdnq import apply_sdnq_to_module
 
     if weights_dtype is None:
-        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"same as model", "default"}:
+        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
         else:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode
@@ -347,7 +398,9 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         return_device = None
 
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
-        modules_to_not_convert.extend(model._keep_in_fp32_modules)
+        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
     if model.__class__.__name__ == "ChromaTransformer2DModel":
         modules_to_not_convert.append("distilled_guidance_layer")
 
@@ -586,7 +639,7 @@ def do_post_load_quant(sd_model, allow=True):
     from modules import shared
     if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
         sd_model = sdnq_quantize_weights(sd_model)
-    if shared.opts.optimum_quanto_weights:
+    if len(shared.opts.optimum_quanto_weights) > 0:
         sd_model = optimum_quanto_weights(sd_model)
     if shared.opts.torchao_quantization and (shared.opts.torchao_quantization_mode == 'post' or (allow and shared.opts.torchao_quantization_mode == 'auto')):
         sd_model = torchao_quantization(sd_model)

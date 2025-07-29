@@ -119,7 +119,7 @@ def teacache_hidream_forward(
             else:
                 should_calc = True
                 self.accumulated_rel_l1_distance = 0
-        self.previous_modulated_input = modulated_inp 
+        self.previous_modulated_input = modulated_inp
         self.cnt += 1
         if self.cnt == self.num_steps:
             self.cnt = 0

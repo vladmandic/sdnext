@@ -210,7 +210,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p):
-        if shared.native and len(lora_load.diffuser_loaded) > 0:
+        if len(lora_load.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 unload_diffusers()
         if self.active and l.debug:

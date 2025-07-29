@@ -63,12 +63,12 @@ def memory_stats():
         if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
         mem.update({
-            'job': shared.state.job,
             'gpu': gpu,
             'active': gb(stats.get('active_bytes.all.current', 0)),
             'peak': gb(stats.get('active_bytes.all.peak', 0)),
             'retries': stats.get('num_alloc_retries', 0),
             'oom': stats.get('num_ooms', 0),
+            'job': shared.state.job,
         })
         mem['swap'] = round(mem['active'] - mem['gpu']['used'], 2) if mem['active'] > mem['gpu']['used'] else 0
         return mem
@@ -82,10 +82,6 @@ def reset_stats():
         torch.cuda.reset_memory_stats()
     except Exception:
         pass
-
-
-def memory_cache():
-    return mem
 
 
 def ram_stats():

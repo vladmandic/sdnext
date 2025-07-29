@@ -69,10 +69,6 @@ def list_extensions():
         debug(f'Extension installed without index: {entry}')
 
 
-def check_access():
-    assert not shared.cmd_opts.disable_extension_access, "extension access disabled because of command line flags"
-
-
 def apply_changes(disable_list, update_list, disable_all):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
@@ -124,18 +120,6 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
             errors.display(e, f'extensions check update: {ext.name}')
         shared.state.nextjob()
     return create_html(search_text, sort_column), "Extension update complete | Restart required"
-
-
-def make_commit_link(commit_hash, remote, text=None):
-    if text is None:
-        text = commit_hash[:8]
-    if remote.startswith("https://github.com/"):
-        if remote.endswith(".git"):
-            remote = remote[:-4]
-        href = remote + "/commit/" + commit_hash
-        return f'<a href="{href}" target="_blank">{text}</a>'
-    else:
-        return text
 
 
 def normalize_git_url(url):
@@ -370,7 +354,13 @@ def create_html(search_text, sort_column):
         visible = 'table-row'
         if search_text:
             s = search_text.strip().lower()
-            if s not in html.escape(ext.get("name", "unknown")).lower() and s not in html.escape(ext.get("description", "")).lower() and s not in html.escape(tags_string).lower() and s not in author.lower():
+            if (
+                s not in html.escape(ext.get("name", "unknown")).lower()
+                and s not in html.escape(ext.get("description", "")).lower()
+                and s not in html.escape(ext.get("url", "")).lower()
+                and s not in html.escape(tags_string).lower()
+                and s not in author.lower()
+               ):
                 stats['hidden'] += 1
                 visible = 'none'
         stats['processed'] += 1

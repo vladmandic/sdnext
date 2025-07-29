@@ -5,7 +5,7 @@ import random
 import threading
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import gradio as gr
-from modules import shared, scripts, devices, processing
+from modules import shared, scripts_manager, devices, processing
 
 
 repo_id = "gokaygokay/Flux-Prompt-Enhance"
@@ -13,7 +13,7 @@ num_return_sequences = 5
 load_lock = threading.Lock()
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     prompts = [['']]
     tokenizer: AutoTokenizer = None
     model: AutoModelForSeq2SeqLM = None
@@ -30,7 +30,7 @@ class Script(scripts.Script):
         return 'Flux Prompt enhance (Legacy)'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
     def load(self):
         with load_lock:

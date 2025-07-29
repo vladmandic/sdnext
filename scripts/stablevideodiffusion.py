@@ -5,7 +5,7 @@ Additional params for StableVideoDiffusion
 import os
 import torch
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, images, modelloader
+from modules import scripts_manager, processing, shared, sd_models, images, modelloader
 
 
 models = {
@@ -14,12 +14,12 @@ models = {
     "SVD XT 1.1": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
 }
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: Stable Video Diffusion'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     # return signature is array of gradio components
     def ui(self, is_img2img):
@@ -62,7 +62,7 @@ class Script(scripts.Script):
         if model_name != model_loaded or c != 'StableVideoDiffusionPipeline':
             shared.opts.sd_model_checkpoint = model_path
             sd_models.reload_model_weights()
-            shared.sd_model = shared.sd_model.to(torch.float32) # TODO svd: runs in fp32 due to dtype mismatch
+            shared.sd_model = shared.sd_model.to(torch.float32) # must run in fp32 due to dtype mismatch
 
         # set params
         if override_resolution:

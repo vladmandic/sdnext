@@ -16,6 +16,8 @@ hf_decode_endpoints = {
 }
 hf_decode_endpoints['pixartalpha'] = hf_decode_endpoints['sd']
 hf_decode_endpoints['pixartsigma'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['hunyuandit'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['auraflow'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
@@ -29,6 +31,8 @@ hf_encode_endpoints = {
 }
 hf_encode_endpoints['pixartalpha'] = hf_encode_endpoints['sd']
 hf_encode_endpoints['pixartsigma'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['hunyuandit'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['auraflow'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['omnigen'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['h1'] = hf_encode_endpoints['f1']
 hf_encode_endpoints['lumina2'] = hf_encode_endpoints['f1']

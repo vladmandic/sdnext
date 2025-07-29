@@ -71,7 +71,7 @@ def face_id(
 
         if shared.opts.cuda_compile_backend == 'none':
             token_merge.apply_token_merging(p.sd_model)
-            sd_hijack_freeu.apply_freeu(p, not shared.native)
+            sd_hijack_freeu.apply_freeu(p)
 
         script_callbacks.before_process_callback(p)
 

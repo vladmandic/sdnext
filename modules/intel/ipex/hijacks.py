@@ -452,6 +452,12 @@ def ipex_hijacks():
         torch.from_numpy = from_numpy
         torch.as_tensor = as_tensor
 
+    try:
+        import torchvision
+        torchvision.transforms._functional_tensor.interpolate = interpolate
+    except Exception:
+        pass
+
     # AMP:
     torch.amp.grad_scaler.GradScaler.__init__ = GradScaler_init
     torch.is_autocast_enabled = torch_is_autocast_enabled

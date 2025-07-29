@@ -64,10 +64,10 @@ def teacache_cog_forward(
         if self.cnt == 0 or self.cnt == self.num_steps-1:
             should_calc = True
             self.accumulated_rel_l1_distance = 0
-        else: 
+        else:
             if not self.config.use_rotary_positional_embeddings:
                 # CogVideoX-2B
-                coefficients = [-3.10658903e+01,  2.54732368e+01, -5.92380459e+00,  1.75769064e+00, -3.61568434e-03]   
+                coefficients = [-3.10658903e+01,  2.54732368e+01, -5.92380459e+00,  1.75769064e+00, -3.61568434e-03]
             else:
                 # CogVideoX-5B and CogvideoX1.5-5B
                 coefficients = [-1.53880483e+03,  8.43202495e+02, -1.34363087e+02,  7.97131516e+00, -5.23162339e-02]
@@ -81,8 +81,8 @@ def teacache_cog_forward(
         self.previous_modulated_input = emb
         self.cnt += 1
         if self.cnt == self.num_steps:
-            self.cnt = 0            
-    
+            self.cnt = 0
+
     if self.enable_teacache:
         if not should_calc:
             hidden_states += self.previous_residual

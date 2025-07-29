@@ -138,15 +138,6 @@ def should_skip(param):
     return skip
 
 
-def bind_buttons(buttons, image_component, send_generate_info):
-    """old function for backwards compatibility; do not use this, use register_paste_params_button"""
-    for tabname, button in buttons.items():
-        source_text_component = send_generate_info if isinstance(send_generate_info, gr.components.Component) else None
-        source_tabname = send_generate_info if isinstance(send_generate_info, str) else None
-        bindings = ParamBinding(paste_button=button, tabname=tabname, source_text_component=source_text_component, source_image_component=image_component, source_tabname=source_tabname)
-        register_paste_params_button(bindings)
-
-
 def register_paste_params_button(binding: ParamBinding):
     registered_param_bindings.append(binding)
 
@@ -192,17 +183,6 @@ def connect_paste_params_buttons():
 def send_image(x):
     image = x if isinstance(x, Image.Image) else image_from_url_text(x)
     return image
-
-
-def send_image_and_dimensions(x):
-    image = x if isinstance(x, Image.Image) else image_from_url_text(x)
-    if shared.opts.send_size and isinstance(image, Image.Image):
-        w = image.width
-        h = image.height
-    else:
-        w = gr.update()
-        h = gr.update()
-    return image, w, h
 
 
 def create_override_settings_dict(text_pairs):

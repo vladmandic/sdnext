@@ -4,7 +4,7 @@ from typing import List
 
 from PIL import Image
 
-from modules import shared, images, devices, scripts, scripts_postprocessing, infotext
+from modules import shared, images, devices, scripts_manager, scripts_postprocessing, infotext
 from modules.shared import opts
 
 
@@ -70,7 +70,7 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
             continue
         shared.state.textinfo = name
         pp = scripts_postprocessing.PostprocessedImage(image.convert("RGB"))
-        scripts.scripts_postproc.run(pp, args)
+        scripts_manager.scripts_postproc.run(pp, args)
         geninfo, items = images.read_info_from_image(image)
         params = infotext.parse(geninfo)
         for k, v in items.items():
@@ -83,22 +83,22 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
         if save_output:
             if opts.use_original_name_batch and name is not None:
                 forced_filename = os.path.splitext(os.path.basename(name))[0]
-                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, short_filename=True, no_prompt=True, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info, forced_filename=forced_filename)
+                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info, forced_filename=forced_filename)
             else:
-                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, short_filename=True, no_prompt=True, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info)
+                images.save_image(pp.image, path=outpath, extension=ext or opts.samples_format, info=info, grid=False, pnginfo_section_name="extras", existing_info=pp.image.info)
         if extras_mode != 2 or show_extras_results:
             outputs.append(pp.image)
         image.close()
-    scripts.scripts_postproc.postprocess(processed_images, args)
+    scripts_manager.scripts_postproc.postprocess(processed_images, args)
 
     devices.torch_gc()
     return outputs, info, params
 
 
-def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, gfpgan_visibility, codeformer_visibility, codeformer_weight, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, upscale_first: bool, save_output: bool = True): #pylint: disable=unused-argument
+def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, gfpgan_visibility, codeformer_visibility, codeformer_weight, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True):
     """old handler for API"""
 
-    args = scripts.scripts_postproc.create_args_for_run({
+    args = scripts_manager.scripts_postproc.create_args_for_run({
         "Upscale": {
             "upscale_mode": resize_mode,
             "upscale_by": upscaling_resize,

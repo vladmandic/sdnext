@@ -2,24 +2,24 @@
 
 This repository contains code to compute depth from a single image. It accompanies our [paper](https://arxiv.org/abs/1907.01341v3):
 
->Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot Cross-dataset Transfer  
+>Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot Cross-dataset Transfer
 René Ranftl, Katrin Lasinger, David Hafner, Konrad Schindler, Vladlen Koltun
 
 
 and our [preprint](https://arxiv.org/abs/2103.13413):
 
-> Vision Transformers for Dense Prediction  
+> Vision Transformers for Dense Prediction
 > René Ranftl, Alexey Bochkovskiy, Vladlen Koltun
 
 
 MiDaS was trained on up to 12 datasets (ReDWeb, DIML, Movies, MegaDepth, WSVD, TartanAir, HRWSI, ApolloScape, BlendedMVS, IRS, KITTI, NYU Depth V2) with
-multi-objective optimization. 
+multi-objective optimization.
 The original model that was trained on 5 datasets  (`MIX 5` in the paper) can be found [here](https://github.com/isl-org/MiDaS/releases/tag/v2).
 The figure below shows an overview of the different MiDaS models; the bubble size scales with number of parameters.
 
 ![](figures/Improvement_vs_FPS.png)
 
-### Setup 
+### Setup
 
 1) Pick one or more models and download the corresponding weights to the `weights` folder:
 
@@ -31,9 +31,9 @@ MiDaS 3.1
 
 MiDaS 3.0: Legacy transformer models [dpt_large_384](https://github.com/isl-org/MiDaS/releases/download/v3/dpt_large_384.pt) and [dpt_hybrid_384](https://github.com/isl-org/MiDaS/releases/download/v3/dpt_hybrid_384.pt)
 
-MiDaS 2.1: Legacy convolutional models [midas_v21_384](https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_384.pt) and [midas_v21_small_256](https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_small_256.pt) 
+MiDaS 2.1: Legacy convolutional models [midas_v21_384](https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_384.pt) and [midas_v21_small_256](https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_small_256.pt)
 
-1) Set up dependencies: 
+1) Set up dependencies:
 
     ```shell
     conda env create -f environment.yaml
@@ -53,7 +53,7 @@ For the OpenVINO model, install
 ```shell
 pip install openvino
 ```
-    
+
 ### Usage
 
 1) Place one or more input images in the folder `input`.
@@ -68,19 +68,19 @@ pip install openvino
    [dpt_swin2_tiny_256](#model_type), [dpt_swin_large_384](#model_type), [dpt_next_vit_large_384](#model_type),
    [dpt_levit_224](#model_type), [dpt_large_384](#model_type), [dpt_hybrid_384](#model_type),
    [midas_v21_384](#model_type), [midas_v21_small_256](#model_type), [openvino_midas_v21_small_256](#model_type).
- 
+
 3) The resulting depth maps are written to the `output` folder.
 
 #### optional
 
 1) By default, the inference resizes the height of input images to the size of a model to fit into the encoder. This
    size is given by the numbers in the model names of the [accuracy table](#accuracy). Some models do not only support a single
-   inference height but a range of different heights. Feel free to explore different heights by appending the extra 
+   inference height but a range of different heights. Feel free to explore different heights by appending the extra
    command line argument `--height`. Unsupported height values will throw an error. Note that using this argument may
    decrease the model accuracy.
 2) By default, the inference keeps the aspect ratio of input images when feeding them into the encoder if this is
    supported by a model (all models except for Swin, Swin2, LeViT). In order to resize to a square resolution,
-   disregarding the aspect ratio while preserving the height, use the command line argument `--square`. 
+   disregarding the aspect ratio while preserving the height, use the command line argument `--square`.
 
 #### via Camera
 
@@ -91,7 +91,7 @@ pip install openvino
    python run.py --model_type <model_type> --side
    ```
 
-   The argument `--side` is optional and causes both the input RGB image and the output depth map to be shown 
+   The argument `--side` is optional and causes both the input RGB image and the output depth map to be shown
    side-by-side for comparison.
 
 #### via Docker
@@ -122,7 +122,7 @@ The pretrained model is also available on [PyTorch Hub](https://pytorch.org/hub/
 
 See [README](https://github.com/isl-org/MiDaS/tree/master/tf) in the `tf` subdirectory.
 
-Currently only supports MiDaS v2.1. 
+Currently only supports MiDaS v2.1.
 
 
 #### via Mobile (iOS / Android)
@@ -133,16 +133,16 @@ See [README](https://github.com/isl-org/MiDaS/tree/master/mobile) in the `mobile
 
 See [README](https://github.com/isl-org/MiDaS/tree/master/ros) in the `ros` subdirectory.
 
-Currently only supports MiDaS v2.1. DPT-based models to be added. 
+Currently only supports MiDaS v2.1. DPT-based models to be added.
 
 
 ### Accuracy
 
 We provide a **zero-shot error** $\epsilon_d$ which is evaluated for 6 different datasets
-(see [paper](https://arxiv.org/abs/1907.01341v3)). **Lower error values are better**. 
+(see [paper](https://arxiv.org/abs/1907.01341v3)). **Lower error values are better**.
 $\color{green}{\textsf{Overall model quality is represented by the improvement}}$ ([Imp.](#improvement)) with respect to
-MiDaS 3.0 DPT<sub>L-384</sub>. The models are grouped by the height used for inference, whereas the square training resolution is given by 
-the numbers in the model names. The table also shows the **number of parameters** (in millions) and the 
+MiDaS 3.0 DPT<sub>L-384</sub>. The models are grouped by the height used for inference, whereas the square training resolution is given by
+the numbers in the model names. The table also shows the **number of parameters** (in millions) and the
 **frames per second** for inference at the training resolution (for GPU RTX 3090):
 
 | MiDaS Model                                                                                                           | DIW </br><sup>WHDR</sup> | Eth3d </br><sup>AbsRel</sup> | Sintel </br><sup>AbsRel</sup> |   TUM </br><sup>δ1</sup> | KITTI </br><sup>δ1</sup> | NYUv2 </br><sup>δ1</sup> | $\color{green}{\textsf{Imp.}}$ </br><sup>%</sup> | Par.</br><sup>M</sup> | FPS</br><sup>&nbsp;</sup> |
@@ -171,16 +171,16 @@ the numbers in the model names. The table also shows the **number of parameters*
 | [v3.1 LeViT<sub>224</sub>](https://github.com/isl-org/MiDaS/releases/download/v3_1/dpt_levit_224.pt)$\tiny{\square}$                                                                      |               **0.1314** |                   **0.1206** |                    **0.3148** |                **18.21** |               **15.27*** |                **8.64*** |                    $\color{green}{\textsf{-40}}$ |                **51** |                    **73** |
 
 &ast; No zero-shot error, because models are also trained on KITTI and NYU Depth V2\
-$\square$ Validation performed at **square resolution**, either because the transformer encoder backbone of a model 
-does not support non-square resolutions (Swin, Swin2, LeViT) or for comparison with these models. All other 
+$\square$ Validation performed at **square resolution**, either because the transformer encoder backbone of a model
+does not support non-square resolutions (Swin, Swin2, LeViT) or for comparison with these models. All other
 validations keep the aspect ratio. A difference in resolution limits the comparability of the zero-shot error and the
-improvement, because these quantities are averages over the pixels of an image and do not take into account the 
+improvement, because these quantities are averages over the pixels of an image and do not take into account the
 advantage of more details due to a higher resolution.\
 Best values per column and same validation height in bold
 
 #### Improvement
 
-The improvement in the above table is defined as the relative zero-shot error with respect to MiDaS v3.0 
+The improvement in the above table is defined as the relative zero-shot error with respect to MiDaS v3.0
 DPT<sub>L-384</sub> and averaging over the datasets. So, if $\epsilon_d$ is the zero-shot error for dataset $d$, then
 the $\color{green}{\textsf{improvement}}$ is given by $100(1-(1/6)\sum_d\epsilon_d/\epsilon_{d,\rm{DPT_{L-384}}})$%.
 
@@ -193,14 +193,14 @@ and v2.0 Large<sub>384</sub> respectively instead of v3.0 DPT<sub>L-384</sub>.
 Zoom in for better visibility
 ![](figures/Comparison.png)
 
-### Speed on Camera Feed	
+### Speed on Camera Feed
 
-Test configuration	
-- Windows 10	
-- 11th Gen Intel Core i7-1185G7 3.00GHz	
-- 16GB RAM	
-- Camera resolution 640x480	
-- openvino_midas_v21_small_256	
+Test configuration
+- Windows 10
+- 11th Gen Intel Core i7-1185G7 3.00GHz
+- 16GB RAM
+- Camera resolution 640x480
+- openvino_midas_v21_small_256
 
 Speed: 22 FPS
 
@@ -251,9 +251,9 @@ If you use a DPT-based model, please also cite:
 
 ### Acknowledgements
 
-Our work builds on and uses code from [timm](https://github.com/rwightman/pytorch-image-models) and [Next-ViT](https://github.com/bytedance/Next-ViT). 
+Our work builds on and uses code from [timm](https://github.com/rwightman/pytorch-image-models) and [Next-ViT](https://github.com/bytedance/Next-ViT).
 We'd like to thank the authors for making these libraries available.
 
-### License 
+### License
 
-MIT License 
+MIT License

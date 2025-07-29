@@ -137,7 +137,7 @@ class VQModel(pl.LightningModule):
                 # do the first few batches with max size to avoid later oom
                 new_resize = upper_size
             else:
-                new_resize = np.random.choice(np.arange(lower_size, upper_size+16, 16)) # noqa: NPY002
+                new_resize = np.random.choice(np.arange(lower_size, upper_size+16, 16))
             if new_resize != x.shape[2]:
                 x = F.interpolate(x, size=new_resize, mode="bicubic")
             x = x.detach()

@@ -2,7 +2,7 @@ import os
 import gradio as gr
 import diffusers
 from safetensors.torch import load_file
-from modules import scripts, processing, shared, devices, sd_models
+from modules import scripts_manager, processing, shared, devices, sd_models
 
 
 # config
@@ -42,9 +42,6 @@ orig_pipe = None # original sd_model pipeline
 
 def set_adapter(adapter_name: str = 'None'):
     if not shared.sd_loaded:
-        return
-    if not shared.native:
-        shared.log.warning('AnimateDiff: not in diffusers mode')
         return
     global motion_adapter, loaded_adapter, orig_pipe # pylint: disable=global-statement
     # adapter_name = name if name is not None and isinstance(name, str) else loaded_adapter
@@ -189,12 +186,11 @@ def set_free_noise(frames):
         shared.sd_model.enable_free_noise(context_length=context_length, context_stride=context_stride)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: AnimateDiff'
 
     def show(self, is_img2img):
-        # return scripts.AlwaysVisible if shared.native else False
         return not is_img2img
 
 
@@ -231,7 +227,7 @@ class Script(scripts.Script):
         lora = LORAS[lora_index]
         set_adapter(adapter)
         if motion_adapter is None:
-            return
+            return None
         set_scheduler(p, adapter, override_scheduler)
         set_lora(p, lora, strength)
         set_free_init(fi_method, fi_iters, fi_order, fi_spatial, fi_temporal)

@@ -6,51 +6,52 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
-- Refactor: Move `model_*` stuff into subfolder  
-- Refactor: sampler options  
-- Common repo for `T5` and `CLiP`  
-- Upgrade: unblock `numpy`: see `gradio`
-- Upgrade: unblock `pydantic`: see <https://github.com/Cschlaefli/automatic>
+- [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
+- Refactor: Sampler options  
+- Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
+- Feature: Common repo for `T5` and `CLiP`  
+- Feature: LoRA add OMI format support for SD35/FLUX.1  
+- Video: Generic API support  
+- Video: LTX TeaCache and others  
+- Video: LTX API  
+- Video: LTX PromptEnhance
+- Video: LTX Conditioning preprocess
+- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
+- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
+- [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 
-### Complete Features
+### Blocked items
 
-- Python==3.13 improved support  
-- Video: API support  
-- LoRA: add OMI format support for SD35/FLUX.1  
+- Upgrade: unblock `pydantic` and `albumentations`
+  - see <https://github.com/Cschlaefli/automatic>
+  - blocked by `insightface`
 
 ### Under Consideration
 
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
-- [Refactor attention](https://github.com/huggingface/diffusers/pull/11311)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
-- [LBM](https://github.com/gojasper/LBM)  
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
 - [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
 - [HiDream GGUF](https://github.com/huggingface/diffusers/pull/11550)  
-- [Diffusers guiders](https://github.com/huggingface/diffusers/pull/11311)  
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
-- [S3Diff diffusion upscaler](https://github.com/ArcticHare105/S3Diff)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
+- Remove: Agent Scheduler  
+- Remove: CodeFormer  
+- Remove: GFPGAN  
+- ModernUI: Lite vs Expert mode  
+- [Canvas](https://konvajs.org/)  
 
-### Monitoring
-
-- [TensorRT](https://github.com/huggingface/diffusers/pull/11173)
+### Future Considerations
+- [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
 
 ### New models
 
-#### Stable
-- [Diffusers-0.34.0](https://github.com/huggingface/diffusers/releases/tag/v0.34.0)  
-- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
-- [LTXVideo-0.9.7](https://github.com/Lightricks/LTX-Video?tab=readme-ov-file#diffusers-integration)(https://github.com/huggingface/diffusers/pull/11516)  
-- [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 #### Pending
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
-- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
 #### External:Unified/MultiModal
-- [Bagel](https://huggingface.co/ByteDance-Seed/BAGEL-7B-MoT)(https://github.com/bytedance-seed/bagel)  
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
 #### External:Image2Image/Editing
@@ -69,11 +70,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Code TODO
 
-> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g'
+> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g' | sort
  
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
+- flux: loader for civitai nf4 models
 - hypertile: vae breaks when using non-standard sizes
 - install: enable ROCm for windows when available
 - loader: load receipe
@@ -81,11 +83,11 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
+- lora: support pre-quantized flux
+- model load: cogview4: balanced offload does not work for GlmModel
+- model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model loader: implement model in-memory caching
+- model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
-- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
-- nunchaku: batch support
-- nunchaku: cache-dir for transformer and t5 loader
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent

@@ -26,8 +26,9 @@ class NetworkModuleLora(network.NetworkModule):
         if weight is None and none_ok:
             return None
         linear_modules = [torch.nn.Linear, torch.nn.modules.linear.NonDynamicallyQuantizableLinear, torch.nn.MultiheadAttention, diffusers_lora.LoRACompatibleLinear]
-        is_linear = type(self.sd_module) in linear_modules or self.sd_module.__class__.__name__ in {"NNCFLinear", "QLinear", "Linear4bit"}
-        is_conv = type(self.sd_module) in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv] or self.sd_module.__class__.__name__ in {"NNCFConv2d", "QConv2d"}
+        typ = type(self.sd_module)
+        is_linear = typ in linear_modules or self.sd_module.__class__.__name__ in ["NNCFLinear", "QLinear", "Linear4bit"]
+        is_conv = (typ in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv]) or (self.sd_module.__class__.__name__ in ["NNCFConv2d", "QConv2d"]) or (typ.__name__ in ['downsampler_block', 'upsampler_block'])
         if is_linear:
             weight = weight.reshape(weight.shape[0], -1)
             module = torch.nn.Linear(weight.shape[1], weight.shape[0], bias=False)
@@ -38,12 +39,12 @@ class NetworkModuleLora(network.NetworkModule):
                 module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
             else:
                 module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
-        elif is_conv and key == "lora_mid.weight":
+        elif is_conv and (key == "lora_mid.weight"):
             module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
         elif is_conv and (key == "lora_up.weight" or key == "dyn_down"):
             module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
         else:
-            raise AssertionError(f'Lora unsupported: layer={self.network_key} type={type(self.sd_module).__name__}')
+            raise AssertionError(f'Lora unsupported: key={key} layer={self.network_key} type={typ.__name__}')
         with torch.no_grad():
             if weight.shape != module.weight.shape:
                 weight = weight.reshape(module.weight.shape)

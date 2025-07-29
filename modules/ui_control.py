@@ -9,7 +9,7 @@ from modules.control.units import xs # vislearn ControlNet-XS
 from modules.control.units import lite # vislearn ControlNet-XS
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # reference pipeline
-from modules import errors, shared, progress, ui_components, ui_symbols, ui_common, ui_sections, generation_parameters_copypaste, call_queue, scripts, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
+from modules import errors, shared, progress, ui_components, ui_symbols, ui_common, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
 from modules import ui_control_helpers as helpers
 
 
@@ -119,11 +119,6 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
 def create_ui(_blocks: gr.Blocks=None):
     helpers.initialize()
 
-    if not shared.native:
-        with gr.Blocks(analytics_enabled = False) as control_ui:
-            pass
-        return [(control_ui, 'Control', 'control')]
-
     with gr.Blocks(analytics_enabled = False) as control_ui:
         prompt, styles, negative, btn_generate, btn_reprocess, btn_paste, btn_extra, prompt_counter, btn_prompt_counter, negative_counter, btn_negative_counter  = ui_sections.create_toprow(is_img2img=False, id_part='control')
         txt_prompt_img = gr.File(label="", elem_id="control_prompt_image", file_count="single", type="binary", visible=False)
@@ -134,7 +129,7 @@ def create_ui(_blocks: gr.Blocks=None):
             with gr.Row(elem_id='control_status'):
                 result_txt = gr.HTML(elem_classes=['control-result'], elem_id='control-result')
 
-            with gr.Row(elem_id='control_settings'):
+            with gr.Row(elem_id='control_settings', elem_classes=['settings-column']):
 
                 state = gr.Textbox(value='', visible=False)
 
@@ -167,7 +162,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 mask_controls = masking.create_segment_ui()
 
                 vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('control')
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('control')
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('control')
 
                 with gr.Accordion(open=False, label="Video", elem_id="control_video", elem_classes=["small-accordion"]):
                     with gr.Row():
@@ -258,7 +253,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", type="pil", height=128, width=128, visible=False, interactive=True, show_label=False, show_download_button=False, container=False, elem_id=f'control_unit-{i}-override')
                             controlnet_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -272,7 +267,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -307,7 +302,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
                             adapter_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -321,7 +316,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -354,7 +349,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     reset_btn = ui_components.ToolButton(value=ui_symbols.reset)
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
                             controlnetxs_ui_units.append(unit_ui)
                             units.append(unit.Unit(
@@ -368,7 +363,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -401,7 +396,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                             lite_ui_units.append(unit_ui)
                             units.append(unit.Unit(
                                 unit_type = 'lite',
@@ -414,7 +409,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -445,7 +440,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                     image_upload = gr.UploadButton(label=ui_symbols.upload, file_types=['image'], elem_classes=['form', 'gradio-button', 'tool'])
                                     image_reuse= ui_components.ToolButton(value=ui_symbols.reuse)
                                     image_preview = gr.Image(label="Input", show_label=False, type="pil", interactive=False, height=128, width=128, visible=False, elem_id=f'control_unit-{i}-override')
-                                    process_btn= ui_components.ToolButton(value=ui_symbols.preview)
+                                    btn_preview= ui_components.ToolButton(value=ui_symbols.preview)
                             units.append(unit.Unit(
                                 unit_type = 'reference',
                                 index = i,
@@ -457,7 +452,7 @@ def create_ui(_blocks: gr.Blocks=None):
                                 model_id = model_id,
                                 model_strength = model_strength,
                                 preview_process = preview_process,
-                                preview_btn = process_btn,
+                                preview_btn = btn_preview,
                                 image_upload = image_upload,
                                 image_reuse = image_reuse,
                                 image_preview = image_preview,
@@ -539,7 +534,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             setting.change(fn=processors.update_settings, inputs=settings, outputs=[])
 
             with gr.Row(elem_id="control_script_container"):
-                input_script_args = scripts.scripts_current.setup_ui(parent='control', accordion=True)
+                input_script_args = scripts_manager.scripts_current.setup_ui(parent='control', accordion=True)
 
             # handlers
             for btn in input_buttons:
@@ -555,17 +550,15 @@ def create_ui(_blocks: gr.Blocks=None):
             show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             show_preview.change(fn=lambda x: gr.update(visible=x), inputs=[show_preview], outputs=[column_preview])
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
-            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt, steps], outputs=[prompt_counter])
-            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative, steps], outputs=[negative_counter])
+            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter], show_progress = False)
+            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter], show_progress = False)
             btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
 
-            select_fields = [input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder]
-            select_output = [output_tabs, preview_process, result_txt]
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
-                inputs=select_fields,
-                outputs=select_output,
+                inputs=[input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder],
+                outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
                 show_progress=True,
                 queue=False,
             )
@@ -590,7 +583,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
                 cfg_scale, clip_skip, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end, vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio,
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
                 resize_mode_before, resize_name_before, resize_context_before, width_before, height_before, scale_by_before, selected_scale_tab_before,
                 resize_mode_after, resize_name_after, resize_context_after, width_after, height_after, scale_by_after, selected_scale_tab_after,
                 resize_mode_mask, resize_name_mask, resize_context_mask, width_mask, height_mask, scale_by_mask, selected_scale_tab_mask,
@@ -709,7 +702,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
-                *scripts.scripts_control.infotext_fields
+                *scripts_manager.scripts_control.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)
             bindings = generation_parameters_copypaste.ParamBinding(paste_button=btn_paste, tabname="control", source_text_component=prompt, source_image_component=output_gallery)

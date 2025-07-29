@@ -116,7 +116,7 @@ def make_meta(fn, maxrank, rank_ratio):
 
 
 def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
-    if not shared.sd_loaded or not shared.native:
+    if not shared.sd_loaded:
         msg = "LoRA extract: model not loaded"
         shared.log.warning(msg)
         yield msg

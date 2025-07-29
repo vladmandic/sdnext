@@ -19,7 +19,7 @@ pipelines = {
     'Stable Diffusion XL Instruct': getattr(diffusers, 'StableDiffusionXLInstructPix2PixPipeline', None),
     'Stable Diffusion XL Refiner': getattr(diffusers, 'StableDiffusionXLImg2ImgPipeline', None),
     'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
-    'Stable Diffusion 3.x': getattr(diffusers, 'StableDiffusion3Pipeline', None),
+    'Stable Diffusion 3': getattr(diffusers, 'StableDiffusion3Pipeline', None),
     'Latent Consistency Model': getattr(diffusers, 'LatentConsistencyModelPipeline', None),
     'PixArt Alpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
     'PixArt Sigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
@@ -44,11 +44,16 @@ pipelines = {
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
     'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
+    'WanAI': getattr(diffusers, 'WanPipeline', None),
 
     # dynamically imported and redefined later
-    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
-    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None), # dynamically redefined and loaded in sd_models.load_diffuser
+    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
+    'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
+    'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
+    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None),
+    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None),
+    'FLite': getattr(diffusers, 'DiffusionPipeline', None),
+    'Bria': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 initialize_onnx()
@@ -61,8 +66,8 @@ onnx_pipelines = {
 
 
 def postprocessing_scripts():
-    import modules.scripts
-    return modules.scripts.scripts_postproc.scripts
+    import modules.scripts_manager
+    return modules.scripts_manager.scripts_postproc.scripts
 
 
 def sd_vae_items():
@@ -136,7 +141,7 @@ def get_repo(model):
         return 'stable-diffusion-v1-5/stable-diffusion-v1-5'
     elif model == 'StableDiffusionXLPipeline' or model == 'Stable Diffusion XL':
         return 'stabilityai/stable-diffusion-xl-base-1.0'
-    elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3.x':
+    elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3':
         return 'stabilityai/stable-diffusion-3.5-medium'
     elif model == 'FluxPipeline' or model == 'FLUX':
         return 'black-forest-labs/FLUX.1-dev'

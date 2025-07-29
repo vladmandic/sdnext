@@ -29,8 +29,8 @@ Any code commit is validated before merge
 
 `SD.Next` library can establish external connections *only* for following purposes and *only* when explicitly configured by user:
 
-- Download extensions and themes indexes from automatically updated indexes  
+- Download extensions and themes indexes from automatically updated indexes
 - Download required packages and repositories from GitHub during installation/upgrade
 - Download installed/enabled extensions
 - Download models from CivitAI and/or Huggingface when instructed by user
-- Submit benchmark info upon user interaction  
+- Submit benchmark info upon user interaction

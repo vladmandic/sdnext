@@ -1,6 +1,5 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
-import sys
 import torch
 from modules import devices
 
@@ -31,7 +30,7 @@ if hasattr(torch, "float8_e4m3fnuz"):
 if hasattr(torch, "float8_e5m2fnuz"):
     dtype_dict["float8_e5m2fnuz"] = {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": "fp8", "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False}
 
-use_tensorwise_fp8_matmul = torch_version < 2.5 or devices.backend in {"cpu", "openvino"} or (devices.backend == "cuda" and sys.platform == "win32" and torch_version <= 2.7 and torch.cuda.get_device_capability(devices.device) == (8,9))
+use_tensorwise_fp8_matmul = True # Direct tensorwise only exist on H100 hardware, sdnq will use software tensorwise with this setting
 quantized_matmul_dtypes = ("int8", "int7", "int6", "int5", "int4", "int3", "int2", "float8_e4m3fn", "float8_e5m2")
 if devices.backend in {"cpu", "openvino"}:
     quantized_matmul_dtypes += ("float8_e4m3fnuz", "float8_e5m2fnuz")

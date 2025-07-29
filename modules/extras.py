@@ -2,14 +2,13 @@ import os
 import html
 import json
 import time
-import shutil
 
 from PIL import Image
 import torch
 import gradio as gr
 import safetensors.torch
 from modules.merging import merge, merge_utils, modules_sdxl
-from modules import shared, images, sd_models, sd_vae, sd_samplers, sd_models_config, devices
+from modules import shared, images, sd_models, sd_vae, sd_samplers, devices
 
 
 def run_pnginfo(image):
@@ -22,27 +21,6 @@ def run_pnginfo(image):
         if key != 'UserComment':
             info += f"<div><b>{html.escape(str(key))}</b>: {html.escape(str(text))}</div>"
     return '', geninfo, info
-
-
-def create_config(ckpt_result, config_source, a, b, c):
-    def config(x):
-        res = sd_models_config.find_checkpoint_config_near_filename(x) if x else None
-        return res if res != shared.sd_default_config else None
-
-    if config_source == 0:
-        cfg = config(a) or config(b) or config(c)
-    elif config_source == 1:
-        cfg = config(b)
-    elif config_source == 2:
-        cfg = config(c)
-    else:
-        cfg = None
-    if cfg is None:
-        return
-    filename, _ = os.path.splitext(ckpt_result)
-    checkpoint_filename = filename + ".yaml"
-    shared.log.info("Copying config: {cfg} -> {checkpoint_filename}")
-    shutil.copyfile(cfg, checkpoint_filename)
 
 
 def to_half(tensor, enable):

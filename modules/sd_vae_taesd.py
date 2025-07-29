@@ -36,7 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanvideo', 'mochivideo', 'pixartsigma', 'pixartalpha', 'omnigen']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanai', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen']
 
 
 def warn_once(msg, variant=None):
@@ -54,30 +54,34 @@ def get_model(model_type = 'decoder', variant = None):
     from modules import shared
     model_cls = shared.sd_model_type
     if model_cls is None or model_cls == 'none':
-        return None
+        return None, variant
     elif model_cls in {'ldm', 'pixartalpha'}:
         model_cls = 'sd'
+    elif model_cls in {'pixartsigma', 'hunyuandit', 'omnigen', 'auraflow'}:
+        model_cls = 'sdxl'
     elif model_cls in {'h1', 'lumina2', 'chroma'}:
         model_cls = 'f1'
-    elif model_cls in {'pixartsigma', 'omnigen'}:
-        model_cls = 'sdxl'
+    elif model_cls in {'wanai'}:
+        variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+        return None, variant
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
+    dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
     os.makedirs(folder, exist_ok=True)
     if variant.startswith('TAE'):
         cfg = TAESD_MODELS[variant]
         if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
-            return cfg['model']
+            return cfg['model'], variant
         fn = os.path.join(folder, cfg['fn'] + model_type + '_' + model_cls + '.pth')
         if not os.path.exists(fn):
             uri = cfg['uri']
             if not uri.endswith('.pth'):
                 uri += '/tae' + model_cls + '_' + model_type + '.pth'
             try:
-                shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
                 torch.hub.download_url_to_file(uri, fn)
+                shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
             except Exception as e:
                 warn_once(f'download uri={uri} {e}', variant=variant)
         if os.path.exists(fn):
@@ -85,32 +89,35 @@ def get_model(model_type = 'decoder', variant = None):
             prev_type = model_type
             prev_model = variant
             shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" load')
+            vae = None
             if 'TAE HunyuanVideo' in variant:
                 from modules.taesd.taehv import TAEHV
-                TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
+                vae = TAEHV(checkpoint_path=fn)
             elif 'TAE WanVideo' in variant:
                 from modules.taesd.taehv import TAEHV
-                TAESD_MODELS[variant]['model'] = TAEHV(checkpoint_path=fn)
+                vae = TAEHV(checkpoint_path=fn)
             elif 'TAE MochiVideo' in variant:
                 from modules.taesd.taem1 import TAEM1
-                TAESD_MODELS[variant]['model'] = TAEM1(checkpoint_path=fn)
+                vae = TAEM1(checkpoint_path=fn)
             else:
                 from modules.taesd.taesd import TAESD
-                TAESD_MODELS[variant]['model'] = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
-            return TAESD_MODELS[variant]['model']
+                vae = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
+            if vae is not None:
+                vae = vae.to(devices.device, dtype=dtype)
+                TAESD_MODELS[variant]['model'] = vae
+            return vae, variant
     elif variant.startswith('Hybrid'):
         cfg = CQYAN_MODELS[variant].get(model_cls, None)
         if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
-            return cfg['model']
+            return cfg['model'], variant
         if cfg is None:
             warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
-            return None
+            return None, variant
         repo = cfg['repo']
         prev_cls = model_cls
         prev_type = model_type
         prev_model = variant
         shared.log.debug(f'Decode: type="taesd" variant="{variant}" id="{repo}" load')
-        dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
         if 'tiny' in repo:
             from diffusers.models import AutoencoderTiny
             vae = AutoencoderTiny.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype)
@@ -119,25 +126,25 @@ def get_model(model_type = 'decoder', variant = None):
             vae = AutoencoderSmall.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype)
         vae = vae.to(devices.device, dtype=dtype)
         CQYAN_MODELS[variant][model_cls]['model'] = vae
-        return vae
+        return vae, variant
     elif variant is None:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} variant is none', variant=variant)
     else:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
-    return None
+    return None, variant
 
 
 def decode(latents):
     with lock:
-        from modules import shared
-        vae = get_model(model_type='decoder')
+        vae, variant = get_model(model_type='decoder')
         if vae is None or max(latents.shape) > 256: # safetey check of large tensors
             return latents
         try:
             with devices.inference_context():
+                dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
                 tensor = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
-                tensor = tensor.half().detach().clone().to(devices.device, dtype=vae.dtype)
-                if shared.opts.taesd_variant.startswith('TAESD'):
+                tensor = tensor.detach().clone().to(devices.device, dtype=dtype)
+                if variant.startswith('TAESD'):
                     image = vae.decoder(tensor).clamp(0, 1).detach()
                     return image[0]
                 else:
@@ -145,12 +152,14 @@ def decode(latents):
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
                     return image
         except Exception as e:
-            return warn_once(f'decode {e}')
+            # from modules import errors
+            # errors.display(e, 'taesd"')
+            return warn_once(f'decode: {e}', variant=variant)
 
 
 def encode(image):
     with lock:
-        vae = get_model(model_type='encoder')
+        vae, variant = get_model(model_type='encoder')
         if vae is None:
             return image
         try:
@@ -158,4 +167,4 @@ def encode(image):
                 latents = vae.encoder(image)
             return latents.detach()
         except Exception as e:
-            return warn_once(f'encode {e}')
+            return warn_once(f'encode: {e}', variant=variant)

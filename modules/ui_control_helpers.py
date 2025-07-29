@@ -1,7 +1,7 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import shared, scripts, masking, video # pylint: disable=ungrouped-imports
+from modules import shared, scripts_manager, masking, video # pylint: disable=ungrouped-imports
 
 
 gr_height = None
@@ -43,8 +43,8 @@ def initialize():
         os.makedirs(masking.cache_dir, exist_ok=True)
     except Exception:
         pass
-    scripts.scripts_current = scripts.scripts_control
-    scripts.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
+    scripts_manager.scripts_current = scripts_manager.scripts_control
+    scripts_manager.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
 
 
 def interrogate():
@@ -55,26 +55,6 @@ def interrogate():
     except Exception:
         pass
     return prompt
-
-
-def interrogate_clip(): # legacy function
-    prompt = None
-    try:
-        from modules.interrogate import openclip
-        prompt = openclip.interrogator.interrogate(input_source[0])
-    except Exception:
-        pass
-    return gr.update() if prompt is None else prompt
-
-
-def interrogate_booru(): # legacy function
-    prompt = None
-    try:
-        from modules.interrogate import deepbooru
-        prompt = deepbooru.model.tag(input_source[0])
-    except Exception:
-        pass
-    return gr.update() if prompt is None else prompt
 
 
 def display_units(num_units):
@@ -111,11 +91,12 @@ def select_input(input_mode, input_image, init_image, init_type, input_resize, i
         selected_input = input_folder
     else:
         selected_input = None
+    size = [gr.update(), gr.update()]
     if selected_input is None:
         input_source = None
         busy = False
         # debug('Control input: none')
-        return [gr.Tabs.update(), None, '']
+        return [gr.Tabs.update(), None, ''] + size
     input_type = type(selected_input)
     input_mask = None
     status = 'Control input | Unknown'
@@ -128,6 +109,7 @@ def select_input(input_mode, input_image, init_image, init_type, input_resize, i
         input_source = [selected_input]
         input_type = 'PIL.Image'
         status = f'Control input | Image | Size {selected_input.width}x{selected_input.height} | Mode {selected_input.mode}'
+        size = [gr.update(value=selected_input.width), gr.update(value=selected_input.height)]
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
     elif isinstance(selected_input, dict): # inpaint -> dict image+mask
         input_mask = selected_input['mask']
@@ -165,7 +147,7 @@ def select_input(input_mode, input_image, init_image, init_type, input_resize, i
         input_init = [init_image]
     debug_log(f'Control select input: type={input_type} source={input_source} init={input_init} mask={input_mask} mode={input_mode}')
     busy = False
-    return res
+    return res + size
 
 
 def copy_input(mode_from, mode_to, input_image, input_resize, input_inpaint):

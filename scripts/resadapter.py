@@ -1,7 +1,7 @@
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 repo = 'jiaxiangc/res-adapter'
@@ -17,12 +17,12 @@ models = {
     'SDXL v1 interpolation': 'resadapter_v1_sdxl_interpolation',
 }
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'ResAdapter: Domain Consistent Resolution'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):
@@ -34,7 +34,7 @@ class Script(scripts.Script):
         return [model, weight]
 
     def run(self, p: processing.StableDiffusionProcessing, model, weight): # pylint: disable=arguments-differ
-        if not shared.native or model == 'None':
+        if model == 'None':
             return None
         if shared.sd_model_type == 'sd':
             if not model.startswith('SD15'):

@@ -4,7 +4,7 @@ import time
 import contextlib
 import gradio as gr
 from PIL import Image
-from modules import shared, devices, errors, scripts, processing, processing_helpers, sd_models
+from modules import shared, devices, errors, scripts_manager, processing, processing_helpers, sd_models
 
 
 debug = os.environ.get('SD_PULID_DEBUG', None) is not None
@@ -13,7 +13,7 @@ registered = False
 uploaded_images = []
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         self.pulid = None
         self.cache = None
@@ -25,12 +25,12 @@ class Script(scripts.Script):
         return 'PuLID: ID Customization'
 
     def show(self, _is_img2img):
-        return shared.native
+        return True
 
     def dependencies(self):
         from installer import install, installed, reload
         if not installed('insightface==0.7.3', reload=False, quiet=True):
-            install('insightface==0.7.3', ignore=False)
+            install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
             install('albumentations==1.4.3', ignore=False, reinstall=True)
             install('pydantic==1.10.21', ignore=False, reinstall=True, force=True)
             reload('pydantic')
@@ -47,15 +47,17 @@ class Script(scripts.Script):
             return fun
 
         import sys
-        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k][0]
-        options = [
-            xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
-            xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
-            xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
-        ]
-        for option in options:
-            if option not in xyz_classes.axis_options:
-                xyz_classes.axis_options.append(option)
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
+                xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
+                xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
 
 
     def decode_image(self,  b64):
@@ -144,7 +146,7 @@ class Script(scripts.Script):
         if self.pulid is None:
             self.dependencies()
             try:
-                from modules import pulid # pylint: disable=redefined-outer-name
+                from scripts import pulid # pylint: disable=redefined-outer-name
                 self.pulid = pulid
                 from diffusers import pipelines
                 pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["pulid"] = pulid.StableDiffusionXLPuLIDPipeline

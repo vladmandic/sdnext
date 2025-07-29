@@ -63,7 +63,7 @@ def generate(args): # pylint: disable=redefined-outer-name
             info = data['info']
             log.info(f'image received: size={image.size} time={t1-t0:.2f} info="{info}"')
             if args.output:
-                image.save(args.output)
+                image.save(args.output, exif=image._getexif())
                 log.info(f'image saved: size={image.size} filename={args.output}')
     else:
         log.warning(f'no images received: {data}')

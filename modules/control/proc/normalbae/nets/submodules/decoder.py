@@ -199,4 +199,3 @@ class Decoder(nn.Module):
         return [out_res8, out_res4, out_res2, out_res1], \
                [out_res8, samples_pred_res4, samples_pred_res2, samples_pred_res1], \
                [None, point_coords_res4, point_coords_res2, point_coords_res1]
-

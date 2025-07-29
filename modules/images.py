@@ -140,8 +140,6 @@ def save_image(image,
                prompt=None,
                extension=shared.opts.samples_format,
                info=None,
-               short_filename=False,
-               no_prompt=False,
                grid=False,
                pnginfo_section_name='parameters',
                p=None,
@@ -149,9 +147,9 @@ def save_image(image,
                forced_filename=None,
                suffix='',
                save_to_dirs=None,
-            ): # pylint: disable=unused-argument
+            ):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    debug(f'Save: fn={fn}') # pylint: disable=protected-access
+    debug_save(f'Save: fn={fn}') # pylint: disable=protected-access
     if image is None:
         shared.log.warning('Image is none')
         return None, None, None
@@ -162,7 +160,10 @@ def save_image(image,
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
-    if shared.opts.save_to_dirs:
+    if save_to_dirs is not None and isinstance(save_to_dirs, str) and len(save_to_dirs) > 0:
+        dirname = save_to_dirs
+        path = os.path.join(path, dirname)
+    elif shared.opts.save_to_dirs:
         dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
         path = os.path.join(path, dirname)
     if forced_filename is None:
@@ -171,12 +172,12 @@ def save_image(image,
         else:
             file_decoration = "[seq]-[prompt_words]"
         file_decoration = namegen.apply(file_decoration)
-        file_decoration += suffix if suffix is not None else ''
+        file_decoration += suffix
         if file_decoration.startswith(basename):
             basename = ''
         filename = os.path.join(path, f"{file_decoration}.{extension}") if basename == '' else os.path.join(path, f"{basename}-{file_decoration}.{extension}")
     else:
-        forced_filename += suffix if suffix is not None else ''
+        forced_filename += suffix
         if forced_filename.startswith(basename):
             basename = ''
         filename = os.path.join(path, f"{forced_filename}.{extension}") if basename == '' else os.path.join(path, f"{basename}-{forced_filename}.{extension}")
@@ -231,11 +232,83 @@ def safe_decode_string(s: bytes):
     return None
 
 
+def parse_comfy_metadata(data: dict):
+    def parse_workflow():
+        res = ''
+        try:
+            txt = data.get('workflow', {})
+            dct = json.loads(txt)
+            nodes = len(dct.get('nodes', []))
+            version = dct.get('extra', {}).get('frontendVersion', 'unknown')
+            if version is not None:
+                res = f" | Version: {version} | Nodes: {nodes}"
+        except Exception:
+            pass
+        return res
+
+    def parse_prompt():
+        res = ''
+        try:
+            txt = data.get('prompt', {})
+            dct = json.loads(txt)
+            for val in dct.values():
+                inp = val.get('inputs', {})
+                if 'model' in inp:
+                    model = inp.get('model', None)
+                    if isinstance(model, str) and len(model) > 0:
+                        res += f" | Model: {model} | Class: {val.get('class_type', '')}"
+        except Exception:
+            pass
+        return res
+
+    workflow = parse_workflow()
+    prompt = parse_prompt()
+    if len(workflow) > 0 or len(prompt) > 0:
+        parsed = f'App: ComfyUI{workflow}{prompt}'
+        shared.log.info(f'Image metadata: {parsed}')
+        return parsed
+    return ''
+
+
+def parse_invoke_metadata(data: dict):
+    def parse_metadtaa():
+        res = ''
+        try:
+            txt = data.get('invokeai_metadata', {})
+            dct = json.loads(txt)
+            if 'app_version' in dct:
+                version = dct['app_version']
+                if isinstance(version, str) and len(version) > 0:
+                    res += f" | Version: {version}"
+        except Exception:
+            pass
+        return res
+
+    metadata = parse_metadtaa()
+    if len(metadata) > 0:
+        parsed = f'App: InvokeAI{metadata}'
+        shared.log.info(f'Image metadata: {parsed}')
+        return parsed
+    return ''
+
+
+def parse_novelai_metadata(data: dict):
+    geninfo = ''
+    if data.get("Software", None) == "NovelAI":
+        try:
+            dct = json.loads(data["Comment"])
+            sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
+            geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337'
+        except Exception:
+            pass
+    return geninfo
+
+
 def read_info_from_image(image: Image, watermark: bool = False):
     if image is None:
         return '', {}
     items = image.info or {}
-    geninfo = items.pop('parameters', None) or items.pop('UserComment', None)
+    geninfo = items.pop('parameters', None) or items.pop('UserComment', None) or ''
     if geninfo is not None and len(geninfo) > 0:
         if 'UserComment' in geninfo:
             geninfo = geninfo['UserComment']
@@ -272,18 +345,12 @@ def read_info_from_image(image: Image, watermark: bool = False):
         if isinstance(val, bytes): # decode bytestring
             items[key] = safe_decode_string(val)
 
+    geninfo += parse_comfy_metadata(items)
+    geninfo += parse_invoke_metadata(items)
+    geninfo += parse_novelai_metadata(items)
+
     for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi']: # remove unwanted tags
         items.pop(key, None)
-
-    if items.get("Software", None) == "NovelAI":
-        try:
-            json_info = json.loads(items["Comment"])
-            sampler = sd_samplers.samplers_map.get(json_info["sampler"], "Euler a")
-            geninfo = f"""{items["Description"]}
-Negative prompt: {json_info["uc"]}
-Steps: {json_info["steps"]}, Sampler: {sampler}, CFG scale: {json_info["scale"]}, Seed: {json_info["seed"]}, Size: {image.width}x{image.height}, Clip skip: 2, ENSD: 31337"""
-        except Exception as e:
-            errors.display(e, 'novelai image parser')
 
     try:
         items['width'] = image.width

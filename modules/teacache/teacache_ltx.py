@@ -69,7 +69,7 @@ def teacache_ltx_forward(
         if self.cnt == 0 or self.cnt == self.num_steps-1:
             should_calc = True
             self.accumulated_rel_l1_distance = 0
-        else: 
+        else:
             coefficients = [2.14700694e+01, -1.28016453e+01,  2.31279151e+00,  7.92487521e-01, 9.69274326e-03]
             rescale_func = np.poly1d(coefficients)
             self.accumulated_rel_l1_distance += rescale_func(((modulated_inp-self.previous_modulated_input).abs().mean() / self.previous_modulated_input.abs().mean()).cpu().item())
@@ -78,11 +78,11 @@ def teacache_ltx_forward(
             else:
                 should_calc = True
                 self.accumulated_rel_l1_distance = 0
-        self.previous_modulated_input = modulated_inp  
+        self.previous_modulated_input = modulated_inp
         self.cnt += 1
         if self.cnt == self.num_steps:
-            self.cnt = 0         
-    
+            self.cnt = 0
+
     if self.enable_teacache:
         if not should_calc:
             hidden_states += self.previous_residual

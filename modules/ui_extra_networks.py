@@ -29,9 +29,9 @@ debug('Trace: EN')
 card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
         <div class='overlay'>
-            <div class='tags'></div>
             <div class='name {reference}'>{title}</div>
         </div>
+        <div class='tags'></div>
         <div class='version'>{version}</div>
         <div class='actions'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>
@@ -162,9 +162,6 @@ class ExtraNetworksPage:
         preview = f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
-    def is_empty(self, folder):
-        return any(files_cache.list_files(folder, ext_filter=['.ckpt', '.safetensors', '.pt', '.json']))
-
     def create_thumb(self):
         debug(f'EN create-thumb: {self.name}')
         created = 0
@@ -227,13 +224,16 @@ class ExtraNetworksPage:
             return f"<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'></div><div id='{tabname}_{self_name_id}_cards' class='extra-network-cards'>Network page not ready<br>Click refresh to try again</div>"
         subdirs = {}
         allowed_folders = [os.path.abspath(x) for x in self.allowed_directories_for_previews() if os.path.exists(x)]
+        diffusers_base = os.path.basename(shared.opts.diffusers_dir)
         for parentdir, dirs in {d: files_cache.walk(d, cached=True, recurse=files_cache.not_hidden) for d in allowed_folders}.items():
             for tgt in dirs:
                 tgt = tgt.path
                 if os.path.join(paths.models_path, 'Reference') in tgt and shared.opts.extra_network_reference_enable:
                     subdirs['Reference'] = 1
-                if shared.native and shared.opts.diffusers_dir in tgt:
-                    subdirs[os.path.basename(shared.opts.diffusers_dir)] = 1
+                    continue
+                if shared.opts.diffusers_dir in tgt:
+                    subdirs[diffusers_base] = 1
+                    continue
                 if 'models--' in tgt:
                     continue
                 subdir = tgt[len(parentdir):].replace("\\", "/")
@@ -247,7 +247,7 @@ class ExtraNetworksPage:
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
-            subdirs[os.path.basename(shared.opts.diffusers_dir)] = 1
+            subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
@@ -291,7 +291,7 @@ class ExtraNetworksPage:
             htmls.append(self.create_html(item, tabname))
         self.html += ''.join(htmls)
         self.page_time = time.time()
-        self.html = f"<div id='~tabname_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"
+        self.html = f"<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"
         shared.log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
         if len(self.missing_thumbs) > 0:
             threading.Thread(target=self.create_thumb).start()
@@ -386,13 +386,17 @@ class ExtraNetworksPage:
             if item.get('local_preview', None) is None:
                 item['local_preview'] = f'{base}.{shared.opts.samples_format}'
             if shared.opts.diffusers_dir in base:
-                match = re.search(r"models--([^/^\\]+)[/\\]", base)
-                if match is None:
-                    match = re.search(r"models--(.*)", base)
-                base = os.path.join(reference_path, match[1])
-                model_path = os.path.join(shared.opts.diffusers_dir, match[0])
-                item['local_preview'] = f'{os.path.join(model_path, match[1])}.{shared.opts.samples_format}'
-                all_previews += list(files_cache.list_files(model_path, ext_filter=exts, recursive=False))
+                if 'models--' in base:
+                    match = re.search(r"models--([^/^\\]+)[/\\]", base)
+                    if match is None:
+                        match = re.search(r"models--(.*)", base)
+                    base = os.path.join(reference_path, match[1])
+                    model_path = os.path.join(shared.opts.diffusers_dir, match[0])
+                    item['local_preview'] = f'{os.path.join(model_path, match[1])}.{shared.opts.samples_format}'
+                    all_previews += list(files_cache.list_files(model_path, ext_filter=exts, recursive=False))
+                else:
+                    if os.path.isdir(base):
+                        item['local_preview'] = os.path.join(base, f'{os.path.basename(base)}.{shared.opts.samples_format}')
             base = os.path.basename(base)
             for file in [f'{base}{mid}{ext}' for ext in exts for mid in ['.thumb.', '.', '.preview.']]:
                 if file in all_previews_fn:
@@ -479,23 +483,19 @@ def register_pages():
     shared.extra_networks.clear()
     allowed_dirs.clear()
     from modules.ui_extra_networks_checkpoints import ExtraNetworksPageCheckpoints
-    from modules.ui_extra_networks_vae import ExtraNetworksPageVAEs
-    from modules.ui_extra_networks_styles import ExtraNetworksPageStyles
     register_page(ExtraNetworksPageCheckpoints())
+    from modules.ui_extra_networks_vae import ExtraNetworksPageVAEs
     register_page(ExtraNetworksPageVAEs())
+    from modules.ui_extra_networks_styles import ExtraNetworksPageStyles
     register_page(ExtraNetworksPageStyles())
+    from modules.ui_extra_networks_lora import ExtraNetworksPageLora
+    register_page(ExtraNetworksPageLora())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
-    if not shared.opts.lora_legacy:
-        from modules.ui_extra_networks_lora import ExtraNetworksPageLora
-        register_page(ExtraNetworksPageLora())
-    if shared.opts.hypernetwork_enabled:
-        from modules.ui_extra_networks_hypernets import ExtraNetworksPageHypernetworks
-        register_page(ExtraNetworksPageHypernetworks())
 
 
 def get_pages(title=None):
@@ -1001,5 +1001,5 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     return ui
 
 
-def setup_ui(ui, gallery):
+def setup_ui(ui, gallery: gr.Gallery = None):
     ui.gallery = gallery

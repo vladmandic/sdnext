@@ -61,10 +61,6 @@ options = Map({
     'lora': {
         'strength': 1.0,
     },
-    'hypernetwork': {
-        'keyword': '',
-        'strength': 1.0,
-    },
 })
 
 
@@ -243,46 +239,6 @@ async def lyco(params):
         log.info({ 'lyco preview created': model, 'image': fn, 'images': len(images), 'grid': [image.width, image.height], 'time': round(t, 2), 'its': round(its, 2) })
 
 
-async def hypernetwork(params):
-    opt = await get('/sdapi/v1/options')
-    folder = opt['hypernetwork_dir']
-    if not os.path.exists(folder):
-        log.error({ 'hypernetwork directory not found': folder })
-        return
-    models = [os.path.splitext(f)[0] for f in Path(folder).glob('**/*.pt')]
-    log.info({ 'hypernetworks': len(models) })
-    for model in models:
-        if preview_exists(folder, model) and len(params.input) == 0: # if model preview exists and not manually included
-            log.info({ 'hypernetwork preview exists': model })
-            continue
-        fn = os.path.join(folder, model + options.format)
-        images = []
-        labels = []
-        t0 = time.time()
-        keyword = options.hypernetwork.keyword
-        options.generate.prompt = options.prompt.replace('<keyword>', options.hypernetwork.keyword)
-        options.generate.prompt = options.generate.prompt.replace('<embedding>', '')
-        options.generate.prompt = f' <hypernet:{model}:{options.hypernetwork.strength}> ' + options.generate.prompt
-        log.info({ 'hypernetwork generating': model, 'keyword': keyword, 'prompt': options.generate.prompt })
-        data = await generate(options = options, quiet=True)
-        if 'image' in data:
-            for img in data['image']:
-                images.append(img)
-                labels.append(keyword)
-        else:
-            log.error({ 'hypernetwork': model, 'keyword': keyword, 'error': data })
-        t1 = time.time()
-        if len(images) == 0:
-            log.error({ 'model': model, 'error': 'no images generated' })
-            continue
-        image = grid(images = images, labels = labels, border = 8)
-        log.info({ 'saving preview': fn, 'images': len(images), 'size': [image.width, image.height] })
-        image.save(fn)
-        t = t1 - t0
-        its = 1.0 * options.generate.steps * len(images) / t
-        log.info({ 'hypernetwork preview created': model, 'image': fn, 'images': len(images), 'grid': [image.width, image.height], 'time': round(t, 2), 'its': round(its, 2) })
-
-
 async def embedding(params):
     opt = await get('/sdapi/v1/options')
     folder = opt['embeddings_dir']
@@ -327,7 +283,6 @@ async def create_previews(params):
     await preview_models(params)
     await lora(params)
     await lyco(params)
-    await hypernetwork(params)
     await embedding(params)
     await close()
 

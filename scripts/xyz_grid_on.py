@@ -10,10 +10,10 @@ from io import StringIO
 from PIL import Image
 import numpy as np
 import gradio as gr
-from scripts.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
-from scripts.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
-from scripts.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
-from modules import shared, errors, scripts, images, processing
+from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
+from modules import shared, errors, scripts_manager, images, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs
 import modules.ui_symbols as symbols
@@ -24,11 +24,11 @@ xyz_results_cache = None
 debug = shared.log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     current_axis_options = []
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible
+        return scripts_manager.AlwaysVisible
 
     def title(self):
         return "XYZ Grid"
@@ -178,7 +178,7 @@ class Script(scripts.Script):
         global active, xyz_results_cache # pylint: disable=W0603
         xyz_results_cache = None
         if not enabled or active:
-            return
+            return None
         active = True
         if not no_fixed_seeds:
             processing.fix_seed(p)
@@ -388,10 +388,13 @@ class Script(scripts.Script):
                 include_text=include_text,
             )
 
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
+            shared.sd_model.restore_pipeline()
+
         if not processed.images:
             active = False
             return processed # something broke, no further handling needed.
-        # processed.images = (1)*grid + (z > 1 ? z : 0)*subgrids + (x*y*z)*images
+
         have_grid = 1 if include_grid else 0
         have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
         have_images = processed.images[have_grid+have_subgrids:]

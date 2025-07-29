@@ -112,8 +112,8 @@ def check_run(command): # compatbility function
 
 
 @lru_cache()
-def is_installed(package): # compatbility function
-    return installer.installed(package)
+def is_installed(pkg): # compatbility function
+    return installer.installed(pkg)
 
 
 @lru_cache()
@@ -169,7 +169,7 @@ def clean_server():
     modules_to_remove = ['webui', 'modules', 'scripts', 'gradio',
                          'onnx', 'torch', 'pytorch', 'lightning', 'tensor', 'diffusers', 'transformers', 'tokenize', 'safetensors', 'gguf', 'accelerate', 'peft', 'triton', 'huggingface',
                          'PIL', 'cv2', 'timm', 'numpy', 'scipy', 'sympy', 'sklearn', 'skimage', 'sqlalchemy', 'flash_attn', 'bitsandbytes', 'xformers', 'matplotlib', 'optimum', 'pandas', 'pi', 'git', 're', 'altair',
-                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'k_diffusion', 'gfpgan', 'war',
+                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'gfpgan', 'war',
                          'fastapi', 'urllib', 'uvicorn', 'web', 'http', 'google', 'starlette', 'socket']
     removed_removed = []
     for module_loaded in modules_loaded:
@@ -260,9 +260,12 @@ def main():
         installer.set_environment()
     if args.uv:
         installer.install("uv", "uv")
+    installer.install_gradio()
     installer.check_torch()
     installer.check_onnx()
+    installer.check_transformers()
     installer.check_diffusers()
+    installer.install_sentencepiece()
     installer.check_modified_files()
     if args.test:
         installer.log.info('Startup: test mode')
