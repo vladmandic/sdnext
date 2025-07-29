@@ -4,8 +4,10 @@
 
 ### Highlights for 2025-07-29
 
+This is a big one: simply looking at number of changes, probably the biggest release since the project started!  
+
 Feature highlights include:  
-- **ModernUI** has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes!  
+- [ModernUI](https://github.com/user-attachments/assets/6f156154-0b0a-4be2-94f0-979e9f679501) has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes  
   If you're still using **StandardUI**, give [ModernUI](https://vladmandic.github.io/sdnext-docs/Themes/) a try!  
 - New models such as [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
   and also [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2) and [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
@@ -24,11 +26,13 @@ This plus major cleanup of codebase and external dependencies resulted in ~55k L
 We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
 
 And (*as always*) many bugfixes and improvements to existing features!  
-
-*Note*: We recommend clean install for this release due to sheer size of changes  
-Although upgrades and existing installations are tested and should work fine!  
-
 For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+> [!NOTE]  
+> We recommend clean install for this release due to sheer size of changes  
+> Although upgrades and existing installations are tested and should work fine!  
+
+![Screenshot](https://github.com/user-attachments/assets/6f156154-0b0a-4be2-94f0-979e9f679501)
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
