@@ -69,7 +69,7 @@ class YoloRestorer(Detailer):
                     if name not in files:
                         self.list[name] = os.path.join(shared.opts.yolo_dir, f)
         shared.log.info(f'Available Detailer: path="{shared.opts.yolo_dir}" items={len(list(self.list))} downloaded={downloaded}')
-        return self.list
+        return list(self.list)
 
     def dependencies(self):
         import installer
@@ -412,9 +412,9 @@ class YoloRestorer(Detailer):
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
                 merge = gr.Checkbox(label="Merge detailers", elem_id=f"{tab}_detailer_merge", value=shared.opts.detailer_merge, visible=True)
             with gr.Row():
-                detailers = gr.Dropdown(label="Detailer models", elem_id=f"{tab}_detailers", choices=self.list, value=shared.opts.detailer_models, multiselect=True, visible=True)
+                detailers = gr.Dropdown(label="Detailer models", elem_id=f"{tab}_detailers", choices=list(self.list), value=shared.opts.detailer_models, multiselect=True, visible=True)
                 detailers_text = gr.Textbox(label="Detailer list", elem_id=f"{tab}_detailers_text", placeholder="Comma separated list of detailer models", lines=2, visible=False, interactive=True)
-                refresh_btn = ui_common.create_refresh_button(detailers, self.enumerate, {}, elem_id=f"{tab}_detailers_refresh")
+                refresh_btn = ui_common.create_refresh_button(detailers, self.enumerate, lambda: {"choices": self.enumerate()}, 'yolo_refresh_models')
                 ui_mode = ui_components.ToolButton(value=ui_symbols.view)
                 ui_mode.click(fn=self.change_mode, inputs=[detailers, detailers_text], outputs=[detailers, detailers_text, refresh_btn])
             with gr.Row():
