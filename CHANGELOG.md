@@ -7,9 +7,8 @@
 Feature highlights include:  
 - **ModernUI** has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes!  
   If you're still using StandardUI, give [ModernUI](https://vladmandic.github.io/sdnext-docs/Themes/) a try!  
-- New models:  
-  - [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
-  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2), [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
+- New models such as [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
+  and also [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2), [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
 - Redesigned [LTXVideo](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
@@ -47,13 +46,13 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
     *note*: quantization and offloading are highly recommended regardless of first-stage only or both stages!  
   - [WanAI Wan](https://wan.video/) T2V models for T2I workflows  
     Wan is originally designed for *video* workflows, but now also be used for *text-to-image* workflows!  
-    Supports Wan2.1 in 1.3B and 14B variants and Wan2.2 in 5B and A14B variants  
+    supports *Wan-2.1 in 1.3B* and 14B variants and *Wan-2.2 in 5B and A14B* variants  
     supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
     can also load unet/transformer fine-tunes in safetensors format using UNET loader  
     simply select in *networks -> models -> reference*  
     *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB even without second-stage so aggressive quantization and offloading are recommended  
-  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite)  
-    F-Lite is a 10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite) in *7B, 10B and Texture* variants  
+    F-Lite is a 7B/10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
     available via *networks -> models -> reference*  
   - [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)  
     Bria is a smaller 4B parameter model built entirely on licensed data and safe for commercial use  
