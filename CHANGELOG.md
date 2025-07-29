@@ -140,6 +140,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - **Detailer** add option to merge multiple results from each detailer model  
     for example, hands model can result in two hands each being processed separately or both hands can be merged into one composite job  
   - **Control** auto-update width/height on image upload  
+  - **Control** auto-determine image save path depending on operations performed  
   - autodetect **V-prediction** models and override default sampler prediction type as needed  
 - **SDNQ**  
   - use inference context during quantization  

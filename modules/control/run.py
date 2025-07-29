@@ -464,6 +464,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 if frame is not None:
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs):
+                    if input_image is not None:
+                        p.ops.append('img2img')
                     if pipe is None: # pipe may have been reset externally
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
@@ -525,6 +527,14 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 return [], '', '', 'Error: Input image is none'
                         if unit_type == 'lite':
                             instance.apply(selected_models, processed_image, control_conditioning)
+
+                    # what are we doing?
+                    if 'control' in p.ops:
+                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_control_samples
+                    elif 'img2img' in p.ops:
+                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_img2img_samples
+                    elif 'txt2img' in p.ops:
+                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
 
                     # pipeline
                     output = None

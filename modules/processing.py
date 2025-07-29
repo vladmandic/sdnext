@@ -456,8 +456,11 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
         p.scripts.postprocess(p, processed)
     timer.process.record('post')
+    p.ops = list(set(p.ops))
     if not p.disable_extra_networks:
-        shared.log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
+        shared.log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} ops={p.ops}')
+        shared.log.debug(f'Processed: timers={timer.process.dct()}')
+        shared.log.debug(f'Processed: memory={memstats.memory_stats()}')
 
     devices.torch_gc(force=True, reason='final')
     return processed

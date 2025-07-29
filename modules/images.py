@@ -149,7 +149,7 @@ def save_image(image,
                save_to_dirs=None,
             ):
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    debug(f'Save: fn={fn}') # pylint: disable=protected-access
+    debug_save(f'Save: fn={fn}') # pylint: disable=protected-access
     if image is None:
         shared.log.warning('Image is none')
         return None, None, None
