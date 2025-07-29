@@ -535,6 +535,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_img2img_samples
                     elif 'txt2img' in p.ops:
                         p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
+                    else: # fallback to txt2img
+                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
 
                     # pipeline
                     output = None
