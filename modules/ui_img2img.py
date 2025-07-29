@@ -228,8 +228,8 @@ def create_ui():
             )
             interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
 
-            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter])
-            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter])
+            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = False)
+            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui_img2img, img2img_gallery)
             img2img_paste_fields = [

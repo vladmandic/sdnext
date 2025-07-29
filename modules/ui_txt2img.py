@@ -154,7 +154,7 @@ def create_ui():
             txt2img_bindings = generation_parameters_copypaste.ParamBinding(paste_button=txt2img_paste, tabname="txt2img", source_text_component=txt2img_prompt, source_image_component=None)
             generation_parameters_copypaste.register_paste_params_button(txt2img_bindings)
 
-            txt2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter])
-            txt2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter])
+            txt2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = False)
+            txt2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui, txt2img_gallery)
