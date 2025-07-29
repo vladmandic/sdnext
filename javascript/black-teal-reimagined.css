@@ -900,7 +900,7 @@ svg.feather.feather-image,
 }
 
 /* Tags Styles */
-.extra-network-cards .card .overlay .tags {
+.extra-network-cards .card .tags {
   display: none;
   overflow-wrap: anywhere;
   position: absolute;
@@ -913,7 +913,7 @@ svg.feather.feather-image,
 }
 
 /* Individual Tag Styles */
-.extra-network-cards .card .overlay .tag {
+.extra-network-cards .card .tag {
   padding: 2px;
   margin: 2px;
   background: rgba(70, 70, 70, 0.60);
@@ -961,7 +961,7 @@ svg.feather.feather-image,
   display: block;
 }
 
-.extra-network-cards .card:hover .overlay .tags {
+.extra-network-cards .card:hover .tags {
   display: block;
 }
 

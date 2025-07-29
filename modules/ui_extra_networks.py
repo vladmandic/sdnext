@@ -29,9 +29,9 @@ debug('Trace: EN')
 card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
         <div class='overlay'>
-            <div class='tags'></div>
             <div class='name {reference}'>{title}</div>
         </div>
+        <div class='tags'></div>
         <div class='version'>{version}</div>
         <div class='actions'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>

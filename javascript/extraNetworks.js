@@ -101,7 +101,6 @@ function readCardDescription(page, item) {
     const description = gradioApp().querySelector(`#${tabname}_description > label > textarea`);
     if (description) {
       description.value = data?.description?.trim() || '';
-      // description.focus();
       updateInput(description);
     }
     setENState({ op: 'readCardDescription', page, item });

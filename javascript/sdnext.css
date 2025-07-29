@@ -1194,8 +1194,9 @@ table.settings-value-table td {
   filter: grayscale(100%);
 }
 
-.extra-network-cards .card .overlay .tags {
-  background: var(--body-background-fill);
+.extra-network-cards .card .tags {
+  background: var(--background-fill-primary);
+  opacity: 0.95;
   display: none;
   max-height: 333px;
   overflow-wrap: anywhere;
@@ -1206,11 +1207,11 @@ table.settings-value-table td {
   z-index: 20;
 }
 
-.extra-network-cards .card .overlay .tag {
-  background: rgba(70, 70, 70, 0.60);
+.extra-network-cards .card .tag {
+  background: var(--button-primary-background-fill-hover);
   cursor: pointer;
   display: inline-block;
-  font-size: var(--text-md);
+  font-size: 0.9em !important;
   margin: 2px;
   padding: 2px;
 }
@@ -1242,7 +1243,7 @@ table.settings-value-table td {
   display: block;
 }
 
-.extra-network-cards .card:hover .overlay .tags {
+.extra-network-cards .card:hover .tags {
   display: block;
 }
 

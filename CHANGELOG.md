@@ -169,6 +169,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
   - fix prompt encoding if prompts within batch have different segment counts  
   - fix detailer min/max size  
   - fix loopback script  
+  - fix networks tags display  
   - fix yolo refresh models  
   - cleanup control infotext  
   - allow upscaling with models that have implicit VAE processing  
