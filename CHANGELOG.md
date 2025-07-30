@@ -1,5 +1,21 @@
 # Change Log for SD.Next
 
+## Update for 2025-07-30
+
+- **Feature**  
+  - Wan select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
+    in settings -> model options  
+  - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
+- **UI**  
+  - modernui checkbox/radio styling  
+- **Fixes**  
+  - fix Wan 2.2-5B I2V workflow  
+  - fix inpaint image metadata  
+  - fix processing image save loop  
+  - fix progress bar with refine/detailer  
+  - fix api progress reporting endpoint  
+  - add missing interrogate in output panel  
+
 ## Update for 2025-07-29
 
 ### Highlights for 2025-07-29

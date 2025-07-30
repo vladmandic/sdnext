@@ -360,6 +360,8 @@ def get_prompt_schedule(prompt, steps):
 def get_tokens(pipe, msg, prompt):
     global token_dict, token_type # pylint: disable=global-statement
     if shared.sd_loaded and hasattr(pipe, 'tokenizer') and pipe.tokenizer is not None:
+        prompt = prompt.replace(' BOS ', ' !!!!!!!! ').replace(' EOS ', ' !!!!!!! ')
+        debug(f'Prompt tokenizer: type={msg} prompt="{prompt}"')
         if token_dict is None or token_type != shared.sd_model_type:
             token_type = shared.sd_model_type
             fn = pipe.tokenizer.name_or_path
@@ -375,6 +377,12 @@ def get_tokens(pipe, msg, prompt):
         has_eos_token = pipe.tokenizer.eos_token_id is not None
         ids = pipe.tokenizer(prompt)
         ids = getattr(ids, 'input_ids', [])
+        if has_bos_token and has_eos_token:
+            for i in range(len(ids)):
+                if ids[i] == 21622:
+                    ids[i] = pipe.tokenizer.bos_token_id
+                elif ids[i] == 15203:
+                    ids[i] = pipe.tokenizer.eos_token_id
         tokens = []
         for i in ids:
             try:
@@ -383,7 +391,7 @@ def get_tokens(pipe, msg, prompt):
             except Exception:
                 tokens.append(f'UNK_{i}')
         token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-        debug(f'Prompt tokenizer: type={msg} tokens={token_count} {tokens}')
+        debug(f'Prompt tokenizer: type={msg} tokens={token_count} tokens={tokens} ids={ids}')
     return token_count
 
 

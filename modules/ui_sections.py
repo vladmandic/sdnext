@@ -92,8 +92,8 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     return width, height
 
 
-def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None):
-    button_interrogate = gr.Button(ui_symbols.interrogate, elem_id=f"{tab}_interrogate", elem_classes=['interrogate'])
+def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None, what: str = ''):
+    button_interrogate = gr.Button(ui_symbols.interrogate, elem_id=f"{tab}_interrogate_{what}", elem_classes=['interrogate'])
     if inputs is not None and outputs is not None:
         button_interrogate.click(fn=interrogate.interrogate, inputs=inputs, outputs=[outputs])
     return button_interrogate

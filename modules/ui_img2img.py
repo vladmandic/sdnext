@@ -69,7 +69,7 @@ def create_ui():
                     state = gr.Textbox(value='', visible=False)
                     with gr.TabItem('Image', id='img2img_image', elem_id="img2img_image_tab") as tab_img2img:
                         img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
-                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img')
+                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img', what='input')
                         add_copy_image_controls('img2img', img_init)
 
                     with gr.TabItem('Inpaint', id='img2img_inpaint', elem_id="img2img_inpaint_tab") as tab_inpaint:
@@ -144,7 +144,7 @@ def create_ui():
                             mask_alpha = gr.Slider(label="Alpha", minimum=0.0, maximum=1.0, step=0.05, value=1.0, elem_id="img2img_mask_alpha")
                         with gr.Row():
                             inpainting_mask_invert = gr.Radio(label='Inpaint Mode', choices=['masked', 'invert'], value='masked', type="index", elem_id="img2img_mask_mode")
-                            inpaint_full_res = gr.Radio(label="Inpaint area", choices=["full", "masked"], type="index", value="full", elem_id="img2img_inpaint_full_res")
+                            inpaint_full_res = gr.Radio(label="Inpaint area", choices=["full", "masked"], value="full", type="index", elem_id="img2img_inpaint_full_res")
 
                         def select_img2img_tab(tab):
                             return gr.update(visible=tab in [2, 3, 4]), gr.update(visible=tab == 3)
@@ -236,6 +236,7 @@ def create_ui():
                 # prompt
                 (img2img_prompt, "Prompt"),
                 (img2img_negative_prompt, "Negative prompt"),
+                (img2img_prompt_styles, "Styles"),
                 # sampler
                 (sampler_index, "Sampler"),
                 (steps, "Steps"),
@@ -295,9 +296,9 @@ def create_ui():
                 # inpaint
                 (mask_blur, "Mask blur"),
                 (mask_alpha, "Mask alpha"),
+                (inpaint_full_res_padding, "Mask padding"),
                 (inpainting_mask_invert, "Mask invert"),
                 (inpaint_full_res, "Mask area"),
-                (inpaint_full_res_padding, "Masked padding"),
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),

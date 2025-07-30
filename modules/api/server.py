@@ -85,7 +85,7 @@ def get_history(req: models.ReqHistory = Depends()):
     return res
 
 def get_progress(req: models.ReqProgress = Depends()):
-    if shared.state.job_count == 0:
+    if shared.state.job_count == 0: # idle state
         return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
     shared.state.do_set_current_image()
     current_image = None
@@ -94,12 +94,17 @@ def get_progress(req: models.ReqProgress = Depends()):
     batch_x = max(shared.state.job_no, 0)
     batch_y = max(shared.state.job_count, 1)
     step_x = max(shared.state.sampling_step, 0)
+    prev_steps = max(shared.state.sampling_steps, 1)
+    while step_x > shared.state.sampling_steps:
+        shared.state.sampling_steps += prev_steps
     step_y = max(shared.state.sampling_steps, 1)
     current = step_y * batch_x + step_x
     total = step_y * batch_y
     progress = min((current / total) if current > 0 and total > 0 else 0, 1)
     time_since_start = time.time() - shared.state.time_start
     eta_relative = (time_since_start / progress) - time_since_start if progress > 0 else 0
+    # shared.log.critical(f'get_progress: batch {batch_x}/{batch_y} step {step_x}/{step_y} current {current}/{total} time={time_since_start} eta={eta_relative}')
+    # shared.log.critical(shared.state)
     res = models.ResProgress(id=shared.state.id, progress=round(progress, 2), eta_relative=round(eta_relative, 2), current_image=current_image, textinfo=shared.state.textinfo, state=shared.state.dict(), )
     return res
 

@@ -9,6 +9,7 @@ def interrogate(image):
     if isinstance(image, dict) and 'name' in image:
         image = Image.open(image['name'])
     if image is None:
+        shared.log.error('Interrogate: no image provided')
         return ''
     t0 = time.time()
     if shared.opts.interrogate_default_type == 'OpenCLiP':

@@ -92,6 +92,7 @@ def create_ui():
                 # prompt
                 (txt2img_prompt, "Prompt"),
                 (txt2img_negative_prompt, "Negative prompt"),
+                (txt2img_prompt_styles, "Styles"),
                 # main
                 (width, "Size-1"),
                 (height, "Size-2"),

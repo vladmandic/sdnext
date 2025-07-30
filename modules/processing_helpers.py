@@ -507,7 +507,7 @@ def update_sampler(p, sd_model, second_pass=False):
 def get_job_name(p, model):
     if hasattr(model, 'pipe'):
         model = model.pipe
-    if hasattr(p, 'xyz'):
+    if getattr(p, 'xyz', False):
         return 'Ignore' # xyz grid handles its own jobs
     if sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE:
         return 'Text'

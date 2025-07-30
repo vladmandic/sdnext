@@ -278,16 +278,16 @@ def load_quanto(msg='', silent=False):
 
 
 def upcast_non_layerwise_modules(model, dtype): # pylint: disable=unused-argument
-    from diffusers.hooks.layerwise_casting import SUPPORTED_PYTORCH_LAYERS
+    from diffusers.hooks.layerwise_casting import _GO_LC_SUPPORTED_PYTORCH_LAYERS
     model_children = list(model.children())
     if not model_children:
-        if not isinstance(model, SUPPORTED_PYTORCH_LAYERS):
+        if not isinstance(model, _GO_LC_SUPPORTED_PYTORCH_LAYERS):
             model = model.to(dtype)
         return model
     for module in model_children:
         has_children = list(module.children())
         if not has_children:
-            if not isinstance(module, SUPPORTED_PYTORCH_LAYERS):
+            if not isinstance(module, _GO_LC_SUPPORTED_PYTORCH_LAYERS):
                 module = module.to(dtype)
         else:
             module = upcast_non_layerwise_modules(module, dtype)
