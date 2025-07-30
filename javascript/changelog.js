@@ -82,7 +82,7 @@ async function initChangelog() {
 
 function wikiSearch(txt) {
   log('wikiSearch', txt);
-  const url = `https://github.com/search?q=repo%3Avladmandic%2Fautomatic+${encodeURIComponent(txt)}&type=wikis`;
+  const url = `https://github.com/search?q=repo%3Avladmandic%2Fsdnext+${encodeURIComponent(txt)}&type=wikis`;
   // window.open(url, '_blank').focus();
   return txt;
 }

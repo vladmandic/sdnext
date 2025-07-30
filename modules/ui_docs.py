@@ -1,5 +1,5 @@
 import gradio as gr
-from modules import ui_symbols, ui_components
+from modules import ui_symbols, ui_components, shared
 
 
 def create_ui_logs():
@@ -10,8 +10,7 @@ def create_ui_logs():
         return content
 
     with gr.Column():
-        get_changelog_btn = gr.Button(value='Get changelog', elem_id="get_changelog")
-        gr.HTML('<a href="https://github.com/vladmandic/sdnext/blob/dev/CHANGELOG.md" style="color: #AAA" target="_blank">&nbsp Open GitHub Changelog</a>')
+        get_changelog_btn = gr.Button(value='Get Changelog', elem_id="get_changelog")
     with gr.Column():
         _changelog_search = gr.Textbox(label="Search Changelog", elem_id="changelog_search")
         _changelog_result = gr.HTML(elem_id="changelog_result")
@@ -29,8 +28,9 @@ def create_ui_wiki():
         install('beautifulsoup4')
         from bs4 import BeautifulSoup
 
-        url = f'https://github.com/search?q=repo%3Avladmandic%2Fautomatic+{quote(search_term)}&type=wikis'
+        url = f'https://github.com/search?q=repo%3Avladmandic%2Fsdnext+{quote(search_term)}&type=wikis'
         res = requests.get(url, timeout=10)
+        shared.log.debug(f'Search: wiki="{search_term}" code={res.status_code}')
         if res.status_code == 200:
             html = res.content
             soup = BeautifulSoup(html, 'html.parser')
@@ -55,8 +55,6 @@ def create_ui_wiki():
         else:
             return f'Error: {res.status_code}'
 
-    with gr.Row():
-        gr.HTML('<a href="https://github.com/vladmandic/sdnext/wiki" style="color: #AAA" target="_blank">&nbsp Open GitHub Wiki</a>')
     with gr.Row():
         wiki_search = gr.Textbox(label="Search Wiki Pages", elem_id="wiki_search")
         wiki_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="wiki_search_btn")
