@@ -231,7 +231,7 @@ class State:
             self.sampling_steps = steps
             self.job_count = jobs
         else:
-            self.sampling_steps += steps * jobs
+            self.sampling_steps += (steps * jobs)
             self.job_count += jobs
         self.job = job
         self.history('update')

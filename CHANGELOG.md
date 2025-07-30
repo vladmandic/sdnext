@@ -8,9 +8,10 @@
 - **UI**  
   - modernui checkbox/radio styling  
 - **Fixes**  
-  - fix Wan2.2 5B I2V workflow  
+  - fix Wan 2.2-5B I2V workflow  
   - fix inpaint image metadata  
   - fix processing image save loop  
+  - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
   - add missing interrogate in output panel  
 

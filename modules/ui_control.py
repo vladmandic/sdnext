@@ -619,6 +619,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 # prompt
                 (prompt, "Prompt"),
                 (negative, "Negative prompt"),
+                (styles, "Styles"),
                 # input
                 (denoising_strength, "Denoising strength"),
                 # size basic

@@ -368,6 +368,9 @@ class StyleDatabase:
             return
         for style in p.styles:
             s = self.find_style(style)
+            if s == self.no_style:
+                shared.log.warning(f'Apply style: name="{style}" not found')
+                continue
             apply_styles_to_extra(p, s)
 
     def extract_comments(self, p):

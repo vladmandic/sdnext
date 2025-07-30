@@ -236,6 +236,7 @@ def create_ui():
                 # prompt
                 (img2img_prompt, "Prompt"),
                 (img2img_negative_prompt, "Negative prompt"),
+                (img2img_prompt_styles, "Styles"),
                 # sampler
                 (sampler_index, "Sampler"),
                 (steps, "Steps"),
