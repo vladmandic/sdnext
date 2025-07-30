@@ -373,8 +373,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     image.info["parameters"] = info
                     output_images.append(image)
 
-            is_grid = len(output_images) == p.batch_size * p.n_iter + 1 and i == 0
-            for j, image in enumerate(output_images):
+            for i, image in enumerate(output_images):
+                is_grid = len(output_images) == p.batch_size * p.n_iter + 1 and i == 0
                 # resize after
                 if p.selected_scale_tab_after == 1:
                     p.width_after, p.height_after = int(image.width * p.scale_by_after), int(image.height * p.scale_by_after)

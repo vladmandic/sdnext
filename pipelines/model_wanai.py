@@ -70,7 +70,7 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
         else:
             shared.log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
-            return None 
+            return None
     else:
         transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
         transformer_2 = None
