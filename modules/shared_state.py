@@ -178,7 +178,7 @@ class State:
         self.results = []
         self.id = self.get_id(task_id)
         self.job = title
-        self.job_count = 0
+        self.job_count = 1 # cannot be less than 1 on new job
         self.frame_count = 0
         self.batch_no = 0
         self.batch_count = 0
