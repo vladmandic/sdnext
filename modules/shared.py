@@ -200,7 +200,8 @@ options_templates.update(options_section(('model_options', "Models Options"), {
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
     "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
-    "model_wan_disable_t2": OptionInfo(True, "Disable second stage"),
+    "model_wan_stage": OptionInfo("first", "Processing stage", gr.Radio, {"choices": ['first', 'second', 'both'] }),
+    "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
 }))
 
 options_templates.update(options_section(('vae_encoder', "Variational Auto Encoder"), {

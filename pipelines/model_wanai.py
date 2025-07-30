@@ -8,11 +8,6 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
     fn = None
 
-    if subfolder == 'transformer_2' and 'a14b' not in repo_id.lower():
-        return None
-    if subfolder == 'transformer_2' and shared.opts.model_wan_disable_t2:
-        return None
-
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
         from modules import sd_unet
         if shared.opts.sd_unet not in list(sd_unet.unet_dict):
@@ -63,13 +58,28 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
-    transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
-    transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+    if 'a14b' in repo_id.lower():
+        if shared.opts.model_wan_stage == 'first':
+            transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
+            transformer_2 = None
+        elif shared.opts.model_wan_stage == 'second':
+            transformer = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+            transformer_2 = None
+        elif shared.opts.model_wan_stage == 'both':
+            transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
+            transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+        else:
+            shared.log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
+            return None 
+    else:
+        transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
+        transformer_2 = None
+
     text_encoder = load_text_encoder(repo_id, diffusers_load_config)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    boundary_ratio = 0.8 if transformer_2 is not None else None
-    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} boundary={boundary_ratio}')
+    boundary_ratio = shared.opts.model_wan_boundary if transformer_2 is not None else None
+    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage={shared.opts.model_wan_stage} boundary={boundary_ratio}')
 
     cls = diffusers.WanPipeline
     pipe = cls.from_pretrained(
@@ -88,6 +98,7 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
 
     del text_encoder
     del transformer
+    del transformer_2
 
     sd_hijack_te.init_hijack(pipe)
     from modules.video_models import video_vae

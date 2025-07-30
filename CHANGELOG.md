@@ -2,7 +2,13 @@
 
 ## Update for 2025-07-30
 
+- **Feature**  
+  - Wan select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
+    in settings -> model options  
+- **UI**  
+  - modernui checkbox/radio styling  
 - **Fixes**  
+  - fix Wan2.2 5B I2V workflow  
   - fix inpaint image metadata  
   - fix processing image save loop  
   - fix api progress reporting endpoint  
