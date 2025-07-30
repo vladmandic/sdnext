@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2025-07-30
+
+- **Fixes**  
+  - fix inpaint image metadata  
+
 ## Update for 2025-07-29
 
 ### Highlights for 2025-07-29

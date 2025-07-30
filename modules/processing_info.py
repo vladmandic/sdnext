@@ -117,29 +117,28 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Init image size"] = f"{getattr(p, 'init_img_width', 0)}x{getattr(p, 'init_img_height', 0)}"
         args["Init image hash"] = getattr(p, 'init_img_hash', None)
         args['Image CFG scale'] = p.image_cfg_scale
-        args['Resize scale'] = getattr(p, 'scale_by', None)
         args["Mask weight"] = getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight) if p.is_using_inpainting_conditioning else None
         args["Denoising strength"] = getattr(p, 'denoising_strength', None)
+        if args["Size"] != args["Init image size"]:
+            args['Resize scale'] = float(getattr(p, 'scale_by', None)) if getattr(p, 'scale_by', None) != 1 else None
+            args['Resize mode'] = shared.resize_modes[p.resize_mode] if shared.resize_modes[p.resize_mode] != 'None' else None
         if args["Size"] is None:
             args["Size"] = args["Init image size"]
-        # lookup by index
-        if getattr(p, 'resize_mode', None) is not None:
-            args['Resize mode'] = shared.resize_modes[p.resize_mode] if shared.resize_modes[p.resize_mode] != 'None' else None
     if p.resize_mode_before != 0 and p.resize_name_before != 'None' and hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 0:
         args['Resize before'] = f"{p.width_before}x{p.height_before}"
         args['Resize mode before'] = p.resize_mode_before
         args['Resize name before'] = p.resize_name_before
-        args['Resize scale before'] = p.scale_by_before if p.scale_by_before != 1.0 else None
+        args['Resize scale before'] = float(p.scale_by_before) if p.scale_by_before != 1.0 else None
     if p.resize_mode_after != 0 and p.resize_name_after != 'None':
         args['Resize after'] = f"{p.width_after}x{p.height_after}"
         args['Resize mode after'] = p.resize_mode_after
         args['Resize name after'] = p.resize_name_after
-        args['Resize scale after'] = p.scale_by_after if p.scale_by_after != 1.0 else None
+        args['Resize scale after'] = float(p.scale_by_after) if p.scale_by_after != 1.0 else None
     if p.resize_name_mask != 'None' and p.scale_by_mask != 1.0:
         args['Resize mask'] = f"{p.width_mask}x{p.height_mask}"
         args['Resize mode mask'] = p.resize_mode_mask
         args['Resize name mask'] = p.resize_name_mask
-        args['Resize scale mask'] = p.scale_by_mask
+        args['Resize scale mask'] = float(p.scale_by_mask)
     if 'detailer' in p.ops:
         args["Detailer"] = ', '.join(shared.opts.detailer_models) if len(shared.opts.detailer_args) == 0 else shared.opts.detailer_args
         args["Detailer steps"] = p.detailer_steps
