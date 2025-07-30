@@ -6,6 +6,7 @@
   - fix inpaint image metadata  
   - fix processing image save loop  
   - fix api progress reporting endpoint  
+  - add missing interrogate in output panel  
 
 ## Update for 2025-07-29
 

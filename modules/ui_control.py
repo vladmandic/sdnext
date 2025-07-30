@@ -191,7 +191,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, visible=True, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             input_resize = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="select", height=gr_height, visible=False, image_mode='RGB', elem_id='control_input_resize', elem_classes=['control-image'])
                             input_inpaint = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="sketch", height=gr_height, visible=False, image_mode='RGB', elem_id='control_input_inpaint', brush_radius=32, mask_opacity=0.6, elem_classes=['control-image'])
-                            btn_interrogate = ui_sections.create_interrogate_button('control')
+                            btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
                             with gr.Row():
                                 input_buttons = [gr.Button('Select', visible=True, interactive=False), gr.Button('Inpaint', visible=True, interactive=True), gr.Button('Outpaint', visible=True, interactive=True)]
                         with gr.Tab('Video', id='in-video') as tab_video:

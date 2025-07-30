@@ -69,7 +69,7 @@ def create_ui():
                     state = gr.Textbox(value='', visible=False)
                     with gr.TabItem('Image', id='img2img_image', elem_id="img2img_image_tab") as tab_img2img:
                         img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
-                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img')
+                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img', what='input')
                         add_copy_image_controls('img2img', img_init)
 
                     with gr.TabItem('Inpaint', id='img2img_inpaint', elem_id="img2img_inpaint_tab") as tab_inpaint:
