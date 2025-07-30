@@ -5,6 +5,7 @@
 - **Feature**  
   - Wan select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
+  - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
 - **UI**  
   - modernui checkbox/radio styling  
 - **Fixes**  
