@@ -54,7 +54,7 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 def process_pre(p: processing.StableDiffusionProcessing):
     from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion
-    shared.log.info('Processing apply modifiers')
+    shared.log.info('Processing modifiers: apply')
 
     try:
         # apply-with-unapply
@@ -86,7 +86,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
 
 def process_post(p: processing.StableDiffusionProcessing):
     from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion
-    shared.log.info('Processing unapply modifiers')
+    shared.log.info('Processing modifiers: unapply')
 
     try:
         sd_models_compile.check_deepcache(enable=False)

@@ -4,6 +4,7 @@
 
 - **Fixes**  
   - fix inpaint image metadata  
+  - fix processing image save loop  
 
 ## Update for 2025-07-29
 
