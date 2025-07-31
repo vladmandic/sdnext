@@ -7,6 +7,7 @@
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
 - **UI**  
+  - new embedded docs/wiki search!  
   - modernui checkbox/radio styling  
 - **Fixes**  
   - fix Wan 2.2-5B I2V workflow  

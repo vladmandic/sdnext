@@ -123,14 +123,9 @@ def create_ui(startup_timer = None):
         timer.startup.record("ui-extensions")
 
     with gr.Blocks(analytics_enabled=False) as info_interface:
-        with gr.Tabs(elem_id="tabs_info"):
-            with gr.TabItem("Change log", id="change_log", elem_id="system_tab_changelog"):
-                from modules import ui_docs
-                ui_docs.create_ui_logs()
-
-            with gr.TabItem("Wiki", id="wiki", elem_id="system_tab_wiki"):
-                from modules import ui_docs
-                ui_docs.create_ui_wiki()
+        from modules import ui_docs
+        ui_docs.create_ui()
+        timer.startup.record("ui-info")
 
     with gr.Blocks(analytics_enabled=False) as extensions_interface:
         from modules import ui_extensions
