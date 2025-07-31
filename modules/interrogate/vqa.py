@@ -632,7 +632,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
 
     if shared.opts.interrogate_offload and model is not None:
         sd_models.move_model(model, devices.cpu, force=True)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='vqa')
     answer = clean(answer, question)
     t1 = time.time()
     if not quiet:

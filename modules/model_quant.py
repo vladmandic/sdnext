@@ -436,7 +436,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
             if do_gc:
-                devices.torch_gc(force=True)
+                devices.torch_gc(force=True, reason='sdnq')
         if shared.cmd_opts.medvram or shared.cmd_opts.lowvram or shared.opts.diffusers_offload_mode != "none":
             quant_last_model_name = op
             quant_last_model_device = model.device
@@ -447,7 +447,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     elif shared.opts.diffusers_offload_mode != "none":
         model = model.to(devices.cpu)
     if do_gc:
-        devices.torch_gc(force=True)
+        devices.torch_gc(force=True, reason='sdnq')
     return model
 
 
@@ -465,7 +465,7 @@ def sdnq_quantize_weights(sd_model):
                 getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
-            devices.torch_gc(force=True)
+            devices.torch_gc(force=True, reason='sdnq')
         quant_last_model_name = None
         quant_last_model_device = None
 
@@ -510,7 +510,7 @@ def optimum_quanto_model(model, op=None, sd_model=None, weights=None, activation
                 getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
-            devices.torch_gc(force=True)
+            devices.torch_gc(force=True, reason='quanto')
         if shared.cmd_opts.medvram or shared.cmd_opts.lowvram or shared.opts.diffusers_offload_mode != "none":
             quant_last_model_name = op
             quant_last_model_device = model.device
@@ -518,7 +518,7 @@ def optimum_quanto_model(model, op=None, sd_model=None, weights=None, activation
             quant_last_model_name = None
             quant_last_model_device = None
         model.to(devices.device)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='quanto')
     return model
 
 
@@ -540,7 +540,7 @@ def optimum_quanto_weights(sd_model):
                 getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
-            devices.torch_gc(force=True)
+            devices.torch_gc(force=True, reason='quanto')
         quant_last_model_name = None
         quant_last_model_device = None
 
@@ -572,7 +572,7 @@ def optimum_quanto_weights(sd_model):
                 sd_models.move_model(sd_model, devices.cpu)
                 if hasattr(sd_model, "encode_prompt"):
                     sd_model.encode_prompt = original_encode_prompt
-            devices.torch_gc(force=True)
+            devices.torch_gc(force=True, reason='quanto')
 
         t1 = time.time()
         log.info(f"Quantization: type=Optimum.quanto time={t1-t0:.2f}")

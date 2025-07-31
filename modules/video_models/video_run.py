@@ -71,7 +71,7 @@ def generate(*args, **kwargs):
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='video')
 
     # set args
     processing.fix_seed(p)

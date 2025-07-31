@@ -280,7 +280,7 @@ def set_cuda_memory_limit():
         return
     try:
         from modules.shared import cmd_opts
-        torch_gc(force=True)
+        torch_gc(force=True, reason='cuda')
         mem = torch.cuda.get_device_properties(device).total_memory
         torch.cuda.set_per_process_memory_fraction(float(opts.cuda_mem_fraction), cmd_opts.device_id if cmd_opts.device_id is not None else 0)
         log.info(f'Torch memory limit: fraction={opts.cuda_mem_fraction:.2f} limit={round(opts.cuda_mem_fraction * mem / 1024 / 1024)} total={round(mem / 1024 / 1024)}')

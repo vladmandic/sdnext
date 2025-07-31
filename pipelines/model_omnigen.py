@@ -28,5 +28,5 @@ def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=u
         **load_config,
     )
 
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe

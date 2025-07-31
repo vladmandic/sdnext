@@ -407,6 +407,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if shared.opts.return_mask_composite:
                     output_images.append(image_mask_composite)
 
+            if shared.cmd_opts.lowvram:
+                devices.torch_gc(force=True, reason='lowvram')
             timer.process.record('post')
 
         if not p.xyz:
@@ -461,5 +463,6 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         shared.log.debug(f'Processed: timers={timer.process.dct()}')
         shared.log.debug(f'Processed: memory={memstats.memory_stats()}')
 
-    # devices.torch_gc(force=True, reason='final')
+    if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
+        devices.torch_gc(force=True, reason='final')
     return processed

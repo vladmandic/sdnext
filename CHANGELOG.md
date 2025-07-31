@@ -8,7 +8,15 @@
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
 - **UI**  
   - new embedded docs/wiki search!  
+    **Docs** search: fully-local and works in real-time on all document pages  
+    **Wiki** search: uses github api to search online wiki pages  
   - modernui checkbox/radio styling  
+- **Offloading**
+  - changed default values for offloading based on detected gpu memory  
+    see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
+  - new feature to specify which modules to offload always or never  
+    in *settings -> models & loading -> offload always/never*  
+  - new `highvram` profile provides significant performance boost on gpus with more than 24gb  
 - **Fixes**  
   - fix Wan 2.2-5B I2V workflow  
   - fix inpaint image metadata  
@@ -16,6 +24,7 @@
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
+  - avoid forced gc and rely on thresholds  
   - add missing interrogate in output panel  
 
 ## Update for 2025-07-29

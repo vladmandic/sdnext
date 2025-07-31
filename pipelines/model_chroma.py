@@ -187,7 +187,7 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     # unload current model
     sd_models.unload_model_weights()
     shared.sd_model = None
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
 
     if shared.opts.teacache_enabled:
         from modules import teacache
@@ -277,5 +277,5 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     for k in kwargs.keys():
         kwargs[k] = None
     sd_hijack_te.init_hijack(pipe)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe, allow_post_quant

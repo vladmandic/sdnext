@@ -176,7 +176,7 @@ def run_modelmerger(id_task, **kwargs):  # pylint: disable=unused-argument
     created_model = next((ckpt for ckpt in sd_models.checkpoints_list.values() if ckpt.name == filename), None)
     if created_model:
         created_model.calculate_shorthash()
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='merge')
     shared.state.end()
     return [*[gr.Dropdown.update(choices=sd_models.checkpoint_titles()) for _ in range(4)], f"Model saved to {output_modelname}"]
 
@@ -248,7 +248,7 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
     yield from modules_sdxl.merge()
     status = modules_sdxl.status
 
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='merge')
     yield msg("modules merge complete")
     if modules_sdxl.pipeline is not None:
         checkpoint_info = sd_models.CheckpointInfo(filename='None')
