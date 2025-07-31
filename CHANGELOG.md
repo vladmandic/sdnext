@@ -2,10 +2,15 @@
 
 ## Update for 2025-07-31
 
+- **Models**  
+  - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+    new 12B base model compatible with FLUX.1-Dev from Black Forest Labs with opinionated aesthetics and aesthetic preferences in mind  
+    simply select in *networks -> models -> reference*  
 - **Feature**  
-  - Wan select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
+  - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
+  - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
 - **UI**  
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  

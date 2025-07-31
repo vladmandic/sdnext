@@ -165,6 +165,13 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
+  "Black Forest Labs FLUX.1 Krea Dev": {
+    "path": "black-forest-labs/FLUX.1-Krea-dev",
+    "preview": "black-forest-labs--FLUX.1-Krea-dev.jpg",
+    "desc": "FLUX.1 Krea [dev] is a 12 billion parameter rectified flow transformer capable of generating images from text descriptions.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.5"
+  },
 
   "lodestones Chroma": {
     "path": "lodestones/Chroma",

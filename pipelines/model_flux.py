@@ -118,12 +118,16 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = None
-            if 'kontext' in repo_id.lower():
+            if 'flux.1-kontext' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-{nunchaku_precision}_r32-flux.1-kontext-dev.safetensors"
-            elif 'dev' in repo_id.lower():
+            elif 'flux.1-dev' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-dev/svdq-{nunchaku_precision}_r32-flux.1-dev.safetensors"
-            elif 'schnell' in repo_id.lower():
+            elif 'flux.1-schnell' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
+            elif 'flux.1-fill' in repo_id.lower():
+                nunchaku_repo = f"mit-han-lab/svdq-fp4-flux.1-fill-dev/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
+            elif 'flux.1-depth' in repo_id.lower():
+                nunchaku_repo = f"mit-han-lab/svdq-int4-flux.1-depth-dev/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
             elif 'shuttle' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-shuttle-jaguar/svdq-{nunchaku_precision}_r32-shuttle-jaguar.safetensors"
             else:
