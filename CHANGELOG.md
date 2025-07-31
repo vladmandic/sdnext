@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-30
+## Update for 2025-07-31
 
 - **Feature**  
   - Wan select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
@@ -14,6 +14,7 @@
   - fix processing image save loop  
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
+  - fix openvino backend failing to compile  
   - add missing interrogate in output panel  
 
 ## Update for 2025-07-29
