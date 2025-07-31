@@ -78,7 +78,7 @@ class Page():
             return 0.50
 
         return 0.0
-    
+
     def get(self):
         try:
             with open(self.fn, 'r', encoding='utf-8') as f:
