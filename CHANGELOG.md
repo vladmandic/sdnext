@@ -14,6 +14,8 @@
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  
     **Wiki** search: uses github api to search online wiki pages  
+  - quicksettings reset button to restore all quicksettings to default values  
+    because things do sometimes get wrong...  
   - modernui checkbox/radio styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  

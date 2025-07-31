@@ -31,13 +31,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## ModernUI
 
-- Extensions tab: Full CSS
+- Extensions tab:
+  - full CSS redesign
 - Models tab: 
-  - Current
   - Validate: broken table
   - Update: broken table
   - CivitAI: redesign downloader
-- History
+- History tab:
+  - empty?
 
 ### Under Consideration
 
