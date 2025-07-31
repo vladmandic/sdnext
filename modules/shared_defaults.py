@@ -8,7 +8,6 @@ def get_default_modes(cmd_opts, mem_stat):
     default_diffusers_offload_max_gpu_memory = 0.6
     default_diffusers_offload_always = ''
     default_diffusers_offload_never = ''
-    cpu_memory = round(mem_stat['ram']['total'] if "ram" in mem_stat else 0)
     gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
     if not (cmd_opts.lowvram or cmd_opts.medvram):
         if "gpu" in mem_stat:

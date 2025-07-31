@@ -11,7 +11,7 @@ scripts_postproc = None
 
 
 def register_runners():
-    global scripts_txt2img, scripts_img2img, scripts_control, scripts_current, scripts_postproc
+    global scripts_txt2img, scripts_img2img, scripts_control, scripts_current, scripts_postproc # pylint: disable=global-statement
     scripts_txt2img = scripts_manager.scripts_txt2img
     scripts_img2img = scripts_manager.scripts_img2img
     scripts_control = scripts_manager.scripts_control

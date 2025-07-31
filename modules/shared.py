@@ -87,8 +87,8 @@ elif cmd_opts.use_directml:
 devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
-cpu_memory = mem_stat['ram']['total'] if "ram" in mem_stat else 0
-gpu_memory = mem_stat['gpu']['total'] if "gpu" in mem_stat else 0
+cpu_memory = round(mem_stat['ram']['total'] if "ram" in mem_stat else 0)
+gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
 native = backend == Backend.DIFFUSERS
 if not files_cache.do_cache_folders:
     log.warning('File cache disabled: ')
