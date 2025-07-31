@@ -40,5 +40,5 @@ def load_pixart(checkpoint_info, diffusers_load_config={}):
         text_encoder=text_encoder,
         **load_args,
     )
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe

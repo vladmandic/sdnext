@@ -346,7 +346,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
             model = model.to(devices.cpu)
-        devices.torch_gc(force=True)
+        devices.torch_gc(force=True, reason='sdnq')
         return model
 
     def get_cuda_warm_up_factor(self):

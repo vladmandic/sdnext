@@ -124,5 +124,5 @@ def load_sd3(checkpoint_info, cache_dir=None, config=None):
         config=config,
         **kwargs,
     )
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe

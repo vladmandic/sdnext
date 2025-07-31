@@ -45,5 +45,5 @@ def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     )
     pipe.transformer = transformer # for omnigen2 transformer must be loaded after pipeline
 
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe

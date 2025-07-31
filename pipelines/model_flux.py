@@ -118,12 +118,16 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
             import nunchaku
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = None
-            if 'kontext' in repo_id.lower():
+            if 'flux.1-kontext' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-kontext-dev/svdq-{nunchaku_precision}_r32-flux.1-kontext-dev.safetensors"
-            elif 'dev' in repo_id.lower():
+            elif 'flux.1-dev' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-dev/svdq-{nunchaku_precision}_r32-flux.1-dev.safetensors"
-            elif 'schnell' in repo_id.lower():
+            elif 'flux.1-schnell' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-flux.1-schnell/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
+            elif 'flux.1-fill' in repo_id.lower():
+                nunchaku_repo = f"mit-han-lab/svdq-fp4-flux.1-fill-dev/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
+            elif 'flux.1-depth' in repo_id.lower():
+                nunchaku_repo = f"mit-han-lab/svdq-int4-flux.1-depth-dev/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"
             elif 'shuttle' in repo_id.lower():
                 nunchaku_repo = f"mit-han-lab/nunchaku-shuttle-jaguar/svdq-{nunchaku_precision}_r32-shuttle-jaguar.safetensors"
             else:
@@ -220,7 +224,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     # unload current model
     sd_models.unload_model_weights()
     shared.sd_model = None
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
 
     if shared.opts.teacache_enabled:
         from modules import teacache
@@ -356,5 +360,5 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
     for k in kwargs.keys():
         kwargs[k] = None
     sd_hijack_te.init_hijack(pipe)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return pipe, allow_post_quant

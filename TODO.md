@@ -4,6 +4,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
+- Reset quicksettings
+- Gallery: force refresh on delete
+
 ## Future Candidates
 
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
@@ -25,6 +28,16 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Upgrade: unblock `pydantic` and `albumentations`
   - see <https://github.com/Cschlaefli/automatic>
   - blocked by `insightface`
+
+## ModernUI
+
+- Extensions tab: Full CSS
+- Models tab: 
+  - Current
+  - Validate: broken table
+  - Update: broken table
+  - CivitAI: redesign downloader
+- History
 
 ### Under Consideration
 

@@ -1216,7 +1216,7 @@ def ensure_base_requirements():
         update_setuptools()
 
     # used by installler itself so must be installed before requirements
-    install('rich==14.0.0', 'rich', quiet=True)
+    install('rich==14.1.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)
     ts('base', t_start)

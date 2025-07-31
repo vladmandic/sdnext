@@ -165,13 +165,34 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
+  "Black Forest Labs FLUX.1 Krea Dev": {
+    "path": "black-forest-labs/FLUX.1-Krea-dev",
+    "preview": "black-forest-labs--FLUX.1-Krea-dev.jpg",
+    "desc": "FLUX.1 Krea [dev] is a 12 billion parameter rectified flow transformer capable of generating images from text descriptions.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.5"
+  },
 
-  "lodestones Chroma": {
-    "path": "lodestones/Chroma",
+  "lodestones Chroma Unlocked v48": {
+    "path": "vladmandic/chroma-unlocked-v48",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+  "lodestones Chroma Unlocked v48 Detail Calibrated": {
+    "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
+    "preview": "lodestones--Chroma.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+  "lodestones Chroma Unlocked v48 Flash": {
+    "path": "vladmandic/chroma-unlocked-v46-flash",
+    "preview": "lodestones--Chroma.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0"
   },
 
   "Ostris Flex.2 Preview": {

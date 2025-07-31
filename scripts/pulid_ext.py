@@ -228,7 +228,7 @@ class Script(scripts_manager.Script):
                     shared.sd_model.clip_vision_model = None
                     shared.sd_model.handler_ante = None
                 shared.sd_model = shared.sd_model.pipe
-                devices.torch_gc(force=True)
+                devices.torch_gc(force=True, reason='pulid')
             shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
         return processed
 

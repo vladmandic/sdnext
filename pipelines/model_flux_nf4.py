@@ -196,5 +196,5 @@ def load_flux_nf4(checkpoint_info, prequantized: bool = True):
             errors.display(e, 'FLUX:')
 
     del original_state_dict
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='load')
     return transformer, text_encoder_2

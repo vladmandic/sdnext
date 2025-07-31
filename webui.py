@@ -19,6 +19,7 @@ import modules.devices
 import modules.sd_checkpoint
 import modules.sd_samplers
 import modules.scripts_manager
+import modules.scripts
 import modules.sd_models
 import modules.sd_vae
 import modules.sd_unet
@@ -106,6 +107,7 @@ def initialize():
 
     log.info('Load extensions')
     t_timer, t_total = modules.scripts_manager.load_scripts()
+    modules.scripts.register_runners()
     timer.startup.record("extensions")
     timer.startup.records["extensions"] = t_total # scripts can reset the time
     log.debug(f'Extensions init time: {t_timer.summary()}')

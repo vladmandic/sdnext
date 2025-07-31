@@ -8,6 +8,7 @@ import gradio as gr
 import diffusers
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
+from modules.shared_defaults import get_default_modes
 from modules import errors, devices, shared_items, shared_state, cmd_args, theme, history, files_cache
 from modules.paths import models_path, script_path, data_path, sd_configs_path, sd_default_config, sd_model_file, default_sd_model_file, extensions_dir, extensions_builtin_dir # pylint: disable=W0611
 from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
@@ -86,8 +87,8 @@ elif cmd_opts.use_directml:
 devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
-cpu_memory = mem_stat['ram']['total'] if "ram" in mem_stat else 0
-gpu_memory = mem_stat['gpu']['total'] if "gpu" in mem_stat else 0
+cpu_memory = round(mem_stat['ram']['total'] if "ram" in mem_stat else 0)
+gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
 native = backend == Backend.DIFFUSERS
 if not files_cache.do_cache_folders:
     log.warning('File cache disabled: ')
@@ -129,45 +130,7 @@ def list_samplers():
     return modules.sd_samplers.all_samplers
 
 
-def get_default_modes():
-    default_offload_mode = "none"
-    default_diffusers_offload_min_gpu_memory = 0.2
-    if not (cmd_opts.lowvram or cmd_opts.medvram):
-        if "gpu" in mem_stat:
-            if gpu_memory <= 4:
-                cmd_opts.lowvram = True
-                default_offload_mode = "sequential"
-                default_diffusers_offload_min_gpu_memory = 0
-                log.info(f"Device detect: memory={gpu_memory:.1f} default=sequential optimization=lowvram")
-            elif gpu_memory <= 12:
-                cmd_opts.medvram = True # VAE Tiling and other stuff
-                default_offload_mode = "balanced"
-                default_diffusers_offload_min_gpu_memory = 0
-                log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
-            else:
-                default_offload_mode = "balanced"
-                default_diffusers_offload_min_gpu_memory = 0.2
-                log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced")
-    elif cmd_opts.medvram:
-        default_offload_mode = "balanced"
-        default_diffusers_offload_min_gpu_memory = 0
-    elif cmd_opts.lowvram:
-        default_offload_mode = "sequential"
-        default_diffusers_offload_min_gpu_memory = 0
-
-    default_cross_attention = "Scaled-Dot-Product"
-
-    if devices.backend == "zluda":
-        default_sdp_options = ['Flash attention', 'Math attention', 'Dynamic attention']
-    elif devices.backend in {"rocm", "directml", "cpu", "mps"}:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention']
-    else:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention']
-
-    return default_offload_mode, default_diffusers_offload_min_gpu_memory, default_cross_attention, default_sdp_options
-
-
-startup_offload_mode, startup_diffusers_offload_min_gpu_memory, startup_cross_attention, startup_sdp_options = get_default_modes()
+startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
 
 options_templates.update(options_section(('sd', "Models & Loading"), {
     "sd_backend": OptionInfo('diffusers', "Execution backend", gr.Radio, {"choices": ['diffusers', 'original'], "visible": False }),
@@ -179,9 +142,11 @@ options_templates.update(options_section(('sd', "Models & Loading"), {
 
     "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
     "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
-    "diffusers_offload_min_gpu_memory": OptionInfo(startup_diffusers_offload_min_gpu_memory, "Balanced offload GPU low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
-    "diffusers_offload_max_gpu_memory": OptionInfo(0.70, "Balanced offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
+    "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Balanced offload GPU low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
+    "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Balanced offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Balanced offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
+    "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
+    "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
 
     "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
     "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
@@ -299,7 +264,7 @@ options_templates.update(options_section(("quantization", "Quantization Settings
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
     "sdnq_dequantize_compile": OptionInfo(devices.has_triton(), "Dequantize using torch.compile", gr.Checkbox),
     "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
-    "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with convolutional layers", gr.Checkbox),
+    "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
     "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize using GPU", gr.Checkbox),
     "sdnq_dequantize_fp32": OptionInfo(False, "Dequantize using full precision", gr.Checkbox),
     "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox),
@@ -723,13 +688,13 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_lora_sep": OptionInfo("<h2>LoRA</h2>", "", gr.HTML),
     "extra_networks_default_multiplier": OptionInfo(1.0, "Default strength", gr.Slider, {"minimum": 0.0, "maximum": 2.0, "step": 0.01}),
-    "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     "lora_fuse_diffusers": OptionInfo(True, "LoRA fuse directly to model"),
     "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
-    "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models"),
+    "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models", gr.Checkbox, {"visible": False}),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
     "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
+    "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
     "lora_quant": OptionInfo("NF4","LoRA precision when quantized", gr.Radio, {"choices": ["NF4", "FP4"]}),
 
     "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),

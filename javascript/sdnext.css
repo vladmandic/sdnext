@@ -1637,7 +1637,7 @@ div:has(>#tab-gallery-folders) {
   cursor: cell;
   padding: 8px;
   background-color: var(--input-background-fill);
-  border-radius: var(--sd-border-radius);
+  border-radius: var(--radius-lg);
   max-width: 100%;
 }
 
@@ -1649,7 +1649,7 @@ div:has(>#tab-gallery-folders) {
   display: inline-block;
   transition: transform 0.2s ease-in-out;
   flex-shrink: 0;
-  color: var(--sd-input-text-color);
+  color: var(--block-title-text-color);
 }
 
 .gallery-separator-name {
@@ -1809,6 +1809,84 @@ div:has(>#tab-gallery-folders) {
 .loader::after {
   animation: spin 1.5s linear infinite;
   border-top-color: var(--primary-300);
+}
+
+.docs-search textarea {
+  height: 1em !important;
+  resize: none !important
+}
+
+.github-result, #docs_result {
+  max-height: 38vh;
+  overflow-y: auto;
+}
+
+.github-result a {
+  margin: 0;
+  padding: 0;
+  background-color: unset !important;
+}
+
+.github-result h3, .github-md h3 {
+  margin: 0;
+  padding: 0;
+  font-size: 1.1em;
+}
+
+.github-page {
+  background-color: var(--background-fill-primary);
+  margin: 1em 0 0.2em 0;
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  font-size: 1em;
+  font-weight: 400;
+  cursor: help;
+}
+
+.github-result li {
+  font-size: 0.9em;
+  display: ruby;
+  filter: brightness(0.5);
+}
+
+.github-md, .docs-md {
+  padding: 0.2em;
+}
+
+.docs-results {
+  background-color: var(--sd-group-background-color);
+}
+
+.docs-card {
+  margin: 1em 0;
+  background-color: var(--background-fill-primary);
+  cursor: help;
+  padding: 0.5em;
+}
+
+.docs-card-title {
+  font-size: 1.2em;
+  line-height: 1.6em;
+  color: var(--button-primary-background-fill) !important;
+}
+
+.docs-card-h1 {
+  font-weight: bold;
+  font-size: 1.0;
+}
+
+.docs-card-h2 {
+  font-size: 1.0;
+  max-height: 4em;
+  overflow: hidden;
+}
+
+.docs-card-footer {
+  display: flex;
+  justify-content: space-between;
+  filter: brightness(0.5);
+  font-size: 0.9em;
+  margin-top: 0.2em;
 }
 
 @keyframes move {

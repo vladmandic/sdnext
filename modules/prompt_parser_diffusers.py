@@ -437,7 +437,7 @@ def get_prompts_with_weights(pipe, prompt: str):
                 sections += 1
         if all_tokens > 0:
             avg_weight = avg_weight / all_tokens
-            shared.log.debug(f'Prompt tokenizer: parser={shared.opts.prompt_attention} len={len(prompt)} sections={sections} tokens={all_tokens} weights={min_weight:.2f}/{avg_weight:.2f}/{max_weight:.2f}')
+            debug(f'Prompt tokenizer: parser={shared.opts.prompt_attention} len={len(prompt)} sections={sections} tokens={all_tokens} weights={min_weight:.2f}/{avg_weight:.2f}/{max_weight:.2f}')
     except Exception:
         pass
     debug(f'Prompt: weights={texts_and_weights} time={(time.time() - t0):.3f}')

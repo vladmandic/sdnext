@@ -678,7 +678,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
         errors.display(e, "Model")
 
     if shared.opts.diffusers_offload_mode != 'balanced':
-        devices.torch_gc(force=True)
+        devices.torch_gc(force=True, reason='load')
     if sd_model is not None:
         script_callbacks.model_loaded_callback(sd_model)
 
@@ -1107,14 +1107,14 @@ def unload_model_weights(op='model'):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
-        devices.torch_gc(force=True)
+        devices.torch_gc(force=True, reason='unload')
         shared.log.debug(f'Unload {op}: {memory_stats()} after')
     elif (op == 'refiner') and model_data.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
         disable_offload(model_data.sd_refiner)
         move_model(model_data.sd_refiner, 'meta')
         model_data.sd_refiner = None
-        devices.torch_gc(force=True)
+        devices.torch_gc(force=True, reason='unload')
         shared.log.debug(f'Unload {op}: {memory_stats()}')
 
 

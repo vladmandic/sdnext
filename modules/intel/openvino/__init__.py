@@ -516,7 +516,7 @@ def openvino_fx(subgraph, example_inputs, options=None):
             else:
                 # Delete unused subgraphs
                 subgraph = subgraph.apply(sd_models.convert_to_faketensors)
-                devices.torch_gc(force=True)
+                devices.torch_gc(force=True, reason='openvino')
 
             # Model is fully supported and already cached. Run the cached OV model directly.
             compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, *example_inputs)

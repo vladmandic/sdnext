@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import inspect
@@ -172,12 +173,14 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.min_watermark = shared.opts.diffusers_offload_min_gpu_memory
         self.max_watermark = shared.opts.diffusers_offload_max_gpu_memory
         self.cpu_watermark = shared.opts.diffusers_offload_max_cpu_memory
+        self.offload_always = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_always) if len(m.strip()) > 2]
+        self.offload_never = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_never) if len(m.strip()) > 2]
         self.gpu = int(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory * 1024*1024*1024)
         self.cpu = int(shared.cpu_memory * shared.opts.diffusers_offload_max_cpu_memory * 1024*1024*1024)
         self.offload_map = {}
         self.param_map = {}
         gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
-        shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f}')
+        shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never}')
         self.validate()
         super().__init__()
 
@@ -210,10 +213,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             max_memory = { device_index: self.gpu, "cpu": self.cpu }
             device_map = getattr(module, "balanced_offload_device_map", None)
             if device_map is None or max_memory != getattr(module, "balanced_offload_max_memory", None):
-                # try:
                 device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory)
-                # except Exception as e:
-                #     shared.log.error(f'Offload: type=balanced module={module.__class__.__name__} {e}')
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if devices.backend == "directml":
                 keys = device_map.keys()
@@ -233,15 +233,22 @@ class OffloadHook(accelerate.hooks.ModelHook):
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 module_size = self.model_size()
+                module_cls = module.__class__.__name__
                 prev_gpu = used_gpu
-                offload_now = perc_gpu > shared.opts.diffusers_offload_min_gpu_memory
-                if offload_now:
+                op = 'post:skip'
+                if module_cls in self.offload_never:
+                    op = 'post:never'
+                elif module_cls in self.offload_always:
+                    op = 'post:always'
+                    module = module.to(devices.cpu)
+                    used_gpu -= module_size
+                elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory:
+                    op = 'post:mem'
                     module = module.to(devices.cpu)
                     used_gpu -= module_size
                 if debug:
-                    cls = module.__class__.__name__
                     quant = getattr(module, "quantization_method", None)
-                    debug_move(f'Offload: type=balanced op={"post" if offload_now else "skip"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
+                    debug_move(f'Offload: type=balanced op={op} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={module_cls} size={module_size:.3f}')
             except Exception as e:
                 if 'out of memory' in str(e):
                     devices.torch_gc(fast=True, force=True, reason='oom')
@@ -311,6 +318,8 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         else:
             keys = get_signature(pipe).keys()
         keys = [k for k in keys if k not in exclude and not k.startswith('_')]
+        offload_always = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_always) if len(m.strip()) > 2]
+        offload_never = [m.strip() for m in re.split(';|,| ', shared.opts.diffusers_offload_never) if len(m.strip()) > 2]
         for module_name, module_size in get_pipe_modules(pipe): # pylint: disable=protected-access
             # shared.log.trace(f'Offload: type=balanced op=apply pipe={pipe.__class__.__name__} module={module_name} size={module_size:.3f}')
             module = getattr(pipe, module_name, None)
@@ -326,16 +335,26 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             perc_gpu = used_gpu / shared.gpu_memory
             try:
                 prev_gpu = used_gpu
-                offload_now = (perc_gpu > shared.opts.diffusers_offload_min_gpu_memory) and (module.device != devices.cpu)
-                if offload_now:
+                module_cls = module.__class__.__name__
+                op = 'apply:skip'
+                if module_cls in offload_never:
+                    op = 'apply:never'
+                elif module_cls in offload_always:
+                    op = 'apply:always'
                     module = module.to(devices.cpu)
                     used_gpu -= module_size
-                cls = module.__class__.__name__
+                elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory:
+                    op = 'apply:mem'
+                    module = module.to(devices.cpu)
+                    used_gpu -= module_size
+                if debug:
+                    quant = getattr(module, "quantization_method", None)
+                    debug_move(f'Offload: type=balanced op={op} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={module_cls} size={module_size:.3f}')
                 quant = getattr(module, "quantization_method", None)
                 if not cached:
-                    shared.log.debug(f'Model module={module_name} type={cls} dtype={module.dtype} quant={quant} params={offload_hook_instance.param_map[module_name]:.3f} size={offload_hook_instance.offload_map[module_name]:.3f}')
+                    shared.log.debug(f'Model module={module_name} type={module_cls} dtype={module.dtype} quant={quant} params={offload_hook_instance.param_map[module_name]:.3f} size={offload_hook_instance.offload_map[module_name]:.3f}')
                 if debug:
-                    debug_move(f'Offload: type=balanced op={"move" if offload_now else "skip"} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={cls} size={module_size:.3f}')
+                    debug_move(f'Offload: type=balanced op={op} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={module_cls} size={module_size:.3f}')
             except Exception as e:
                 if 'out of memory' in str(e):
                     devices.torch_gc(fast=True, force=True, reason='oom')
