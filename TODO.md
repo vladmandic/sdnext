@@ -4,7 +4,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- Reset quicksettings
 - Gallery: force refresh on delete
 
 ## Future Candidates

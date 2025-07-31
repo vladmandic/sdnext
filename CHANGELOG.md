@@ -30,6 +30,7 @@
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
 - **Fixes**  
   - fix Wan 2.2-5B I2V workflow  
+  - fix OpenVINO  
   - fix inpaint image metadata  
   - fix processing image save loop  
   - fix progress bar with refine/detailer  
