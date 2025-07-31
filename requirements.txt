@@ -31,7 +31,7 @@ invisible-watermark
 pi-heif
 
 # versioned
-rich==14.0.0
+rich==14.1.0
 safetensors==0.5.3
 tensordict==0.8.3
 peft==0.16.0

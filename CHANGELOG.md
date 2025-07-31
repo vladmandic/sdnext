@@ -6,6 +6,9 @@
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
     new 12B base model compatible with FLUX.1-Dev from Black Forest Labs with opinionated aesthetics and aesthetic preferences in mind  
     simply select in *networks -> models -> reference*  
+  - [Chroma](https://huggingface.co/lodestones/Chroma)  
+    update with latest **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
+    simply select in *networks -> models -> reference*  
 - **Feature**  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
@@ -29,6 +32,7 @@
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
+  - fix nunchaku fallback on unsupported model  
   - avoid forced gc and rely on thresholds  
   - add missing interrogate in output panel  
 

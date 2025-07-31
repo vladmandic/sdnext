@@ -117,7 +117,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
             "cache_dir": cache_dir,
         }
         if 'transformer' not in kwargs and model_quant.check_nunchaku('Model'):
-            raise NotImplementedError('Nunchaku does not support Chroma Model yet. See https://github.com/mit-han-lab/nunchaku/issues/167')
+            shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
         if 'transformer' not in kwargs and model_quant.check_quant('Model'):
             load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, modules_to_not_convert=["distilled_guidance_layer"])
             kwargs['transformer'] = diffusers.ChromaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", **load_args, **quant_args)
