@@ -602,19 +602,95 @@ div#extras_scale_to_tab div.form {
   display: block;
   font-size: var(--text-xs);
   min-height: 1.3em;
+  max-width: 40em;
   opacity: 0;
   padding: 0.5em;
   pointer-events: none;
   position: fixed;
   right: 1em;
   top: 1em;
-  transition: opacity 0.2s ease-in;
+  transition: opacity 0.2s ease-in, width 0.4s ease-in-out;
   width: 22em;
   z-index: 999;
+  overflow: visible;
 }
 
 .tooltip-show {
   opacity: 0.9;
+}
+
+.tooltip-expanded {
+  width: 32em;
+}
+
+.tooltip .separator {
+  display: block;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--button-primary-border-color), transparent);
+  margin: 0.5em 0;
+  opacity: 0.6;
+}
+
+.tooltip .long-content {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease-in, max-height 0.3s ease-in-out;
+}
+
+.tooltip .long-content.show {
+  opacity: 1;
+  max-height: 50em;
+}
+
+.tooltip-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tooltip-progress-ring {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.2em;
+  height: 1.2em;
+  opacity: 0;
+  transition: opacity 0.2s ease-in;
+  flex-shrink: 0;
+}
+
+.tooltip-progress-ring.active {
+  opacity: 0.8;
+}
+
+.tooltip-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.tooltip-progress-ring .ring-background {
+  fill: none;
+  stroke: var(--button-primary-border-color);
+  stroke-width: 2;
+  opacity: 0.3;
+}
+
+.tooltip-progress-ring .ring-progress {
+  fill: none;
+  stroke: var(--body-text-color);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 31.4; /* Circumference of circle with radius 5 (2πr = 2π×5 ≈ 31.4) */
+  stroke-dashoffset: 31.4;
+  transition: stroke-dashoffset 3s linear;
+}
+
+.tooltip-progress-ring .ring-progress.animate {
+  stroke-dashoffset: 0;
 }
 
 .toolbutton-selected {
@@ -680,19 +756,8 @@ div#extras_scale_to_tab div.form {
 
 #quicksettings>button {
   align-self: end;
-  height: 1.3em;
-  margin: 0em 0.7em 0.3em -0.5em;
-  line-height: 1em;
-  background-color: var(--background-fill-primary);
-}
-
-#quicksettings>button:hover {
-  background-color: var(--button-cancel-border-color-hover);
-}
-
-button#quicksettings_reset {
-  position: absolute;
-  right: 0;
+  margin-bottom: 6px;
+  padding: 0 1em 0 0;
 }
 
 #settings {
@@ -1648,7 +1713,7 @@ div:has(>#tab-gallery-folders) {
   cursor: cell;
   padding: 8px;
   background-color: var(--input-background-fill);
-  border-radius: var(--radius-lg);
+  border-radius: var(--sd-border-radius);
   max-width: 100%;
 }
 
@@ -1660,7 +1725,7 @@ div:has(>#tab-gallery-folders) {
   display: inline-block;
   transition: transform 0.2s ease-in-out;
   flex-shrink: 0;
-  color: var(--block-title-text-color);
+  color: var(--sd-input-text-color);
 }
 
 .gallery-separator-name {
