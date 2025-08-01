@@ -9,6 +9,8 @@ const localeData = {
   type: 2,
   hint: null,
   btn: null,
+  expandTimeout: null, // New property for expansion timeout
+  currentElement: null, // Track current element for expansion
 };
 
 async function cycleLocale() {
@@ -44,20 +46,103 @@ async function tooltipCreate() {
   if (window.opts.tooltips === 'UI tooltips') localeData.type = 2;
 }
 
+async function expandTooltip(element, longHint) {
+  if (localeData.currentElement === element && localeData.hint.classList.contains('tooltip-show')) {
+    // Hide the progress ring
+    const ring = localeData.hint.querySelector('.tooltip-progress-ring');
+    if (ring) {
+      ring.style.opacity = '0';
+    }
+
+    // Expand the container
+    localeData.hint.classList.add('tooltip-expanded');
+
+    // After container starts expanding, reveal the long content
+    setTimeout(() => {
+      const longContent = localeData.hint.querySelector('.long-content');
+      if (longContent) {
+        longContent.classList.add('show');
+      }
+    }, 100);
+  }
+}
+
 async function tooltipShow(e) {
+  // Clear any existing expansion timeout
+  if (localeData.expandTimeout) {
+    clearTimeout(localeData.expandTimeout);
+    localeData.expandTimeout = null;
+  }
+
+  // Remove expanded class and reset current element
+  localeData.hint.classList.remove('tooltip-expanded');
+  localeData.currentElement = e.target;
+
   if (e.target.dataset.hint) {
+    // Create progress ring SVG
+    const progressRing = `
+      <div class="tooltip-progress-ring">
+        <svg viewBox="0 0 12 12">
+          <circle class="ring-background" cx="6" cy="6" r="5"></circle>
+          <circle class="ring-progress" cx="6" cy="6" r="5"></circle>
+        </svg>
+      </div>
+    `;
+
+    // Set up the complete content structure from the start
+    let content = `
+      <div class="tooltip-header">
+        <b>${e.target.textContent}</b>
+        ${e.target.dataset.longHint ? progressRing : ''}
+      </div>
+      <div class="separator"></div>
+      ${e.target.dataset.hint}
+    `;
+
+    // Add long content if available, but keep it hidden
+    if (e.target.dataset.longHint) {
+      content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`;
+    }
+
+    localeData.hint.innerHTML = content;
     localeData.hint.classList.add('tooltip-show');
-    localeData.hint.innerHTML = `<b>${e.target.textContent}</b><br>${e.target.dataset.hint}`;
+
     if (e.clientX > window.innerWidth / 2) {
       localeData.hint.classList.add('tooltip-left');
     } else {
       localeData.hint.classList.remove('tooltip-left');
     }
+
+    // Set up expansion timer if long hint is available
+    if (e.target.dataset.longHint) {
+      // Start progress ring animation
+      const ring = localeData.hint.querySelector('.tooltip-progress-ring');
+      const ringProgress = localeData.hint.querySelector('.ring-progress');
+
+      if (ring && ringProgress) {
+        // Show the ring and start animation
+        setTimeout(() => {
+          ring.classList.add('active');
+          ringProgress.classList.add('animate');
+        }, 100);
+      }
+
+      localeData.expandTimeout = setTimeout(() => {
+        expandTooltip(e.target, e.target.dataset.longHint);
+      }, 3000);
+    }
   }
 }
 
 async function tooltipHide(e) {
-  localeData.hint.classList.remove('tooltip-show');
+  // Clear expansion timeout when hiding
+  if (localeData.expandTimeout) {
+    clearTimeout(localeData.expandTimeout);
+    localeData.expandTimeout = null;
+  }
+
+  localeData.hint.classList.remove('tooltip-show', 'tooltip-expanded');
+  localeData.currentElement = null;
 }
 
 async function validateHints(json, elements) {
@@ -85,7 +170,7 @@ async function addMissingHints(json, missingHints) {
   json.missing = [];
   for (const h of missingHints.sort()) {
     if (h.length <= 1) continue;
-    json.missing.push({ id: '', label: h, localized: '', hint: h });
+    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' }); // Add longHint property
   }
   log('missing hints', missingHints);
   log('added missing hints:', { missing: json.missing });
@@ -192,6 +277,10 @@ async function setHints(analyze = false) {
         el.title = found.hint;
       } else if (localeData.type === 2) {
         el.dataset.hint = found.hint;
+        // Set long hint if available
+        if (found.longHint && found.longHint.length > 0) {
+          el.dataset.longHint = found.longHint;
+        }
         el.addEventListener('mouseover', tooltipShow);
         el.addEventListener('mouseout', tooltipHide);
       } else {
