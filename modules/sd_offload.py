@@ -242,7 +242,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
-                        if (module_cls != module.__class__.__name__) and (module_cls not in self.offload_never) and (not devices.same_device(module.device, devices.cpu)):
+                        if (module_cls != module.__class__.__name__) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
                             self.offload_module(module_instance, op='pre')
 
         if not devices.same_device(module.device, devices.device):
