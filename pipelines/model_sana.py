@@ -78,13 +78,6 @@ def load_sana(checkpoint_info, kwargs={}):
     except Exception as e:
         shared.log.error(f'Load model: type=Sana {e}')
 
-    try:
-        if shared.opts.diffusers_eval:
-            pipe.text_encoder.eval()
-            pipe.transformer.eval()
-    except Exception:
-        pass
-
     sd_hijack_te.init_hijack(pipe)
     t1 = time.time()
     shared.log.debug(f'Load model: type=Sana target={devices.dtype} te={pipe.text_encoder.dtype} transformer={pipe.transformer.dtype} vae={pipe.vae.dtype} time={t1-t0:.2f}')

@@ -21,14 +21,18 @@
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
   - new feature to specify which modules to offload always or never  
-    in *settings -> models & loading -> offload always/never*  
+    in *settings -> model offloading -> offload always/never*  
   - new `highvram` profile provides significant performance boost on gpus with more than 24gb  
+  - new `offload during pre-forward` option
+    in *settings -> model offloading*
+    switches from explicit offloading to implicit offloading on module execution change  
 - **Features**  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
 - **Fixes**  
+  - refactor legacy processing loop  
   - fix Wan 2.2-5B I2V workflow  
   - fix OpenVINO  
   - fix inpaint image metadata  

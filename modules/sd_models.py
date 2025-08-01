@@ -146,6 +146,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
         except Exception as e:
             shared.log.error(f'Setting {op}: fused-qkv=True {e}')
     if shared.opts.diffusers_eval:
+        shared.log.debug(f'Setting {op}: eval=True')
         def eval_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
             if hasattr(model, "requires_grad_"):
                 model.requires_grad_(False)

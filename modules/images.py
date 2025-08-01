@@ -45,7 +45,7 @@ def sanitize_filename_part(text, replace_spaces=True):
 def atomically_save_image():
     Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
     while True:
-        image, filename, extension, params, exifinfo, filename_txt = save_queue.get()
+        image, filename, extension, params, exifinfo, filename_txt, is_grid = save_queue.get()
         shared.state.image_history += 1
         if len(exifinfo) > 2:
             with open(paths.params_path, "w", encoding="utf8") as file:
@@ -111,7 +111,8 @@ def atomically_save_image():
             shared.log.error(f'Save failed: file="{fn}" format={image_format} args={save_args} {e}')
             errors.display(e, 'Image save')
         size = os.path.getsize(fn) if os.path.exists(fn) else 0
-        shared.log.info(f'Save: image="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
+        what = 'grid' if is_grid else 'image'
+        shared.log.info(f'Save: {what}="{fn}" type={image_format} width={image.width} height={image.height} size={size}')
 
         if shared.opts.save_log_fn != '' and len(exifinfo) > 0:
             fn = os.path.join(paths.data_path, shared.opts.save_log_fn)
@@ -206,7 +207,7 @@ def save_image(image,
     filename, extension = os.path.splitext(params.filename)
     filename_txt = f"{filename}.txt" if shared.opts.save_txt and len(exifinfo) > 0 else None
     shared.state.outputs(params.filename)
-    save_queue.put((params.image, filename, extension, params, exifinfo, filename_txt)) # actual save is executed in a thread that polls data from queue
+    save_queue.put((params.image, filename, extension, params, exifinfo, filename_txt, grid)) # actual save is executed in a thread that polls data from queue
     save_queue.join()
     if not hasattr(params.image, 'already_saved_as'):
         debug(f'Image marked: "{params.filename}"')
