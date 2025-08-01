@@ -66,6 +66,8 @@ class FilenameGenerator:
             self.seed = seed
         elif p is not None and hasattr(p, 'all_seeds'):
             self.seed = p.all_seeds[0]
+        elif p is not None and hasattr(p, 'seeds'):
+            self.seed = p.seeds[0]
         else:
             self.seed = p.seed if p is not None else 0
         if prompt is not None:

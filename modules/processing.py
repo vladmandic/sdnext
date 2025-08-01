@@ -306,9 +306,9 @@ def process_samples(p: StableDiffusionProcessing, samples):
             mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
             image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
             if shared.opts.save_mask:
-                images.save_image(image_mask, p.outpath_samples, "", p.all_seeds[i], p.all_prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
+                images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
             if shared.opts.save_mask_composite:
-                images.save_image(image_mask_composite, p.outpath_samples, "", p.all_seeds[i], p.all_prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
+                images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
             if shared.opts.return_mask:
                 out_infotexts.append(info)
                 out_images.append(image_mask)    
@@ -336,7 +336,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
             image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
 
         if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:
-            images.save_image(image, p.outpath_samples, "", p.all_seeds[i], p.all_prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
+            images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
 
         image.info["parameters"] = info
         out_infotexts.append(info)
