@@ -16,6 +16,7 @@
     **Wiki** search: uses github api to search online wiki pages  
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  
+  - updated real-time hints, thanks @CalamitousFelicitousness  
   - modernui checkbox/radio styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
@@ -41,6 +42,7 @@
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
   - fix nunchaku fallback on unsupported model  
+  - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  
   - add missing interrogate in output panel  

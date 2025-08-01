@@ -11,7 +11,7 @@ import json
 from PIL import Image
 import diffusers
 import transformers
-from modules import processing, shared, devices, sd_models, errors
+from modules import processing, shared, devices, sd_models, errors, model_quant
 
 
 clip_loaded = None
@@ -198,6 +198,8 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
                 else:
                     image_encoder = transformers.CLIPVisionModelWithProjection.from_pretrained(clip_repo, subfolder=clip_subfolder, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, use_safetensors=True)
                     shared.log.debug(f'IP adapter load: encoder="{clip_repo}/{clip_subfolder}" cls={pipe.image_encoder.__class__.__name__}')
+            sd_models.clear_caches()
+            image_encoder = model_quant.do_post_load_quant(image_encoder, allow=True)
             if hasattr(pipe, 'register_modules'):
                 pipe.register_modules(image_encoder=image_encoder)
             else:
@@ -223,6 +225,7 @@ def load_feature_extractor(pipe):
                 pipe.register_modules(feature_extractor=feature_extractor)
             else:
                 pipe.feature_extractor = feature_extractor
+                sd_models.apply_balanced_offload(pipe.feature_extractor)
             shared.log.debug(f'IP adapter load: extractor={pipe.feature_extractor.__class__.__name__}')
         except Exception as e:
             shared.log.error(f'IP adapter load: extractor {e}')
@@ -256,14 +259,14 @@ def parse_params(p: processing.StableDiffusionProcessing, adapters: list, adapte
         adapter_masks = mask_processor.preprocess(adapter_masks, height=p.height, width=p.width)
     if adapter_images is None:
         shared.log.error('IP adapter: no image provided')
-        return False
+        return [], [], [], [], [], []
     if len(adapters) < len(adapter_images):
         adapter_images = adapter_images[:len(adapters)]
     if len(adapters) < len(adapter_masks):
         adapter_masks = adapter_masks[:len(adapters)]
     if len(adapter_masks) > 0 and len(adapter_masks) != len(adapter_images):
         shared.log.error('IP adapter: image and mask count mismatch')
-        return False
+        return [], [], [], [], [], []
     adapter_scales = get_scales(adapter_scales, adapter_images)
     p.ip_adapter_scales = adapter_scales.copy()
     adapter_crops = get_crops(adapter_crops, adapter_images)
