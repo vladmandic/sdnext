@@ -139,7 +139,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
             if sd_model.has_accelerate:
                 if op == "vae": # reapply sequential offload to vae
                     from accelerate import cpu_offload
-                    sd_model.vae.to("cpu")
+                    sd_model.vae.to(devices.cpu)
                     cpu_offload(sd_model.vae, devices.device, offload_buffers=len(sd_model.vae._parameters) > 0) # pylint: disable=protected-access
                 else:
                     pass # do nothing if offload is already applied

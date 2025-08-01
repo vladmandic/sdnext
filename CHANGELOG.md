@@ -27,6 +27,8 @@
   - new `offload during pre-forward` option
     in *settings -> model offloading*
     switches from explicit offloading to implicit offloading on module execution change  
+  - new `diffusers_offload_nonblocking` exerimental setting  
+    instructs torch to use non-blocking move operations when possible  
 - **Features**  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
