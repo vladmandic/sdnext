@@ -311,24 +311,24 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
             if shared.opts.return_mask:
                 out_infotexts.append(info)
-                out_images.append(image_mask)    
+                out_images.append(image_mask)
             if shared.opts.return_mask_composite:
                 out_infotexts.append(info)
-                out_images.append(image_mask_composite)    
+                out_images.append(image_mask_composite)
 
         if shared.opts.include_mask:
             if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
                 p.image_mask = create_binary_mask(p.overlay_images[0])
                 p.image_mask = ImageOps.invert(p.image_mask)
                 out_infotexts.append(info)
-                out_images.append(p.image_mask)    
+                out_images.append(p.image_mask)
             elif getattr(p, 'image_mask', None) is not None and isinstance(p.image_mask, Image.Image):
                 if getattr(p, 'mask_for_detailer', None) is not None:
                     out_infotexts.append(info)
-                    out_images.append(p.mask_for_detailer)    
+                    out_images.append(p.mask_for_detailer)
                 else:
                     out_infotexts.append(info)
-                    out_images.append(p.image_mask)    
+                    out_images.append(p.image_mask)
 
         if p.selected_scale_tab_after == 1:
             p.width_after, p.height_after = int(image.width * p.scale_by_after), int(image.height * p.scale_by_after)
@@ -340,7 +340,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
         image.info["parameters"] = info
         out_infotexts.append(info)
-        out_images.append(image)    
+        out_images.append(image)
     return out_images, out_infotexts
 
 

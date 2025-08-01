@@ -325,7 +325,7 @@ def move_module_to_cpu(module, op='unk'):
             errors.display(e, f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)}')
 
 
-def apply_balanced_offload_to_module(module, checkpoint_name="", op="apply"):
+def apply_balanced_offload_to_module(module, op="apply"):
     module_name = getattr(module, "module_name", module.__class__.__name__)
     network_layer_name = getattr(module, "network_layer_name", None)
     device_map = getattr(module, "balanced_offload_device_map", None)
@@ -381,7 +381,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
                 continue
             module.module_name = module_name
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
-            apply_balanced_offload_to_module(module, checkpoint_name=checkpoint_name)
+            apply_balanced_offload_to_module(module, op='apply')
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

@@ -1,11 +1,10 @@
-from rich import print as rprint
-rprint('starting chroma conversion')
 
 import os
 import torch
 import transformers
 import diffusers
 import huggingface_hub as hf
+from rich import print as rprint
 from rich.traceback import install as install_traceback
 
 
@@ -25,6 +24,7 @@ dtype = torch.bfloat16
 device = torch.device('cuda')
 
 
+rprint('starting chroma conversion')
 install_traceback(show_locals=False)
 rprint(f'torch={torch.__version__} diffusers={diffusers.__version__} transformers={transformers.__version__}')
 for input_file in input_files:
@@ -40,7 +40,7 @@ for input_file in input_files:
             cache_dir=cache_dir,
         ).to(device)
 
-        rprint(f'load text-encoder')
+        rprint('load text-encoder')
         text_encoder = transformers.T5EncoderModel.from_pretrained(
             "black-forest-labs/FLUX.1-schnell",
             subfolder="text_encoder_2",
@@ -48,14 +48,14 @@ for input_file in input_files:
             cache_dir=cache_dir,
         ).to(device)
 
-        rprint(f'load tokenizer')
+        rprint('load tokenizer')
         tokenizer = transformers.T5Tokenizer.from_pretrained(
             "black-forest-labs/FLUX.1-schnell",
             subfolder="tokenizer_2",
             cache_dir=cache_dir,
         )
 
-        rprint(f'load pipeline')
+        rprint('load pipeline')
         pipe = diffusers.ChromaPipeline.from_pretrained(
             "black-forest-labs/FLUX.1-dev",
             transformer=transformer,
@@ -89,7 +89,7 @@ for input_file in input_files:
             private=False,
             token=hf_token,
         )
-    
+
     pipe = None
 
-rprint(f'done')
+rprint('done')

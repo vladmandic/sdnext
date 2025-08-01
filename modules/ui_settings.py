@@ -276,10 +276,10 @@ def create_ui():
     shutdown_submit.click(fn=lambda: shared.restart_server(restart=False), _js="restartReload")
 
 
-def reset_quicksettings(components):
-    components = components.split(',')
+def reset_quicksettings(quick_components):
+    quick_components = quick_components.split(',')
     updates = []
-    for key in components:
+    for key in quick_components:
         shared.log.warning(f'Reset: setting={key}')
         updates.append(gr.update(value=shared.opts.get_default(key)))
     return updates
