@@ -229,9 +229,9 @@ class OffloadHook(accelerate.hooks.ModelHook):
             elif 'bitsandbytes' in str(e):
                 pass
             else:
-                shared.log.error(f'Offload: type=balanced op=apply module={module.__name__} cls={module.__class__ if inspect.isclass(module) else None} {e}')
+                shared.log.error(f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)} cls={module.__class__ if inspect.isclass(module) else None} {e}')
             if os.environ.get('SD_MOVE_DEBUG', None):
-                errors.display(e, f'Offload: type=balanced op=apply module={module.__name__}')
+                errors.display(e, f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)}')
 
     def pre_forward(self, module, *args, **kwargs):
         if self.last_pre != id(module): # offload every other module first time when new module starts pre-forward
@@ -243,7 +243,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
                         if (module_cls != module.__class__.__name__) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
-                            self.offload_module(module_instance, op='pre')
+                            apply_balanced_offload_to_module(module_instance, op='pre')
 
         if not devices.same_device(module.device, devices.device):
             device_index = torch.device(devices.device).index
@@ -270,7 +270,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         if self.last_post != id(module):
             self.last_post = id(module)
         if getattr(module, "offload_post", False) and (module.device != devices.cpu):
-            self.offload_module(module, op='post')
+            apply_balanced_offload_to_module(module, op='post')
         return output
 
     def detach_hook(self, module):
@@ -323,6 +323,33 @@ def get_module_sizes(pipe=None, exclude=[]):
     return modules
 
 
+def apply_balanced_offload_to_module(module, module_name=None, checkpoint_name="", op="apply"):
+    if module_name is None:
+        module_name = module.__class__.__name__
+    network_layer_name = getattr(module, "network_layer_name", None)
+    device_map = getattr(module, "balanced_offload_device_map", None)
+    max_memory = getattr(module, "balanced_offload_max_memory", None)
+    try:
+        module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
+    except Exception as e:
+        shared.log.warning(f'Offload remove hook: module={module_name} {e}')
+    offload_hook_instance.offload_module(module, op=op)
+    if not hasattr(module, "offload_dir"):
+        module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
+    try:
+        module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
+    except Exception as e:
+        shared.log.warning(f'Offload add hook: module={module_name} {e}')
+    module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
+    if network_layer_name:
+        module.network_layer_name = network_layer_name
+    if device_map and max_memory:
+        module.balanced_offload_device_map = device_map
+        module.balanced_offload_max_memory = max_memory
+    module.offload_post = shared.sd_model_type in offload_post and shared.opts.te_hijack and module_name.startswith("text_encoder")
+    devices.torch_gc(fast=True, force=True, reason='offload')
+
+
 def apply_balanced_offload(sd_model=None, exclude=[]):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
@@ -337,46 +364,21 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
     if sd_model.__class__.__name__ in balanced_offload_exclude:
         return sd_model
     cached = True
-    checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else None
-    if checkpoint_name is None:
-        checkpoint_name = sd_model.__class__.__name__
+    checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else sd_model.__class__.__name__
     if (offload_hook_instance is None) or (offload_hook_instance.min_watermark != shared.opts.diffusers_offload_min_gpu_memory) or (offload_hook_instance.max_watermark != shared.opts.diffusers_offload_max_gpu_memory) or (checkpoint_name != offload_hook_instance.checkpoint_name):
         cached = False
         offload_hook_instance = OffloadHook(checkpoint_name)
 
     if cached and shared.opts.diffusers_offload_pre:
-        debug_move(f'Offload: type=balanced op=apply skip')
+        debug_move('Offload: type=balanced op=apply skip')
         return sd_model
 
-    def apply_balanced_offload_to_module(pipe):
+    for pipe in get_pipe_variants(sd_model):
         for module_name, _module_size in get_module_sizes(pipe, exclude):
             module = getattr(pipe, module_name, None)
             if module is None:
                 continue
-            network_layer_name = getattr(module, "network_layer_name", None)
-            device_map = getattr(module, "balanced_offload_device_map", None)
-            max_memory = getattr(module, "balanced_offload_max_memory", None)
-            try:
-                module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
-            except Exception as e:
-                shared.log.warning(f'Offload remove hook: module={module_name} {e}')
-            offload_hook_instance.offload_module(module, op='apply')
-            module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
-            try:
-                module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
-            except Exception as e:
-                shared.log.warning(f'Offload add hook: module={module_name} {e}')
-            module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
-            if network_layer_name:
-                module.network_layer_name = network_layer_name
-            if device_map and max_memory:
-                module.balanced_offload_device_map = device_map
-                module.balanced_offload_max_memory = max_memory
-            module.offload_post = shared.sd_model_type in offload_post and shared.opts.te_hijack and module_name.startswith("text_encoder")
-        devices.torch_gc(fast=True, force=True, reason='offload')
-
-    for pipe in get_pipe_variants(sd_model):
-        apply_balanced_offload_to_module(pipe)
+            apply_balanced_offload_to_module(module, module_name=module_name, checkpoint_name=checkpoint_name)
     if shared.opts.layerwise_quantization or (hasattr(sd_model, "transformer") and getattr(sd_model.transformer, 'quantization_method', None) == 'LayerWise'):
         model_quant.apply_layerwise(sd_model, quiet=True) # need to reapply since hooks were removed/readded
     set_accelerate(sd_model)
