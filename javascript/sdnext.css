@@ -609,7 +609,7 @@ div#extras_scale_to_tab div.form {
   position: fixed;
   right: 1em;
   top: 1em;
-  transition: opacity 0.2s ease-in, width 0.4s ease-in-out;
+  transition: opacity 0.2s ease-in;
   width: 22em;
   z-index: 999;
   overflow: visible;
@@ -1713,7 +1713,7 @@ div:has(>#tab-gallery-folders) {
   cursor: cell;
   padding: 8px;
   background-color: var(--input-background-fill);
-  border-radius: var(--sd-border-radius);
+  border-radius: var(--radius-lg);
   max-width: 100%;
 }
 
@@ -1725,7 +1725,7 @@ div:has(>#tab-gallery-folders) {
   display: inline-block;
   transition: transform 0.2s ease-in-out;
   flex-shrink: 0;
-  color: var(--sd-input-text-color);
+  color: var(--block-title-text-color);
 }
 
 .gallery-separator-name {
