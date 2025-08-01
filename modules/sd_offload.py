@@ -234,11 +234,10 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 errors.display(e, f'Offload: type=balanced op=apply module={module.__name__}')
 
     def pre_forward(self, module, *args, **kwargs):
-        print('HERE', id(module), module.__class__.__name__)
-        if self.last_pre != module.__class__.__name__: # offload every other module first time when new module starts pre-forward
-            self.last_pre = module.__class__.__name__
+        if self.last_pre != id(module): # offload every other module first time when new module starts pre-forward
+            self.last_pre = id(module)
             if shared.opts.diffusers_offload_pre:
-                debug_move(f'Offload: type=balanced op=pre module={self.last_pre}')
+                debug_move(f'Offload: type=balanced op=pre module={module.__class__.__name__}')
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
@@ -268,8 +267,8 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return args, kwargs
 
     def post_forward(self, module, output):
-        if self.last_post != module.__class__.__name__:
-            self.last_post = module.__class__.__name__
+        if self.last_post != id(module):
+            self.last_post = id(module)
         if getattr(module, "offload_post", False) and (module.device != devices.cpu):
             self.offload_module(module, op='post')
         return output
