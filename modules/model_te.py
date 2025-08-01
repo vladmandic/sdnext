@@ -40,8 +40,6 @@ def load_t5(name=None, cache_dir=None):
             if torch.is_floating_point(param) and not is_param_float8_e4m3fn:
                 param = param.to(devices.dtype)
                 set_module_tensor_to_device(t5, param_name, device=0, value=param)
-        if shared.opts.diffusers_eval:
-            t5.eval()
         if t5.dtype != devices.dtype:
             try:
                 t5 = t5.to(dtype=devices.dtype)

@@ -63,10 +63,10 @@ def hijack_set_module_tensor_simple(
     old_value = getattr(module, tensor_name)
     with devices.inference_context():
         if tensor_name in module._buffers: # pylint: disable=protected-access
-            module._buffers[tensor_name] = value.to(device)  # pylint: disable=protected-access
+            module._buffers[tensor_name] = value.to(device, non_blocking=False)  # pylint: disable=protected-access
         elif value is not None or not devices.same_device(device, module._parameters[tensor_name].device):  # pylint: disable=protected-access
             param_cls = type(module._parameters[tensor_name]) # pylint: disable=protected-access
-            module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device) # pylint: disable=protected-access
+            module._parameters[tensor_name] = param_cls(value, requires_grad=old_value.requires_grad).to(device, non_blocking=False) # pylint: disable=protected-access
     t1 = time.time()
     tensor_to_timer += (t1 - t0)
 

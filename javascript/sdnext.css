@@ -602,6 +602,7 @@ div#extras_scale_to_tab div.form {
   display: block;
   font-size: var(--text-xs);
   min-height: 1.3em;
+  max-width: 40em;
   opacity: 0;
   padding: 0.5em;
   pointer-events: none;
@@ -611,10 +612,85 @@ div#extras_scale_to_tab div.form {
   transition: opacity 0.2s ease-in;
   width: 22em;
   z-index: 999;
+  overflow: visible;
 }
 
 .tooltip-show {
   opacity: 0.9;
+}
+
+.tooltip-expanded {
+  width: 32em;
+}
+
+.tooltip .separator {
+  display: block;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--button-primary-border-color), transparent);
+  margin: 0.5em 0;
+  opacity: 0.6;
+}
+
+.tooltip .long-content {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease-in, max-height 0.3s ease-in-out;
+}
+
+.tooltip .long-content.show {
+  opacity: 1;
+  max-height: 50em;
+}
+
+.tooltip-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tooltip-progress-ring {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.2em;
+  height: 1.2em;
+  opacity: 0;
+  transition: opacity 0.2s ease-in;
+  flex-shrink: 0;
+}
+
+.tooltip-progress-ring.active {
+  opacity: 0.8;
+}
+
+.tooltip-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.tooltip-progress-ring .ring-background {
+  fill: none;
+  stroke: var(--button-primary-border-color);
+  stroke-width: 2;
+  opacity: 0.3;
+}
+
+.tooltip-progress-ring .ring-progress {
+  fill: none;
+  stroke: var(--body-text-color);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 31.4; /* Circumference of circle with radius 5 (2πr = 2π×5 ≈ 31.4) */
+  stroke-dashoffset: 31.4;
+  transition: stroke-dashoffset 3s linear;
+}
+
+.tooltip-progress-ring .ring-progress.animate {
+  stroke-dashoffset: 0;
 }
 
 .toolbutton-selected {

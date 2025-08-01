@@ -33,8 +33,6 @@ def load_chroma_quanto(checkpoint_info):
         with torch.device("meta"):
             transformer = diffusers.ChromaTransformer2DModel.from_config(os.path.join(repo_path, "transformer", "config.json")).to(dtype=dtype)
         quanto.requantize(transformer, state_dict, quantization_map, device=torch.device("cpu"))
-        if shared.opts.diffusers_eval:
-            transformer.eval()
         transformer_dtype = transformer.dtype
         if transformer_dtype != devices.dtype:
             try:
@@ -61,8 +59,6 @@ def load_chroma_quanto(checkpoint_info):
         with torch.device("meta"):
             text_encoder = transformers.T5EncoderModel(t5_config).to(dtype=dtype)
         quanto.requantize(text_encoder, state_dict, quantization_map, device=torch.device("cpu"))
-        if shared.opts.diffusers_eval:
-            text_encoder.eval()
         text_encoder_dtype = text_encoder.dtype
         if text_encoder_dtype != devices.dtype:
             try:

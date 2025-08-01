@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-07-31
+## Update for 2025-08-01
 
 - **Models**  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
@@ -14,26 +14,37 @@
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  
     **Wiki** search: uses github api to search online wiki pages  
+  - quicksettings reset button to restore all quicksettings to default values  
+    because things do sometimes get wrong...  
+  - updated real-time hints, thanks @CalamitousFelicitousness  
   - modernui checkbox/radio styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
   - new feature to specify which modules to offload always or never  
-    in *settings -> models & loading -> offload always/never*  
+    in *settings -> model offloading -> offload always/never*  
   - new `highvram` profile provides significant performance boost on gpus with more than 24gb  
+  - new `offload during pre-forward` option
+    in *settings -> model offloading*
+    switches from explicit offloading to implicit offloading on module execution change  
+  - new `diffusers_offload_nonblocking` exerimental setting  
+    instructs torch to use non-blocking move operations when possible  
 - **Features**  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
 - **Fixes**  
+  - refactor legacy processing loop  
   - fix Wan 2.2-5B I2V workflow  
+  - fix OpenVINO  
   - fix inpaint image metadata  
   - fix processing image save loop  
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
   - fix nunchaku fallback on unsupported model  
+  - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  
   - add missing interrogate in output panel  

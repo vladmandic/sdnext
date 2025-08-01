@@ -1,6 +1,7 @@
 import os
 import gradio as gr
-from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, ui_history, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import timer, shared, paths, theme, sd_models, modelloader, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import ui_common, ui_loadsave, ui_history, ui_components, ui_symbols
 
 
 text_settings = None # holds json of entire shared.opts
@@ -275,6 +276,15 @@ def create_ui():
     shutdown_submit.click(fn=lambda: shared.restart_server(restart=False), _js="restartReload")
 
 
+def reset_quicksettings(quick_components):
+    quick_components = quick_components.split(',')
+    updates = []
+    for key in quick_components:
+        shared.log.warning(f'Reset: setting={key}')
+        updates.append(gr.update(value=shared.opts.get_default(key)))
+    return updates
+
+
 def create_quicksettings(interfaces):
     shared.tab_names = []
     for _interface, label, _ifid in interfaces:
@@ -282,9 +292,16 @@ def create_quicksettings(interfaces):
 
     with gr.Blocks(theme=theme.gradio_theme, analytics_enabled=False, title="SD.Next") as ui_app:
         with gr.Row(elem_id="quicksettings", variant="compact"):
+            quicksetting_components = []
+            quicksetting_keys = []
             for k, _item in sorted(quicksettings_list, key=lambda x: quicksettings_names.get(x[1], x[0])):
                 component = create_setting_component(k, is_quicksettings=True)
+                quicksetting_components.append(component)
+                quicksetting_keys.append(k)
                 shared.settings_components[k] = component
+            quicksetting_keys = gr.State(value=','.join(quicksetting_keys), elem_id="quicksettings_keys")
+            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_reset")
+            btn_reset.click(fn=reset_quicksettings, inputs=[quicksetting_keys], outputs=quicksetting_components)
 
         generation_parameters_copypaste.connect_paste_params_buttons()
 

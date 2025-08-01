@@ -33,8 +33,6 @@ def load_flux_quanto(checkpoint_info):
         with torch.device("meta"):
             transformer = diffusers.FluxTransformer2DModel.from_config(os.path.join(repo_path, "transformer", "config.json")).to(dtype=dtype)
         quanto.requantize(transformer, state_dict, quantization_map, device=torch.device("cpu"))
-        if shared.opts.diffusers_eval:
-            transformer.eval()
         transformer_dtype = transformer.dtype
         if transformer_dtype != devices.dtype:
             try:
@@ -61,8 +59,6 @@ def load_flux_quanto(checkpoint_info):
         with torch.device("meta"):
             text_encoder_2 = transformers.T5EncoderModel(t5_config).to(dtype=dtype)
         quanto.requantize(text_encoder_2, state_dict, quantization_map, device=torch.device("cpu"))
-        if shared.opts.diffusers_eval:
-            text_encoder_2.eval()
         text_encoder_2_dtype = text_encoder_2.dtype
         if text_encoder_2_dtype != devices.dtype:
             try:

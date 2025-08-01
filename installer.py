@@ -593,7 +593,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all or args.skip_git:
         return
-    sha = 'c052791b5fe29ce8a308bf63dda97aa205b729be' # diffusers commit hash
+    sha = '0c71189abeaa8ab4b28dd7e5a309ac75c64968a2' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -618,7 +618,7 @@ def check_transformers():
     if args.use_directml:
         target = '4.52.4'
     else:
-        target = '4.53.2'
+        target = '4.54.1'
     if (pkg is None) or ((pkg.version != target) and (not args.experimental)):
         if pkg is None:
             log.info(f'Transformers install: version={target}')

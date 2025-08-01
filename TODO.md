@@ -4,7 +4,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Current
 
-- Reset quicksettings
 - Gallery: force refresh on delete
 
 ## Future Candidates
@@ -31,13 +30,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## ModernUI
 
-- Extensions tab: Full CSS
+- Extensions tab:
+  - full CSS redesign
 - Models tab: 
-  - Current
-  - Validate: broken table
-  - Update: broken table
-  - CivitAI: redesign downloader
-- History
+  - Validate subtab: replace table with custom html
+  - Update subtab: replace table with custom html
+  - CivitAI subtab: redesign downloader
 
 ### Under Consideration
 

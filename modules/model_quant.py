@@ -302,7 +302,7 @@ def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_co
         repo_path = checkpoint_info.path
     try:
         import torch
-        from modules import devices
+        from modules import devices, shared
         from diffusers.quantizers import quantization_config
         if not hasattr(quantization_config.QuantizationMethod, 'LAYERWISE'):
             setattr(quantization_config.QuantizationMethod, 'LAYERWISE', 'layerwise') # noqa: B010
@@ -315,7 +315,7 @@ def load_fp8_model_layerwise(checkpoint_info, load_model_func, diffusers_load_co
         model = load_model_func(repo_path, **load_args)
         model = upcast_non_layerwise_modules(model, devices.dtype)
         model._skip_layerwise_casting_patterns = None # pylint: disable=protected-access
-        model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=False, skip_modules_pattern=[])
+        model.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=shared.opts.diffusers_offload_nonblocking, skip_modules_pattern=[])
         model.layerwise_storage_dtype = storage_dtype
         model.quantization_method = 'LayerWise'
     except Exception as e:
@@ -336,7 +336,6 @@ def apply_layerwise(sd_model, quiet:bool=False):
         storage_dtype = None
         log.warning(f'Quantization: type=layerwise storage={shared.opts.layerwise_quantization_storage} not supported')
         return
-    non_blocking = False
     if not hasattr(quantization_config.QuantizationMethod, 'LAYERWISE'):
         setattr(quantization_config.QuantizationMethod, 'LAYERWISE', 'layerwise') # noqa: B010
     for module in sd_models.get_signature(sd_model).keys():
@@ -347,25 +346,25 @@ def apply_layerwise(sd_model, quiet:bool=False):
             m = getattr(sd_model, module)
             if getattr(m, "quantization_method", None) in {'LayerWise', quantization_config.QuantizationMethod.LAYERWISE}: # pylint: disable=no-member
                 storage_dtype = getattr(m, "layerwise_storage_dtype", storage_dtype)
-                m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=shared.opts.diffusers_offload_nonblocking)
             elif module.startswith('unet') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
-                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=shared.opts.diffusers_offload_nonblocking)
                     m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
-                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
+                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not shared.opts.diffusers_offload_nonblocking}')
             elif module.startswith('transformer') and ('Model' in shared.opts.layerwise_quantization):
                 if hasattr(m, 'enable_layerwise_casting'):
-                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=shared.opts.diffusers_offload_nonblocking)
                     m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = 'LayerWise'
-                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
+                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not shared.opts.diffusers_offload_nonblocking}')
             elif module.startswith('text_encoder') and ('TE' in shared.opts.layerwise_quantization) and ('clip' not in cls.lower()):
                 if hasattr(m, 'enable_layerwise_casting'):
-                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=non_blocking)
+                    m.enable_layerwise_casting(compute_dtype=devices.dtype, storage_dtype=storage_dtype, non_blocking=shared.opts.diffusers_offload_nonblocking)
                     m.layerwise_storage_dtype = storage_dtype
                     m.quantization_method = quantization_config.QuantizationMethod.LAYERWISE # pylint: disable=no-member
-                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not non_blocking}')
+                    log.quiet(quiet, f'Quantization: type=layerwise module={module} cls={cls} storage={storage_dtype} compute={devices.dtype} blocking={not shared.opts.diffusers_offload_nonblocking}')
         except Exception as e:
             if 'Hook with name' not in str(e):
                 log.error(f'Quantization: type=layerwise {e}')
@@ -455,7 +454,7 @@ def sdnq_quantize_weights(sd_model):
     try:
         t0 = time.time()
         from modules import shared, devices, sd_models
-        log.debug(f"Quantization: type=SDNQ modules={shared.opts.sdnq_quantize_weights} dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul}  group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32}")
+        log.debug(f"Quantization: type=SDNQ modules={shared.opts.sdnq_quantize_weights} dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul}  group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} pre_forward={shared.opts.diffusers_offload_pre}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
 
         sd_model = sd_models.apply_function_to_model(sd_model, sdnq_quantize_model, shared.opts.sdnq_quantize_weights, op="sdnq")

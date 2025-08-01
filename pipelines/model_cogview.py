@@ -73,9 +73,6 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-    if shared.opts.diffusers_eval:
-        pipe.text_encoder.eval()
-        pipe.transformer.eval()
     pipe.enable_model_cpu_offload()
     devices.torch_gc()
     return pipe
