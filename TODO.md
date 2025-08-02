@@ -33,7 +33,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Extensions tab:
   - full CSS redesign
 - Models tab: 
-  - Metadata subtab: replace table with custom html
   - CivitAI subtab: redesign downloader
 
 ### Under Consideration

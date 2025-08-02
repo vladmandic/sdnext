@@ -225,7 +225,7 @@ def civit_download_model(model_url: str, model_name: str, model_path: str, model
 def atomic_civit_search_metadata(item, results):
     from modules.modelloader import download_civit_preview, download_civit_meta
     if item is None:
-        return results
+        return
     meta = os.path.splitext(item['filename'])[0] + '.json'
     has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
     if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):

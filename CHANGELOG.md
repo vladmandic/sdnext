@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-01
+## Update for 2025-08-02
 
 - **Models**  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
