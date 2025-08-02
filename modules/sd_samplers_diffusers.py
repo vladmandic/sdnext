@@ -317,6 +317,12 @@ class DiffusionSampler:
                 self.sampler = None
                 return
 
+        # monkey-patch to allow sdxl pipeline to execute flowmatch samplers
+        if not hasattr(sampler, 'scale_model_input'):
+            sampler.scale_model_input = lambda x, _y: x
+        if not hasattr(sampler, 'init_noise_sigma'):
+            sampler.init_noise_sigma = 1.0
+
         self.sampler = sampler
 
         # shared.log.debug_log(f'Sampler: class="{self.sampler.__class__.__name__}" config={self.sampler.config}')

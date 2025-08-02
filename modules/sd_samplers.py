@@ -98,7 +98,7 @@ def create_sampler(name, model):
     # validate sampler prediction type
     if (model is not None) and (is_flow and not requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with discrete prediction')
-        return restore_default(model)
+        # return restore_default(model)
     if (model is not None) and (not is_flow and requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with flow prediction')
         return restore_default(model)
