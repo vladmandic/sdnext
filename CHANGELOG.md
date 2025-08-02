@@ -19,6 +19,7 @@
   - updated real-time hints, thanks @CalamitousFelicitousness  
   - updated *models -> current* tab   
   - updated *models -> list models* tab  
+  - updated *models -> metadata* tab  
   - more css optimizations and styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  

@@ -1974,6 +1974,10 @@ div:has(>#tab-gallery-folders) {
   max-height: 50vh;
 }
 
+#civit_metadata {
+    overflow: auto;
+}
+
 .simple-table tr {
   vertical-align: baseline;
 }

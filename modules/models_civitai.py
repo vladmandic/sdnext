@@ -8,12 +8,12 @@ from modules.shared import log, opts, req, readfile, max_workers
 
 data = []
 selected_model = None
-update_data = []
 
 
 class CivitModel:
     def __init__(self, name, fn, sha = None, meta = {}):
         self.name = name
+        self.file = name
         self.id = meta.get('id', 0)
         self.fn = fn
         self.sha = sha
@@ -25,28 +25,61 @@ class CivitModel:
         self.latest_name = ''
         self.url = None
         self.status = 'Not found'
-    def array(self):
-        return [self.id, self.fn, self.name, self.versions, self.vername, self.latest, self.status]
 
 
 def civit_update_metadata():
+    def create_update_metadata_table(rows: list[CivitModel]):
+        html = """
+            <table class="simple-table">
+                <thead">
+                    <tr>
+                        <th>ID</th>
+                        <th>File</th>
+                        <th>Name</th>
+                        <th>Hash</th>
+                        <th>Versions</th>
+                        <th>Latest</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {tbody}
+                </tbody>
+            </table>
+        """
+        tbody = ''
+        for row in rows:
+            try:
+                tbody += f"""
+                    <tr>
+                        <td>{row.id}</td>
+                        <td>{row.file}</td>
+                        <td>{row.name}</td>
+                        <td>{row.sha}</td>
+                        <td>{row.versions}</td>
+                        <td>{row.latest}</td>
+                        <td>{row.status}</td>
+                    </tr>
+                """
+            except Exception as e:
+                log.error(f'Model list: row={row} {e}')
+        return html.format(tbody=tbody)
+
     log.debug('CivitAI update metadata: models')
     from modules import ui_extra_networks, modelloader
-    res = []
     pages = ui_extra_networks.get_pages('Model')
     if len(pages) == 0:
         return 'CivitAI update metadata: no models found'
     page: ui_extra_networks.ExtraNetworksPage = pages[0]
-    table_data = []
-    update_data.clear()
+    results = []
     all_hashes = [(item.get('hash', None) or 'XXXXXXXX').upper()[:8] for item in page.list_items()]
     for item in page.list_items():
         model = CivitModel(name=item['name'], fn=item['filename'], sha=item.get('hash', None), meta=item.get('metadata', {}))
         if model.sha is None or len(model.sha) == 0:
-            res.append(f'CivitAI skip search: name="{model.name}" hash=None')
+            log.debug(f'CivitAI skip search: name="{model.name}" hash=None')
         else:
             r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{model.sha}')
-            res.append(f'CivitAI search: name="{model.name}" hash={model.sha} status={r.status_code}')
+            log.debug(f'CivitAI search: name="{model.name}" hash={model.sha} status={r.status_code}')
             if r.status_code == 200:
                 d = r.json()
                 model.id = d['modelId']
@@ -76,31 +109,9 @@ def civit_update_metadata():
                         else:
                             model.status = 'Available'
                         break
-        log.debug(res[-1])
-        update_data.append(model)
-        table_data.append(model.array())
-        yield gr.update(value=table_data), '<br>'.join([r for r in res if len(r) > 0])
-    return '<br>'.join([r for r in res if len(r) > 0])
-
-def civit_update_select(evt: gr.SelectData, in_data):
-    global selected_model # pylint: disable=global-statement
-    try:
-        selected_model = next([m for m in update_data if m.fn == in_data[evt.index[0]][1]])
-    except Exception:
-        selected_model = None
-    if selected_model is None or selected_model.url is None or selected_model.status != 'Available':
-        return [gr.update(value='Model update not available'), gr.update(visible=False)]
-    else:
-        return [gr.update(), gr.update(visible=True)]
-
-def civit_update_download():
-    if selected_model is None or selected_model.url is None or selected_model.status != 'Available':
-        return 'Model update not available'
-    if selected_model.latest_name is None or len(selected_model.latest_name) == 0:
-        model_name = f'{selected_model.name} {selected_model.latest}.safetensors'
-    else:
-        model_name = selected_model.latest_name
-    return civit_download_model(selected_model.url, model_name, model_path='', model_type='Model')
+        results.append(model)
+        yield create_update_metadata_table(results)
+    return create_update_metadata_table(results)
 
 
 def civit_search_model(name, tag, model_type):
@@ -211,56 +222,106 @@ def civit_download_model(model_url: str, model_name: str, model_path: str, model
     return res
 
 
-def atomic_civit_search_metadata(item, res, rehash):
+def atomic_civit_search_metadata(item, results):
     from modules.modelloader import download_civit_preview, download_civit_meta
     if item is None:
-        return
+        return results
     meta = os.path.splitext(item['filename'])[0] + '.json'
     has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
     if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
         sha = item.get('hash', None)
         found = False
+        result = {
+            'id': '',
+            'name': item['name'],
+            'type': '',
+            'hash': '',
+            'code': '',
+            'size': '',
+            'note': '',
+        }
         if sha is not None and len(sha) > 0:
             r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{sha}')
             log.debug(f'CivitAI search: name="{item["name"]}" hash={sha} status={r.status_code}')
+            result['hash'] = sha
+            result['code'] = r.status_code
             if r.status_code == 200:
                 d = r.json()
-                res.append(download_civit_meta(item['filename'], d['modelId']))
+                result['code'], result['size'], result['note'] = download_civit_meta(item['filename'], d['modelId'])
+                result['id'] = d['modelId']
+                result['type'] = 'metadata'
+                results.append(result)
                 if d.get('images') is not None:
                     for i in d['images']:
-                        preview_url = i['url']
-                        img_res = download_civit_preview(item['filename'], preview_url)
-                        res.append(img_res)
-                        if 'error' not in img_res:
+                        result['code'], result['size'], result['note'] = download_civit_preview(item['filename'], i['url'])
+                        if result['code'] == 200:
+                            result['type'] = 'preview'
+                            results.append(result)
                             found = True
                             break
-        if not found and rehash and os.stat(item['filename']).st_size < (1024 * 1024 * 1024):
+        if not found and os.stat(item['filename']).st_size < (1024 * 1024 * 1024):
             from modules import hashes
             sha = hashes.calculate_sha256(item['filename'], quiet=True)[:10]
             r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{sha}')
             log.debug(f'CivitAI search: name="{item["name"]}" hash={sha} status={r.status_code}')
+            result['hash'] = sha
+            result['code'] = r.status_code
             if r.status_code == 200:
                 d = r.json()
-                res.append(download_civit_meta(item['filename'], d['modelId']))
+                result['code'], result['size'], result['note'] = download_civit_meta(item['filename'], d['modelId'])
+                result['id'] = d['modelId']
+                result['type'] = 'metadata'
+                results.append(result)
                 if d.get('images') is not None:
                     for i in d['images']:
-                        preview_url = i['url']
-                        img_res = download_civit_preview(item['filename'], preview_url)
-                        res.append(img_res)
-                        if 'error' not in img_res:
+                        result['code'], result['size'], result['note'] = download_civit_preview(item['filename'], i['url'])
+                        if result['code'] == 200:
+                            result['type'] = 'preview'
+                            results.append(result)
                             found = True
                             break
+        if not found:
+            results.append(result)
 
 
-def civit_search_metadata(rehash, title):
-    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"}')
+def civit_search_metadata(title: str = None):
+    def create_search_metadata_table(rows):
+        html = """
+            <table class="simple-table">
+                <thead">
+                    <tr><th>ID</th><th>Name</th><th>Type</th><th>Code</th><th>Hash</th><th>Size</th><th>Note</th></tr>
+                </thead>
+                <tbody>
+                    {tbody}
+                </tbody>
+            </table>
+        """
+        tbody = ''
+        for row in rows:
+            try:
+                tbody += f"""
+                    <tr>
+                        <td>{row['id']}</td>
+                        <td>{row['name']}</td>
+                        <td>{row['type']}</td>
+                        <td>{row['code']}</td>
+                        <td>{row['hash']}</td>
+                        <td>{row['size']}</td>
+                        <td>{row['note']}</td>
+                    </tr>
+                """
+            except Exception as e:
+                log.error(f'Model list: row={row} {e}')
+        return html.format(tbody=tbody)
+
+
     from modules.ui_extra_networks import get_pages
-    res = []
+    results = []
     scanned, skipped = 0, 0
     t0 = time.time()
     candidates = []
     re_skip = [r.strip() for r in opts.extra_networks_scan_skip.split(',') if len(r.strip()) > 0]
-    log.debug(f'CivitAI search metadata: skip={re_skip}')
+    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"} skip={re_skip}')
     for page in get_pages():
         if type(title) == str:
             if page.title != title:
@@ -275,16 +336,18 @@ def civit_search_metadata(rehash, title):
                 continue
             scanned += 1
             candidates.append(item)
-            # atomic_civit_search_metadata(item, res, rehash)
     import concurrent
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_items = {}
         for fn in candidates:
-            executor.submit(atomic_civit_search_metadata, fn, res, rehash)
-    atomic_civit_search_metadata(None, res, rehash)
+            future_items[executor.submit(atomic_civit_search_metadata, fn, results)] = fn
+        for future in concurrent.futures.as_completed(future_items):
+            future.result()
+            yield create_search_metadata_table(results)
+
     t1 = time.time()
     log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
-    txt = '<br>'.join([r for r in res if len(r) > 0])
-    return txt
+    return create_search_metadata_table(results)
 
 
 def civitai_update_token(token):

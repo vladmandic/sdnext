@@ -933,7 +933,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def ui_scan_click(title):
         from modules.models_civitai import civit_search_metadata
-        civit_search_metadata(True, title)
+        civit_search_metadata(title)
         return ui_refresh_click(title)
 
     def ui_save_click():

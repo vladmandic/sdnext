@@ -68,7 +68,7 @@ def create_ui():
                     return [html, meta]
 
                 with gr.Row():
-                    gr.HTML('<h2>&nbspAnalyze currently loaded model<br></h2>')
+                    gr.HTML('<h2>Analyze currently loaded model<br></h2>')
                 with gr.Row():
                     model_analyze = gr.Button(value="Analyze", variant='primary')
                 with gr.Row():
@@ -127,7 +127,7 @@ def create_ui():
                     return html.format(tbody=tbody)
 
                 with gr.Row():
-                    gr.HTML('<h2>&nbspList models <br></h2>')
+                    gr.HTML('<h2>List all locally available models</h2><br>')
                 with gr.Row():
                     model_list_btn = gr.Button(value="List models", variant='primary')
                     model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
@@ -138,35 +138,17 @@ def create_ui():
                 model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Metadata"):
-                from modules.models_civitai import civit_search_metadata, civit_update_metadata, civit_update_select, civit_update_download
+                from modules.models_civitai import civit_search_metadata, civit_update_metadata
                 with gr.Row():
-                    gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
-                    gr.HTML('Fetches preview and metadata information for models with missing information<br>Models with existing previews and information are not updated<br>')
+                    gr.HTML('<h2>Fetch model preview metadata</h2><br>')
                 with gr.Row():
-                    civit_previews_btn = gr.Button(value="Start", variant='primary')
+                    civit_previews_btn = gr.Button(value="Scan missing", variant='primary')
+                    civit_update_btn = gr.Button(value="Update all", variant='primary')
                 with gr.Row():
-                    civit_previews_rehash = gr.Checkbox(value=True, label="Check alternative hash")
-                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
+                    civit_metadata = gr.HTML(value='', elem_id="civit_metadata")
+                civit_previews_btn.click(fn=civit_search_metadata, inputs=[], outputs=[civit_metadata])
+                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_metadata])
 
-                with gr.Row():
-                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
-                with gr.Row():
-                    civit_update_btn = gr.Button(value="Update", variant='primary')
-                with gr.Row():
-                    gr.HTML('<h2>Update scan results</h2>')
-                with gr.Row():
-                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
-                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
-                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
-                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
-                with gr.Row():
-                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
-                with gr.Row():
-                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
-
-                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
-                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
-                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
 
             with gr.Tab(label="Loader"):
                 from modules import ui_models_load

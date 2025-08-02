@@ -48,24 +48,6 @@ def hf_login(token=None):
     return True
 
 
-def download_civit_meta(model_path: str, model_id):
-    fn = os.path.splitext(model_path)[0] + '.json'
-    url = f'https://civitai.com/api/v1/models/{model_id}'
-    r = shared.req(url)
-    if r.status_code == 200:
-        try:
-            shared.writefile(r.json(), filename=fn, mode='w', silent=True)
-            msg = f'CivitAI download: id={model_id} url={url} file="{fn}"'
-            shared.log.info(msg)
-            return msg
-        except Exception as e:
-            msg = f'CivitAI download error: id={model_id} url={url} file="{fn}" {e}'
-            errors.display(e, 'CivitAI download error')
-            shared.log.error(msg)
-            return msg
-    return f'CivitAI download error: id={model_id} url={url} code={r.status_code}'
-
-
 def save_video_frame(filepath: str):
     from modules import video
     try:
@@ -83,21 +65,38 @@ def save_video_frame(filepath: str):
     return frame
 
 
+def download_civit_meta(model_path: str, model_id):
+    fn = os.path.splitext(model_path)[0] + '.json'
+    url = f'https://civitai.com/api/v1/models/{model_id}'
+    r = shared.req(url)
+    if r.status_code == 200:
+        try:
+            data = r.json()
+            shared.writefile(data, filename=fn, mode='w', silent=True)
+            shared.log.info(f'CivitAI download: id={model_id} url={url} file="{fn}"')
+            return r.status_code, len(data), '' # code/size/note
+        except Exception as e:
+            errors.display(e, 'civitai meta')
+            shared.log.error(f'CivitAI meta: id={model_id} url={url} file="{fn}" {e}')
+            return r.status_code, '', str(e)
+    return r.status_code, '', ''
+
+
 def download_civit_preview(model_path: str, preview_url: str):
     global pbar # pylint: disable=global-statement
     if model_path is None:
         pbar = None
-        return ''
+        return 500, '', ''
     ext = os.path.splitext(preview_url)[1]
     preview_file = os.path.splitext(model_path)[0] + ext
     is_video = preview_file.lower().endswith('.mp4')
     is_json = preview_file.lower().endswith('.json')
     if is_json:
         shared.log.warning(f'CivitAI download: url="{preview_url}" skip json')
-        return 'CivitAI download error: JSON file'
+        return 500, '', 'exepected preview image got json'
     if os.path.exists(preview_file):
-        return ''
-    res = f'CivitAI download: url={preview_url} file="{preview_file}"'
+        return 304, '', 'already exists'
+    # res = f'CivitAI download: url={preview_url} file="{preview_file}"'
     r = shared.req(preview_url, stream=True)
     total_size = int(r.headers.get('content-length', 0))
     block_size = 16384 # 16KB blocks
@@ -116,21 +115,20 @@ def download_civit_preview(model_path: str, preview_url: str):
                     pbar.update(task, advance=block_size)
         if written < 1024: # min threshold
             os.remove(preview_file)
-            raise ValueError(f'removed invalid download: bytes={written}')
+            return 400, '', 'removed invalid download'
         if is_video:
             img = save_video_frame(preview_file)
         else:
             img = Image.open(preview_file)
     except Exception as e:
-        # os.remove(preview_file)
-        res += f' error={e}'
         shared.log.error(f'CivitAI download error: url={preview_url} file="{preview_file}" written={written} {e}')
+        return 500, '', str(e)
     shared.state.end()
     if img is None:
-        return res
-    shared.log.info(f'{res} size={total_size} image={img.size}')
+        return 500, '', 'image is none'
+    shared.log.info(f'CivitAI download: url={preview_url} file="{preview_file}" size={total_size} image={img.size}')
     img.close()
-    return res
+    return 200, str(total_size), '' # code/size/note
 
 
 download_pbar = None
@@ -201,12 +199,6 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
             if written < 1024: # min threshold
                 os.remove(temp_file)
                 raise ValueError(f'removed invalid download: bytes={written}')
-            """
-            if preview is not None:
-                preview_file = os.path.splitext(model_file)[0] + '.jpg'
-                preview.save(preview_file)
-                res += f' preview={preview_file}'
-            """
         except Exception as e:
             shared.log.error(f'{res} {e}')
         finally:
