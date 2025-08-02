@@ -11,6 +11,7 @@ class Module():
     dtype: str = None
     params: int = 0
     modules: int = 0
+    quant: str = None
     config: dict = None
 
     def __init__(self, name, module):
@@ -25,6 +26,7 @@ class Module():
             self.dtype = getattr(module, 'dtype', None)
             self.params = sum(p.numel() for p in module.parameters(recurse=True))
             self.modules = len(list(module.modules()))
+            self.quant = getattr(module, 'quantization_method', None)
 
     def __repr__(self):
         s = f'name="{self.name}" cls={self.cls} config={self.config is not None}'
@@ -69,6 +71,8 @@ class Model():
 
 
 def analyze():
+    if not shared.sd_loaded:
+        return None
     model = Model(shared.opts.sd_model_checkpoint)
     if model.cls == '':
         return model

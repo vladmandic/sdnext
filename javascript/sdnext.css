@@ -1965,6 +1965,30 @@ div:has(>#tab-gallery-folders) {
   margin-top: 0.2em;
 }
 
+#model_desc {
+  overflow: auto;
+}
+
+#model_list_table {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+.simple-table tr {
+  vertical-align: baseline;
+}
+
+.simple-table td {
+  padding: 0.2em !important;
+}
+
+.model-config {
+  font-size: 0.8em !important;
+  opacity: 0.8;
+  max-height: 6em;
+  overflow-y: auto;
+}
+
 @keyframes move {
   from {
     background-position-x: 0, -40px;

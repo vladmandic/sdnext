@@ -16,7 +16,6 @@ def create_ui():
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
-            # models_output = gr.Textbox(elem_id="models_output", value="", show_label=False)
             gr.HTML(elem_id="models_progress", value="")
             models_image = gr.Image(elem_id="models_image", show_label=False, interactive=False, type='pil')
             models_outcome = gr.HTML(elem_id="models_error", value="")
@@ -25,20 +24,48 @@ def create_ui():
         with gr.Column(elem_id='models_input_container', scale=3):
 
             with gr.Tab(label="Current"):
+                def create_modules_table(rows: list):
+                    html = """
+                        <table class="simple-table">
+                            <thead">
+                                <tr><th>Module</th><th>Class</th><th>Device</th><th>Dtype</th><th>Quant</th><th>Params</th><th>Modules</th><th>Config</th></tr>
+                            </thead>
+                            <tbody>
+                                {tbody}
+                            </tbody>
+                        </table>
+                    """
+                    tbody = ''
+                    for row in rows:
+                        try:
+                            config = str(row.config)
+                        except Exception:
+                            config = '{}'
+                        try:
+                            tbody += f"""
+                                <tr>
+                                    <td>{row.name}</td>
+                                    <td>{row.cls}</td>
+                                    <td>{row.device}</td>
+                                    <td>{row.dtype}</td>
+                                    <td>{row.quant}</td>
+                                    <td>{row.params}</td>
+                                    <td>{row.modules}</td>
+                                    <td><div class='model-config'>{config}</div></td>
+                                </tr>
+                            """
+                        except Exception as e:
+                            log.error(f'Model list: row={vars(row)} {e}')
+                    return html.format(tbody=tbody)
+
                 def analyze():
                     from modules import modelstats
                     model = modelstats.analyze()
-                    desc = f"Model: {model.name}<br>Type: {model.type}<br>Class: {model.cls}<br>Size: {model.size} bytes<br>Modified: {model.mtime}<br>"
+                    if model is None:
+                        return ["Model not loaded", {}]
                     meta = model.meta
-                    components = []
-                    for m in model.modules:
-                        try:
-                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, str(m.config))
-                            components.append(component)
-                        except Exception:
-                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, '')
-                            components.append(component)
-                    return [desc, components, meta]
+                    html = create_modules_table(model.modules)
+                    return [html, meta]
 
                 with gr.Row():
                     gr.HTML('<h2>&nbspAnalyze currently loaded model<br></h2>')
@@ -47,13 +74,99 @@ def create_ui():
                 with gr.Row():
                     model_desc = gr.HTML(value="", elem_id="model_desc")
                 with gr.Row():
-                    module_headers = ['Module', 'Class', 'Device', 'DType', 'Params', 'Modules', 'Config']
-                    module_types = ['str', 'str', 'str', 'str', 'number', 'number', 'str']
-                    model_modules = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=module_headers, datatype=module_types, type='array')
-                with gr.Row():
                     model_meta = gr.JSON(label="Metadata", value={}, elem_id="model_meta")
 
-                model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_modules, model_meta])
+                model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_meta])
+
+            with gr.Tab(label="List"):
+                def create_models_table(rows: list):
+                    from modules import sd_detect
+                    html = """
+                        <table class="simple-table">
+                            <thead">
+                                <tr><th>Name</th><th>Type</th><th>Detect</th><th>Pipeline</th><th>Hash</th><th>Size</th><th>MTime</th></tr>
+                            </thead>
+                            <tbody>
+                                {tbody}
+                            </tbody>
+                        </table>
+                    """
+                    tbody = ''
+                    for row in rows:
+                        try:
+                            f = row.filename
+                            stat = os.stat(row.filename)
+                            if os.path.isfile(f):
+                                typ = os.path.splitext(f)[1][1:]
+                                size = f'{str(round(stat.st_size / 1024 / 1024 / 1024, 3)) + ' mb'}'
+                            elif os.path.isdir(f):
+                                typ = 'diffusers'
+                                size = 'folder'
+                            else:
+                                typ = 'unknown'
+                                size = 'unknown'
+                            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+                            guess = sd_detect.guess_by_size(f, guess)
+                            guess = sd_detect.guess_by_name(f, guess)
+                            guess, pipeline = sd_detect.guess_by_diffusers(f, guess)
+                            guess = sd_detect.guess_variant(f, guess)
+                            pipeline = sd_detect.shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
+                            tbody += f"""
+                                <tr>
+                                    <td>{row.model_name}</td>
+                                    <td>{typ}</td>
+                                    <td>{guess}</td>
+                                    <td>{pipeline.__name__ if pipeline else '(unknown)'}</td>
+                                    <td>{row.shorthash}</td>
+                                    <td>{size}</td>
+                                    <td>{datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)}</td>
+                                </tr>
+                            """
+                        except Exception as e:
+                            log.error(f'Model list: row={vars(row)} {e}')
+                    return html.format(tbody=tbody)
+
+                with gr.Row():
+                    gr.HTML('<h2>&nbspList models <br></h2>')
+                with gr.Row():
+                    model_list_btn = gr.Button(value="List models", variant='primary')
+                    model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
+                    model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
+                with gr.Row():
+                    model_table = gr.HTML(value='', elem_id="model_list_table")
+
+                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
+
+            with gr.Tab(label="Metadata"):
+                from modules.models_civitai import civit_search_metadata, civit_update_metadata, civit_update_select, civit_update_download
+                with gr.Row():
+                    gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
+                    gr.HTML('Fetches preview and metadata information for models with missing information<br>Models with existing previews and information are not updated<br>')
+                with gr.Row():
+                    civit_previews_btn = gr.Button(value="Start", variant='primary')
+                with gr.Row():
+                    civit_previews_rehash = gr.Checkbox(value=True, label="Check alternative hash")
+                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
+
+                with gr.Row():
+                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
+                with gr.Row():
+                    civit_update_btn = gr.Button(value="Update", variant='primary')
+                with gr.Row():
+                    gr.HTML('<h2>Update scan results</h2>')
+                with gr.Row():
+                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
+                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
+                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
+                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
+                with gr.Row():
+                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
+                with gr.Row():
+                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
+
+                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
+                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
+                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
 
             with gr.Tab(label="Loader"):
                 from modules import ui_models_load
@@ -303,7 +416,7 @@ def create_ui():
                     ]
                 )
 
-            with gr.Tab(label="Modules"):
+            with gr.Tab(label="Replace"):
                 with gr.Row():
                     gr.HTML('<h2>&nbspReplace model components<br></h2>')
                 with gr.Row():
@@ -374,105 +487,6 @@ def create_ui():
                     ],
                     outputs=[models_outcome]
                 )
-
-            with gr.Tab(label="List"):
-                from modules import sd_checkpoint
-                def create_models_table(rows: list[sd_checkpoint.CheckpointInfo]):
-                    from modules import sd_detect
-                    html = """
-                        <table id="ui-defauls">
-                            <thead">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>Detect</th>
-                                    <th>Pipeline</th>
-                                    <th>Hash</th>
-                                    <th>Size</th>
-                                    <th>MTime</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {tbody}
-                            </tbody>
-                        </table>
-                    """
-                    tbody = ''
-                    for row in rows:
-                        try:
-                            f = row.filename
-                            stat = os.stat(row.filename)
-                            if os.path.isfile(f):
-                                typ = os.path.splitext(f)[1][1:]
-                                size = f'{str(round(stat.st_size / 1024 / 1024 / 1024, 3)) + ' mb'}'
-                            elif os.path.isdir(f):
-                                typ = 'diffusers'
-                                size = 'folder'
-                            else:
-                                typ = 'unknown'
-                                size = 'unknown'
-                            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
-                            guess = sd_detect.guess_by_size(f, guess)
-                            guess = sd_detect.guess_by_name(f, guess)
-                            guess, pipeline = sd_detect.guess_by_diffusers(f, guess)
-                            guess = sd_detect.guess_variant(f, guess)
-                            pipeline = sd_detect.shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
-                            tbody += f"""
-                                <tr>
-                                    <td>{row.model_name}</td>
-                                    <td>{typ}</td>
-                                    <td>{guess}</td>
-                                    <td>{pipeline.__name__ if pipeline else '(unknown)'}</td>
-                                    <td>{row.shorthash}</td>
-                                    <td>{size}</td>
-                                    <td>{datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)}</td>
-                                </tr>
-                            """
-                        except Exception as e:
-                            log.error(f'Model list: row={vars(row)} {e}')
-                    return html.format(tbody=tbody)
-
-                with gr.Row():
-                    gr.HTML('<h2>&nbspList models <br></h2>')
-                with gr.Row():
-                    model_list_btn = gr.Button(value="List models", variant='primary')
-                    model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
-                    model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
-                with gr.Row():
-                    model_table = gr.HTML(value='', elem_id="model_list_table")
-
-                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
-
-            with gr.Tab(label="Metadata"):
-                from modules.models_civitai import civit_search_metadata, civit_update_metadata, civit_update_select, civit_update_download
-                with gr.Row():
-                    gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
-                    gr.HTML('Fetches preview and metadata information for models with missing information<br>Models with existing previews and information are not updated<br>')
-                with gr.Row():
-                    civit_previews_btn = gr.Button(value="Start", variant='primary')
-                with gr.Row():
-                    civit_previews_rehash = gr.Checkbox(value=True, label="Check alternative hash")
-                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
-
-                with gr.Row():
-                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
-                with gr.Row():
-                    civit_update_btn = gr.Button(value="Update", variant='primary')
-                with gr.Row():
-                    gr.HTML('<h2>Update scan results</h2>')
-                with gr.Row():
-                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
-                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
-                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
-                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
-                with gr.Row():
-                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
-                with gr.Row():
-                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
-
-                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
-                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
-                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
 
             with gr.Tab(label="CivitAI"):
                 from modules.models_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model

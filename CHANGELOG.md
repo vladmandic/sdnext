@@ -17,7 +17,8 @@
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  
   - updated real-time hints, thanks @CalamitousFelicitousness  
-  - new *models -> list models* tab  
+  - updated *models -> current* tab   
+  - updated *models -> list models* tab  
   - more css optimizations and styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
