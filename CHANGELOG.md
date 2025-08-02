@@ -38,6 +38,8 @@
   - refactor legacy processing loop  
   - fix Wan 2.2-5B I2V workflow  
   - fix OpenVINO  
+  - fix video model vs pipeline mismatch  
+  - fix video generic save frames  
   - fix inpaint image metadata  
   - fix processing image save loop  
   - fix progress bar with refine/detailer  
