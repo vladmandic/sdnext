@@ -98,7 +98,7 @@ def create_ui():
                             stat = os.stat(row.filename)
                             if os.path.isfile(f):
                                 typ = os.path.splitext(f)[1][1:]
-                                size = f'{str(round(stat.st_size / 1024 / 1024 / 1024, 3)) + ' mb'}'
+                                size = f"{round(stat.st_size / 1024 / 1024 / 1024, 3)} gb"
                             elif os.path.isdir(f):
                                 typ = 'diffusers'
                                 size = 'folder'

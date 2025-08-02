@@ -147,7 +147,7 @@ def search_civitai(
             model_names = [model.name.lower()]
             version_names = [v.name.lower() for v in model.versions]
             file_names = [f.name.lower() for v in model.versions for f in v.files]
-            if any([query.lower() in name for name in model_names + version_names + file_names]):
+            if any([query.lower() in name for name in model_names + version_names + file_names]): # noqa: C419
                 exact_models.append(model)
 
     t1 = time.time()
