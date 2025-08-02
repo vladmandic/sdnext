@@ -3,7 +3,7 @@
 import torch
 from modules import shared
 
-from .common import dtype_dict
+from .common import dtype_dict, use_torch_compile
 from .packed_int import pack_int_symetric, unpack_int_symetric, packed_int_function_dict
 
 
@@ -173,10 +173,8 @@ dequantizer_dict = {
 }
 
 
-if shared.opts.sdnq_dequantize_compile:
+if use_torch_compile:
     try:
-        torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
-        torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
         dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
         dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
         dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)

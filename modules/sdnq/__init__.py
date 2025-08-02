@@ -14,6 +14,41 @@ from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
 
+class QuantizationMethod(str, Enum):
+    SDNQ = "sdnq"
+
+
+def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
+    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
+    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
+    scale = torch.where(torch.abs(scale) < eps, eps, scale)
+    if dtype_dict[weights_dtype]["min"] != 0:
+        zero_point.sub_(torch.mul(scale, dtype_dict[weights_dtype]["min"]))
+    return scale, zero_point
+
+
+def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> torch.FloatTensor:
+    scale = torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
+    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
+    scale = torch.where(torch.abs(scale) < eps, eps, scale)
+    return scale
+
+
+def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
+    if dtype_dict[weights_dtype]["is_unsigned"]:
+        scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
+        quantized_weight = torch.sub(weight, zero_point).div_(scale)
+    else:
+        scale = get_scale_symmetric(weight, reduction_axes, weights_dtype)
+        quantized_weight = torch.div(weight, scale)
+        zero_point = None
+    if dtype_dict[weights_dtype]["is_integer"]:
+        quantized_weight.round_()
+    quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
+    return quantized_weight, scale, zero_point
+
+
 @devices.inference_context()
 def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
@@ -153,7 +188,6 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
-        #devices.torch_gc(force=False, reason=f"SDNQ param_name: {param_name}")
     return layer
 
 
@@ -193,41 +227,6 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 modules_to_not_convert=modules_to_not_convert,
             )
     return model
-
-
-def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-    zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
-    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
-    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
-    scale = torch.where(torch.abs(scale) < eps, eps, scale)
-    if dtype_dict[weights_dtype]["min"] != 0:
-        zero_point.sub_(torch.mul(scale, dtype_dict[weights_dtype]["min"]))
-    return scale, zero_point
-
-
-def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> torch.FloatTensor:
-    scale = torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
-    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
-    scale = torch.where(torch.abs(scale) < eps, eps, scale)
-    return scale
-
-
-def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
-    if dtype_dict[weights_dtype]["is_unsigned"]:
-        scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
-        quantized_weight = torch.sub(weight, zero_point).div_(scale)
-    else:
-        scale = get_scale_symmetric(weight, reduction_axes, weights_dtype)
-        quantized_weight = torch.div(weight, scale)
-        zero_point = None
-    if dtype_dict[weights_dtype]["is_integer"]:
-        quantized_weight.round_()
-    quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
-    return quantized_weight, scale, zero_point
-
-
-class QuantizationMethod(str, Enum):
-    SDNQ = "sdnq"
 
 
 class SDNQQuantizer(DiffusersQuantizer):

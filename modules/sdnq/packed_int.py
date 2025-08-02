@@ -1,6 +1,7 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
 from typing import Optional
+
 import torch
 
 from .common import dtype_dict
