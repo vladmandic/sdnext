@@ -264,7 +264,7 @@ options_templates.update(options_section(('cuda', "Compute Settings"), {
     "diffusers_generator_device": OptionInfo("GPU", "Generator device", gr.Radio, {"choices": ["GPU", "CPU", "Unset"]}),
 
     "cross_attention_sep": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
-    "cross_attention_optimization": OptionInfo(startup_cross_attention, "Attention optimization method", gr.Radio, lambda: {"choices": shared_items.list_crossattention(native)}),
+    "cross_attention_optimization": OptionInfo(startup_cross_attention, "Attention optimization method", gr.Radio, lambda: {"choices": shared_items.list_crossattention()}),
     "sdp_options": OptionInfo(startup_sdp_options, "SDP options", gr.CheckboxGroup, {"choices": ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention', 'CK Flash attention', 'Sage attention']}),
     "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
     "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate in GB", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),

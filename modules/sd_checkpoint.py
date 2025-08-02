@@ -127,7 +127,7 @@ def list_models():
     global checkpoints_list # pylint: disable=global-statement
     checkpoints_list.clear()
     checkpoint_aliases.clear()
-    ext_filter = [".safetensors"] if shared.opts.sd_disable_ckpt or shared.native else [".ckpt", ".safetensors"]
+    ext_filter = [".safetensors"]
     model_list = list(modelloader.load_models(model_path=model_path, model_url=None, command_path=shared.opts.ckpt_dir, ext_filter=ext_filter, download_name=None, ext_blacklist=[".vae.ckpt", ".vae.safetensors"]))
     safetensors_list = []
     for filename in sorted(model_list, key=str.lower):
@@ -136,21 +136,16 @@ def list_models():
         if checkpoint_info.name is not None:
             checkpoint_info.register()
     diffusers_list = []
-    if shared.native:
-        for repo in modelloader.load_diffusers_models(clear=True):
-            checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'])
-            diffusers_list.append(checkpoint_info)
-            if checkpoint_info.name is not None:
-                checkpoint_info.register()
+    for repo in modelloader.load_diffusers_models(clear=True):
+        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'])
+        diffusers_list.append(checkpoint_info)
+        if checkpoint_info.name is not None:
+            checkpoint_info.register()
     if shared.cmd_opts.ckpt is not None:
-        if not os.path.exists(shared.cmd_opts.ckpt) and not shared.native:
-            if shared.cmd_opts.ckpt.lower() != "none":
-                shared.log.warning(f'Load model: path="{shared.cmd_opts.ckpt}" not found')
-        else:
-            checkpoint_info = CheckpointInfo(shared.cmd_opts.ckpt)
-            if checkpoint_info.name is not None:
-                checkpoint_info.register()
-                shared.opts.data['sd_model_checkpoint'] = checkpoint_info.title
+        checkpoint_info = CheckpointInfo(shared.cmd_opts.ckpt)
+        if checkpoint_info.name is not None:
+            checkpoint_info.register()
+            shared.opts.data['sd_model_checkpoint'] = checkpoint_info.title
     elif shared.cmd_opts.ckpt != shared.default_sd_model_file and shared.cmd_opts.ckpt is not None:
         shared.log.warning(f'Load model: path="{shared.cmd_opts.ckpt}" not found')
     shared.log.info(f'Available Models: safetensors="{shared.opts.ckpt_dir}":{len(safetensors_list)} diffusers="{shared.opts.diffusers_dir}":{len(diffusers_list)} items={len(checkpoints_list)} time={time.time()-t0:.2f}')

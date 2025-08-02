@@ -334,7 +334,7 @@ def parse_prompt_attention(text):
         whitespace = ''
     else:
         re_attention = re_attention_v2
-        if native and opts.sd_textencder_linebreak:
+        if opts.sd_textencder_linebreak:
             text = text.replace('\n', ' BREAK ')
         else:
             text = text.replace('\n', ' ')

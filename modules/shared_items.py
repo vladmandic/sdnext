@@ -105,26 +105,15 @@ def refresh_te_list():
     modules.model_te.refresh_te_list()
 
 
-def list_crossattention(native:bool=True):
-    if native:
-        return [
-            "Disabled",
-            "Scaled-Dot-Product",
-            "xFormers",
-            "Batch matrix-matrix",
-            "Split attention",
-            "Dynamic Attention BMM"
-        ]
-    else:
-        return [
-            "Disabled",
-            "Scaled-Dot-Product",
-            "xFormers",
-            "Doggettx's",
-            "InvokeAI's",
-            "Sub-quadratic",
-            "Split attention"
-        ]
+def list_crossattention():
+    return [
+        "Disabled",
+        "Scaled-Dot-Product",
+        "xFormers",
+        "Batch matrix-matrix",
+        "Split attention",
+        "Dynamic Attention BMM"
+    ]
 
 def get_pipelines():
     from installer import log

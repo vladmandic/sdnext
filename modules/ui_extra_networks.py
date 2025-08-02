@@ -932,9 +932,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return pages
 
     def ui_scan_click(title):
-        from modules import ui_models
-        if ui_models.search_metadata_civit is not None:
-            ui_models.search_metadata_civit(True, title)
+        from modules.models_civitai import civit_search_metadata
+        civit_search_metadata(True, title)
         return ui_refresh_click(title)
 
     def ui_save_click():

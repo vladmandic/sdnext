@@ -13,7 +13,7 @@ supported_models = ['ldm', 'sd', 'sdxl']
 
 
 def list_embeddings(*dirs):
-    is_ext = extension_filter(['.SAFETENSORS', '.PT' ] + ( ['.PNG', '.WEBP', '.JXL', '.AVIF', '.BIN' ] if not shared.native else [] ))
+    is_ext = extension_filter(['.SAFETENSORS', '.PT' ])
     is_not_preview = lambda fp: not next(iter(os.path.splitext(fp))).upper().endswith('.PREVIEW') # pylint: disable=unnecessary-lambda-assignment
     return list(filter(lambda fp: is_ext(fp) and is_not_preview(fp) and os.stat(fp).st_size > 0, directory_files(*dirs)))
 
