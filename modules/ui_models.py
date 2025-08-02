@@ -1,5 +1,4 @@
 import os
-import json
 import inspect
 from datetime import datetime
 import gradio as gr
@@ -376,91 +375,107 @@ def create_ui():
                     outputs=[models_outcome]
                 )
 
-            with gr.Tab(label="Validate"):
-                model_headers = ['name', 'type', 'filename', 'hash', 'added', 'size', 'metadata']
-                model_data = []
+            with gr.Tab(label="List"):
+                from modules import sd_checkpoint
+                def create_models_table(rows: list[sd_checkpoint.CheckpointInfo]):
+                    from modules import sd_detect
+                    html = """
+                        <table id="ui-defauls">
+                            <thead">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Detect</th>
+                                    <th>Pipeline</th>
+                                    <th>Hash</th>
+                                    <th>Size</th>
+                                    <th>MTime</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {tbody}
+                            </tbody>
+                        </table>
+                    """
+                    tbody = ''
+                    for row in rows:
+                        try:
+                            f = row.filename
+                            stat = os.stat(row.filename)
+                            if os.path.isfile(f):
+                                typ = os.path.splitext(f)[1][1:]
+                                size = f'{str(round(stat.st_size / 1024 / 1024 / 1024, 3)) + ' mb'}'
+                            elif os.path.isdir(f):
+                                typ = 'diffusers'
+                                size = 'folder'
+                            else:
+                                typ = 'unknown'
+                                size = 'unknown'
+                            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+                            guess = sd_detect.guess_by_size(f, guess)
+                            guess = sd_detect.guess_by_name(f, guess)
+                            guess, pipeline = sd_detect.guess_by_diffusers(f, guess)
+                            guess = sd_detect.guess_variant(f, guess)
+                            pipeline = sd_detect.shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
+                            tbody += f"""
+                                <tr>
+                                    <td>{row.model_name}</td>
+                                    <td>{typ}</td>
+                                    <td>{guess}</td>
+                                    <td>{pipeline.__name__ if pipeline else '(unknown)'}</td>
+                                    <td>{row.shorthash}</td>
+                                    <td>{size}</td>
+                                    <td>{datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)}</td>
+                                </tr>
+                            """
+                        except Exception as e:
+                            log.error(f'Model list: row={vars(row)} {e}')
+                    return html.format(tbody=tbody)
 
                 with gr.Row():
-                    gr.HTML('<h2>&nbspList all models <br></h2>')
+                    gr.HTML('<h2>&nbspList models <br></h2>')
                 with gr.Row():
-                    model_list_btn = gr.Button(value="List model details", variant='primary')
-                    model_checkhash_btn = gr.Button(value="Calculate hash for all models", variant='primary')
+                    model_list_btn = gr.Button(value="List models", variant='primary')
+                    model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
                     model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
                 with gr.Row():
-                    model_table = gr.DataFrame(
-                        value=None,
-                        headers=model_headers,
-                        label='Model data',
-                        show_label=True,
-                        interactive=False,
-                        wrap=True,
-                    )
+                    model_table = gr.HTML(value='', elem_id="model_list_table")
 
-                def list_models():
-                    total_size = 0
-                    model_data.clear()
-                    txt = ''
-                    for m in sd_models.checkpoints_list.values():
-                        try:
-                            stat = os.stat(m.filename)
-                            m_name = m.name.replace('.ckpt', '').replace('.safetensors', '')
-                            m_type = 'ckpt' if m.name.endswith('.ckpt') else 'safe'
-                            m_meta = len(json.dumps(m.metadata)) - 2
-                            m_size = round(stat.st_size / 1024 / 1024 / 1024, 3)
-                            m_time = datetime.fromtimestamp(stat.st_mtime)
-                            model_data.append([m_name, m_type, m.filename, m.shorthash, m_time, m_size, m_meta])
-                            total_size += stat.st_size
-                        except Exception as e:
-                            txt += f"Error: {m.name} {e}<br>"
-                    txt += f"Model list enumerated {len(sd_models.checkpoints_list.keys())} models in {round(total_size / 1024 / 1024 / 1024, 3)} GB<br>"
-                    return model_data, txt
+                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
 
-                model_list_btn.click(fn=list_models, inputs=[], outputs=[model_table, models_outcome])
-
-            with gr.Tab(label="Huggingface"):
-                from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token
-                with gr.Column(scale=6):
-                    with gr.Row():
-                        gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
-                    with gr.Row():
-                        hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
-                        hf_search_btn = ToolButton(value=ui_symbols.search)
-                    with gr.Row():
-                        with gr.Column(scale=2):
-                            with gr.Row():
-                                hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
-                        with gr.Column(scale=1):
-                            with gr.Row():
-                                hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
-                                hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
-                    with gr.Row():
-                        hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models')
-                        hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
-                        hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
-                with gr.Column(scale=1):
-                    gr.HTML('<br>')
-                    hf_download_model_btn = gr.Button(value="Download model", variant='primary')
-
-                with gr.Row():
-                    hf_headers = ['Name', 'Pipeline', 'Tags', 'Downloads', 'Updated', 'URL']
-                    hf_types = ['str', 'str', 'str', 'number', 'date', 'markdown']
-                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, headers=hf_headers, datatype=hf_types, type='array')
-
-                hf_search_text.submit(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
-                hf_search_btn.click(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
-                hf_results.select(fn=hf_select, inputs=[hf_results], outputs=[hf_selected])
-                hf_download_model_btn.click(fn=hf_download_model, inputs=[hf_selected, hf_token, hf_variant, hf_revision, hf_mirror, hf_custom_pipeline], outputs=[models_outcome])
-                hf_token.change(fn=hf_update_token, inputs=[hf_token], outputs=[])
-
-            with gr.Tab(label="CivitAI"):
-                from modules.models_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model
+            with gr.Tab(label="Metadata"):
+                from modules.models_civitai import civit_search_metadata, civit_update_metadata, civit_update_select, civit_update_download
                 with gr.Row():
                     gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
-                    gr.HTML('Fetches preview and metadata information for all models with missing information<br>Models with existing previews and information are not updated<br>')
+                    gr.HTML('Fetches preview and metadata information for models with missing information<br>Models with existing previews and information are not updated<br>')
                 with gr.Row():
                     civit_previews_btn = gr.Button(value="Start", variant='primary')
                 with gr.Row():
                     civit_previews_rehash = gr.Checkbox(value=True, label="Check alternative hash")
+                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
+
+                with gr.Row():
+                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
+                with gr.Row():
+                    civit_update_btn = gr.Button(value="Update", variant='primary')
+                with gr.Row():
+                    gr.HTML('<h2>Update scan results</h2>')
+                with gr.Row():
+                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
+                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
+                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
+                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
+                with gr.Row():
+                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
+                with gr.Row():
+                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
+
+                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
+                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
+                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
+
+            with gr.Tab(label="CivitAI"):
+                from modules.models_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model
 
                 with gr.Row():
                     gr.HTML('<h2>Search for models</h2>')
@@ -516,29 +531,41 @@ def create_ui():
                 civit_results2.change(fn=is_visible, inputs=[civit_results2], outputs=[civit_results2])
                 civit_results3.change(fn=is_visible, inputs=[civit_results3], outputs=[civit_results3])
                 civit_download_model_btn.click(fn=civit_download_model, inputs=[civit_selected, civit_name, civit_path, civit_model_type, civit_token], outputs=[models_outcome])
-                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
 
-            with gr.Tab(label="Update"):
-                from modules.models_civitai import civit_update_metadata, civit_update_select, civit_update_download
-                with gr.Row():
-                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
-                with gr.Row():
-                    civit_update_btn = gr.Button(value="Update", variant='primary')
-                with gr.Row():
-                    gr.HTML('<h2>Update scan results</h2>')
-                with gr.Row():
-                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
-                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
-                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
-                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
-                with gr.Row():
-                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
-                with gr.Row():
-                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
+            with gr.Tab(label="Huggingface"):
+                from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token
+                with gr.Column(scale=6):
+                    with gr.Row():
+                        gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
+                    with gr.Row():
+                        hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
+                        hf_search_btn = ToolButton(value=ui_symbols.search)
+                    with gr.Row():
+                        with gr.Column(scale=2):
+                            with gr.Row():
+                                hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
+                        with gr.Column(scale=1):
+                            with gr.Row():
+                                hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
+                                hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
+                    with gr.Row():
+                        hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models')
+                        hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
+                        hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
+                with gr.Column(scale=1):
+                    gr.HTML('<br>')
+                    hf_download_model_btn = gr.Button(value="Download model", variant='primary')
 
-                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
-                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
-                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
+                with gr.Row():
+                    hf_headers = ['Name', 'Pipeline', 'Tags', 'Downloads', 'Updated', 'URL']
+                    hf_types = ['str', 'str', 'str', 'number', 'date', 'markdown']
+                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, headers=hf_headers, datatype=hf_types, type='array')
+
+                hf_search_text.submit(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
+                hf_search_btn.click(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
+                hf_results.select(fn=hf_select, inputs=[hf_results], outputs=[hf_selected])
+                hf_download_model_btn.click(fn=hf_download_model, inputs=[hf_selected, hf_token, hf_variant, hf_revision, hf_mirror, hf_custom_pipeline], outputs=[models_outcome])
+                hf_token.change(fn=hf_update_token, inputs=[hf_token], outputs=[])
 
             from modules.lora.lora_extract import create_ui as lora_extract_ui
             lora_extract_ui()

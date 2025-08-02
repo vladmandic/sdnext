@@ -17,7 +17,8 @@
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  
   - updated real-time hints, thanks @CalamitousFelicitousness  
-  - modernui checkbox/radio styling  
+  - new *models -> list models* tab  
+  - more css optimizations and styling  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
