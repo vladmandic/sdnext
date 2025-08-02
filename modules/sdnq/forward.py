@@ -2,8 +2,6 @@
 
 from typing import Callable
 
-import torch
-
 from .common import conv_types, conv_transpose_types
 
 
