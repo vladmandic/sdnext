@@ -52,7 +52,7 @@ def install_nunchaku():
         url = os.environ.get('NUNCHAKU_COMMAND', None)
         if url is None:
             url = f'https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-{ver}'
-            url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}_{suffix}.whl'
+            url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
         cmd = f'install --upgrade {url}'
         # pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
         log.debug(f'Nunchaku: install="{url}"')
