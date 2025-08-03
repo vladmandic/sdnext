@@ -153,20 +153,43 @@ def list_models():
 
 
 def update_model_hashes():
-    txt = []
+    def update_model_hashes_table(rows):
+        html = """
+            <table class="simple-table">
+                <thead>
+                    <tr><th>Name</th><th>Type</th><th>Hash</th></tr>
+                </thead>
+                <tbody>
+                    {tbody}
+                </tbody>
+            </table>
+        """
+        tbody = ''
+        for row in rows:
+            try:
+                tbody += f"""
+                    <tr>
+                        <td>{row.name}</td>
+                        <td>{row.type}</td>
+                        <td>{row.shorthash}</td>
+                    </tr>
+                """
+            except Exception as e:
+                shared.log.error(f'Model list: row={row} {e}')
+        return html.format(tbody=tbody)
+
     lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.hash is None]
     for ckpt in lst:
         ckpt.hash = model_hash(ckpt.filename)
     lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.sha256 is None or ckpt.shorthash is None]
     shared.log.info(f'Models list: hash missing={len(lst)} total={len(checkpoints_list)}')
+    updated = []
     for ckpt in lst:
         ckpt.sha256 = hashes.sha256(ckpt.filename, f"checkpoint/{ckpt.name}")
         ckpt.shorthash = ckpt.sha256[0:10] if ckpt.sha256 is not None else None
-        if ckpt.sha256 is not None:
-            txt.append(f'Hash: <b>{ckpt.title}</b> {ckpt.shorthash}')
-    txt.append(f'Updated hashes for <b>{len(lst)}</b> out of <b>{len(checkpoints_list)}</b> models')
-    txt = '<br>'.join(txt)
-    return txt
+        updated.append(ckpt)
+        yield update_model_hashes_table(updated)
+    return
 
 
 def remove_hash(s):

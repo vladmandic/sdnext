@@ -27,7 +27,7 @@ def create_ui():
                 def create_modules_table(rows: list):
                     html = """
                         <table class="simple-table">
-                            <thead">
+                            <thead>
                                 <tr><th>Module</th><th>Class</th><th>Device</th><th>Dtype</th><th>Quant</th><th>Params</th><th>Modules</th><th>Config</th></tr>
                             </thead>
                             <tbody>
@@ -83,7 +83,7 @@ def create_ui():
                     from modules import sd_detect
                     html = """
                         <table class="simple-table">
-                            <thead">
+                            <thead>
                                 <tr><th>Name</th><th>Type</th><th>Detect</th><th>Pipeline</th><th>Hash</th><th>Size</th><th>MTime</th></tr>
                             </thead>
                             <tbody>
@@ -131,10 +131,10 @@ def create_ui():
                 with gr.Row():
                     model_list_btn = gr.Button(value="List models", variant='primary')
                     model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
-                    model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
                 with gr.Row():
                     model_table = gr.HTML(value='', elem_id="model_list_table")
 
+                model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
                 model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Metadata"):

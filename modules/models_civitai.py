@@ -31,16 +31,8 @@ def civit_update_metadata():
     def create_update_metadata_table(rows: list[CivitModel]):
         html = """
             <table class="simple-table">
-                <thead">
-                    <tr>
-                        <th>ID</th>
-                        <th>File</th>
-                        <th>Name</th>
-                        <th>Hash</th>
-                        <th>Versions</th>
-                        <th>Latest</th>
-                        <th>Status</th>
-                    </tr>
+                <thead>
+                    <tr><th>File</th><th>ID</th><th>Name</th><th>Hash</th><th>Versions</th><th>Latest</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                     {tbody}
@@ -52,8 +44,8 @@ def civit_update_metadata():
             try:
                 tbody += f"""
                     <tr>
-                        <td>{row.id}</td>
                         <td>{row.file}</td>
+                        <td>{row.id}</td>
                         <td>{row.name}</td>
                         <td>{row.sha}</td>
                         <td>{row.versions}</td>
@@ -103,11 +95,11 @@ def civit_update_metadata():
                         model.url = f.get('downloadUrl', None)
                         model.latest_name = f.get('name', '')
                         if model.vername == model.latest:
-                            model.status = 'Latest'
+                            model.status = 'Latest version'
                         elif any(map(lambda v: v in model.latest_hashes, all_hashes)): # pylint: disable=cell-var-from-loop # noqa: C417
-                            model.status = 'Downloaded'
+                            model.status = 'Update downloaded'
                         else:
-                            model.status = 'Available'
+                            model.status = 'Update available'
                         break
         results.append(model)
         yield create_update_metadata_table(results)
@@ -226,7 +218,11 @@ def atomic_civit_search_metadata(item, results):
     from modules.modelloader import download_civit_preview, download_civit_meta
     if item is None:
         return
-    meta = os.path.splitext(item['filename'])[0] + '.json'
+    try:
+        meta = os.path.splitext(item['filename'])[0] + '.json'
+    except Exception:
+        # log.error(f'CivitAI search metadata: item={item} {e}')
+        return
     has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
     if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
         sha = item.get('hash', None)
@@ -288,8 +284,8 @@ def civit_search_metadata(title: str = None):
     def create_search_metadata_table(rows):
         html = """
             <table class="simple-table">
-                <thead">
-                    <tr><th>ID</th><th>Name</th><th>Type</th><th>Code</th><th>Hash</th><th>Size</th><th>Note</th></tr>
+                <thead>
+                    <tr><th>Name</th><th>ID</th><th>Type</th><th>Code</th><th>Hash</th><th>Size</th><th>Note</th></tr>
                 </thead>
                 <tbody>
                     {tbody}
@@ -301,8 +297,8 @@ def civit_search_metadata(title: str = None):
             try:
                 tbody += f"""
                     <tr>
-                        <td>{row['id']}</td>
                         <td>{row['name']}</td>
+                        <td>{row['id']}</td>
                         <td>{row['type']}</td>
                         <td>{row['code']}</td>
                         <td>{row['hash']}</td>
