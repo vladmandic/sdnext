@@ -1515,12 +1515,6 @@ background: var(--background-color)
   min-height: 0;
 }
 
-#models_error {
-  font-family: monospace;
-
-color: var(--body-text-color-subdued)
-}
-
 #model_loader_df button {
   display: none !important;
 }

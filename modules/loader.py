@@ -87,10 +87,13 @@ timer.startup.record("transformers")
 import accelerate # pylint: disable=W0611,C0411
 timer.startup.record("accelerate")
 
-import onnxruntime # pylint: disable=W0611,C0411
-onnxruntime.set_default_logger_severity(4)
-onnxruntime.set_default_logger_verbosity(1)
-onnxruntime.disable_telemetry_events()
+try:
+    import onnxruntime # pylint: disable=W0611,C0411
+    onnxruntime.set_default_logger_severity(4)
+    onnxruntime.set_default_logger_verbosity(1)
+    onnxruntime.disable_telemetry_events()
+except Exception as e:
+    errors.log.warning(f'Torch onnxruntime: {e}')
 timer.startup.record("onnx")
 
 from fastapi import FastAPI # pylint: disable=W0611,C0411

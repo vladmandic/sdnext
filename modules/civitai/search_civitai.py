@@ -1,17 +1,12 @@
-#!/usr/bin/env python
 from dataclasses import dataclass
 import os
-import sys
 import json
 import time
-import logging
+from installer import install, log
 
 
 full_dct = False
 full_html = False
-debug = False
-logging.basicConfig(level = logging.INFO, format = '%(asctime)s %(levelname)s: %(message)s')
-log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,6 +24,7 @@ class ModelImage():
     def __str__(self):
         return f'ModelImage(id={self.id} url="{self.url}" width={self.width} height={self.height} type="{self.type}")'
 
+
 @dataclass
 class ModelFile():
     def __init__(self, dct: dict):
@@ -38,7 +34,7 @@ class ModelFile():
         self.size: int = int(1024 * dct.get('sizeKB', 0))
         self.name: str = dct.get('name', 'Unknown')
         self.type: str = dct.get('type', 'Unknown')
-        self.hashes: list[str] = dct.get('hashes', {}).values()
+        self.hashes: list[str] = [str(h) for h in dct.get('hashes', {}).values()]
         self.url: str = dct.get('downloadUrl', '')
         self.dct: dict = dct if full_dct else {}
 
@@ -93,6 +89,9 @@ class Model():
         return f'Model(id={self.id} type={self.type} name="{self.name}" versions={len(self.versions)} nsfw={self.nsfw}/{self.level} downloads={self.downloads} author="{self.creator}" tags={self.tags} desc="{self.desc[:30]}...")'
 
 
+models: list[Model] = []  # global cache for civitai search results
+
+
 def search_civitai(
         query:str,
         tag:str = '', # optional:tag name
@@ -105,8 +104,10 @@ def search_civitai(
         token:str = None,
         exact:bool = True,
 ):
+    global models # pylint: disable=global-statement
     import requests
     from urllib.parse import urlencode
+    install('bs4')  # Ensure BeautifulSoup is installed
 
     if len(query) == 0:
         log.error('CivitAI: empty query')
@@ -145,14 +146,14 @@ def search_civitai(
         log.error(f'CivitAI: code={result.status_code} reason={result.reason} uri={result.url}')
         return []
 
-    models: list[Model] = []
+    all_models: list[Model] = []
     exact_models: list[Model] = []
     items = result.json().get('items', [])
     for item in items:
-        models.append(Model(item))
+        all_models.append(Model(item))
 
     if exact:
-        for model in models:
+        for model in all_models:
             model_names = [model.name.lower()]
             version_names = [v.name.lower() for v in model.versions]
             file_names = [f.name.lower() for v in model.versions for f in v.files]
@@ -161,57 +162,51 @@ def search_civitai(
 
     t1 = time.time()
     log.info(f'CivitAI result: code={result.status_code} exact={len(exact_models)} total={len(models)} time={t1-t0:.2f}')
-    return exact_models if len(exact_models) > 0 else models
+    models = exact_models if len(exact_models) > 0 else all_models
+    return models
 
 
-def models_to_dct(all_models:list, model_id:int=None):
-    dct = []
+def create_model_cards(all_models: list[Model]) -> str:
+    details = """
+        <div id="model-details">
+        </div>
+    """
+    cards = """
+        <div id="model-cards" class="extra-network-cards">
+            {cards}
+        </div>
+    """
+    card = """
+        <div class="card" data-id="{id}" onclick="modelCardClick({id})">
+            <div class="overlay"><div class="name">{name}</div></div>
+            <div class="version">{type}</div>
+            <img class="preview" src="{preview}" alt="{name}" loading="lazy" />
+        </div>
+    """
+    all_cards = ''
     for model in all_models:
-        if model_id is not None and model.id != model_id:
-            continue
-        model_dct = model.__dict__.copy()
-        versions_dct = []
+        previews = []
         for version in model.versions:
-            version_dct = version.__dict__.copy()
-            version_dct['files'] = [f.__dict__.copy() for f in version.files]
-            version_dct['images'] = [i.__dict__.copy() for i in version.images]
-            versions_dct.append(version_dct)
-        model_dct['versions'] = versions_dct
-        dct.append(model_dct)
-    return dct
+            for image in version.images:
+                if image.url and len(image.url) > 0:
+                    previews.append(image.url)
+        if len(previews) == 0:
+            previews = ['./sd_extra_networks/thumb?filename=html/card-no-preview.png']
+        all_cards += card.format(id=model.id, name=model.name, type=model.type, preview=previews[0])
+    html = details + cards.format(cards=all_cards)
+    return html
 
 
-def print_models(models: list[Model]):
-    if debug:
-        from rich import print as dbg
-    else:
-        dbg = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
-    for model in models:
+def print_models(all_models: list[Model]):
+    for model in all_models:
         log.info(f' {model}')
-        dbg('Model', model.dct)
+        log.trace('Model', model.dct)
         for version in model.versions:
             log.info(f'  {version}')
-            dbg('ModelVersion', version.dct)
+            log.trace('ModelVersion', version.dct)
             for file in version.files:
                 log.info(f'   {file}')
-                dbg('ModelFile', file.dct)
+                log.trace('ModelFile', file.dct)
             for image in version.images:
                 log.info(f'   {image}')
-                dbg('ModelImage', image.dct)
-
-
-if __name__ == "__main__":
-    sys.argv.pop(0)
-    txt = ' '.join(sys.argv)
-    res = search_civitai(
-        query=txt,
-        # tag = '',
-        # types = '',
-        # sort = 'Most Downloaded',
-        # period = 'Year',
-        # nsfw = True,
-        # base = [],
-        # exact= True,
-        # limit=100,
-    )
-    print_models(res)
+                log.trace('ModelImage', image.dct)

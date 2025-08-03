@@ -16,14 +16,12 @@ def create_ui():
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
-            gr.HTML(elem_id="models_progress", value="")
-            models_image = gr.Image(elem_id="models_image", show_label=False, interactive=False, type='pil')
-            models_outcome = gr.HTML(elem_id="models_error", value="")
+            models_outcome = gr.HTML(elem_id="models_outcome", value="")
             models_file = gr.File(label='', visible=False)
 
         with gr.Column(elem_id='models_input_container', scale=3):
 
-            with gr.Tab(label="Current"):
+            with gr.Tab(label="Current", elem_id="models_current_tab"):
                 def create_modules_table(rows: list):
                     html = """
                         <table class="simple-table">
@@ -78,7 +76,7 @@ def create_ui():
 
                 model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_meta])
 
-            with gr.Tab(label="List"):
+            with gr.Tab(label="List", elem_id="models_list_tab"):
                 def create_models_table(rows: list):
                     from modules import sd_detect
                     html = """
@@ -137,8 +135,8 @@ def create_ui():
                 model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
                 model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
 
-            with gr.Tab(label="Metadata"):
-                from modules.models_civitai import civit_search_metadata, civit_update_metadata
+            with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):
+                from modules.civitai.metadata_civitai import civit_search_metadata, civit_update_metadata
                 with gr.Row():
                     gr.HTML('<h2>Fetch model preview metadata</h2><br>')
                 with gr.Row():
@@ -150,11 +148,11 @@ def create_ui():
                 civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_metadata])
 
 
-            with gr.Tab(label="Loader"):
+            with gr.Tab(label="Loader", elem_id="models_loader_tab"):
                 from modules import ui_models_load
                 ui_models_load.create_ui(models_outcome, models_file)
 
-            with gr.Tab(label="Merge"):
+            with gr.Tab(label="Merge", elem_id="models_merge_tab"):
                 from modules.merging import merge_methods
                 from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS, interpolate
                 from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
@@ -398,7 +396,7 @@ def create_ui():
                     ]
                 )
 
-            with gr.Tab(label="Replace"):
+            with gr.Tab(label="Replace", elem_id="models_replace_tab"):
                 with gr.Row():
                     gr.HTML('<h2>&nbspReplace model components<br></h2>')
                 with gr.Row():
@@ -470,8 +468,36 @@ def create_ui():
                     outputs=[models_outcome]
                 )
 
-            with gr.Tab(label="CivitAI"):
-                from modules.models_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model
+            with gr.Tab(label="CivitAI", elem_id="models_civitai_tab"):
+                def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token):
+                    from modules.civitai.search_civitai import search_civitai, create_model_cards
+                    results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw, types=civit_type, base=civit_base, token=civit_token)
+                    html = create_model_cards(results)
+                    return html
+
+                with gr.Row():
+                    gr.HTML('<h2>Search & Download</h2>')
+                with gr.Row(elem_id='civitai_search_row'):
+                    civit_search_text = gr.Textbox(label='', placeholder='keyword', elem_id="civit_search_text")
+                    civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_text")
+                    civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True)
+                with gr.Accordion(label='Search options', open=False, elem_id="civitai_search_options"):
+                    with gr.Row():
+                        civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
+                    with gr.Row():
+                        civit_type = gr.Textbox(label='Model type', placeholder='Checkpoint, LORA, ...')
+                    with gr.Row():
+                        civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
+                    with gr.Row():
+                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
+                # sort, period, limit
+                civit_inputs = [civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token]
+                civit_search_text_btn.click(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
+                civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
+                civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
+
+                """
+                from modules.civitai.legacy_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model
 
                 with gr.Row():
                     gr.HTML('<h2>Search for models</h2>')
@@ -527,8 +553,9 @@ def create_ui():
                 civit_results2.change(fn=is_visible, inputs=[civit_results2], outputs=[civit_results2])
                 civit_results3.change(fn=is_visible, inputs=[civit_results3], outputs=[civit_results3])
                 civit_download_model_btn.click(fn=civit_download_model, inputs=[civit_selected, civit_name, civit_path, civit_model_type, civit_token], outputs=[models_outcome])
+                """
 
-            with gr.Tab(label="Huggingface"):
+            with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):
                 from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token
                 with gr.Column(scale=6):
                     with gr.Row():

@@ -4,6 +4,7 @@ import torch
 import diffusers
 import onnxruntime as ort
 
+
 initialized = False
 
 

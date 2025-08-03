@@ -111,6 +111,10 @@ class Api:
         from modules.api import nudenet
         nudenet.register_api()
 
+        # civitai api
+        from modules.civitai import api_civitai
+        api_civitai.register_api()
+
 
     def add_api_route(self, path: str, endpoint, **kwargs):
         if (shared.cmd_opts.auth or shared.cmd_opts.auth_file) and shared.cmd_opts.api_only:
