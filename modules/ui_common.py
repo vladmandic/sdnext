@@ -67,7 +67,7 @@ def delete_files(js_data, files, all_files, index):
     for _image_index, filedata in enumerate(files, start_index):
         try:
             fn = filedata['name']
-            if os.path.isfile(fn):
+            if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
                 os.remove(fn)
                 if fn in all_files:
@@ -75,11 +75,11 @@ def delete_files(js_data, files, all_files, index):
                 shared.log.info(f'Delete: image="{fn}"')
             base, _ext = os.path.splitext(fn)
             desc = f'{base}.txt'
-            if os.path.exists(desc):
+            if os.path.exists(desc) and os.path.isfile(desc):
                 os.remove(desc)
                 shared.log.info(f'Delete: text="{fn}"')
         except Exception as e:
-            shared.log.error(f'Delete: image="{fn}" {e}')
+            shared.log.error(f'Delete: file="{fn}" {e}')
     deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
     return all_files, plaintext_to_html(f"Deleted: {deleted}", ['performance'])
 

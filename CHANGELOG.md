@@ -21,6 +21,8 @@
   - updated *models -> list models* tab  
   - updated *models -> metadata* tab  
   - more css optimizations and styling  
+  - gallery bypass browser cache for thumbnails  
+  - gallery safer delete operation  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  

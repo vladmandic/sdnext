@@ -6,6 +6,7 @@ from PIL import Image
 from modules import shared, ui_symbols, ui_common, images, video
 from modules.ui_components import ToolButton
 
+
 def read_media(fn):
     fn = unquote(fn).replace('%3A', ':')
     if not os.path.isfile(fn):

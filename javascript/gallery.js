@@ -192,7 +192,8 @@ async function addSeparators() {
 async function delayFetchThumb(fn) {
   while (outstanding > 16) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
   outstanding++;
-  const res = await fetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}`, { priority: 'low' });
+  const ts = Date.now().toString();
+  const res = await fetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
   if (!res.ok) {
     error(`fetchThumb: ${res.statusText}`);
     outstanding--;
