@@ -51,8 +51,9 @@ def install_nunchaku():
         suffix = 'x86_64' if arch == 'linux' else 'win_amd64'
         url = os.environ.get('NUNCHAKU_COMMAND', None)
         if url is None:
+            arch = f'{arch}_' if arch == 'linux' else ''
             url = f'https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-{ver}'
-            url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}_{suffix}.whl'
+            url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}{suffix}.whl'
         cmd = f'install --upgrade {url}'
         # pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
         log.debug(f'Nunchaku: install="{url}"')

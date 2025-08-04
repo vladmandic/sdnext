@@ -5,6 +5,7 @@
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
     new image foundational model with 20B params and using Qwen-2.5 as text-encoder!  
+    available for text-to-image workflows, image-editing workflows will follow soon  
     *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
     available via *networks -> models -> reference*  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
@@ -61,6 +62,7 @@
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
   - fix nunchaku fallback on unsupported model  
+  - fix nunchaku windows download links  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  
