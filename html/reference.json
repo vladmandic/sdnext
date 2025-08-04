@@ -195,6 +195,14 @@
     "extras": "sampler: Default, cfg_scale: 1.0"
   },
 
+  "Qwen-Image": {
+    "path": "Qwen/Qwen-Image",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": " Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
+    "skip": true,
+    "extras": ""
+  },
+ 
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",
     "preview": "ostris--Flex.2-preview.jpg",

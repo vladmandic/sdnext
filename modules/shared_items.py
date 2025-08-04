@@ -45,6 +45,7 @@ pipelines = {
     'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
+    'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),

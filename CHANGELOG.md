@@ -3,13 +3,17 @@
 ## Update for 2025-08-04
 
 - **Models**  
+  - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
+    new image foundational model with 20B params and using Qwen-2.5 as text-encoder!  
+    *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
+    available via *networks -> models -> reference*  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
     new 12B base model compatible with FLUX.1-Dev from *Black Forest Labs* with opinionated aesthetics and aesthetic preferences in mind  
-    simply select in *networks -> models -> reference*  
+    available via *networks -> models -> reference*  
   - [Chroma](https://huggingface.co/lodestones/Chroma)  
     great model based on FLUX.1 and then redesigned and retrained by *lodestones*  
     update with latest **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
-    simply select in *networks -> models -> reference*  
+    available via *networks -> models -> reference*  
 - **UI**  
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  

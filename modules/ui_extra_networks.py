@@ -932,7 +932,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return pages
 
     def ui_scan_click(title):
-        from modules.models_civitai import civit_search_metadata
+        from modules.civitai.metadata_civitai import civit_search_metadata
         civit_search_metadata(title)
         return ui_refresh_click(title)
 
