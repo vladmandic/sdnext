@@ -244,7 +244,8 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
 
     # civitai search
     if shared.opts.sd_checkpoint_autodownload and s.startswith("https://civitai.com/api/download/models"):
-        fn = modelloader.download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
+        from modules.civitai.download_civitai import download_civit_model_thread
+        fn = download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
         if fn is not None:
             checkpoint_info = CheckpointInfo(fn)
             return checkpoint_info

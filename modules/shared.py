@@ -514,26 +514,43 @@ options_templates.update(options_section(('image-metadata', "Image Metadata"), {
 }))
 
 options_templates.update(options_section(('ui', "User Interface"), {
+    "themes_sep_ui": OptionInfo("<h2>Theme options</h2>", "", gr.HTML),
     "theme_type": OptionInfo("Standard", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
     "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
     "gradio_theme": OptionInfo("black-teal", "UI theme", gr.Dropdown, lambda: {"choices": theme.list_themes()}, refresh=theme.refresh_themes),
-    "ui_locale": OptionInfo("Auto", "UI locale", gr.Dropdown, lambda: {"choices": theme.list_locales()}),
-    "subpath": OptionInfo("", "Mount URL subpath"),
+
+    "quicksetting_sep_images": OptionInfo("<h2>Quicksettings</h2>", "", gr.HTML),
+    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
+
+    "server_sep_ui": OptionInfo("<h2>Startup & Server Options</h2>", "", gr.HTML),
     "autolaunch": OptionInfo(False, "Autolaunch browser upon startup"),
+    "motd": OptionInfo(False, "Show MOTD"),
+    "subpath": OptionInfo("", "Mount URL subpath"),
+    "ui_request_timeout": OptionInfo(30000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 120000, "step": 10}),
+
+    "cards_sep_ui": OptionInfo("<h2>Card options</h2>", "", gr.HTML),
+    "extra_networks_card_size": OptionInfo(140, "UI card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
+    "extra_networks_card_cover": OptionInfo("sidebar", "UI position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
+    "extra_networks_card_square": OptionInfo(True, "UI disable variable aspect ratio"),
+
+    "other_sep_ui": OptionInfo("<h2>Other...</h2>", "", gr.HTML),
+    "ui_locale": OptionInfo("Auto", "UI locale", gr.Dropdown, lambda: {"choices": theme.list_locales()}),
     "font_size": OptionInfo(14, "Font size", gr.Slider, {"minimum": 8, "maximum": 32, "step": 1}),
     "aspect_ratios": OptionInfo("1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21", "Allowed aspect ratios"),
-    "logmonitor_show": OptionInfo(True, "Show log view"),
-    "logmonitor_refresh_period": OptionInfo(5000, "Log view update period", gr.Slider, {"minimum": 0, "maximum": 30000, "step": 25}),
-    "ui_request_timeout": OptionInfo(30000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 120000, "step": 10}),
-    "motd": OptionInfo(False, "Show MOTD"),
     "compact_view": OptionInfo(False, "Compact view"),
     "ui_columns": OptionInfo(4, "Gallery view columns", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1}),
+
+    "images_sep_log": OptionInfo("<h2>Log Display</h2>", "", gr.HTML),
+    "logmonitor_show": OptionInfo(True, "Show log view"),
+    "logmonitor_refresh_period": OptionInfo(5000, "Log view update period", gr.Slider, {"minimum": 0, "maximum": 30000, "step": 25}),
+
+    "images_sep_ui": OptionInfo("<h2>Outputs & Images</h2>", "", gr.HTML),
     "return_grid": OptionInfo(True, "Show grid in results"),
     "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
     "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
     "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
     "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
-    "quicksettings_list": OptionInfo(["sd_model_checkpoint"], "Quicksettings list", gr.Dropdown, lambda: {"multiselect":True, "choices": opts.list()}),
+
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {
@@ -642,11 +659,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks": OptionInfo(["All"], "Available networks", gr.Dropdown, lambda: {"multiselect":True, "choices": ['All'] + [en.title for en in extra_networks]}),
     "extra_networks_sort": OptionInfo("Default", "Sort order", gr.Dropdown, {"choices": ['Default', 'Name [A-Z]', 'Name [Z-A]', 'Date [Newest]', 'Date [Oldest]', 'Size [Largest]', 'Size [Smallest]']}),
     "extra_networks_view": OptionInfo("gallery", "UI view", gr.Radio, {"choices": ["gallery", "list"]}),
-    "extra_networks_card_cover": OptionInfo("sidebar", "UI position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
-    "extra_networks_height": OptionInfo(0, "UI height (%)", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}), # set in ui_javascript
     "extra_networks_sidebar_width": OptionInfo(35, "UI sidebar width (%)", gr.Slider, {"minimum": 10, "maximum": 80, "step": 1}),
-    "extra_networks_card_size": OptionInfo(140, "UI card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
-    "extra_networks_card_square": OptionInfo(True, "UI disable variable aspect ratio"),
+    "extra_networks_height": OptionInfo(0, "UI height (%)", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}), # set in ui_javascript
     "extra_networks_fetch": OptionInfo(True, "UI fetch network info on mouse-over"),
     "extra_network_skip_indexing": OptionInfo(False, "Build info on first access", gr.Checkbox),
 

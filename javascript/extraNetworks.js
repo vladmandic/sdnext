@@ -110,8 +110,8 @@ function readCardDescription(page, item) {
 function getCardsForActivePage() {
   const pagename = getENActivePage();
   if (!pagename) return [];
-  const allCards = Array.from(gradioApp().querySelectorAll('.extra-network-cards > .card'));
-  const cards = allCards.filter((el) => el.dataset.page.toLowerCase().includes(pagename.toLowerCase()));
+  let allCards = Array.from(gradioApp().querySelectorAll('.extra-network-cards > .card'));
+  allCards = allCards.filter((el) => el.dataset.page?.toLowerCase().includes(pagename.toLowerCase()));
   // log('getCardsForActivePage', pagename, cards.length);
   return allCards;
 }

@@ -66,6 +66,10 @@ button {
   min-width: unset !important;
 }
 
+h4 {
+  margin: 0.2em 0em 0.2em 0em;
+}
+
 input[type='color'] {
   height: 32px;
   width: 64px;
@@ -120,6 +124,17 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 
 .image-container {
   overflow: auto;
+}
+
+.link {
+  background-color: var(--background-fill-primary);
+  cursor: pointer;
+  border-radius: var(--input-radius);
+  width: 2em;
+}
+
+.link:hover {
+  background-color: var(--button-primary-background-fill);
 }
 
 .gradio-dropdown, .block.gradio-slider, .block.gradio-checkbox, .block.gradio-textbox, .block.gradio-radio, .block.gradio-checkboxgroup, .block.gradio-number, .block.gradio-colorpicker {
@@ -1226,11 +1241,13 @@ table.settings-value-table td {
 }
 
 .extra-network-cards .card {
-  height: fit-content;
-  margin: 0 0 0.5em 0.5em;
-  position: relative;
-  scroll-margin-top: 0;
-  scroll-snap-align: start;
+    margin: 0 0 0.5em 0.5em;
+    position: relative;
+    scroll-margin-top: 0;
+    scroll-snap-align: start;
+    height: var(--card-size);
+    width: var(--card-size);
+    contain: strict;
 }
 
 .extra-network-cards .card .overlay {
@@ -1923,10 +1940,6 @@ div:has(>#tab-gallery-folders) {
   padding: 0.2em;
 }
 
-.docs-results {
-  background-color: var(--sd-group-background-color);
-}
-
 .docs-card {
   margin: 1em 0;
   background-color: var(--background-fill-primary);
@@ -1972,6 +1985,13 @@ div:has(>#tab-gallery-folders) {
     overflow: auto;
 }
 
+.model-config {
+  font-size: 0.8em !important;
+  opacity: 0.8;
+  max-height: 6em;
+  overflow-y: auto;
+}
+
 .simple-table tr {
   vertical-align: baseline;
 }
@@ -1980,11 +2000,34 @@ div:has(>#tab-gallery-folders) {
   padding: 0.2em !important;
 }
 
-.model-config {
-  font-size: 0.8em !important;
-  opacity: 0.8;
-  max-height: 6em;
+.simple-table tr {
+  vertical-align: baseline;
+}
+
+.simple-table thead tr {
+  background-color: var(--button-primary-border-color) !important;
+}
+
+.simple-table tr:nth-child(odd) {
+  background-color: var(--neutral-900);
+}
+
+.simple-table td {
+  padding: 0.2em !important;
+  white-space: pre-wrap;
+}
+
+.simple-table td div {
+  padding: 0.2em !important;
+  white-space: pre-wrap;
+  max-height: 7em;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+.simple-table td:nth-child(1) {
+  color: var(--button-primary-border-color);
+  font-weight: bold;
 }
 
 @keyframes move {

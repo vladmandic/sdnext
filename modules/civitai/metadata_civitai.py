@@ -1,7 +1,6 @@
 import os
 import re
 import time
-import json
 import gradio as gr
 from modules.shared import log, opts, req, readfile, max_workers
 
@@ -58,7 +57,8 @@ def civit_update_metadata():
         return html.format(tbody=tbody)
 
     log.debug('CivitAI update metadata: models')
-    from modules import ui_extra_networks, modelloader
+    from modules import ui_extra_networks
+    from modules.civitai.download_civitai import download_civit_meta
     pages = ui_extra_networks.get_pages('Model')
     if len(pages) == 0:
         return 'CivitAI update metadata: no models found'
@@ -75,7 +75,7 @@ def civit_update_metadata():
             if r.status_code == 200:
                 d = r.json()
                 model.id = d['modelId']
-                modelloader.download_civit_meta(model.fn, model.id)
+                download_civit_meta(model.fn, model.id)
                 fn = os.path.splitext(item['filename'])[0] + '.json'
                 model.meta = readfile(fn, silent=True)
                 model.name = model.meta.get('name', model.name)
@@ -158,64 +158,8 @@ def civit_search_model(name, tag, model_type):
     return res, gr.update(visible=len(data1) > 0, value=data1 if len(data1) > 0 else []), gr.update(visible=False, value=None), gr.update(visible=False, value=None)
 
 
-def civit_select1(evt: gr.SelectData, in_data):
-    model_id = in_data[evt.index[0]][0]
-    data2 = []
-    preview_img = None
-    for model in data:
-        if model['id'] == model_id:
-            for d in model['modelVersions']:
-                try:
-                    if d.get('images') is not None and len(d['images']) > 0 and len(d['images'][0]['url']) > 0:
-                        preview_img = d['images'][0]['url']
-                    data2.append([d.get('id', None), d.get('modelId', None) or model_id, d.get('name', None), d.get('baseModel', None), d.get('createdAt', None) or d.get('publishedAt', None)])
-                except Exception as e:
-                    log.error(f'CivitAI select: model="{in_data[evt.index[0]]}" {e}')
-                    log.error(f'CivitAI version data={type(d)}: {d}')
-    log.debug(f'CivitAI select: model="{in_data[evt.index[0]]}" versions={len(data2)}')
-    return data2, None, preview_img
-
-
-def civit_select2(evt: gr.SelectData, in_data):
-    variant_id = in_data[evt.index[0]][0]
-    model_id = in_data[evt.index[0]][1]
-    data3 = []
-    for model in data:
-        if model['id'] == model_id:
-            for variant in model['modelVersions']:
-                if variant['id'] == variant_id:
-                    for f in variant['files']:
-                        try:
-                            if os.path.splitext(f['name'])[1].lower() in ['.safetensors', '.ckpt', '.pt', '.pth', '.bin']:
-                                data3.append([f['name'], round(f['sizeKB']), json.dumps(f['metadata']), f['downloadUrl']])
-                        except Exception:
-                            pass
-    log.debug(f'CivitAI select: model="{in_data[evt.index[0]]}" files={len(data3)}')
-    return data3
-
-
-def civit_select3(evt: gr.SelectData, in_data):
-    log.debug(f'CivitAI select: variant={in_data[evt.index[0]]}')
-    return in_data[evt.index[0]][3], in_data[evt.index[0]][0], gr.update(interactive=True)
-
-
-def civit_download_model(model_url: str, model_name: str, model_path: str, model_type: str, token: str = None):
-    if model_url is None or len(model_url) == 0:
-        return 'No model selected'
-    try:
-        from modules.modelloader import download_civit_model
-        res = download_civit_model(model_url, model_name, model_path, model_type, token=token)
-    except Exception as e:
-        res = f"CivitAI model downloaded error: model={model_url} {e}"
-        log.error(res)
-        return res
-    from modules.sd_models import list_models  # pylint: disable=W0621
-    list_models()
-    return res
-
-
 def atomic_civit_search_metadata(item, results):
-    from modules.modelloader import download_civit_preview, download_civit_meta
+    from modules.civitai.download_civitai import download_civit_preview, download_civit_meta
     if item is None:
         return
     try:
@@ -344,9 +288,3 @@ def civit_search_metadata(title: str = None):
     t1 = time.time()
     log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
     return create_search_metadata_table(results)
-
-
-def civitai_update_token(token):
-    log.debug('CivitAI update token')
-    opts.civitai_token = token
-    opts.save()

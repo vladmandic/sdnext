@@ -475,13 +475,28 @@ def create_ui():
                     html = create_model_cards(results)
                     return html
 
+                def civitai_update_token(token):
+                    log.debug('CivitAI update token')
+                    opts.civitai_token = token
+                    opts.save()
+
+                def civitai_download(model_url, model_name, model_type, model_path, civit_token, model_output):
+                    from modules.civitai.download_civitai import download_civit_model
+                    msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
+                    yield msg + model_output
+                    download_civit_model(model_url, model_name, model_path, model_type, civit_token)
+                    yield model_output
+
                 with gr.Row():
                     gr.HTML('<h2>Search & Download</h2>')
                 with gr.Row(elem_id='civitai_search_row'):
                     civit_search_text = gr.Textbox(label='', placeholder='keyword', elem_id="civit_search_text")
                     civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_text")
                     civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True)
-                with gr.Accordion(label='Search options', open=False, elem_id="civitai_search_options"):
+                with gr.Accordion(label='Advanced', open=False, elem_id="civitai_search_options"):
+                    civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
+                    with gr.Row():
+                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
                     with gr.Row():
                         civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
                     with gr.Row():
@@ -489,71 +504,17 @@ def create_ui():
                     with gr.Row():
                         civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
                     with gr.Row():
-                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
+                        civit_folder = gr.Textbox(label='Download folder', placeholder='optional folder for downloads')
+                with gr.Row():
+                    civitai_models_output = gr.HTML('', elem_id="civitai_models_output")
                 # sort, period, limit
+                _dummy = gr.Label(visible=False)  # dummy component to get argspec later
                 civit_inputs = [civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token]
-                civit_search_text_btn.click(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
-                civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
-                civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[models_outcome])
-
-                """
-                from modules.civitai.legacy_civitai import civitai_update_token, civit_search_model, civit_search_metadata, civit_select1, civit_select2, civit_select3, civit_download_model
-
-                with gr.Row():
-                    gr.HTML('<h2>Search for models</h2>')
-                with gr.Row():
-                    with gr.Column(scale=1):
-                        civit_model_type = gr.Dropdown(label='CivitAI model type', choices=['Model', 'LoRA', 'Embedding', 'VAE', 'Other'], value='Model')
-                    with gr.Column(scale=15):
-                        with gr.Row():
-                            civit_search_text = gr.Textbox('', label='Search models', placeholder='keyword')
-                            civit_search_tag = gr.Textbox('', label='', placeholder='tags')
-                            civit_search_btn = ToolButton(value=ui_symbols.search, interactive=True)
-                        with gr.Row():
-                            civit_search_res = gr.HTML('')
-                with gr.Row():
-                    gr.HTML('<h2>&nbspCivitAI download model<br></h2>')
-                with gr.Row():
-                    civit_download_model_btn = gr.Button(value="Download", variant='primary')
-                    gr.HTML('<span style="line-height: 2em">Select a model, model version and and model variant from the search results to download or enter model URL manually</span><br>')
-                with gr.Row():
-                    civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
-                    civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
-                with gr.Row():
-                    civit_name = gr.Textbox('', label='Model name', placeholder='select model from search results', visible=True)
-                    civit_selected = gr.Textbox('', label='Model URL', placeholder='select model from search results', visible=True)
-                    civit_path = gr.Textbox('', label='Download path', placeholder='optional subfolder path where to save model', visible=True)
-                with gr.Row():
-                    gr.HTML('<h2>Search results</h2>')
-                with gr.Row():
-                    civit_headers1 = ['ID', 'Name', 'Tags', 'Downloads', 'Rating']
-                    civit_types1 = ['number', 'str', 'str', 'number', 'number']
-                    civit_results1 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=civit_headers1, datatype=civit_types1, type='array', visible=False)
-                with gr.Row():
-                    with gr.Column():
-                        civit_headers2 = ['ID', 'ModelID', 'Name', 'Base', 'Created', 'Preview']
-                        civit_types2 = ['number', 'number', 'str', 'str', 'date', 'str']
-                        civit_results2 = gr.DataFrame(value=None, label='Model versions', show_label=True, interactive=False, wrap=True, headers=civit_headers2, datatype=civit_types2, type='array', visible=False)
-                    with gr.Column():
-                        civit_headers3 = ['Name', 'Size', 'Metadata', 'URL']
-                        civit_types3 = ['str', 'number', 'str', 'str']
-                        civit_results3 = gr.DataFrame(value=None, label='Model variants', show_label=True, interactive=False, wrap=True, headers=civit_headers3, datatype=civit_types3, type='array', visible=False)
-
-                def is_visible(component):
-                    visible = len(component) > 0 if component is not None else False
-                    return gr.update(visible=visible)
-
-                civit_search_text.submit(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_search_tag.submit(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_search_btn.click(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_results1.select(fn=civit_select1, inputs=[civit_results1], outputs=[civit_results2, civit_results3, models_image])
-                civit_results2.select(fn=civit_select2, inputs=[civit_results2], outputs=[civit_results3])
-                civit_results3.select(fn=civit_select3, inputs=[civit_results3], outputs=[civit_selected, civit_name, civit_search_btn])
-                civit_results1.change(fn=is_visible, inputs=[civit_results1], outputs=[civit_results1])
-                civit_results2.change(fn=is_visible, inputs=[civit_results2], outputs=[civit_results2])
-                civit_results3.change(fn=is_visible, inputs=[civit_results3], outputs=[civit_results3])
-                civit_download_model_btn.click(fn=civit_download_model, inputs=[civit_selected, civit_name, civit_path, civit_model_type, civit_token], outputs=[models_outcome])
-                """
+                civit_search_text_btn.click(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
+                civit_download_btn.click(fn=civitai_download, _js="downloadCivitModel", inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output], outputs=[civitai_models_output])
 
             with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):
                 from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token

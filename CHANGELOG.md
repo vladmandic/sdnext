@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-02
+## Update for 2025-08-04
 
 - **Models**  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
@@ -14,15 +14,21 @@
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  
     **Wiki** search: uses github api to search online wiki pages  
-  - quicksettings reset button to restore all quicksettings to default values  
-    because things do sometimes get wrong...  
   - updated real-time hints, thanks @CalamitousFelicitousness  
-  - updated *models -> current* tab   
+  - rewritten **CivitAI downloader**  
+    in *models -> civitai*  
+  - updated *models -> current* tab  
   - updated *models -> list models* tab  
   - updated *models -> metadata* tab  
-  - more css optimizations and styling  
+  - quicksettings reset button to restore all quicksettings to default values  
+    because things do sometimes get wrong...  
+  - redesign *settings -> user interface*  
   - gallery bypass browser cache for thumbnails  
   - gallery safer delete operation  
+  - more css optimizations and styling  
+  - *hint*: card layout  
+    card layout is used by networks, gallery, civitai search, etc.  
+    you can change card size in *settings -> user interface*  
 - **Offloading**
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
