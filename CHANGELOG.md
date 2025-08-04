@@ -1,10 +1,14 @@
 # Change Log for SD.Next
 
+## Blockers
+
+- Qwen: <https://github.com/huggingface/diffusers/issues/12066> 
+
 ## Update for 2025-08-04
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
-    new image foundational model with 20B params and using Qwen-2.5 as text-encoder!  
+    new image foundational model with 20B params DiT and using Qwen-2.5 8B as text-encoder!  
     available for text-to-image workflows, image-editing workflows will follow soon  
     *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
     available via *networks -> models -> reference*  
