@@ -189,7 +189,6 @@ def update_model_hashes():
         ckpt.shorthash = ckpt.sha256[0:10] if ckpt.sha256 is not None else None
         updated.append(ckpt)
         yield update_model_hashes_table(updated)
-    return
 
 
 def remove_hash(s):

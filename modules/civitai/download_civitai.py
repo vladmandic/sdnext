@@ -181,9 +181,8 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
 def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str = None):
     import threading
     if model_url is None or len(model_url) == 0:
-        err = 'Model download: no url provided'
-        shared.log.error(err)
-        return err
+        shared.log.error('Model download: no url provided')
+        return
     thread = threading.Thread(target=download_civit_model_thread, args=(model_name, model_url, model_path, model_type, token))
     thread.start()
     thread.join()
