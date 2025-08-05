@@ -28,7 +28,7 @@ def get_civitai(
         period:str = '', # AllTime, Year, Month, Week, Day
         nsfw:bool = None, # optional:bool
         limit:int = 0,
-        base:list[str] = [], # list
+        base:str = '',
         token:str = None,
         exact:bool = True,
 ):

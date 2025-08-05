@@ -279,8 +279,8 @@ function applyStyles(styles) {
   if (index > -1) newStyles.splice(index, 1);
   else newStyles.push(desiredStyle);
   gradioApp().querySelectorAll('.extra-network-cards .card').forEach((el) => {
-    if (newStyles.includes(el.getAttribute('data-name'))) el.style.boxShadow = '0 0 2px 4px var(--button-primary-border-color)';
-    else el.style.boxShadow = 'none';
+    if (newStyles.includes(el.getAttribute('data-name'))) el.classList.add('card-selected');
+    else el.classList.remove('card-selected');
   });
   return newStyles.join('|');
 }

@@ -1250,6 +1250,11 @@ table.settings-value-table td {
     contain: strict;
 }
 
+*.extra-network-cards .card-selected {
+  transform: scale(0.9);
+  box-shadow: 0 0 2em var(--button-primary-background-fill);
+}
+
 .extra-network-cards .card .overlay {
   background: none;
   width: 100%;

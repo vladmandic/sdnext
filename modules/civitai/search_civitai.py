@@ -7,6 +7,7 @@ from installer import install, log
 
 full_dct = False
 full_html = False
+base_models = ['', 'ODOR', 'SD 1.4', 'SD 1.5', 'SD 1.5 LCM', 'SD 1.5 Hyper', 'SD 2.0', 'SD 2.0 768', 'SD 2.1', 'SD 2.1 768', 'SD 2.1 Unclip', 'SDXL 0.9', 'SDXL 1.0', 'SD 3', 'SD 3.5', 'SD 3.5 Medium', 'SD 3.5 Large', 'SD 3.5 Large Turbo', 'Pony', 'Flux.1 S', 'Flux.1 D', 'Flux.1 Kontext', 'AuraFlow', 'SDXL 1.0 LCM', 'SDXL Distilled', 'SDXL Turbo', 'SDXL Lightning', 'SDXL Hyper', 'Stable Cascade', 'SVD', 'SVD XT', 'Playground v2', 'PixArt a', 'PixArt E', 'Hunyuan 1', 'Hunyuan Video', 'Lumina', 'Kolors', 'Illustrious', 'Mochi', 'LTXV', 'CogVideoX', 'NoobAI', 'Wan Video', 'Wan Video 1.3B t2v', 'Wan Video 14B t2v', 'Wan Video 14B i2v 480p', 'Wan Video 14B i2v 720p', 'HiDream', 'OpenAI', 'Imagen4', 'Other'] # noqa: E501
 
 
 @dataclass
@@ -100,7 +101,7 @@ def search_civitai(
         period:str = '', # (AllTime, Year, Month, Week, Day)
         nsfw:bool = None, # optional:bool
         limit:int = 0,
-        base:list[str] = [], # list
+        base:str = '', # list
         token:str = None,
         exact:bool = True,
 ):
@@ -128,7 +129,7 @@ def search_civitai(
     if len(period) > 0:
         dct['period'] = period
     if len(base) > 0:
-        dct['baseModels'] = ','.join(base)
+        dct['baseModels'] = base
     encoded = urlencode(dct)
 
     headers = {}

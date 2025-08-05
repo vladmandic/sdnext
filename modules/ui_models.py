@@ -469,8 +469,8 @@ def create_ui():
                 )
 
             with gr.Tab(label="CivitAI", elem_id="models_civitai_tab"):
+                from modules.civitai.search_civitai import search_civitai, create_model_cards, base_models
                 def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token):
-                    from modules.civitai.search_civitai import search_civitai, create_model_cards
                     results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw, types=civit_type, base=civit_base, token=civit_token)
                     html = create_model_cards(results)
                     return html
@@ -502,7 +502,8 @@ def create_ui():
                     with gr.Row():
                         civit_type = gr.Textbox(label='Model type', placeholder='Checkpoint, LORA, ...')
                     with gr.Row():
-                        civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
+                        # civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
+                        civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
                     with gr.Row():
                         civit_folder = gr.Textbox(label='Download folder', placeholder='optional folder for downloads')
                 with gr.Row():
