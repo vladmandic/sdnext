@@ -4,7 +4,7 @@
 
 - Qwen: <https://github.com/huggingface/diffusers/issues/12066> 
 
-## Update for 2025-08-04
+## Update for 2025-08-05
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -29,6 +29,7 @@
   - updated *models -> current* tab  
   - updated *models -> list models* tab  
   - updated *models -> metadata* tab  
+  - updated *extensions* tab
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  
   - redesign *settings -> user interface*  

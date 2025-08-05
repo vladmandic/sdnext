@@ -2,10 +2,6 @@
 
 Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
 
-## Current
-
-- Gallery: force refresh on delete
-
 ## Future Candidates
 
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
@@ -27,13 +23,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Upgrade: unblock `pydantic` and `albumentations`
   - see <https://github.com/Cschlaefli/automatic>
   - blocked by `insightface`
-
-## ModernUI
-
-- Extensions tab:
-  - full CSS redesign
-- Models tab: 
-  - CivitAI subtab: redesign downloader
 
 ### Under Consideration
 
