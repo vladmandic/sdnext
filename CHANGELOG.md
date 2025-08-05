@@ -8,7 +8,7 @@
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
-    new image foundational model with 20B params DiT and using Qwen-2.5 8B as text-encoder!  
+    new image foundational model with 20B params DiT and using Qwen2.5-VL-7B as the text-encoder!  
     available for text-to-image workflows, image-editing workflows will follow soon  
     *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
     available via *networks -> models -> reference*  
