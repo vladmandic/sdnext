@@ -376,6 +376,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return expected_keys
 
+    def update_param_name(self, param_name: str) -> str:
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return param_name
+
     @property
     def is_trainable(self):
         return False
