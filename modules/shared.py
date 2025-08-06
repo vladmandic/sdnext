@@ -693,7 +693,7 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
 }))
 
-options_templates.update(options_section((None, "Hidden options"), {
+options_templates.update(options_section(('hidden_options', "Hidden options"), {
     # internal options
     "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
     "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),

@@ -119,6 +119,9 @@ def run_settings(*args):
     changed = []
     for key, value, comp in zip(shared.opts.data_labels.keys(), args, components):
         if comp == dummy_component or value=='dummy': # or getattr(comp, 'visible', True) is False or key in hidden_list:
+            actual = shared.opts.data.get(key, None)  # ensure the key is in data
+            default = shared.opts.data_labels[key].default
+            # shared.log.warning(f'Setting skip: key={key} value={value} actual={actual} default={default} comp={comp}')
             continue
         if not shared.opts.same_type(value, shared.opts.data_labels[key].default):
             shared.log.error(f'Setting bad value: {key}={value} expecting={type(shared.opts.data_labels[key].default).__name__}')
@@ -191,6 +194,7 @@ def create_ui():
             result = gr.HTML(elem_id="settings_result")
             script_callbacks.ui_settings_callback() # let extensions create settings
             sections = []
+            options_count = len(shared.opts.data_labels)
             for item in shared.opts.data_labels.values(): # get unique sections from all items
                 if len(item.section) == 2:
                     section_id, section_text = item.section
@@ -203,7 +207,7 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
-            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))}')
+            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))} quicksettings={len(quicksettings_list)}')
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:
@@ -228,11 +232,13 @@ def create_ui():
                                         current_items.append(key)
                                         components.append(component)
                         create_dirty_indicator(section_id, current_items)
+                components_count = len(components)
+                if components_count != options_count:
+                    shared.log.error(f'Settings: count mismatch: options={options_count} components={components_count}')
 
                 with gr.TabItem("Show all pages", elem_id="settings_show_all_pages"):
                     create_dirty_indicator("show_all_pages", [])
                 request_notifications = gr.Button(value='Request browser notifications', elem_id="request_notifications", visible=False)
-
 
         with gr.TabItem("Update", id="system_update", elem_id="tab_update"):
             from modules import update

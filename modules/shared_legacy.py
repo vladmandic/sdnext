@@ -9,7 +9,7 @@ class LegacyOption(OptionInfo):
         super().__init__(*args, **kwargs)
 
 
-legacy_options = options_section((None, "Legacy options"), {
+legacy_options = options_section(('legacy_options', "Legacy options"), {
     "ldsr_models_path": LegacyOption(os.path.join(paths.models_path, 'LDSR'), "LDSR Path", gr.Textbox, { "visible": False}),
     "interrogate_clip_skip_categories": LegacyOption(["artists", "movements", "flavors"], "CLiP: skip categories", gr.CheckboxGroup, {"choices": [], "visible":False}),
     "lora_legacy": LegacyOption(False, "LoRA load using legacy method", gr.Checkbox, {"visible": False}),
