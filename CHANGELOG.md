@@ -31,6 +31,8 @@ And (*as always*) many bugfixes and improvements to existing features!
     great model based on FLUX.1 and then redesigned and retrained by *lodestones*  
     update with latest **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
     available via *networks -> models -> reference*  
+**Torch**  
+  - Set default for ROCm and OpenVINO to `torch==2.8.0`  
 - **UI**  
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  

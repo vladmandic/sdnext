@@ -738,13 +738,13 @@ def install_rocm_zluda():
         if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
-            elif rocm.version == "6.3":
+            else: # oldest rocm version on nightly is 6.3
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
-            else: # oldest rocm version on nightly is 6.2.4
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.2.4')
         else:
-            if rocm.version is None or float(rocm.version) >= 6.3: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.3 torchvision==0.22.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+            if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+rocm6.4 torchvision==0.23.0+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
+            elif rocm.version == "6.3":
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+rocm6.3 torchvision==0.23.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
             elif rocm.version == "6.2":
                 # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
@@ -804,6 +804,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
+        # torch 2.8 segfaults with torch.compile: https://github.com/pytorch/pytorch/issues/159974
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+xpu torchvision==0.22.1+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
@@ -815,9 +816,9 @@ def install_openvino():
     #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.13')
     log.info('OpenVINO: selected')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1 torchvision==0.22.1')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cpu torchvision==0.22.1+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0+cpu --index-url https://download.pytorch.org/whl/cpu')
 
     install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.2.0'), 'openvino')
     install(os.environ.get('NNCF_COMMAND', 'nncf==2.17.0'), 'nncf')
