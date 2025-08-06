@@ -2,15 +2,27 @@
 
 ## Blockers
 
-- Qwen: <https://github.com/huggingface/diffusers/issues/12066> 
+- Qwen with offloading: <https://github.com/huggingface/diffusers/issues/12066> 
 
-## Update for 2025-08-05
+## Update for 2025-08-06
+
+### Highlights for 2025-08-06
+
+This time we have several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release) and [Chroma](https://huggingface.co/lodestones/Chroma)  
+Continuing with major UI work, there is new embedded Docs/Wiki search, redesigned CivitAI integration and quite a few UI updates!  
+On the compute side, new profiles for high-vram GPUs and offloading improvements  
+And (*as always*) many bugfixes and improvements to existing features!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-08-06
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
     new image foundational model with 20B params DiT and using Qwen2.5-VL-7B as the text-encoder!  
     available for text-to-image workflows, image-editing workflows will follow soon  
     *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
+    recommended params: *steps=50, attention-guidance=4*  
     available via *networks -> models -> reference*  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
     new 12B base model compatible with FLUX.1-Dev from *Black Forest Labs* with opinionated aesthetics and aesthetic preferences in mind  
