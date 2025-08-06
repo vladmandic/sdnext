@@ -228,12 +228,8 @@ def civit_search_metadata(title: str = None):
     def create_search_metadata_table(rows):
         html = """
             <table class="simple-table">
-                <thead>
-                    <tr><th>Name</th><th>ID</th><th>Type</th><th>Code</th><th>Hash</th><th>Size</th><th>Note</th></tr>
-                </thead>
-                <tbody>
-                    {tbody}
-                </tbody>
+                <thead><tr><th>Name</th><th>ID</th><th>Type</th><th>Code</th><th>Hash</th><th>Size</th><th>Note</th></tr></thead>
+                <tbody>{tbody}</tbody>
             </table>
         """
         tbody = ''
@@ -254,14 +250,12 @@ def civit_search_metadata(title: str = None):
                 log.error(f'Model list: row={row} {e}')
         return html.format(tbody=tbody)
 
-
     from modules.ui_extra_networks import get_pages
     results = []
     scanned, skipped = 0, 0
     t0 = time.time()
     candidates = []
     re_skip = [r.strip() for r in opts.extra_networks_scan_skip.split(',') if len(r.strip()) > 0]
-    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"} skip={re_skip}')
     for page in get_pages():
         if type(title) == str:
             if page.title != title:
@@ -276,6 +270,7 @@ def civit_search_metadata(title: str = None):
                 continue
             scanned += 1
             candidates.append(item)
+    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"} workers={max_workers} skip={len(re_skip)} items={len(candidates)}')
     import concurrent
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_items = {}
@@ -287,4 +282,4 @@ def civit_search_metadata(title: str = None):
 
     t1 = time.time()
     log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
-    return create_search_metadata_table(results)
+    yield create_search_metadata_table(results)

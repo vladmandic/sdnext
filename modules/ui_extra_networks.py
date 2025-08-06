@@ -933,7 +933,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def ui_scan_click(title):
         from modules.civitai.metadata_civitai import civit_search_metadata
-        civit_search_metadata(title)
+        for _generator in civit_search_metadata(title): # need to read generator output so python does not optimize function away
+            pass
         return ui_refresh_click(title)
 
     def ui_save_click():
