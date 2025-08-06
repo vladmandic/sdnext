@@ -62,7 +62,6 @@ def main_args():
     group_http.add_argument('--docs', default=os.environ.get("SD_DOCS", False), action='store_true', help = "Mount API docs, default: %(default)s")
     group_http.add_argument("--auth", type=str, default=os.environ.get("SD_AUTH", None), help='Set access authentication like "user:pwd,user:pwd""')
     group_http.add_argument("--auth-file", type=str, default=os.environ.get("SD_AUTHFILE", None), help='Set access authentication using file, default: %(default)s')
-    group_http.add_argument('--api-only', default=os.environ.get("SD_APIONLY", False), action='store_true', help = "Run in API only mode without starting UI")
     group_http.add_argument("--allowed-paths", nargs='+', default=[], type=str, required=False, help="add additional paths to paths allowed for web access")
     group_http.add_argument("--share", default=os.environ.get("SD_SHARE", False), action='store_true', help="Enable UI accessible through Gradio site, default: %(default)s")
     group_http.add_argument("--insecure", default=os.environ.get("SD_INSECURE", False), action='store_true', help="Enable extensions tab regardless of other options, default: %(default)s")
@@ -89,6 +88,7 @@ def compatibility_args():
     group_compat.add_argument("--disable-extension-access", default=False, action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--api", action='store_true', help=argparse.SUPPRESS, default=True)
     group_compat.add_argument("--api-auth", type=str, help=argparse.SUPPRESS, default=None)
+    group_compat.add_argument('--api-only', default=False, help=argparse.SUPPRESS)
     group_compat.add_argument("--disable-queue", default=os.environ.get("SD_DISABLEQUEUE", False), action='store_true', help=argparse.SUPPRESS)
 
 

@@ -72,6 +72,9 @@ And (*as always*) many bugfixes and improvements to existing features!
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
   - update requirements/packages  
+- **Other**
+  - remove LDSR  
+  - remove `api-only` cli option  
 - **Fixes**  
   - refactor legacy processing loop  
   - fix settings components mismatch  

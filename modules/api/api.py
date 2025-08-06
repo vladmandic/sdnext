@@ -117,8 +117,6 @@ class Api:
 
 
     def add_api_route(self, path: str, endpoint, **kwargs):
-        if (shared.cmd_opts.auth or shared.cmd_opts.auth_file) and shared.cmd_opts.api_only:
-            kwargs['dependencies'] = [Depends(self.auth)]
         if shared.opts.subpath is not None and len(shared.opts.subpath) > 0:
             self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint, **kwargs)
         self.app.add_api_route(path, endpoint, **kwargs)

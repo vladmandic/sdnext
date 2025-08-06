@@ -221,10 +221,7 @@ def start_server(immediate=True, server=None):
         installer.log.trace('Logging: level=trace')
         server.wants_restart = False
     else:
-        if args.api_only:
-            uvicorn = server.api_only()
-        else:
-            uvicorn = server.webui(restart=not immediate)
+        uvicorn = server.webui(restart=not immediate)
     if args.profile:
         pr.disable()
         installer.print_profile(pr, 'WebUI')

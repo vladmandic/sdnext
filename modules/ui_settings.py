@@ -119,8 +119,8 @@ def run_settings(*args):
     changed = []
     for key, value, comp in zip(shared.opts.data_labels.keys(), args, components):
         if comp == dummy_component or value=='dummy': # or getattr(comp, 'visible', True) is False or key in hidden_list:
-            actual = shared.opts.data.get(key, None)  # ensure the key is in data
-            default = shared.opts.data_labels[key].default
+            # actual = shared.opts.data.get(key, None)  # ensure the key is in data
+            # default = shared.opts.data_labels[key].default
             # shared.log.warning(f'Setting skip: key={key} value={value} actual={actual} default={default} comp={comp}')
             continue
         if not shared.opts.same_type(value, shared.opts.data_labels[key].default):

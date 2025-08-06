@@ -413,23 +413,5 @@ def webui(restart=False):
     return shared.demo.server
 
 
-def api_only():
-    start_common()
-    from fastapi import FastAPI
-    app = FastAPI(**fastapi_args)
-    modules.api.middleware.setup_middleware(app, shared.cmd_opts)
-    shared.api = create_api(app)
-    shared.api.register()
-    shared.api.wants_restart = False
-    modules.script_callbacks.app_started_callback(None, app)
-    modules.sd_models.write_metadata()
-    log.info(f"Startup time: {timer.startup.summary()}")
-    server = shared.api.launch()
-    return server
-
-
 if __name__ == "__main__":
-    if shared.cmd_opts.api_only:
-        api_only()
-    else:
-        webui()
+    webui()
