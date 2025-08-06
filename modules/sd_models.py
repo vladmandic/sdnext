@@ -10,8 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
-from modules.timer import Timer, process as process_timer
+from modules import timer, paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -226,9 +225,9 @@ def move_model(model, device=None, force=False):
     except Exception as e1:
         t1 = time.time()
         shared.log.error(f'Model move: device={device} {e1}')
-    if 'move' not in process_timer.records:
-        process_timer.records['move'] = 0
-    process_timer.records['move'] += t1 - t0
+    if 'move' not in timer.process.records:
+        timer.process.records['move'] = 0
+    timer.process.records['move'] += t1 - t0
     if os.environ.get('SD_MOVE_DEBUG', None) is not None or (t1-t0) > 2:
         shared.log.debug(f'Model move: device={device} class={model.__class__.__name__} accelerate={getattr(model, "has_accelerate", False)} fn={fn} time={t1-t0:.2f}') # pylint: disable=protected-access
     devices.torch_gc()
@@ -539,11 +538,9 @@ def set_defaults(sd_model, checkpoint_info):
         sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=80, colour='#327fba')
 
 
-def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): # pylint: disable=unused-argument
-    if timer is None:
-        timer = Timer()
+def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: disable=unused-argument
     logging.getLogger("diffusers").setLevel(logging.ERROR)
-    timer.record("diffusers")
+    timer.load.record("diffusers")
     diffusers_load_config = {
         "low_cpu_mem_usage": True,
         "torch_dtype": devices.dtype,
@@ -598,7 +595,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             vae = sd_vae.load_vae_diffusers(checkpoint_info.path, vae_file, vae_source)
             if vae is not None:
                 diffusers_load_config["vae"] = vae
-                timer.record("vae")
+                timer.load.record("vae")
 
         # load with custom loader
         if sd_model is None:
@@ -632,7 +629,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
 
         add_noise_pred_to_diffusers_callback(sd_model)
 
-        timer.record("load")
+        timer.load.record("load")
 
         if op == 'refiner':
             model_data.sd_refiner = sd_model
@@ -640,7 +637,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             model_data.sd_model = sd_model
 
         reload_text_encoder(initial=True) # must be before embeddings
-        timer.record("te")
+        timer.load.record("te")
 
         if debug_load:
             shared.log.trace(f'Model components: {list(get_signature(sd_model).values())}')
@@ -649,7 +646,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
         sd_model.embedding_db = textual_inversion.EmbeddingDatabase()
         sd_model.embedding_db.add_embedding_dir(shared.opts.embeddings_dir)
         sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)
-        timer.record("embeddings")
+        timer.load.record("embeddings")
 
         from modules import prompt_parser_diffusers
         prompt_parser_diffusers.insert_parser_highjack(sd_model.__class__.__name__)
@@ -657,7 +654,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
 
         set_diffuser_options(sd_model, vae, op, offload=False)
         sd_model = model_quant.do_post_load_quant(sd_model, allow=allow_post_quant) # run this before move model so it can be compressed in CPU
-        timer.record("options")
+        timer.load.record("options")
 
         set_diffuser_offload(sd_model, op)
 
@@ -669,14 +666,14 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
             move_model(sd_model, devices.cpu)
         else:
             move_model(sd_model, devices.device)
-        timer.record("move")
+        timer.load.record("move")
 
         if shared.opts.ipex_optimize:
             sd_model = sd_models_compile.ipex_optimize(sd_model)
 
         if ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend != 'none'):
             sd_model = sd_models_compile.compile_diffusers(sd_model)
-        timer.record("compile")
+        timer.load.record("compile")
 
     except Exception as e:
         shared.log.error(f"Load {op}: {e}")
@@ -691,7 +688,7 @@ def load_diffuser(checkpoint_info=None, timer=None, op='model', revision=None): 
         from modules import modelstats
         modelstats.analyze()
 
-    shared.log.info(f"Load {op}: family={shared.sd_model_type} time={timer.dct()} native={get_native(sd_model)} memory={memory_stats()}")
+    shared.log.info(f"Load {op}: family={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
 
 
 class DiffusersTaskType(Enum):
@@ -1071,12 +1068,12 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
             move_model(sd_model, devices.cpu)
         unload_model_weights(op=op)
         sd_model = None
-    timer = Timer()
+    timer.load = timer.Timer()
     # TODO model load: implement model in-memory caching
-    timer.record("config")
+    timer.load.record("config")
     if sd_model is None or force:
         sd_model = None
-        load_diffuser(checkpoint_info, timer=timer, op=op, revision=revision)
+        load_diffuser(checkpoint_info, op=op, revision=revision)
         shared.state.end()
         shared.state = orig_state
         if op == 'model':

@@ -121,7 +121,7 @@ def get_sdnq_devices():
     return quantization_device, return_device
 
 def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = []):
-    from modules import devices, shared
+    from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
         from modules.sdnq import SDNQQuantizer, SDNQConfig
         diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
@@ -380,7 +380,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
 
 def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = []):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
-    from modules import devices, shared
+    from modules import devices, shared, timer
     from modules.sdnq import apply_sdnq_to_module
 
     if weights_dtype is None:
@@ -408,6 +408,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     if hasattr(model, "get_input_embeddings"):
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
 
+    t0 = time.time()
     model = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,
@@ -422,6 +423,8 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         param_name=op,
         modules_to_not_convert=modules_to_not_convert,
     )
+    t1 = time.time()
+    timer.load.add('sdnq', t1 - t0)
     model.quantization_method = 'SDNQ'
 
     if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:
@@ -443,7 +446,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
             quant_last_model_name = None
             quant_last_model_device = None
         model.to(devices.device)
-    elif shared.opts.diffusers_offload_mode != "none":
+    elif (shared.opts.diffusers_offload_mode != "none") and (not shared.opts.diffusers_to_gpu):
         model = model.to(devices.cpu)
     if do_gc:
         devices.torch_gc(force=True, reason='sdnq')
