@@ -247,6 +247,8 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                        )
             if prompt is not None:
                 ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt, what='output')
+            button_image_fit = gr.Button(ui_symbols.resize, elem_id=f"{tabname}_image_fit", elem_classes=['image-fit'])
+            button_image_fit.click(fn=None, _js="cycleImageFit", inputs=[], outputs=[])
 
         with gr.Column(elem_id=f"{tabname}_footer", elem_classes="gallery_footer"):
             dummy_component = gr.Label(visible=False)

@@ -19,6 +19,7 @@
   {"id":"","label":"🖌️","localized":"","hint":"LaMa remove selected object from image"},
   {"id":"","label":"🖼️","localized":"","hint":"Show preview"},
   {"id":"","label":"♻","localized":"","hint":"Interrogate image"},
+  {"id":"","label":"⁜","localized":"","hint":"Cycle image fit method"},
   {"id":"","label":"↶","localized":"","hint":"Apply selected style to prompt"},
   {"id":"","label":"↷","localized":"","hint":"Save current prompt to style"},
   {"id":"","label":"","localized":"","hint":"Sort by name, ascending"},

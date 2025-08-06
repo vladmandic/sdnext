@@ -38,12 +38,13 @@ And (*as always*) many bugfixes and improvements to existing features!
   - updated real-time hints, thanks @CalamitousFelicitousness  
   - rewritten **CivitAI downloader**  
     in *models -> civitai*  
+  - quicksettings reset button to restore all quicksettings to default values  
+    because things do sometimes get wrong...  
+  - configurable image fit in all image views  
   - updated *models -> current* tab  
   - updated *models -> list models* tab  
   - updated *models -> metadata* tab  
   - updated *extensions* tab
-  - quicksettings reset button to restore all quicksettings to default values  
-    because things do sometimes get wrong...  
   - redesign *settings -> user interface*  
   - gallery bypass browser cache for thumbnails  
   - gallery safer delete operation  
