@@ -101,6 +101,25 @@ def create_quanto_config(kwargs = None, allow: bool = True, module: str = 'Model
     return kwargs
 
 
+def get_sdnq_devices():
+    from modules import devices, shared
+    if shared.opts.device_map == "gpu":
+        quantization_device = devices.device
+        return_device = devices.device
+    elif shared.opts.device_map == "cpu":
+        quantization_device = devices.cpu
+        return_device = devices.cpu
+    elif shared.opts.diffusers_offload_mode in {"none", "model"}:
+        quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
+        return_device = devices.device
+    elif shared.opts.sdnq_quantize_with_gpu:
+        quantization_device = devices.device
+        return_device = devices.device if shared.opts.diffusers_to_gpu else devices.cpu
+    else:
+        quantization_device = None
+        return_device = None
+    return quantization_device, return_device
+
 def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = []):
     from modules import devices, shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
@@ -118,18 +137,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         if weights_dtype is None or weights_dtype == 'none':
             return kwargs
 
-        if shared.opts.device_map == "gpu":
-            quantization_device = devices.device
-            return_device = devices.device
-        elif shared.opts.diffusers_offload_mode in {"none", "model"}:
-            quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
-            return_device = devices.device
-        elif shared.opts.sdnq_quantize_with_gpu:
-            quantization_device = devices.device
-            return_device = devices.cpu
-        else:
-            quantization_device = None
-            return_device = None
+        quantization_device, return_device = get_sdnq_devices()
 
         sdnq_config = SDNQConfig(
             weights_dtype=weights_dtype,
@@ -142,7 +150,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
             return_device=return_device,
             modules_to_not_convert=modules_to_not_convert,
         )
-        log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device}')
+        log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode}')
         if kwargs is None:
             return sdnq_config
         else:
@@ -386,15 +394,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     if debug:
         log.trace(f'Quantization: type=SDNQ op={op} cls={model.__class__} dtype={weights_dtype} mode{shared.opts.diffusers_offload_mode}')
 
-    if shared.opts.diffusers_offload_mode in {"none", "model"}:
-        quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
-        return_device = devices.device
-    elif shared.opts.sdnq_quantize_with_gpu:
-        quantization_device = devices.device
-        return_device = getattr(model, "device", devices.cpu)
-    else:
-        quantization_device = None
-        return_device = None
+    quantization_device, return_device = get_sdnq_devices()
 
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access

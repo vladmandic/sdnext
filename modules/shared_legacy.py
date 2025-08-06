@@ -10,7 +10,8 @@ class LegacyOption(OptionInfo):
 
 
 legacy_options = options_section((None, "Legacy options"), {
-    "interrogate_clip_skip_categories": LegacyOption(["artists", "movements", "flavors"], "CLiP: skip categories", gr.CheckboxGroup, lambda: {"choices": []}, visible=False),
+    "ldsr_models_path": LegacyOption(os.path.join(paths.models_path, 'LDSR'), "LDSR Path", gr.Textbox, { "visible": False}),
+    "interrogate_clip_skip_categories": LegacyOption(["artists", "movements", "flavors"], "CLiP: skip categories", gr.CheckboxGroup, {"choices": [], "visible":False}),
     "lora_legacy": LegacyOption(False, "LoRA load using legacy method", gr.Checkbox, {"visible": False}),
     "lora_preferred_name": LegacyOption("filename", "LoRA preferred name", gr.Radio, {"choices": ["filename", "alias"], "visible": False}),
     "img2img_extra_noise": LegacyOption(0.0, "Extra noise multiplier for img2img", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
