@@ -239,14 +239,31 @@ function refreshENInput(tabname) {
   gradioApp().querySelector(`#${tabname}_extra_networks textarea`)?.dispatchEvent(new Event('input'));
 }
 
-function cardClicked(textToAdd, allowNegativePrompt) {
-  // log('cardClicked', textToAdd, allowNegativePrompt);
+async function markSelectedCards(selected, page = '') {
+  log('markSelectedCards', selected, page);
+  gradioApp().querySelectorAll('.extra-network-cards .card').forEach((el) => {
+    if (page.length > 0 && el.dataset.page !== page) return; // filter by page
+    if (selected.includes(el.dataset.name) || selected.includes(el.dataset.short)) el.classList.add('card-selected');
+    else el.classList.remove('card-selected');
+  });
+}
+
+function extractLoraNames(prompt) {
+  const regex = /<lora:([^:>]+)(?::[\d.]+)?>/g;
+  const names = [];
+  let match;
+  while ((match = regex.exec(prompt)) !== null) names.push(match[1]); // eslint-disable-line no-cond-assign
+  return names;
+}
+
+function cardClicked(textToAdd) {
   const tabname = getENActiveTab();
   log('cardClicked', tabname, textToAdd);
-  const textarea = allowNegativePrompt ? activePromptTextarea[tabname] : gradioApp().querySelector(`#${tabname}_prompt > label > textarea`);
+  const textarea = activePromptTextarea[tabname];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
   else textarea.value += textToAdd;
   updateInput(textarea);
+  markSelectedCards(extractLoraNames(textarea.value), 'lora');
 }
 
 function extraNetworksSearchButton(event) {
@@ -278,10 +295,7 @@ function applyStyles(styles) {
   const index = newStyles.indexOf(desiredStyle);
   if (index > -1) newStyles.splice(index, 1);
   else newStyles.push(desiredStyle);
-  gradioApp().querySelectorAll('.extra-network-cards .card').forEach((el) => {
-    if (newStyles.includes(el.getAttribute('data-name'))) el.classList.add('card-selected');
-    else el.classList.remove('card-selected');
-  });
+  markSelectedCards(newStyles, 'style');
   return newStyles.join('|');
 }
 

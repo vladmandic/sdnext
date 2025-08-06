@@ -27,7 +27,7 @@ extra_pages = shared.extra_networks
 debug = shared.log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: EN')
 card_full = '''
-    <div class='card' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
+    <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
         <div class='overlay'>
             <div class='name {reference}'>{title}</div>
         </div>
@@ -41,7 +41,7 @@ card_full = '''
     </div>
 '''
 card_list = '''
-    <div class='card card-list' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
+    <div class='card card-list' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
         <div style='display: flex'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>&nbsp;
             <div class='name {reference}' style='flex-flow: column'>{title}&nbsp;
@@ -311,12 +311,14 @@ class ExtraNetworksPage:
             return '#{:02x}{:02x}{:02x}'.format(r, g, b) # pylint: disable=consider-using-f-string
 
         try:
+            onclick = f'cardClicked({item.get("prompt", None)})'
             args = {
-                "tabname": tabname,
+                # "tabname": tabname,
                 "page": self.name,
                 "name": item.get('name', ''),
                 "title": os.path.basename(item["name"].replace('_', ' ')),
                 "filename": item.get('filename', ''),
+                "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
                 "preview": html.escape(item.get('preview', None) or self.link_preview('html/card-no-preview.png')),
                 "width": 'var(--card-size)',
@@ -325,7 +327,7 @@ class ExtraNetworksPage:
                 "prompt": item.get("prompt", None),
                 "search": item.get("search_term", ""),
                 "description": item.get("description") or "",
-                "card_click": item.get("onclick", '"' + html.escape(f'return cardClicked({item.get("prompt", None)}, {"true" if self.allow_negative_prompt else "false"})') + '"'),
+                "card_click": item.get("onclick", '"' + html.escape(onclick) + '"'),
                 "mtime": item.get("mtime", 0),
                 "size": item.get("size", 0),
                 "version": item.get("version", ''),

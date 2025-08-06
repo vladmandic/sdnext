@@ -484,20 +484,23 @@ function selectCheckpoint(name) {
   const isRefiner = btnModel && btnModel.classList.contains('toolbutton-selected');
   if (isRefiner) gradioApp().getElementById('change_refiner').click();
   else gradioApp().getElementById('change_checkpoint').click();
-  log(`Change ${isRefiner ? 'refiner' : 'model'}: ${desiredCheckpointName}`);
+  log(`selectCheckpoint ${isRefiner ? 'refiner' : 'model'}: ${desiredCheckpointName}`);
+  markSelectedCards([desiredCheckpointName], 'model');
 }
 
 let desiredVAEName = null;
 function selectVAE(name) {
   desiredVAEName = name;
   gradioApp().getElementById('change_vae').click();
-  log(`Change VAE: ${desiredVAEName}`);
+  log(`selectVAE: ${desiredVAEName}`);
+  markSelectedCards([desiredVAEName], 'vae');
 }
 
 function selectReference(name) {
-  log(`Select reference: ${name}`);
+  log(`selectReference: ${name}`);
   desiredCheckpointName = name;
   gradioApp().getElementById('change_reference').click();
+  markSelectedCards([desiredCheckpointName], 'model');
 }
 
 function currentImageResolutionimg2img(_a, _b, scaleBy) {

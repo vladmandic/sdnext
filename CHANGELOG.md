@@ -35,7 +35,8 @@
   - redesign *settings -> user interface*  
   - gallery bypass browser cache for thumbnails  
   - gallery safer delete operation  
-  - more css optimizations and styling  
+  - networks display indicator for currently active items  
+    styles, loras  
   - *hint*: card layout  
     card layout is used by networks, gallery, civitai search, etc.  
     you can change card size in *settings -> user interface*  
