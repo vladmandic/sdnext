@@ -32,7 +32,7 @@ pi-heif
 
 # versioned
 rich==14.1.0
-safetensors==0.5.3
+safetensors==0.6.1
 tensordict==0.8.3
 peft==0.17.0
 httpx==0.24.1

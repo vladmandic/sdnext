@@ -618,7 +618,7 @@ def check_transformers():
     if args.use_directml:
         target = '4.52.4'
     else:
-        target = '4.54.1'
+        target = '4.55.0'
     if (pkg is None) or ((pkg.version != target) and (not args.experimental)):
         if pkg is None:
             log.info(f'Transformers install: version={target}')
