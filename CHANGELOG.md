@@ -40,7 +40,8 @@ And (*as always*) many bugfixes and improvements to existing features!
     basic support for *Wan 2.1 VACE 1.3B* and *14B* variants  
     optimized support with granular guidance control will follow soon  
 **Torch**  
-  - Set default for ROCm and OpenVINO to `torch==2.8.0`  
+  - Set default to `torch==2.8.0` for *CUDA, ROCm and OpenVINO*  
+  - Add support for `torch==2.9.0`  
 - **UI**  
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  
@@ -75,8 +76,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - new feature to specify which modules to offload always or never  
     in *settings -> model offloading -> offload always/never*  
   - new `highvram` profile provides significant performance boost on gpus with more than 24gb  
-  - new `offload during pre-forward` option
-    in *settings -> model offloading*
+  - new `offload during pre-forward` option  
+    in *settings -> model offloading*  
     switches from explicit offloading to implicit offloading on module execution change  
   - new `diffusers_offload_nonblocking` exerimental setting  
     instructs torch to use non-blocking move operations when possible  
