@@ -15,7 +15,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: LTX PromptEnhance
 - Video: LTX Conditioning preprocess
 - [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
-- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
 - [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 
 ### Blocked items

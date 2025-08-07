@@ -8,7 +8,7 @@
 
 ### Highlights for 2025-08-07
 
-Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
+Several new and updated models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
 Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs and offloading improvements  
 And (*as always*) many bugfixes and improvements to existing features!  
@@ -34,8 +34,11 @@ And (*as always*) many bugfixes and improvements to existing features!
   - [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
     SkyReels-V2 is a genarative video model based on Wan-2.1 but with heavily modified execution to allow for infinite-length video generation  
     supported variants are:  
-    - diffusion-forcing: T2I DF 1.3B for 540p videos, T2I DF 14B for 720p videos, I2I DF 14B for 720p videos
-    - standard: T2I 14B for 720p videos and I2I 14B for 720p videos
+    - diffusion-forcing: *T2I DF 1.3B* for 540p videos, *T2I DF 14B* for 720p videos, *I2I DF 14B* for 720p videos  
+    - standard: *T2I 14B* for 720p videos and *I2I 14B* for 720p videos  
+  - [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
+    basic support for *Wan 2.1 VACE 1.3B* and *14B* variants  
+    optimized support with granular guidance control will follow soon  
 **Torch**  
   - Set default for ROCm and OpenVINO to `torch==2.8.0`  
 - **UI**  
