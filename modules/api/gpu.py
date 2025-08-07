@@ -20,7 +20,7 @@ def get_gpu_status():
 
 
 """
-Resut mustb be list[ResGPU]
+Resut should always be: list[ResGPU]
 class ResGPU(BaseModel):
     name: str = Field(title="GPU Name")
     data: dict = Field(title="Name/Value data")
