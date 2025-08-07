@@ -84,7 +84,7 @@ def get_rocm_smi():
                 "ROCm": f'version {rocm_version} agent {rocm_smi_data[key].get("GFX Version", "unknown")}',
                 "Driver": driver_version,
                 "Hardware": f'VBIOS {rocm_smi_data[key].get("VBIOS version", "unknown")}',
-                "PCI link": f'gen.{int(math.log2(float(rocm_smi_data[key].get("pcie_link_speed (0.1 GT/s)", 10)) / 10))} x{rocm_smi_data[key].get("pcie_link_width (Lanes)", "unknown")}',
+                "PCI link": f'Gen.{int(math.log2(float(rocm_smi_data[key].get("pcie_link_speed (0.1 GT/s)", 10)) / 10))} x{rocm_smi_data[key].get("pcie_link_width (Lanes)", "unknown")}',
                 "Power": f'{round(float(rocm_smi_data[key].get("Average Graphics Package Power (W)", 0)), 2)} W / {round(float(rocm_smi_data[key].get("Max Graphics Package Power (W)", 0)), 2)} W',
                 "GPU clock": f'{rocm_smi_data[key].get("average_gfxclk_frequency (MHz)", 0)} Mhz / {rocm_smi_data[key].get("Valid sclk range", "0").split(" - ")[-1].removesuffix("Mhz")} Mhz',
                 "Memory clock": f'{rocm_smi_data[key].get("current_uclk (MHz)", 0)} Mhz / {rocm_smi_data[key].get("Valid mclk range", "0").split(" - ")[-1].removesuffix("Mhz")} Mhz',
@@ -93,7 +93,7 @@ def get_rocm_smi():
                 "GPU temp": f'edge {load["temp"]}C | junction {load["temp_junction"]}C | memory {load["temp_memory"]}C',
                 'Throttle reason': str(ThrottleStatus(int(rocm_smi_data[key].get("throttle_status", 0)))),
             }
-            chart = [rocm_smi_data[key].get("GPU Memory Allocated (VRAM%)", "unknown"), load["gpu"]]
+            chart = [load["memory"], load["gpu"]]
             devices.append({ 'name': rocm_smi_data[key].get('Device Name', 'unknown'), 'data': data, 'chart': chart })
         return devices
     except Exception as e:
