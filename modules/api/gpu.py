@@ -17,6 +17,9 @@ def get_gpu_status():
     if 'nvidia' in device.lower():
         from modules.api import nvml
         return nvml.get_nvml()
+    elif 'amd' in device.lower():
+        from modules.api import rocm_smi
+        return rocm_smi.get_rocm_smi()
     return []
 
 
@@ -27,3 +30,8 @@ class ResGPU(BaseModel):
     data: dict = Field(title="Name/Value data")
     chart: list[float, float] = Field(title="Exactly two items to place on chart")
 """
+
+if __name__ == '__main__':
+    from rich import print as rprint
+    for gpu in get_gpu_status():
+        rprint(gpu)
