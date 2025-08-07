@@ -56,6 +56,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - redesigned **GPU monitor**  
     - standard-ui: *system -> gpu monitor*  
     - modern-ui: *aside -> console -> gpu monitor*  
+    - supported for *nVidia CUDA* and *AMD ROCm* platforms  
     - configurable interval in *settings -> user interface*  
   - updated *models* tab
     - updated *models -> current* tab  

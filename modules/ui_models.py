@@ -500,7 +500,7 @@ def create_ui():
                     with gr.Row():
                         civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
                     with gr.Row():
-                        civit_type = gr.Textbox(label='Model type', placeholder='Checkpoint, LORA, ...')
+                        civit_type = gr.Textbox(label='Target model type', placeholder='Checkpoint, LORA, ...', value='')
                     with gr.Row():
                         # civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
                         civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
