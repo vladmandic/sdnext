@@ -818,7 +818,7 @@ def install_openvino():
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0+cpu --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu')
 
     install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.2.0'), 'openvino')
     install(os.environ.get('NNCF_COMMAND', 'nncf==2.17.0'), 'nncf')
