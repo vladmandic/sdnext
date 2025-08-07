@@ -17,6 +17,7 @@ def get_gpu_status():
     if 'nvidia' in device.lower():
         from modules.api import nvml
         return nvml.get_nvml()
+    return []
 
 
 """
