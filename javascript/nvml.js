@@ -90,6 +90,10 @@ async function initNVML() {
     gradioApp().appendChild(nvmlEl);
     log('initNVML');
   }
+}
+
+async function startNVML() {
+  nvmlEl = document.getElementById('nvml');
   if (nvmlInterval) {
     clearInterval(nvmlInterval);
     nvmlInterval = null;

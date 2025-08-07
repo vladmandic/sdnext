@@ -134,12 +134,13 @@ def create_video_inputs(tab:str, show_always:bool=False):
             gr.update(visible=video_type not in ['None', 'GIF', 'PNG'] or show_always),
             gr.update(visible=video_type not in ['None', 'GIF', 'PNG'] or show_always),
         ]
-    with gr.Column():
+    with gr.Row():
         video_codecs = ['None', 'GIF', 'PNG', 'MP4/MP4V', 'MP4/AVC1', 'MP4/JVT3', 'MKV/H264', 'AVI/DIVX', 'AVI/RGBA', 'MJPEG/MJPG', 'MPG/MPG1', 'AVR/AVR1']
-        video_type = gr.Dropdown(label='Save video', choices=video_codecs, value='None', elem_id=f"{tab}_video_type")
-    with gr.Column():
-        video_duration = gr.Slider(label='Duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=show_always, elem_id=f"{tab}_video_duration")
-        video_loop = gr.Checkbox(label='Loop', value=True, visible=show_always, elem_id=f"{tab}_video_loop")
+        video_type = gr.Dropdown(label='Video format', choices=video_codecs, value='MP4/MP4V', elem_id=f"{tab}_video_type")
+    with gr.Row():
+        video_duration = gr.Slider(label='Video duration', minimum=0.25, maximum=300, step=0.25, value=2, visible=show_always, elem_id=f"{tab}_video_duration")
+        video_loop = gr.Checkbox(label='Loop video', value=True, visible=show_always, elem_id=f"{tab}_video_loop")
+    with gr.Row():
         video_pad = gr.Slider(label='Pad frames', minimum=0, maximum=24, step=1, value=1, visible=show_always, elem_id=f"{tab}_video_pad")
         video_interpolate = gr.Slider(label='Interpolate frames', minimum=0, maximum=24, step=1, value=0, visible=show_always, elem_id=f"{tab}_video_interpolate")
     video_type.change(fn=video_type_change, inputs=[video_type], outputs=[video_duration, video_loop, video_pad, video_interpolate])

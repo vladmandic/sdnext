@@ -27,7 +27,7 @@ def create_ui():
         with gr.Row(elem_id="video_interface", equal_height=False):
             with gr.Tabs(elem_classes=['video-tabs'], elem_id='video-tabs'):
                 overrides = ui_common.create_override_inputs('video')
-                with gr.Tab('Generic', id='video-tab') as video_tab:
+                with gr.Tab('Core', id='video-tab') as video_tab:
                     from modules.video_models import video_ui
                     video_ui.create_ui(prompt, negative, styles, overrides)
                 with gr.Tab('FramePack', id='framepack-tab') as framepack_tab:

@@ -4,18 +4,18 @@
 
 - Qwen with offloading: <https://github.com/huggingface/diffusers/issues/12066> 
 
-## Update for 2025-08-06
+## Update for 2025-08-07
 
-### Highlights for 2025-08-06
+### Highlights for 2025-08-07
 
-This time we have several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release) and [Chroma](https://huggingface.co/lodestones/Chroma)  
-Continuing with major UI work, there is new embedded Docs/Wiki search, redesigned CivitAI integration and quite a few UI updates!  
+Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
+Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**,  **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs and offloading improvements  
 And (*as always*) many bugfixes and improvements to existing features!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-08-06
+### Details for 2025-08-07
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -31,6 +31,11 @@ And (*as always*) many bugfixes and improvements to existing features!
     great model based on FLUX.1 and then redesigned and retrained by *lodestones*  
     update with latest **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
     available via *networks -> models -> reference*  
+  - [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
+    SkyReels-V2 is a genarative video model based on Wan-2.1 but with heavily modified execution to allow for infinite-length video generation  
+    supported variants are:  
+    - diffusion-forcing: T2I DF 1.3B for 540p videos, T2I DF 14B for 720p videos, I2I DF 14B for 720p videos
+    - standard: T2I 14B for 720p videos and I2I 14B for 720p videos
 **Torch**  
   - Set default for ROCm and OpenVINO to `torch==2.8.0`  
 - **UI**  

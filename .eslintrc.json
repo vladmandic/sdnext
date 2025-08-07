@@ -109,6 +109,7 @@
     "jobStatusEl": "readonly",
     "removeSplash": "readonly",
     "initNVML": "readonly",
+    "startNVML": "readonly",
     "disableNVML": "readonly",
     "idbGet": "readonly",
     "idbPut": "readonly",

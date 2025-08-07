@@ -2055,6 +2055,11 @@ div:has(>#tab-gallery-folders) {
   font-weight: bold;
 }
 
+.video-model-link {
+  color: var(--button-primary-background-fill);
+  font-weight: normal;
+}
+
 @keyframes move {
   from {
     background-position-x: 0, -40px;
