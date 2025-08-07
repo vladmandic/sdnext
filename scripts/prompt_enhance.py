@@ -57,6 +57,7 @@ class Options:
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
         'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
+        'allura-org/Gemma-3-Glitter-4B': {},
         # 'llava/Llama-3-8B-v1.1-Extracted': {
         #     'repo': 'hunyuanvideo-community/HunyuanVideo',
         #     'subfolder': 'text_encoder',

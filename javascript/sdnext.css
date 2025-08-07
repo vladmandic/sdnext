@@ -1616,14 +1616,13 @@ background: var(--background-color)
   padding: 6px !important;
 }
 
-.nvml {
+.gpu {
   background: var(--background-fill-primary);
   border: 1px solid var(--button-primary-border-color);
   bottom: 10px;
   color: var(--button-primary-text-color);
   display: none;
   font-family: monospace;
-  font-size: var(--text-xxs);
   padding: 6px;
   position: fixed;
   right: 10px;

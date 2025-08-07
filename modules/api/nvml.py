@@ -43,41 +43,34 @@ def get_nvml():
                 name = pynvml.nvmlDeviceGetName(dev)
             except Exception:
                 name = ''
-            device = {
-                'name': name,
-                'version': {
-                    'cuda': pynvml.nvmlSystemGetCudaDriverVersion(),
-                    'driver': pynvml.nvmlSystemGetDriverVersion(),
-                    'vbios': pynvml.nvmlDeviceGetVbiosVersion(dev),
-                    'rom': pynvml.nvmlDeviceGetInforomImageVersion(dev),
-                    'capabilities': pynvml.nvmlDeviceGetCudaComputeCapability(dev),
-                },
-                'pci': {
-                    'link': pynvml.nvmlDeviceGetCurrPcieLinkGeneration(dev),
-                    'width': pynvml.nvmlDeviceGetCurrPcieLinkWidth(dev),
-                    'busid': pynvml.nvmlDeviceGetPciInfo(dev).busId,
-                    'deviceid': pynvml.nvmlDeviceGetPciInfo(dev).pciDeviceId,
-                },
-                'memory': {
-                    'total': round(pynvml.nvmlDeviceGetMemoryInfo(dev).total/1024/1024, 2),
-                    'free': round(pynvml.nvmlDeviceGetMemoryInfo(dev).free/1024/1024,2),
-                    'used': round(pynvml.nvmlDeviceGetMemoryInfo(dev).used/1024/1024,2),
-                },
-                'clock': { # gpu, sm, memory
-                    'gpu': [pynvml.nvmlDeviceGetClockInfo(dev, 0), pynvml.nvmlDeviceGetMaxClockInfo(dev, 0)],
-                    'sm': [pynvml.nvmlDeviceGetClockInfo(dev, 1), pynvml.nvmlDeviceGetMaxClockInfo(dev, 1)],
-                    'memory': [pynvml.nvmlDeviceGetClockInfo(dev, 2), pynvml.nvmlDeviceGetMaxClockInfo(dev, 2)],
-                },
+            load = pynvml.nvmlDeviceGetUtilizationRates(dev)
+            """
                 'load': {
-                    'gpu': round(pynvml.nvmlDeviceGetUtilizationRates(dev).gpu),
-                    'memory': round(pynvml.nvmlDeviceGetUtilizationRates(dev).memory),
+                    'gpu': round(load.gpu),
+                    'memory': round(load.memory),
                     'temp': pynvml.nvmlDeviceGetTemperature(dev, 0),
                     'fan': pynvml.nvmlDeviceGetFanSpeed(dev),
                 },
-                'power': [round(pynvml.nvmlDeviceGetPowerUsage(dev)/1000, 2), round(pynvml.nvmlDeviceGetEnforcedPowerLimit(dev)/1000, 2)],
-                'state': get_reason(pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(dev)),
+                'chart_val1': load.memory,
+                'chart_val2': load.gpu,
             }
-            devices.append(device)
+            """
+            mem = pynvml.nvmlDeviceGetMemoryInfo(dev)
+            data = {
+                "CUDA": f'version {pynvml.nvmlSystemGetCudaDriverVersion()} compute {pynvml.nvmlDeviceGetCudaComputeCapability(dev)}',
+                "Driver": pynvml.nvmlSystemGetDriverVersion(),
+                "Hardware": f'VBIOS {pynvml.nvmlDeviceGetVbiosVersion(dev)} ROM {pynvml.nvmlDeviceGetInforomImageVersion(dev)}',
+                "PCI link": f'gen.{pynvml.nvmlDeviceGetCurrPcieLinkGeneration(dev)} x{pynvml.nvmlDeviceGetCurrPcieLinkWidth(dev)}',
+                "Power": f'{round(pynvml.nvmlDeviceGetPowerUsage(dev)/1000, 2)} W / {round(pynvml.nvmlDeviceGetEnforcedPowerLimit(dev)/1000, 2)} W',
+                "GPU clock": f'{pynvml.nvmlDeviceGetClockInfo(dev, 0)} Mhz / {pynvml.nvmlDeviceGetMaxClockInfo(dev, 0)} Mhz',
+                "SM clock": f'{pynvml.nvmlDeviceGetClockInfo(dev, 1)} Mhz / {pynvml.nvmlDeviceGetMaxClockInfo(dev, 1)} Mhz',
+                "Memory clock": f'{pynvml.nvmlDeviceGetClockInfo(dev, 2)} Mhz / {pynvml.nvmlDeviceGetMaxClockInfo(dev, 2)} Mhz',
+                "Memory usage": f'used {round(mem.used / 1024 / 1024)} MB | free {round(mem.free / 1024 / 1024)} MB | total {round(mem.total / 1024 / 1024)} MB',
+                "System load": f'GPU {load.gpu}% | Memory {load.memory}% | temp {pynvml.nvmlDeviceGetTemperature(dev, 0)}C | fan {pynvml.nvmlDeviceGetFanSpeed(dev)}%',
+                'State': get_reason(pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(dev)),
+            }
+            chart = [load.memory, load.gpu]
+            devices.append({ 'name': name, 'data': data, 'chart': chart })
         # log.debug(f'nmvl: {devices}')
         return devices
     except Exception as e:

@@ -39,7 +39,6 @@ async function initStartup() {
   executeCallbacks(uiReadyCallbacks);
   initLogMonitor();
   setupExtraNetworks();
-  initNVML();
 
   // optinally wait for modern ui
   if (window.waitForUiReady) await waitForUiReady();

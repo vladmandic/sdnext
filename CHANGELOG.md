@@ -9,7 +9,7 @@
 ### Highlights for 2025-08-07
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
-Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**,  **CivitAI** integration and more!  
+Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs and offloading improvements  
 And (*as always*) many bugfixes and improvements to existing features!  
 
@@ -43,16 +43,22 @@ And (*as always*) many bugfixes and improvements to existing features!
     **Docs** search: fully-local and works in real-time on all document pages  
     **Wiki** search: uses github api to search online wiki pages  
   - updated real-time hints, thanks @CalamitousFelicitousness  
-  - rewritten **CivitAI downloader**  
-    in *models -> civitai*  
+  - every heading element is collapsible!  
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  
   - configurable image fit in all image views  
-  - updated *models -> current* tab  
-  - updated *models -> list models* tab  
-  - updated *models -> metadata* tab  
+  - rewritten **CivitAI downloader**  
+    in *models -> civitai*  
+  - redesigned **GPU monitor**  
+    - standard-ui: *system -> gpu monitor*  
+    - modern-ui: *aside -> console -> gpu monitor*  
+    - configurable interval in *settings -> user interface*  
+  - updated *models* tab
+    - updated *models -> current* tab  
+    - updated *models -> list models* tab  
+    - updated *models -> metadata* tab  
   - updated *extensions* tab
-  - redesign *settings -> user interface*  
+  - redesigned *settings -> user interface*  
   - gallery bypass browser cache for thumbnails  
   - gallery safer delete operation  
   - networks display indicator for currently active items  
@@ -78,7 +84,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
   - update requirements/packages  
 - **Other**
-  - remove LDSR  
+  - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B` model support  
+  - remove **LDSR**  
   - remove `api-only` cli option  
 - **Fixes**  
   - refactor legacy processing loop  

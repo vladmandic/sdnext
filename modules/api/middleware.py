@@ -43,7 +43,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
             endpoint = req.scope.get('path', 'err')
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
-                if '/sdapi/v1/log' in endpoint or '/sdapi/v1/browser' in endpoint:
+                if ('/sdapi/v1/log' in endpoint) or ('/sdapi/v1/browser' in endpoint) or ('/sdapi/v1/gpu' in endpoint):
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,

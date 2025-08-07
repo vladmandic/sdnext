@@ -251,6 +251,22 @@ def create_ui():
         with gr.TabItem("History", id="system_history", elem_id="tab_history"):
             ui_history.create_ui()
 
+        with gr.TabItem("GPU Monitor", id="system_gpu", elem_id="tab_gpu"):
+            with gr.Row(elem_id='gpu-controls'):
+                gpu_start = gr.Button(value="Start", elem_id="gpu_start", variant="primary")
+                gpu_stop = gr.Button(value="Stop", elem_id="gpu_stop", variant="primary")
+                gpu_start.click(fn=lambda: None, _js='startGPU', inputs=[], outputs=[])
+                gpu_stop.click(fn=lambda: None, _js='disableGPU', inputs=[], outputs=[])
+            gr.HTML('''
+                <div class="gpu" id="gpu">
+                    <table class="gpu-table" id="gpu-table">
+                        <thead><tr><th></th><th></th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="gpuChart"></div>
+                </div>
+            ''', elem_id='gpu-container', visible=True)
+
         with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
             from modules.onnx_impl import ui as ui_onnx
             ui_onnx.create_ui()
