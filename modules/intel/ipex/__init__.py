@@ -125,6 +125,11 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Tuple = torch.xpu.Tuple
                 torch.cuda.List = torch.xpu.List
 
+            if torch_version < 2.8:
+                if has_ipex:
+                    torch.cuda.memory_summary = torch.xpu.memory_summary
+                    torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
+
             if torch_version < 2.9:
                 # torch._int_mm via onednn quantized matmul is supported with torch 2.9
                 # ipex 2.7+ has the same torch._int_mm support as torch 2.9 but doesn't support torch.compile
@@ -148,9 +153,6 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
-            if has_ipex:
-                torch.cuda.memory_summary = torch.xpu.memory_summary
-                torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
             torch.cuda.memory = torch.xpu.memory
             torch.cuda.memory_stats = torch.xpu.memory_stats
             torch.cuda.memory_allocated = torch.xpu.memory_allocated
