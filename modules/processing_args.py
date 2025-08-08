@@ -99,6 +99,8 @@ def task_specific_kwargs(p, model):
             'height': height,
             'width': width,
         }
+
+    # model specific args
     if model.__class__.__name__ == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -120,6 +122,8 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
+
+# TODO
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
     return task_args
@@ -388,6 +392,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             else:
                 args['width'] = 8 * math.ceil(args['image'][0].width / 8)
                 args['height'] = 8 * math.ceil(args['image'][0].height / 8)
+    if 'max_area' in possible and 'width' in args and 'height' in args and 'max_area' not in args:
+        args['max_area'] = args['width'] * args['height']
 
     # handle implicit controlnet
     if 'control_image' in possible and 'control_image' not in args and 'image' in args:

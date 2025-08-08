@@ -4,7 +4,8 @@
 
 ### Highlights for 2025-08-08
 
-Several new and updated models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
+Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+And several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
 Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs and offloading improvements  
 And (*as always*) many bugfixes and improvements to existing features!  
@@ -91,7 +92,7 @@ And (*as always*) many bugfixes and improvements to existing features!
 - **Fixes**  
   - refactor legacy processing loop  
   - fix settings components mismatch  
-  - fix Wan 2.2-5B I2V workflow  
+  - fix *Wan 2.2-5B I2V* workflow  
   - fix OpenVINO  
   - fix video model vs pipeline mismatch  
   - fix video generic save frames  
@@ -100,8 +101,9 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
   - fix openvino backend failing to compile  
-  - fix nunchaku fallback on unsupported model  
-  - fix nunchaku windows download links  
+  - fix `nunchaku` fallback on unsupported model  
+  - fix `nunchaku` windows download links  
+  - fix *Flux.1-Kontext-Dev* with variable resolution  
   - use `utf_16_be` as primary metadata decoding  
   - reapply offloading on ipadapter load  
   - api set default script-name  
