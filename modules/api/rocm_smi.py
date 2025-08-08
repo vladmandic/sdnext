@@ -55,13 +55,13 @@ class ThrottleStatus(IntFlag):
 
     def active(self):
         members = self.__class__.__members__
-        return (m for m in members if getattr(self, m)._value_ & self.value != 0)
+        return (m for m in members if getattr(self, m)._value_ & self.value != 0) # pylint: disable=protected-access
 
     def __iter__(self):
         return self.active()
 
     def __str__(self):
-        return u', '.join(self.active())
+        return ', '.join(self.active())
 
 
 def get_rocm_smi():
