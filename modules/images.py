@@ -218,7 +218,7 @@ def save_image(image,
 
 def safe_decode_string(s: bytes):
     remove_prefix = lambda text, prefix: text[len(prefix):] if text.startswith(prefix) else text # pylint: disable=unnecessary-lambda-assignment
-    for encoding in ['utf-8', 'utf-16', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
+    for encoding in ['utf_16_be', 'utf-8', 'utf-16', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
         try:
             s = remove_prefix(s, b'UNICODE')
             s = remove_prefix(s, b'ASCII')

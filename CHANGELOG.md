@@ -1,12 +1,8 @@
 # Change Log for SD.Next
 
-## Blockers
+## Update for 2025-08-08
 
-- Qwen with offloading: <https://github.com/huggingface/diffusers/issues/12066> 
-
-## Update for 2025-08-07
-
-### Highlights for 2025-08-07
+### Highlights for 2025-08-08
 
 Several new and updated models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release), [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
 Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
@@ -106,6 +102,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix openvino backend failing to compile  
   - fix nunchaku fallback on unsupported model  
   - fix nunchaku windows download links  
+  - use `utf_16_be` as primary metadata decoding  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  
