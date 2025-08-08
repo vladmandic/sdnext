@@ -73,24 +73,26 @@ def copy_diffuser_options(new_pipe, orig_pipe):
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
+    ops = {}
     if hasattr(sd_model, "vae"):
         if vae is not None:
             sd_model.vae = vae
-            shared.log.quiet(quiet, f'Setting {op}: component=VAE name="{sd_vae.loaded_vae_file}"')
+            ops['name'] = f"{sd_vae.loaded_vae_file}"
         if shared.opts.diffusers_vae_upcast != 'default':
             sd_model.vae.config.force_upcast = True if shared.opts.diffusers_vae_upcast == 'true' else False
-            shared.log.quiet(quiet, f'Setting {op}: component=VAE upcast={sd_model.vae.config.force_upcast}')
+            ops['upcast'] = sd_model.vae.config.force_upcast
         if shared.opts.no_half_vae and op not in {'decode', 'encode'}:
             devices.dtype_vae = torch.float32
             sd_model.vae.to(devices.dtype_vae)
-            shared.log.quiet(quiet, f'Setting {op}: component=VAE no-half=True')
-    if hasattr(sd_model, "enable_vae_slicing"):
+            ops['no-half'] = True
+    if hasattr(sd_model, "enable_vae_slicing") and hasattr(sd_model, "disable_vae_slicing"):
+        ops['slicing'] = shared.opts.diffusers_vae_slicing
         if shared.opts.diffusers_vae_slicing:
-            shared.log.quiet(quiet, f'Setting {op}: component=VAE slicing=True')
             sd_model.enable_vae_slicing()
         else:
             sd_model.disable_vae_slicing()
     if hasattr(sd_model, "enable_vae_tiling") and hasattr(sd_model, "disable_vae_tiling"):
+        ops['tiling'] = shared.opts.diffusers_vae_tiling
         if shared.opts.diffusers_vae_tiling:
             if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
                 if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
@@ -107,15 +109,16 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
                     sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
                 else:
                     sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
-                shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True tile={sd_model.vae.tile_sample_min_size} overlap={sd_model.vae.tile_overlap_factor}')
-            else:
-                shared.log.quiet(quiet, f'Setting {op}: component=VAE tiling=True')
+                ops['tile'] = sd_model.vae.tile_sample_min_size
+                ops['overlap'] = sd_model.vae.tile_overlap_factor
             sd_model.enable_vae_tiling()
         else:
             sd_model.disable_vae_tiling()
     if hasattr(sd_model, "vqvae"):
-        shared.log.quiet(quiet, f'Setting {op}: component=VQVAE upcast=True')
+        ops['upcast'] = True
         sd_model.vqvae.to(torch.float32) # vqvae is producing nans in fp16
+    if not quiet and len(ops) > 0:
+        shared.log.quiet(quiet, f'Setting {op}: component=vae {ops}')
 
 
 def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, quiet:bool=False):

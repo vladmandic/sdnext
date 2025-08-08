@@ -50,6 +50,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - configurable image fit in all image views  
   - rewritten **CivitAI downloader**  
     in *models -> civitai*  
+    *hint*: you can enter model id in a search bar to pull information on specific model directly  
+    *hint*: you can download individual versions or batch-download all-at-once!  
   - redesigned **GPU monitor**  
     - standard-ui: *system -> gpu monitor*  
     - modern-ui: *aside -> console -> gpu monitor*  

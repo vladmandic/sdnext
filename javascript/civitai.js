@@ -31,6 +31,7 @@ const modelDetailsHTML = `
       <tr><td>Downloads</td><td>{downloads}</td></tr>
       <tr><td>Author</td><td>{creator}</td></tr>
       <tr><td>Description</td><td><div>{desc}</div></td></tr>
+      <tr><td>Download</td><td><div class="div-link" onclick="startCivitAllDownload(event)">All variants</div></td></tr>
     </table>
     <br>
     <table id="model-versions-table" class="model-versions simple-table">
@@ -114,9 +115,26 @@ async function modelCardClick(id) {
 
 function startCivitDownload(url, name, type) {
   log('startCivitDownload', { url, name, type });
-  selectedURL = url;
-  selectedName = name;
-  selectedType = type;
+  selectedURL = [url];
+  selectedName = [name];
+  selectedType = [type];
+  const civitDownloadBtn = gradioApp().getElementById('civitai_download_btn');
+  if (civitDownloadBtn) civitDownloadBtn.click();
+}
+
+function startCivitAllDownload(evt) {
+  log('startCivitAllDownload', evt);
+  const versions = gradioApp().getElementById('model-versions-table').querySelectorAll('tr');
+  selectedURL = [];
+  selectedName = [];
+  selectedType = [];
+  for (const version of versions) {
+    const parsed = version.querySelector('td:nth-child(1) div')?.getAttribute('onclick')?.match(/startCivitDownload\('([^']+)', '([^']+)', '([^']+)'\)/);
+    if (!parsed || parsed.length < 4) continue;
+    selectedURL.push(parsed[1]);
+    selectedName.push(parsed[2]);
+    selectedType.push(parsed[3]);
+  }
   const civitDownloadBtn = gradioApp().getElementById('civitai_download_btn');
   if (civitDownloadBtn) civitDownloadBtn.click();
 }

@@ -470,6 +470,7 @@ def create_ui():
 
             with gr.Tab(label="CivitAI", elem_id="models_civitai_tab"):
                 from modules.civitai.search_civitai import search_civitai, create_model_cards, base_models
+
                 def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token):
                     results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw, types=civit_type, base=civit_base, token=civit_token)
                     html = create_model_cards(results)
@@ -480,12 +481,13 @@ def create_ui():
                     opts.civitai_token = token
                     opts.save()
 
-                def civitai_download(model_url, model_name, model_type, model_path, civit_token, model_output):
+                def civitai_download(model_urls, model_names, model_types, model_path, civit_token, model_output):
                     from modules.civitai.download_civitai import download_civit_model
-                    msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
-                    yield msg + model_output
-                    download_civit_model(model_url, model_name, model_path, model_type, civit_token)
-                    yield model_output
+                    for model_url, model_name, model_type in zip(model_urls, model_names, model_types):
+                        msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
+                        yield msg + model_output
+                        download_civit_model(model_url, model_name, model_path, model_type, civit_token)
+                        yield model_output
 
                 with gr.Row():
                     gr.HTML('<h2>Search & Download</h2>')
@@ -515,7 +517,13 @@ def create_ui():
                 civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
                 civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
                 civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
-                civit_download_btn.click(fn=civitai_download, _js="downloadCivitModel", inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output], outputs=[civitai_models_output])
+                civit_download_btn.click(
+                    fn=civitai_download,
+                    _js="downloadCivitModel",
+                    inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output],
+                    outputs=[civitai_models_output],
+                    show_progress=True,
+                )
 
             with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):
                 from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token

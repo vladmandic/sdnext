@@ -139,7 +139,11 @@ def search_civitai(
         headers['Authorization'] = f'Bearer {token}'
 
     url = 'https://civitai.com/api/v1/models'
-    uri = f'{url}?{encoded}'
+    if query.isnumeric():
+        uri = f'{url}/{query}'
+    else:
+        uri = f'{url}?{encoded}'
+
     log.info(f'CivitAI request: uri="{uri}" dct={dct} token={token is not None}')
     result = requests.get(uri, headers=headers, timeout=60)
 
@@ -149,7 +153,11 @@ def search_civitai(
 
     all_models: list[Model] = []
     exact_models: list[Model] = []
-    items = result.json().get('items', [])
+    dct = result.json()
+    if 'items' not in dct:
+        items = [dct] # single model
+    else:
+        items = dct.get('items', [])
     for item in items:
         all_models.append(Model(item))
 
@@ -189,7 +197,7 @@ def create_model_cards(all_models: list[Model]) -> str:
         previews = []
         for version in model.versions:
             for image in version.images:
-                if image.url and len(image.url) > 0:
+                if image.url and len(image.url) > 0 and not image.url.lower().endswith('.mp4'):
                     previews.append(image.url)
         if len(previews) == 0:
             previews = ['./sd_extra_networks/thumb?filename=html/card-no-preview.png']

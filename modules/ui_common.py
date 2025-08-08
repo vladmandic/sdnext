@@ -19,10 +19,14 @@ def gr_show(visible=True):
 
 def update_generation_info(generation_info, html_info, img_index):
     try:
-        generation_info = json.loads(generation_info)
-        if img_index < 0 or img_index >= len(generation_info["infotexts"]):
-            return html_info, generation_info
-        info = generation_info["infotexts"][img_index]
+        generation_json = json.loads(generation_info)
+        if len(generation_json["infotexts"]) == 0:
+            return html_info, 'no infotexts found'
+        if img_index == -1:
+            img_index = 0
+        if img_index >= len(generation_json["infotexts"]):
+            return html_info, 'error fetching infotext'
+        info = generation_json["infotexts"][img_index]
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
     except Exception:
