@@ -22,18 +22,13 @@ class QuantizationMethod(str, Enum):
 def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
     zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
     scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
-    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
-    scale = torch.where(torch.abs(scale) < eps, eps, scale)
     if dtype_dict[weights_dtype]["min"] != 0:
         zero_point.sub_(torch.mul(scale, dtype_dict[weights_dtype]["min"]))
     return scale, zero_point
 
 
 def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> torch.FloatTensor:
-    scale = torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
-    eps = torch.finfo(scale.dtype).eps # prevent divison by 0
-    scale = torch.where(torch.abs(scale) < eps, eps, scale)
-    return scale
+    return torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
 
 
 def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[int]], weights_dtype: str) -> Tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
