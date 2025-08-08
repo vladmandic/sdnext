@@ -122,8 +122,11 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-
-# TODO
+    if model.__class__.__name__ == 'StableDiffusion3Pipeline':
+        p.width = 16 * (p.width // 16)
+        p.height = 16 * (p.height // 16)
+        task_args['width'] = p.width
+        task_args['height'] = p.height
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
     return task_args

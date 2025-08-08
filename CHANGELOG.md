@@ -105,6 +105,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix `nunchaku` windows download links  
   - fix *Flux.1-Kontext-Dev* with variable resolution  
   - use `utf_16_be` as primary metadata decoding  
+  - fix `sd35` width/height alignment  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  
