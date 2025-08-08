@@ -9,7 +9,7 @@ from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias 
 
 
 def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
-    input = input.flatten(0,-2).contiguous()
+    input = input.flatten(0,-2).contiguous().to(dtype=scale.dtype)
     input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
     scale = torch.mul(input_scale, scale)
