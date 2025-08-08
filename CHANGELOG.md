@@ -93,6 +93,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - refactor legacy processing loop  
   - fix settings components mismatch  
   - fix *Wan 2.2-5B I2V* workflow  
+  - fix *Wan* T2I workflow  
   - fix OpenVINO  
   - fix video model vs pipeline mismatch  
   - fix video generic save frames  

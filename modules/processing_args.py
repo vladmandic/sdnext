@@ -122,7 +122,7 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-    if model.__class__.__name__ == 'StableDiffusion3Pipeline':
+    if model.__class__.__name__ in ['StableDiffusion3Pipeline', 'WanPipeline']:
         p.width = 16 * (p.width // 16)
         p.height = 16 * (p.height // 16)
         task_args['width'] = p.width

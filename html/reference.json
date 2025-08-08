@@ -1,25 +1,26 @@
+
 {
-  "Tempest SD-XL v0.1": {
-    "path": "TempestV0.1-Artistic.safetensors@https://huggingface.co/dataautogpt3/TempestV0.1/resolve/main/TempestV0.1-Artistic.safetensors?download=true",
-    "preview": "TempestV0.1-Artistic.jpg",
-    "desc": "The TempestV0.1 Initiative is a powerhouse in image generation, leveraging an unparalleled dataset of over 6 million images. The collection's vast scale, with resolutions from 1400x2100 to 4800x7200, encompasses 200GB of high-quality content.",
-    "extras": "width: 2048, height: 1024, sampler: DEIS, steps: 40, cfg_scale: 6.0"
+  "Tempest-by-Vlad XL": {
+    "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
+    "preview": "tempest-by-vlad-base.jpg",
+    "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
+    "extras": ""
+  },
+  "Tempest-by-Vlad XL Hyper": {
+    "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
+    "preview": "tempest-by-vlad-hyper.jpg",
+    "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
+    "extras": ""
   },
 
-  "Juggernaut SD-XL XI": {
+  "Juggernaut XL XI": {
     "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
     "preview": "juggernautXL_v9Rundiffusionphoto2.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
-  "Juggernaut SD-XL X Hyper": {
-    "path": "Juggernaut_X_RunDiffusion_Hyper.safetensors@https://civitai.com/api/download/models/471120",
-    "preview": "juggernautXL_v9Rundiffusionphoto2.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-  "Juggernaut SD-XL IX Lightning": {
-    "path": "juggernautXL_v9Rdphoto2Lightning.safetensors@https://civitai.com/api/download/models/357609",
+  "Juggernaut XL XI Lightning": {
+    "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
     "preview": "juggernautXL_v9Rdphoto2Lightning.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
@@ -30,40 +31,6 @@
     "preview": "juggernaut_reborn.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion 1.5",
     "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-
-  "DreamShaper SD v8": {
-    "original": true,
-    "path": "dreamshaper_8.safetensors@https://civitai.com/api/download/models/128713",
-    "preview": "dreamshaper_8.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion 1.5",
-    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-  "Dreamshaper SD v7 LCM": {
-    "path": "SimianLuo/LCM_Dreamshaper_v7",
-    "preview": "SimianLuo--LCM_Dreamshaper_v7.jpg",
-    "desc": "Latent Consistencey Models enable swift inference with minimal steps on any pre-trained LDMs, including Stable Diffusion. By distilling classifier-free guidance into the model's input, LCM can generate high-quality images in very short inference time. LCM can generate quality images in as few as 3-4 steps, making it blazingly fast.",
-    "extras": "width: 512, height: 512, sampler: LCM, steps: 4, cfg_scale: 0.0"
-  },
-  "DreamShaper SD-XL Turbo": {
-    "path": "dreamshaperXL_v21TurboDPMSDE.safetensors@https://civitai.com/api/download/models/351306",
-    "preview": "dreamshaperXL_v21TurboDPMSDE.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "extras": "sampler: DPM SDE, steps: 8, cfg_scale: 2.0"
-  },
-
-  "SDXS DreamShaper 512": {
-    "path": "IDKiro/sdxs-512-dreamshaper",
-    "preview": "IDKiro--sdxs-512-dreamshaper.jpg",
-    "desc": "SDXS: Real-Time One-Step Latent Diffusion Models with Image Conditions",
-    "extras": "width: 512, height: 512, sampler: CMSI, steps: 1, cfg_scale: 0.0"
-  },
-  "SDXL Flash Mini": {
-    "path": "SDXL-Flash_Mini.safetensors@https://huggingface.co/sd-community/sdxl-flash-mini/resolve/main/SDXL-Flash_Mini.safetensors?download=true",
-    "preview": "SDXL-Flash_Mini.jpg",
-    "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
-    "extras": "width: 2048, height: 1024, sampler: DEIS, steps: 40, cfg_scale: 6.0",
-    "experimental": true
   },
 
   "RunwayML StableDiffusion 1.5": {
@@ -281,6 +248,20 @@
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
+  },
+
+  "SDXS DreamShaper 512": {
+    "path": "IDKiro/sdxs-512-dreamshaper",
+    "preview": "IDKiro--sdxs-512-dreamshaper.jpg",
+    "desc": "SDXS: Real-Time One-Step Latent Diffusion Models with Image Conditions",
+    "extras": "width: 512, height: 512, sampler: CMSI, steps: 1, cfg_scale: 0.0"
+  },
+  "SDXL Flash Mini": {
+    "path": "SDXL-Flash_Mini.safetensors@https://huggingface.co/sd-community/sdxl-flash-mini/resolve/main/SDXL-Flash_Mini.safetensors?download=true",
+    "preview": "SDXL-Flash_Mini.jpg",
+    "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
+    "extras": "width: 2048, height: 1024, sampler: DEIS, steps: 40, cfg_scale: 6.0",
+    "experimental": true
   },
 
   "NVLabs Sana 1.5 1.6B 1k": {
