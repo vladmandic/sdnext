@@ -907,7 +907,7 @@ def set_diffuser_pipe(pipe, new_pipe_type):
                 elif new_pipe_type == DiffusersTaskType.INPAINTING:
                     new_pipe = diffusers.AutoPipelineForInpainting.from_pipe(pipe)
                 else:
-                    shared.log.error(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
+                    shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
                     return pipe
             except Exception as e: # pylint: disable=unused-variable
                 shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')

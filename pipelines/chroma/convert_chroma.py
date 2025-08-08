@@ -12,9 +12,8 @@ convert = True
 test = False
 upload = True
 input_files = [
-    'chroma-unlocked-v48.safetensors',
-    'chroma-unlocked-v48-detail-calibrated.safetensors',
-    'chroma-unlocked-v46-flash.safetensors',
+    'chroma-unlocked-v50.safetensors',
+    'chroma-unlocked-v50-annealed.safetensors',
 ]
 input_folder = '/mnt/models/UNET'
 output_folder = '/mnt/models/Diffusers'

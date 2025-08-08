@@ -25,7 +25,7 @@ And (*as always*) many bugfixes and improvements to existing features!
     available via *networks -> models -> reference*  
   - [Chroma](https://huggingface.co/lodestones/Chroma)  
     great model based on FLUX.1 and then redesigned and retrained by *lodestones*  
-    update with latest **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
+    update with latest **v50**, **v50 Annealed**, **v48**, **v48 Detail Calibrated** and **v46 Flash** variants  
     available via *networks -> models -> reference*  
   - [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
     SkyReels-V2 is a genarative video model based on Wan-2.1 but with heavily modified execution to allow for infinite-length video generation  
