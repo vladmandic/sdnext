@@ -4,10 +4,10 @@
 
 ### Highlights for 2025-08-09
 
-Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
-And several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
-Plus continuing with major **UI** work, there is new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
-On the compute side, new profiles for high-vram GPUs and offloading improvements  
+Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers) and [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
+Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
+On the compute side, new profiles for high-vram GPUs, offloading improvements and support for new `torch` release    
 And (*as always*) many bugfixes and improvements to existing features!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
