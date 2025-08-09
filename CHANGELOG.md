@@ -93,6 +93,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B` model support  
   - remove **LDSR**  
   - remove `api-only` cli option  
+- **API**
+  - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
 - **Fixes**  
   - refactor legacy processing loop  
   - fix settings components mismatch  
@@ -111,6 +113,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix *Flux.1-Kontext-Dev* with variable resolution  
   - use `utf_16_be` as primary metadata decoding  
   - fix `sd35` width/height alignment  
+  - fix `nudenet` api
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  

@@ -201,6 +201,7 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
         checkpoint_info.type = 'huggingface'
         return checkpoint_info
+
     if s.startswith('huggingface/'):
         model_name = s.replace('huggingface/', '')
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info

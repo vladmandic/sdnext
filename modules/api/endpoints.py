@@ -140,6 +140,14 @@ def get_checkpoint():
             checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
     return checkpoint
 
+def set_checkpoint(sd_model_checkpoint: str, force:bool=False):
+    from modules import sd_models
+    if force:
+        sd_models.unload_model_weights(op='model')
+    shared.opts.sd_model_checkpoint = sd_model_checkpoint
+    model = sd_models.reload_model_weights()
+    return { 'ok': model is not None }
+
 def post_refresh_checkpoints():
     shared.refresh_checkpoints()
     return {}
