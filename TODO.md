@@ -79,11 +79,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
-- lora: support pre-quantized flux
-- model load: cogview4: balanced offload does not work for GlmModel
-- model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
+- model load: add ChromaControlPipeline, ChromaInpaintPipeline
+- model load: cogview4 balanced offload does not work for GlmModel
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
+- model load: group offload
 - model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
+- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent
