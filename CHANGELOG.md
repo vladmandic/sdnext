@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-08
+## Update for 2025-08-09
 
-### Highlights for 2025-08-08
+### Highlights for 2025-08-09
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/), [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 And several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
@@ -12,7 +12,7 @@ And (*as always*) many bugfixes and improvements to existing features!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-08-07
+### Details for 2025-08-09
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -66,7 +66,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - gallery bypass browser cache for thumbnails  
   - gallery safer delete operation  
   - networks display indicator for currently active items  
-    styles, loras  
+    applies to: *styles, loras*  
+  - apply privacy blur to hf and civitai tokens  
   - *hint*: card layout  
     card layout is used by networks, gallery, civitai search, etc.  
     you can change card size in *settings -> user interface*  

@@ -2067,6 +2067,18 @@ div:has(>#tab-gallery-folders) {
   font-weight: normal;
 }
 
+.token {
+  filter: blur(4px);
+}
+
+.token:hover {
+  filter: blur(0px);
+}
+
+.token:focus {
+  filter: blur(0px);
+}
+
 @keyframes move {
   from {
     background-position-x: 0, -40px;

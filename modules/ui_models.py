@@ -498,7 +498,7 @@ def create_ui():
                 with gr.Accordion(label='Advanced', open=False, elem_id="civitai_search_options"):
                     civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
                     with gr.Row():
-                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
+                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models', elem_id="civitai_token")
                     with gr.Row():
                         civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
                     with gr.Row():
@@ -534,17 +534,16 @@ def create_ui():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
                         hf_search_btn = ToolButton(value=ui_symbols.search)
                     with gr.Row():
-                        with gr.Column(scale=2):
-                            with gr.Row():
-                                hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
-                        with gr.Column(scale=1):
-                            with gr.Row():
-                                hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
-                                hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
-                    with gr.Row():
-                        hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models')
-                        hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
-                        hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
+                        hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
+                    with gr.Accordion(label='Advanced', open=False, elem_id="hf_search_options"):
+                        with gr.Row():
+                            hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models', elem_id="hf_token")
+                        with gr.Row():
+                            hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
+                            hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
+                        with gr.Row():
+                            hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
+                            hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
                 with gr.Column(scale=1):
                     gr.HTML('<br>')
                     hf_download_model_btn = gr.Button(value="Download model", variant='primary')
