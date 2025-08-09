@@ -16,6 +16,7 @@ logging.getLogger("DeepSpeed").disabled = True
 
 np = None
 try:
+    os.environ.setdefault('NEP50_DISABLE_WARNING', '1')
     import numpy as np # pylint: disable=W0611,C0411
     import numpy.random # pylint: disable=W0611,C0411 # this causes failure if numpy version changed
     def obj2sctype(obj):
@@ -24,16 +25,22 @@ try:
         np.obj2sctype = obj2sctype # noqa: NPY201
         np.bool8 = np.bool
         np.float_ = np.float64 # noqa: NPY201
+        def dummy_npwarn_decorator_factory():
+            def npwarn_decorator(x):
+                return x
+            return npwarn_decorator
+        np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory)
 except Exception as e:
     errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
 timer.startup.record("numpy")
 
+scipy = None
 try:
     import scipy # pylint: disable=W0611,C0411
 except Exception as e:
-    errors.log.error(f'Loader: scipy=={np.__version__ if np is not None else None} {e}')
+    errors.log.error(f'Loader: scipy=={scipy.__version__ if scipy is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
 timer.startup.record("scipy")
