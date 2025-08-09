@@ -239,8 +239,6 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     if vae is not None:
         kwargs['vae'] = vae
 
-    # TODO model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
-    # Chroma will support inpainting *after* its training has finished: https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
     cls = diffusers.ChromaPipeline
     shared.log.debug(f'Load model: type=Chroma cls={cls.__name__} preloaded={list(kwargs)} revision={diffusers_load_config.get("revision", None)}')
     for c in kwargs:
@@ -265,6 +263,12 @@ def load_chroma(checkpoint_info, diffusers_load_config): # triggered by opts.sd_
     if shared.opts.teacache_enabled and model_quant.check_nunchaku('Model'):
         from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
         apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
+
+    # register autopipline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["chroma"] = diffusers.ChromaPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["chroma"] = diffusers.ChromaImg2ImgPipeline
+    # TODO model load: add ChromaControlPipeline, ChromaInpaintPipeline
+    # Chroma will support inpainting *after* its training has finished: https://huggingface.co/lodestones/Chroma/discussions/28#6826dd2ed86f53ff983add5c
 
     # release memory
     transformer = None

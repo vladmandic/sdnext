@@ -2067,16 +2067,13 @@ div:has(>#tab-gallery-folders) {
   font-weight: normal;
 }
 
-.token {
+#civitai_token textarea, #hf_token textarea {
   filter: blur(4px);
 }
 
-.token:hover {
-  filter: blur(0px);
-}
-
-.token:focus {
-  filter: blur(0px);
+#civitai_token textarea:hover, #hf_token textarea:hover,
+#civitai_token textarea:focus, #hf_token textarea:focus {
+  filter: blur(0);
 }
 
 @keyframes move {

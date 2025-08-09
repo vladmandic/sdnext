@@ -140,36 +140,22 @@
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
 
-  "lodestones Chroma Unlocked v50": {
+  "lodestones Chroma Unlocked HD": {
     "path": "vladmandic/chroma-unlocked-v50",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "lodestones Chroma Unlocked v50 Annealed": {
+  "lodestones Chroma Unlocked HD Annealed": {
     "path": "vladmandic/chroma-unlocked-v50-annealed",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
-  "lodestones Chroma Unlocked v48": {
-    "path": "vladmandic/chroma-unlocked-v48",
-    "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
-  "lodestones Chroma Unlocked v48 Detail Calibrated": {
-    "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
-    "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
-  },
-  "lodestones Chroma Unlocked v46 Flash": {
-    "path": "vladmandic/chroma-unlocked-v46-flash",
+  "lodestones Chroma Unlocked HD Flash": {
+    "path": "lodestones/Chroma1-Flash",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
