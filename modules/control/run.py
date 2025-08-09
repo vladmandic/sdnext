@@ -13,7 +13,7 @@ from modules.control.units import lite # Kohya ControlLLLite
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # ControlNet-Reference
 from modules.control.processor import preprocess_image
-from modules import devices, shared, errors, processing, images, sd_models, scripts_manager, masking
+from modules import devices, shared, errors, processing, images, sd_models, sd_vae, scripts_manager, masking
 from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
@@ -384,10 +384,11 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         p.selected_scale_tab_mask = 1
 
     # hires/refine defined outside of main init
+    vae_scale_factor = sd_vae.get_vae_scale_factor()
     if p.enable_hr and (p.hr_resize_x == 0 or p.hr_resize_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.width_before * p.hr_scale / 8), 8 * int(p.height_before * p.hr_scale / 8)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor), vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor)
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / 8), 8 * int(p.hr_resize_y / 8)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), vae_scale_factor * int(p.hr_resize_y / vae_scale_factor)
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():

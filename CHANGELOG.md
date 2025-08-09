@@ -88,6 +88,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
   - update requirements/packages  
+  - use model vae scale-factor for image width/heigt calculations  
 - **Other**
   - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B` model support  
   - remove **LDSR**  

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, images, scripts_manager, masking, sd_models, processing_helpers
+from modules import shared, images, scripts_manager, masking, sd_models, sd_vae, processing_helpers
 
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -449,10 +449,11 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
         if self.init_images is not None and len(self.init_images) > 0:
+            vae_scale_factor = sd_vae.get_vae_scale_factor()
             if self.width is None or self.width == 0:
-                self.width = int(8 * (self.init_images[0].width * self.scale_by // 8))
+                self.width = int(vae_scale_factor * (self.init_images[0].width * self.scale_by // vae_scale_factor))
             if self.height is None or self.height == 0:
-                self.height = int(8 * (self.init_images[0].height * self.scale_by // 8))
+                self.height = int(vae_scale_factor * (self.init_images[0].height * self.scale_by // vae_scale_factor))
         if getattr(self, 'image_mask', None) is not None:
             shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.INPAINTING)
         elif getattr(self, 'init_images', None) is not None:
@@ -554,7 +555,8 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
         self.hr_force = force
         self.hr_upscaler = upscaler
         if use_scale:
-            self.hr_upscale_to_x, self.hr_upscale_to_y = 8 * int(self.width * scale / 8), 8 * int(self.height * scale / 8)
+            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            self.hr_upscale_to_x, self.hr_upscale_to_y = vae_scale_factor * int(self.width * scale / vae_scale_factor), vae_scale_factor * int(self.height * scale / vae_scale_factor)
         else:
             self.hr_upscale_to_x, self.hr_upscale_to_y = self.hr_resize_x, self.hr_resize_y
 
