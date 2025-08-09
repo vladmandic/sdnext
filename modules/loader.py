@@ -29,7 +29,7 @@ try:
             def npwarn_decorator(x):
                 return x
             return npwarn_decorator
-        np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory)
+        np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory) # pylint: disable=protected-access
 except Exception as e:
     errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
@@ -57,8 +57,15 @@ except Exception:
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
-import torchvision # pylint: disable=W0611,C0411
-import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
+torchvision = None
+try:
+    import torchvision # pylint: disable=W0611,C0411
+    import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
+except Exception as e:
+    errors.log.error(f'Loader: torchvision=={torchvision.__version__ if "torchvision" in sys.modules else None} {e}')
+    if '_no_nep' in str(e):
+        errors.log.error('Loaded versions of packaged are not compatible')
+        errors.log.error('Please restart the app to fix this issue')
 logging.getLogger("xformers").addFilter(lambda record: 'A matching Triton is not available' not in record.getMessage())
 logging.getLogger("pytorch_lightning").disabled = True
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
