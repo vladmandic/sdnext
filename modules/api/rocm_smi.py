@@ -3,11 +3,13 @@ import json
 import subprocess as sp
 from enum import IntFlag
 
+
 try:
     from installer import log
 except Exception:
     import logging
     log = logging.getLogger(__name__)
+
 
 try:
     from modules.rocm import version as rocm_version
@@ -87,14 +89,19 @@ def get_rocm_smi():
                 "PCI link": f'Gen.{int(math.log2(float(rocm_smi_data[key].get("pcie_link_speed (0.1 GT/s)", 10)) / 10))} x{rocm_smi_data[key].get("pcie_link_width (Lanes)", "unknown")}',
                 "Power": f'{round(float(rocm_smi_data[key].get("Average Graphics Package Power (W)", 0)), 2)} W / {round(float(rocm_smi_data[key].get("Max Graphics Package Power (W)", 0)), 2)} W',
                 "GPU clock": f'{rocm_smi_data[key].get("average_gfxclk_frequency (MHz)", 0)} Mhz / {rocm_smi_data[key].get("Valid sclk range", "0").split(" - ")[-1].removesuffix("Mhz")} Mhz',
-                "Memory clock": f'{rocm_smi_data[key].get("current_uclk (MHz)", 0)} Mhz / {rocm_smi_data[key].get("Valid mclk range", "0").split(" - ")[-1].removesuffix("Mhz")} Mhz',
-                "Memory usage": f'used {load["memory"]}% | activity {rocm_smi_data[key].get("GPU Memory Read/Write Activity (%)", "unknown")}%',
-                "GPU usage": f'GPU {load["gpu"]}% | fan {load["fan"]}%',
-                "GPU temp": f'edge {load["temp"]}C | junction {load["temp_junction"]}C | memory {load["temp_memory"]}C',
+                "VRAM clock": f'{rocm_smi_data[key].get("current_uclk (MHz)", 0)} Mhz / {rocm_smi_data[key].get("Valid mclk range", "0").split(" - ")[-1].removesuffix("Mhz")} Mhz',
+                "VRAM usage": f'{load["memory"]}% Used | {rocm_smi_data[key].get("GPU Memory Read/Write Activity (%)", "unknown")}% Activity',
+                "GPU usage": f'GPU {load["gpu"]}% | Fan {load["fan"]}%',
+                "GPU temp": f'Edge {load["temp"]}C | Junction {load["temp_junction"]}C | Memory {load["temp_memory"]}C',
                 'Throttle reason': str(ThrottleStatus(int(rocm_smi_data[key].get("throttle_status", 0)))),
             }
+            name = rocm_smi_data[key].get('Device Name', 'unknown')
             chart = [load["memory"], load["gpu"]]
-            devices.append({ 'name': rocm_smi_data[key].get('Device Name', 'unknown'), 'data': data, 'chart': chart })
+            devices.append({
+                'name': name,
+                'data': data,
+                'chart': chart,
+            })
         return devices
     except Exception as e:
         log.error(f'ROCm SMI: {e}')

@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-09
+## Update for 2025-08-10
 
-### Highlights for 2025-08-09
+### Highlights for 2025-08-10
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers) and [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
@@ -12,7 +12,7 @@ And (*as always*) many bugfixes and improvements to existing features!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-08-09
+### Details for 2025-08-10
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -113,7 +113,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix *Flux.1-Kontext-Dev* with variable resolution  
   - use `utf_16_be` as primary metadata decoding  
   - fix `sd35` width/height alignment  
-  - fix `nudenet` api
+  - fix `nudenet` api  
+  - fix global state tracking  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  

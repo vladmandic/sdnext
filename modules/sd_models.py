@@ -1057,7 +1057,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
         unload_model_weights(op=op)
         return None
     orig_state = copy.deepcopy(shared.state)
-    shared.state = shared_state.State()
+    # shared.state = shared_state.State()
     shared.state.begin('Load')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
