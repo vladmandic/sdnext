@@ -19,6 +19,7 @@ output_folder = 'outputs/compare'
 models = [
     "sdxl-base-v10-vaefix",
     "tempest-by-vlad-0.1",
+    "icbinpXL_v6",
     "stabilityai/stable-diffusion-3.5-medium",
     "stabilityai/stable-diffusion-3.5-large",
     "black-forest-labs/FLUX.1-dev",
@@ -27,18 +28,17 @@ models = [
     "vladmandic/chroma-unlocked-v50",
     "vladmandic/chroma-unlocked-v50-annealed",
     "Qwen/Qwen-Image",
-    "HiDream-ai/HiDream-I1-Dev",
-    "HiDream-ai/HiDream-I1-Full",
     "briaai/BRIA-3.2",
+    "stabilityai/stable-cascade",
+    "ostris/Flex.2-preview",
+    "OmniGen2/OmniGen2",
+    "Freepik/F-Lite",
+    "Freepik/F-Lite-Texture",
+    "HiDream-ai/HiDream-I1-Full",
     "nvidia/Cosmos-Predict2-2B-Text2Image",
     "nvidia/Cosmos-Predict2-14B-Text2Image",
     "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
     "Wan-AI/Wan2.1-T2V-14B-Diffusers",
-    "OmniGen2/OmniGen2",
-    "stabilityai/stable-cascade",
-    "ostris/Flex.2-preview",
-    "Freepik/F-Lite",
-    "Freepik/F-Lite-Texture",
     "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
     "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers",
     "fal/AuraFlow-v0.3",
@@ -49,11 +49,7 @@ models = [
     "Alpha-VLLM/Lumina-Image-2.0",
     "Kwai-Kolors/Kolors-diffusers",
     "THUDM/CogView4-6B",
-    "kandinsky-community/kandinsky-2-1",
-    "kandinsky-community/kandinsky-2-2-decoder",
     "kandinsky-community/kandinsky-3",
-    # "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
-    # "playground-v2.5-1024px-aesthetic.fp16.safetensors@https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic/resolve/main/playground-v2.5-1024px-aesthetic.fp16.safetensors?download=true",
 ]
 styles = [
     'Fixed Astronaut',
@@ -81,7 +77,7 @@ def request(endpoint: str, dct: dict = None, method: str = 'POST'):
     sd_username = os.environ.get('SDAPI_USR', None)
     sd_password = os.environ.get('SDAPI_PWD', None)
     method = requests.post if method.upper() == 'POST' else requests.get
-    req = method(f'{sd_url}{endpoint}', json = dct, timeout=300, verify=False, auth=auth())
+    req = method(f'{sd_url}{endpoint}', json = dct, timeout=120000, verify=False, auth=auth())
     if req.status_code != 200:
         return { 'error': req.status_code, 'reason': req.reason, 'url': req.url }
     else:
