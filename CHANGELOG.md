@@ -115,6 +115,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix `sd35` width/height alignment  
   - fix `nudenet` api  
   - fix global state tracking  
+  - fix ui tab detection for networks  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  

@@ -479,8 +479,8 @@ function updateInput(target) {
 let desiredCheckpointName = null;
 function selectCheckpoint(name) {
   desiredCheckpointName = name;
-  const tabname = getENActiveTab();
-  const btnModel = gradioApp().getElementById(`${tabname}_extra_model`);
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
   const isRefiner = btnModel && btnModel.classList.contains('toolbutton-selected');
   if (isRefiner) gradioApp().getElementById('change_refiner').click();
   else gradioApp().getElementById('change_checkpoint').click();

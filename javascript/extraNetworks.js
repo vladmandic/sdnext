@@ -1,32 +1,38 @@
 const activePromptTextarea = {};
 let sortVal = -1;
 let totalCards = -1;
+let lastTab = 'control';
 
 // helpers
 
 const getENActiveTab = () => {
   let tabName = '';
-  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility()) return 'txt2img';
-  if (gradioApp().getElementById('img2img_prompt')?.checkVisibility()) return 'img2img';
-  if (gradioApp().getElementById('control_prompt')?.checkVisibility()) return 'control';
-  if (gradioApp().getElementById('video_prompt')?.checkVisibility()) return 'video';
-  if (gradioApp().getElementById('framepack_prompt_row')?.checkVisibility()) return 'framepack';
+  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility()) tabName = 'txt2img';
+  else if (gradioApp().getElementById('img2img_prompt')?.checkVisibility()) tabName = 'img2img';
+  else if (gradioApp().getElementById('control_prompt')?.checkVisibility()) tabName = 'control';
+  else if (gradioApp().getElementById('video_prompt')?.checkVisibility()) tabName = 'video';
+  else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
+  else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
+  else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
+  if (tabName in ['process', 'caption', 'gallery']) tabName = lastTab;
+  else lastTab = tabName;
+  if (tabName !== '') return tabName;
   // legacy method
   if (gradioApp().getElementById('tab_txt2img')?.style.display === 'block') tabName = 'txt2img';
   else if (gradioApp().getElementById('tab_img2img')?.style.display === 'block') tabName = 'img2img';
   else if (gradioApp().getElementById('tab_control')?.style.display === 'block') tabName = 'control';
   else if (gradioApp().getElementById('tab_video')?.style.display === 'block') tabName = 'video';
-  else if (gradioApp().getElementById('tab_framepack_tab')?.style.display === 'block') tabName = 'framepack';
+  else tabName = 'control';
   // log('getENActiveTab', tabName);
   return tabName;
 };
 
 const getENActivePage = () => {
-  const tabname = getENActiveTab();
-  let page = gradioApp().querySelector(`#${tabname}_extra_networks > .tabs > .tab-nav > .selected`);
-  if (!page) page = gradioApp().querySelector(`#${tabname}_extra_tabs > .tab-nav > .selected`);
+  const tabName = getENActiveTab();
+  let page = gradioApp().querySelector(`#${tabName}_extra_networks > .tabs > .tab-nav > .selected`);
+  if (!page) page = gradioApp().querySelector(`#${tabName}_extra_tabs > .tab-nav > .selected`);
   const pageName = page ? page.innerText : '';
-  const btnApply = gradioApp().getElementById(`${tabname}_extra_apply`);
+  const btnApply = gradioApp().getElementById(`${tabName}_extra_apply`);
   if (btnApply) btnApply.style.display = pageName === 'Style' ? 'inline-flex' : 'none';
   // log('getENActivePage', pageName);
   return pageName;
@@ -48,8 +54,8 @@ const setENState = (state) => {
 
 function showCardDetails(event) {
   // log('showCardDetails', event);
-  const tabname = getENActiveTab();
-  const btn = gradioApp().getElementById(`${tabname}_extra_details_btn`);
+  const tabName = getENActiveTab();
+  const btn = gradioApp().getElementById(`${tabName}_extra_details_btn`);
   btn.click();
   event.stopPropagation();
   event.preventDefault();
@@ -97,8 +103,8 @@ function readCardTags(el, tags) {
 
 function readCardDescription(page, item) {
   xhrGet('/sd_extra_networks/description', { page, item }, (data) => {
-    const tabname = getENActiveTab();
-    const description = gradioApp().querySelector(`#${tabname}_description > label > textarea`);
+    const tabName = getENActiveTab();
+    const description = gradioApp().querySelector(`#${tabName}_description > label > textarea`);
     if (description) {
       description.value = data?.description?.trim() || '';
       updateInput(description);
@@ -108,10 +114,10 @@ function readCardDescription(page, item) {
 }
 
 function getCardsForActivePage() {
-  const pagename = getENActivePage();
-  if (!pagename) return [];
+  const pageName = getENActivePage();
+  if (!pageName) return [];
   let allCards = Array.from(gradioApp().querySelectorAll('.extra-network-cards > .card'));
-  allCards = allCards.filter((el) => el.dataset.page?.toLowerCase().includes(pagename.toLowerCase()));
+  allCards = allCards.filter((el) => el.dataset.page?.toLowerCase().includes(pageName.toLowerCase()));
   // log('getCardsForActivePage', pagename, cards.length);
   return allCards;
 }
@@ -234,9 +240,9 @@ function sortExtraNetworks(fixed = 'no') {
   return desc;
 }
 
-function refreshENInput(tabname) {
-  log('refreshNetworks', tabname, gradioApp().querySelector(`#${tabname}_extra_networks textarea`)?.value);
-  gradioApp().querySelector(`#${tabname}_extra_networks textarea`)?.dispatchEvent(new Event('input'));
+function refreshENInput(tabName) {
+  log('refreshNetworks', tabName, gradioApp().querySelector(`#${tabName}_extra_networks textarea`)?.value);
+  gradioApp().querySelector(`#${tabName}_extra_networks textarea`)?.dispatchEvent(new Event('input'));
 }
 
 async function markSelectedCards(selected, page = '') {
@@ -257,9 +263,9 @@ function extractLoraNames(prompt) {
 }
 
 function cardClicked(textToAdd) {
-  const tabname = getENActiveTab();
-  log('cardClicked', tabname, textToAdd);
-  const textarea = activePromptTextarea[tabname];
+  const tabName = getENActiveTab();
+  log('cardClicked', tabName, textToAdd);
+  const textarea = activePromptTextarea[tabName];
   if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, '');
   else textarea.value += textToAdd;
   updateInput(textarea);
@@ -268,8 +274,8 @@ function cardClicked(textToAdd) {
 
 function extraNetworksSearchButton(event) {
   // log('extraNetworksSearchButton', event);
-  const tabname = getENActiveTab();
-  const searchTextarea = gradioApp().querySelector(`#${tabname}_extra_search textarea`);
+  const tabName = getENActiveTab();
+  const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const button = event.target;
   searchTextarea.value = `${button.textContent.trim()}/`;
   updateInput(searchTextarea);
@@ -278,8 +284,8 @@ function extraNetworksSearchButton(event) {
 let desiredStyle = '';
 function selectStyle(name) {
   desiredStyle = name;
-  const tabname = getENActiveTab();
-  const button = gradioApp().querySelector(`#${tabname}_styles_select`);
+  const tabName = getENActiveTab();
+  const button = gradioApp().querySelector(`#${tabName}_styles_select`);
   button.click();
 }
 
@@ -288,8 +294,8 @@ function applyStyles(styles) {
   if (styles) {
     newStyles = Array.isArray(styles) ? styles : [styles];
   } else {
-    const tabname = getENActiveTab();
-    styles = gradioApp().querySelectorAll(`#${tabname}_styles .token span`);
+    const tabName = getENActiveTab();
+    styles = gradioApp().querySelectorAll(`#${tabName}_styles .token span`);
     newStyles = Array.from(styles).map((el) => el.textContent).filter((el) => el.length > 0);
   }
   const index = newStyles.indexOf(desiredStyle);
@@ -300,16 +306,16 @@ function applyStyles(styles) {
 }
 
 function quickApplyStyle() {
-  const tabname = getENActiveTab();
-  const btnApply = gradioApp().getElementById(`${tabname}_extra_apply`);
+  const tabName = getENActiveTab();
+  const btnApply = gradioApp().getElementById(`${tabName}_extra_apply`);
   if (btnApply) btnApply.click();
 }
 
 function quickSaveStyle() {
-  const tabname = getENActiveTab();
-  const btnSave = gradioApp().getElementById(`${tabname}_extra_quicksave`);
+  const tabName = getENActiveTab();
+  const btnSave = gradioApp().getElementById(`${tabName}_extra_quicksave`);
   if (btnSave) btnSave.click();
-  const btnRefresh = gradioApp().getElementById(`${tabname}_extra_refresh`);
+  const btnRefresh = gradioApp().getElementById(`${tabName}_extra_refresh`);
   if (btnRefresh) {
     setTimeout(() => btnRefresh.click(), 100);
     // setTimeout(() => sortExtraNetworks('fixed'), 500);
@@ -327,18 +333,18 @@ let enDirty = false;
 function closeDetailsEN(...args) {
   // log('closeDetailsEN');
   enDirty = true;
-  const tabname = getENActiveTab();
-  const btnClose = gradioApp().getElementById(`${tabname}_extra_details_close`);
+  const tabName = getENActiveTab();
+  const btnClose = gradioApp().getElementById(`${tabName}_extra_details_close`);
   if (btnClose) setTimeout(() => btnClose.click(), 100);
-  const btnRefresh = gradioApp().getElementById(`${tabname}_extra_refresh`);
+  const btnRefresh = gradioApp().getElementById(`${tabName}_extra_refresh`);
   if (btnRefresh && enDirty) setTimeout(() => btnRefresh.click(), 100);
   return [...args];
 }
 
 function refeshDetailsEN(args) {
   // log(`refeshDetailsEN: ${enDirty}`);
-  const tabname = getENActiveTab();
-  const btnRefresh = gradioApp().getElementById(`${tabname}_extra_refresh`);
+  const tabName = getENActiveTab();
+  const btnRefresh = gradioApp().getElementById(`${tabName}_extra_refresh`);
   if (btnRefresh && enDirty) setTimeout(() => btnRefresh.click(), 100);
   enDirty = false;
   return args;
@@ -348,30 +354,30 @@ function refeshDetailsEN(args) {
 function refreshENpage() {
   if (getCardsForActivePage().length === 0) {
     // log('refreshENpage');
-    const tabname = getENActiveTab();
-    const btnRefresh = gradioApp().getElementById(`${tabname}_extra_refresh`);
+    const tabName = getENActiveTab();
+    const btnRefresh = gradioApp().getElementById(`${tabName}_extra_refresh`);
     if (btnRefresh) btnRefresh.click();
   }
 }
 
 // init
-function setupExtraNetworksForTab(tabname) {
-  let tabs = gradioApp().querySelector(`#${tabname}_extra_tabs`);
+function setupExtraNetworksForTab(tabName) {
+  let tabs = gradioApp().querySelector(`#${tabName}_extra_tabs`);
   if (tabs) tabs.classList.add('extra-networks');
-  const en = gradioApp().getElementById(`${tabname}_extra_networks`);
-  tabs = gradioApp().querySelector(`#${tabname}_extra_tabs > div`);
+  const en = gradioApp().getElementById(`${tabName}_extra_networks`);
+  tabs = gradioApp().querySelector(`#${tabName}_extra_tabs > div`);
   if (!tabs) return;
 
   // buttons
-  const btnShow = gradioApp().getElementById(`${tabname}_extra_networks_btn`);
-  const btnRefresh = gradioApp().getElementById(`${tabname}_extra_refresh`);
-  const btnScan = gradioApp().getElementById(`${tabname}_extra_scan`);
-  const btnSave = gradioApp().getElementById(`${tabname}_extra_save`);
-  const btnClose = gradioApp().getElementById(`${tabname}_extra_close`);
-  const btnSort = gradioApp().getElementById(`${tabname}_extra_sort`);
-  const btnView = gradioApp().getElementById(`${tabname}_extra_view`);
-  const btnModel = gradioApp().getElementById(`${tabname}_extra_model`);
-  const btnApply = gradioApp().getElementById(`${tabname}_extra_apply`);
+  const btnShow = gradioApp().getElementById(`${tabName}_extra_networks_btn`);
+  const btnRefresh = gradioApp().getElementById(`${tabName}_extra_refresh`);
+  const btnScan = gradioApp().getElementById(`${tabName}_extra_scan`);
+  const btnSave = gradioApp().getElementById(`${tabName}_extra_save`);
+  const btnClose = gradioApp().getElementById(`${tabName}_extra_close`);
+  const btnSort = gradioApp().getElementById(`${tabName}_extra_sort`);
+  const btnView = gradioApp().getElementById(`${tabName}_extra_view`);
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
+  const btnApply = gradioApp().getElementById(`${tabName}_extra_apply`);
   const buttons = document.createElement('span');
   buttons.classList.add('buttons');
   if (btnRefresh) buttons.appendChild(btnRefresh);
@@ -387,8 +393,8 @@ function setupExtraNetworksForTab(tabname) {
   tabs.appendChild(buttons);
 
   // details
-  const detailsImg = gradioApp().getElementById(`${tabname}_extra_details_img`);
-  const detailsClose = gradioApp().getElementById(`${tabname}_extra_details_close`);
+  const detailsImg = gradioApp().getElementById(`${tabName}_extra_details_img`);
+  const detailsClose = gradioApp().getElementById(`${tabName}_extra_details_close`);
   if (detailsImg && detailsClose) {
     detailsImg.title = 'Close details';
     detailsImg.onclick = () => detailsClose.click();
@@ -398,9 +404,9 @@ function setupExtraNetworksForTab(tabname) {
   const div = document.createElement('div');
   div.classList.add('second-line');
   tabs.appendChild(div);
-  const txtSearch = gradioApp().querySelector(`#${tabname}_extra_search`);
-  const txtSearchValue = gradioApp().querySelector(`#${tabname}_extra_search textarea`);
-  const txtDescription = gradioApp().getElementById(`${tabname}_description`);
+  const txtSearch = gradioApp().querySelector(`#${tabName}_extra_search`);
+  const txtSearchValue = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
+  const txtDescription = gradioApp().getElementById(`${tabName}_description`);
   txtSearch.classList.add('search');
   txtDescription.classList.add('description');
   div.appendChild(txtSearch);
@@ -418,7 +424,7 @@ function setupExtraNetworksForTab(tabname) {
   let hoverTimer = null;
   let previousCard = null;
   if (window.opts.extra_networks_fetch) {
-    gradioApp().getElementById(`${tabname}_extra_tabs`).onmouseover = async (e) => {
+    gradioApp().getElementById(`${tabName}_extra_tabs`).onmouseover = async (e) => {
       const el = e.target.closest('.card'); // bubble-up to card
       if (!el || (el.title === previousCard)) return;
       if (!hoverTimer) {
@@ -438,7 +444,7 @@ function setupExtraNetworksForTab(tabname) {
   // auto-resize networks sidebar
   const resizeObserver = new ResizeObserver((entries) => {
     for (const entry of entries) {
-      for (const el of Array.from(gradioApp().getElementById(`${tabname}_extra_tabs`).querySelectorAll('.extra-networks-page'))) {
+      for (const el of Array.from(gradioApp().getElementById(`${tabName}_extra_tabs`).querySelectorAll('.extra-networks-page'))) {
         const h = Math.trunc(entry.contentRect.height);
         if (h <= 0) return;
         const vh = opts.logmonitor_show ? '55vh' : '68vh';
@@ -446,12 +452,12 @@ function setupExtraNetworksForTab(tabname) {
         else if (window.opts.extra_networks_card_cover === 'inline' && window.opts.theme_type === 'Standard') el.style.height = '25vh';
         else if (window.opts.extra_networks_card_cover === 'cover' && window.opts.theme_type === 'Standard') el.style.height = '50vh';
         else el.style.height = 'unset';
-        // log(`${tabname} height: ${entry.target.id}=${h} ${el.id}=${el.clientHeight}`);
+        // log(`${tabName} height: ${entry.target.id}=${h} ${el.id}=${el.clientHeight}`);
       }
     }
   });
-  const settingsEl = gradioApp().getElementById(`${tabname}_settings`);
-  const interfaceEl = gradioApp().getElementById(`${tabname}_interface`);
+  const settingsEl = gradioApp().getElementById(`${tabName}_settings`);
+  const interfaceEl = gradioApp().getElementById(`${tabName}_interface`);
   if (settingsEl) resizeObserver.observe(settingsEl);
   if (interfaceEl) resizeObserver.observe(interfaceEl);
 
@@ -466,7 +472,7 @@ function setupExtraNetworksForTab(tabname) {
       const target = window.opts.extra_networks_card_cover === 'sidebar' ? 0 : window.opts.extra_networks_height;
       if (window.opts.theme_type === 'Standard') h = target > 0 ? target : 55;
       else h = target > 0 ? target : 87;
-      for (const el of Array.from(gradioApp().getElementById(`${tabname}_extra_tabs`).querySelectorAll('.extra-networks-page'))) {
+      for (const el of Array.from(gradioApp().getElementById(`${tabName}_extra_tabs`).querySelectorAll('.extra-networks-page'))) {
         if (h > 0) el.style.height = `${h}vh`;
         el.parentElement.style.width = '-webkit-fill-available';
       }
@@ -490,7 +496,7 @@ function setupExtraNetworksForTab(tabname) {
           en.style.top = '13em';
           en.style.transition = '';
           en.style.zIndex = 100;
-          gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = 'unset';
+          gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width = 'unset';
         } else if (window.opts.extra_networks_card_cover === 'sidebar') {
           en.style.position = 'absolute';
           en.style.height = 'auto';
@@ -501,7 +507,7 @@ function setupExtraNetworksForTab(tabname) {
           en.style.top = '13em';
           en.style.transition = 'width 0.3s ease';
           en.style.zIndex = 100;
-          gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = `calc(100vw - 2em - min(${window.opts.extra_networks_sidebar_width}vw, 50vw))`;
+          gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width = `calc(100vw - 2em - min(${window.opts.extra_networks_sidebar_width}vw, 50vw))`;
         } else {
           en.style.position = 'relative';
           en.style.height = 'unset';
@@ -512,15 +518,15 @@ function setupExtraNetworksForTab(tabname) {
           en.style.top = 0;
           en.style.transition = '';
           en.style.zIndex = 0;
-          gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = 'unset';
+          gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width = 'unset';
         }
       } else {
         if (window.opts.extra_networks_card_cover === 'sidebar') en.style.width = 0;
-        gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width = 'unset';
+        gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width = 'unset';
       }
-      if (tabname === 'video') {
-        gradioApp().getElementById('framepack_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
-        gradioApp().getElementById('ltx_settings').parentNode.style.width = gradioApp().getElementById(`${tabname}_settings`).parentNode.style.width;
+      if (tabName === 'video') {
+        gradioApp().getElementById('framepack_settings').parentNode.style.width = gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width;
+        gradioApp().getElementById('ltx_settings').parentNode.style.width = gradioApp().getElementById(`${tabName}_settings`).parentNode.style.width;
       }
     }
   });
@@ -528,8 +534,8 @@ function setupExtraNetworksForTab(tabname) {
 }
 
 async function showNetworks() {
-  for (const tabname of ['txt2img', 'img2img', 'control', 'video']) {
-    if (window.opts.extra_networks_show) gradioApp().getElementById(`${tabname}_extra_networks_btn`).click();
+  for (const tabName of ['txt2img', 'img2img', 'control', 'video']) {
+    if (window.opts.extra_networks_show) gradioApp().getElementById(`${tabName}_extra_networks_btn`).click();
   }
   log('showNetworks');
 }
@@ -540,11 +546,11 @@ async function setupExtraNetworks() {
   setupExtraNetworksForTab('control');
   setupExtraNetworksForTab('video');
 
-  function registerPrompt(tabname, id) {
+  function registerPrompt(tabName, id) {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
     if (!textarea) return;
-    if (!activePromptTextarea[tabname]) activePromptTextarea[tabname] = textarea;
-    textarea.addEventListener('focus', () => { activePromptTextarea[tabname] = textarea; });
+    if (!activePromptTextarea[tabName]) activePromptTextarea[tabName] = textarea;
+    textarea.addEventListener('focus', () => { activePromptTextarea[tabName] = textarea; });
   }
 
   registerPrompt('txt2img', 'txt2img_prompt');
