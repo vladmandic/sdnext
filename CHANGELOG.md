@@ -4,7 +4,7 @@
 
 ### Highlights for 2025-08-10
 
-Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers) and [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
 Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs, offloading improvements and support for new `torch` release    
@@ -16,11 +16,13 @@ And (*as always*) many bugfixes and improvements to existing features!
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
-    new image foundational model with 20B params DiT and using Qwen2.5-VL-7B as the text-encoder!  
-    available for text-to-image workflows, image-editing workflows will follow soon  
-    *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
-    recommended params: *steps=50, attention-guidance=4*  
+    new image foundational model with *20B* params DiT and using *Qwen2.5-VL-7B* as the text-encoder!  
     available via *networks -> models -> reference*  
+    *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
+    *note* qwen-image supports text-to-image workflows as image-editing model is not yet available  
+    *recommended* params: *steps=50, attention-guidance=4*  
+    also available is pre-packaged [Qwen-Lightning](https://huggingface.co/vladmandic/Qwen-Lightning)  
+    which is an unofficial merge of [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) with [Qwen-Lightning-LoRA](https://github.com/ModelTC/Qwen-Image-Lightning/) to improve quality and allow for generating in 8-steps!  
   - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
     new 12B base model compatible with FLUX.1-Dev from *Black Forest Labs* with opinionated aesthetics and aesthetic preferences in mind  
     available via *networks -> models -> reference*  
@@ -38,7 +40,7 @@ And (*as always*) many bugfixes and improvements to existing features!
     optimized support with granular guidance control will follow soon  
 **Torch**  
   - Set default to `torch==2.8.0` for *CUDA, ROCm and OpenVINO*  
-  - Add support for `torch==2.9.0`  
+  - Add support for `torch==2.9.0-nightly`  
 - **UI**  
   - new embedded docs/wiki search!  
     **Docs** search: fully-local and works in real-time on all document pages  

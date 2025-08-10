@@ -169,6 +169,13 @@
     "skip": true,
     "extras": ""
   },
+  "Qwen-Lightning": {
+    "path": "vladmandic/Qwen-Lightning",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": " Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
+    "skip": true,
+    "extras": "steps: 8"
+  },
 
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",

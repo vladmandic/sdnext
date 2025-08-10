@@ -348,9 +348,9 @@ class ExtraNetworksPage:
                 "color": random_bright_color(),
                 "reference": "reference" if 'Reference' in item.get('name', '') else "",
             }
-            alias = item.get("alias", None)
-            if alias is not None:
-                args['title'] += f'\nAlias: {alias}'
+            # alias = item.get("alias", None)
+            # if alias is not None:
+            #     args['title'] += f'\nAlias: {alias}'
             return self.card.format(**args)
         except Exception as e:
             shared.log.error(f'Networks: item error: page={tabname} item={item["name"]} {e}')
