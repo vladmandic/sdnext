@@ -57,6 +57,8 @@ def ram_stats():
         ram['used'] = gb(res.rss)
         ram['free'] = ram['total'] - ram['used']
     except Exception as e:
+        ram['total'] = 0
+        ram['used'] = 0
         ram['error'] = str(e)
         if not fail_once:
             shared.log.error(f'RAM stats: {e}')
@@ -79,6 +81,8 @@ def gpu_stats():
         gpu['retries'] = stats.get('num_alloc_retries', 0)
         gpu['oom'] = stats.get('num_ooms', 0)
     except Exception as e:
+        gpu['total'] = 0
+        gpu['used'] = 0
         gpu['error'] = str(e)
         if not fail_once:
             shared.log.error(f'GPU stats: {e}')
