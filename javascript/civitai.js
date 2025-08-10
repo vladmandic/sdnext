@@ -107,7 +107,7 @@ async function modelCardClick(id) {
     downloads: data.downloads?.toString() || '',
     creator,
     desc: data.desc || 'no description available',
-    image: images.length > 0 ? images[0] : './sd_extra_networks/thumb?filename=html/card-no-preview.png',
+    image: images.length > 0 ? images[0] : '/sdapi/v1/network/thumb?filename=html/card-no-preview.png',
     versions: versionsHTML || '',
   });
   el.innerHTML = modelHTML;

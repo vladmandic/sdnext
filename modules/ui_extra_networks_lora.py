@@ -88,6 +88,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
             item = {
                 "type": 'Lora',
                 "name": name,
+                "alias": os.path.splitext(os.path.basename(l.filename))[0],
                 "filename": l.filename,
                 "hash": l.shorthash,
                 "prompt": json.dumps(f" <lora:{l.get_alias()}:{shared.opts.extra_networks_default_multiplier}>"),

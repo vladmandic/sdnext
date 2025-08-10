@@ -410,6 +410,7 @@ And (as always) many bugfixes and improvements to existing features!
     *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
     *note*: you can also enable 'add time info' to compare performance of different quantization modes  
 - **API**
+  - Add `/sdapi/v1/network?page=<page_name>&item=<item_name>` endpoint that returns full network info  
   - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
   - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
   - Set default sampler to `Default`  

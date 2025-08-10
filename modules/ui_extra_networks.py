@@ -70,7 +70,7 @@ def init_api():
         return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
 
     def get_metadata(page: str = "", item: str = ""):
-        page = next(iter([x for x in shared.extra_networks if x.name == page]), None)
+        page = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'metadata': 'none' })
         metadata = page.metadata.get(item, 'none')
@@ -80,10 +80,10 @@ def init_api():
         return JSONResponse({"metadata": metadata})
 
     def get_info(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name == page]), None)
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'info': 'none' })
-        item = next(iter([x for x in page.items if x['name'] == item]), None)
+        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'info': 'none' })
         info = page.find_info(item.get('filename', None) or item.get('name', None))
@@ -93,10 +93,10 @@ def init_api():
         return JSONResponse({"info": info})
 
     def get_desc(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name == page]), None)
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'description': 'none' })
-        item = next(iter([x for x in page.items if x['name'] == item]), None)
+        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'description': 'none' })
         desc = page.find_description(item.get('filename', None) or item.get('name', None))
@@ -105,10 +105,21 @@ def init_api():
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
         return JSONResponse({"description": desc})
 
-    shared.api.add_api_route("/sd_extra_networks/thumb", fetch_file, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/metadata", get_metadata, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/info", get_info, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/description", get_desc, methods=["GET"])
+    def get_network(page: str = "", item: str = ""):
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page is None:
+            return JSONResponse({ 'page': 'none' })
+        item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
+        if item is None:
+            return JSONResponse({ 'item': 'none' })
+        return JSONResponse(item)
+
+
+    shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
 
 
 class ExtraNetworksPage:
@@ -130,6 +141,9 @@ class ExtraNetworksPage:
         self.dirs = {}
         self.view = shared.opts.extra_networks_view
         self.card = card_full if shared.opts.extra_networks_view == 'gallery' else card_list
+
+    def __str__(self):
+        return f'Page(title="{self.title}" name="{self.name}" items={len(self.items)})'
 
     def refresh(self):
         pass
@@ -159,7 +173,7 @@ class ExtraNetworksPage:
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
-        preview = f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
+        preview = f"/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
     def create_thumb(self):

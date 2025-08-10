@@ -80,6 +80,7 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
                 "type": 'Style',
                 "name": name,
                 "title": k,
+                "alias": os.path.splitext(os.path.basename(style.filename))[0],
                 "filename": style.filename,
                 "preview": style.preview if getattr(style, 'preview', None) is not None and style.preview.startswith('data:') else None,
                 "description": style.description if getattr(style, 'description', None) is not None and len(style.description) > 0 else txt,

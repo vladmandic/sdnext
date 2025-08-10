@@ -27,6 +27,7 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
                 "type": 'Embedding',
                 "name": name,
                 "filename": embedding.filename,
+                "alias": os.path.splitext(os.path.basename(embedding.filename))[0],
                 "prompt": json.dumps(f" {os.path.splitext(embedding.name)[0]}"),
                 "tags": tags,
                 "mtime": os.path.getmtime(embedding.filename),

@@ -33,6 +33,10 @@ force_models_diffusers = [ # forced always
     'hunyuandit',
     'auraflow',
     'lumina2',
+    'qwen',
+    'bria',
+    'flite',
+    'cosmos',
     # video models
     'hunyuanvideo',
     'cogvideo',

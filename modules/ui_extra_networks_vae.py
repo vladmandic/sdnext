@@ -17,6 +17,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                 record = {
                     "type": 'VAE',
                     "name": name,
+                    "alias": os.path.splitext(os.path.basename(filename))[0],
                     "title": name,
                     "filename": filename,
                     "hash": hashes.sha256_from_cache(filename, f"vae/{filename}"),

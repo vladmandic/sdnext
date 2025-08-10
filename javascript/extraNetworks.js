@@ -102,7 +102,7 @@ function readCardTags(el, tags) {
 }
 
 function readCardDescription(page, item) {
-  xhrGet('/sd_extra_networks/description', { page, item }, (data) => {
+  xhrGet('/sdapi/v1/network/desc', { page, item }, (data) => {
     const tabName = getENActiveTab();
     const description = gradioApp().querySelector(`#${tabName}_description > label > textarea`);
     if (description) {
