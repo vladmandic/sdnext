@@ -1285,17 +1285,16 @@ table.settings-value-table td {
   bottom: 0;
   color: white;
   font-size: var(--text-lg);
-  font-weight: bold;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   padding: 0.2em;
   position: absolute;
-  text-shadow: 1px 1px black;
   z-index: 10;
+  text-shadow: 2px 2px 2px black;
+  filter: drop-shadow(0px 0px 4px black);
 }
 
 .extra-network-cards .card .overlay .reference {
-
-  color: var(--body-text-color-subdued)
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .extra-network-cards .card .preview {
