@@ -520,13 +520,13 @@
   },
 
   "CogView 4": {
-    "path": "THUDM/CogView4-6B",
+    "path": "zai-org/CogView4-6B",
     "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
     "preview": "THUDM--CogView4-6B.jpg",
     "skip": true
   },
   "CogView 3 Plus": {
-    "path": "THUDM/CogView3-Plus-3B",
+    "path": "zai-org/CogView3-Plus-3B",
     "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
     "preview": "THUDM--CogView3-Plus-3B.jpg",
     "skip": true

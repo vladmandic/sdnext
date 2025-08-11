@@ -139,7 +139,7 @@ Feature highlights include:
 - [ModernUI](https://github.com/user-attachments/assets/6f156154-0b0a-4be2-94f0-979e9f679501) has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes  
   If you're still using **StandardUI**, give [ModernUI](https://vladmandic.github.io/sdnext-docs/Themes/) a try!  
 - New models such as [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
-  and also [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2) and [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
+  and also [FreePik F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2) and [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
 - Redesigned [Video](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
 - Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
 - New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
@@ -184,7 +184,7 @@ For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master
     can also load unet/transformer fine-tunes in safetensors format using UNET loader  
     simply select in *networks -> models -> reference*  
     *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB even without second-stage so aggressive quantization and offloading are recommended  
-  - [FreePix F-Lite](https://huggingface.co/Freepik/F-Lite) in *7B, 10B and Texture* variants  
+  - [FreePik F-Lite](https://huggingface.co/Freepik/F-Lite) in *7B, 10B and Texture* variants  
     F-Lite is a 7B/10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
     available via *networks -> models -> reference*  
   - [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)  

@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+fal/AuraFlow-v0.3: sdnq unusupported
+
+"""
+
 import io
 import os
 import time
@@ -27,8 +32,8 @@ models = [
     "stabilityai/stable-diffusion-3.5-medium",
     "stabilityai/stable-diffusion-3.5-large",
     "fal/AuraFlow-v0.3",
-    "THUDM/CogView3-Plus-3B",
-    "THUDM/CogView4-6B",
+    "zai-org/CogView4-6B",
+    "zai-org/CogView3-Plus-3B",
     "nvidia/Cosmos-Predict2-2B-Text2Image",
     "nvidia/Cosmos-Predict2-14B-Text2Image",
     "Qwen/Qwen-Image",
@@ -70,8 +75,11 @@ styles_tbd = [
     'Fixed Kneeling on Bed',
     'Fixed Girl in Sin City',
     'Fixed Girl in a city',
+    'Fixed Girl in Lace',
     'Fixed Lady in Tokyo',
     'Fixed MadMax selfie',
+    'Fixed Party Yacht',
+    'Fixed Yoga Girls',
     'Fixed SDNext Neon',
 ]
 
@@ -116,8 +124,10 @@ def generate(): # pylint: disable=redefined-outer-name
                     b64 = data['images'][0].split(',',1)[0]
                     image = Image.open(io.BytesIO(base64.b64decode(b64)))
                     info = data['info']
-                    log.info(f' image: size={image.size} time={t1-t0:.2f} info="{len(info)}" fn="{fn}"')
+                    log.info(f' image: size={image.width}x{image.height} time={t1-t0:.2f} info={len(info)}')
                     image.save(fn)
+                else:
+                    log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
 

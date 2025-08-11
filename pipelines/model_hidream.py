@@ -2,6 +2,7 @@ import os
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from pipelines import generic
 
 
 def load_llama(repo_id, diffusers_load_config={}):
@@ -37,7 +38,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.HiDreamImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
     text_encoder_3 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_3")
-    text_encoder_4, tokenizer_4 = load_text_encoders(repo_id, diffusers_load_config)
+    text_encoder_4, tokenizer_4 = load_llama(repo_id, diffusers_load_config)
 
     if shared.opts.teacache_enabled:
         from modules import teacache

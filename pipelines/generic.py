@@ -8,8 +8,8 @@ from modules import shared, devices, sd_models, model_quant
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer"):
-    load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True)
+def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True):
+    load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
 
     local_file = None
@@ -56,8 +56,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer")
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder"):
-    load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True)
+def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True):
+    load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
     text_encoder = None
 
@@ -92,7 +92,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         )
         text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
     # use shared t5 if possible
-    elif cls_name == transformers.T5EncoderModel:
+    elif cls_name == transformers.T5EncoderModel and allow_shared:
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             load_args['config'] = transformers.T5Config(**json.load(f))
         if model_quant.check_nunchaku('TE'):
@@ -114,7 +114,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
                 **load_args,
                 **quant_args,
             )
-    
+
     # load from repo
     if text_encoder is None:
         shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')

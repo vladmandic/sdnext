@@ -4,6 +4,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- Unified `CLIPTextModelWithProjection` loader  
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
