@@ -323,7 +323,8 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             allow_post_quant = False
         elif model_type in ['Chroma']:
             from pipelines.model_chroma import load_chroma
-            sd_model, allow_post_quant = load_chroma(checkpoint_info, diffusers_load_config)
+            sd_model = load_chroma(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Lumina 2']:
             from pipelines.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
@@ -375,6 +376,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['Qwen']:
             from pipelines.model_qwen import load_qwen
             sd_model = load_qwen(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['HunyuanDiT']:
+            from pipelines.model_hunyuandit import load_hunyuandit
+            sd_model = load_hunyuandit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')

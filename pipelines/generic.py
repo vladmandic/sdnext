@@ -8,7 +8,7 @@ from modules import shared, devices, sd_models, model_quant
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True):
+def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None):
     load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
 
@@ -45,6 +45,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
         shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
         if subfolder is not None:
             load_args['subfolder'] = subfolder
+        if variant is not None:
+            load_args['variant'] = variant
         transformer = cls_name.from_pretrained(
             repo_id,
             cache_dir=shared.opts.hfcache_dir,
@@ -56,7 +58,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True):
+def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None):
     load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
     text_encoder = None
@@ -120,6 +122,8 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
         if subfolder is not None:
             load_args['subfolder'] = subfolder
+        if variant is not None:
+            load_args['variant'] = variant
         text_encoder = cls_name.from_pretrained(
             repo_id,
             cache_dir=shared.opts.hfcache_dir,

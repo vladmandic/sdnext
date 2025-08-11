@@ -30,5 +30,6 @@ def load_chroma(checkpoint_info, diffusers_load_config={}):
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["chroma"] = diffusers.ChromaImg2ImgPipeline
     del text_encoder
     del transformer
+
     devices.torch_gc(force=True, reason='load')
     return pipe

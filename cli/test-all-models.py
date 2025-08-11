@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 """
+Warning:
 - fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
+- Kwai-Kolors/Kolors-diffusers: `set_input_embeddings` not auto‑handled for ChatGLMModel
+Error:
 - nvidia/Cosmos-Predict2-2B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x2048)
 - nvidia/Cosmos-Predict2-14B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x5120)
+- Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers: CUDA error: device-side assert triggered
+Other:
 - HiDream-ai/HiDream-I1-Full: 30+s/it
-- Kwai-Kolors/Kolors-diffusers: `set_input_embeddings` not auto‑handled for ChatGLMModel
 """
 
 import io
@@ -25,49 +29,53 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 output_folder = 'outputs/compare'
-models = [
-    "sdxl-base-v10-vaefix",
-    "tempest-by-vlad-0.1",
-    "icbinpXL_v6",
-    "briaai/BRIA-3.2",
-    "Freepik/F-Lite",
-    "Freepik/F-Lite-Texture",
-    "ostris/Flex.2-preview",
-    "stabilityai/stable-diffusion-3.5-medium",
-    "stabilityai/stable-diffusion-3.5-large",
-    "fal/AuraFlow-v0.3",
-    "fal/AuraFlow-v0.2",
-    "zai-org/CogView4-6B",
-    "zai-org/CogView3-Plus-3B",
-    # "nvidia/Cosmos-Predict2-2B-Text2Image",
-    # "nvidia/Cosmos-Predict2-14B-Text2Image",
-    "Qwen/Qwen-Image",
-    "vladmandic/Qwen-Lightning",
-    "Shitao/OmniGen-v1-diffusers",
-    "OmniGen2/OmniGen2",
-    # "HiDream-ai/HiDream-I1-Full",
-    "Kwai-Kolors/Kolors-diffusers",
-    "lodestones/Chroma1-HD",
-    "vladmandic/chroma-unlocked-v50-annealed",
-    "vladmandic/chroma-unlocked-v48",
-    "vladmandic/chroma-unlocked-v48-detail-calibrated",
-    "Alpha-VLLM/Lumina-Next-SFT-diffusers",
-    "Alpha-VLLM/Lumina-Image-2.0",
-    "MeissonFlow/Meissonic",
-    "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
-    "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers",
-    "PixArt-alpha/PixArt-XL-2-1024-MS",
-    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
-    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
-    "Wan-AI/Wan2.1-T2V-14B-Diffusers",
-    "stabilityai/stable-cascade",
-]
+models = {
+    "sdxl-base-v10-vaefix": {},
+    "tempest-by-vlad-0.1": {},
+    "icbinpXL_v6": {},
+    "briaai/BRIA-3.2": {},
+    "Freepik/F-Lite": {},
+    "Freepik/F-Lite-Texture": {},
+    "ostris/Flex.2-preview": {},
+    "playgroundai/playground-v2-1024px-aesthetic": {},
+    "playground-v2.5-1024px-aesthetic.fp16": { "sampler_name": "DPM++ 2M EDM" },
+    "stabilityai/stable-diffusion-3.5-medium": {},
+    "stabilityai/stable-diffusion-3.5-large": {},
+    "fal/AuraFlow-v0.3": {},
+    "fal/AuraFlow-v0.2": {},
+    "zai-org/CogView4-6B": {},
+    "zai-org/CogView3-Plus-3B": {},
+    # "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
+    # "nvidia/Cosmos-Predict2-2B-Text2Image": {},
+    # "nvidia/Cosmos-Predict2-14B-Text2Image": {},
+    "Qwen/Qwen-Image": {},
+    "vladmandic/Qwen-Lightning": {},
+    "Shitao/OmniGen-v1-diffusers": {},
+    "OmniGen2/OmniGen2": {},
+    # "HiDream-ai/HiDream-I1-Full": {},
+    "Kwai-Kolors/Kolors-diffusers": {},
+    "lodestones/Chroma1-HD": {},
+    "vladmandic/chroma-unlocked-v50-annealed": {},
+    "vladmandic/chroma-unlocked-v48": {},
+    "vladmandic/chroma-unlocked-v48-detail-calibrated": {},
+    "Alpha-VLLM/Lumina-Next-SFT-diffusers": {},
+    "Alpha-VLLM/Lumina-Image-2.0": {},
+    "MeissonFlow/Meissonic": {},
+    "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers": {},
+    "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers": {},
+    "PixArt-alpha/PixArt-XL-2-1024-MS": {},
+    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS": {},
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": {},
+    "Wan-AI/Wan2.1-T2V-14B-Diffusers": {},
+    "stabilityai/stable-cascade": {},
+}
 models_tbd = [
     "black-forest-labs/FLUX.1-dev",
     "black-forest-labs/FLUX.1-Kontext-dev",
     "black-forest-labs/FLUX.1-Krea-dev",
-    "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers", # TODO
     "kandinsky-community/kandinsky-3", # TODO
+    "kandinsky-community/kandinsky-2-2-decoder",
+    "kandinsky-community/kandinsky-2-1",
 ]
 styles = [
     'Fixed Astronaut',
@@ -103,7 +111,7 @@ def read_history():
     log.info(f'history: file="{fn}" records={len(history)}')
 
 
-def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration:float=0, info:str='', error:str=''):
+def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration:float=0, info:str=''):
     fn = os.path.join(output_folder, 'history.json')
     history.append({
         'model': model,
@@ -113,7 +121,6 @@ def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration
         'size': size,
         'time': duration,
         'info': info,
-        'error': error,
     })
     with open(fn, "w", encoding='utf8') as file:
         data = json.dumps(history) # pylint: disable=no-member
@@ -137,9 +144,11 @@ def request(endpoint: str, dct: dict = None, method: str = 'POST'):
 
 
 def generate(): # pylint: disable=redefined-outer-name
-    for m, model in enumerate(models):
+    idx = 0
+    for model, args in models.items():
+        idx += 1
         model_name = pathvalidate.sanitize_filename(model, replacement_text='_')
-        log.info(f'model: name="{model}" n={m+1}/{len(models)}')
+        log.info(f'model: n={idx+1}/{len(models)} name="{model}"')
         for s, style in enumerate(styles):
             try:
                 model_name = pathvalidate.sanitize_filename(model, replacement_text='_')
@@ -152,9 +161,12 @@ def generate(): # pylint: disable=redefined-outer-name
                 if not loaded or not (model in loaded.get('checkpoint') or model in loaded.get('title') or model in loaded.get('name')):
                     log.error(f' model: error="{model}"')
                     continue
-                log.info(f' style: name="{style}" n={s+1}/{len(styles)} fn="{fn}"')
                 t0 = time.time()
-                data = request('/sdapi/v1/txt2img', { 'styles': [style] })
+                params = { 'styles': [style] }
+                for k, v in args.items():
+                    params[k] = v
+                log.info(f' style: n={s+1}/{len(styles)} name="{style}" args={params} fn="{fn}"')
+                data = request('/sdapi/v1/txt2img', params)
                 t1 = time.time()
                 if 'images' in data and len(data['images']) > 0:
                     b64 = data['images'][0].split(',',1)[0]
@@ -164,13 +176,13 @@ def generate(): # pylint: disable=redefined-outer-name
                     image.save(fn)
                     write_history(model=model, style=style, image=fn, size=image.size, duration=round(t1-t0, 3), info=info)
                 else:
-                    # write_history(model=model, style=style, duration=round(t1-t0, 3), error='no image')
+                    # write_history(model=model, style=style, duration=round(t1-t0, 3), info='no image')
                     log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
                 if 'Connection refused' in str(e) or 'RemoteDisconnected' in str(e):
                     log.error('server offline')
                     os._exit(1)
-                # write_history(model=model, style=style, duration=round(t1-t0, 3), error=str(e))
+                # write_history(model=model, style=style, duration=round(t1-t0, 3), info=str(e))
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
 
 
