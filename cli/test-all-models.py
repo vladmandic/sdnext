@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 """
-Warning:
+Warnings:
 - fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
 - Kwai-Kolors/Kolors-diffusers: `set_input_embeddings` not auto‑handled for ChatGLMModel
-Error:
+- kandinsky-community/kandinsky-2-1: `get_input_embeddings` not auto‑handled for MultilingualCLIP
+Errors:
+- kandinsky-community/kandinsky-3: corrupt output
 - nvidia/Cosmos-Predict2-2B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x2048)
 - nvidia/Cosmos-Predict2-14B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x5120)
 - Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers: CUDA error: device-side assert triggered
 Other:
-- HiDream-ai/HiDream-I1-Full: 30+s/it
+- HiDream-ai/HiDream-I1-Full: very slow at 30+s/it
 """
 
 import io
@@ -54,10 +56,9 @@ models = {
     "OmniGen2/OmniGen2": {},
     # "HiDream-ai/HiDream-I1-Full": {},
     "Kwai-Kolors/Kolors-diffusers": {},
-    "lodestones/Chroma1-HD": {},
-    "vladmandic/chroma-unlocked-v50-annealed": {},
-    "vladmandic/chroma-unlocked-v48": {},
-    "vladmandic/chroma-unlocked-v48-detail-calibrated": {},
+    # "kandinsky-community/kandinsky-3": {},
+    "kandinsky-community/kandinsky-2-2-decoder": {},
+    "kandinsky-community/kandinsky-2-1": {},
     "Alpha-VLLM/Lumina-Next-SFT-diffusers": {},
     "Alpha-VLLM/Lumina-Image-2.0": {},
     "MeissonFlow/Meissonic": {},
@@ -68,14 +69,15 @@ models = {
     "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": {},
     "Wan-AI/Wan2.1-T2V-14B-Diffusers": {},
     "stabilityai/stable-cascade": {},
+    "lodestones/Chroma1-HD": {},
+    "vladmandic/chroma-unlocked-v50-annealed": {},
+    "vladmandic/chroma-unlocked-v48": {},
+    "vladmandic/chroma-unlocked-v48-detail-calibrated": {},
 }
 models_tbd = [
     "black-forest-labs/FLUX.1-dev",
     "black-forest-labs/FLUX.1-Kontext-dev",
     "black-forest-labs/FLUX.1-Krea-dev",
-    "kandinsky-community/kandinsky-3", # TODO
-    "kandinsky-community/kandinsky-2-2-decoder",
-    "kandinsky-community/kandinsky-2-1",
 ]
 styles = [
     'Fixed Astronaut',

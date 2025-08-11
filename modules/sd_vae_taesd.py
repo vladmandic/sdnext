@@ -45,7 +45,7 @@ def warn_once(msg, variant=None):
     global prev_warnings # pylint: disable=global-statement
     if not prev_warnings:
         prev_warnings = True
-        shared.log.error(f'Decode: type="taesd" variant="{variant}": {msg}')
+        shared.log.warning(f'Decode: type="taesd" variant="{variant}": {msg}')
     return Image.new('RGB', (8, 8), color = (0, 0, 0))
 
 

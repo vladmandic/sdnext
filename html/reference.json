@@ -490,7 +490,7 @@
   },
   "Kandinsky 2.2": {
     "path": "kandinsky-community/kandinsky-2-2-decoder",
-    "desc": "Kandinsky 2.2 is a text-conditional diffusion model (+0.1!) based on unCLIP and latent diffusion, composed of a transformer-based image prior model, a unet diffusion model, and a decoder. Kandinsky 2.1 inherits best practices from Dall-E 2 and Latent diffusion while introducing some new ideas. It uses the CLIP model as a text and image encoder, and diffusion image prior (mapping) between latent spaces of CLIP modalities. This approach increases the visual performance of the model and unveils new horizons in blending images and text-guided image manipulation.",
+    "desc": "Kandinsky 2.2 is a text-conditional diffusion model (+0.1!) based on unCLIP and latent diffusion, composed of a transformer-based image prior model, a unet diffusion model, and a decoder. Kandinsky 2.2 inherits best practices from Dall-E 2 and Latent diffusion while introducing some new ideas. It uses the CLIP model as a text and image encoder, and diffusion image prior (mapping) between latent spaces of CLIP modalities. This approach increases the visual performance of the model and unveils new horizons in blending images and text-guided image manipulation.",
     "preview": "kandinsky-community--kandinsky-2-2-decoder.jpg",
     "extras": "width: 768, height: 768, sampler: Default"
   },

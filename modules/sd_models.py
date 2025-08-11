@@ -381,6 +381,18 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_hunyuandit import load_hunyuandit
             sd_model = load_hunyuandit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Kandinsky 2.1']:
+            from pipelines.model_kandinsky import load_kandinsky21
+            sd_model = load_kandinsky21(checkpoint_info, diffusers_load_config)
+            allow_post_quant = True
+        elif model_type in ['Kandinsky 2.2']:
+            from pipelines.model_kandinsky import load_kandinsky22
+            sd_model = load_kandinsky22(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Kandinsky 3.0']:
+            from pipelines.model_kandinsky import load_kandinsky3
+            sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:

@@ -8,9 +8,10 @@ from modules import shared, devices, sd_models, model_quant
 debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None):
+def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None, dtype=None):
     load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
+    dtype = dtype or devices.dtype
 
     local_file = None
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
@@ -27,7 +28,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
         loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
         transformer = loader(
             local_file,
-            quantization_config=diffusers.GGUFQuantizationConfig(compute_dtype=devices.dtype),
+            quantization_config=diffusers.GGUFQuantizationConfig(compute_dtype=dtype),
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
         )
@@ -43,6 +44,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
         transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
     else:
         shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+        if dtype is not None:
+            load_args['torch_dtype'] = dtype
         if subfolder is not None:
             load_args['subfolder'] = subfolder
         if variant is not None:
@@ -58,10 +61,11 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None):
+def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None):
     load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant)
     quant_type = model_quant.get_quant_type(quant_args)
     text_encoder = None
+    dtype = dtype or devices.dtype
 
     # load from local file if specified
     local_file = None
@@ -79,7 +83,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         ggml.install_gguf()
         text_encoder = cls_name.from_pretrained(
             gguf_file=local_file,
-            quantization_config=diffusers.GGUFQuantizationConfig(compute_dtype=devices.dtype),
+            quantization_config=diffusers.GGUFQuantizationConfig(compute_dtype=dtype),
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
         )
@@ -104,12 +108,14 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
             shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant"')
             text_encoder = nunchaku.NunchakuT5EncoderModel.from_pretrained(
                 repo_id,
-                torch_dtype=devices.dtype,
+                torch_dtype=dtype,
             )
             text_encoder.quantization_method = 'SVDQuant'
         elif shared.opts.te_shared_t5:
             repo_id = 'Disty0/t5-xxl'
             shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -120,6 +126,8 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
     # load from repo
     if text_encoder is None:
         shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+        if dtype is not None:
+            load_args['torch_dtype'] = dtype
         if subfolder is not None:
             load_args['subfolder'] = subfolder
         if variant is not None:

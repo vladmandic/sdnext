@@ -34,7 +34,7 @@ def get_vae_scale_factor(model=None):
     elif hasattr(model, 'config') and hasattr(model.config, 'vae_scale_factor'):
         vae_scale_factor = model.config.vae_scale_factor
     else:
-        shared.log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
+        # shared.log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
     if hasattr(model, 'patch_size'):
         patch_size = model.patch_size
