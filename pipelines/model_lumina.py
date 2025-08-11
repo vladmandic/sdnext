@@ -1,10 +1,7 @@
-import os
 import transformers
 import diffusers
 from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
 from pipelines import generic
-
-
 
 
 def load_lumina(_checkpoint_info, diffusers_load_config={}):
