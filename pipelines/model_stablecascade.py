@@ -190,6 +190,7 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
     ):
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         # 0. Define commonly used variables
+        guidance_scale = guidance_scale or 0.0
         self.guidance_scale = guidance_scale
         self.do_classifier_free_guidance = self.guidance_scale > 1
         device = self._execution_device

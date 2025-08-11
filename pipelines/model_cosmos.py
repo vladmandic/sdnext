@@ -12,7 +12,8 @@ def load_cosmos_t2i(checkpoint_info, diffusers_load_config={}):
     shared.log.debug(f'Load model: type=Cosmos repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.CosmosTransformer3DModel, load_config=diffusers_load_config, subfolder="transformer")
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
+    repo_te = 'nvidia/Cosmos-Predict2-2B-Text2Image' if 'Cosmos-Predict2-14B-Text2Image' in repo_id else repo_id
+    text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder", allow_shared=False) # cosmos does use standard t5
     safety_checker = Fake_safety_checker()
 
     pipe = diffusers.Cosmos2TextToImagePipeline.from_pretrained(
