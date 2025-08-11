@@ -46,7 +46,7 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
 
 
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         is_conv_type = False
@@ -148,7 +148,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if return_device is None:
             return_device = layer.weight.device
         if quantization_device is not None:
-            layer.weight.data = layer.weight.to(quantization_device, non_blocking=shared.opts.diffusers_offload_nonblocking)
+            layer.weight.data = layer.weight.to(quantization_device, non_blocking=non_blocking)
         if layer.weight.dtype != torch.float32:
             layer.weight.data = layer.weight.to(dtype=torch.float32)
 
@@ -178,15 +178,15 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
         )
-        layer.weight.data = layer.sdnq_dequantizer.pack_weight(layer.weight).to(return_device, non_blocking=shared.opts.diffusers_offload_nonblocking)
-        layer.sdnq_dequantizer = layer.sdnq_dequantizer.to(return_device, non_blocking=shared.opts.diffusers_offload_nonblocking)
+        layer.weight.data = layer.sdnq_dequantizer.pack_weight(layer.weight).to(return_device, non_blocking=non_blocking)
+        layer.sdnq_dequantizer = layer.sdnq_dequantizer.to(return_device, non_blocking=non_blocking)
 
         layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
         layer.forward = layer.forward.__get__(layer, layer.__class__)
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = []): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = []): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -203,6 +203,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
                 dequantize_fp32=dequantize_fp32,
+                non_blocking=non_blocking,
                 quantization_device=quantization_device,
                 return_device=return_device,
                 param_name=module_param_name,
@@ -216,6 +217,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 use_quantized_matmul=use_quantized_matmul,
                 use_quantized_matmul_conv=use_quantized_matmul_conv,
                 dequantize_fp32=dequantize_fp32,
+                non_blocking=non_blocking,
                 quantization_device=quantization_device,
                 return_device=return_device,
                 param_name=module_param_name,
@@ -289,7 +291,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
             param_value = param_value.clone()
         else:
-            param_value = param_value.to(target_device, non_blocking=shared.opts.diffusers_offload_nonblocking).to(dtype=torch.float32)
+            param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
 
         layer, _ = get_module_from_name(model, param_name)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
@@ -302,6 +304,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
             use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
             dequantize_fp32=self.quantization_config.dequantize_fp32,
+            non_blocking=self.quantization_config.non_blocking,
             quantization_device=None,
             return_device=return_device,
             param_name=param_name,
@@ -426,6 +429,7 @@ class SDNQConfig(QuantizationConfigMixin):
         use_quantized_matmul: bool = False,
         use_quantized_matmul_conv: bool = False,
         dequantize_fp32: bool = False,
+        non_blocking: bool = False,
         quantization_device: Optional[torch.device] = None,
         return_device: Optional[torch.device] = None,
         modules_to_not_convert: Optional[List[str]] = None,
@@ -438,6 +442,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.use_quantized_matmul = use_quantized_matmul
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
         self.dequantize_fp32 = dequantize_fp32
+        self.non_blocking = non_blocking
         self.quantization_device = quantization_device
         self.return_device = return_device
         self.modules_to_not_convert = modules_to_not_convert
