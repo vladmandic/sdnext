@@ -141,7 +141,7 @@
   },
 
   "lodestones Chroma Unlocked HD": {
-    "path": "vladmandic/chroma-unlocked-v50",
+    "path": "lodestones/Chroma1-HD",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,

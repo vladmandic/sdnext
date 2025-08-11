@@ -18,7 +18,7 @@ def load_chroma(checkpoint_info, diffusers_load_config={}):
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.ChromaTransformer2DModel, load_config=diffusers_load_config)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
 
-    pipe = diffusers.AuraFlowPipeline.from_pretrained(
+    pipe = diffusers.ChromaPipeline.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder=text_encoder,

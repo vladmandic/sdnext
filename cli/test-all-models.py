@@ -3,6 +3,8 @@
 - fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
 - nvidia/Cosmos-Predict2-2B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x2048)
 - nvidia/Cosmos-Predict2-14B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x5120)
+- HiDream-ai/HiDream-I1-Full: 30+s/it
+- Kwai-Kolors/Kolors-diffusers: `set_input_embeddings` not auto‑handled for ChatGLMModel
 """
 
 import io
@@ -34,17 +36,18 @@ models = [
     "stabilityai/stable-diffusion-3.5-medium",
     "stabilityai/stable-diffusion-3.5-large",
     "fal/AuraFlow-v0.3",
+    "fal/AuraFlow-v0.2",
     "zai-org/CogView4-6B",
     "zai-org/CogView3-Plus-3B",
     # "nvidia/Cosmos-Predict2-2B-Text2Image",
     # "nvidia/Cosmos-Predict2-14B-Text2Image",
     "Qwen/Qwen-Image",
-    "Qwen/Qwen-Lightning",
+    "vladmandic/Qwen-Lightning",
     "Shitao/OmniGen-v1-diffusers",
     "OmniGen2/OmniGen2",
-    "HiDream-ai/HiDream-I1-Full",
+    # "HiDream-ai/HiDream-I1-Full",
     "Kwai-Kolors/Kolors-diffusers",
-    "vladmandic/chroma-unlocked-v50",
+    "lodestones/Chroma1-HD",
     "vladmandic/chroma-unlocked-v50-annealed",
     "vladmandic/chroma-unlocked-v48",
     "vladmandic/chroma-unlocked-v48-detail-calibrated",
@@ -104,6 +107,7 @@ def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration
     fn = os.path.join(output_folder, 'history.json')
     history.append({
         'model': model,
+        'title': model.split('/')[-1].replace('_diffusers', '').replace('-diffusers', ''),
         'style': style,
         'image': image,
         'size': size,
@@ -160,13 +164,13 @@ def generate(): # pylint: disable=redefined-outer-name
                     image.save(fn)
                     write_history(model=model, style=style, image=fn, size=image.size, duration=round(t1-t0, 3), info=info)
                 else:
-                    write_history(model=model, style=style, duration=round(t1-t0, 3), error='no image')
+                    # write_history(model=model, style=style, duration=round(t1-t0, 3), error='no image')
                     log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
                 if 'Connection refused' in str(e) or 'RemoteDisconnected' in str(e):
                     log.error('server offline')
                     os._exit(1)
-                write_history(model=model, style=style, duration=round(t1-t0, 3), error=str(e))
+                # write_history(model=model, style=style, duration=round(t1-t0, 3), error=str(e))
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
 
 

@@ -22,7 +22,6 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-    print('HERE4')
     pipe.task_args = {
         'output_type': 'np',
     }

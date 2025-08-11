@@ -42,7 +42,7 @@ pipelines = {
     'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
-    'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
+    'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
