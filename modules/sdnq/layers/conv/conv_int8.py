@@ -28,7 +28,7 @@ def conv_int8_matmul(
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     input, scale = quantize_int8_matmul_input(input, scale)
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8, transpose=True)
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8)
 
     if groups == 1:
         result = torch._int_mm(input, weight)
