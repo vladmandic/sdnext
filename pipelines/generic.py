@@ -37,6 +37,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
             transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
             transformer = loader(
                 local_file,
