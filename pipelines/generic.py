@@ -102,12 +102,14 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         # load from local file safetensors
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}"')
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
             text_encoder = cls_name.from_pretrained(
                 local_file,
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
+                **quant_args,
             )
-            text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
         # use shared t5 if possible
         elif cls_name == transformers.T5EncoderModel and allow_shared:
             with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:

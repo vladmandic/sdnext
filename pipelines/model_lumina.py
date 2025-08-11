@@ -1,7 +1,8 @@
 import os
 import transformers
 import diffusers
-from modules import shared, sd_models, sd_unet, sd_hijack_te, devices, modelloader, model_quant
+from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
+from pipelines import generic
 
 
 
@@ -19,7 +20,6 @@ def load_lumina(_checkpoint_info, diffusers_load_config={}):
 
 
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
-    transformer, text_encoder, vae = None, None, None
     repo_id = sd_models.path_to_repo(checkpoint_info)
 
     if shared.opts.teacache_enabled:
@@ -27,55 +27,10 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.Lumina2Transformer2DModel.__name__}')
         diffusers.Lumina2Transformer2DModel.forward = teacache.teacache_lumina2_forward # patch must be done before transformer is loaded
 
-    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    if shared.opts.sd_unet != 'Default':
-        try:
-            transformer = diffusers.Lumina2Transformer2DModel.from_single_file(
-                sd_unet.unet_dict[shared.opts.sd_unet],
-                cache_dir=shared.opts.diffusers_dir,
-                **load_config,
-                **quant_config
-            )
-            if transformer is None:
-                shared.opts.sd_unet = 'Default'
-                sd_unet.failed_unet.append(shared.opts.sd_unet)
-        except Exception as e:
-            shared.log.error(f"Load model: type=Lumina2 failed to load UNet: {e}")
-            shared.opts.sd_unet = 'Default'
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Lumina2Transformer2DModel, load_config=diffusers_load_config)
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Gemma2Model, load_config=diffusers_load_config)
 
-    if shared.opts.sd_vae != 'Default' and shared.opts.sd_vae != 'Automatic':
-        try:
-            from modules import sd_vae
-            # vae = sd_vae.load_vae_diffusers(None, sd_vae.vae_dict[shared.opts.sd_vae], 'override')
-            vae_file = sd_vae.vae_dict[shared.opts.sd_vae]
-            if os.path.exists(vae_file):
-                vae_config = os.path.join('configs', 'flux', 'vae', 'config.json')
-                vae = diffusers.AutoencoderKL.from_single_file(vae_file, config=vae_config, **diffusers_load_config)
-        except Exception as e:
-            shared.log.error(f"Load model: type=Lumina2 failed to load VAE: {e}")
-            shared.opts.sd_vae = 'Default'
-
-    if transformer is None:
-        transformer = diffusers.Lumina2Transformer2DModel.from_pretrained(
-            repo_id,
-            subfolder="transformer",
-            cache_dir=shared.opts.diffusers_dir,
-            **load_config,
-            **quant_config,
-        )
-
-    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
-    text_encoder = transformers.AutoModel.from_pretrained(
-        repo_id,
-        subfolder="text_encoder",
-        cache_dir=shared.opts.diffusers_dir,
-        **load_config,
-        **quant_config,
-    )
-
-    load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    if vae is not None:
-        load_config['vae'] = vae
+    load_config, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     pipe = diffusers.Lumina2Pipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
@@ -84,6 +39,8 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
         **load_config,
     )
 
+    del transformer
+    del text_encoder
     sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe
