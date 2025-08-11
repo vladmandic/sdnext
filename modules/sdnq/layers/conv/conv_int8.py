@@ -8,7 +8,7 @@ from ...common import use_torch_compile # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 from ..linear.linear_int8 import quantize_int8_matmul_input # noqa: TID252
-from .conv import get_conv_args, process_conv_input
+from .forward import get_conv_args, process_conv_input
 
 
 def conv_int8_matmul(

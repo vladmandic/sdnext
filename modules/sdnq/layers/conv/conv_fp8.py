@@ -6,7 +6,7 @@ import torch
 
 from ...common import use_torch_compile # noqa: TID252
 from ..linear.linear_fp8 import quantize_fp8_matmul_input # noqa: TID252
-from .conv import get_conv_args, process_conv_input
+from .forward import get_conv_args, process_conv_input
 
 
 def conv_fp8_matmul(
