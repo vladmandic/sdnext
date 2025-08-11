@@ -42,8 +42,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
                 local_file,
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
+                **quant_args,
             )
-            transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
         else:
             shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
             if dtype is not None:
