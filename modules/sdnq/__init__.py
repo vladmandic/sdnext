@@ -412,6 +412,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Same as use_quantized_matmul_conv but for the convolutional layers with UNets like SDXL.
         dequantize_fp32 (`bool`, *optional*, defaults to `False`):
             Enabling this option will use FP32 on the dequantization step.
+        non_blocking (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use non blocking ops when moving layers between the quantization device and the return device.
         quantization_device (`torch.device`, *optional*, defaults to `None`):
             Used to set which device will be used for the quantization calculation on model load.
         return_device (`torch.device`, *optional*, defaults to `None`):
