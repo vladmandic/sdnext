@@ -1,11 +1,7 @@
-import os
 import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant
 from pipelines import generic
-
-
-debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_chroma(checkpoint_info, diffusers_load_config={}):

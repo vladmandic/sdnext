@@ -4,7 +4,7 @@ sys.path.append("./")
 # import torch
 # from torchvision import transforms
 from meissonic.transformer import Transformer2DModel as TransformerMeissonic
-from meissonic.pipeline import Pipeline as PipelineMeissonic
+from meissonic.pipeline import MeissonicPipeline
 from meissonic.scheduler import Scheduler as MeissonicScheduler
 from transformers import CLIPTextModelWithProjection, CLIPTokenizer
 from diffusers import VQModel
@@ -21,7 +21,7 @@ vq_model = VQModel.from_pretrained(model_path, subfolder="vqvae", cache_dir=cach
 text_encoder = CLIPTextModelWithProjection.from_pretrained("laion/CLIP-ViT-H-14-laion2B-s32B-b79K", cache_dir=cache_dir)
 tokenizer = CLIPTokenizer.from_pretrained(model_path, subfolder="tokenizer")
 scheduler = MeissonicScheduler.from_pretrained(model_path, subfolder="scheduler")
-pipe = PipelineMeissonic(vq_model, tokenizer=tokenizer, text_encoder=text_encoder, transformer=model, scheduler=scheduler)
+pipe = MeissonicPipeline(vq_model, tokenizer=tokenizer, text_encoder=text_encoder, transformer=model, scheduler=scheduler)
 pipe = pipe.to(device)
 
 steps = 64

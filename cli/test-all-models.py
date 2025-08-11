@@ -2,13 +2,11 @@
 """
 Warnings:
 - fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
-- Kwai-Kolors/Kolors-diffusers: `set_input_embeddings` not auto‑handled for ChatGLMModel
-- kandinsky-community/kandinsky-2-1: `get_input_embeddings` not auto‑handled for MultilingualCLIP
+- Kwai-Kolors/Kolors-diffusers: set_input_embeddings not autohandled for ChatGLMModel
+- kandinsky-community/kandinsky-2-1: get_input_embeddings not autohandled for MultilingualCLIP
 Errors:
 - kandinsky-community/kandinsky-3: corrupt output
-- nvidia/Cosmos-Predict2-2B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x2048)
-- nvidia/Cosmos-Predict2-14B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x5120)
-- Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers: CUDA error: device-side assert triggered
+- Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers: CUDA error device-side assert triggered
 Other:
 - HiDream-ai/HiDream-I1-Full: very slow at 30+s/it
 """
@@ -64,7 +62,11 @@ models = {
     "stabilityai/stable-cascade": {},
     "nvidia/Cosmos-Predict2-2B-Text2Image": {},
     "nvidia/Cosmos-Predict2-14B-Text2Image": {},
-    # "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
+    "black-forest-labs/FLUX.1-dev": {},
+    "black-forest-labs/FLUX.1-Kontext-dev": {},
+    "black-forest-labs/FLUX.1-Krea-dev": {},
+    "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
+    "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers": {},
     # "kandinsky-community/kandinsky-3": {},
     # "HiDream-ai/HiDream-I1-Full": {},
     "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": {},
@@ -76,11 +78,6 @@ models = {
     "vladmandic/chroma-unlocked-v48": {},
     "vladmandic/chroma-unlocked-v48-detail-calibrated": {},
 }
-models_tbd = [
-    "black-forest-labs/FLUX.1-dev",
-    "black-forest-labs/FLUX.1-Kontext-dev",
-    "black-forest-labs/FLUX.1-Krea-dev",
-]
 styles = [
     'Fixed Astronaut',
 ]
@@ -115,7 +112,7 @@ def read_history():
     log.info(f'history: file="{fn}" records={len(history)}')
 
 
-def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration:float=0, info:str=''):
+def write_history(model:str, style:str, image:str='', size:tuple=(0,0), generate:float=0, load:float=0, info:str=''):
     fn = os.path.join(output_folder, 'history.json')
     history.append({
         'model': model,
@@ -123,7 +120,8 @@ def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration
         'style': style,
         'image': image,
         'size': size,
-        'time': duration,
+        'time': generate,
+        'load': load,
         'info': info,
     })
     with open(fn, "w", encoding='utf8') as file:
@@ -147,12 +145,17 @@ def request(endpoint: str, dct: dict = None, method: str = 'POST'):
         return req.json()
 
 
-def generate(): # pylint: disable=redefined-outer-name
-    idx = 0
+def main(): # pylint: disable=redefined-outer-name
+    idx_model = 0
+    idx_images = 0
+    t_generate0 = time.time()
+    log.info(f'generate: models={len(models)} styles={len(styles)}')
     for model, args in models.items():
-        idx += 1
+        t_model0 = time.time()
+        idx_model += 1
         model_name = pathvalidate.sanitize_filename(model, replacement_text='_')
-        log.info(f'model: n={idx+1}/{len(models)} name="{model}"')
+        log.info(f'model: n={idx_model+1}/{len(models)} name="{model}"')
+        idx_style = 0
         for s, style in enumerate(styles):
             try:
                 model_name = pathvalidate.sanitize_filename(model, replacement_text='_')
@@ -160,39 +163,46 @@ def generate(): # pylint: disable=redefined-outer-name
                 fn = os.path.join(output_folder, f'{model_name}__{style_name}.jpg')
                 if os.path.exists(fn):
                     continue
+                t_load0 = time.time()
                 request(f'/sdapi/v1/checkpoint?sd_model_checkpoint={model}', method='POST')
                 loaded = request('/sdapi/v1/checkpoint', method='GET')
+                t_load1 = time.time()
                 if not loaded or not (model in loaded.get('checkpoint') or model in loaded.get('title') or model in loaded.get('name')):
                     log.error(f' model: error="{model}"')
                     continue
-                t0 = time.time()
+                t_style0 = time.time()
                 params = { 'styles': [style] }
                 for k, v in args.items():
                     params[k] = v
                 log.info(f' style: n={s+1}/{len(styles)} name="{style}" args={params} fn="{fn}"')
                 data = request('/sdapi/v1/txt2img', params)
-                t1 = time.time()
+                t_style1 = time.time()
                 if 'images' in data and len(data['images']) > 0:
+                    idx_style += 1
+                    idx_images += 1
                     b64 = data['images'][0].split(',',1)[0]
                     image = Image.open(io.BytesIO(base64.b64decode(b64)))
                     info = data['info']
-                    log.info(f' image: size={image.width}x{image.height} time={t1-t0:.2f} info={len(info)}')
+                    log.info(f' image: size={image.width}x{image.height} time={t_style1-t_style0:.2f} info={len(info)}')
                     image.save(fn)
-                    write_history(model=model, style=style, image=fn, size=image.size, duration=round(t1-t0, 3), info=info)
+                    write_history(model=model, style=style, image=fn, size=image.size, generate=round(t_style1-t_style0, 3), load=round(t_load1-t_load0, 3), info=info)
                 else:
-                    # write_history(model=model, style=style, duration=round(t1-t0, 3), info='no image')
                     log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
                 if 'Connection refused' in str(e) or 'RemoteDisconnected' in str(e):
                     log.error('server offline')
                     os._exit(1)
-                # write_history(model=model, style=style, duration=round(t1-t0, 3), info=str(e))
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
+        t_model1 = time.time()
+        if idx_style > 0:
+            log.info(f'model: name="{model}" images={idx_style} time={t_model1-t_model0:.2f}')
+    t_generate1 = time.time()
+    if idx_images > 0:
+        log.info(f'generate: models={idx_model} images={idx_images} time={t_generate1-t_generate0:.2f}')
 
 
 if __name__ == "__main__":
     log.info('test-all-models')
-    log.info(f'output="{output_folder}" models={len(models)} styles={len(styles)}')
+    log.info(f'output="{output_folder}"')
     read_history()
-    generate()
-    log.info('done...')
+    main()

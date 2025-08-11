@@ -29,6 +29,7 @@ debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
 checkpoint_tiles = checkpoint_titles # legacy compatibility
+allow_post_quant = None
 pipe_switch_task_exclude = [
     'AnimateDiffPipeline', 'AnimateDiffSDXLPipeline',
     'FluxControlPipeline',
@@ -275,7 +276,7 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
 
 def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='model'):
     sd_model = None
-    allow_post_quant = True
+    global allow_post_quant # pylint: disable=global-statement
     unload_model_weights(op=op)
     shared.sd_model = None
     try:
@@ -316,7 +317,8 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             allow_post_quant = True
         elif model_type in ['FLUX']:
             from pipelines.model_flux import load_flux
-            sd_model, allow_post_quant = load_flux(checkpoint_info, diffusers_load_config)
+            sd_model = load_flux(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['FLEX']:
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
@@ -398,7 +400,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         if debug_load:
             errors.display(e, 'Load')
         return None, True
-    return sd_model, allow_post_quant
+    return sd_model
 
 
 def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op='model'):
@@ -561,6 +563,8 @@ def set_defaults(sd_model, checkpoint_info):
 
 
 def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: disable=unused-argument
+    global allow_post_quant # pylint: disable=global-statement
+    allow_post_quant = True # assume default
     logging.getLogger("diffusers").setLevel(logging.ERROR)
     timer.load.record("diffusers")
     diffusers_load_config = {
@@ -589,7 +593,6 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             return
 
     sd_model = None
-    allow_post_quant = True
     try:
         # initial load only
         if sd_model is None:
@@ -621,7 +624,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
 
         # load with custom loader
         if sd_model is None:
-            sd_model, allow_post_quant = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
+            sd_model = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
             if sd_model is not None and not sd_model:
                 shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
                 return

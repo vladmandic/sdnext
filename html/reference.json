@@ -429,6 +429,12 @@
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
+  "Tencent HunyuanDiT 1.1": {
+    "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers",
+    "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
+    "extras": "sampler: Default, cfg_scale: 2.0"
+  },
 
   "AlphaVLLM Lumina Next SFT": {
     "path": "Alpha-VLLM/Lumina-Next-SFT-diffusers",
