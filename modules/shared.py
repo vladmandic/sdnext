@@ -248,6 +248,7 @@ options_templates.update(options_section(('text_encoder', "Text Encoder"), {
     "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
     "te_hijack": OptionInfo(True, "Offload after prompt encode", gr.Checkbox),
     "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
+    "te_shared_t5": OptionInfo(False, "T5: Use shared instance of text encoder"),
     "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),
     "te_complex_human_instruction": OptionInfo(True, "Sana: Use complex human instructions"),
     "te_use_mask": OptionInfo(True, "Lumina: Use mask in transformers"),

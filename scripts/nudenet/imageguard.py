@@ -106,7 +106,7 @@ def image_guard(image, policy:str=None) -> str:
                 attn_implementation='flash_attention_2',
                 torch_dtype=devices.dtype,
                 device_map="auto",
-                cache_dir='/mnt/models/huggingface',
+                cache_dir=shared.opts.hfcache_dir,
             )
             processor = transformers.AutoProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
             shared.log.info(f'NudeNet load: model="{repo_id}"')

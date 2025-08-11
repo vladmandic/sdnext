@@ -44,7 +44,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
             endpoint = req.scope.get('path', 'err')
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
-                if any([endpoint.startswith(x) for x in ignore_endpoints]):
+                if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,

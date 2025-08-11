@@ -85,6 +85,10 @@ And (*as always*) many bugfixes and improvements to existing features!
   - new `diffusers_offload_nonblocking` exerimental setting  
     instructs torch to use non-blocking move operations when possible  
 - **Features**  
+  - new `T5: Use shared instance of text encoder` option  
+    in *settings -> text encoder*  
+    since a lot of new models use T5 text encoder, this option allows to share  
+    the same instance across all models without duplicate downloads  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
@@ -97,6 +101,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - remove `api-only` cli option  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
+- **Refactor**
+  - new unified pipeline component loader in `pipelines/generic`  
 - **Fixes**  
   - refactor legacy processing loop  
   - fix settings components mismatch  

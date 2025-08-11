@@ -7,9 +7,9 @@ def get_lora(lora: str) -> dict:
     if lora not in lora_load.available_networks:
         raise HTTPException(status_code=404, detail=f"Lora '{lora}' not found")
     obj = lora_load.available_networks[lora]
-    obj.meta = obj.get_metadata()
-    obj.info = obj.get_info()
-    obj.desc = obj.get_desc()
+    # obj.meta = obj.get_metadata()
+    # obj.info = obj.get_info()
+    # obj.desc = obj.get_desc()
     return obj.__dict__
 
 def get_loras():

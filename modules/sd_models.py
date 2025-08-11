@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import timer, paths, shared, shared_state, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -222,6 +222,8 @@ def move_model(model, device=None, force=False):
                 pass # ignore model move if quantization is enabled
             elif 'already been set to the correct devices' in str(e0):
                 pass # ignore errors on pre-quant models
+            elif 'Casting a quantized model to' in str(e0):
+                pass # ignore errors on quantized models
             else:
                 raise e0
         t1 = time.time()
@@ -328,7 +330,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             allow_post_quant = False
         elif model_type in ['Stable Diffusion 3']:
             from pipelines.model_sd3 import load_sd3
-            sd_model = load_sd3(checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
+            sd_model = load_sd3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['CogView 3']: # forced pipeline
             from pipelines.model_cogview import load_cogview3
@@ -467,7 +469,7 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
                     diffusers_load_config['config'] = model_config
         if model_type.startswith('Stable Diffusion 3'):
             from pipelines.model_sd3 import load_sd3
-            sd_model = load_sd3(checkpoint_info=checkpoint_info, cache_dir=shared.opts.diffusers_dir, config=diffusers_load_config.get('config', None))
+            sd_model = load_sd3(checkpoint_info, diffusers_load_config)
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
             diffusers_load_config['use_safetensors'] = True
@@ -1057,7 +1059,6 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
         unload_model_weights(op=op)
         return None
     orig_state = copy.deepcopy(shared.state)
-    # shared.state = shared_state.State()
     shared.state.begin('Load')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner

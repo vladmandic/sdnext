@@ -55,7 +55,7 @@ def ram_stats():
             ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
             ram['total'] = gb(ram_total)
         ram['used'] = gb(res.rss)
-        ram['free'] = ram['total'] - ram['used']
+        ram['free'] = round(ram['total'] - ram['used'])
     except Exception as e:
         ram['total'] = 0
         ram['used'] = 0
@@ -97,7 +97,7 @@ def memory_stats():
     mem['job'] = shared.state.job
     try:
         mem['gpu']['swap'] = round(mem['gpu']['active'] - mem['gpu']['used']) if mem['gpu']['active'] > mem['gpu']['used'] else 0
-    except:
+    except Exception:
         mem['gpu']['swap'] = 0
     return mem
 
