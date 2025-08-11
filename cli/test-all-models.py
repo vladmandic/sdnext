@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
 - fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
-- zai-org/CogView4-6B: sdnq unsupported transformers.GlmModel
+- nvidia/Cosmos-Predict2-2B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x2048)
+- nvidia/Cosmos-Predict2-14B-Text2Image: mat1 and mat2 shapes cannot be multiplied (512x4096 and 1024x5120)
 """
 
 import io
 import os
 import time
+import json
 import base64
 import logging
 import requests
@@ -34,8 +36,8 @@ models = [
     "fal/AuraFlow-v0.3",
     "zai-org/CogView4-6B",
     "zai-org/CogView3-Plus-3B",
-    "nvidia/Cosmos-Predict2-2B-Text2Image",
-    "nvidia/Cosmos-Predict2-14B-Text2Image",
+    # "nvidia/Cosmos-Predict2-2B-Text2Image",
+    # "nvidia/Cosmos-Predict2-14B-Text2Image",
     "Qwen/Qwen-Image",
     "Qwen/Qwen-Lightning",
     "Shitao/OmniGen-v1-diffusers",
@@ -44,6 +46,8 @@ models = [
     "Kwai-Kolors/Kolors-diffusers",
     "vladmandic/chroma-unlocked-v50",
     "vladmandic/chroma-unlocked-v50-annealed",
+    "vladmandic/chroma-unlocked-v48",
+    "vladmandic/chroma-unlocked-v48-detail-calibrated",
     "Alpha-VLLM/Lumina-Next-SFT-diffusers",
     "Alpha-VLLM/Lumina-Image-2.0",
     "MeissonFlow/Meissonic",
@@ -82,6 +86,34 @@ styles_tbd = [
     'Fixed Yoga Girls',
     'Fixed SDNext Neon',
 ]
+history = []
+
+
+def read_history():
+    global history # pylint: disable=global-statement
+    fn = os.path.join(output_folder, 'history.json')
+    if not os.path.exists(fn):
+        return
+    with open(fn, "r", encoding='utf8') as file:
+        data = file.read()
+        history = json.loads(data)
+    log.info(f'history: file="{fn}" records={len(history)}')
+
+
+def write_history(model:str, style:str, image:str='', size:tuple=(0,0), duration:float=0, info:str='', error:str=''):
+    fn = os.path.join(output_folder, 'history.json')
+    history.append({
+        'model': model,
+        'style': style,
+        'image': image,
+        'size': size,
+        'time': duration,
+        'info': info,
+        'error': error,
+    })
+    with open(fn, "w", encoding='utf8') as file:
+        data = json.dumps(history) # pylint: disable=no-member
+        file.write(data)
 
 
 def request(endpoint: str, dct: dict = None, method: str = 'POST'):
@@ -126,17 +158,21 @@ def generate(): # pylint: disable=redefined-outer-name
                     info = data['info']
                     log.info(f' image: size={image.width}x{image.height} time={t1-t0:.2f} info={len(info)}')
                     image.save(fn)
+                    write_history(model=model, style=style, image=fn, size=image.size, duration=round(t1-t0, 3), info=info)
                 else:
+                    write_history(model=model, style=style, duration=round(t1-t0, 3), error='no image')
                     log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
-                if 'Connection refused' in str(e):
+                if 'Connection refused' in str(e) or 'RemoteDisconnected' in str(e):
                     log.error('server offline')
                     os._exit(1)
+                write_history(model=model, style=style, duration=round(t1-t0, 3), error=str(e))
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
+
 
 if __name__ == "__main__":
     log.info('test-all-models')
     log.info(f'output="{output_folder}" models={len(models)} styles={len(styles)}')
-    log.info('start...')
+    read_history()
     generate()
     log.info('done...')

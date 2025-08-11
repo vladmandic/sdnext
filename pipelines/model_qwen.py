@@ -12,16 +12,17 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     shared.log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config)
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
+    repo_te = 'Qwen/Qwen-Image' if 'Qwen-Lightning' in repo_id else repo_id
+    text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
-    cls = diffusers.QwenImagePipeline
-    pipe = cls.from_pretrained(
+    pipe = diffusers.QwenImagePipeline.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder=text_encoder,
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
+    print('HERE4')
     pipe.task_args = {
         'output_type': 'np',
     }
