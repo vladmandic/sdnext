@@ -44,6 +44,7 @@ class Options:
         'Qwen/Qwen3-0.6B': {},
         'Qwen/Qwen3-1.7B': {},
         'Qwen/Qwen3-4B': {},
+        'Qwen/Qwen3-4B-Instruct-2507': {},
         'Qwen/Qwen2.5-0.5B-Instruct': {},
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},

@@ -53,7 +53,7 @@ models = {
     "Kwai-Kolors/Kolors-diffusers": {},
     "kandinsky-community/kandinsky-2-2-decoder": {},
     "kandinsky-community/kandinsky-2-1": {},
-    "kandinsky-community/kandinsky-3": {},
+    "kandinsky-community/kandinsky-3": {}, # corrupt output
     "Alpha-VLLM/Lumina-Next-SFT-diffusers": {},
     "Alpha-VLLM/Lumina-Image-2.0": {},
     "MeissonFlow/Meissonic": {},
@@ -76,8 +76,8 @@ models = {
     "Wan-AI/Wan2.2-TI2V-5B-Diffusers": {},
     "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
     "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers": {},
-    # "HiDream-ai/HiDream-I1-Full": {},
-    # "Wan-AI/Wan2.2-T2V-A14B-Diffusers": {},
+    # "HiDream-ai/HiDream-I1-Full": {}, # extreme memory usage due to size
+    # "Wan-AI/Wan2.2-T2V-A14B-Diffusers": {}, # extreme memory usage due to size
 }
 styles = [
     'Fixed Astronaut',

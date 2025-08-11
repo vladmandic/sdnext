@@ -1,6 +1,6 @@
 import transformers
 import diffusers
-from modules import shared, sd_models, devices, model_quant, sd_hijack_te
+from modules import shared, sd_models, devices, model_quant
 from pipelines import generic
 
 
