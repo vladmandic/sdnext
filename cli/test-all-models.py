@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-- fal/AuraFlow-v0.3: SDNQ: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
+- fal/AuraFlow-v0.3: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
+- zai-org/CogView4-6B: sdnq unsupported transformers.GlmModel
 """
 
 import io
@@ -128,6 +129,9 @@ def generate(): # pylint: disable=redefined-outer-name
                 else:
                     log.error(f' model: error="{model}" style="{style}" no image')
             except Exception as e:
+                if 'Connection refused' in str(e):
+                    log.error('server offline')
+                    os._exit(1)
                 log.error(f' model: error="{model}" style="{style}" exception="{e}"')
 
 if __name__ == "__main__":

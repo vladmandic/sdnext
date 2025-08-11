@@ -89,6 +89,7 @@ And (*as always*) many bugfixes and improvements to existing features!
     in *settings -> text encoder*  
     since a lot of new models use T5 text encoder, this option allows to share  
     the same instance across all models without duplicate downloads  
+    *note* this will not reduce size of your already downloaded models, but will reduce size of future downloads  
   - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
     in settings -> model options  
   - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
