@@ -70,7 +70,4 @@ def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
 
 
 if use_torch_compile:
-    try:
-        conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True, dynamic=False)
-    except Exception:
-        pass
+    conv_int8_matmul = torch.compile(conv_int8_matmul, fullgraph=True, dynamic=False)

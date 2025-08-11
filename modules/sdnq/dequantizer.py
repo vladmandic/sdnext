@@ -1,7 +1,6 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
 import torch
-from modules import shared
 
 from .common import dtype_dict, use_torch_compile
 from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetric, unpack_int_asymetric
@@ -170,17 +169,10 @@ dequantizer_dict = {
 
 
 if use_torch_compile:
-    try:
-        dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
-        dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
-        dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
-        dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
-    except Exception as e:
-        shared.log.warning(f"Quantization: type=sdnq Dequantize using torch.compile is not available: {e}")
-        dequantize_asymmetric_compiled = dequantize_asymmetric
-        dequantize_symmetric_compiled = dequantize_symmetric
-        dequantize_packed_int_asymmetric_compiled = dequantize_packed_int_asymmetric
-        dequantize_packed_int_symmetric_compiled = dequantize_packed_int_symmetric
+    dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
+    dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
+    dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
+    dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
 else:
     dequantize_asymmetric_compiled = dequantize_asymmetric
     dequantize_symmetric_compiled = dequantize_symmetric

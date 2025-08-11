@@ -64,7 +64,4 @@ def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTens
 
 
 if use_torch_compile:
-    try:
-        conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
-    except Exception:
-        pass
+    conv_fp8_matmul_tensorwise = torch.compile(conv_fp8_matmul_tensorwise, fullgraph=True, dynamic=False)

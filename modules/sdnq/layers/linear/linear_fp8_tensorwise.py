@@ -42,7 +42,4 @@ def quantized_linear_forward_fp8_matmul_tensorwise(self, input: torch.FloatTenso
 
 
 if use_torch_compile:
-    try:
-        fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True, dynamic=False)
-    except Exception:
-        pass
+    fp8_matmul_tensorwise = torch.compile(fp8_matmul_tensorwise, fullgraph=True, dynamic=False)

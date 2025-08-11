@@ -46,7 +46,4 @@ def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torc
 
 
 if use_torch_compile:
-    try:
-        int8_matmul = torch.compile(int8_matmul, fullgraph=True, dynamic=False)
-    except Exception:
-        pass
+    int8_matmul = torch.compile(int8_matmul, fullgraph=True, dynamic=False)
