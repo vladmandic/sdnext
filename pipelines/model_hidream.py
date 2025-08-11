@@ -1,11 +1,10 @@
-import os
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from pipelines import generic
 
 
-def load_llama(repo_id, diffusers_load_config={}):
+def load_llama(diffusers_load_config={}):
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     llama_repo = shared.opts.model_h1_llama_repo if shared.opts.model_h1_llama_repo != 'Default' else 'meta-llama/Meta-Llama-3.1-8B-Instruct'
     shared.log.debug(f'Load model: type=HiDream te4="{llama_repo}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -38,7 +37,7 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.HiDreamImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
     text_encoder_3 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_3")
-    text_encoder_4, tokenizer_4 = load_llama(repo_id, diffusers_load_config)
+    text_encoder_4, tokenizer_4 = load_llama(diffusers_load_config)
 
     if shared.opts.teacache_enabled:
         from modules import teacache

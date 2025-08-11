@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-fal/AuraFlow-v0.3: sdnq unusupported
-
+- fal/AuraFlow-v0.3: SDNQ: layer_class_name=Linear layer_weight_shape=torch.Size([3072, 2, 1024]) weights_dtype=int8 unsupported
 """
 
 import io

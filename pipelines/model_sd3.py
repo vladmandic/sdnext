@@ -1,4 +1,3 @@
-import os
 import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant

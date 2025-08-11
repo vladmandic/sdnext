@@ -1,7 +1,7 @@
 import transformers
 import diffusers
 from huggingface_hub import file_exists
-from modules import shared, devices, modelloader, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant
 from pipelines import generic
 
 
