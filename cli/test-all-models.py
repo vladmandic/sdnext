@@ -8,6 +8,7 @@ Errors:
 - kandinsky-community/kandinsky-3: corrupt output
 - Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers: CUDA error device-side assert triggered
 Other:
+- Wan-AI/Wan2.2-T2V-A14B-Diffusers: extreme memory usage
 - HiDream-ai/HiDream-I1-Full: very slow at 30+s/it
 """
 
@@ -52,6 +53,7 @@ models = {
     "Kwai-Kolors/Kolors-diffusers": {},
     "kandinsky-community/kandinsky-2-2-decoder": {},
     "kandinsky-community/kandinsky-2-1": {},
+    "kandinsky-community/kandinsky-3": {},
     "Alpha-VLLM/Lumina-Next-SFT-diffusers": {},
     "Alpha-VLLM/Lumina-Image-2.0": {},
     "MeissonFlow/Meissonic": {},
@@ -65,18 +67,17 @@ models = {
     "black-forest-labs/FLUX.1-dev": {},
     "black-forest-labs/FLUX.1-Kontext-dev": {},
     "black-forest-labs/FLUX.1-Krea-dev": {},
-    "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
-    "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers": {},
-    # "kandinsky-community/kandinsky-3": {},
-    # "HiDream-ai/HiDream-I1-Full": {},
-    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": {},
-    "Wan-AI/Wan2.1-T2V-14B-Diffusers": {},
-    "Wan-AI/Wan2.2-TI2V-5B-Diffusers": {},
-    "Wan-AI/Wan2.2-T2V-A14B-Diffusers": {},
     "lodestones/Chroma1-HD": {},
     "vladmandic/chroma-unlocked-v50-annealed": {},
     "vladmandic/chroma-unlocked-v48": {},
     "vladmandic/chroma-unlocked-v48-detail-calibrated": {},
+    "Wan-AI/Wan2.1-T2V-1.3B-Diffusers": {},
+    "Wan-AI/Wan2.1-T2V-14B-Diffusers": {},
+    "Wan-AI/Wan2.2-TI2V-5B-Diffusers": {},
+    "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers": {},
+    "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers": {},
+    # "HiDream-ai/HiDream-I1-Full": {},
+    # "Wan-AI/Wan2.2-T2V-A14B-Diffusers": {},
 }
 styles = [
     'Fixed Astronaut',

@@ -23,7 +23,7 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         cls_name = diffusers.FluxPipeline
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    shared.log.debug(f'Load model: type=Flux repo="{repo_id}" cls={cls_name.__name__} config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    shared.log.debug(f'Load model: type=Flux repo="{repo_id}" cls={cls_name.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     # optional teacache patch
     if shared.opts.teacache_enabled and not model_quant.check_nunchaku('Model'):
