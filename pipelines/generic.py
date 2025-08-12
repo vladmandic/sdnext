@@ -8,10 +8,10 @@ from modules import shared, devices, errors, sd_models, model_quant
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None, dtype=None):
+def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=[]):
     transformer = None
     try:
-        load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant)
+        load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert)
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
 
@@ -71,10 +71,10 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None):
+def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=[]):
     text_encoder = None
     try:
-        load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant)
+        load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert)
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
 
