@@ -104,6 +104,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - **schedulers** add **Flash FlowMatch**  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
+  - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
 - **Refactor**
   - new unified pipeline component loader in `pipelines/generic`  
   - remove **LDSR**  

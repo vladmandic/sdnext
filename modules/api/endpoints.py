@@ -156,6 +156,30 @@ def post_refresh_vae():
     shared.refresh_vaes()
     return {}
 
+def get_modules():
+    from modules import modelstats
+    model = modelstats.analyze()
+    if model is None:
+        return {}
+    model_obj = {
+        'model': model.name,
+        'type': model.type,
+        'class': model.cls,
+        'size': model.size,
+        'mtime': str(model.mtime),
+        'modules': []
+    }
+    for m in model.modules:
+        model_obj['modules'].append({
+            'class': m.cls,
+            'params': m.params,
+            'modules': m.modules,
+            'quant': m.quant,
+            'device': str(m.device),
+            'dtype': str(m.dtype)
+        })
+    return model_obj
+
 def get_extensions_list():
     from modules import extensions
     extensions.list_extensions()
