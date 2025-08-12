@@ -98,6 +98,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
   - update requirements/packages  
   - use model vae scale-factor for image width/heigt calculations  
+  - **SDNQ** add modules_dtype_dict to quantize *Qwen Image* with mixed dtype  
 - **Other**
   - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
   - **prompt enhance** improve system prompt  

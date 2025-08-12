@@ -454,7 +454,7 @@ class SDNQConfig(QuantizationConfigMixin):
         modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
-        modules_to_not_convert (`dict`, *optional*, default to `None`):
+        modules_dtype_dict (`dict`, *optional*, default to `None`):
             The dict of dtypes and list of modules, useful for quantizing some modules with a different dtype.
     """
 
