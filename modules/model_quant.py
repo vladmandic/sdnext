@@ -120,7 +120,7 @@ def get_sdnq_devices():
         return_device = None
     return quantization_device, return_device
 
-def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = []):
+def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
     from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
         from modules.sdnq import SDNQQuantizer, SDNQConfig
@@ -150,6 +150,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
             quantization_device=quantization_device,
             return_device=return_device,
             modules_to_not_convert=modules_to_not_convert,
+            modules_dtype_dict=modules_dtype_dict,
         )
         log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking}')
         if kwargs is None:
@@ -178,10 +179,10 @@ def check_nunchaku(module: str = ''):
     return True
 
 
-def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert = []):
+def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert = [], modules_dtype_dict = {}):
     if kwargs is None:
         kwargs = {}
-    kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert)
+    kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=sdnq config={kwargs.get("quantization_config", None)}')
@@ -379,7 +380,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
                 log.error(f'Quantization: type=layerwise {e}')
 
 
-def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = []):
+def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared, timer
     from modules.sdnq import apply_sdnq_to_module
@@ -403,6 +404,11 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
     if model.__class__.__name__ == "ChromaTransformer2DModel":
         modules_to_not_convert.append("distilled_guidance_layer")
+    if model.__class__.__name__ == "QwenImageTransformer2DModel":
+        if "minimum_6bit" not in modules_dtype_dict.keys():
+            modules_dtype_dict["minimum_6bit"] = ["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"]
+        else:
+            modules_dtype_dict["minimum_6bit"].extend(["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"])
 
     model.eval()
     backup_embeddings = None
@@ -424,6 +430,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         return_device=return_device,
         param_name=op,
         modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict,
     )
     t1 = time.time()
     timer.load.add('sdnq', t1 - t0)
@@ -610,7 +617,7 @@ def torchao_quantization(sd_model):
     return sd_model
 
 
-def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, allow_quant:bool=True, modules_to_not_convert: list = []):
+def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, allow_quant:bool=True, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
     from modules import shared, devices
     config = load_config.copy()
     if 'torch_dtype' not in config:
@@ -633,7 +640,7 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
         elif shared.opts.device_map == 'gpu':
             config['device_map'] = devices.device
     if allow_quant:
-        quant_args = create_config(module=module, modules_to_not_convert=modules_to_not_convert)
+        quant_args = create_config(module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
     else:
         quant_args = {}
     return config, quant_args

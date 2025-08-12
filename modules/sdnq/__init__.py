@@ -186,14 +186,29 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = []): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = [], modules_dtype_dict: Dict[str, List[str]] = {}): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
-    for module_param_name, module in model.named_children():
-        if module_param_name in modules_to_not_convert:
+    for param_name, module in model.named_children():
+        if param_name in modules_to_not_convert:
             continue
         if hasattr(module, "weight") and module.weight is not None:
+            if len(modules_dtype_dict.keys()) > 0:
+                for key, value in modules_dtype_dict.items():
+                    if param_name in value:
+                        key = key.lower()
+                        if key in {"8bit", "8bits"}:
+                            if dtype_dict[weights_dtype]["num_bits"] != 8:
+                                weights_dtype = "int8"
+                        elif key.startswith("minimum_"):
+                            minimum_bits = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                            if dtype_dict[weights_dtype]["num_bits"] < int(minimum_bits):
+                                weights_dtype = "int" + minimum_bits
+                        else:
+                            weights_dtype = key
+                        break
+
             module = sdnq_quantize_layer(
                 module,
                 weights_dtype=weights_dtype,
@@ -206,7 +221,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 non_blocking=non_blocking,
                 quantization_device=quantization_device,
                 return_device=return_device,
-                param_name=module_param_name,
+                param_name=param_name,
             )
         module = apply_sdnq_to_module(
                 module,
@@ -220,8 +235,9 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 non_blocking=non_blocking,
                 quantization_device=quantization_device,
                 return_device=return_device,
-                param_name=module_param_name,
+                param_name=param_name,
                 modules_to_not_convert=modules_to_not_convert,
+                modules_dtype_dict=modules_dtype_dict,
             )
     return model
 
@@ -280,6 +296,23 @@ class SDNQQuantizer(DiffusersQuantizer):
         unexpected_keys: List[str], # pylint: disable=unused-argument
         **kwargs, # pylint: disable=unused-argument
     ):
+        weights_dtype = self.quantization_config.weights_dtype
+        if len(self.quantization_config.modules_dtype_dict.keys()) > 0:
+            split_param_name = param_name.split(".")
+            for key, value in self.quantization_config.modules_dtype_dict.items():
+                if param_name in value or any(param in split_param_name for param in value):
+                    key = key.lower()
+                    if key in {"8bit", "8bits"}:
+                        if dtype_dict[weights_dtype]["num_bits"] != 8:
+                            weights_dtype = "int8"
+                    elif key.startswith("minimum_"):
+                        minimum_bits = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                        if dtype_dict[weights_dtype]["num_bits"] < int(minimum_bits):
+                            weights_dtype = "int" + minimum_bits
+                    else:
+                        weights_dtype = key
+                    break
+
         if self.quantization_config.return_device is not None:
             return_device = self.quantization_config.return_device
         else:
@@ -297,7 +330,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
-            weights_dtype=self.quantization_config.weights_dtype,
+            weights_dtype=weights_dtype,
             torch_dtype=self.torch_dtype,
             group_size=self.quantization_config.group_size,
             quant_conv=self.quantization_config.quant_conv,
@@ -421,6 +454,8 @@ class SDNQConfig(QuantizationConfigMixin):
         modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize, useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
+        modules_to_not_convert (`dict`, *optional*, default to `None`):
+            The dict of dtypes and list of modules, useful for quantizing some modules with a different dtype.
     """
 
     def __init__( # pylint: disable=super-init-not-called
@@ -435,6 +470,7 @@ class SDNQConfig(QuantizationConfigMixin):
         quantization_device: Optional[torch.device] = None,
         return_device: Optional[torch.device] = None,
         modules_to_not_convert: Optional[List[str]] = None,
+        modules_dtype_dict: Optional[Dict[str, List[str]]] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
         self.weights_dtype = weights_dtype
@@ -448,6 +484,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.quantization_device = quantization_device
         self.return_device = return_device
         self.modules_to_not_convert = modules_to_not_convert
+        self.modules_dtype_dict = modules_dtype_dict
         self.post_init()
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
 
@@ -463,3 +500,6 @@ class SDNQConfig(QuantizationConfigMixin):
             self.modules_to_not_convert = []
         elif not isinstance(self.modules_to_not_convert, list):
             self.modules_to_not_convert = [self.modules_to_not_convert]
+
+        if self.modules_dtype_dict is None:
+            self.modules_dtype_dict = {}
