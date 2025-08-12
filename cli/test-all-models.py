@@ -81,8 +81,6 @@ models = {
 }
 styles = [
     'Fixed Astronaut',
-]
-styles_tbd = [
     'Fixed Bear',
     'Fixed Steampunk City',
     'Fixed Road sign',
