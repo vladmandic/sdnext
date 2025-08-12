@@ -29,8 +29,9 @@ vlm_models = {
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
-    "Alibaba Qwen VL2 2B": "Qwen/Qwen2-VL-2B-Instruct",
+    "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
+    "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
@@ -122,7 +123,11 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        model = transformers.Qwen2VLForConditionalGeneration.from_pretrained(
+        if '2.5' in repo:
+            cls_name = transformers.Qwen2_5_VLForConditionalGeneration
+        else:
+            cls_name = transformers.Qwen2VLForConditionalGeneration
+        model = cls_name.from_pretrained(
             repo,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,

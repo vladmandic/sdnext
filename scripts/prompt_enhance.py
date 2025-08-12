@@ -48,6 +48,7 @@ class Options:
         'Qwen/Qwen2.5-0.5B-Instruct': {},
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},
+        'Qwen/Qwen2.5-VL-3B-Instruct': {},
         'microsoft/Phi-4-mini-instruct': {},
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
