@@ -526,7 +526,7 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "autolaunch": OptionInfo(False, "Autolaunch browser upon startup"),
     "motd": OptionInfo(False, "Show MOTD"),
     "subpath": OptionInfo("", "Mount URL subpath"),
-    "ui_request_timeout": OptionInfo(30000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 120000, "step": 10}),
+    "ui_request_timeout": OptionInfo(120000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 300000, "step": 10}),
 
     "cards_sep_ui": OptionInfo("<h2>Card options</h2>", "", gr.HTML),
     "extra_networks_card_size": OptionInfo(140, "UI card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),

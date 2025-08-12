@@ -71,6 +71,7 @@ And (*as always*) many bugfixes and improvements to existing features!
     applies to: *styles, loras*  
   - apply privacy blur to hf and civitai tokens  
   - image download will now use actual image filename  
+  - increase default and maximum ui request timeout to 2min/5min  
   - *hint*: card layout  
     card layout is used by networks, gallery, civitai search, etc.  
     you can change card size in *settings -> user interface*  
