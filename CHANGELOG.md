@@ -99,9 +99,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - update requirements/packages  
   - use model vae scale-factor for image width/heigt calculations  
 - **Other**
-  - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B` model support  
-  - **prompt enhance** add `Qwen/Qwen3-4B-Instruct-2507` model support  
-  - **caption** add `Qwen/Qwen2.5-VL-3B-Instruct` model support  
+  - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
+  - **prompt enhance** improve system prompt  
   - **schedulers** add **Flash FlowMatch**  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
