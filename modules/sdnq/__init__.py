@@ -202,9 +202,12 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                             if dtype_dict[weights_dtype]["num_bits"] != 8:
                                 weights_dtype = "int8"
                         elif key.startswith("minimum_"):
-                            minimum_bits = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
-                            if dtype_dict[weights_dtype]["num_bits"] < int(minimum_bits):
-                                weights_dtype = "int" + minimum_bits
+                            minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                            minimum_bits = int(minimum_bits_str)
+                            if dtype_dict[weights_dtype]["num_bits"] < minimum_bits:
+                                weights_dtype = "int" + minimum_bits_str
+                                if minimum_bits <= 4:
+                                    weights_dtype = "u" + weights_dtype
                         else:
                             weights_dtype = key
                         break
@@ -306,9 +309,12 @@ class SDNQQuantizer(DiffusersQuantizer):
                         if dtype_dict[weights_dtype]["num_bits"] != 8:
                             weights_dtype = "int8"
                     elif key.startswith("minimum_"):
-                        minimum_bits = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
-                        if dtype_dict[weights_dtype]["num_bits"] < int(minimum_bits):
-                            weights_dtype = "int" + minimum_bits
+                        minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                        minimum_bits = int(minimum_bits_str)
+                        if dtype_dict[weights_dtype]["num_bits"] < minimum_bits:
+                            weights_dtype = "int" + minimum_bits_str
+                            if minimum_bits <= 4:
+                                weights_dtype = "u" + weights_dtype
                     else:
                         weights_dtype = key
                     break
