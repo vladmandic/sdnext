@@ -113,9 +113,13 @@ def guess_by_name(fn, current_guess):
 
 
 def guess_by_diffusers(fn, current_guess):
+    exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
         index = shared.readfile(index, silent=True)
+        name = index.get('_name_or_path', None)
+        if name is not None and name in exclude_by_name:
+            return current_guess, None
         cls = index.get('_class_name', None)
         if cls is not None:
             pipeline = getattr(diffusers, cls, None)
