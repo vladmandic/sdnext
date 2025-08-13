@@ -269,8 +269,8 @@ def model_hash(filename):
         return 'NOHASH'
 
 
-def select_checkpoint(op='model'):
-    model_checkpoint = shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None)
+def select_checkpoint(op='model', sd_model_checkpoint=None):
+    model_checkpoint = sd_model_checkpoint or (shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None))
     if model_checkpoint is None or model_checkpoint == 'None' or len(model_checkpoint) < 3:
         return None
     checkpoint_info = get_closet_checkpoint_match(model_checkpoint)

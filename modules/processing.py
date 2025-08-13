@@ -119,6 +119,9 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
         shared.log.error('Processing: incomplete model')
         return None
+    if p.abort:
+        shared.log.debug('Processing: aborted')
+        return None
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.before_process(p)
     stored_opts = {}

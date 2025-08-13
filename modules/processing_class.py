@@ -15,6 +15,7 @@ debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None
 @dataclass(repr=False)
 class StableDiffusionProcessing:
     def __init__(self,
+                 sd_model_checkpoint: str = None, # # used only to set sd_model
                  sd_model=None, # pylint: disable=unused-argument # local instance of sd_model
                  # base params
                  prompt: str = "",
@@ -355,6 +356,17 @@ class StableDiffusionProcessing:
         self.prompt_attention_masks = []
         self.negative_prompt_attention_mask = []
         self.xyz = xyz
+        self.abort = False
+
+        # set model
+        if sd_model_checkpoint is not None and len(sd_model_checkpoint) > 0:
+            from modules import sd_checkpoint
+            if sd_checkpoint.select_checkpoint(op='model', sd_model_checkpoint=sd_model_checkpoint) is None:
+                shared.log.error(f'Processing: model="{sd_model_checkpoint}" not found')
+                self.abort = True
+            else:
+                shared.opts.sd_model_checkpoint = sd_model_checkpoint
+                sd_models.reload_model_weights()
 
     def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'

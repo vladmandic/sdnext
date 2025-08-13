@@ -111,6 +111,8 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
+  - all generate endpoints now support `sd_model_checkpoint` parameter  
+    this allows to specify which model to use for generation without needing to use additional endpoints  
 - **Refactor**
   - change default huggingface cache folder from system default to `models/huggingface`  
     sd.next will warn on startup on unused cache entries  
