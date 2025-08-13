@@ -1074,6 +1074,8 @@ def reload_text_encoder(initial=False):
         from modules.model_te import set_t5
         shared.log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
         set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
+    clear_caches()
+    apply_balanced_offload(shared.sd_model)
 
 
 def reload_model_weights(sd_model=None, info=None, op='model', force=False, revision=None):
