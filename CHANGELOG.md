@@ -1,18 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-12
+## Update for 2025-08-13
 
-### Highlights for 2025-08-12
+### Highlights for 2025-08-13
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
-Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers) and [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
+Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
 Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
-On the compute side, new profiles for high-vram GPUs, offloading improvements and support for new `torch` release    
+On the compute side, new profiles for high-vram GPUs, offloading improvements, support for new `torch` release and improved quality when using low-bit quantization!      
 And (*as always*) many bugfixes and improvements to existing features!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-08-12
+### Details for 2025-08-13
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -38,6 +38,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
     basic support for *Wan 2.1 VACE 1.3B* and *14B* variants  
     optimized support with granular guidance control will follow soon  
+  - [HunyuanDiT-Distilled](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
+    variant of HunyuanDiT with reduced steps and improved performance  
 **Torch**  
   - Set default to `torch==2.8.0` for *CUDA, ROCm and OpenVINO*  
   - Add support for `torch==2.9.0-nightly`  
@@ -98,10 +100,10 @@ And (*as always*) many bugfixes and improvements to existing features!
   - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
   - update requirements/packages  
   - use model vae scale-factor for image width/heigt calculations  
-  - **SDNQ** add modules_dtype_dict to quantize *Qwen Image* with mixed dtype  
-- **Other**
-  - **prompt enhance** add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
-  - **prompt enhance** improve system prompt  
+  - **SDNQ** add `modules_dtype_dict` to quantize *Qwen Image* with mixed dtype  
+  - **prompt enhance**
+    add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
+    improve system prompt  
   - **schedulers** add **Flash FlowMatch**  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
@@ -131,6 +133,7 @@ And (*as always*) many bugfixes and improvements to existing features!
   - fix `nudenet` api  
   - fix global state tracking  
   - fix ui tab detection for networks  
+  - unified stat size/mtime calls  
   - reapply offloading on ipadapter load  
   - api set default script-name  
   - avoid forced gc and rely on thresholds  

@@ -8,7 +8,6 @@ import html
 import base64
 import urllib.parse
 import threading
-from datetime import datetime
 from types import SimpleNamespace
 from pathlib import Path
 from html.parser import HTMLParser
@@ -16,9 +15,7 @@ from collections import OrderedDict
 import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
-from modules import paths, shared, files_cache, errors, infotext
-from modules.ui_components import ToolButton
-import modules.ui_symbols as symbols
+from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 
 
 allowed_dirs = []
@@ -612,7 +609,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return is_visible, gr.update(visible=is_visible), gr.update(variant=("secondary-down" if is_visible else "secondary"))
 
     with ui.details:
-        details_close = ToolButton(symbols.close, elem_id=f"{tabname}_extra_details_close", elem_classes=['extra-details-close'])
+        details_close = ui_components.ToolButton(ui_symbols.close, elem_id=f"{tabname}_extra_details_close", elem_classes=['extra-details-close'])
         details_close.click(fn=lambda: gr.update(visible=False), inputs=[], outputs=[ui.details])
         with gr.Row():
             with gr.Column(scale=1):
@@ -665,14 +662,14 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             model_visible = page in ['Model']
             return [gr.update(visible=scan_visible), gr.update(visible=save_visible), gr.update(visible=model_visible)]
 
-        ui.button_refresh = ToolButton(symbols.refresh, elem_id=f"{tabname}_extra_refresh")
-        ui.button_scan = ToolButton(symbols.scan, elem_id=f"{tabname}_extra_scan", visible=True)
-        ui.button_quicksave = ToolButton(symbols.book, elem_id=f"{tabname}_extra_quicksave", visible=False)
-        ui.button_save = ToolButton(symbols.book, elem_id=f"{tabname}_extra_save", visible=False)
-        ui.button_sort = ToolButton(symbols.sort, elem_id=f"{tabname}_extra_sort", visible=True)
-        ui.button_view = ToolButton(symbols.view, elem_id=f"{tabname}_extra_view", visible=True)
-        ui.button_close = ToolButton(symbols.close, elem_id=f"{tabname}_extra_close", visible=True)
-        ui.button_model = ToolButton(symbols.refine, elem_id=f"{tabname}_extra_model", visible=True)
+        ui.button_refresh = ui_components.ToolButton(ui_symbols.refresh, elem_id=f"{tabname}_extra_refresh")
+        ui.button_scan = ui_components.ToolButton(ui_symbols.scan, elem_id=f"{tabname}_extra_scan", visible=True)
+        ui.button_quicksave = ui_components.ToolButton(ui_symbols.book, elem_id=f"{tabname}_extra_quicksave", visible=False)
+        ui.button_save = ui_components.ToolButton(ui_symbols.book, elem_id=f"{tabname}_extra_save", visible=False)
+        ui.button_sort = ui_components.ToolButton(ui_symbols.sort, elem_id=f"{tabname}_extra_sort", visible=True)
+        ui.button_view = ui_components.ToolButton(ui_symbols.view, elem_id=f"{tabname}_extra_view", visible=True)
+        ui.button_close = ui_components.ToolButton(ui_symbols.close, elem_id=f"{tabname}_extra_close", visible=True)
+        ui.button_model = ui_components.ToolButton(ui_symbols.refine, elem_id=f"{tabname}_extra_model", visible=True)
         ui.search = gr.Textbox('', show_label=False, elem_id=f"{tabname}_extra_search", placeholder="Search...", elem_classes="textbox", lines=2, container=False)
         ui.description = gr.Textbox('', show_label=False, elem_id=f"{tabname}_description", elem_classes=["textbox", "extra-description"], lines=2, interactive=False, container=False)
 
@@ -802,7 +799,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
 
         if is_valid:
-            stat = os.stat(item.filename) if os.path.exists(item.filename) else None
+            stat_size, stat_mtime = modelstats.stat(item.filename)
             desc = item.description
             fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
             if 'modelVersions' in fullinfo: # sanitize massive objects
@@ -892,8 +889,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                     <tr><td>Alias</td><td>{getattr(item, 'alias', 'N/A')}</td></tr>
                     <tr><td>Filename</td><td>{item.filename}</td></tr>
                     <tr><td>Hash</td><td>{getattr(item, 'hash', 'N/A')}</td></tr>
-                    <tr><td>Size</td><td>{round(stat.st_size/1024/1024, 2) if stat is not None else 'N/A'} MB</td></tr>
-                    <tr><td>Last modified</td><td>{datetime.fromtimestamp(stat.st_mtime) if stat is not None else 'N/A'}</td></tr>
+                    <tr><td>Size</td><td>{round(stat_size/1024/1024, 2)} MB</td></tr>
+                    <tr><td>Last modified</td><td>{stat_mtime}</td></tr>
                     <tr><td>Source URL</td><td>{url}</td></tr>
                     <tr><td style="border-top: 1px solid var(--button-primary-border-color);"></td><td></td></tr>
                     {lora}

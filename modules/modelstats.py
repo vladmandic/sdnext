@@ -4,6 +4,29 @@ import torch
 from modules import shared, sd_models
 
 
+def walk(folder: str):
+    files = []
+    for root, _, filenames in os.walk(folder):
+        for filename in filenames:
+            files.append(os.path.join(root, filename))
+    return files
+
+
+def stat(fn: str):
+    if fn is None or len(fn) == 0 or not os.path.exists(fn):
+        return 0, None
+    fs_stat = os.stat(fn)
+    mtime = datetime.fromtimestamp(fs_stat.st_mtime).replace(microsecond=0)
+    if os.path.isfile(fn):
+        size = round(fs_stat.st_size)
+    elif os.path.isdir(fn):
+        size = round(sum(stat(fn)[0] for fn in walk(fn)))
+    else:
+        size = 0
+    print('HERE', fn, os.path.isfile(fn), os.path.isdir(fn), size, mtime)
+    return size, mtime
+
+
 class Module():
     name: str = ''
     cls: str = None
@@ -60,11 +83,7 @@ class Model():
             self.name = self.info.name or self.name
             self.hash = self.info.shorthash or ''
             self.meta = self.info.metadata or {}
-            if os.path.exists(self.info.filename):
-                stat = os.stat(self.info.filename)
-                self.mtime = datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)
-                if os.path.isfile(self.info.filename):
-                    self.size = round(stat.st_size)
+            self.size, self.mtime = stat(self.info.filename)
 
     def __repr__(self):
         return f'model="{self.name}" type={self.type} class={self.cls} size={self.size} mtime="{self.mtime}" modules={self.modules}'

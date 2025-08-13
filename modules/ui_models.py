@@ -1,8 +1,7 @@
 import os
 import inspect
-from datetime import datetime
 import gradio as gr
-from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols
+from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
 from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
@@ -57,7 +56,6 @@ def create_ui():
                     return html.format(tbody=tbody)
 
                 def analyze():
-                    from modules import modelstats
                     model = modelstats.analyze()
                     if model is None:
                         return ["Model not loaded", {}]
@@ -93,10 +91,10 @@ def create_ui():
                     for row in rows:
                         try:
                             f = row.filename
-                            stat = os.stat(row.filename)
+                            stat_size, stat_mtime = modelstats.stat(f)
                             if os.path.isfile(f):
                                 typ = os.path.splitext(f)[1][1:]
-                                size = f"{round(stat.st_size / 1024 / 1024 / 1024, 3)} gb"
+                                size = f"{round(stat_size / 1024 / 1024 / 1024, 3)} gb"
                             elif os.path.isdir(f):
                                 typ = 'diffusers'
                                 size = 'folder'
@@ -117,7 +115,7 @@ def create_ui():
                                     <td>{pipeline.__name__ if pipeline else '(unknown)'}</td>
                                     <td>{row.shorthash}</td>
                                     <td>{size}</td>
-                                    <td>{datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)}</td>
+                                    <td>{stat_mtime}</td>
                                 </tr>
                             """
                         except Exception as e:

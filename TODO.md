@@ -2,11 +2,16 @@
 
 Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
 
+## Current Candidates
+
+- `HF_ENABLE_PARALLEL_LOADING`
+
 ## Future Candidates
 
 - Unified `CLIPTextModelWithProjection` loader  
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
+- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
