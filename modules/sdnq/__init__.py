@@ -186,7 +186,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None, modules_to_not_convert: List[str] = [], modules_dtype_dict: Dict[str, List[str]] = {}): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = [], modules_dtype_dict: Dict[str, List[str]] = {}, op=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -238,9 +238,9 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 non_blocking=non_blocking,
                 quantization_device=quantization_device,
                 return_device=return_device,
-                param_name=param_name,
                 modules_to_not_convert=modules_to_not_convert,
                 modules_dtype_dict=modules_dtype_dict,
+                op=op,
             )
     return model
 

@@ -428,9 +428,9 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         non_blocking=shared.opts.diffusers_offload_nonblocking,
         quantization_device=quantization_device,
         return_device=return_device,
-        param_name=op,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
+        op=op,
     )
     t1 = time.time()
     timer.load.add('sdnq', t1 - t0)
