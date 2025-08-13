@@ -140,6 +140,7 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
   - fix global state tracking  
   - fix ui tab detection for networks  
   - fix ui checkbox/radio styling for non-default themes  
+  - fix loading custom transformers and t5 safetensors tunes  
   - unified stat size/mtime calls  
   - reapply offloading on ipadapter load  
   - api set default script-name  
