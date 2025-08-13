@@ -78,7 +78,7 @@ def create_sampler(name, model):
     if model is not None:
         if getattr(model, "default_scheduler", None) is None:
             model.default_scheduler = copy.deepcopy(model.scheduler)
-        requires_flow = ('FlowMatch' in model.default_scheduler.__class__.__name__) or (getattr(model.scheduler.config, 'prediction_type', None) == 'flow_prediction')
+        requires_flow = ('FlowMatch' in model.default_scheduler.__class__.__name__) or (getattr(model.default_scheduler.config, 'prediction_type', None) == 'flow_prediction')
     else:
         requires_flow = False
 
@@ -98,7 +98,7 @@ def create_sampler(name, model):
     # validate sampler prediction type
     if (model is not None) and (is_flow and not requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with discrete prediction')
-        # return restore_default(model)
+        return restore_default(model)
     if (model is not None) and (not is_flow and requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with flow prediction')
         return restore_default(model)
