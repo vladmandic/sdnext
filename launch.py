@@ -45,9 +45,9 @@ def init_args():
 def init_paths():
     global script_path, extensions_dir # pylint: disable=global-statement
     import modules.paths
-    modules.paths.register_paths()
     script_path = modules.paths.script_path
     extensions_dir = modules.paths.extensions_dir
+    sys.path.insert(0, script_path)
     rec('paths')
 
 

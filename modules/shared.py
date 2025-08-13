@@ -24,6 +24,11 @@ import modules.paths as paths
 from installer import log, print_dict, console, get_version # pylint: disable=unused-import
 
 
+class Backend(Enum):
+    ORIGINAL = 1
+    DIFFUSERS = 2
+
+
 errors.install([gr])
 demo: gr.Blocks = None
 api = None
@@ -58,14 +63,9 @@ restricted_opts = {
 }
 resize_modes = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"]
 max_workers = 12
-default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
 sdnq_quant_modes = ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"]
+default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
 state = shared_state.State()
-
-
-class Backend(Enum):
-    ORIGINAL = 1
-    DIFFUSERS = 2
 
 
 # early select backend

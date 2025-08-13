@@ -15,15 +15,16 @@ def walk(folder: str):
 def stat(fn: str):
     if fn is None or len(fn) == 0 or not os.path.exists(fn):
         return 0, None
-    fs_stat = os.stat(fn)
+    fs_stat = os.stat(fn, follow_symlinks=False)
     mtime = datetime.fromtimestamp(fs_stat.st_mtime).replace(microsecond=0)
-    if os.path.isfile(fn):
+    if os.path.islink(fn):
+        size = 0
+    elif os.path.isfile(fn):
         size = round(fs_stat.st_size)
     elif os.path.isdir(fn):
         size = round(sum(stat(fn)[0] for fn in walk(fn)))
     else:
         size = 0
-    print('HERE', fn, os.path.isfile(fn), os.path.isdir(fn), size, mtime)
     return size, mtime
 
 

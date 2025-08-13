@@ -68,7 +68,7 @@ def initialize():
     modules.sd_checkpoint.init_metadata()
     modules.hashes.init_cache()
 
-    log.debug(f'Huggingface cache: path="{shared.opts.hfcache_dir}"')
+    paths.check_cache(shared.opts)
 
     modules.sd_samplers.list_samplers()
     timer.startup.record("samplers")

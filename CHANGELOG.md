@@ -10,6 +10,9 @@ Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** searc
 On the compute side, new profiles for high-vram GPUs, offloading improvements, support for new `torch` release and improved quality when using low-bit quantization!      
 And (*as always*) many bugfixes and improvements to existing features!  
 
+*Note*: Change-in-behavior - locations of downloaded HuggingFace models and components are changed to allow for de-duplication of common modules and switched from using system default cache folder to `models/huggingface`  
+SD.Next will warn on startup on unused cache entries that can be removed. Also, to take advantage of de-duplication, you'll need to delete models from your `models/Diffusers` folder and let SD.Next re-download them!  
+
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
 ### Details for 2025-08-13
@@ -109,6 +112,8 @@ And (*as always*) many bugfixes and improvements to existing features!
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
 - **Refactor**
+  - change default huggingface cache folder from system default to `models/huggingface`  
+    sd.next will warn on startup on unused cache entries  
   - new unified pipeline component loader in `pipelines/generic`  
   - remove **LDSR**  
   - remove `api-only` cli option  
