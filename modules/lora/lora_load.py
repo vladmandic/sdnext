@@ -16,24 +16,6 @@ forbidden_network_aliases = {}
 available_network_hash_lookup = {}
 dump_lora_keys = os.environ.get('SD_LORA_DUMP', None) is not None
 
-def patch_torch_version():
-    import torch
-    if not hasattr(torch, '__version_backup__'):
-        torch.__version_backup__ = torch.__version__
-        # Convert string version to tuple format to solve TypeError caused by BnB
-        version_parts = torch.__version__.split('+')[0].split('.')
-        torch.__version_tuple__ = tuple(int(x) for x in version_parts[:3])
-        # Support both string and tuple
-        class VersionString(str):
-            def __ge__(self, other):
-                if isinstance(other, tuple):
-                    self_tuple = tuple(int(x) for x in self.split('+')[0].split('.')[:len(other)])
-                    return self_tuple >= other
-                return super().__ge__(other)
-        torch.__version__ = VersionString(torch.__version__)
-
-# Call before loading LoRA
-patch_torch_version()
 
 def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_default_multiplier) -> Union[network.Network, None]:
     t0 = time.time()
