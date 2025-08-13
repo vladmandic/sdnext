@@ -863,6 +863,7 @@ def backup_pipe_components(pipe):
         'feature_extractor': getattr(pipe, "feature_extractor", None),
         'mask_processor': getattr(pipe, "mask_processor", None),
         'restore_pipeline': getattr(pipe, "restore_pipeline", None),
+        'task_args': getattr(pipe, "task_args", None),
     }
 
 
@@ -886,6 +887,8 @@ def restore_pipe_components(pipe, components):
         pipe.mask_processor = components['mask_processor']
     if components['restore_pipeline'] is not None:
         pipe.restore_pipeline = components['restore_pipeline']
+    if components['task_args'] is not None:
+        pipe.task_args = components['task_args']
 
     if pipe.__class__.__name__ in ['FluxPipeline', 'StableDiffusion3Pipeline']:
         pipe.register_modules(image_encoder = components['image_encoder'])

@@ -22,7 +22,6 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
     new image foundational model with *20B* params DiT and using *Qwen2.5-VL-7B* as the text-encoder!  
     available via *networks -> models -> reference*  
     *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
-    *note* qwen-image supports text-to-image workflows as image-editing model is not yet available  
     *recommended* params: *steps=50, attention-guidance=4*  
     also available is pre-packaged [Qwen-Lightning](https://huggingface.co/vladmandic/Qwen-Lightning)  
     which is an unofficial merge of [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) with [Qwen-Lightning-LoRA](https://github.com/ModelTC/Qwen-Image-Lightning/) to improve quality and allow for generating in 8-steps!  
