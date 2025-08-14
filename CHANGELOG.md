@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-13
+## Update for 2025-08-14
 
-### Highlights for 2025-08-13
+### Highlights for 2025-08-14
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
@@ -15,7 +15,7 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-08-13
+### Details for 2025-08-14
 
 - **Models**  
   - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
@@ -110,7 +110,9 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
     improve system prompt  
   - **schedulers** add **Flash FlowMatch**  
   - **model loader** add parallel loader option  
-    enabled by default, selectable in *settings -> model loading*
+    enabled by default, selectable in *settings -> model loading*  
+  - filename namegen use exact sequence number instead of next available  
+    this allows for more predictable and consistent filename generation  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
