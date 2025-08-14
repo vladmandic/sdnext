@@ -71,7 +71,7 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
     if filename is None and p is not None:
         filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
         filename = os.path.join(shared.opts.outdir_video, filename)
-        filename = namegen.sequence(filename, shared.opts.outdir_video, '')
+        filename = namegen.sequence(filename)
     else:
         if os.path.sep not in filename:
             filename = os.path.join(shared.opts.outdir_video, filename)
