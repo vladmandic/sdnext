@@ -84,7 +84,7 @@ def guess_by_name(fn, current_guess):
         return 'Stable Diffusion 3'
     elif 'hidream' in fn.lower():
         return 'HiDream'
-    elif 'chroma' in fn.lower():
+    elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         return 'Chroma'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
         size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
