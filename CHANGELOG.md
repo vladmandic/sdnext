@@ -6,7 +6,7 @@
 
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
-Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, built-in **GPU monitor**, **CivitAI** integration and more!  
+Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, **wildcards** UI selector, built-in **GPU monitor**, **CivitAI** integration and more!  
 On the compute side, new profiles for high-vram GPUs, offloading improvements, support for new `torch` release and improved quality when using low-bit quantization!      
 And (*as always*) many bugfixes and improvements to existing features!  
 
@@ -50,6 +50,8 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
     **Docs** search: fully-local and works in real-time on all document pages  
     **Wiki** search: uses github api to search online wiki pages  
   - updated real-time hints, thanks @CalamitousFelicitousness  
+  - add **Wilcards** UI  
+    in networks display  
   - every heading element is collapsible!  
   - quicksettings reset button to restore all quicksettings to default values  
     because things do sometimes get wrong...  

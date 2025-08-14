@@ -226,8 +226,8 @@ function sortExtraNetworks(fixed = 'no') {
         case 0: return 0;
         case 1: return a.dataset.name ? a.dataset.name.localeCompare(b.dataset.name) : 0;
         case 2: return b.dataset.name ? b.dataset.name.localeCompare(a.dataset.name) : 0;
-        case 3: return a.dataset.mtime && !isNaN(a.dataset.mtime) ? parseFloat(b.dataset.mtime) - parseFloat(a.dataset.mtime) : 0;
-        case 4: return b.dataset.mtime && !isNaN(b.dataset.mtime) ? parseFloat(a.dataset.mtime) - parseFloat(b.dataset.mtime) : 0;
+        case 3: return a.dataset.mtime ? (new Date(b.dataset.mtime)).getTime() - (new Date(a.dataset.mtime)).getTime() : 0;
+        case 4: return b.dataset.mtime ? (new Date(a.dataset.mtime)).getTime() - (new Date(b.dataset.mtime)).getTime() : 0;
         case 5: return a.dataset.size && !isNaN(a.dataset.size) ? parseFloat(b.dataset.size) - parseFloat(a.dataset.size) : 0;
         case 6: return b.dataset.size && !isNaN(b.dataset.size) ? parseFloat(a.dataset.size) - parseFloat(b.dataset.size) : 0;
       }

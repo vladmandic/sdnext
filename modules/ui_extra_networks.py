@@ -503,6 +503,8 @@ def register_pages():
     register_page(ExtraNetworksPageStyles())
     from modules.ui_extra_networks_lora import ExtraNetworksPageLora
     register_page(ExtraNetworksPageLora())
+    from modules.ui_extra_networks_wildcards import ExtraNetworksPageWildcards
+    register_page(ExtraNetworksPageWildcards())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
@@ -515,7 +517,7 @@ def get_pages(title=None):
     visible = shared.opts.extra_networks
     pages = []
     if 'All' in visible or visible == []: # default en sort order
-        visible = ['Model', 'Lora', 'Style', 'Embedding', 'VAE', 'History', 'Hypernetwork']
+        visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
     titles = [page.title for page in shared.extra_networks]
     if title is None:

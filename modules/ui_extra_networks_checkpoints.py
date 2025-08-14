@@ -2,7 +2,7 @@ import os
 import html
 import json
 import concurrent
-from modules import shared, ui_extra_networks, sd_models
+from modules import shared, ui_extra_networks, sd_models, modelstats
 
 
 reference_dir = os.path.join('models', 'Reference')
@@ -46,7 +46,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         record = None
         try:
             checkpoint: sd_models.CheckpointInfo = sd_models.checkpoints_list.get(name)
-            exists = os.path.exists(checkpoint.filename)
+            size, mtime = modelstats.stat(checkpoint.filename)
             record = {
                 "type": 'Model',
                 "name": checkpoint.name,
@@ -55,8 +55,8 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "hash": checkpoint.shorthash,
                 "metadata": checkpoint.metadata,
                 "onclick": '"' + html.escape(f"selectCheckpoint({json.dumps(name)})") + '"',
-                "mtime": os.path.getmtime(checkpoint.filename) if exists else 0,
-                "size": os.path.getsize(checkpoint.filename) if exists else 0,
+                "mtime": mtime,
+                "size": size,
             }
             record["info"] = self.find_info(checkpoint.filename)
             record["description"] = self.find_description(checkpoint.filename, record["info"])
