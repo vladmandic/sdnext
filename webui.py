@@ -121,6 +121,9 @@ def initialize():
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
 
+    from modules.models_hf import hf_init
+    hf_init()
+
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:
             if not os.path.exists(shared.cmd_opts.tls_keyfile):

@@ -142,7 +142,7 @@ options_templates.update(options_section(('sd', "Model Loading"), {
 
     "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
     "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
-    "sd_parallel_load": OptionInfo(True, "Model auto-load on start"),
+    "sd_parallel_load": OptionInfo(True, "Model load using multiple threads"),
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
     "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),

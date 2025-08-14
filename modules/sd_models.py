@@ -73,6 +73,16 @@ def copy_diffuser_options(new_pipe, orig_pipe):
         set_accelerate(new_pipe)
 
 
+def set_huggingface_options(op: str, model_type: str):
+    if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
+        shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
+        sd_hijack_accelerate.hijack_accelerate()
+    else:
+        sd_hijack_accelerate.restore_accelerate()
+    if shared.opts.sd_parallel_load:
+        shared.log.debug(f'Setting {op}: component=huggingface parallel={shared.opts.sd_parallel_load}')
+
+
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
     ops = {}
     if hasattr(sd_model, "vae"):
@@ -498,11 +508,6 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
             if shared.opts.disable_accelerate:
                 from diffusers.utils import import_utils
                 import_utils._accelerate_available = False # pylint: disable=protected-access
-            if shared.opts.diffusers_to_gpu and model_type.startswith('Stable Diffusion'):
-                shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
-                sd_hijack_accelerate.hijack_accelerate()
-            else:
-                sd_hijack_accelerate.restore_accelerate()
             sd_model = pipeline.from_single_file(checkpoint_info.path, **diffusers_load_config)
             # sd_model = patch_diffuser_config(sd_model, checkpoint_info.path)
         elif hasattr(pipeline, 'from_ckpt'):
@@ -607,6 +612,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
 
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
+        set_huggingface_options(op, model_type)
 
         # preload vae so it can be used as param
         vae = None
