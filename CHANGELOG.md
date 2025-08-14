@@ -81,7 +81,7 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
   - *hint*: card layout  
     card layout is used by networks, gallery, civitai search, etc.  
     you can change card size in *settings -> user interface*  
-- **Offloading**
+- **Offloading**  
   - changed **default** values for offloading based on detected gpu memory  
     see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
   - new feature to specify which modules to offload always or never  
@@ -117,6 +117,10 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
     in *networks -> show details -> delete*  
     this will also delete description, metadata and previews associated with the network  
     only applicable to safetensors networks, not downloaded diffuser models  
+- **Wiki**  
+  - Models page updated with links to original model repos and model licenses, thanks @alerikaisattera  
+  - Updated Model-Support with newly supported models  
+  - Updated Offload, Prompting, API pages  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
