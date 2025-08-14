@@ -1310,6 +1310,7 @@ def install_requirements():
 
 # set environment variables controling the behavior of various libraries
 def set_environment():
+    from modules.paths import models_path
     log.debug('Setting environment tuning')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
@@ -1336,7 +1337,7 @@ def set_environment():
     os.environ.setdefault('DO_NOT_TRACK', '1')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
-    os.environ.setdefault('HF_HUB_CACHE', opts.get('hfcache_dir', os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')))
+    os.environ.setdefault('HF_HUB_CACHE', opts.get('hfcache_dir', os.path.join(models_path, 'huggingface')))
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'

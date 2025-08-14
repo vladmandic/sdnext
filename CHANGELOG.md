@@ -7,7 +7,7 @@
 Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
 Plus continuing with major **UI** work, we have new embedded **Docs/Wiki** search, redesigned real-time **hints**, **wildcards** UI selector, built-in **GPU monitor**, **CivitAI** integration and more!  
-On the compute side, new profiles for high-vram GPUs, offloading improvements, support for new `torch` release and improved quality when using low-bit quantization!      
+On the compute side, new profiles for high-vram GPUs, offloading improvements, parallel-load for large models, support for new `torch` release and improved quality when using low-bit quantization!      
 And (*as always*) many bugfixes and improvements to existing features!  
 
 *Note*: Change-in-behavior - locations of downloaded HuggingFace models and components are changed to allow for de-duplication of common modules and switched from using system default cache folder to `models/huggingface`  
@@ -109,6 +109,8 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
     add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
     improve system prompt  
   - **schedulers** add **Flash FlowMatch**  
+  - **model loader** add parallel loader option  
+    enabled by default, selectable in *settings -> model loading*
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
@@ -143,6 +145,8 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
   - fix ui tab detection for networks  
   - fix ui checkbox/radio styling for non-default themes  
   - fix loading custom transformers and t5 safetensors tunes  
+  - add mtime to reference models  
+  - patch torch version so 3rd party libraries can use expected format  
   - unified stat size/mtime calls  
   - reapply offloading on ipadapter load  
   - api set default script-name  

@@ -283,6 +283,7 @@ class ExtraNetworksPage:
         htmls = []
 
         if len(self.items) > 0 and self.items[0].get('mtime', None) is not None:
+            shared.opts.extra_networks_sort = 'Date [Newest]'
             if shared.opts.extra_networks_sort == 'Default':
                 pass
             elif shared.opts.extra_networks_sort == 'Name [A-Z]':

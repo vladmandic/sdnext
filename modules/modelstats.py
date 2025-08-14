@@ -14,7 +14,7 @@ def walk(folder: str):
 
 def stat(fn: str):
     if fn is None or len(fn) == 0 or not os.path.exists(fn):
-        return 0, None
+        return 0, datetime.fromtimestamp(0)
     fs_stat = os.stat(fn, follow_symlinks=False)
     mtime = datetime.fromtimestamp(fs_stat.st_mtime).replace(microsecond=0)
     if os.path.islink(fn):

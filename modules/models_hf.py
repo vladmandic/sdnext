@@ -8,6 +8,7 @@ def hf_init():
     os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
     os.environ.setdefault('HF_HUB_DISABLE_IMPLICIT_TOKEN', '1')
     os.environ.setdefault('HUGGINGFACE_HUB_VERBOSITY', 'warning')
+    os.environ.setdefault('HF_ENABLE_PARALLEL_LOADING', 'true')
 
 
 def hf_search(keyword):

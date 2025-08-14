@@ -26,16 +26,18 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 else:
                     continue
             preview = v.get('preview', v['path'])
+            preview_file = self.find_preview_file(os.path.join(reference_dir, preview))
+            _size, mtime = modelstats.stat(preview_file)
             yield {
                 "type": 'Model',
                 "name": os.path.join(reference_dir, k),
                 "title": os.path.join(reference_dir, k),
                 "filename": url,
                 "preview": self.find_preview(os.path.join(reference_dir, preview)),
-                "local_preview": self.find_preview_file(os.path.join(reference_dir, preview)),
+                "local_preview": preview_file,
                 "onclick": '"' + html.escape(f"selectReference({json.dumps(url)})") + '"',
                 "hash": None,
-                "mtime": 0,
+                "mtime": mtime,
                 "size": 0,
                 "info": {},
                 "metadata": {},
