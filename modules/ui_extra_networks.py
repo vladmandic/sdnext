@@ -737,30 +737,26 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             shared.log.debug(f'Network save desc: item="{ui.last_item.name}" filename="{fn}"')
         return desc
 
-    def fn_delete_desc(desc):
+    def fn_delete_network(desc):
         if ui.last_item is None:
             return desc
-        fn = os.path.splitext(ui.last_item.filename)[0] + '.txt'
-        if os.path.exists(fn):
-            shared.log.debug(f'Network delete desc: item="{ui.last_item.name}" filename="{fn}"')
+        basename = os.path.splitext(ui.last_item.filename)[0]
+        extensions = ['.safetensors', '.ckpt', '.txt', '.json', '.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl']
+        candidates = []
+        for ext in extensions:
+            fn = basename + ext
+            if os.path.exists(fn) and os.path.isfile(fn):
+                candidates.append(fn)
+        msg = f'Network delete: item="{ui.last_item.name}" files={candidates}'
+        shared.log.debug(msg)
+        for fn in candidates:
             os.remove(fn)
-            return ''
-        return desc
+        return msg
 
     def fn_save_info(info):
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         shared.writefile(info, fn, silent=True)
         shared.log.debug(f'Network save info: item="{ui.last_item.name}" filename="{fn}"')
-        return info
-
-    def fn_delete_info(info):
-        if ui.last_item is None:
-            return info
-        fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
-        if os.path.exists(fn):
-            shared.log.debug(f'Network delete info: item="{ui.last_item.name}" filename="{fn}"')
-            os.remove(fn)
-            return ''
         return info
 
     def fn_save_style(info, description, prompt, negative, extra, wildcards):
@@ -789,9 +785,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     btn_save_img.click(fn=fn_save_img, _js='closeDetailsEN', inputs=[img], outputs=[img])
     btn_delete_img.click(fn=fn_delete_img, _js='closeDetailsEN', inputs=[img], outputs=[img])
     btn_save_desc.click(fn=fn_save_desc, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
-    btn_delete_desc.click(fn=fn_delete_desc, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
+    btn_delete_desc.click(fn=fn_delete_network, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
     btn_save_info.click(fn=fn_save_info, _js='closeDetailsEN', inputs=[info], outputs=[info])
-    btn_delete_info.click(fn=fn_delete_info, _js='closeDetailsEN', inputs=[info], outputs=[info])
+    btn_delete_info.click(fn=fn_delete_network, _js='closeDetailsEN', inputs=[info], outputs=[desc])
     btn_save_style.click(fn=fn_save_style, _js='closeDetailsEN', inputs=[info, description, prompt, negative, extra, wildcards], outputs=[info])
     btn_delete_style.click(fn=fn_delete_style, _js='closeDetailsEN', inputs=[info], outputs=[info])
 

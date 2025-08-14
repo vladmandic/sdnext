@@ -111,8 +111,12 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
   - **schedulers** add **Flash FlowMatch**  
   - **model loader** add parallel loader option  
     enabled by default, selectable in *settings -> model loading*  
-  - filename namegen use exact sequence number instead of next available  
+  - **filename namegen** use exact sequence number instead of next available  
     this allows for more predictable and consistent filename generation  
+  - **network delete** new feature that allows to delete network from disk  
+    in *networks -> show details -> delete*  
+    this will also delete description, metadata and previews associated with the network  
+    only applicable to safetensors networks, not downloaded diffuser models  
 - **API**
   - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
   - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
