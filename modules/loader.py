@@ -199,8 +199,8 @@ def deprecate_warn(*args, **kwargs):
 diffusers.utils.deprecation_utils.deprecate = deprecate_warn
 diffusers.utils.deprecate = deprecate_warn
 
+
 def patch_torch_version():
-    import torch
     if not hasattr(torch, '__version_backup__'):
         torch.__version_backup__ = torch.__version__
         # Convert string version to tuple format to solve TypeError caused by BnB
@@ -215,8 +215,7 @@ def patch_torch_version():
                 return super().__ge__(other)
         torch.__version__ = VersionString(torch.__version__)
 
+
 patch_torch_version()
-
-
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
 errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__}')

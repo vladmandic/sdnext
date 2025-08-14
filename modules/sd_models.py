@@ -74,6 +74,8 @@ def copy_diffuser_options(new_pipe, orig_pipe):
 
 
 def set_huggingface_options(op: str, model_type: str):
+    if model_type is not None: # overrides
+        pass
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
         sd_hijack_accelerate.hijack_accelerate()
