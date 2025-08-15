@@ -1,7 +1,7 @@
 {
   "name": "@vladmandic/sdnext",
   "version": "dev",
-  "description": "SD.Next: Opinionated implementation of Stable Diffusion",
+  "description": "SD.Next: All-in-one WebUI for AI generative image and video creation",
   "author": "Vladimir Mandic <mandic00@live.com>",
   "bugs": {
     "url": "https://github.com/vladmandic/sdnext/issues"
@@ -19,7 +19,7 @@
     "venv": ". venv/bin/activate",
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
-    "packages": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft compel pytorch_lightning",
+    "packages": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft compel pytorch_lightning pylint ruff",
     "eslint": "eslint . javascript/ extensions-builtin/sdnext-modernui/javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",

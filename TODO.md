@@ -2,10 +2,6 @@
 
 Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
 
-## Current Candidates
-
-- `HF_ENABLE_PARALLEL_LOADING`
-
 ## Future Candidates
 
 - Remote TE
@@ -78,7 +74,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
-- flux: loader for civitai nf4 models
 - hypertile: vae breaks when using non-standard sizes
 - install: enable ROCm for windows when available
 - loader: load receipe
@@ -86,8 +81,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
-- model load: add ChromaControlPipeline, ChromaInpaintPipeline
-- model load: cogview4 balanced offload does not work for GlmModel
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
 - model load: group offload
 - model load: implement model in-memory caching

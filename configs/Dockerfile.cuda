@@ -2,7 +2,7 @@
 # docs: <https://github.com/vladmandic/sdnext/wiki/Docker>
 
 # base image
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
+FROM pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
 
 # metadata
 LABEL org.opencontainers.image.vendor="SD.Next"
@@ -13,7 +13,7 @@ LABEL org.opencontainers.image.source="https://github.com/vladmandic/sdnext/"
 LABEL org.opencontainers.image.licenses="AGPL-3.0"
 LABEL org.opencontainers.image.title="SD.Next"
 LABEL org.opencontainers.image.description="SD.Next: Advanced Implementation of Stable Diffusion and other Diffusion-based generative image models"
-LABEL org.opencontainers.image.base.name="https://hub.docker.com/pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime"
+LABEL org.opencontainers.image.base.name="https://hub.docker.com/pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime"
 LABEL org.opencontainers.image.version="latest"
 
 # minimum install
