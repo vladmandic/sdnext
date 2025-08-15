@@ -68,6 +68,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
         if debug:
             errors.display(e, 'Load:')
         raise
+    devices.torch_gc()
     return transformer
 
 
@@ -159,4 +160,5 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         if debug:
             errors.display(e, 'Load:')
         raise
+    devices.torch_gc()
     return text_encoder

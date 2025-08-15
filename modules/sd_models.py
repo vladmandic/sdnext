@@ -1082,7 +1082,7 @@ def reload_text_encoder(initial=False):
         from modules.model_te import set_t5
         shared.log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
         set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
-    clear_caches()
+    clear_caches(full=True)
     apply_balanced_offload(shared.sd_model)
 
 
@@ -1122,20 +1122,21 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     return None # should not be here
 
 
-def clear_caches():
+def clear_caches(full:bool=False):
+    from modules import prompt_parser_diffusers, memstats, sd_offload
     from modules.lora import lora_common, lora_load
+    prompt_parser_diffusers.cache.clear()
+    memstats.reset_stats()
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
     lora_load.lora_cache.clear()
-
-    from modules import prompt_parser_diffusers, memstats, sd_offload
-    sd_offload.offload_hook_instance = None
-    prompt_parser_diffusers.cache.clear()
-    memstats.reset_stats()
+    if full:
+        shared.log.debug(f'Cache clear')
+        sd_offload.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):
-    clear_caches()
+    clear_caches(full=True)
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()
