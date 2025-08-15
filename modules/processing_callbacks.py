@@ -1,5 +1,6 @@
 import typing
 import os
+import sys
 import time
 import torch
 import numpy as np
@@ -53,7 +54,7 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: typing.Union[to
 
 def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}):
     t0 = time.time()
-    if devices.backend == "zluda":
+    if devices.backend == "zluda" or (devices.backend == "rocm" and sys.platform == "win32"):
         torch.cuda.synchronize(devices.device)
     latents = kwargs.get('latents', None)
     if debug:
