@@ -154,7 +154,8 @@ SD.Next will warn on startup on unused cache entries that can be removed. Also, 
   - fix processing image save loop  
   - fix progress bar with refine/detailer  
   - fix api progress reporting endpoint  
-  - fix openvino backend failing to compile  
+  - fix `openvino` backend failing to compile  
+  - fix `zluda` with hip-sdk==6.4
   - fix `nunchaku` fallback on unsupported model  
   - fix `nunchaku` windows download links  
   - fix *Flux.1-Kontext-Dev* with variable resolution  
