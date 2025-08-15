@@ -29,9 +29,8 @@ def load_flite(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
 
-    sd_hijack_te.init_hijack(pipe)
     del text_encoder
     del dit_model
-
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc()
     return pipe

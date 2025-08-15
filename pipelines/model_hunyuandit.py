@@ -1,6 +1,6 @@
 import transformers
 import diffusers
-from modules import shared, sd_models, devices, model_quant
+from modules import shared, sd_models, devices, model_quant, sd_hijack_te
 from pipelines import generic
 
 
@@ -25,5 +25,6 @@ def load_hunyuandit(checkpoint_info, diffusers_load_config={}):
 
     del text_encoder_2
     del transformer
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe

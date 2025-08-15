@@ -1,7 +1,7 @@
 import transformers
 import diffusers
 from huggingface_hub import file_exists
-from modules import shared, devices, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from pipelines import generic
 
 
@@ -33,5 +33,6 @@ def load_pixart(checkpoint_info, diffusers_load_config={}):
 
     del text_encoder
     del transformer
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe

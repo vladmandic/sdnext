@@ -1131,7 +1131,7 @@ def clear_caches(full:bool=False):
     lora_common.previously_loaded_networks.clear()
     lora_load.lora_cache.clear()
     if full:
-        shared.log.debug(f'Cache clear')
+        shared.log.debug('Cache clear')
         sd_offload.offload_hook_instance = None
 
 

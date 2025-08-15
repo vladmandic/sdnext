@@ -1,9 +1,9 @@
 import transformers
 import diffusers
+from modules import shared, devices, modelloader, sd_models, shared_items, sd_hijack_te
 
 
 def load_meissonic(checkpoint_info, diffusers_load_config={}):
-    from modules import shared, devices, modelloader, sd_models, shared_items
     from pipelines.meissonic.transformer import Transformer2DModel as TransformerMeissonic
     from pipelines.meissonic.scheduler import Scheduler as MeissonicScheduler
     from pipelines.meissonic.pipeline import MeissonicPipeline
@@ -52,5 +52,6 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["meissonic"] = MeissonicPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["meissonic"] = MeissonicImg2ImgPipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["meissonic"] = MeissonicInpaintPipeline
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe
