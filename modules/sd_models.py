@@ -411,7 +411,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
             errors.display(e, 'Load')
-        return None, True
+        return None
     return sd_model
 
 

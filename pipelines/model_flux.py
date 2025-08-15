@@ -1,3 +1,4 @@
+import os
 import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant
@@ -63,6 +64,12 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
+
+    if os.environ.get('SD_REMOTE_T5', None) is not None:
+        from modules import sd_te_remote
+        shared.log.warning('Remote-TE: applying patch')
+        pipe._get_t5_prompt_embeds = sd_te_remote.get_t5_prompt_embeds # pylint: disable=protected-access
+        pipe.text_encoder_2 = None
 
     del text_encoder_2
     del transformer
