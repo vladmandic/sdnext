@@ -58,6 +58,8 @@ def get_model_type(pipe):
         model_type = 'pixartalpha'
     elif "Bria" in name:
         model_type = 'bria'
+    elif 'Qwen' in name:
+        model_type = 'qwen'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

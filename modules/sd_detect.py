@@ -84,7 +84,7 @@ def guess_by_name(fn, current_guess):
         return 'Stable Diffusion 3'
     elif 'hidream' in fn.lower():
         return 'HiDream'
-    elif 'chroma' in fn.lower():
+    elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         return 'Chroma'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
         size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
@@ -101,13 +101,25 @@ def guess_by_name(fn, current_guess):
         return 'WanAI'
     elif 'bria' in fn.lower():
         return 'Bria'
+    elif 'qwen' in fn.lower():
+        return 'Qwen'
+    elif 'kandinsky-2-1' in fn.lower():
+        return 'Kandinsky 2.1'
+    elif 'kandinsky-2-2' in fn.lower():
+        return 'Kandinsky 2.2'
+    elif 'kandinsky-3' in fn.lower():
+        return 'Kandinsky 3.0'
     return current_guess
 
 
 def guess_by_diffusers(fn, current_guess):
+    exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
         index = shared.readfile(index, silent=True)
+        name = index.get('_name_or_path', None)
+        if name is not None and name in exclude_by_name:
+            return current_guess, None
         cls = index.get('_class_name', None)
         if cls is not None:
             pipeline = getattr(diffusers, cls, None)

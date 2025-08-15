@@ -125,14 +125,21 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Tuple = torch.xpu.Tuple
                 torch.cuda.List = torch.xpu.List
 
+            if torch_version < 2.8:
+                if has_ipex:
+                    torch.cuda.memory_summary = torch.xpu.memory_summary
+                    torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
+
             if torch_version < 2.9:
-                # torch._int_mm via onednn is supposed to land on pytorch with torch 2.8 or 2.9
-                # ipex 2.7+ has experimental torch._int_mm support but uses the cpu with torch.compile and also runs as slow as onednn.qlinear
-                if (not has_ipex or torch_version <= 2.7) and hasattr(torch.ops, "onednn") and hasattr(torch.ops.onednn, "qlinear_pointwise"):
-                    def onednn_mm(x: torch.Tensor, y: torch.Tensor, output_dtype=torch.float32):
-                        # supports int8, fp32, fp16, and bf16 matmul with accumulation using a different float dtype
+                # torch._int_mm via onednn quantized matmul is supported with torch 2.9
+                # ipex 2.7+ has the same torch._int_mm support as torch 2.9 but doesn't support torch.compile
+                # torch._int_mm directly uses onednn quantized matmul
+                # onednn qlinear is a wrapper around onednn quantized matmul
+                if hasattr(torch.ops, "onednn") and hasattr(torch.ops.onednn, "qlinear_pointwise"):
+                    def onednn_mm(x: torch.Tensor, y: torch.Tensor):
+                        # supports int8, fp32, fp16, and bf16 matmul with accumulation using a different dtype
                         # int8 matmul with onednn is slower than 16 bit with dim_size < 4096
-                        return torch.ops.onednn.qlinear_pointwise(x, 1.0, 0, y, torch.ones(1, device=y.device), torch.zeros(1, device=y.device), None, 1.0, 0, output_dtype, "none", [], "none")
+                        return torch.ops.onednn.qlinear_pointwise.default(x, 1.0, 0, y, torch.ones(1, device=y.device), torch.zeros(1, device=y.device), None, 1.0, 0, torch.float32, "none", [], "none")
                     torch._int_mm = onednn_mm
                     try:
                         # torch.compile fix
@@ -146,9 +153,6 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
-            if has_ipex:
-                torch.cuda.memory_summary = torch.xpu.memory_summary
-                torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
             torch.cuda.memory = torch.xpu.memory
             torch.cuda.memory_stats = torch.xpu.memory_stats
             torch.cuda.memory_allocated = torch.xpu.memory_allocated

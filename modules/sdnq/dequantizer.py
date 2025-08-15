@@ -1,10 +1,9 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
 import torch
-from modules import shared
 
-from .common import dtype_dict
-from .packed_int import pack_int_symetric, unpack_int_symetric, packed_int_function_dict
+from .common import dtype_dict, use_torch_compile
+from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetric, unpack_int_asymetric
 
 
 def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.FloatTensor:
@@ -15,10 +14,9 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
 
 
 def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
+    result = weight.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
     if skip_quantized_matmul:
-        result = weight.transpose(0,1).to(dtype=scale.dtype).mul_(scale.transpose(0,1)).to(dtype=dtype)
-    else:
-        result = weight.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
+        result = result.t()
     if result_shape is not None:
         result = result.reshape(result_shape)
     return result
@@ -29,14 +27,11 @@ def dequantize_symmetric_with_bias(weight: torch.CharTensor, scale: torch.FloatT
 
 
 def dequantize_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
-    return dequantize_asymmetric(packed_int_function_dict[weights_dtype]["unpack"](weight, shape), scale, zero_point, dtype, result_shape)
+    return dequantize_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, dtype, result_shape)
 
 
 def dequantize_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
-    if skip_quantized_matmul:
-        return dequantize_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale.transpose(0,1), dtype, result_shape)
-    else:
-        return dequantize_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, dtype, result_shape)
+    return dequantize_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, dtype, result_shape, skip_quantized_matmul=skip_quantized_matmul)
 
 
 class AsymmetricWeightsDequantizer(torch.nn.Module):
@@ -115,7 +110,7 @@ class PackedINTAsymmetricWeightsDequantizer(torch.nn.Module):
         self.register_buffer("zero_point", zero_point)
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
-        return packed_int_function_dict[self.weights_dtype]["pack"](weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"]))
+        return pack_int_asymetric(weight, self.weights_dtype)
 
     def forward(self, weight, **kwargs): # pylint: disable=unused-argument
         return dequantize_packed_int_asymmetric_compiled(weight, self.scale, self.zero_point, self.quantized_weight_shape, self.result_dtype, self.result_shape, self.weights_dtype)
@@ -173,20 +168,11 @@ dequantizer_dict = {
 }
 
 
-if shared.opts.sdnq_dequantize_compile:
-    try:
-        torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
-        torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
-        dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
-        dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
-        dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
-        dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
-    except Exception as e:
-        shared.log.warning(f"Quantization: type=sdnq Dequantize using torch.compile is not available: {e}")
-        dequantize_asymmetric_compiled = dequantize_asymmetric
-        dequantize_symmetric_compiled = dequantize_symmetric
-        dequantize_packed_int_asymmetric_compiled = dequantize_packed_int_asymmetric
-        dequantize_packed_int_symmetric_compiled = dequantize_packed_int_symmetric
+if use_torch_compile:
+    dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
+    dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
+    dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
+    dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
 else:
     dequantize_asymmetric_compiled = dequantize_asymmetric
     dequantize_symmetric_compiled = dequantize_symmetric

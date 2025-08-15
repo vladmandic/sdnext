@@ -50,6 +50,9 @@ class State:
     server_start = time.time()
     oom = False
 
+    def __init__(self):
+        log.debug(f'State initialized: id={id(self)}')
+
     def __str__(self) -> str:
         status = ' '
         status += 'skipped ' if self.skipped else ''
@@ -208,7 +211,8 @@ class State:
             log.trace(f'State end: {self}')
         self.time_end = time.time()
         self.history('end')
-        self.job = ""
+        self.id = ''
+        self.job = ''
         self.job_count = 0
         self.job_no = 0
         self.frame_count = 0

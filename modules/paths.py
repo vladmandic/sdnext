@@ -44,23 +44,6 @@ if os.environ.get('SD_PATH_DEBUG', None) is not None:
     log.debug(f'Paths: script-path="{script_path}" data-dir="{data_path}" models-dir="{models_path}" config="{config_path}"')
 
 
-def register_paths():
-    log.debug('Register paths')
-    sys.path.insert(0, script_path)
-    # sd_path = os.path.join(script_path, 'repositories')
-    path_dirs = [
-        # (os.path.join(sd_path, 'codeformer'), 'inference_codeformer.py', 'CodeFormer', []),
-    ]
-    for d, must_exist, what, _options in path_dirs:
-        must_exist_path = os.path.abspath(os.path.join(script_path, d, must_exist))
-        if not os.path.exists(must_exist_path):
-            log.error(f'Required path not found: path={must_exist_path} item={what}')
-        else:
-            d = os.path.abspath(d)
-            sys.path.append(d)
-            paths[what] = d
-
-
 def create_path(folder):
     if folder is None or folder == '':
         return
@@ -103,6 +86,7 @@ def create_paths(opts):
     create_path(fix_path('temp_dir'))
     create_path(fix_path('ckpt_dir'))
     create_path(fix_path('diffusers_dir'))
+    create_path(fix_path('hfcache_dir'))
     create_path(fix_path('vae_dir'))
     create_path(fix_path('unet_dir'))
     create_path(fix_path('te_dir'))
@@ -139,3 +123,14 @@ class Prioritize:
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.path = self.path
         self.path = None
+
+
+def check_cache(opts):
+    prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
+    from modules.modelstats import stat
+    if opts.hfcache_dir != prev_default:
+        size, _mtime = stat(prev_default)
+        if size//1024//1024 > 0:
+            log.warning(f'Cache location changed: previous="{prev_default}" size={size//1024//1024} MB')
+    size, _mtime = stat(opts.hfcache_dir)
+    log.debug(f'Huggingface cache: path="{opts.hfcache_dir}" size={size//1024//1024} MB')

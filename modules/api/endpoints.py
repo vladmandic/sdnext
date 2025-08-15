@@ -140,6 +140,17 @@ def get_checkpoint():
             checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
     return checkpoint
 
+def set_checkpoint(sd_model_checkpoint: str, dtype:str=None, force:bool=False):
+    from modules import sd_models, devices
+    if force:
+        sd_models.unload_model_weights(op='model')
+    if dtype is not None:
+        shared.opts.cuda_dtype = dtype
+        devices.set_dtype()
+    shared.opts.sd_model_checkpoint = sd_model_checkpoint
+    model = sd_models.reload_model_weights()
+    return { 'ok': model is not None }
+
 def post_refresh_checkpoints():
     shared.refresh_checkpoints()
     return {}
@@ -147,6 +158,30 @@ def post_refresh_checkpoints():
 def post_refresh_vae():
     shared.refresh_vaes()
     return {}
+
+def get_modules():
+    from modules import modelstats
+    model = modelstats.analyze()
+    if model is None:
+        return {}
+    model_obj = {
+        'model': model.name,
+        'type': model.type,
+        'class': model.cls,
+        'size': model.size,
+        'mtime': str(model.mtime),
+        'modules': []
+    }
+    for m in model.modules:
+        model_obj['modules'].append({
+            'class': m.cls,
+            'params': m.params,
+            'modules': m.modules,
+            'quant': m.quant,
+            'device': str(m.device),
+            'dtype': str(m.dtype)
+        })
+    return model_obj
 
 def get_extensions_list():
     from modules import extensions

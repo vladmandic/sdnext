@@ -1,34 +1,19 @@
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, model_quant, modelloader
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from pipelines import generic
 
 
 def load_cogview3(checkpoint_info, diffusers_load_config={}):
-    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=CogView3 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    transformer = diffusers.CogView3PlusTransformer2DModel.from_pretrained(
-        repo_id,
-        subfolder="transformer",
-        cache_dir=shared.opts.diffusers_dir,
-        **load_args,
-        **quant_args,
-    )
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
+    shared.log.debug(f'Load model: type=CogView3 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
-    shared.log.debug(f'Load model: type=CogView3 te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    text_encoder = transformers.T5EncoderModel.from_pretrained(
-        repo_id,
-        subfolder="text_encoder",
-        cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
-        **quant_args,
-    )
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView3PlusTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
 
-    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    shared.log.debug(f'Load model: type=CogView3 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
     pipe = diffusers.CogView3PlusPipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,
@@ -36,36 +21,23 @@ def load_cogview3(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
+    sd_hijack_te.init_hijack(pipe)
+    del transformer
+    del text_encoder
     devices.torch_gc()
     return pipe
 
 
 def load_cogview4(checkpoint_info, diffusers_load_config={}):
-    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=CogView4 transformer="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    transformer = diffusers.CogView4Transformer2DModel.from_pretrained(
-        repo_id,
-        subfolder="transformer",
-        cache_dir=shared.opts.diffusers_dir,
-        **diffusers_load_config,
-        **quant_args,
-    )
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
+    shared.log.debug(f'Load model: type=CogView4 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
-    shared.log.debug(f'Load model: type=CogView4 te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-    text_encoder = transformers.AutoModelForCausalLM.from_pretrained( # TODO model load: cogview4 balanced offload does not work for GlmModel
-        repo_id,
-        subfolder="text_encoder",
-        cache_dir=shared.opts.diffusers_dir,
-        **load_args,
-        # **quant_args,
-    )
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView4Transformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.GlmModel, load_config=diffusers_load_config, subfolder="text_encoder", allow_quant=True)
 
-    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    shared.log.debug(f'Load model: type=CogView4 model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
     pipe = diffusers.CogView4Pipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,
@@ -73,6 +45,8 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-    pipe.enable_model_cpu_offload()
+    sd_hijack_te.init_hijack(pipe)
+    del transformer
+    del text_encoder
     devices.torch_gc()
     return pipe

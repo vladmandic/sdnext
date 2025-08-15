@@ -16,6 +16,7 @@ logging.getLogger("DeepSpeed").disabled = True
 
 np = None
 try:
+    os.environ.setdefault('NEP50_DISABLE_WARNING', '1')
     import numpy as np # pylint: disable=W0611,C0411
     import numpy.random # pylint: disable=W0611,C0411 # this causes failure if numpy version changed
     def obj2sctype(obj):
@@ -24,16 +25,22 @@ try:
         np.obj2sctype = obj2sctype # noqa: NPY201
         np.bool8 = np.bool
         np.float_ = np.float64 # noqa: NPY201
+        def dummy_npwarn_decorator_factory():
+            def npwarn_decorator(x):
+                return x
+            return npwarn_decorator
+        np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory) # pylint: disable=protected-access
 except Exception as e:
     errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
 timer.startup.record("numpy")
 
+scipy = None
 try:
     import scipy # pylint: disable=W0611,C0411
 except Exception as e:
-    errors.log.error(f'Loader: scipy=={np.__version__ if np is not None else None} {e}')
+    errors.log.error(f'Loader: scipy=={scipy.__version__ if scipy is not None else None} {e}')
     errors.log.error('Please restart the app to fix this issue')
     sys.exit(1)
 timer.startup.record("scipy")
@@ -50,8 +57,15 @@ except Exception:
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
-import torchvision # pylint: disable=W0611,C0411
-import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
+torchvision = None
+try:
+    import torchvision # pylint: disable=W0611,C0411
+    import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
+except Exception as e:
+    errors.log.error(f'Loader: torchvision=={torchvision.__version__ if "torchvision" in sys.modules else None} {e}')
+    if '_no_nep' in str(e):
+        errors.log.error('Loaded versions of packaged are not compatible')
+        errors.log.error('Please restart the app to fix this issue')
 logging.getLogger("xformers").addFilter(lambda record: 'A matching Triton is not available' not in record.getMessage())
 logging.getLogger("pytorch_lightning").disabled = True
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
@@ -87,10 +101,13 @@ timer.startup.record("transformers")
 import accelerate # pylint: disable=W0611,C0411
 timer.startup.record("accelerate")
 
-import onnxruntime # pylint: disable=W0611,C0411
-onnxruntime.set_default_logger_severity(4)
-onnxruntime.set_default_logger_verbosity(1)
-onnxruntime.disable_telemetry_events()
+try:
+    import onnxruntime # pylint: disable=W0611,C0411
+    onnxruntime.set_default_logger_severity(4)
+    onnxruntime.set_default_logger_verbosity(1)
+    onnxruntime.disable_telemetry_events()
+except Exception as e:
+    errors.log.warning(f'Torch onnxruntime: {e}')
 timer.startup.record("onnx")
 
 from fastapi import FastAPI # pylint: disable=W0611,C0411
@@ -183,5 +200,22 @@ diffusers.utils.deprecation_utils.deprecate = deprecate_warn
 diffusers.utils.deprecate = deprecate_warn
 
 
+def patch_torch_version():
+    if not hasattr(torch, '__version_backup__'):
+        torch.__version_backup__ = torch.__version__
+        # Convert string version to tuple format to solve TypeError caused by BnB
+        version_parts = torch.__version__.split('+')[0].split('.')
+        torch.__version_tuple__ = tuple(int(x) for x in version_parts[:3])
+        # Support both string and tuple for version check
+        class VersionString(str):
+            def __ge__(self, other):
+                if isinstance(other, tuple):
+                    self_tuple = tuple(int(x) for x in self.split('+')[0].split('.')[:len(other)])
+                    return self_tuple >= other
+                return super().__ge__(other)
+        torch.__version__ = VersionString(torch.__version__)
+
+
+patch_torch_version()
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
 errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__}')

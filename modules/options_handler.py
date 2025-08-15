@@ -9,6 +9,7 @@ from installer import log
 if TYPE_CHECKING:
     from modules.options import OptionInfo
 
+
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 

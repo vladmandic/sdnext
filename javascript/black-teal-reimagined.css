@@ -862,19 +862,6 @@ svg.feather.feather-image,
   border-radius: var(--radius-md);
 }
 
-/* Overlay Name Styles */
-.extra-network-cards .card .overlay .name {
-  font-size: var(--text-lg);
-  font-weight: bold;
-  text-shadow: 1px 1px black;
-  color: white;
-  overflow-wrap: anywhere;
-  position: absolute;
-  bottom: 0;
-  padding: 0.2em;
-  z-index: 10;
-}
-
 /* Preview Styles */
 .extra-network-cards .card .preview {
   box-shadow: var(--button-shadow);
@@ -1124,9 +1111,7 @@ svg.feather.feather-image,
 }
 
 /* Based on Gradio Built-in Dark Theme */
-:root,
-.light,
-.dark {
+:root, .light, .dark {
   --body-background-fill: var(--background-color);
   --color-accent-soft: var(--neutral-700);
   --background-fill-secondary: none;

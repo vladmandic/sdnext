@@ -1,12 +1,4 @@
 /* eslint-disable max-classes-per-file */
-// Known issues
-// Images flash on the screen before they get processed and separator is properly closed, especially when root/subfolder has large amount of files
-// Search is a bit wonky, I tried to get the separators to hide if 0 hits in seperator are found, but no luck so
-// Sorting huge amount of images is slow, might look at optimising, I don't think it's a regression.
-
-// TODO
-// Setting to enable or disable separator state persistence
-
 let ws;
 let url;
 let currentImage;
@@ -192,7 +184,8 @@ async function addSeparators() {
 async function delayFetchThumb(fn) {
   while (outstanding > 16) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
   outstanding++;
-  const res = await fetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}`, { priority: 'low' });
+  const ts = Date.now().toString();
+  const res = await fetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
   if (!res.ok) {
     error(`fetchThumb: ${res.statusText}`);
     outstanding--;
@@ -662,6 +655,27 @@ async function galleryHidden() {
   if (pruneImagesTimer) clearInterval(pruneImagesTimer);
 }
 
+async function monitorGalleries() {
+  async function galleryMutation(mutations) {
+    const galleries = mutations.filter((m) => m.target?.classList?.contains('preview'));
+    for (const gallery of galleries) {
+      const links = gallery.target.querySelectorAll('a');
+      for (const link of links) {
+        const href = link.getAttribute('href');
+        if (!href) continue;
+        const fn = href.split('/').pop().split('\\').pop();
+        link.setAttribute('download', fn);
+      }
+    }
+  }
+
+  const galleryElements = gradioApp().querySelectorAll('.gradio-gallery');
+  for (const gallery of galleryElements) {
+    const galleryObserver = new MutationObserver(galleryMutation);
+    galleryObserver.observe(gallery, { childList: true, subtree: true, attributes: true });
+  }
+}
+
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
   log('initGallery');
   el.folders = gradioApp().getElementById('tab-gallery-folders');
@@ -681,6 +695,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     if (entries[0].intersectionRatio > 0) galleryVisible();
   });
   intersectionObserver.observe(el.folders);
+  monitorGalleries();
 }
 
 // register on startup

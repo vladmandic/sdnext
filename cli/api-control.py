@@ -108,6 +108,7 @@ def generate(args): # pylint: disable=redefined-outer-name
 
     if args.mask is not None:
         options['mask'] = encode(args.mask)
+
     data = post('/sdapi/v1/control', options)
     t1 = time.time()
     if 'info' in data:

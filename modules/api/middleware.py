@@ -15,6 +15,7 @@ import modules.errors as errors
 
 
 errors.install()
+ignore_endpoints = ['/sdapi/v1/log', '/sdapi/v1/browser', '/sdapi/v1/gpu', '/sdapi/v1/network/thumb']
 
 
 def setup_middleware(app: FastAPI, cmd_opts):
@@ -42,8 +43,8 @@ def setup_middleware(app: FastAPI, cmd_opts):
             res.headers["X-Process-Time"] = duration
             endpoint = req.scope.get('path', 'err')
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
-            if (cmd_opts.api_log or cmd_opts.api_only) and endpoint.startswith('/sdapi'):
-                if '/sdapi/v1/log' in endpoint or '/sdapi/v1/browser' in endpoint:
+            if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
+                if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,

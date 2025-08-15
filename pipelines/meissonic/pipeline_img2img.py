@@ -46,7 +46,7 @@ def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
     return latent_image_ids.to(device=device, dtype=dtype)
 
 
-class Img2ImgPipeline(DiffusionPipeline):
+class MeissonicImg2ImgPipeline(DiffusionPipeline):
     image_processor: VaeImageProcessor
     vqvae: VQModel
     tokenizer: CLIPTokenizer

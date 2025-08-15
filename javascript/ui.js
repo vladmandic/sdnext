@@ -32,6 +32,12 @@ function clip_gallery_urls(gallery) {
   );
 }
 
+function isVisible(el) {
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+  return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+}
+
 function all_gallery_buttons() {
   let allGalleryButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
   if (allGalleryButtons.length === 0) allGalleryButtons = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
@@ -66,6 +72,7 @@ function selected_gallery_files() {
     let allCurrentButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
     if (allCurrentButtons.length === 0) allCurrentButtons = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
     allImages = Array.from(allCurrentButtons).map((v) => v.querySelector('img')?.src);
+    allImages = allImages.filter((el) => isVisible(el));
   } catch { /**/ }
   const selectedIndex = selected_gallery_index();
   return [allImages, selectedIndex];
@@ -178,7 +185,7 @@ function switch_to_caption(...args) {
 
 function get_tab_index(tabId) {
   let res = 0;
-  gradioApp().getElementById(tabId).querySelector('div').querySelectorAll('button')
+  gradioApp().getElementById(tabId)?.querySelector('div').querySelectorAll('button')
     .forEach((button, i) => {
       if (button.className.indexOf('selected') !== -1) res = i;
     });
@@ -472,25 +479,28 @@ function updateInput(target) {
 let desiredCheckpointName = null;
 function selectCheckpoint(name) {
   desiredCheckpointName = name;
-  const tabname = getENActiveTab();
-  const btnModel = gradioApp().getElementById(`${tabname}_extra_model`);
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
   const isRefiner = btnModel && btnModel.classList.contains('toolbutton-selected');
   if (isRefiner) gradioApp().getElementById('change_refiner').click();
   else gradioApp().getElementById('change_checkpoint').click();
-  log(`Change ${isRefiner ? 'refiner' : 'model'}: ${desiredCheckpointName}`);
+  log(`selectCheckpoint ${isRefiner ? 'refiner' : 'model'}: ${desiredCheckpointName}`);
+  markSelectedCards([desiredCheckpointName], 'model');
 }
 
 let desiredVAEName = null;
 function selectVAE(name) {
   desiredVAEName = name;
   gradioApp().getElementById('change_vae').click();
-  log(`Change VAE: ${desiredVAEName}`);
+  log(`selectVAE: ${desiredVAEName}`);
+  markSelectedCards([desiredVAEName], 'vae');
 }
 
 function selectReference(name) {
-  log(`Select reference: ${name}`);
+  log(`selectReference: ${name}`);
   desiredCheckpointName = name;
   gradioApp().getElementById('change_reference').click();
+  markSelectedCards([desiredCheckpointName], 'model');
 }
 
 function currentImageResolutionimg2img(_a, _b, scaleBy) {

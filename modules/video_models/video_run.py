@@ -52,6 +52,7 @@ def generate(*args, **kwargs):
     p.state = ui_state
     p.do_not_save_grid = True
     p.do_not_save_samples = not save_frames
+    p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_video
     if 'I2V' in model:
         if init_image is None:
             return video_utils.queue_err('init image not set')

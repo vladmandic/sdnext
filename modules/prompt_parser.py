@@ -14,7 +14,8 @@ from typing import List
 import lark
 import torch
 from compel import Compel
-from modules.shared import opts, log, native
+from modules.shared import opts, log
+
 
 # a prompt like this: "fantasy landscape with a [mountain:lake:0.25] and [an oak:a christmas tree:0.75][ in foreground::0.6][ in background:0.25] [shoddy:masterful:0.5]"
 # will be represented with prompt_schedule like this (assuming steps=100):
@@ -23,6 +24,7 @@ from modules.shared import opts, log, native
 # [60, 'fantasy landscape with a lake and an oak in foreground in background masterful']
 # [75, 'fantasy landscape with a lake and an oak in background masterful']
 # [100, 'fantasy landscape with a lake and a christmas tree in background masterful']
+
 
 round_bracket_multiplier = 1.1
 square_bracket_multiplier = 1.0 / 1.1
@@ -334,7 +336,7 @@ def parse_prompt_attention(text):
         whitespace = ''
     else:
         re_attention = re_attention_v2
-        if native and opts.sd_textencder_linebreak:
+        if opts.sd_textencder_linebreak:
             text = text.replace('\n', ' BREAK ')
         else:
             text = text.replace('\n', ' ')

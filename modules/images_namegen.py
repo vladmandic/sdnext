@@ -15,6 +15,7 @@ re_pattern_arg = re.compile(r"(.*)<([^>]*)>$")
 re_attention = re.compile(r'[\(*\[*](\w+)(:\d+(\.\d+))?[\)*\]*]|')
 re_network = re.compile(r'\<\w+:(\w+)(:\d+(\.\d+))?\>|')
 re_brackets = re.compile(r'[\([{})\]]')
+seq = 0
 NOTHING = object()
 
 
@@ -49,6 +50,7 @@ class FilenameGenerator:
         'seed': lambda self: (self.seed and str(self.seed)) or '',
         'steps': lambda self: self.p and getattr(self.p, 'steps', 0),
         'cfg': lambda self: self.p and getattr(self.p, 'cfg_scale', 0),
+        'pag': lambda self: self.p and getattr(self.p, 'pag_scale', 0),
         'clip_skip': lambda self: self.p and getattr(self.p, 'clip_skip', 0),
         'denoising': lambda self: self.p and getattr(self.p, 'denoising_strength', 0),
         'styles': lambda self: (self.p and ", ".join([style for style in self.p.styles if not style == "None"])) or "None",
@@ -181,18 +183,20 @@ class FilenameGenerator:
         debug(f'Filename sanitize: input="{filename}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
         return fn
 
-    def sequence(self, fn, dirname, basename):
+    def sequence(self, fn):
+        global seq # pylint: disable=global-statement
         x = fn
+        dirname = os.path.dirname(fn)
+        if seq == 0:
+            seq = len(os.listdir(dirname)) if os.path.exists(dirname) and os.path.isdir(dirname) else 0
         if shared.opts.save_images_add_number or '[seq]' in fn:
             if '[seq]' not in fn:
                 fn = os.path.join(os.path.dirname(fn), f"[seq]-{os.path.basename(fn)}")
-            basecount = get_next_sequence_number(dirname, basename)
-            for i in range(9999):
-                seq = f"{basecount + i:05}"
-                filename = fn.replace('[seq]', seq)
-                if not os.path.exists(filename):
-                    debug(f'Prompt sequence: input="{fn}" seq={seq} output="{filename}"')
-                    x = filename
+            for _i in range(99999): # 99999/000001
+                seq += 1
+                dst = fn.replace('[seq]', f'{seq:05}')
+                if not os.path.exists(dst):
+                    x = dst
                     break
         return x
 
@@ -219,7 +223,7 @@ class FilenameGenerator:
                     replacement = fun(self, *pattern_args)
                 except Exception as e:
                     replacement = None
-                    errors.display(e, 'Filename apply pattern')
+                    errors.display(e, 'namegen')
                     shared.log.error(f'Filename apply pattern: {x} {e}')
                 if replacement == NOTHING:
                     continue
@@ -231,21 +235,7 @@ class FilenameGenerator:
         return res
 
 
-def get_next_sequence_number(path, basename):
-    """
-    Determines and returns the next sequence number to use when saving an image in the specified directory.
-    """
-    result = -1
-    if basename != '':
-        basename = f"{basename}-"
-    prefix_length = len(basename)
-    if not os.path.isdir(path):
-        return 0
-    for p in os.listdir(path):
-        if p.startswith(basename):
-            parts = os.path.splitext(p[prefix_length:])[0].split('-')  # splits the filename (removing the basename first if one is defined, so the sequence number is always the first element)
-            try:
-                result = max(int(parts[0]), result)
-            except ValueError:
-                pass
-    return result + 1
+def get_next_sequence_number(path, basename): # pylint: disable=unused-argument
+    global seq # pylint: disable=global-statement
+    seq += 1
+    return seq # unused

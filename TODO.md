@@ -2,14 +2,13 @@
 
 Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
 
-## Current
-
-- Gallery: force refresh on delete
-
 ## Future Candidates
 
+- Remote TE
+- Unified `CLIPTextModelWithProjection` loader  
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
+- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
 - Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
@@ -19,7 +18,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video: LTX PromptEnhance
 - Video: LTX Conditioning preprocess
 - [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
-- [SkyReels-v2](https://github.com/SkyworkAI/SkyReels-V2)(https://github.com/huggingface/diffusers/pull/11518)  
 - [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 
 ### Blocked items
@@ -28,23 +26,13 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
   - see <https://github.com/Cschlaefli/automatic>
   - blocked by `insightface`
 
-## ModernUI
-
-- Extensions tab:
-  - full CSS redesign
-- Models tab: 
-  - Validate subtab: replace table with custom html
-  - Update subtab: replace table with custom html
-  - CivitAI subtab: redesign downloader
-
 ### Under Consideration
 
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
-- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
-- [HiDream GGUF](https://github.com/huggingface/diffusers/pull/11550)  
+- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
@@ -86,7 +74,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
-- flux: loader for civitai nf4 models
 - hypertile: vae breaks when using non-standard sizes
 - install: enable ROCm for windows when available
 - loader: load receipe
@@ -94,11 +81,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add other quantization types
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
-- lora: support pre-quantized flux
-- model load: cogview4: balanced offload does not work for GlmModel
-- model load: add ChromaFillPipeline, ChromaControlPipeline, ChromaImg2ImgPipeline etc when available
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
+- model load: group offload
 - model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
+- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent

@@ -424,16 +424,10 @@ class ResScripts(BaseModel):
     img2img: list = Field(default=None, title="Img2img", description="Titles of scripts (img2img)")
     control: list = Field(default=None, title="Control", description="Titles of scripts (control)")
 
-class ResNVML(BaseModel): # definition of http response
-    name: str = Field(title="Name")
-    version: dict = Field(title="Version")
-    pci: dict = Field(title="Version")
-    memory: dict = Field(title="Version")
-    clock: dict = Field(title="Version")
-    load: dict = Field(title="Version")
-    power: list = []
-    state: str = Field(title="State")
-
+class ResGPU(BaseModel): # definition of http response
+    name: str = Field(title="GPU Name")
+    data: dict = Field(title="Name/Value data")
+    chart: list[float, float] = Field(title="Exactly two items to place on chart")
 
 # helper function
 

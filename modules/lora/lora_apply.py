@@ -158,6 +158,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                 use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
                 use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
                 dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+                non_blocking=False,
                 quantization_device=devices.device,
                 return_device=device,
                 param_name=getattr(self, 'network_layer_name', None),

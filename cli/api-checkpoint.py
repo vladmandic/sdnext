@@ -35,3 +35,5 @@ def get(endpoint: str, dct: dict = None):
 if __name__ == "__main__":
     model = get('/sdapi/v1/checkpoint')
     log.info(f'api-checkpoint: {model}')
+    model = get('/sdapi/v1/modules')
+    log.info(f'api-modules: {model}')

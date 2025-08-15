@@ -16,7 +16,7 @@ debug_move = log.trace if debug else lambda *args, **kwargs: None
 offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma']
 offload_post = ['h1']
 offload_hook_instance = None
-balanced_offload_exclude = ['CogView4Pipeline']
+balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
 accelerate_dtype_byte_size = None
 
 
@@ -351,6 +351,16 @@ def apply_balanced_offload_to_module(module, op="apply"):
     devices.torch_gc(fast=True, force=True, reason='offload')
 
 
+def report_model_stats(module_name, module):
+    try:
+        size = offload_hook_instance.offload_map.get(module_name, 0)
+        quant = getattr(module, "quantization_method", None)
+        params = sum(p.numel() for p in module.parameters(recurse=True))
+        shared.log.debug(f'Module: name={module_name} cls={module.__class__.__name__} size={size:.3f} params={params} quant={quant}')
+    except Exception as e:
+        shared.log.error(f'Module stats: name={module_name} {e}')
+
+
 def apply_balanced_offload(sd_model=None, exclude=[]):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
@@ -382,6 +392,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             module.module_name = module_name
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
             apply_balanced_offload_to_module(module, op='apply')
+            report_model_stats(module_name, module)
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

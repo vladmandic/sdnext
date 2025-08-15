@@ -1,21 +1,13 @@
 import os
-import re
-import time
-import json
 import inspect
-from datetime import datetime
 import gradio as gr
-from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, hashes
+from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
 from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
-from modules.shared import opts, log, req, readfile, max_workers, native
-from modules.merging import merge_methods
-from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS, interpolate
-from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+from modules.shared import opts, log
 
 
-search_metadata_civit = None
 extra_ui = []
 
 
@@ -23,50 +15,146 @@ def create_ui():
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
-            # models_output = gr.Textbox(elem_id="models_output", value="", show_label=False)
-            gr.HTML(elem_id="models_progress", value="")
-            models_image = gr.Image(elem_id="models_image", show_label=False, interactive=False, type='pil')
-            models_outcome = gr.HTML(elem_id="models_error", value="")
+            models_outcome = gr.HTML(elem_id="models_outcome", value="")
             models_file = gr.File(label='', visible=False)
 
         with gr.Column(elem_id='models_input_container', scale=3):
 
-            with gr.Tab(label="Current"):
-                def analyze():
-                    from modules import modelstats
-                    model = modelstats.analyze()
-                    desc = f"Model: {model.name}<br>Type: {model.type}<br>Class: {model.cls}<br>Size: {model.size} bytes<br>Modified: {model.mtime}<br>"
-                    meta = model.meta
-                    components = []
-                    for m in model.modules:
+            with gr.Tab(label="Current", elem_id="models_current_tab"):
+                def create_modules_table(rows: list):
+                    html = """
+                        <table class="simple-table">
+                            <thead>
+                                <tr><th>Module</th><th>Class</th><th>Device</th><th>Dtype</th><th>Quant</th><th>Params</th><th>Modules</th><th>Config</th></tr>
+                            </thead>
+                            <tbody>
+                                {tbody}
+                            </tbody>
+                        </table>
+                    """
+                    tbody = ''
+                    for row in rows:
                         try:
-                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, str(m.config))
-                            components.append(component)
+                            config = str(row.config)
                         except Exception:
-                            component = (m.name, m.cls, str(m.device), str(m.dtype), m.params, m.modules, '')
-                            components.append(component)
-                    return [desc, components, meta]
+                            config = '{}'
+                        try:
+                            tbody += f"""
+                                <tr>
+                                    <td>{row.name}</td>
+                                    <td>{row.cls}</td>
+                                    <td>{row.device}</td>
+                                    <td>{row.dtype}</td>
+                                    <td>{row.quant}</td>
+                                    <td>{row.params}</td>
+                                    <td>{row.modules}</td>
+                                    <td><div class='model-config'>{config}</div></td>
+                                </tr>
+                            """
+                        except Exception as e:
+                            log.error(f'Model list: row={vars(row)} {e}')
+                    return html.format(tbody=tbody)
+
+                def analyze():
+                    model = modelstats.analyze()
+                    if model is None:
+                        return ["Model not loaded", {}]
+                    meta = model.meta
+                    html = create_modules_table(model.modules)
+                    return [html, meta]
 
                 with gr.Row():
-                    gr.HTML('<h2>&nbspAnalyze currently loaded model<br></h2>')
+                    gr.HTML('<h2>Analyze currently loaded model<br></h2>')
                 with gr.Row():
                     model_analyze = gr.Button(value="Analyze", variant='primary')
                 with gr.Row():
                     model_desc = gr.HTML(value="", elem_id="model_desc")
                 with gr.Row():
-                    module_headers = ['Module', 'Class', 'Device', 'DType', 'Params', 'Modules', 'Config']
-                    module_types = ['str', 'str', 'str', 'str', 'number', 'number', 'str']
-                    model_modules = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=module_headers, datatype=module_types, type='array')
-                with gr.Row():
                     model_meta = gr.JSON(label="Metadata", value={}, elem_id="model_meta")
 
-                model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_modules, model_meta])
+                model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_meta])
 
-            with gr.Tab(label="Loader"):
+            with gr.Tab(label="List", elem_id="models_list_tab"):
+                def create_models_table(rows: list):
+                    from modules import sd_detect
+                    html = """
+                        <table class="simple-table">
+                            <thead>
+                                <tr><th>Name</th><th>Type</th><th>Detect</th><th>Pipeline</th><th>Hash</th><th>Size</th><th>MTime</th></tr>
+                            </thead>
+                            <tbody>
+                                {tbody}
+                            </tbody>
+                        </table>
+                    """
+                    tbody = ''
+                    for row in rows:
+                        try:
+                            f = row.filename
+                            stat_size, stat_mtime = modelstats.stat(f)
+                            if os.path.isfile(f):
+                                typ = os.path.splitext(f)[1][1:]
+                                size = f"{round(stat_size / 1024 / 1024 / 1024, 3)} gb"
+                            elif os.path.isdir(f):
+                                typ = 'diffusers'
+                                size = 'folder'
+                            else:
+                                typ = 'unknown'
+                                size = 'unknown'
+                            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+                            guess = sd_detect.guess_by_size(f, guess)
+                            guess = sd_detect.guess_by_name(f, guess)
+                            guess, pipeline = sd_detect.guess_by_diffusers(f, guess)
+                            guess = sd_detect.guess_variant(f, guess)
+                            pipeline = sd_detect.shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
+                            tbody += f"""
+                                <tr>
+                                    <td>{row.model_name}</td>
+                                    <td>{typ}</td>
+                                    <td>{guess}</td>
+                                    <td>{pipeline.__name__ if pipeline else '(unknown)'}</td>
+                                    <td>{row.shorthash}</td>
+                                    <td>{size}</td>
+                                    <td>{stat_mtime}</td>
+                                </tr>
+                            """
+                        except Exception as e:
+                            log.error(f'Model list: row={vars(row)} {e}')
+                    return html.format(tbody=tbody)
+
+                with gr.Row():
+                    gr.HTML('<h2>List all locally available models</h2><br>')
+                with gr.Row():
+                    model_list_btn = gr.Button(value="List models", variant='primary')
+                    model_checkhash_btn = gr.Button(value="Calculate missing hashes", variant='secondary')
+                with gr.Row():
+                    model_table = gr.HTML(value='', elem_id="model_list_table")
+
+                model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
+                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
+
+            with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):
+                from modules.civitai.metadata_civitai import civit_search_metadata, civit_update_metadata
+                with gr.Row():
+                    gr.HTML('<h2>Fetch model preview metadata</h2><br>')
+                with gr.Row():
+                    civit_previews_btn = gr.Button(value="Scan missing", variant='primary')
+                    civit_update_btn = gr.Button(value="Update all", variant='primary')
+                with gr.Row():
+                    civit_metadata = gr.HTML(value='', elem_id="civit_metadata")
+                civit_previews_btn.click(fn=civit_search_metadata, inputs=[], outputs=[civit_metadata])
+                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_metadata])
+
+
+            with gr.Tab(label="Loader", elem_id="models_loader_tab"):
                 from modules import ui_models_load
                 ui_models_load.create_ui(models_outcome, models_file)
 
-            with gr.Tab(label="Merge"):
+            with gr.Tab(label="Merge", elem_id="models_merge_tab"):
+                from modules.merging import merge_methods
+                from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS, interpolate
+                from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
+
                 def sd_model_choices():
                     return ['None'] + sd_models.checkpoint_titles()
 
@@ -306,7 +394,7 @@ def create_ui():
                     ]
                 )
 
-            with gr.Tab(label="Modules"):
+            with gr.Tab(label="Replace", elem_id="models_replace_tab"):
                 with gr.Row():
                     gr.HTML('<h2>&nbspReplace model components<br></h2>')
                 with gr.Row():
@@ -378,80 +466,65 @@ def create_ui():
                     outputs=[models_outcome]
                 )
 
-            with gr.Tab(label="Validate"):
-                model_headers = ['name', 'type', 'filename', 'hash', 'added', 'size', 'metadata']
-                model_data = []
+            with gr.Tab(label="CivitAI", elem_id="models_civitai_tab"):
+                from modules.civitai.search_civitai import search_civitai, create_model_cards, base_models
 
-                with gr.Row():
-                    gr.HTML('<h2>&nbspList all models <br></h2>')
-                with gr.Row():
-                    model_list_btn = gr.Button(value="List model details", variant='primary')
-                    model_checkhash_btn = gr.Button(value="Calculate hash for all models", variant='primary')
-                    model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[models_outcome])
-                with gr.Row():
-                    model_table = gr.DataFrame(
-                        value=None,
-                        headers=model_headers,
-                        label='Model data',
-                        show_label=True,
-                        interactive=False,
-                        wrap=True,
-                    )
+                def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token):
+                    results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw, types=civit_type, base=civit_base, token=civit_token)
+                    html = create_model_cards(results)
+                    return html
 
-                def list_models():
-                    total_size = 0
-                    model_data.clear()
-                    txt = ''
-                    for m in sd_models.checkpoints_list.values():
-                        try:
-                            stat = os.stat(m.filename)
-                            m_name = m.name.replace('.ckpt', '').replace('.safetensors', '')
-                            m_type = 'ckpt' if m.name.endswith('.ckpt') else 'safe'
-                            m_meta = len(json.dumps(m.metadata)) - 2
-                            m_size = round(stat.st_size / 1024 / 1024 / 1024, 3)
-                            m_time = datetime.fromtimestamp(stat.st_mtime)
-                            model_data.append([m_name, m_type, m.filename, m.shorthash, m_time, m_size, m_meta])
-                            total_size += stat.st_size
-                        except Exception as e:
-                            txt += f"Error: {m.name} {e}<br>"
-                    txt += f"Model list enumerated {len(sd_models.checkpoints_list.keys())} models in {round(total_size / 1024 / 1024 / 1024, 3)} GB<br>"
-                    return model_data, txt
-
-                model_list_btn.click(fn=list_models, inputs=[], outputs=[model_table, models_outcome])
-
-            with gr.Tab(label="Huggingface"):
-                data = []
-                os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
-                os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
-                os.environ.setdefault('HF_HUB_DISABLE_IMPLICIT_TOKEN', '1')
-                os.environ.setdefault('HUGGINGFACE_HUB_VERBOSITY', 'warning')
-
-                def hf_search(keyword):
-                    import huggingface_hub as hf
-                    hf_api = hf.HfApi()
-                    models = hf_api.list_models(model_name=keyword, full=True, library="diffusers", limit=50, sort="downloads", direction=-1)
-                    data.clear()
-                    for model in models:
-                        tags = [t for t in model.tags if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]
-                        data.append([model.id, model.pipeline_tag, tags, model.downloads, model.lastModified, f'https://huggingface.co/{model.id}'])
-                    return data
-
-                def hf_select(evt: gr.SelectData, data):
-                    return data[evt.index[0]][0]
-
-                def hf_download_model(hub_id: str, token, variant, revision, mirror, custom_pipeline):
-                    from modules.modelloader import download_diffusers_model
-                    download_diffusers_model(hub_id, cache_dir=opts.diffusers_dir, token=token, variant=variant, revision=revision, mirror=mirror, custom_pipeline=custom_pipeline)
-                    from modules.sd_models import list_models  # pylint: disable=W0621
-                    list_models()
-                    log.info(f'Diffuser model downloaded: model="{hub_id}"')
-                    return f'Diffuser model downloaded: model="{hub_id}"'
-
-                def hf_update_token(token):
-                    log.debug('Huggingface update token')
-                    opts.huggingface_token = token
+                def civitai_update_token(token):
+                    log.debug('CivitAI update token')
+                    opts.civitai_token = token
                     opts.save()
 
+                def civitai_download(model_urls, model_names, model_types, model_path, civit_token, model_output):
+                    from modules.civitai.download_civitai import download_civit_model
+                    for model_url, model_name, model_type in zip(model_urls, model_names, model_types):
+                        msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
+                        yield msg + model_output
+                        download_civit_model(model_url, model_name, model_path, model_type, civit_token)
+                        yield model_output
+
+                with gr.Row():
+                    gr.HTML('<h2>Search & Download</h2>')
+                with gr.Row(elem_id='civitai_search_row'):
+                    civit_search_text = gr.Textbox(label='', placeholder='keyword', elem_id="civit_search_text")
+                    civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_text")
+                    civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True)
+                with gr.Accordion(label='Advanced', open=False, elem_id="civitai_search_options"):
+                    civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
+                    with gr.Row():
+                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models', elem_id="civitai_token")
+                    with gr.Row():
+                        civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
+                    with gr.Row():
+                        civit_type = gr.Textbox(label='Target model type', placeholder='Checkpoint, LORA, ...', value='')
+                    with gr.Row():
+                        # civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
+                        civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
+                    with gr.Row():
+                        civit_folder = gr.Textbox(label='Download folder', placeholder='optional folder for downloads')
+                with gr.Row():
+                    civitai_models_output = gr.HTML('', elem_id="civitai_models_output")
+                # sort, period, limit
+                _dummy = gr.Label(visible=False)  # dummy component to get argspec later
+                civit_inputs = [civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token]
+                civit_search_text_btn.click(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
+                civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
+                civit_download_btn.click(
+                    fn=civitai_download,
+                    _js="downloadCivitModel",
+                    inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output],
+                    outputs=[civitai_models_output],
+                    show_progress=True,
+                )
+
+            with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):
+                from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token
                 with gr.Column(scale=6):
                     with gr.Row():
                         gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
@@ -459,17 +532,16 @@ def create_ui():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
                         hf_search_btn = ToolButton(value=ui_symbols.search)
                     with gr.Row():
-                        with gr.Column(scale=2):
-                            with gr.Row():
-                                hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
-                        with gr.Column(scale=1):
-                            with gr.Row():
-                                hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
-                                hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
-                    with gr.Row():
-                        hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models')
-                        hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
-                        hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
+                        hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
+                    with gr.Accordion(label='Advanced', open=False, elem_id="hf_search_options"):
+                        with gr.Row():
+                            hf_token = gr.Textbox(opts.huggingface_token, label='Huggingface token', placeholder='optional access token for private or gated models', elem_id="hf_token")
+                        with gr.Row():
+                            hf_variant = gr.Textbox('', label='Specify model variant', placeholder='')
+                            hf_revision = gr.Textbox('', label='Specify model revision', placeholder='')
+                        with gr.Row():
+                            hf_mirror = gr.Textbox('', label='Huggingface mirror', placeholder='optional mirror site for downloads')
+                            hf_custom_pipeline = gr.Textbox('', label='Custom pipeline', placeholder='optional pipeline for downloads')
                 with gr.Column(scale=1):
                     gr.HTML('<br>')
                     hf_download_model_btn = gr.Button(value="Download model", variant='primary')
@@ -485,375 +557,8 @@ def create_ui():
                 hf_download_model_btn.click(fn=hf_download_model, inputs=[hf_selected, hf_token, hf_variant, hf_revision, hf_mirror, hf_custom_pipeline], outputs=[models_outcome])
                 hf_token.change(fn=hf_update_token, inputs=[hf_token], outputs=[])
 
-            with gr.Tab(label="CivitAI"):
-                data = []
-
-                def civit_search_model(name, tag, model_type):
-                    # types = 'LORA' if model_type == 'LoRA' else 'Checkpoint'
-                    url = 'https://civitai.com/api/v1/models?limit=25&Sort=Newest'
-                    if model_type == 'Model':
-                        url += '&types=Checkpoint'
-                    elif model_type == 'LoRA':
-                        url += '&types=LORA&types=DoRA&types=LoCon'
-                    elif model_type == 'Embedding':
-                        url += '&types=TextualInversion'
-                    elif model_type == 'VAE':
-                        url += '&types=VAE'
-                    if name is not None and len(name) > 0:
-                        url += f'&query={name}'
-                    if tag is not None and len(tag) > 0:
-                        url += f'&tag={tag}'
-                    r = req(url)
-                    log.debug(f'CivitAI search: type={model_type} name="{name}" tag={tag or "none"} url="{url}" status={r.status_code}')
-                    if r.status_code != 200:
-                        log.warning(f'CivitAI search: name="{name}" tag={tag} status={r.status_code}')
-                        return [], gr.update(visible=False, value=[]), gr.update(visible=False, value=None), gr.update(visible=False, value=None)
-                    try:
-                        body = r.json()
-                    except Exception as e:
-                        log.error(f'CivitAI search: name="{name}" tag={tag} {e}')
-                        return [], gr.update(visible=False, value=[]), gr.update(visible=False, value=None), gr.update(visible=False, value=None)
-                    nonlocal data
-                    data = body.get('items', [])
-                    data1 = []
-                    for model in data:
-                        found = 0
-                        if model_type == 'LoRA' and model['type'].lower() in ['lora', 'locon', 'dora', 'lycoris']:
-                            found += 1
-                        elif model_type == 'Embedding' and model['type'].lower() in ['textualinversion', 'embedding']:
-                            found += 1
-                        elif model_type == 'Model' and model['type'].lower() in ['checkpoint']:
-                            found += 1
-                        elif model_type == 'VAE' and model['type'].lower() in ['vae']:
-                            found += 1
-                        elif model_type == 'Other':
-                            found += 1
-                        if found > 0:
-                            data1.append([
-                                model['id'],
-                                model['name'],
-                                ', '.join(model['tags']),
-                                model['stats']['downloadCount'],
-                                model['stats']['rating']
-                            ])
-                    res = f'Search result: name={name} tag={tag or "none"} type={model_type} models={len(data1)}'
-                    return res, gr.update(visible=len(data1) > 0, value=data1 if len(data1) > 0 else []), gr.update(visible=False, value=None), gr.update(visible=False, value=None)
-
-                def civit_select1(evt: gr.SelectData, in_data):
-                    model_id = in_data[evt.index[0]][0]
-                    data2 = []
-                    preview_img = None
-                    for model in data:
-                        if model['id'] == model_id:
-                            for d in model['modelVersions']:
-                                try:
-                                    if d.get('images') is not None and len(d['images']) > 0 and len(d['images'][0]['url']) > 0:
-                                        preview_img = d['images'][0]['url']
-                                    data2.append([d.get('id', None), d.get('modelId', None) or model_id, d.get('name', None), d.get('baseModel', None), d.get('createdAt', None) or d.get('publishedAt', None)])
-                                except Exception as e:
-                                    log.error(f'CivitAI select: model="{in_data[evt.index[0]]}" {e}')
-                                    log.error(f'CivitAI version data={type(d)}: {d}')
-                    log.debug(f'CivitAI select: model="{in_data[evt.index[0]]}" versions={len(data2)}')
-                    return data2, None, preview_img
-
-                def civit_select2(evt: gr.SelectData, in_data):
-                    variant_id = in_data[evt.index[0]][0]
-                    model_id = in_data[evt.index[0]][1]
-                    data3 = []
-                    for model in data:
-                        if model['id'] == model_id:
-                            for variant in model['modelVersions']:
-                                if variant['id'] == variant_id:
-                                    for f in variant['files']:
-                                        try:
-                                            if os.path.splitext(f['name'])[1].lower() in ['.safetensors', '.ckpt', '.pt', '.pth', '.bin']:
-                                                data3.append([f['name'], round(f['sizeKB']), json.dumps(f['metadata']), f['downloadUrl']])
-                                        except Exception:
-                                            pass
-                    log.debug(f'CivitAI select: model="{in_data[evt.index[0]]}" files={len(data3)}')
-                    return data3
-
-                def civit_select3(evt: gr.SelectData, in_data):
-                    log.debug(f'CivitAI select: variant={in_data[evt.index[0]]}')
-                    return in_data[evt.index[0]][3], in_data[evt.index[0]][0], gr.update(interactive=True)
-
-                def civit_download_model(model_url: str, model_name: str, model_path: str, model_type: str, token: str = None):
-                    if model_url is None or len(model_url) == 0:
-                        return 'No model selected'
-                    try:
-                        from modules.modelloader import download_civit_model
-                        res = download_civit_model(model_url, model_name, model_path, model_type, token=token)
-                    except Exception as e:
-                        res = f"CivitAI model downloaded error: model={model_url} {e}"
-                        log.error(res)
-                        return res
-                    from modules.sd_models import list_models  # pylint: disable=W0621
-                    list_models()
-                    return res
-
-                def atomic_civit_search_metadata(item, res, rehash):
-                    from modules.modelloader import download_civit_preview, download_civit_meta
-                    if item is None:
-                        return
-                    meta = os.path.splitext(item['filename'])[0] + '.json'
-                    has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
-                    if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
-                        sha = item.get('hash', None)
-                        found = False
-                        if sha is not None and len(sha) > 0:
-                            r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{sha}')
-                            log.debug(f'CivitAI search: name="{item["name"]}" hash={sha} status={r.status_code}')
-                            if r.status_code == 200:
-                                d = r.json()
-                                res.append(download_civit_meta(item['filename'], d['modelId']))
-                                if d.get('images') is not None:
-                                    for i in d['images']:
-                                        preview_url = i['url']
-                                        img_res = download_civit_preview(item['filename'], preview_url)
-                                        res.append(img_res)
-                                        if 'error' not in img_res:
-                                            found = True
-                                            break
-                        if not found and rehash and os.stat(item['filename']).st_size < (1024 * 1024 * 1024):
-                            sha = hashes.calculate_sha256(item['filename'], quiet=True)[:10]
-                            r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{sha}')
-                            log.debug(f'CivitAI search: name="{item["name"]}" hash={sha} status={r.status_code}')
-                            if r.status_code == 200:
-                                d = r.json()
-                                res.append(download_civit_meta(item['filename'], d['modelId']))
-                                if d.get('images') is not None:
-                                    for i in d['images']:
-                                        preview_url = i['url']
-                                        img_res = download_civit_preview(item['filename'], preview_url)
-                                        res.append(img_res)
-                                        if 'error' not in img_res:
-                                            found = True
-                                            break
-
-                def civit_search_metadata(rehash, title):
-                    log.debug(f'CivitAI search metadata: type={title if type(title) == str else "all"}')
-                    from modules.ui_extra_networks import get_pages
-                    res = []
-                    scanned, skipped = 0, 0
-                    t0 = time.time()
-                    candidates = []
-                    re_skip = [r.strip() for r in opts.extra_networks_scan_skip.split(',') if len(r.strip()) > 0]
-                    log.debug(f'CivitAI search metadata: skip={re_skip}')
-                    for page in get_pages():
-                        if type(title) == str:
-                            if page.title != title:
-                                continue
-                        if page.name == 'style':
-                            continue
-                        for item in page.list_items():
-                            if item is None:
-                                continue
-                            if any(re.search(re_str, item.get('name', '') + item.get('filename', '')) for re_str in re_skip):
-                                skipped += 1
-                                continue
-                            scanned += 1
-                            candidates.append(item)
-                            # atomic_civit_search_metadata(item, res, rehash)
-                    import concurrent
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                        for fn in candidates:
-                            executor.submit(atomic_civit_search_metadata, fn, res, rehash)
-                    atomic_civit_search_metadata(None, res, rehash)
-                    t1 = time.time()
-                    log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
-                    txt = '<br>'.join([r for r in res if len(r) > 0])
-                    return txt
-
-                global search_metadata_civit  # pylint: disable=global-statement
-                search_metadata_civit = civit_search_metadata
-
-                def civitai_update_token(token):
-                    log.debug('CivitAI update token')
-                    opts.civitai_token = token
-                    opts.save()
-
-                with gr.Row():
-                    gr.HTML('<h2>&nbspCivitAI fetch metadata<br></h2>')
-                    gr.HTML('Fetches preview and metadata information for all models with missing information<br>Models with existing previews and information are not updated<br>')
-                with gr.Row():
-                    civit_previews_btn = gr.Button(value="Start", variant='primary')
-                with gr.Row():
-                    civit_previews_rehash = gr.Checkbox(value=True, label="Check alternative hash")
-
-                with gr.Row():
-                    gr.HTML('<h2>Search for models</h2>')
-                with gr.Row():
-                    with gr.Column(scale=1):
-                        civit_model_type = gr.Dropdown(label='CivitAI model type', choices=['Model', 'LoRA', 'Embedding', 'VAE', 'Other'], value='Model')
-                    with gr.Column(scale=15):
-                        with gr.Row():
-                            civit_search_text = gr.Textbox('', label='Search models', placeholder='keyword')
-                            civit_search_tag = gr.Textbox('', label='', placeholder='tags')
-                            civit_search_btn = ToolButton(value=ui_symbols.search, interactive=True)
-                        with gr.Row():
-                            civit_search_res = gr.HTML('')
-                with gr.Row():
-                    gr.HTML('<h2>&nbspCivitAI download model<br></h2>')
-                with gr.Row():
-                    civit_download_model_btn = gr.Button(value="Download", variant='primary')
-                    gr.HTML('<span style="line-height: 2em">Select a model, model version and and model variant from the search results to download or enter model URL manually</span><br>')
-                with gr.Row():
-                    civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models')
-                    civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
-                with gr.Row():
-                    civit_name = gr.Textbox('', label='Model name', placeholder='select model from search results', visible=True)
-                    civit_selected = gr.Textbox('', label='Model URL', placeholder='select model from search results', visible=True)
-                    civit_path = gr.Textbox('', label='Download path', placeholder='optional subfolder path where to save model', visible=True)
-                with gr.Row():
-                    gr.HTML('<h2>Search results</h2>')
-                with gr.Row():
-                    civit_headers1 = ['ID', 'Name', 'Tags', 'Downloads', 'Rating']
-                    civit_types1 = ['number', 'str', 'str', 'number', 'number']
-                    civit_results1 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, headers=civit_headers1, datatype=civit_types1, type='array', visible=False)
-                with gr.Row():
-                    with gr.Column():
-                        civit_headers2 = ['ID', 'ModelID', 'Name', 'Base', 'Created', 'Preview']
-                        civit_types2 = ['number', 'number', 'str', 'str', 'date', 'str']
-                        civit_results2 = gr.DataFrame(value=None, label='Model versions', show_label=True, interactive=False, wrap=True, headers=civit_headers2, datatype=civit_types2, type='array', visible=False)
-                    with gr.Column():
-                        civit_headers3 = ['Name', 'Size', 'Metadata', 'URL']
-                        civit_types3 = ['str', 'number', 'str', 'str']
-                        civit_results3 = gr.DataFrame(value=None, label='Model variants', show_label=True, interactive=False, wrap=True, headers=civit_headers3, datatype=civit_types3, type='array', visible=False)
-
-                def is_visible(component):
-                    visible = len(component) > 0 if component is not None else False
-                    return gr.update(visible=visible)
-
-                civit_search_text.submit(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_search_tag.submit(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_search_btn.click(fn=civit_search_model, inputs=[civit_search_text, civit_search_tag, civit_model_type], outputs=[civit_search_res, civit_results1, civit_results2, civit_results3])
-                civit_results1.select(fn=civit_select1, inputs=[civit_results1], outputs=[civit_results2, civit_results3, models_image])
-                civit_results2.select(fn=civit_select2, inputs=[civit_results2], outputs=[civit_results3])
-                civit_results3.select(fn=civit_select3, inputs=[civit_results3], outputs=[civit_selected, civit_name, civit_search_btn])
-                civit_results1.change(fn=is_visible, inputs=[civit_results1], outputs=[civit_results1])
-                civit_results2.change(fn=is_visible, inputs=[civit_results2], outputs=[civit_results2])
-                civit_results3.change(fn=is_visible, inputs=[civit_results3], outputs=[civit_results3])
-                civit_download_model_btn.click(fn=civit_download_model, inputs=[civit_selected, civit_name, civit_path, civit_model_type, civit_token], outputs=[models_outcome])
-                civit_previews_btn.click(fn=civit_search_metadata, inputs=[civit_previews_rehash, civit_previews_rehash], outputs=[models_outcome])
-
-            with gr.Tab(label="Update"):
-                with gr.Row():
-                    gr.HTML('<h2>&nbspScan CivitAI for information on latest available model versions<br></h2>')
-                with gr.Row():
-                    civit_update_btn = gr.Button(value="Update", variant='primary')
-                with gr.Row():
-                    gr.HTML('<h2>Update scan results</h2>')
-                with gr.Row():
-                    civit_headers4 = ['ID', 'File', 'Name', 'Versions', 'Current', 'Latest', 'Update']
-                    civit_types4 = ['number', 'str', 'str', 'number', 'str', 'str', 'str']
-                    civit_widths4 = ['10%', '25%', '25%', '5%', '10%', '10%', '15%']
-                    civit_results4 = gr.DataFrame(value=None, label=None, show_label=False, interactive=False, wrap=True, row_count=20, headers=civit_headers4, datatype=civit_types4, type='array', column_widths=civit_widths4)
-                with gr.Row():
-                    gr.HTML('<h3>Select model from the list and download update if available</h3>')
-                with gr.Row():
-                    civit_update_download_btn = gr.Button(value="Download", variant='primary', visible=False)
-
-                class CivitModel:
-                    def __init__(self, name, fn, sha = None, meta = {}):
-                        self.name = name
-                        self.id = meta.get('id', 0)
-                        self.fn = fn
-                        self.sha = sha
-                        self.meta = meta
-                        self.versions = 0
-                        self.vername = ''
-                        self.latest = ''
-                        self.latest_hashes = []
-                        self.latest_name = ''
-                        self.url = None
-                        self.status = 'Not found'
-                    def array(self):
-                        return [self.id, self.fn, self.name, self.versions, self.vername, self.latest, self.status]
-
-                selected_model: CivitModel = None
-                update_data = []
-
-                def civit_update_metadata():
-                    nonlocal update_data
-                    log.debug('CivitAI update metadata: models')
-                    from modules import ui_extra_networks, modelloader
-                    res = []
-                    pages = ui_extra_networks.get_pages('Model')
-                    if len(pages) == 0:
-                        return 'CivitAI update metadata: no models found'
-                    page: ui_extra_networks.ExtraNetworksPage = pages[0]
-                    table_data = []
-                    update_data.clear()
-                    all_hashes = [(item.get('hash', None) or 'XXXXXXXX').upper()[:8] for item in page.list_items()]
-                    for item in page.list_items():
-                        model = CivitModel(name=item['name'], fn=item['filename'], sha=item.get('hash', None), meta=item.get('metadata', {}))
-                        if model.sha is None or len(model.sha) == 0:
-                            res.append(f'CivitAI skip search: name="{model.name}" hash=None')
-                        else:
-                            r = req(f'https://civitai.com/api/v1/model-versions/by-hash/{model.sha}')
-                            res.append(f'CivitAI search: name="{model.name}" hash={model.sha} status={r.status_code}')
-                            if r.status_code == 200:
-                                d = r.json()
-                                model.id = d['modelId']
-                                modelloader.download_civit_meta(model.fn, model.id)
-                                fn = os.path.splitext(item['filename'])[0] + '.json'
-                                model.meta = readfile(fn, silent=True)
-                                model.name = model.meta.get('name', model.name)
-                                model.versions = len(model.meta.get('modelVersions', []))
-                        versions = model.meta.get('modelVersions', [])
-                        if len(versions) > 0:
-                            model.latest = versions[0].get('name', '')
-                            model.latest_hashes.clear()
-                            for v in versions[0].get('files', []):
-                                for h in v.get('hashes', {}).values():
-                                    model.latest_hashes.append(h[:8].upper())
-                        for ver in versions:
-                            for f in ver.get('files', []):
-                                for h in f.get('hashes', {}).values():
-                                    if h[:8].upper() == model.sha[:8].upper():
-                                        model.vername = ver.get('name', '')
-                                        model.url = f.get('downloadUrl', None)
-                                        model.latest_name = f.get('name', '')
-                                        if model.vername == model.latest:
-                                            model.status = 'Latest'
-                                        elif any(map(lambda v: v in model.latest_hashes, all_hashes)): # pylint: disable=cell-var-from-loop # noqa: C417
-                                            model.status = 'Downloaded'
-                                        else:
-                                            model.status = 'Available'
-                                        break
-                        log.debug(res[-1])
-                        update_data.append(model)
-                        table_data.append(model.array())
-                        yield gr.update(value=table_data), '<br>'.join([r for r in res if len(r) > 0])
-                    return '<br>'.join([r for r in res if len(r) > 0])
-
-                def civit_update_select(evt: gr.SelectData, in_data):
-                    nonlocal selected_model, update_data
-                    try:
-                        selected_model = next([m for m in update_data if m.fn == in_data[evt.index[0]][1]])
-                    except Exception:
-                        selected_model = None
-                    if selected_model is None or selected_model.url is None or selected_model.status != 'Available':
-                        return [gr.update(value='Model update not available'), gr.update(visible=False)]
-                    else:
-                        return [gr.update(), gr.update(visible=True)]
-
-                def civit_update_download():
-                    if selected_model is None or selected_model.url is None or selected_model.status != 'Available':
-                        return 'Model update not available'
-                    if selected_model.latest_name is None or len(selected_model.latest_name) == 0:
-                        model_name = f'{selected_model.name} {selected_model.latest}.safetensors'
-                    else:
-                        model_name = selected_model.latest_name
-                    return civit_download_model(selected_model.url, model_name, model_path='', model_type='Model')
-
-                civit_update_btn.click(fn=civit_update_metadata, inputs=[], outputs=[civit_results4, models_outcome])
-                civit_results4.select(fn=civit_update_select, inputs=[civit_results4], outputs=[models_outcome, civit_update_download_btn])
-                civit_update_download_btn.click(fn=civit_update_download, inputs=[], outputs=[models_outcome])
-
-            if native:
-                from modules.lora.lora_extract import create_ui as lora_extract_ui
-                lora_extract_ui()
+            from modules.lora.lora_extract import create_ui as lora_extract_ui
+            lora_extract_ui()
 
             for ui in extra_ui:
                 if callable(ui):

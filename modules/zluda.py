@@ -2,7 +2,6 @@ import sys
 from typing import Union
 import torch
 from torch._prims_common import DeviceLikeType
-import onnxruntime as ort
 from modules import shared, devices, zluda_installer
 from modules.zluda_installer import core, default_agent # pylint: disable=unused-import
 from modules.onnx_impl.execution_providers import available_execution_providers, ExecutionProvider
@@ -42,9 +41,14 @@ def initialize_zluda():
     torch.backends.cuda.enable_mem_efficient_sdp = do_nothing
 
     # ONNX Runtime is not supported
-    ort.capi._pybind_state.get_available_providers = lambda: [v for v in available_execution_providers if v != ExecutionProvider.CUDA] # pylint: disable=protected-access
-    ort.get_available_providers = ort.capi._pybind_state.get_available_providers # pylint: disable=protected-access
-    if shared.opts.onnx_execution_provider == ExecutionProvider.CUDA:
+    try:
+        import onnxruntime as ort
+        ort.capi._pybind_state.get_available_providers = lambda: [v for v in available_execution_providers if v != ExecutionProvider.CUDA] # pylint: disable=protected-access
+        ort.get_available_providers = ort.capi._pybind_state.get_available_providers # pylint: disable=protected-access
+        if shared.opts.onnx_execution_provider == ExecutionProvider.CUDA:
+            shared.opts.onnx_execution_provider = ExecutionProvider.CPU
+    except Exception as e:
+        shared.log.warning(f'ZLUDA ONNX runtime: {e}')
         shared.opts.onnx_execution_provider = ExecutionProvider.CPU
 
     device = devices.get_optimal_device()

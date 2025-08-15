@@ -279,6 +279,7 @@ def search_extensions(search_text, sort_column):
 def create_html(search_text, sort_column):
     # shared.log.debug(f'Extensions manager: refresh list search="{search_text}" sort="{sort_column}"')
     code = """
+        <div id="extensions-div">
         <table id="extensions">
             <colgroup>
                 <col style="width: 1%; background: var(--table-border-color)">
@@ -421,7 +422,7 @@ def create_html(search_text, sort_column):
                 <td>{version_code}</td>
                 <td>{install_code}</td>
             </tr>"""
-    code += "</tbody></table>"
+    code += "</tbody></table></div>"
     shared.log.debug(f'Extension list: processed={stats["processed"]} installed={stats["installed"]} enabled={stats["enabled"]} disabled={stats["installed"] - stats["enabled"]} visible={stats["processed"] - stats["hidden"]} hidden={stats["hidden"]}')
     return code
 
@@ -438,9 +439,10 @@ def create_ui():
                 uninstall_extension_button = gr.Button(elem_id="uninstall_extension_button", visible=False)
                 update_extension_button = gr.Button(elem_id="update_extension_button", visible=False)
                 with gr.Column(scale=4):
-                    search_text = gr.Textbox(label="Search")
-                with gr.Column(scale=1):
-                    sort_column = gr.Dropdown(value="default", label="Sort by", choices=list(sort_ordering.keys()), multiselect=False)
+                    with gr.Row():
+                        search_text = gr.Textbox(label="Search")
+                    with gr.Row():
+                        sort_column = gr.Dropdown(value="default", label="Sort by", choices=list(sort_ordering.keys()), multiselect=False)
                 with gr.Column(scale=1):
                     refresh_extensions_button = gr.Button(value="Refresh extension list", variant="primary")
                     check = gr.Button(value="Update all installed", variant="primary")

@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -49,7 +48,7 @@ def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
     return latent_image_ids.to(device=device, dtype=dtype)
 
 
-class Pipeline(DiffusionPipeline):
+class MeissonicPipeline(DiffusionPipeline):
     image_processor: VaeImageProcessor
     vqvae: VQModel
     tokenizer: CLIPTokenizer
@@ -212,27 +211,27 @@ class Pipeline(DiffusionPipeline):
             width = self.transformer.config.sample_size * self.vae_scale_factor
 
         if prompt_embeds is None:
-                input_ids = self.tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    padding="max_length",
-                    truncation=True,
-                    max_length=77, #self.tokenizer.model_max_length,
-                ).input_ids.to(self._execution_device)
-                # input_ids_t5 = self.tokenizer_t5(
-                #     prompt,
-                #     return_tensors="pt",
-                #     padding="max_length",
-                #     truncation=True,
-                #     max_length=512,
-                # ).input_ids.to(self._execution_device)
+            input_ids = self.tokenizer(
+                prompt,
+                return_tensors="pt",
+                padding="max_length",
+                truncation=True,
+                max_length=77, #self.tokenizer.model_max_length,
+            ).input_ids.to(self._execution_device)
+            # input_ids_t5 = self.tokenizer_t5(
+            #     prompt,
+            #     return_tensors="pt",
+            #     padding="max_length",
+            #     truncation=True,
+            #     max_length=512,
+            # ).input_ids.to(self._execution_device)
 
 
-                outputs = self.text_encoder(input_ids, return_dict=True, output_hidden_states=True)
-                # outputs_t5 = self.text_encoder_t5(input_ids_t5, decoder_input_ids = input_ids_t5 ,return_dict=True, output_hidden_states=True)
-                prompt_embeds = outputs.text_embeds
-                encoder_hidden_states = outputs.hidden_states[-2]
-                # encoder_hidden_states = outputs_t5.encoder_hidden_states[-2]
+            outputs = self.text_encoder(input_ids, return_dict=True, output_hidden_states=True)
+            # outputs_t5 = self.text_encoder_t5(input_ids_t5, decoder_input_ids = input_ids_t5 ,return_dict=True, output_hidden_states=True)
+            prompt_embeds = outputs.text_embeds
+            encoder_hidden_states = outputs.hidden_states[-2]
+            # encoder_hidden_states = outputs_t5.encoder_hidden_states[-2]
 
         prompt_embeds = prompt_embeds.repeat(num_images_per_prompt, 1)
         encoder_hidden_states = encoder_hidden_states.repeat(num_images_per_prompt, 1, 1)

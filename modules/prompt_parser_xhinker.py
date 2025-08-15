@@ -439,13 +439,13 @@ def get_weighted_text_embeddings_sdxl(
         , pad_last_block=pad_last_block
     )
 
-    prompt_token_groups_2, prompt_weight_groups_2 = group_tokens_and_weights(
+    prompt_token_groups_2, _prompt_weight_groups_2 = group_tokens_and_weights(
         prompt_tokens_2.copy()
         , prompt_weights_2.copy()
         , pad_last_block=pad_last_block
     )
 
-    neg_prompt_token_groups_2, neg_prompt_weight_groups_2 = group_tokens_and_weights(
+    neg_prompt_token_groups_2, _neg_prompt_weight_groups_2 = group_tokens_and_weights(
         neg_prompt_tokens_2.copy()
         , neg_prompt_weights_2.copy()
         , pad_last_block=pad_last_block
@@ -609,7 +609,6 @@ def get_weighted_text_embeddings_sdxl_refiner(
             , generator = torch.Generator(text2img_pipe.device).manual_seed(2)
         ).images[0]
     """
-    import math
     eos = 49407  # pipe.tokenizer.eos_token_id
 
     # tokenizer 2
@@ -1148,13 +1147,13 @@ def get_weighted_text_embeddings_sd3(
         , pad_last_block=pad_last_block
     )
 
-    prompt_token_groups_2, prompt_weight_groups_2 = group_tokens_and_weights(
+    prompt_token_groups_2, _prompt_weight_groups_2 = group_tokens_and_weights(
         prompt_tokens_2.copy()
         , prompt_weights_2.copy()
         , pad_last_block=pad_last_block
     )
 
-    neg_prompt_token_groups_2, neg_prompt_weight_groups_2 = group_tokens_and_weights(
+    neg_prompt_token_groups_2, _neg_prompt_weight_groups_2 = group_tokens_and_weights(
         neg_prompt_tokens_2.copy()
         , neg_prompt_weights_2.copy()
         , pad_last_block=pad_last_block
@@ -1374,7 +1373,7 @@ def get_weighted_text_embeddings_flux1(
         pipe.tokenizer_2, prompt2
     )
 
-    prompt_token_groups, prompt_weight_groups = group_tokens_and_weights(
+    prompt_token_groups, _prompt_weight_groups = group_tokens_and_weights(
         prompt_tokens.copy()
         , prompt_weights.copy()
         , pad_last_block=True

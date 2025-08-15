@@ -1,17 +1,17 @@
 import os
-from datetime import datetime
 from urllib.parse import unquote
 import gradio as gr
 from PIL import Image
-from modules import shared, ui_symbols, ui_common, images, video
+from modules import shared, ui_symbols, ui_common, images, video, modelstats
 from modules.ui_components import ToolButton
+
 
 def read_media(fn):
     fn = unquote(fn).replace('%3A', ':')
     if not os.path.isfile(fn):
         shared.log.error(f'Gallery not found: file="{fn}"')
         return [[], None, '', '', f'Media not found: {fn}']
-    stat = os.stat(fn)
+    stat_size, stat_mtime = modelstats.stat(fn)
     if fn.lower().endswith('.mp4'):
         frames, fps, duration, w, h, codec, _frame = video.get_video_params(fn)
         geninfo = ''
@@ -21,8 +21,8 @@ def read_media(fn):
             | Frames <b>{frames:,}</b>
             | FPS <b>{fps:.2f}</b>
             | Duration <b>{duration:.2f}</b>
-            | Size <b>{stat.st_size:,}</b>
-            | Modified <b>{datetime.fromtimestamp(stat.st_mtime)}</b></p><br>
+            | Size <b>{stat_size:,}</b>
+            | Modified <b>{stat_mtime}</b></p><br>
             '''
         return [gr.update(visible=False, value=[]), gr.update(visible=True, value=fn), geninfo, geninfo, log]
     else:
@@ -33,8 +33,8 @@ def read_media(fn):
             <p>Image <b>{image.width} x {image.height}</b>
             | Format <b>{image.format}</b>
             | Mode <b>{image.mode}</b>
-            | Size <b>{stat.st_size:,}</b>
-            | Modified <b>{datetime.fromtimestamp(stat.st_mtime)}</b></p><br>
+            | Size <b>{stat_size:,}</b>
+            | Modified <b>{stat_mtime}</b></p><br>
             '''
         return [gr.update(visible=True, value=[image]), gr.update(visible=False), geninfo, geninfo, log]
 

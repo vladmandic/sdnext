@@ -119,6 +119,9 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
         shared.log.error('Processing: incomplete model')
         return None
+    if p.abort:
+        shared.log.debug('Processing: aborted')
+        return None
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.before_process(p)
     stored_opts = {}
@@ -158,11 +161,12 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
         shared.prompt_styles.apply_styles_to_extra(p)
         shared.prompt_styles.extract_comments(p)
+        vae_scale_factor = sd_vae.get_vae_scale_factor()
 
         if p.width is not None:
-            p.width = 8 * int(p.width / 8)
+            p.width = vae_scale_factor * int(p.width / vae_scale_factor)
         if p.height is not None:
-            p.height = 8 * int(p.height / 8)
+            p.height = vae_scale_factor * int(p.height / vae_scale_factor)
 
         script_callbacks.before_process_callback(p)
         timer.process.record('pre')

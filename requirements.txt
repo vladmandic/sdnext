@@ -32,7 +32,7 @@ pi-heif
 
 # versioned
 rich==14.1.0
-safetensors==0.5.3
+safetensors==0.6.2
 tensordict==0.8.3
 peft==0.17.0
 httpx==0.24.1
@@ -41,16 +41,16 @@ torchsde==0.2.6
 antlr4-python3-runtime==4.9.3
 requests==2.32.4
 tqdm==4.67.1
-accelerate==1.9.0
+accelerate==1.10.0
 opencv-contrib-python-headless==4.11.0.86
 einops==0.8.1
-huggingface_hub==0.34.3
+huggingface_hub==0.34.4
 numexpr==2.11.0
 numpy==2.1.2
-pandas==2.3.0
+pandas==2.3.1
 numba==0.61.2
 protobuf==4.25.3
-pytorch_lightning==2.5.2
+pytorch_lightning==2.5.3
 tokenizers==0.21.4
 urllib3==1.26.19
 Pillow==10.4.0

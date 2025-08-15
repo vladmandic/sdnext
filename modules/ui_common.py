@@ -19,10 +19,14 @@ def gr_show(visible=True):
 
 def update_generation_info(generation_info, html_info, img_index):
     try:
-        generation_info = json.loads(generation_info)
-        if img_index < 0 or img_index >= len(generation_info["infotexts"]):
-            return html_info, generation_info
-        info = generation_info["infotexts"][img_index]
+        generation_json = json.loads(generation_info)
+        if len(generation_json["infotexts"]) == 0:
+            return html_info, 'no infotexts found'
+        if img_index == -1:
+            img_index = 0
+        if img_index >= len(generation_json["infotexts"]):
+            return html_info, 'error fetching infotext'
+        info = generation_json["infotexts"][img_index]
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
     except Exception:
@@ -67,7 +71,7 @@ def delete_files(js_data, files, all_files, index):
     for _image_index, filedata in enumerate(files, start_index):
         try:
             fn = filedata['name']
-            if os.path.isfile(fn):
+            if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
                 os.remove(fn)
                 if fn in all_files:
@@ -75,11 +79,11 @@ def delete_files(js_data, files, all_files, index):
                 shared.log.info(f'Delete: image="{fn}"')
             base, _ext = os.path.splitext(fn)
             desc = f'{base}.txt'
-            if os.path.exists(desc):
+            if os.path.exists(desc) and os.path.isfile(desc):
                 os.remove(desc)
                 shared.log.info(f'Delete: text="{fn}"')
         except Exception as e:
-            shared.log.error(f'Delete: image="{fn}" {e}')
+            shared.log.error(f'Delete: file="{fn}" {e}')
     deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
     return all_files, plaintext_to_html(f"Deleted: {deleted}", ['performance'])
 
@@ -247,6 +251,8 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                        )
             if prompt is not None:
                 ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt, what='output')
+            button_image_fit = gr.Button(ui_symbols.resize, elem_id=f"{tabname}_image_fit", elem_classes=['image-fit'])
+            button_image_fit.click(fn=None, _js="cycleImageFit", inputs=[], outputs=[])
 
         with gr.Column(elem_id=f"{tabname}_footer", elem_classes="gallery_footer"):
             dummy_component = gr.Label(visible=False)

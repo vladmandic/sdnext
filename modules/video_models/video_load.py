@@ -28,6 +28,7 @@ def load_model(selected: models_def.Model):
         text_encoder = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
+            revision=selected.te_revision or selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
             **quant_args
@@ -44,6 +45,7 @@ def load_model(selected: models_def.Model):
         transformer = selected.dit_cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit or selected.repo,
             subfolder=selected.dit_folder,
+            revision=selected.dit_revision or selected.repo_revision,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
             **quant_args
@@ -63,6 +65,7 @@ def load_model(selected: models_def.Model):
             pretrained_model_name_or_path=selected.repo,
             transformer=transformer,
             text_encoder=text_encoder,
+            revision=selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
             **kwargs,

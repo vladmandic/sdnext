@@ -68,7 +68,7 @@ def initialize():
     modules.sd_checkpoint.init_metadata()
     modules.hashes.init_cache()
 
-    log.debug(f'Huggingface cache: path="{shared.opts.hfcache_dir}"')
+    paths.check_cache(shared.opts)
 
     modules.sd_samplers.list_samplers()
     timer.startup.record("samplers")
@@ -120,6 +120,9 @@ def initialize():
     modules.extra_networks.initialize()
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
+
+    from modules.models_hf import hf_init
+    hf_init()
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:
@@ -413,23 +416,5 @@ def webui(restart=False):
     return shared.demo.server
 
 
-def api_only():
-    start_common()
-    from fastapi import FastAPI
-    app = FastAPI(**fastapi_args)
-    modules.api.middleware.setup_middleware(app, shared.cmd_opts)
-    shared.api = create_api(app)
-    shared.api.register()
-    shared.api.wants_restart = False
-    modules.script_callbacks.app_started_callback(None, app)
-    modules.sd_models.write_metadata()
-    log.info(f"Startup time: {timer.startup.summary()}")
-    server = shared.api.launch()
-    return server
-
-
 if __name__ == "__main__":
-    if shared.cmd_opts.api_only:
-        api_only()
-    else:
-        webui()
+    webui()

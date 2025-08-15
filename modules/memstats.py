@@ -7,7 +7,10 @@ from modules import shared, errors
 
 
 fail_once = False
+ram = {}
+gpu = {}
 mem = {}
+process = None
 docker_limit = None
 runpod_limit = None
 
@@ -40,40 +43,62 @@ def get_runpod_limit():
     return runpod_limit
 
 
-def memory_stats():
-    global fail_once # pylint: disable=global-statement
-    mem.clear()
+def ram_stats():
+    global process, fail_once # pylint: disable=global-statement
     try:
-        process = psutil.Process(os.getpid())
+        if process is None:
+            process = psutil.Process(os.getpid())
         res = process.memory_info()
-        ram_total = 100 * res.rss / process.memory_percent()
-        ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
-        ram = { 'used': gb(res.rss), 'total': gb(ram_total) }
-        mem.update({ 'ram': ram })
+        if 'total' not in ram:
+            process = psutil.Process(os.getpid())
+            ram_total = 100 * res.rss / process.memory_percent()
+            ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
+            ram['total'] = gb(ram_total)
+        ram['used'] = gb(res.rss)
+        ram['free'] = round(ram['total'] - ram['used'])
     except Exception as e:
+        ram['total'] = 0
+        ram['used'] = 0
+        ram['error'] = str(e)
         if not fail_once:
-            shared.log.error(f'Memory stats: {e}')
-            errors.display(e, 'Memory stats')
+            shared.log.error(f'RAM stats: {e}')
+            errors.display(e, 'RAM stats')
             fail_once = True
-        mem.update({ 'ram': { 'error': str(e) } })
+    return ram
+
+
+def gpu_stats():
+    global fail_once # pylint: disable=global-statement
     try:
         free, total = torch.cuda.mem_get_info()
-        gpu = { 'used': gb(total - free), 'total': gb(total) }
+        gpu['used'] = gb(total - free)
+        gpu['total'] = gb(total)
         stats = dict(torch.cuda.memory_stats())
         if stats.get('num_ooms', 0) > 0:
             shared.state.oom = True
-        mem.update({
-            'gpu': gpu,
-            'active': gb(stats.get('active_bytes.all.current', 0)),
-            'peak': gb(stats.get('active_bytes.all.peak', 0)),
-            'retries': stats.get('num_alloc_retries', 0),
-            'oom': stats.get('num_ooms', 0),
-            'job': shared.state.job,
-        })
-        mem['swap'] = round(mem['active'] - mem['gpu']['used'], 2) if mem['active'] > mem['gpu']['used'] else 0
-        return mem
+        gpu['active'] = gb(stats.get('active_bytes.all.current', 0))
+        gpu['peak'] = gb(stats.get('active_bytes.all.peak', 0))
+        gpu['retries'] = stats.get('num_alloc_retries', 0)
+        gpu['oom'] = stats.get('num_ooms', 0)
+    except Exception as e:
+        gpu['total'] = 0
+        gpu['used'] = 0
+        gpu['error'] = str(e)
+        if not fail_once:
+            shared.log.error(f'GPU stats: {e}')
+            # errors.display(e, 'GPU stats')
+            fail_once = True
+    return gpu
+
+
+def memory_stats():
+    mem['ram'] = ram_stats()
+    mem['gpu'] = gpu_stats()
+    mem['job'] = shared.state.job
+    try:
+        mem['gpu']['swap'] = round(mem['gpu']['active'] - mem['gpu']['used']) if mem['gpu']['active'] > mem['gpu']['used'] else 0
     except Exception:
-        pass
+        mem['gpu']['swap'] = 0
     return mem
 
 
@@ -82,18 +107,6 @@ def reset_stats():
         torch.cuda.reset_memory_stats()
     except Exception:
         pass
-
-
-def ram_stats():
-    try:
-        process = psutil.Process(os.getpid())
-        res = process.memory_info()
-        ram_total = 100 * res.rss / process.memory_percent()
-        ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
-        ram = { 'used': gb(res.rss), 'total': gb(ram_total) }
-        return ram
-    except Exception:
-        return { 'used': 0, 'total': 0 }
 
 
 class Object:

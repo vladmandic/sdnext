@@ -14,6 +14,7 @@
   --color-trace: #666666;
   --color-warning: #FF9900;
   --left-column: 530px;
+  --sd-image-fit: contain;
 }
 
 a {
@@ -64,6 +65,10 @@ span {
 button {
   font-size: var(--text-lg) !important;
   min-width: unset !important;
+}
+
+h4 {
+  margin: 0.2em 0em 0.2em 0em;
 }
 
 input[type='color'] {
@@ -120,6 +125,17 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 
 .image-container {
   overflow: auto;
+}
+
+.link {
+  background-color: var(--background-fill-primary);
+  cursor: pointer;
+  border-radius: var(--input-radius);
+  width: 2em;
+}
+
+.link:hover {
+  background-color: var(--button-primary-background-fill);
 }
 
 .gradio-dropdown, .block.gradio-slider, .block.gradio-checkbox, .block.gradio-textbox, .block.gradio-radio, .block.gradio-checkboxgroup, .block.gradio-number, .block.gradio-colorpicker {
@@ -500,17 +516,36 @@ color: var(--primary-500) !important
   color: var(--body-text-color-subdued) !important
 }
 
+.gradio-gallery img, .image-container img {
+  max-width: 100%;
+  object-position: top;
+  width: 100%;
+  height: 100%;
+  object-fit: var(--sd-image-fit) !important;
+}
+
 .interrogate {
   background: none !important;
   font-size: 1.5em !important;
   max-width: fit-content;
   position: absolute;
   right: 2.8em;
-  top: 0.2em;
+  top: 0.1em;
   z-index: 50;
 }
 
-.interrogate:hover {
+.image-fit {
+  background: none !important;
+  font-size: 1.5em !important;
+  max-width: fit-content;
+  position: absolute;
+  right: 4.0em;
+  top: 0.1em;
+  z-index: 50;
+}
+
+.interrogate:hover,
+.image-fit:hover {
   background: var(--button-primary-background-fill-hover) !important;
 }
 
@@ -1226,11 +1261,18 @@ table.settings-value-table td {
 }
 
 .extra-network-cards .card {
-  height: fit-content;
-  margin: 0 0 0.5em 0.5em;
-  position: relative;
-  scroll-margin-top: 0;
-  scroll-snap-align: start;
+    margin: 0 0 0.5em 0.5em;
+    position: relative;
+    scroll-margin-top: 0;
+    scroll-snap-align: start;
+    height: var(--card-size);
+    width: var(--card-size);
+    contain: strict;
+}
+
+*.extra-network-cards .card-selected {
+  transform: scale(0.9);
+  box-shadow: 0 0 2em var(--button-primary-background-fill);
 }
 
 .extra-network-cards .card .overlay {
@@ -1243,17 +1285,16 @@ table.settings-value-table td {
   bottom: 0;
   color: white;
   font-size: var(--text-lg);
-  font-weight: bold;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   padding: 0.2em;
   position: absolute;
-  text-shadow: 1px 1px black;
   z-index: 10;
+  text-shadow: 2px 2px 2px black;
+  filter: drop-shadow(0px 0px 4px black);
 }
 
 .extra-network-cards .card .overlay .reference {
-
-  color: var(--body-text-color-subdued)
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .extra-network-cards .card .preview {
@@ -1515,12 +1556,6 @@ background: var(--background-color)
   min-height: 0;
 }
 
-#models_error {
-  font-family: monospace;
-
-color: var(--body-text-color-subdued)
-}
-
 #model_loader_df button {
   display: none !important;
 }
@@ -1580,14 +1615,13 @@ color: var(--body-text-color-subdued)
   padding: 6px !important;
 }
 
-.nvml {
+.gpu {
   background: var(--background-fill-primary);
   border: 1px solid var(--button-primary-border-color);
   bottom: 10px;
   color: var(--button-primary-text-color);
   display: none;
   font-family: monospace;
-  font-size: var(--text-xxs);
   padding: 6px;
   position: fixed;
   right: 10px;
@@ -1929,10 +1963,6 @@ div:has(>#tab-gallery-folders) {
   padding: 0.2em;
 }
 
-.docs-results {
-  background-color: var(--sd-group-background-color);
-}
-
 .docs-card {
   margin: 1em 0;
   background-color: var(--background-fill-primary);
@@ -1963,6 +1993,86 @@ div:has(>#tab-gallery-folders) {
   filter: brightness(0.5);
   font-size: 0.9em;
   margin-top: 0.2em;
+}
+
+#model_desc {
+  overflow: auto;
+}
+
+#model_list_table {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+#civit_metadata {
+    overflow: auto;
+}
+
+.model-config {
+  font-size: 0.8em !important;
+  opacity: 0.8;
+  max-height: 6em;
+  overflow-y: auto;
+}
+
+.simple-table tr {
+  vertical-align: baseline;
+}
+
+.simple-table td {
+  padding: 0.2em !important;
+}
+
+.simple-table tr {
+  vertical-align: baseline;
+}
+
+.simple-table thead tr {
+  background-color: var(--button-primary-border-color) !important;
+}
+
+.simple-table tr:nth-child(odd) {
+  background-color: var(--neutral-900);
+}
+
+.simple-table td {
+  padding: 0.2em !important;
+  white-space: pre-wrap;
+}
+
+.simple-table td div {
+  padding: 0.2em !important;
+  white-space: pre-wrap;
+  max-height: 7em;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.simple-table td:nth-child(1) {
+  color: var(--button-primary-border-color);
+  font-weight: bold;
+}
+
+.div-link {
+  cursor: pointer;
+}
+
+.div-link:hover {
+  background-color: var(--button-primary-background-fill);
+}
+
+.video-model-link {
+  color: var(--button-primary-background-fill);
+  font-weight: normal;
+}
+
+#civitai_token textarea, #hf_token textarea, #setting_huggingface_token textarea {
+  filter: blur(4px);
+}
+
+#civitai_token textarea:hover, #hf_token textarea:hover, #setting_huggingface_token textarea:hover,
+#civitai_token textarea:focus, #hf_token textarea:focus, #setting_huggingface_token textarea:focus {
+  filter: blur(0);
 }
 
 @keyframes move {

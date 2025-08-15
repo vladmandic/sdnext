@@ -6,10 +6,10 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
     from modules import shared, devices, modelloader, sd_models, shared_items
     from pipelines.meissonic.transformer import Transformer2DModel as TransformerMeissonic
     from pipelines.meissonic.scheduler import Scheduler as MeissonicScheduler
-    from pipelines.meissonic.pipeline import Pipeline as PipelineMeissonic
-    from pipelines.meissonic.pipeline_img2img import Img2ImgPipeline as PipelineMeissonicImg2Img
-    from pipelines.meissonic.pipeline_inpaint import InpaintPipeline as PipelineMeissonicInpaint
-    shared_items.pipelines['Meissonic'] = PipelineMeissonic
+    from pipelines.meissonic.pipeline import MeissonicPipeline
+    from pipelines.meissonic.pipeline_img2img import MeissonicImg2ImgPipeline
+    from pipelines.meissonic.pipeline_inpaint import MeissonicInpaintPipeline
+    shared_items.pipelines['Meissonic'] = MeissonicPipeline
 
     modelloader.hf_login()
     fn = sd_models.path_to_repo(checkpoint_info)
@@ -41,7 +41,7 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
         cache_dir=cache_dir,
     )
     scheduler = MeissonicScheduler.from_pretrained(fn, subfolder="scheduler", cache_dir=cache_dir)
-    pipe = PipelineMeissonic(
+    pipe = MeissonicPipeline(
             vqvae=vqvae.to(devices.dtype),
             text_encoder=text_encoder.to(devices.dtype),
             transformer=model.to(devices.dtype),
@@ -49,8 +49,8 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
             scheduler=scheduler,
     )
 
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["meissonic"] = PipelineMeissonic
-    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["meissonic"] = PipelineMeissonicImg2Img
-    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["meissonic"] = PipelineMeissonicInpaint
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["meissonic"] = MeissonicPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["meissonic"] = MeissonicImg2ImgPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["meissonic"] = MeissonicInpaintPipeline
     devices.torch_gc(force=True, reason='load')
     return pipe

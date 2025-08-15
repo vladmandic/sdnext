@@ -8,7 +8,6 @@ import html
 import base64
 import urllib.parse
 import threading
-from datetime import datetime
 from types import SimpleNamespace
 from pathlib import Path
 from html.parser import HTMLParser
@@ -16,9 +15,7 @@ from collections import OrderedDict
 import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
-from modules import paths, shared, files_cache, errors, infotext
-from modules.ui_components import ToolButton
-import modules.ui_symbols as symbols
+from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 
 
 allowed_dirs = []
@@ -27,7 +24,7 @@ extra_pages = shared.extra_networks
 debug = shared.log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: EN')
 card_full = '''
-    <div class='card' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
+    <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
         <div class='overlay'>
             <div class='name {reference}'>{title}</div>
         </div>
@@ -41,7 +38,7 @@ card_full = '''
     </div>
 '''
 card_list = '''
-    <div class='card card-list' onclick={card_click} title='{name}' data-tab='{tabname}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
+    <div class='card card-list' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
         <div style='display: flex'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>&nbsp;
             <div class='name {reference}' style='flex-flow: column'>{title}&nbsp;
@@ -70,7 +67,7 @@ def init_api():
         return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
 
     def get_metadata(page: str = "", item: str = ""):
-        page = next(iter([x for x in shared.extra_networks if x.name == page]), None)
+        page = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'metadata': 'none' })
         metadata = page.metadata.get(item, 'none')
@@ -80,10 +77,10 @@ def init_api():
         return JSONResponse({"metadata": metadata})
 
     def get_info(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name == page]), None)
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'info': 'none' })
-        item = next(iter([x for x in page.items if x['name'] == item]), None)
+        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'info': 'none' })
         info = page.find_info(item.get('filename', None) or item.get('name', None))
@@ -93,10 +90,10 @@ def init_api():
         return JSONResponse({"info": info})
 
     def get_desc(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name == page]), None)
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'description': 'none' })
-        item = next(iter([x for x in page.items if x['name'] == item]), None)
+        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'description': 'none' })
         desc = page.find_description(item.get('filename', None) or item.get('name', None))
@@ -105,10 +102,21 @@ def init_api():
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
         return JSONResponse({"description": desc})
 
-    shared.api.add_api_route("/sd_extra_networks/thumb", fetch_file, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/metadata", get_metadata, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/info", get_info, methods=["GET"])
-    shared.api.add_api_route("/sd_extra_networks/description", get_desc, methods=["GET"])
+    def get_network(page: str = "", item: str = ""):
+        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page is None:
+            return JSONResponse({ 'page': 'none' })
+        item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
+        if item is None:
+            return JSONResponse({ 'item': 'none' })
+        return JSONResponse(item)
+
+
+    shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
 
 
 class ExtraNetworksPage:
@@ -130,6 +138,9 @@ class ExtraNetworksPage:
         self.dirs = {}
         self.view = shared.opts.extra_networks_view
         self.card = card_full if shared.opts.extra_networks_view == 'gallery' else card_list
+
+    def __str__(self):
+        return f'Page(title="{self.title}" name="{self.name}" items={len(self.items)})'
 
     def refresh(self):
         pass
@@ -159,7 +170,7 @@ class ExtraNetworksPage:
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
-        preview = f"./sd_extra_networks/thumb?filename={quoted_filename}&mtime={mtime}"
+        preview = f"/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
     def create_thumb(self):
@@ -311,12 +322,14 @@ class ExtraNetworksPage:
             return '#{:02x}{:02x}{:02x}'.format(r, g, b) # pylint: disable=consider-using-f-string
 
         try:
+            onclick = f'cardClicked({item.get("prompt", None)})'
             args = {
-                "tabname": tabname,
+                # "tabname": tabname,
                 "page": self.name,
                 "name": item.get('name', ''),
                 "title": os.path.basename(item["name"].replace('_', ' ')),
                 "filename": item.get('filename', ''),
+                "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
                 "preview": html.escape(item.get('preview', None) or self.link_preview('html/card-no-preview.png')),
                 "width": 'var(--card-size)',
@@ -325,16 +338,16 @@ class ExtraNetworksPage:
                 "prompt": item.get("prompt", None),
                 "search": item.get("search_term", ""),
                 "description": item.get("description") or "",
-                "card_click": item.get("onclick", '"' + html.escape(f'return cardClicked({item.get("prompt", None)}, {"true" if self.allow_negative_prompt else "false"})') + '"'),
+                "card_click": item.get("onclick", '"' + html.escape(onclick) + '"'),
                 "mtime": item.get("mtime", 0),
                 "size": item.get("size", 0),
                 "version": item.get("version", ''),
                 "color": random_bright_color(),
                 "reference": "reference" if 'Reference' in item.get('name', '') else "",
             }
-            alias = item.get("alias", None)
-            if alias is not None:
-                args['title'] += f'\nAlias: {alias}'
+            # alias = item.get("alias", None)
+            # if alias is not None:
+            #     args['title'] += f'\nAlias: {alias}'
             return self.card.format(**args)
         except Exception as e:
             shared.log.error(f'Networks: item error: page={tabname} item={item["name"]} {e}')
@@ -490,6 +503,8 @@ def register_pages():
     register_page(ExtraNetworksPageStyles())
     from modules.ui_extra_networks_lora import ExtraNetworksPageLora
     register_page(ExtraNetworksPageLora())
+    from modules.ui_extra_networks_wildcards import ExtraNetworksPageWildcards
+    register_page(ExtraNetworksPageWildcards())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
@@ -502,7 +517,7 @@ def get_pages(title=None):
     visible = shared.opts.extra_networks
     pages = []
     if 'All' in visible or visible == []: # default en sort order
-        visible = ['Model', 'Lora', 'Style', 'Embedding', 'VAE', 'History', 'Hypernetwork']
+        visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
     titles = [page.title for page in shared.extra_networks]
     if title is None:
@@ -596,7 +611,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return is_visible, gr.update(visible=is_visible), gr.update(variant=("secondary-down" if is_visible else "secondary"))
 
     with ui.details:
-        details_close = ToolButton(symbols.close, elem_id=f"{tabname}_extra_details_close", elem_classes=['extra-details-close'])
+        details_close = ui_components.ToolButton(ui_symbols.close, elem_id=f"{tabname}_extra_details_close", elem_classes=['extra-details-close'])
         details_close.click(fn=lambda: gr.update(visible=False), inputs=[], outputs=[ui.details])
         with gr.Row():
             with gr.Column(scale=1):
@@ -649,14 +664,14 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             model_visible = page in ['Model']
             return [gr.update(visible=scan_visible), gr.update(visible=save_visible), gr.update(visible=model_visible)]
 
-        ui.button_refresh = ToolButton(symbols.refresh, elem_id=f"{tabname}_extra_refresh")
-        ui.button_scan = ToolButton(symbols.scan, elem_id=f"{tabname}_extra_scan", visible=True)
-        ui.button_quicksave = ToolButton(symbols.book, elem_id=f"{tabname}_extra_quicksave", visible=False)
-        ui.button_save = ToolButton(symbols.book, elem_id=f"{tabname}_extra_save", visible=False)
-        ui.button_sort = ToolButton(symbols.sort, elem_id=f"{tabname}_extra_sort", visible=True)
-        ui.button_view = ToolButton(symbols.view, elem_id=f"{tabname}_extra_view", visible=True)
-        ui.button_close = ToolButton(symbols.close, elem_id=f"{tabname}_extra_close", visible=True)
-        ui.button_model = ToolButton(symbols.refine, elem_id=f"{tabname}_extra_model", visible=True)
+        ui.button_refresh = ui_components.ToolButton(ui_symbols.refresh, elem_id=f"{tabname}_extra_refresh")
+        ui.button_scan = ui_components.ToolButton(ui_symbols.scan, elem_id=f"{tabname}_extra_scan", visible=True)
+        ui.button_quicksave = ui_components.ToolButton(ui_symbols.book, elem_id=f"{tabname}_extra_quicksave", visible=False)
+        ui.button_save = ui_components.ToolButton(ui_symbols.book, elem_id=f"{tabname}_extra_save", visible=False)
+        ui.button_sort = ui_components.ToolButton(ui_symbols.sort, elem_id=f"{tabname}_extra_sort", visible=True)
+        ui.button_view = ui_components.ToolButton(ui_symbols.view, elem_id=f"{tabname}_extra_view", visible=True)
+        ui.button_close = ui_components.ToolButton(ui_symbols.close, elem_id=f"{tabname}_extra_close", visible=True)
+        ui.button_model = ui_components.ToolButton(ui_symbols.refine, elem_id=f"{tabname}_extra_model", visible=True)
         ui.search = gr.Textbox('', show_label=False, elem_id=f"{tabname}_extra_search", placeholder="Search...", elem_classes="textbox", lines=2, container=False)
         ui.description = gr.Textbox('', show_label=False, elem_id=f"{tabname}_description", elem_classes=["textbox", "extra-description"], lines=2, interactive=False, container=False)
 
@@ -722,30 +737,26 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             shared.log.debug(f'Network save desc: item="{ui.last_item.name}" filename="{fn}"')
         return desc
 
-    def fn_delete_desc(desc):
+    def fn_delete_network(desc):
         if ui.last_item is None:
             return desc
-        fn = os.path.splitext(ui.last_item.filename)[0] + '.txt'
-        if os.path.exists(fn):
-            shared.log.debug(f'Network delete desc: item="{ui.last_item.name}" filename="{fn}"')
+        basename = os.path.splitext(ui.last_item.filename)[0]
+        extensions = ['.safetensors', '.ckpt', '.txt', '.json', '.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl']
+        candidates = []
+        for ext in extensions:
+            fn = basename + ext
+            if os.path.exists(fn) and os.path.isfile(fn):
+                candidates.append(fn)
+        msg = f'Network delete: item="{ui.last_item.name}" files={candidates}'
+        shared.log.debug(msg)
+        for fn in candidates:
             os.remove(fn)
-            return ''
-        return desc
+        return msg
 
     def fn_save_info(info):
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         shared.writefile(info, fn, silent=True)
         shared.log.debug(f'Network save info: item="{ui.last_item.name}" filename="{fn}"')
-        return info
-
-    def fn_delete_info(info):
-        if ui.last_item is None:
-            return info
-        fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
-        if os.path.exists(fn):
-            shared.log.debug(f'Network delete info: item="{ui.last_item.name}" filename="{fn}"')
-            os.remove(fn)
-            return ''
         return info
 
     def fn_save_style(info, description, prompt, negative, extra, wildcards):
@@ -774,9 +785,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     btn_save_img.click(fn=fn_save_img, _js='closeDetailsEN', inputs=[img], outputs=[img])
     btn_delete_img.click(fn=fn_delete_img, _js='closeDetailsEN', inputs=[img], outputs=[img])
     btn_save_desc.click(fn=fn_save_desc, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
-    btn_delete_desc.click(fn=fn_delete_desc, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
+    btn_delete_desc.click(fn=fn_delete_network, _js='closeDetailsEN', inputs=[desc], outputs=[desc])
     btn_save_info.click(fn=fn_save_info, _js='closeDetailsEN', inputs=[info], outputs=[info])
-    btn_delete_info.click(fn=fn_delete_info, _js='closeDetailsEN', inputs=[info], outputs=[info])
+    btn_delete_info.click(fn=fn_delete_network, _js='closeDetailsEN', inputs=[info], outputs=[desc])
     btn_save_style.click(fn=fn_save_style, _js='closeDetailsEN', inputs=[info, description, prompt, negative, extra, wildcards], outputs=[info])
     btn_delete_style.click(fn=fn_delete_style, _js='closeDetailsEN', inputs=[info], outputs=[info])
 
@@ -786,7 +797,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
 
         if is_valid:
-            stat = os.stat(item.filename) if os.path.exists(item.filename) else None
+            stat_size, stat_mtime = modelstats.stat(item.filename)
             desc = item.description
             fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
             if 'modelVersions' in fullinfo: # sanitize massive objects
@@ -876,8 +887,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                     <tr><td>Alias</td><td>{getattr(item, 'alias', 'N/A')}</td></tr>
                     <tr><td>Filename</td><td>{item.filename}</td></tr>
                     <tr><td>Hash</td><td>{getattr(item, 'hash', 'N/A')}</td></tr>
-                    <tr><td>Size</td><td>{round(stat.st_size/1024/1024, 2) if stat is not None else 'N/A'} MB</td></tr>
-                    <tr><td>Last modified</td><td>{datetime.fromtimestamp(stat.st_mtime) if stat is not None else 'N/A'}</td></tr>
+                    <tr><td>Size</td><td>{round(stat_size/1024/1024, 2)} MB</td></tr>
+                    <tr><td>Last modified</td><td>{stat_mtime}</td></tr>
                     <tr><td>Source URL</td><td>{url}</td></tr>
                     <tr><td style="border-top: 1px solid var(--button-primary-border-color);"></td><td></td></tr>
                     {lora}
@@ -932,9 +943,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         return pages
 
     def ui_scan_click(title):
-        from modules import ui_models
-        if ui_models.search_metadata_civit is not None:
-            ui_models.search_metadata_civit(True, title)
+        from modules.civitai.metadata_civitai import civit_search_metadata
+        for _generator in civit_search_metadata(title): # need to read generator output so python does not optimize function away
+            pass
         return ui_refresh_click(title)
 
     def ui_save_click():

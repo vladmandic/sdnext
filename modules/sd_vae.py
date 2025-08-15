@@ -12,6 +12,35 @@ checkpoint_info = None
 vae_path = os.path.abspath(os.path.join(paths.models_path, 'VAE'))
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 unspecified = object()
+vae_scale_override = {
+    'WanPipeline': 16,
+}
+
+
+def get_vae_scale_factor(model=None):
+    patch_size = 1
+    if model is None:
+        model = shared.sd_model
+    if model is None:
+        vae_scale_factor = 8
+    elif model.__class__.__name__ in vae_scale_override:
+        vae_scale_factor = vae_scale_override[model.__class__.__name__]
+    elif hasattr(model, 'vae_scale_factor_spatial'):
+        vae_scale_factor = model.vae_scale_factor_spatial
+    elif hasattr(model, 'vae_scale_factor'):
+        vae_scale_factor = model.vae_scale_factor
+    elif hasattr(model, 'pipe') and hasattr(model.pipe, 'vae_scale_factor'):
+        vae_scale_factor = model.pipe.vae_scale_factor
+    elif hasattr(model, 'config') and hasattr(model.config, 'vae_scale_factor'):
+        vae_scale_factor = model.config.vae_scale_factor
+    else:
+        # shared.log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
+        vae_scale_factor = 8
+    if hasattr(model, 'patch_size'):
+        patch_size = model.patch_size
+    if debug:
+        shared.log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
+    return vae_scale_factor * patch_size
 
 
 def load_vae_dict(filename):

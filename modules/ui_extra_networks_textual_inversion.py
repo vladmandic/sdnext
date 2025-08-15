@@ -1,6 +1,6 @@
 import json
 import os
-from modules import shared, sd_models, ui_extra_networks, files_cache
+from modules import shared, sd_models, ui_extra_networks, files_cache, modelstats
 from modules.textual_inversion import Embedding
 
 
@@ -23,17 +23,20 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
             if embedding.tag is not None:
                 tags[embedding.tag]=1
             name = os.path.splitext(embedding.basename)[0]
+            size, mtime = modelstats.stat(embedding.filename)
+            info = self.find_info(embedding.filename)
             record = {
                 "type": 'Embedding',
                 "name": name,
                 "filename": embedding.filename,
+                "alias": os.path.splitext(os.path.basename(embedding.filename))[0],
                 "prompt": json.dumps(f" {os.path.splitext(embedding.name)[0]}"),
                 "tags": tags,
-                "mtime": os.path.getmtime(embedding.filename),
-                "size": os.path.getsize(embedding.filename),
+                "mtime": mtime,
+                "size": size,
+                "info": info,
+                "description": self.find_description(embedding.filename, info),
             }
-            record["info"] = self.find_info(embedding.filename)
-            record["description"] = self.find_description(embedding.filename, record["info"])
         except Exception as e:
             shared.log.debug(f'Networks error: type=embedding file="{embedding.filename}" {e}')
         return record

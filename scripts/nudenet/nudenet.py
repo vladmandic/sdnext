@@ -61,7 +61,7 @@ class NudeDetector:
         self.model_path = model or hf.hf_hub_download(
             repo_id='vladmandic/nudenet',
             filename='nudenet.onnx',
-            cache_dir=shared.opts.diffusers_dir,
+            cache_dir=shared.opts.hfcache_dir,
         )
         if session is None:
             log.info(f'NudeNet load: model="{self.model_path}" providers={providers}')

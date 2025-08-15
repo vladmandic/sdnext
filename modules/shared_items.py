@@ -42,9 +42,10 @@ pipelines = {
     'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
     'Amused': getattr(diffusers, 'AmusedPipeline', None),
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
-    'OmniGenPipeline': getattr(diffusers, 'OmniGenPipeline', None),
+    'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
+    'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
@@ -105,26 +106,15 @@ def refresh_te_list():
     modules.model_te.refresh_te_list()
 
 
-def list_crossattention(native:bool=True):
-    if native:
-        return [
-            "Disabled",
-            "Scaled-Dot-Product",
-            "xFormers",
-            "Batch matrix-matrix",
-            "Split attention",
-            "Dynamic Attention BMM"
-        ]
-    else:
-        return [
-            "Disabled",
-            "Scaled-Dot-Product",
-            "xFormers",
-            "Doggettx's",
-            "InvokeAI's",
-            "Sub-quadratic",
-            "Split attention"
-        ]
+def list_crossattention():
+    return [
+        "Disabled",
+        "Scaled-Dot-Product",
+        "xFormers",
+        "Batch matrix-matrix",
+        "Split attention",
+        "Dynamic Attention BMM"
+    ]
 
 def get_pipelines():
     from installer import log

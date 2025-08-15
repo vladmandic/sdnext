@@ -3,6 +3,18 @@ let previewDrag = false;
 let modalPreviewZone;
 let previewInstance;
 
+function cycleImageFit() {
+  const root = document.documentElement;
+  const current = getComputedStyle(root).getPropertyValue('--sd-image-fit').trim();
+  let next = 'contain';
+  if (current === 'contain') next = 'cover';
+  else if (current === 'cover') next = 'fill';
+  else if (current === 'fill') next = 'scale-down';
+  else if (current === 'scale-down') next = 'none';
+  root.style.setProperty('--sd-image-fit', next);
+  log('cycleImageFit', current, next);
+}
+
 function closeModal(evt, force = false) {
   if (force) gradioApp().getElementById('lightboxModal').style.display = 'none';
   if (previewDrag) return;

@@ -45,9 +45,9 @@ def init_args():
 def init_paths():
     global script_path, extensions_dir # pylint: disable=global-statement
     import modules.paths
-    modules.paths.register_paths()
     script_path = modules.paths.script_path
     extensions_dir = modules.paths.extensions_dir
+    sys.path.insert(0, script_path)
     rec('paths')
 
 
@@ -221,10 +221,7 @@ def start_server(immediate=True, server=None):
         installer.log.trace('Logging: level=trace')
         server.wants_restart = False
     else:
-        if args.api_only:
-            uvicorn = server.api_only()
-        else:
-            uvicorn = server.webui(restart=not immediate)
+        uvicorn = server.webui(restart=not immediate)
     if args.profile:
         pr.disable()
         installer.print_profile(pr, 'WebUI')

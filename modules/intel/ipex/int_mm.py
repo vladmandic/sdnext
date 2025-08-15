@@ -49,7 +49,7 @@ def qlinear_unary(
         # GEMM template needs 2D input, normalize input shape here
         x = view(x, [-1, x_size[-1]])
     if not isinstance(x_scale, ir.TensorBox):
-        assert type(x_scale) == float
+        assert isinstance(x_scale, float)
         x_scale = V.graph.add_tensor_constant(
             torch.tensor(x_scale, dtype=torch.float32), name="x_scale"
         )
@@ -71,7 +71,7 @@ def qlinear_unary(
             torch.tensor(0, dtype=torch.int32), name="x_zp"
         )
     if not isinstance(x_zp, ir.TensorBox):
-        assert type(x_zp) == int
+        assert isinstance(x_zp, int)
         x_zp = V.graph.add_tensor_constant(
             torch.tensor(x_zp, dtype=torch.int32), name="x_zp"
         )

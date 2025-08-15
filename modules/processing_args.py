@@ -7,7 +7,7 @@ import inspect
 import torch
 import numpy as np
 from PIL import Image
-from modules import shared, errors, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, prompt_parser_diffusers, timer, extra_networks
+from modules import shared, errors, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, prompt_parser_diffusers, timer, extra_networks, sd_vae
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import resize_hires, fix_prompts, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, get_generator, set_latents, apply_circular # pylint: disable=unused-import
 from modules.api import helpers
@@ -19,6 +19,7 @@ disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
 def task_specific_kwargs(p, model):
+    vae_scale_factor = sd_vae.get_vae_scale_factor(model)
     task_args = {}
     is_img2img_model = bool('Zero123' in shared.sd_model.__class__.__name__)
     if len(getattr(p, 'init_images', [])) > 0:
@@ -30,8 +31,8 @@ def task_specific_kwargs(p, model):
         p.ops.append('txt2img')
         if hasattr(p, 'width') and hasattr(p, 'height'):
             task_args = {
-                'width': 8 * math.ceil(p.width / 8),
-                'height': 8 * math.ceil(p.height / 8),
+                'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor),
+                'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor),
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
@@ -50,19 +51,18 @@ def task_specific_kwargs(p, model):
         }
         if model.__class__.__name__ == 'FluxImg2ImgPipeline' or model.__class__.__name__ == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width, p.height = p.init_images[0].shape[-1] * 16, p.init_images[0].shape[-2] * 16
+                p.width, p.height = p.init_images[0].shape[-1] * vae_scale_factor, p.init_images[0].shape[-2] * vae_scale_factor
             else:
-                p.width, p.height = 8 * math.ceil(p.init_images[0].width / 8), 8 * math.ceil(p.init_images[0].height / 8)
+                p.width, p.height = 8 * math.ceil(p.init_images[0].width / vae_scale_factor), 8 * math.ceil(p.init_images[0].height / vae_scale_factor)
             if model.__class__.__name__ == 'FluxKontextPipeline':
                 aspect_ratio = p.width / p.height
-                vae_scale_factor = 16
                 max_area = max(p.width, p.height)**2
                 p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
                 p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
                 task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
         elif model.__class__.__name__ == 'OmniGenPipeline' or model.__class__.__name__ == 'OmniGen2Pipeline':
-            p.width, p.height = 16 * math.ceil(p.init_images[0].width / 16), 16 * math.ceil(p.init_images[0].height / 16)
+            p.width, p.height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             task_args = {
                 'width': p.width,
                 'height': p.height,
@@ -71,8 +71,8 @@ def task_specific_kwargs(p, model):
     elif sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {
-            'width': 8 * math.ceil(p.width / 8) if hasattr(p, 'width') else None,
-            'height': 8 * math.ceil(p.height / 8) if hasattr(p, 'height') else None,
+            'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor) if hasattr(p, 'width') else None,
+            'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor) if hasattr(p, 'height') else None,
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
@@ -99,6 +99,8 @@ def task_specific_kwargs(p, model):
             'height': height,
             'width': width,
         }
+
+    # model specific args
     if model.__class__.__name__ == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -376,18 +378,21 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     # handle missing resolution
     if args.get('image', None) is not None and ('width' not in args or 'height' not in args):
         if 'width' in possible and 'height' in possible:
+            vae_scale_factor = sd_vae.get_vae_scale_factor(model)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
-                args['width'] = 8 * args['image'].shape[-1]
-                args['height'] = 8 * args['image'].shape[-2]
+                args['width'] = vae_scale_factor * args['image'].shape[-1]
+                args['height'] = vae_scale_factor * args['image'].shape[-2]
             elif isinstance(args['image'], Image.Image):
                 args['width'] = args['image'].width
                 args['height'] = args['image'].height
             elif isinstance(args['image'][0], torch.Tensor) or isinstance(args['image'][0], np.ndarray):
-                args['width'] = 8 * args['image'][0].shape[-1]
-                args['height'] = 8 * args['image'][0].shape[-2]
+                args['width'] = vae_scale_factor * args['image'][0].shape[-1]
+                args['height'] = vae_scale_factor * args['image'][0].shape[-2]
             else:
-                args['width'] = 8 * math.ceil(args['image'][0].width / 8)
-                args['height'] = 8 * math.ceil(args['image'][0].height / 8)
+                args['width'] = vae_scale_factor * math.ceil(args['image'][0].width / vae_scale_factor)
+                args['height'] = vae_scale_factor * math.ceil(args['image'][0].height / vae_scale_factor)
+    if 'max_area' in possible and 'width' in args and 'height' in args and 'max_area' not in args:
+        args['max_area'] = args['width'] * args['height']
 
     # handle implicit controlnet
     if 'control_image' in possible and 'control_image' not in args and 'image' in args:

@@ -14,7 +14,7 @@ def queue_err(msg):
 
 
 def get_url(url):
-    return f'&nbsp <a href="{url}" target="_blank" rel="noopener noreferrer" style="color: var(--button-primary-background-fill); font-weight: normal">{url}</a><br><br>' if url else '<br><br>'
+    return f'<a href="{url}" target="_blank" rel="noopener noreferrer" class="video-model-link">{url}</a><br><br>' if url else '<br><br>'
 
 
 def check_av():

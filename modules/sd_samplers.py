@@ -78,7 +78,7 @@ def create_sampler(name, model):
     if model is not None:
         if getattr(model, "default_scheduler", None) is None:
             model.default_scheduler = copy.deepcopy(model.scheduler)
-        requires_flow = ('FlowMatch' in model.default_scheduler.__class__.__name__) or (getattr(model.scheduler.config, 'prediction_type', None) == 'flow_prediction')
+        requires_flow = ('FlowMatch' in model.default_scheduler.__class__.__name__) or (getattr(model.default_scheduler.config, 'prediction_type', None) == 'flow_prediction')
     else:
         requires_flow = False
 

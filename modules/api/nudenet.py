@@ -58,7 +58,7 @@ def banned_words(
 
 def register_api():
     from modules.shared import api as api_instance
-    api_instance.add_api_route("/sdapi/v1//nudenet", nudenet_censor, methods=["POST"], response_model=dict)
-    api_instance.add_api_route("/sdapi/v1//prompt-lang", prompt_check, methods=["POST"], response_model=dict)
-    api_instance.add_api_route("/sdapi/v1//image-guard", image_guard, methods=["POST"], response_model=dict)
-    api_instance.add_api_route("/sdapi/v1//prompt-banned", banned_words, methods=["POST"], response_model=list)
+    api_instance.add_api_route("/sdapi/v1/nudenet", nudenet_censor, methods=["POST"], response_model=dict)
+    api_instance.add_api_route("/sdapi/v1/prompt-lang", prompt_check, methods=["POST"], response_model=dict)
+    api_instance.add_api_route("/sdapi/v1/image-guard", image_guard, methods=["POST"], response_model=dict)
+    api_instance.add_api_route("/sdapi/v1/prompt-banned", banned_words, methods=["POST"], response_model=list)

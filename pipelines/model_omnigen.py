@@ -1,8 +1,5 @@
-import os
 import diffusers
 from modules import shared, devices, sd_models, model_quant
-
-debug = shared.log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument

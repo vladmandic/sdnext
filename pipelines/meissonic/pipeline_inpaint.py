@@ -43,7 +43,7 @@ def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
     return latent_image_ids.to(device=device, dtype=dtype)
 
 
-class InpaintPipeline(DiffusionPipeline):
+class MeissonicInpaintPipeline(DiffusionPipeline):
     image_processor: VaeImageProcessor
     vqvae: VQModel
     tokenizer: CLIPTokenizer

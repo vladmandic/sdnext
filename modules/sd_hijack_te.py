@@ -8,10 +8,12 @@ def hijack_encode_prompt(*args, **kwargs):
     t0 = time.time()
     if 'max_sequence_length' in kwargs:
         kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], os.environ.get('HIDREAM_MAX_SEQUENCE_LENGTH', 256))
+    # if hasattr(shared.sd_model, 'text_encoder') and shared.sd_model.text_encoder is not None:
+    #     sd_models.move_model(shared.sd_model.text_encoder, devices.device)
     try:
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
-        shared.log.error(f'Eencode prompt: {e}')
+        shared.log.error(f'Encode prompt: {e}')
         errors.display(e, 'Encode prompt')
         res = None
     t1 = time.time()

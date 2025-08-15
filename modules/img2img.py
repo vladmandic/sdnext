@@ -138,10 +138,10 @@ def process_batch(p, input_files, input_dir, output_dir, inpaint_mask_dir, args)
             if output_dir == '':
                 output_dir = shared.opts.outdir_img2img_samples
             os.makedirs(output_dir, exist_ok=True)
-            geninfo, items = images.read_info_from_image(image)
+            info, items = images.read_info_from_image(image)
             for k, v in items.items():
                 image.info[k] = v
-            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=geninfo, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
+            images.save_image(image, path=output_dir, basename=basename, seed=None, prompt=None, extension=ext, info=info, grid=False, pnginfo_section_name="extras", existing_info=image.info, forced_filename=forced_filename)
         processed = scripts_manager.scripts_img2img.after(p, processed, *args)
         shared.log.debug(f'Processed: images={len(batch_image_files)} memory={memory_stats()} batch')
 

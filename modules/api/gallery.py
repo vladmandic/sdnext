@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
-from modules import shared, images, files_cache
+from modules import shared, images, files_cache, modelstats
 
 
 debug = shared.log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -76,7 +76,7 @@ def register_api(app: FastAPI): # register api
     def get_video_thumbnail(filepath):
         from modules.video import get_video_params
         try:
-            stat = os.stat(filepath)
+            stat_size, stat_mtime = modelstats.stat(filepath)
             frames, fps, duration, width, height, codec, frame = get_video_params(filepath, capture=True)
             h = shared.opts.extra_networks_card_size
             w = shared.opts.extra_networks_card_size if shared.opts.browser_fixed_width else width * h // height
@@ -91,8 +91,8 @@ def register_api(app: FastAPI): # register api
                 'data': data_url,
                 'width': width,
                 'height': height,
-                'size': stat.st_size,
-                'mtime': stat.st_mtime,
+                'size': stat_size,
+                'mtime': stat_mtime.timestamp(),
             }
             return content
         except Exception as e:
@@ -101,7 +101,7 @@ def register_api(app: FastAPI): # register api
 
     def get_image_thumbnail(filepath):
         try:
-            stat = os.stat(filepath)
+            stat_size, stat_mtime = modelstats.stat(filepath)
             image = Image.open(filepath)
             geninfo, _items = images.read_info_from_image(image)
             h = shared.opts.extra_networks_card_size
@@ -118,8 +118,8 @@ def register_api(app: FastAPI): # register api
                 'data': data_url,
                 'width': width,
                 'height': height,
-                'size': stat.st_size,
-                'mtime': stat.st_mtime,
+                'size': stat_size,
+                'mtime': stat_mtime.timestamp(),
             }
             return content
         except Exception as e:
