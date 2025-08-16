@@ -107,6 +107,11 @@ def install_traceback(suppress: list = []):
 def setup_logging():
     from functools import partial, partialmethod
     from logging.handlers import RotatingFileHandler
+    try:
+        import rich # pylint: disable=unused-import
+    except Exception:
+        log.error('Please restart SD.Next so changes take effect')
+        sys.exit(1)
     from rich.theme import Theme
     from rich.logging import RichHandler
     from rich.console import Console

@@ -1,5 +1,16 @@
 # Change Log for SD.Next
 
+## Update for 2025-08-16
+
+- **Fixes**
+  - fix OpenVINO with offloading  
+  - add explicit offload calls on prompt encode  
+  - error reporting on model load failure  
+  - fix torch version checks  
+  - remove extra cache clear  
+  - enable explicit sync calls for `rocm` on windows  
+  - note restart-needed on initial startup import error  
+
 ## Update for 2025-08-15
 
 ### Highlights for 2025-08-15
