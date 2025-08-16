@@ -129,8 +129,9 @@ def run_settings(*args):
         if shared.opts.set(key, value):
             changed.append(key)
     if shared.opts.cuda_compile_backend == "olive-ai":
-        from modules.onnx_impl import install_olive
+        from modules.onnx_impl import install_olive, initialize_onnx_pipelines
         install_olive()
+        initialize_onnx_pipelines()
     if shared.cmd_opts.use_directml:
         from modules.dml import directml_override_opts
         directml_override_opts()

@@ -4,7 +4,6 @@ import importlib
 from typing import Type, Tuple, Union, List, Dict, Any
 import torch
 import diffusers
-import onnxruntime as ort
 
 
 def extract_device(args: List, kwargs: Dict):
@@ -18,7 +17,7 @@ def extract_device(args: List, kwargs: Dict):
     return device
 
 
-def move_inference_session(session: ort.InferenceSession, device: torch.device):
+def move_inference_session(session, device: torch.device): # session: ort.InferenceSession
     from modules.devices import device as default_device
     from modules.devices import backend as default_backend
 
