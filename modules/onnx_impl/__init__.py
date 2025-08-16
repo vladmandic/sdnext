@@ -2,11 +2,17 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import diffusers
-import onnxruntime as ort
 from installer import log, installed, install
 
 
 initialized = False
+
+
+try:
+    import onnxruntime as ort
+except Exception as e:
+    log.error(f'ONNX import error: {e}')
+    ort = None
 
 
 class DynamicSessionOptions(ort.SessionOptions):
