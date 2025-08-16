@@ -68,8 +68,6 @@ def initialize():
     modules.sd_checkpoint.init_metadata()
     modules.hashes.init_cache()
 
-    paths.check_cache(shared.opts)
-
     modules.sd_samplers.list_samplers()
     timer.startup.record("samplers")
 
@@ -121,8 +119,9 @@ def initialize():
     modules.extra_networks.register_default_extra_networks()
     timer.startup.record("networks")
 
-    from modules.models_hf import hf_init
+    from modules.models_hf import hf_init, hf_check_cache
     hf_init()
+    hf_check_cache()
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:

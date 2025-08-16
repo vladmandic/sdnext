@@ -73,16 +73,11 @@ def copy_diffuser_options(new_pipe, orig_pipe):
         set_accelerate(new_pipe)
 
 
-def set_huggingface_options(op: str, model_type: str):
-    if model_type is not None: # overrides
-        pass
+def set_huggingface_options():
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
-        shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
-    if shared.opts.sd_parallel_load:
-        shared.log.debug(f'Setting {op}: component=huggingface parallel={shared.opts.sd_parallel_load}')
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -614,7 +609,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
 
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
-        set_huggingface_options(op, model_type)
+        set_huggingface_options()
 
         # preload vae so it can be used as param
         vae = None

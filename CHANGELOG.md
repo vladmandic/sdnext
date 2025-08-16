@@ -2,6 +2,9 @@
 
 ## Update for 2025-08-16
 
+- **Features**
+  - new setting -> huggingface -> download method  
+    default is `rust` as new `xet` is known to cause issues  
 - **Fixes**
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  
