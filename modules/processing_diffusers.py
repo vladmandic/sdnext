@@ -12,8 +12,7 @@ from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, c
 from modules.lora import lora_common
 
 
-debug = shared.log.trace if os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: DIFFUSERS')
+debug = os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None
 last_p = None
 orig_pipeline = shared.sd_model
 
@@ -136,6 +135,8 @@ def process_base(p: processing.StableDiffusionProcessing):
     if shared.opts.scheduler_eta is not None and shared.opts.scheduler_eta > 0 and shared.opts.scheduler_eta < 1:
         p.extra_generation_params["Sampler Eta"] = shared.opts.scheduler_eta
     output = None
+    if debug:
+        modelstats.analyze()
     try:
         t0 = time.time()
         extra_networks.activate(p, exclude=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
@@ -471,7 +472,8 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
 
 def process_diffusers(p: processing.StableDiffusionProcessing):
     results = []
-    debug(f'Process diffusers args: {vars(p)}')
+    if debug:
+        shared.log.trace(f'Process diffusers args: {vars(p)}')
     if not validate_pipeline(p):
         return results
 
