@@ -29,11 +29,11 @@ def conv_fp8_matmul_tensorwise(
     if groups == 1:
         result = torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype)
     else:
-        weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
-        input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
+        weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
+        input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
-            result.append(torch._scaled_mm(input[i], weight[i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
+            result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
         result = torch.cat(result, dim=-1)
     if bias is not None:
         dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)
@@ -41,7 +41,7 @@ def conv_fp8_matmul_tensorwise(
         dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 
     if conv_type == 1:
-        result = result.transpose(1,2)
+        result = result.transpose_(1,2)
     elif conv_type == 2:
         result = result.permute(0,3,1,2)
     elif conv_type == 3:

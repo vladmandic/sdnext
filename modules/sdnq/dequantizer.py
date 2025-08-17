@@ -9,21 +9,21 @@ from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetr
 def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.FloatTensor:
     result = torch.addcmul(zero_point, weight.to(dtype=scale.dtype), scale).to(dtype=dtype)
     if result_shape is not None:
-        result = result.reshape(result_shape)
+        result = result.view(result_shape)
     return result
 
 
 def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
     result = weight.to(dtype=scale.dtype).mul_(scale).to(dtype=dtype)
     if skip_quantized_matmul:
-        result = result.t()
+        result.t_()
     if result_shape is not None:
-        result = result.reshape(result_shape)
+        result = result.view(result_shape)
     return result
 
 
 def dequantize_symmetric_with_bias(weight: torch.CharTensor, scale: torch.FloatTensor, bias: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size) -> torch.FloatTensor:
-    return torch.addcmul(bias, weight.to(dtype=scale.dtype), scale).to(dtype=dtype).reshape(result_shape)
+    return torch.addcmul(bias, weight.to(dtype=scale.dtype), scale).to(dtype=dtype).view(result_shape)
 
 
 def dequantize_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:

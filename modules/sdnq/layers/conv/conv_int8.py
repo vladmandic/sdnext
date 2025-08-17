@@ -33,11 +33,11 @@ def conv_int8_matmul(
     if groups == 1:
         result = torch._int_mm(input, weight)
     else:
-        weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
-        input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
+        weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
+        input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
-            result.append(torch._int_mm(input[i], weight[i]))
+            result.append(torch._int_mm(input[:, i], weight[:, i]))
         result = torch.cat(result, dim=-1)
     if bias is not None:
         result = dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)
@@ -45,7 +45,7 @@ def conv_int8_matmul(
         result = dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
 
     if conv_type == 1:
-        result = result.transpose(1,2)
+        result = result.transpose_(1,2)
     elif conv_type == 2:
         result = result.permute(0,3,1,2)
     elif conv_type == 3:
