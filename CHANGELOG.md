@@ -1,11 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-16
+## Update for 2025-08-18
 
-- **Features**
+- **Features**  
   - new setting -> huggingface -> download method  
     default is `rust` as new `xet` is known to cause issues  
-- **Fixes**
+  - support for `flux.1-kontext` lora
+- **Fixes**  
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  
   - error reporting on model load failure  
@@ -13,6 +14,9 @@
   - remove extra cache clear  
   - enable explicit sync calls for `rocm` on windows  
   - note restart-needed on initial startup import error  
+  - bypass diffusers-lora-fuse on quantized models  
+  - monkey-patch diffusers to use original weights shape when loading lora  
+  - guard against null prompt  
 
 ## Update for 2025-08-15
 

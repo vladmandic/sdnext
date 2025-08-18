@@ -23,6 +23,9 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
     else:
         cls_name = diffusers.FluxPipeline
 
+    from pipelines.flux import flux_lora
+    flux_lora.apply_patch()
+
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     shared.log.debug(f'Load model: type=Flux repo="{repo_id}" cls={cls_name.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
