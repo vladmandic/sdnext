@@ -4,20 +4,24 @@ def calculate_module_shape(model, base_module=None, base_weight_param_name=None)
             return weight.quant_state.shape
         elif weight.__class__.__name__ == "GGUFParameter":
             return weight.quant_shape
-        elif weight.__class__.__name__ == "SDNQParameter":
-            return weight.original_shape
         else:
             return weight.shape
 
     if base_module is not None:
-        return _get_weight_shape(base_module.weight)
+        if hasattr(base_module, "sdnq_dequantizer"):
+            return base_module.sdnq_dequantizer.original_shape
+        else:
+            return _get_weight_shape(base_module.weight)
     elif base_weight_param_name is not None:
         from diffusers.utils import get_submodule_by_name
         if not base_weight_param_name.endswith(".weight"):
             raise ValueError(f"Invalid `base_weight_param_name` passed as it does not end with '.weight' {base_weight_param_name=}.")
         module_path = base_weight_param_name.rsplit(".weight", 1)[0]
         submodule = get_submodule_by_name(model, module_path)
-        return _get_weight_shape(submodule.weight)
+        if hasattr(submodule, "sdnq_dequantizer"):
+            return submodule.sdnq_dequantizer.original_shape
+        else:
+            return _get_weight_shape(submodule.weight)
 
     raise ValueError("Either `base_module` or `base_weight_param_name` must be provided.")
 
