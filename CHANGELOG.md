@@ -5,7 +5,9 @@
 - **Features**  
   - new setting -> huggingface -> download method  
     default is `rust` as new `xet` is known to cause issues  
-  - support for `flux.1-kontext` lora
+  - support for `flux.1-kontext` lora  
+- **UI**  
+  - new artwork for reference models in networks, thanks @liutyi  
 - **Fixes**  
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  
