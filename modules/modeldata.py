@@ -60,6 +60,8 @@ def get_model_type(pipe):
         model_type = 'bria'
     elif 'Qwen' in name:
         model_type = 'qwen'
+    elif 'NextStep' in name:
+        model_type = 'nextstep'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

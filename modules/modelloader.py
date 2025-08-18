@@ -27,12 +27,13 @@ def hf_login(token=None):
         log.debug('HF login: no token provided')
         return False
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
-        log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
+        # log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
         del os.environ['HUGGING_FACE_HUB_TOKEN']
     if os.environ.get('HF_TOKEN', None) is not None:
-        log.warning('HF login: removing existing env variable: HF_TOKEN')
+        # log.warning('HF login: removing existing env variable: HF_TOKEN')
         del os.environ['HF_TOKEN']
     if loggedin != token:
+        os.environ.setdefault('HF_TOKEN', token)
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             hf.logout()

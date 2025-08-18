@@ -4,8 +4,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
-- Remote TE
-- Unified `CLIPTextModelWithProjection` loader  
+- Remote TE  
+- Mobile ModernUI  
+- [Canvas](https://konvajs.org/)  
+
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
@@ -40,7 +42,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Remove: CodeFormer  
 - Remove: GFPGAN  
 - ModernUI: Lite vs Expert mode  
-- [Canvas](https://konvajs.org/)  
 
 ### Future Considerations
 - [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
