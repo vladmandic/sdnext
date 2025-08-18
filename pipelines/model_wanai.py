@@ -60,13 +60,13 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     sd_models.hf_auth_check(checkpoint_info)
 
     if 'a14b' in repo_id.lower():
-        if shared.opts.model_wan_stage == 'first':
+        if shared.opts.model_wan_stage == 'high noise':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = None
-        elif shared.opts.model_wan_stage == 'second':
+        elif shared.opts.model_wan_stage == 'low noise':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
             transformer_2 = None
-        elif shared.opts.model_wan_stage == 'both':
+        elif shared.opts.model_wan_stage == 'combined':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
         else:
