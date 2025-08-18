@@ -12,18 +12,35 @@ const localeData = {
   expandTimeout: null, // New property for expansion timeout
   currentElement: null, // Track current element for expansion
 };
+let localeTimeout = null;
 
 async function cycleLocale() {
-  log('cycleLocale', localeData.prev, localeData.locale);
-  const index = allLocales.indexOf(localeData.prev);
-  localeData.locale = allLocales[(index + 1) % allLocales.length];
+  clearTimeout(localeTimeout);
+  localeTimeout = setTimeout(() => {
+    log('cycleLocale', localeData.prev, localeData.locale);
+    const index = allLocales.indexOf(localeData.prev);
+    localeData.locale = allLocales[(index + 1) % allLocales.length];
+    localeData.btn.innerText = localeData.locale;
+    // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
+    localeData.finished = false;
+    localeData.data = [];
+    localeData.prev = localeData.locale;
+    window.opts.ui_locale = localeData.locale;
+    setHints(); // eslint-disable-line no-use-before-define
+  }, 250);
+}
+
+async function resetLocale() {
+  clearTimeout(localeTimeout); // Prevent the single click logic
+  localeData.locale = 'en';
+  log('resetLocale', localeData.locale);
+  const index = allLocales.indexOf(localeData.locale);
+  localeData.locale = allLocales[(index) % allLocales.length];
   localeData.btn.innerText = localeData.locale;
-  // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
   localeData.finished = false;
   localeData.data = [];
-  localeData.prev = localeData.locale;
   window.opts.ui_locale = localeData.locale;
-  await setHints(); // eslint-disable-line no-use-before-define
+  setHints(); // eslint-disable-line no-use-before-define
 }
 
 async function tooltipCreate() {
@@ -40,6 +57,7 @@ async function tooltipCreate() {
     gradioApp().appendChild(localeData.btn);
   }
   localeData.btn.innerText = localeData.locale;
+  localeData.btn.ondblclick = resetLocale;
   localeData.btn.onclick = cycleLocale;
   if (window.opts.tooltips === 'None') localeData.type = 0;
   if (window.opts.tooltips === 'Browser default') localeData.type = 1;
@@ -259,7 +277,10 @@ async function setHints(analyze = false) {
   let localized = 0;
   let hints = 0;
   const t0 = performance.now();
-  for (const el of elements) {
+  for (const possible of elements) {
+    let el = possible;
+    if (possible.querySelector('span')) el = possible.querySelector('span');
+    if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) continue; // skip icon buttons
     let found;
     if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());

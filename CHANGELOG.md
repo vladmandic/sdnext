@@ -8,6 +8,8 @@
   - support for `flux.1-kontext` lora  
 - **UI**  
   - new artwork for reference models in networks, thanks @liutyi  
+  - localization support for ModernUI  
+  - single-click on locale rotates current locale, double-click on locale resets locale to `en`  
 - **Fixes**  
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  
