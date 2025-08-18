@@ -245,6 +245,15 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
+class SDNQParameter(torch.nn.Parameter):
+    def __new__(cls, data=None, requires_grad=False):
+        return super().__new__(cls, data, requires_grad)
+
+    def __init__(self, data=None, requires_grad=False): # pylint: disable=unused-argument
+        self.original_shape = data.shape
+        super().__init__()
+
+
 class SDNQQuantizer(DiffusersQuantizer):
     r"""
     Diffusers Quantizer for SDNQ
@@ -333,7 +342,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
 
         layer, _ = get_module_from_name(model, param_name)
-        layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
+        layer.weight = SDNQParameter(param_value, requires_grad=False)
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=weights_dtype,

@@ -275,7 +275,7 @@ class YoloRestorer(Detailer):
             orig_negative: str = orig_p.get('all_negative_prompts', [''])[0]
             prompt: str = orig_p.get('detailer_prompt', '')
             negative: str = orig_p.get('detailer_negative', '')
-            if len(prompt) == 0:
+            if prompt is None or len(prompt) == 0:
                 prompt = orig_prompt
             else:
                 prompt = prompt.replace('[PROMPT]', orig_prompt)
