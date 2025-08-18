@@ -2,14 +2,22 @@
 
 ## Update for 2025-08-18
 
+- **Models**
+  - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
+    Image editing using natural language prompting, similar to `Flux.1-Kontext`, but based on larger 20B `Qwen-Image` model  
 - **Features**  
   - new setting -> huggingface -> download method  
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
+  - support for `qwen-image` lora  
 - **UI**  
-  - new artwork for reference models in networks, thanks @liutyi  
+  - new artwork for reference models in networks  
+    thanks @liutyi  
   - localization support for ModernUI  
   - single-click on locale rotates current locale, double-click on locale resets locale to `en`  
+- **Docs**
+  - Models and Video pages updated with links to original model repos, model licenses and original release dates  
+    thanks @alerikaisattera  
 - **Fixes**  
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  

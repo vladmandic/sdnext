@@ -101,6 +101,8 @@ def task_specific_kwargs(p, model):
         }
 
     # model specific args
+    if model.__class__.__name__ == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
+        task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
     if model.__class__.__name__ == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
