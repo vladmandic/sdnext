@@ -75,7 +75,7 @@
     "skip": true,
     "variant": "bf16",
     "desc": "Stable Cascade is a diffusion model built upon the Würstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space. Why is this important? The smaller the latent space, the faster you can run inference and the cheaper the training becomes. How small is the latent space? Stable Diffusion uses a compression factor of 8, resulting in a 1024x1024 image being encoded to 128x128. Stable Cascade achieves a compression factor of 42, meaning that it is possible to encode a 1024x1024 image to 24x24, while maintaining crisp reconstructions. The text-conditional model is then trained in the highly compressed latent space. Previous versions of this architecture, achieved a 16x cost reduction over Stable Diffusion 1.5",
-    "preview": "stabilityai--stable-cascade.jpg",
+    "preview": "stabilityai--stable-cascade-lite.jpg",
     "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0"
   },
   "StabilityAI Stable Diffusion 3 Medium": {
@@ -91,7 +91,7 @@
     "skip": true,
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Medium is a Multimodal Diffusion Transformer with improvements (MMDiT-X) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
-    "preview": "stabilityai--stable-diffusion-3_5.jpg",
+    "preview": "stabilityai--stable-diffusion-3_5-medium.jpg",
     "extras": "sampler: Default, cfg_scale: 7.0"
   },
   "StabilityAI Stable Diffusion 3.5 Large": {
@@ -99,7 +99,7 @@
     "skip": true,
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Large is a Multimodal Diffusion Transformer (MMDiT) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
-    "preview": "stabilityai--stable-diffusion-3_5.jpg",
+    "preview": "stabilityai--stable-diffusion-3_5-large.jpg",
     "extras": "sampler: Default, cfg_scale: 7.0"
   },
   "StabilityAI Stable Diffusion 3.5 Turbo": {
@@ -107,7 +107,7 @@
     "skip": true,
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Large Turbo is a Multimodal Diffusion Transformer (MMDiT) text-to-image model with Adversarial Diffusion Distillation (ADD) that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency, with a focus on fewer inference steps.",
-    "preview": "stabilityai--stable-diffusion-3_5.jpg",
+    "preview": "stabilityai--stable-diffusion-3_5-large-turbo.jpg",
     "extras": "sampler: Default, cfg_scale: 7.0"
   },
 
@@ -142,21 +142,21 @@
 
   "lodestones Chroma Unlocked HD": {
     "path": "lodestones/Chroma1-HD",
-    "preview": "lodestones--Chroma.jpg",
+    "preview": "lodestones--Chroma-HD.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
   "lodestones Chroma Unlocked HD Annealed": {
     "path": "vladmandic/chroma-unlocked-v50-annealed",
-    "preview": "lodestones--Chroma.jpg",
+    "preview": "lodestones--Chroma-annealed.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
   "lodestones Chroma Unlocked HD Flash": {
     "path": "lodestones/Chroma1-Flash",
-    "preview": "lodestones--Chroma.jpg",
+    "preview": "lodestones--Chroma-flash.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0"
@@ -170,7 +170,7 @@
   },
   "lodestones Chroma Unlocked v48 Detail Calibrated": {
     "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
-    "preview": "lodestones--Chroma.jpg",
+    "preview": "lodestones--Chroma-detail.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0"
@@ -185,7 +185,7 @@
   },
   "Qwen-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
-    "preview": "Qwen--Qwen-Image.jpg",
+    "preview": "Qwen-Lightning.jpg",
     "desc": " Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8"
@@ -208,7 +208,7 @@
 
   "Wan-AI Wan2.1 1.3B": {
     "path": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
-    "preview": "Wan-AI--Wan2.1.jpg",
+    "preview": "Wan-AI--Wan2.1-1_3B.jpg",
     "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
     "skip": true,
     "extras": "sampler: Default"
@@ -222,14 +222,14 @@
   },
   "Wan-AI Wan2.2 5B": {
     "path": "Wan-AI/Wan2.2-TI2V-5B-Diffusers",
-    "preview": "Wan-AI--Wan2.2.jpg",
+    "preview": "Wan-AI--Wan2.2_5B.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
     "extras": "sampler: Default"
   },
   "Wan-AI Wan2.2 A14B": {
     "path": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
-    "preview": "Wan-AI--Wan2.2.jpg",
+    "preview": "Wan2.2-T2V-A14B.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
     "extras": "sampler: Default"
@@ -244,14 +244,14 @@
   },
   "Freepik F-Lite Texture": {
     "path": "Freepik/F-Lite-Texture",
-    "preview": "Freepik--F-Lite.jpg",
+    "preview": "Freepik--F-Lite-Texture.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
   },
   "Freepik F-Lite 7B": {
     "path": "Freepik/F-Lite-7B",
-    "preview": "Freepik--F-Lite.jpg",
+    "preview": "Freepik--F-Lite-7B.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5"
@@ -274,43 +274,43 @@
   "NVLabs Sana 1.5 1.6B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
     "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana15_1600M_1024px_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.5 4.8B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers",
     "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana15_4800M_1024px_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.5 1.6B 1k Sprint": {
     "path": "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
     "desc": "SANA-Sprint is an ultra-efficient diffusion model for text-to-image (T2I) generation, reducing inference steps from 20 to 1-4 while achieving state-of-the-art performance.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana15_Sprint_1600M_1024px_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.0 1.6B 4k": {
     "path": "Efficient-Large-Model/Sana_1600M_4Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana15_1600M_4Kpx_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.0 1.6B 2k": {
     "path": "Efficient-Large-Model/Sana_1600M_2Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana1_1600M_2Kpx_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.0 1.6B 1k": {
     "path": "Efficient-Large-Model/Sana_1600M_1024px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana1_1600M_1024px_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.0 0.6B 0.5k": {
     "path": "Efficient-Large-Model/Sana_600M_512px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana1_600M_1024px_diffusers.jpg",
     "skip": true
   },
 
@@ -323,7 +323,7 @@
   "nVidia Cosmos-Predict2 T2I 14B": {
     "path": "nvidia/Cosmos-Predict2-14B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
-    "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
+    "preview": "nvidia--Cosmos-Predict2-14B-Text2Image.jpg",
     "skip": true
   },
 
@@ -350,7 +350,7 @@
   "AuraFlow 0.2": {
     "path": "fal/AuraFlow-v0.2",
     "desc": "AuraFlow v0.2 is the fully open-sourced largest flow-based text-to-image generation model. The model was trained with more compute compared to the previous version, AuraFlow-v0.1",
-    "preview": "fal--AuraFlow-v0.3.jpg",
+    "preview": "fal--AuraFlow-v0.2.jpg",
     "skip": true
   },
 
@@ -404,21 +404,21 @@
   "Pixart-Σ Small": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-512-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxlvae_T5_diffusers.jpg",
+    "preview": "PixArt-alpha--pixart_sigma_sdxl2-512.jpg",
     "skip": true,
     "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 2.0"
   },
   "Pixart-Σ Medium": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxlvae_T5_diffusers.jpg",
+    "preview": "PixArt-alpha--pixart_sigma_sdxl2-1024.jpg",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Pixart-Σ Large": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-2K-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxlvae_T5_diffusers.jpg",
+    "preview": "PixArt-alpha--pixart_sigma_sdxl2-2K.jpg",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
@@ -432,19 +432,19 @@
   "Tencent HunyuanDiT 1.2 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Distilled.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Tencent HunyuanDiT 1.1": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Tencent HunyuanDiT 1.1 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Distilled.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
 
@@ -455,6 +455,7 @@
     "skip": true,
     "extras": "sampler: Default"
   },
+
   "AlphaVLLM Lumina 2": {
     "path": "Alpha-VLLM/Lumina-Image-2.0",
     "desc": "A Unified and Efficient Image Generative Model. Lumina-Image-2.0 is a 2 billion parameter flow-based diffusion transformer capable of generating images from text descriptions.",
@@ -473,21 +474,21 @@
   "HiDream-I1 Dev": {
     "path": "HiDream-ai/HiDream-I1-Dev",
     "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
-    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "preview": "HiDream-ai--HiDream-I1-Dev.jpg",
     "skip": true,
     "extras": "sampler: Default"
   },
   "HiDream-I1 Full": {
     "path": "HiDream-ai/HiDream-I1-Full",
     "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
-    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "preview": "HiDream-ai--HiDream-I1-Full.jpg",
     "skip": true,
     "extras": "sampler: Default"
   },
   "HiDream-E1 Full": {
     "path": "HiDream-ai/HiDream-E1-Full",
     "desc": "HiDream-E1 is an image editing model built on HiDream-I1.",
-    "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
+    "preview": "HiDream-ai--HiDream-E1-Full.jpg",
     "skip": true,
     "extras": "sampler: Default"
   },
@@ -547,7 +548,7 @@
   "Playground v2.5": {
     "path": "playground-v2.5-1024px-aesthetic.fp16.safetensors@https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic/resolve/main/playground-v2.5-1024px-aesthetic.fp16.safetensors?download=true",
     "desc": "Playground v2.5 is a diffusion-based text-to-image generative model, and a successor to Playground v2. Playground v2.5 is the state-of-the-art open-source model in aesthetic quality. Our user studies demonstrate that our model outperforms SDXL, Playground v2, PixArt-α, DALL-E 3, and Midjourney 5.2.",
-    "preview": "playgroundai--playground-v2-1024px-aesthetic.jpg",
+    "preview": "playgroundai--playground-v2_5-1024px-aesthetic.jpg",
     "extras": "sampler: DPM++ 2M EDM"
   },
 
@@ -573,13 +574,13 @@
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3-diffusion.jpg",
+    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
     "skip": true
   },
   "ShuttleAI Shuttle Jaguar": {
     "path": "shuttleai/shuttle-jaguar",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3-diffusion.jpg",
+    "preview": "shuttleai--shuttle-jaguar.jpg",
     "skip": true
   },
 
@@ -649,7 +650,7 @@
   "DeepFloyd IF Large": {
     "path": "DeepFloyd/IF-I-L-v1.0",
     "desc": "DeepFloyd-IF is a pixel-based text-to-image triple-cascaded diffusion model, that can generate pictures with new state-of-the-art for photorealism and language understanding. The result is a highly efficient model that outperforms current state-of-the-art models, achieving a zero-shot FID-30K score of 6.66 on the COCO dataset. It is modular and composed of frozen text mode and three pixel cascaded diffusion modules, each designed to generate images of increasing resolution: 64x64, 256x256, and 1024x1024.",
-    "preview": "DeepFloyd--IF-I-M-v1.0.jpg",
+    "preview": "DeepFloyd--IF-I-L-v1.0.jpg",
     "extras": "sampler: Default"
   }
 
