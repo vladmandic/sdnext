@@ -122,6 +122,27 @@ async function tooltipShow(e) {
       content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`;
     }
 
+    // Add reload notice if needed
+    if (e.target.dataset.reload) {
+      const reloadType = e.target.dataset.reload;
+      let reloadText = '';
+      
+      if (reloadType === 'model') {
+        reloadText = 'Requires model reload';
+      } else if (reloadType === 'server') {
+        reloadText = 'Requires server restart';
+      }
+      
+      if (reloadText) {
+        content += `
+          <div class="tooltip-reload-notice">
+            <div class="separator"></div>
+            <span class="tooltip-reload-text">${reloadText}</span>
+          </div>
+        `;
+      }
+    }
+
     localeData.hint.innerHTML = content;
     localeData.hint.classList.add('tooltip-show');
 
@@ -301,6 +322,10 @@ async function setHints(analyze = false) {
         // Set long hint if available
         if (found.longHint && found.longHint.length > 0) {
           el.dataset.longHint = found.longHint;
+        }
+        // Set reload type if available
+        if (found.reload && found.reload.length > 0) {
+          el.dataset.reload = found.reload;
         }
         el.addEventListener('mouseover', tooltipShow);
         el.addEventListener('mouseout', tooltipHide);
