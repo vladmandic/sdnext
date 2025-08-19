@@ -732,6 +732,17 @@ div#extras_scale_to_tab div.form {
   background: var(--background-fill-primary) !important;
 }
 
+.tooltip-reload-notice {
+  margin-top: 0.3em;
+}
+
+.tooltip-reload-text {
+  font-size: var(--text-xs);
+  font-style: italic;
+  opacity: 0.75;
+  display: block;
+}
+
 .locale {
   background-color: var(--input-background-fill);
   color: var(--body-text-color);
