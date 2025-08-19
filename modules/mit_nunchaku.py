@@ -4,7 +4,7 @@ from installer import log, pip
 from modules import devices
 
 
-ver = '0.3.1'
+ver = '0.3.2'
 ok = False
 
 
@@ -52,7 +52,7 @@ def install_nunchaku():
         url = os.environ.get('NUNCHAKU_COMMAND', None)
         if url is None:
             arch = f'{arch}_' if arch == 'linux' else ''
-            url = f'https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-{ver}'
+            url = f'https://huggingface.co/nunchaku-tech/nunchaku/resolve/main/nunchaku-{ver}'
             url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}{suffix}.whl'
         cmd = f'install --upgrade {url}'
         # pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl

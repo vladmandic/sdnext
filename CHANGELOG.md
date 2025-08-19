@@ -2,30 +2,40 @@
 
 ## Update for 2025-08-18
 
+A quick service release with several important hotfixes, but also adding support for new Qwen variants...
+
 - **Models**
   - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
     Image editing using natural language prompting, similar to `Flux.1-Kontext`, but based on larger 20B `Qwen-Image` model  
-- **Features**  
-  - new setting -> huggingface -> download method  
+  - [Nunchaku-Qwen-Image](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
+    *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+- [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+  - updated with new models  
+- **Features**
+  - new *setting -> huggingface -> download method*  
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
   - support for `qwen-image` lora  
-- **UI**  
+- **UI**
   - new artwork for reference models in networks  
     thanks @liutyi  
   - localization support for ModernUI  
-  - single-click on locale rotates current locale, double-click on locale resets locale to `en`  
+  - single-click on locale rotates current locale  
+    double-click on locale resets locale to `en`  
 - **Docs**
   - Models and Video pages updated with links to original model repos, model licenses and original release dates  
     thanks @alerikaisattera  
-- **Fixes**  
+- **Fixes**
+  - nunchaku use new download links and default to `0.3.2`  
+    nunchaku wheels: <https://huggingface.co/nunchaku-tech/nunchaku/tree/main>  
   - fix OpenVINO with offloading  
   - add explicit offload calls on prompt encode  
   - error reporting on model load failure  
   - fix torch version checks  
   - remove extra cache clear  
   - enable explicit sync calls for `rocm` on windows  
-  - note restart-needed on initial startup import error  
+  - note if restart-needed on initial startup import error  
   - bypass diffusers-lora-fuse on quantized models  
   - monkey-patch diffusers to use original weights shape when loading lora  
   - guard against null prompt  
