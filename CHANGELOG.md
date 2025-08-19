@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-18
+## Update for 2025-08-19
 
 A quick service release with several important hotfixes, but also adding support for new Qwen variants...
 
@@ -39,6 +39,7 @@ A quick service release with several important hotfixes, but also adding support
   - bypass diffusers-lora-fuse on quantized models  
   - monkey-patch diffusers to use original weights shape when loading lora  
   - guard against null prompt  
+  - install `hf_transfter` and `hf_xet` when needed  
 
 ## Update for 2025-08-15
 

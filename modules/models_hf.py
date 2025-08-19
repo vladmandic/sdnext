@@ -1,5 +1,5 @@
 import os
-from installer import log
+from installer import log, install
 from modules.shared import opts
 
 
@@ -20,17 +20,23 @@ def hf_init():
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'false')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
     elif opts.hf_transfer_mode == 'rust':
+        install('hf_transfer')
+        import huggingface_hub
+        huggingface_hub.utils._runtime.is_hf_transfer_available = lambda: True  # pylint: disable=W0640
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
     elif opts.hf_transfer_mode == 'xet':
+        install('hf_xet')
+        import huggingface_hub
+        huggingface_hub.utils._runtime.is_xet_available = lambda: True  # pylint: disable=W0640
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'true')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'false')
+
     obfuscated_token = None
     if len(opts.huggingface_token) > 0 and opts.huggingface_token.startswith('hf_'):
         obfuscated_token = 'hf_...' + opts.huggingface_token[-4:]
-        # os.environ.setdefault('HF_TOKEN', opts.huggingface_token)
     log.info(f'Huggingface init: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}"')
 
 
