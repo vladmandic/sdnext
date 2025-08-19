@@ -40,6 +40,7 @@ A quick service release with several important hotfixes, but also adding support
   - monkey-patch diffusers to use original weights shape when loading lora  
   - guard against null prompt  
   - install `hf_transfter` and `hf_xet` when needed  
+  - enum reference models on startup  
 
 ## Update for 2025-08-15
 
