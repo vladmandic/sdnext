@@ -23,6 +23,8 @@ A quick service release with several important hotfixes, but also adding support
   - localization support for ModernUI  
   - single-click on locale rotates current locale  
     double-click on locale resets locale to `en`  
+  - exclude ModernUI from list of extensions  
+    ModernUI is enabled in settings, not by manually enabling extension  
 - **Docs**
   - Models and Video pages updated with links to original model repos, model licenses and original release dates  
     thanks @alerikaisattera  
