@@ -274,7 +274,7 @@ class SDNQQuantizer(DiffusersQuantizer):
             if (
                 param_name not in self.modules_to_not_convert
                 and not any(param in split_param_name for param in self.modules_to_not_convert)
-                and not any("*" in param and re.match(param.replace("*", ".*"), param_name) for param in self.modules_to_not_convert)
+                and not any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in self.modules_to_not_convert)
             ):
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
@@ -311,7 +311,7 @@ class SDNQQuantizer(DiffusersQuantizer):
                 if (
                     param_name in value
                     or any(param in split_param_name for param in value)
-                    or any("*" in param and re.match(param.replace("*", ".*"), param_name) for param in value)
+                    or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in value)
                 ):
                     key = key.lower()
                     if key in {"8bit", "8bits"}:

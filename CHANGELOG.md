@@ -17,6 +17,7 @@ A quick service release with several important hotfixes, but also adding support
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
   - support for `qwen-image` lora  
+  - add `sdnq_modules_to_not_convert` option to ui settings for  
 - **UI**
   - new artwork for reference models in networks  
     thanks @liutyi  
