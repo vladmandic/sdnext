@@ -8,7 +8,7 @@ def load_qwen_nunchaku(repo_id):
     transformer = None
     try:
         from nunchaku.models.transformers.transformer_qwenimage import NunchakuQwenImageTransformer2DModel
-    except:
+    except Exception:
         shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" low nunchaku version')
         return None
     if repo_id.lower().endswith('qwen-image'):

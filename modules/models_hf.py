@@ -22,14 +22,14 @@ def hf_init():
     elif opts.hf_transfer_mode == 'rust':
         install('hf_transfer')
         import huggingface_hub
-        huggingface_hub.utils._runtime.is_hf_transfer_available = lambda: True  # pylint: disable=W0640
+        huggingface_hub.utils._runtime.is_hf_transfer_available = lambda: True  # pylint: disable=protected-access
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
     elif opts.hf_transfer_mode == 'xet':
         install('hf_xet')
         import huggingface_hub
-        huggingface_hub.utils._runtime.is_xet_available = lambda: True  # pylint: disable=W0640
+        huggingface_hub.utils._runtime.is_xet_available = lambda: True  # pylint: disable=protected-access
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'true')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'false')

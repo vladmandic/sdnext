@@ -2,7 +2,9 @@
 
 ## Update for 2025-08-20
 
-A quick service release with several important hotfixes, but also adding support for new Qwen variants...
+A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
 - **Models**
   - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
@@ -22,6 +24,7 @@ A quick service release with several important hotfixes, but also adding support
 - **UI**
   - new artwork for reference models in networks  
     thanks @liutyi  
+  - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
   - localization support for ModernUI  
   - single-click on locale rotates current locale  
     double-click on locale resets locale to `en`  
@@ -46,6 +49,7 @@ A quick service release with several important hotfixes, but also adding support
   - install `hf_transfter` and `hf_xet` when needed  
   - fix ui cropped network tags  
   - enum reference models on startup  
+  - dont report errors if agent scheduler is disabled  
 
 ## Update for 2025-08-15
 

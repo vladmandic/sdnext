@@ -126,13 +126,11 @@ async function tooltipShow(e) {
     if (e.target.dataset.reload) {
       const reloadType = e.target.dataset.reload;
       let reloadText = '';
-      
       if (reloadType === 'model') {
         reloadText = 'Requires model reload';
       } else if (reloadType === 'server') {
         reloadText = 'Requires server restart';
       }
-      
       if (reloadText) {
         content += `
           <div class="tooltip-reload-notice">
@@ -276,6 +274,33 @@ async function getLocaleData(desiredLocale = null) {
   return json;
 }
 
+async function replaceTextContent(el, text) {
+  if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) return;
+  if (el.querySelector('span')) el = el.querySelector('span');
+  if (el.querySelector('div')) el = el.querySelector('div');
+  if (el.classList.contains('mask-icon')) return; // skip icon buttons
+  if (el.dataset.selector) { // replace on rehosted child if exists
+    el = el.firstElementChild || el.querySelector(el.dataset.selector);
+    replaceTextContent(el, text);
+    return;
+  }
+  el.textContent = text;
+}
+
+async function setHint(el, entry) {
+  if (localeData.type === 1) {
+    el.title = entry.hint;
+  } else if (localeData.type === 2) {
+    el.dataset.hint = entry.hint;
+    if (entry.longHint && entry.longHint.length > 0) el.dataset.longHint = entry.longHint;
+    if (entry.reload && entry.reload.length > 0) el.dataset.reload = entry.reload;
+    el.addEventListener('mouseover', tooltipShow);
+    el.addEventListener('mouseout', tooltipHide);
+  } else {
+    // tooltips disabled
+  }
+}
+
 async function setHints(analyze = false) {
   let json = {};
   let overrideData = [];
@@ -298,40 +323,22 @@ async function setHints(analyze = false) {
   let localized = 0;
   let hints = 0;
   const t0 = performance.now();
-  for (const possible of elements) {
-    let el = possible;
-    if (possible.querySelector('span')) el = possible.querySelector('span');
-    if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) continue; // skip icon buttons
+  for (const el of elements) {
+    // localize elements text
     let found;
     if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
       localized++;
-      el.textContent = found.localized;
+      replaceTextContent(el, found.localized);
     } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) { // reset to english
-      el.textContent = found.label;
+      replaceTextContent(el, found.label);
     }
-    // replaceButtonText(el);
+    // set hints
     if (found?.hint?.length > 0) {
       hints++;
-      if (localeData.type === 1) {
-        el.title = found.hint;
-      } else if (localeData.type === 2) {
-        el.dataset.hint = found.hint;
-        // Set long hint if available
-        if (found.longHint && found.longHint.length > 0) {
-          el.dataset.longHint = found.longHint;
-        }
-        // Set reload type if available
-        if (found.reload && found.reload.length > 0) {
-          el.dataset.reload = found.reload;
-        }
-        el.addEventListener('mouseover', tooltipShow);
-        el.addEventListener('mouseout', tooltipHide);
-      } else {
-        // tooltips disabled
-      }
+      setHint(el, found);
     }
   }
   localeData.finished = true;

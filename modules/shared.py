@@ -154,7 +154,7 @@ options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": False }),
 }))
 
-options_templates.update(options_section(('model_options', "Models Options"), {
+options_templates.update(options_section(('model_options', "Model Options"), {
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
@@ -701,6 +701,11 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
 }))
+
+options_templates.update(options_section(('extensions', "Extensions"), {
+    "disable_all_extensions": OptionInfo("none", "Disable all extensions", gr.Radio, {"choices": ["none", "user", "all"]}),
+}))
+
 
 options_templates.update(options_section(('hidden_options', "Hidden options"), {
     # internal options
