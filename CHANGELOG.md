@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-19
+## Update for 2025-08-20
 
 A quick service release with several important hotfixes, but also adding support for new Qwen variants...
 
@@ -17,7 +17,8 @@ A quick service release with several important hotfixes, but also adding support
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
   - support for `qwen-image` lora  
-  - add `sdnq_modules_to_not_convert` and `sdnq_modules_dtype_dict` option to ui settings  
+  - new *setting -> quantization -> modules dtype dict*  
+    used to manually override quant types per module  
 - **UI**
   - new artwork for reference models in networks  
     thanks @liutyi  
@@ -43,6 +44,7 @@ A quick service release with several important hotfixes, but also adding support
   - monkey-patch diffusers to use original weights shape when loading lora  
   - guard against null prompt  
   - install `hf_transfter` and `hf_xet` when needed  
+  - fix ui cropped network tags  
   - enum reference models on startup  
 
 ## Update for 2025-08-15
