@@ -329,6 +329,7 @@ async function setHints(analyze = false) {
         }
         el.addEventListener('mouseover', tooltipShow);
         el.addEventListener('mouseout', tooltipHide);
+        el.addEventListener('click', tooltipHide);
       } else {
         // tooltips disabled
       }
