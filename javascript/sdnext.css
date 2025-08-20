@@ -1267,7 +1267,7 @@ table.settings-value-table td {
     scroll-snap-align: start;
     height: var(--card-size);
     width: var(--card-size);
-    contain: strict;
+    contain: layout style;
 }
 
 *.extra-network-cards .card-selected {
