@@ -365,7 +365,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls:
         steps = p.steps
     elif not is_txt2img():
         if cls in sd_models.i2i_pipes:

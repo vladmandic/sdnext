@@ -25,24 +25,24 @@ def conv_fp8_matmul(
     input, input_scale = quantize_fp8_matmul_input(input)
 
     if groups == 1:
-        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).reshape(mm_output_shape)
+        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).view(mm_output_shape)
     else:
-        scale = scale.reshape(groups, 1, scale.shape[1] // groups)
-        input_scale = input_scale.reshape(groups, input_scale.shape[0] // groups, 1)
-        weight = weight.reshape(weight.shape[0], groups, weight.shape[1] // groups).transpose(0,1)
-        input = input.reshape(input.shape[0], groups, input.shape[1] // groups).transpose(0,1)
+        scale = scale.view(groups, 1, scale.shape[1] // groups)
+        input_scale = input_scale.view(groups, input_scale.shape[0] // groups, 1)
+        weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
+        input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         if bias is not None:
-            bias = bias.reshape(groups, bias.shape[0] // groups)
+            bias = bias.view(groups, bias.shape[0] // groups)
             for i in range(groups):
-                result.append(torch._scaled_mm(input[i], weight[i], scale_a=input_scale[i], scale_b=scale[i], bias=bias[i], out_dtype=return_dtype))
+                result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=input_scale[i], scale_b=scale[i], bias=bias[i], out_dtype=return_dtype))
         else:
             for i in range(groups):
-                result.append(torch._scaled_mm(input[i], weight[i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=return_dtype))
-        result = torch.cat(result, dim=-1).reshape(mm_output_shape)
+                result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=return_dtype))
+        result = torch.cat(result, dim=-1).view(mm_output_shape)
 
     if conv_type == 1:
-        result = result.transpose(1,2)
+        result = result.transpose_(1,2)
     elif conv_type == 2:
         result = result.permute(0,3,1,2)
     elif conv_type == 3:

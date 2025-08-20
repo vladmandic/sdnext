@@ -73,16 +73,11 @@ def copy_diffuser_options(new_pipe, orig_pipe):
         set_accelerate(new_pipe)
 
 
-def set_huggingface_options(op: str, model_type: str):
-    if model_type is not None: # overrides
-        pass
+def set_huggingface_options():
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
-        shared.log.debug(f'Setting {op}: component=accelerate direct={shared.opts.diffusers_to_gpu}')
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
-    if shared.opts.sd_parallel_load:
-        shared.log.debug(f'Setting {op}: component=huggingface parallel={shared.opts.sd_parallel_load}')
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -407,11 +402,15 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['NextStep']:
+            from pipelines.model_nextstep import load_nextstep
+            sd_model = load_nextstep(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
             errors.display(e, 'Load')
-        return None, True
+        return None
     return sd_model
 
 
@@ -614,7 +613,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
 
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
-        set_huggingface_options(op, model_type)
+        set_huggingface_options()
 
         # preload vae so it can be used as param
         vae = None
@@ -1082,7 +1081,7 @@ def reload_text_encoder(initial=False):
         from modules.model_te import set_t5
         shared.log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
         set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
-    clear_caches()
+    clear_caches(full=True)
     apply_balanced_offload(shared.sd_model)
 
 
@@ -1122,20 +1121,21 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     return None # should not be here
 
 
-def clear_caches():
+def clear_caches(full:bool=False):
+    from modules import prompt_parser_diffusers, memstats, sd_offload
     from modules.lora import lora_common, lora_load
+    prompt_parser_diffusers.cache.clear()
+    memstats.reset_stats()
     lora_common.loaded_networks.clear()
     lora_common.previously_loaded_networks.clear()
     lora_load.lora_cache.clear()
-
-    from modules import prompt_parser_diffusers, memstats, sd_offload
-    sd_offload.offload_hook_instance = None
-    prompt_parser_diffusers.cache.clear()
-    memstats.reset_stats()
+    if full:
+        shared.log.debug('Cache clear')
+        sd_offload.offload_hook_instance = None
 
 
 def unload_model_weights(op='model'):
-    clear_caches()
+    clear_caches(full=True)
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()

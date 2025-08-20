@@ -6,10 +6,9 @@ const process = require('process');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const api_key = process.env.GOOGLE_AI_API_KEY;
-const model = 'gemini-2.0-flash-exp';
+const model = 'gemini-2.5-flash';
 const prompt = `
-Translate attached JSON from English to {language} using following rules: fields id and label should be preserved from original, field localized should be a translated version of field label and field hint should be translated in-place.
-Every JSON entry should have id, label, localized and hint fields. Output should be pure JSON without any additional text. To better match translation, context of the text is related to Stable Diffusion and topic of Generative AI.`;
+Translate attached JSON from English to {language} using following rules: fields id, label and reload should be preserved from original, field localized should be a translated version of field label and field hint should be translated in-place. if field is less than 3 characters, do not translate it and keep it as is. Every JSON entry should have id, label, localized, reload and hint fields. Output should be pure JSON without any additional text. To better match translation, context of the text is related to Stable Diffusion and topic of Generative AI.`;
 const languages = {
   hr: 'Croatian',
   de: 'German',

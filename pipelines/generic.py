@@ -64,10 +64,10 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
             sd_models.move_model(transformer, devices.cpu)
     except Exception as e:
-        shared.log.error(f'Load model: type=transformer {e}')
-        if debug:
-            errors.display(e, 'Load:')
+        shared.log.error(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} {e}')
+        errors.display(e, 'Load:')
         raise
+    devices.torch_gc()
     return transformer
 
 
@@ -155,8 +155,8 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         if shared.opts.diffusers_offload_mode != 'none' and text_encoder is not None:
             sd_models.move_model(text_encoder, devices.cpu)
     except Exception as e:
-        shared.log.error(f'Load model: type=te {e}')
-        if debug:
-            errors.display(e, 'Load:')
+        shared.log.error(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} {e}')
+        errors.display(e, 'Load:')
         raise
+    devices.torch_gc()
     return text_encoder

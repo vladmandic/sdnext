@@ -1,6 +1,8 @@
 import os
+import re
 import sys
 import copy
+import json
 import time
 import diffusers
 import transformers
@@ -137,6 +139,26 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         if weights_dtype is None or weights_dtype == 'none':
             return kwargs
 
+        sdnq_modules_to_not_convert = [m.strip() for m in re.split(';|,| ', shared.opts.sdnq_modules_to_not_convert) if len(m.strip()) > 1]
+        if len(sdnq_modules_to_not_convert) > 0:
+            modules_to_not_convert.extend(sdnq_modules_to_not_convert)
+
+        try:
+            if len(shared.opts.sdnq_modules_dtype_dict) > 2:
+                sdnq_modules_dtype_dict = shared.opts.sdnq_modules_dtype_dict
+                if "{" not in sdnq_modules_dtype_dict:
+                    sdnq_modules_dtype_dict = "{" + sdnq_modules_dtype_dict + "}"
+                sdnq_modules_dtype_dict = json.loads(bytes(sdnq_modules_dtype_dict, 'utf-8'))
+                for key, value in sdnq_modules_dtype_dict.items():
+                    if isinstance(value, str):
+                        value = [m.strip() for m in re.split(';|,| ', value) if len(m.strip()) > 1]
+                    if key not in modules_dtype_dict.keys():
+                        modules_dtype_dict[key] = value
+                    else:
+                        modules_dtype_dict[key].extend(value)
+        except Exception as e:
+            log.warning(f'Quantization: SDNQ failed to parse sdnq_modules_dtype_dict: {e}')
+
         quantization_device, return_device = get_sdnq_devices()
 
         sdnq_config = SDNQConfig(
@@ -150,9 +172,9 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
             quantization_device=quantization_device,
             return_device=return_device,
             modules_to_not_convert=modules_to_not_convert,
-            modules_dtype_dict=modules_dtype_dict,
+            modules_dtype_dict=modules_dtype_dict.copy(),
         )
-        log.debug(f'Quantization: module="{module}" type=sdnq dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking}')
+        log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
         if kwargs is None:
             return sdnq_config
         else:
@@ -179,7 +201,7 @@ def check_nunchaku(module: str = ''):
     return True
 
 
-def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert = [], modules_dtype_dict = {}):
+def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
     if kwargs is None:
         kwargs = {}
     kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
@@ -393,8 +415,6 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
 
     if weights_dtype is None or weights_dtype == 'none':
         return model
-    if debug:
-        log.trace(f'Quantization: type=SDNQ op={op} cls={model.__class__} dtype={weights_dtype} mode{shared.opts.diffusers_offload_mode}')
 
     quantization_device, return_device = get_sdnq_devices()
 
@@ -409,6 +429,26 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
             modules_dtype_dict["minimum_6bit"] = ["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"]
         else:
             modules_dtype_dict["minimum_6bit"].extend(["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"])
+
+    sdnq_modules_to_not_convert = [m.strip() for m in re.split(';|,| ', shared.opts.sdnq_modules_to_not_convert) if len(m.strip()) > 1]
+    if len(sdnq_modules_to_not_convert) > 0:
+        modules_to_not_convert.extend(sdnq_modules_to_not_convert)
+
+    try:
+        if len(shared.opts.sdnq_modules_dtype_dict) > 2:
+            sdnq_modules_dtype_dict = shared.opts.sdnq_modules_dtype_dict
+            if "{" not in sdnq_modules_dtype_dict:
+                sdnq_modules_dtype_dict = "{" + sdnq_modules_dtype_dict + "}"
+            sdnq_modules_dtype_dict = json.loads(bytes(sdnq_modules_dtype_dict, 'utf-8'))
+            for key, value in sdnq_modules_dtype_dict.items():
+                if isinstance(value, str):
+                    value = [m.strip() for m in re.split(';|,| ', value) if len(m.strip()) > 1]
+                if key not in modules_dtype_dict.keys():
+                    modules_dtype_dict[key] = value
+                else:
+                    modules_dtype_dict[key].extend(value)
+    except Exception as e:
+        log.warning(f'Quantization: SDNQ failed to parse sdnq_modules_dtype_dict: {e}')
 
     model.eval()
     backup_embeddings = None
@@ -429,7 +469,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         quantization_device=quantization_device,
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
-        modules_dtype_dict=modules_dtype_dict,
+        modules_dtype_dict=modules_dtype_dict.copy(),
         op=op,
     )
     t1 = time.time()
@@ -459,6 +499,8 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         model = model.to(devices.cpu)
     if do_gc:
         devices.torch_gc(force=True, reason='sdnq')
+
+    log.debug(f'Quantization: module="{op if op is not None else model.__class__}" type=sdnq mode=post dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
     return model
 
 

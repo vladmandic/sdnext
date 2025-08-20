@@ -25,8 +25,7 @@ def fp8_matmul_tensorwise(
     scale: torch.FloatTensor,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
-    output_shape = list(input.shape)
-    output_shape[-1] = weight.shape[-1]
+    output_shape = (*input.shape[:-1], weight.shape[-1])
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     if bias is not None:

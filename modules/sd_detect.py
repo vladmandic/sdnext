@@ -103,6 +103,8 @@ def guess_by_name(fn, current_guess):
         return 'Bria'
     elif 'qwen' in fn.lower():
         return 'Qwen'
+    elif 'nextstep' in fn.lower():
+        return 'NextStep'
     elif 'kandinsky-2-1' in fn.lower():
         return 'Kandinsky 2.1'
     elif 'kandinsky-2-2' in fn.lower():

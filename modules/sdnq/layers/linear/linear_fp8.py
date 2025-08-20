@@ -21,10 +21,9 @@ def fp8_matmul(
     scale: torch.FloatTensor,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
-    output_shape = list(input.shape)
-    output_shape[-1] = weight.shape[-1]
+    output_shape = (*input.shape[:-1], weight.shape[-1])
     input, input_scale = quantize_fp8_matmul_input(input)
-    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).reshape(output_shape)
+    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).view(output_shape)
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

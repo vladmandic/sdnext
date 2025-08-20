@@ -1,16 +1,15 @@
-from modules import shared, devices, sd_models, model_quant
+import diffusers
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 
 
 def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
     repo_id = sd_models.path_to_repo(checkpoint_info)
 
     from pipelines.omnigen2 import OmniGen2Pipeline, OmniGen2Transformer2DModel, Qwen2_5_VLForConditionalGeneration
-    import diffusers
-    from diffusers import pipelines
     diffusers.OmniGen2Pipeline = OmniGen2Pipeline # monkey-pathch
-    pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
-    pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
-    pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
     transformer = OmniGen2Transformer2DModel.from_pretrained(
@@ -42,5 +41,6 @@ def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     )
     pipe.transformer = transformer # for omnigen2 transformer must be loaded after pipeline
 
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe

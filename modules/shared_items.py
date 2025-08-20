@@ -1,5 +1,4 @@
 import diffusers
-from modules.onnx_impl import initialize_onnx
 
 
 pipelines = {
@@ -57,13 +56,20 @@ pipelines = {
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
-initialize_onnx()
-onnx_pipelines = {
-    'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
-    'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),
-    'ONNX Stable Diffusion Inpaint': getattr(diffusers, 'OnnxStableDiffusionInpaintPipeline', None),
-    'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
-}
+
+try:
+    from modules.onnx_impl import initialize_onnx
+    initialize_onnx()
+    onnx_pipelines = {
+        'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
+        'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),
+        'ONNX Stable Diffusion Inpaint': getattr(diffusers, 'OnnxStableDiffusionInpaintPipeline', None),
+        'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
+    }
+except Exception as e:
+    from installer import log
+    log.error(f'ONNX initialization error: {e}')
+    onnx_pipelines = {}
 
 
 def postprocessing_scripts():
@@ -117,11 +123,11 @@ def list_crossattention():
     ]
 
 def get_pipelines():
-    from installer import log
     if hasattr(diffusers, 'OnnxStableDiffusionPipeline') and 'ONNX Stable Diffusion' not in list(pipelines):
         pipelines.update(onnx_pipelines)
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
+            from installer import log # pylint: disable=redefined-outer-name
             log.error(f'Not available: pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__}')
     return pipelines
 

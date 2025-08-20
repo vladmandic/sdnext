@@ -1,6 +1,6 @@
 import diffusers
 import transformers
-from modules import shared, devices, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from pipelines import generic
 
 
@@ -26,6 +26,6 @@ def load_chroma(checkpoint_info, diffusers_load_config={}):
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["chroma"] = diffusers.ChromaImg2ImgPipeline
     del text_encoder
     del transformer
-
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe

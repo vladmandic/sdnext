@@ -10,7 +10,7 @@ def get_default_modes(cmd_opts, mem_stat):
     default_diffusers_offload_never = ''
     gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
     if not (cmd_opts.lowvram or cmd_opts.medvram):
-        if "gpu" in mem_stat:
+        if "gpu" in mem_stat and gpu_memory != 0:
             if gpu_memory <= 4:
                 cmd_opts.lowvram = True
                 default_offload_mode = "sequential"

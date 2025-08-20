@@ -1,6 +1,7 @@
+import os
 import diffusers
 import transformers
-from modules import shared, devices, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from pipelines import generic
 
 
@@ -21,6 +22,9 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux1kontext"] = diffusers.FluxKontextInpaintPipeline
     else:
         cls_name = diffusers.FluxPipeline
+
+    from pipelines.flux import flux_lora
+    flux_lora.apply_patch()
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     shared.log.debug(f'Load model: type=Flux repo="{repo_id}" cls={cls_name.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
@@ -64,6 +68,12 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
 
+    if os.environ.get('SD_REMOTE_T5', None) is not None:
+        from modules import sd_te_remote
+        shared.log.warning('Remote-TE: applying patch')
+        pipe._get_t5_prompt_embeds = sd_te_remote.get_t5_prompt_embeds # pylint: disable=protected-access
+        pipe.text_encoder_2 = None
+
     del text_encoder_2
     del transformer
 
@@ -72,5 +82,6 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         from nunchaku.caching.diffusers_adapters import apply_cache_on_pipe
         apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
 
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe

@@ -182,6 +182,10 @@ class PromptEmbedder:
             self.negative_prompt_attention_masks[batchidx].append(self.negative_prompt_attention_masks[batchidx][idx])
 
     def encode(self, pipe, positive_prompt, negative_prompt, batchidx):
+        if positive_prompt is None:
+            positive_prompt = ''
+        if negative_prompt is None:
+            negative_prompt = ''
         global last_attention # pylint: disable=global-statement
         self.attention = shared.opts.prompt_attention
         last_attention = self.attention
@@ -543,6 +547,10 @@ def split_prompts(pipe, prompt, SD3 = False):
 
 def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
     device = devices.device
+    if prompt is None:
+        prompt = ''
+    if neg_prompt is None:
+        neg_prompt = ''
     SD3 = bool(hasattr(pipe, 'text_encoder_3') and not hasattr(pipe, 'text_encoder_4'))
     prompt, prompt_2, prompt_3, prompt_4 = split_prompts(pipe, prompt, SD3)
     neg_prompt, neg_prompt_2, neg_prompt_3, neg_prompt_4 = split_prompts(pipe, neg_prompt, SD3)

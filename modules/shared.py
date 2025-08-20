@@ -89,6 +89,8 @@ devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
 cpu_memory = round(mem_stat['ram']['total'] if "ram" in mem_stat else 0)
 gpu_memory = round(mem_stat['gpu']['total'] if "gpu" in mem_stat else 0)
+if gpu_memory == 0:
+    gpu_memory = cpu_memory
 native = backend == Backend.DIFFUSERS
 if not files_cache.do_cache_folders:
     log.warning('File cache disabled: ')
@@ -152,13 +154,13 @@ options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": False }),
 }))
 
-options_templates.update(options_section(('model_options', "Models Options"), {
+options_templates.update(options_section(('model_options', "Model Options"), {
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
     "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
-    "model_wan_stage": OptionInfo("first", "Processing stage", gr.Radio, {"choices": ['first', 'second', 'both'] }),
+    "model_wan_stage": OptionInfo("first", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
 }))
 
@@ -180,6 +182,8 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "sdnq_quantize_mode": OptionInfo("auto", "Quantization mode", gr.Dropdown, {"choices": ["auto", "pre", "post"]}),
     "sdnq_quantize_weights_mode": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": sdnq_quant_modes}),
     "sdnq_quantize_weights_mode_te": OptionInfo("Same as model", "Quantization type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_quant_modes}),
+    "sdnq_modules_to_not_convert": OptionInfo("", "Modules to not convert"),
+    "sdnq_modules_dtype_dict": OptionInfo("{}", "Modules dtype dict"),
     "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
     "sdnq_dequantize_compile": OptionInfo(devices.has_triton(), "Dequantize using torch.compile", gr.Checkbox),
@@ -649,6 +653,8 @@ options_templates.update(options_section(('huggingface', "Huggingface"), {
     "huggingface_sep": OptionInfo("<h2>Huggingface</h2>", "", gr.HTML),
     "diffuser_cache_config": OptionInfo(True, "Use cached model config when available"),
     "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}),
+    "hf_transfer_mode": OptionInfo("rust", "HuggingFace download method", gr.Radio, {"choices": ['requests', 'rust', 'xet']}),
+
     "diffusers_model_load_variant": OptionInfo("default", "Preferred Model variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
     "diffusers_vae_load_variant": OptionInfo("default", "Preferred VAE variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
     "custom_diffusers_pipeline": OptionInfo('', 'Load custom Diffusers pipeline'),
@@ -695,6 +701,11 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
 }))
+
+options_templates.update(options_section(('extensions', "Extensions"), {
+    "disable_all_extensions": OptionInfo("none", "Disable all extensions", gr.Radio, {"choices": ["none", "user", "all"]}),
+}))
+
 
 options_templates.update(options_section(('hidden_options', "Hidden options"), {
     # internal options

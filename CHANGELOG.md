@@ -1,5 +1,56 @@
 # Change Log for SD.Next
 
+## Update for 2025-08-20
+
+A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+- **Models**
+  - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
+    Image editing using natural language prompting, similar to `Flux.1-Kontext`, but based on larger 20B `Qwen-Image` model  
+  - [Nunchaku-Qwen-Image](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
+    *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+- [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+  - updated with new models  
+- **Features**
+  - new *setting -> huggingface -> download method*  
+    default is `rust` as new `xet` is known to cause issues  
+  - support for `flux.1-kontext` lora  
+  - support for `qwen-image` lora  
+  - new *setting -> quantization -> modules dtype dict*  
+    used to manually override quant types per module  
+- **UI**
+  - new artwork for reference models in networks  
+    thanks @liutyi  
+  - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
+  - localization support for ModernUI  
+  - single-click on locale rotates current locale  
+    double-click on locale resets locale to `en`  
+  - exclude ModernUI from list of extensions  
+    ModernUI is enabled in settings, not by manually enabling extension  
+- **Docs**
+  - Models and Video pages updated with links to original model repos, model licenses and original release dates  
+    thanks @alerikaisattera  
+- **Fixes**
+  - nunchaku use new download links and default to `0.3.2`  
+    nunchaku wheels: <https://huggingface.co/nunchaku-tech/nunchaku/tree/main>  
+  - fix OpenVINO with offloading  
+  - add explicit offload calls on prompt encode  
+  - error reporting on model load failure  
+  - fix torch version checks  
+  - remove extra cache clear  
+  - enable explicit sync calls for `rocm` on windows  
+  - note if restart-needed on initial startup import error  
+  - bypass diffusers-lora-fuse on quantized models  
+  - monkey-patch diffusers to use original weights shape when loading lora  
+  - guard against null prompt  
+  - install `hf_transfter` and `hf_xet` when needed  
+  - fix ui cropped network tags  
+  - enum reference models on startup  
+  - dont report errors if agent scheduler is disabled  
+
 ## Update for 2025-08-15
 
 ### Highlights for 2025-08-15

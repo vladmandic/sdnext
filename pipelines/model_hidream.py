@@ -66,11 +66,10 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         **load_args,
     )
 
-    sd_hijack_te.init_hijack(pipe)
     del text_encoder_3
     del text_encoder_4
     del tokenizer_4
     del transformer
-
+    sd_hijack_te.init_hijack(pipe)
     devices.torch_gc()
     return pipe

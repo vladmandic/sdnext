@@ -4,7 +4,7 @@ import sys
 import json
 import shlex
 import argparse
-from modules.errors import log
+from installer import log
 
 
 # parse args, parse again after we have the data-dir and early-read the config file
@@ -123,14 +123,3 @@ class Prioritize:
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.path = self.path
         self.path = None
-
-
-def check_cache(opts):
-    prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
-    from modules.modelstats import stat
-    if opts.hfcache_dir != prev_default:
-        size, _mtime = stat(prev_default)
-        if size//1024//1024 > 0:
-            log.warning(f'Cache location changed: previous="{prev_default}" size={size//1024//1024} MB')
-    size, _mtime = stat(opts.hfcache_dir)
-    log.debug(f'Huggingface cache: path="{opts.hfcache_dir}" size={size//1024//1024} MB')

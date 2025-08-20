@@ -27,16 +27,20 @@ def hf_login(token=None):
         log.debug('HF login: no token provided')
         return False
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
-        log.warning('HF login: removing existing env variable: HUGGING_FACE_HUB_TOKEN')
-        del os.environ['HUGGING_FACE_HUB_TOKEN']
+        os.environ.pop('HUGGING_FACE_HUB_TOKEN', None)
+        os.unsetenv('HUGGING_FACE_HUB_TOKEN')
     if os.environ.get('HF_TOKEN', None) is not None:
-        log.warning('HF login: removing existing env variable: HF_TOKEN')
-        del os.environ['HF_TOKEN']
+        os.environ.pop('HF_TOKEN', None)
+        os.unsetenv('HF_TOKEN')
     if loggedin != token:
         stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout):
+        try:
             hf.logout()
+        except Exception:
+            pass
+        with contextlib.redirect_stdout(stdout):
             hf.login(token=token, add_to_git_credential=False, write_permission=False)
+        os.environ['HF_TOKEN'] = token
         text = stdout.getvalue() or ''
         obfuscated_token = 'hf_...' + token[-4:]
         line = [l for l in text.split('\n') if 'Token' in l]

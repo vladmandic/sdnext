@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 
+import re
 import torch
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
@@ -159,8 +160,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 zero_point = zero_point.to(torch_dtype)
 
         if use_quantized_matmul:
-            scale = scale.transpose(0,1)
-            layer.weight.data = layer.weight.transpose(0,1)
+            scale.transpose_(0,1)
+            layer.weight.transpose_(0,1)
             if not dtype_dict[weights_dtype]["is_integer"]:
                 stride = layer.weight.stride()
                 if stride[0] > stride[1] and stride[1] == 1:
@@ -210,7 +211,6 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                                     weights_dtype = "u" + weights_dtype
                         else:
                             weights_dtype = key
-                        break
 
             module = sdnq_quantize_layer(
                 module,
@@ -270,7 +270,11 @@ class SDNQQuantizer(DiffusersQuantizer):
     ):
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
-            if param_name not in self.modules_to_not_convert and not any(param in split_param_name for param in self.modules_to_not_convert):
+            if (
+                param_name not in self.modules_to_not_convert
+                and not any(param in split_param_name for param in self.modules_to_not_convert)
+                and not any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in self.modules_to_not_convert)
+            ):
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
                     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
@@ -303,7 +307,11 @@ class SDNQQuantizer(DiffusersQuantizer):
         if len(self.quantization_config.modules_dtype_dict.keys()) > 0:
             split_param_name = param_name.split(".")
             for key, value in self.quantization_config.modules_dtype_dict.items():
-                if param_name in value or any(param in split_param_name for param in value):
+                if (
+                    param_name in value
+                    or any(param in split_param_name for param in value)
+                    or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in value)
+                ):
                     key = key.lower()
                     if key in {"8bit", "8bits"}:
                         if dtype_dict[weights_dtype]["num_bits"] != 8:
@@ -317,7 +325,6 @@ class SDNQQuantizer(DiffusersQuantizer):
                                 weights_dtype = "u" + weights_dtype
                     else:
                         weights_dtype = key
-                    break
 
         if self.quantization_config.return_device is not None:
             return_device = self.quantization_config.return_device

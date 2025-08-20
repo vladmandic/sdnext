@@ -314,7 +314,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 shared.log.trace(f'Network load: type=LoRA list={shared.sd_model.get_list_adapters()}')
                 shared.log.trace(f'Network load: type=LoRA active={shared.sd_model.get_active_adapters()}')
             shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
-            if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
+            if shared.opts.lora_fuse_diffusers and not lora_overrides.disable_fuse():
                 shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
                 shared.sd_model.unload_lora_weights()
             l.timer.activate += time.time() - t1

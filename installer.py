@@ -107,6 +107,11 @@ def install_traceback(suppress: list = []):
 def setup_logging():
     from functools import partial, partialmethod
     from logging.handlers import RotatingFileHandler
+    try:
+        import rich # pylint: disable=unused-import
+    except Exception:
+        log.error('Please restart SD.Next so changes take effect')
+        sys.exit(1)
     from rich.theme import Theme
     from rich.logging import RichHandler
     from rich.console import Console
@@ -591,9 +596,12 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
-    if args.skip_all or args.skip_git:
+    if args.skip_all:
         return
-    sha = '58bf2682612bc29b7cdb8a10ba6eee28a024d6d3' # diffusers commit hash
+    if args.skip_git:
+        install('diffusers')
+        return
+    sha = '4fcd0bc7ebb934a1559d0b516f09534ba22c8a0d' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -1310,7 +1318,6 @@ def install_requirements():
 
 # set environment variables controling the behavior of various libraries
 def set_environment():
-    from modules.paths import models_path
     log.debug('Setting environment tuning')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
@@ -1319,25 +1326,22 @@ def set_environment():
     os.environ.setdefault('CUDA_DEVICE_DEFAULT_PERSISTING_L2_CACHE_PERCENTAGE_LIMIT', '0')
     os.environ.setdefault('CUDA_LAUNCH_BLOCKING', '0')
     os.environ.setdefault('CUDA_MODULE_LOADING', 'LAZY')
-    os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
+    os.environ.setdefault('DO_NOT_TRACK', '1')
     os.environ.setdefault('FORCE_CUDA', '1')
     os.environ.setdefault('GRADIO_ANALYTICS_ENABLED', 'False')
-    os.environ.setdefault('HF_HUB_DISABLE_EXPERIMENTAL_WARNING', '1')
-    os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
     os.environ.setdefault('K_DIFFUSION_USE_COMPILE', '0')
+    os.environ.setdefault('KINETO_LOG_LEVEL', '3')
     os.environ.setdefault('NUMEXPR_MAX_THREADS', '16')
     os.environ.setdefault('PYTHONHTTPSVERIFY', '0')
     os.environ.setdefault('SAFETENSORS_FAST_GPU', '1')
     os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
     os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
-    os.environ.setdefault('USE_TORCH', '1')
+    os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
     os.environ.setdefault('TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD', '1')
-    os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
-    os.environ.setdefault('KINETO_LOG_LEVEL', '3')
-    os.environ.setdefault('DO_NOT_TRACK', '1')
+    os.environ.setdefault('USE_TORCH', '1')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
-    os.environ.setdefault('HF_HUB_CACHE', opts.get('hfcache_dir', os.path.join(models_path, 'huggingface')))
+    os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'

@@ -102,6 +102,8 @@ def analyze():
         keys = sd_models.get_signature(shared.sd_model).keys()
     model.modules.clear()
     for k in keys: # pylint: disable=protected-access
+        if k.startswith('_'):
+            continue
         component = getattr(shared.sd_model, k, None)
         module = Module(k, component)
         model.modules.append(module)

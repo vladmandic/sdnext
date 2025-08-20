@@ -97,7 +97,7 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
 
 
 def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
-    if len(prompt) == 0:
+    if prompt is None or len(prompt) == 0:
         return prompt
     old_state = None
     if seed > 0 and len(all_wildcards) > 0:
