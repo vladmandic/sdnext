@@ -211,7 +211,6 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                                     weights_dtype = "u" + weights_dtype
                         else:
                             weights_dtype = key
-                        break
 
             module = sdnq_quantize_layer(
                 module,
@@ -326,7 +325,6 @@ class SDNQQuantizer(DiffusersQuantizer):
                                 weights_dtype = "u" + weights_dtype
                     else:
                         weights_dtype = key
-                    break
 
         if self.quantization_config.return_device is not None:
             return_device = self.quantization_config.return_device
