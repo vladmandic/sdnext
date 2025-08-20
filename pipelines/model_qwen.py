@@ -30,7 +30,7 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         #     cls_name = nunchaku.pipeline.pipeline_qwenimage.NunchakuQwenImagePipeline # we dont need this
 
     if transformer is None:
-        transformer = generic.load_transformer(repo_id, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config, modules_dtype_dict={"minimum_6bit": ["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"]})
+        transformer = generic.load_transformer(repo_id, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config, modules_dtype_dict={"minimum_6bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "transformer_blocks.0.img_mod.1.weight", "transformer_blocks.59.img_mod.1.weight"]})
 
     repo_te = 'Qwen/Qwen-Image' # if 'Qwen-Lightning' in repo_id or 'Qwen-Image-Edit' in repo_id else repo_id
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
