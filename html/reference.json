@@ -311,7 +311,7 @@
   "NVLabs Sana 1.0 1.6B 1k": {
     "path": "Efficient-Large-Model/Sana_1600M_1024px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
-    "preview": "Efficient-Large-Model--Sana1_1600M_1024px_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "skip": true
   },
   "NVLabs Sana 1.0 0.6B 0.5k": {
