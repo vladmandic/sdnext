@@ -171,12 +171,12 @@ def process_image_input(images: PipelineImageInput) -> torch.ByteTensor:
                 img = torch.from_numpy(np.asarray(img).copy()).unsqueeze(0)
                 combined_images.append(img)
             elif isinstance(img, np.ndarray):
-                if len(img.shape) == 3:
-                    img = img.unsqueeze(0)
                 img = torch.from_numpy(img)
+                if img.ndim == 3:
+                    img = img.unsqueeze(0)
                 combined_images.append(img)
             elif isinstance(img, torch.Tensor):
-                if len(img.shape) == 3:
+                if img.ndim == 3:
                     img = img.unsqueeze(0)
                 combined_images.append(img)
             else:
@@ -186,11 +186,11 @@ def process_image_input(images: PipelineImageInput) -> torch.ByteTensor:
         combined_images = torch.from_numpy(np.asarray(images).copy()).unsqueeze(0)
     elif isinstance(images, np.ndarray):
         combined_images = torch.from_numpy(images)
-        if len(combined_images.shape) == 3:
+        if combined_images.ndim == 3:
             combined_images = combined_images.unsqueeze(0)
     elif isinstance(images, torch.Tensor):
         combined_images = images
-        if len(combined_images.shape) == 3:
+        if combined_images.ndim == 3:
             combined_images = combined_images.unsqueeze(0)
     else:
         raise RuntimeError(f"Invalid input! Given: {type(images)} should be in ('torch.Tensor', 'np.ndarray', 'PIL.Image.Image')")
