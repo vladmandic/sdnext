@@ -1376,6 +1376,16 @@ table.settings-value-table td {
   display: block;
 }
 
+.extra-network-cards .card:hover {
+  z-index: 100;
+  position: relative;
+}
+
+.extra-network-cards .card:hover .tags {
+  display: block;
+  z-index: 101;  /* Optional: ensure tags are above everything */
+}
+
 .extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
   background-color: var(--data-color);
   content: '';
