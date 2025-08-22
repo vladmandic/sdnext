@@ -68,15 +68,18 @@ def delete_files(js_data, files, all_files, index):
         start_index = index
     deleted = []
     all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
+    all_files = [os.path.normpath(f) for f in all_files]
     for _image_index, filedata in enumerate(files, start_index):
         try:
-            fn = filedata['name']
+            fn = os.path.normpath(filedata['name'])
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
                 os.remove(fn)
                 if fn in all_files:
                     all_files.remove(fn)
-                shared.log.info(f'Delete: image="{fn}"')
+                    shared.log.info(f'Delete: image="{fn}"')
+                else:
+                    shared.log.warning(f'Delete: image="{fn}" ui mismatch')
             base, _ext = os.path.splitext(fn)
             desc = f'{base}.txt'
             if os.path.exists(desc) and os.path.isfile(desc):

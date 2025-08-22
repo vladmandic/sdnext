@@ -1,5 +1,12 @@
 # Change Log for SD.Next
 
+## Update for 2025-08-22
+
+- **UI**  
+  - improved image scaling in img2img and control interfaces  
+- **Fixes**
+  - normalize path hanlding when deleting images  
+
 ## Update for 2025-08-20
 
 A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
