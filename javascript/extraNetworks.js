@@ -14,7 +14,7 @@ const getENActiveTab = () => {
   else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
   else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
   else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
-  if (tabName in ['process', 'caption', 'gallery']) tabName = lastTab;
+  if (['process', 'caption', 'gallery'].includes(tabName)) tabName = lastTab;
   else lastTab = tabName;
   if (tabName !== '') return tabName;
   // legacy method
@@ -277,8 +277,12 @@ function extraNetworksSearchButton(event) {
   const tabName = getENActiveTab();
   const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const button = event.target;
-  searchTextarea.value = `${button.textContent.trim()}/`;
-  updateInput(searchTextarea);
+  if (searchTextarea) {
+    searchTextarea.value = `${button.textContent.trim()}/`;
+    updateInput(searchTextarea);
+  } else {
+    console.error(`Could not find the search textarea for the tab: ${tabName}`);
+  }
 }
 
 let desiredStyle = '';
