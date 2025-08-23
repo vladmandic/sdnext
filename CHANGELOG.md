@@ -2,6 +2,8 @@
 
 ## Update for 2025-08-23
 
+- **Core**
+  - enable offload during pre-forward by default  
 - **UI**  
   - improved image scaling in img2img and control interfaces  
 - **Fixes**
