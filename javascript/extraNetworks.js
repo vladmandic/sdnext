@@ -14,8 +14,13 @@ const getENActiveTab = () => {
   else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
   else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
   else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
-  if (['process', 'caption', 'gallery'].includes(tabName)) tabName = lastTab;
-  else lastTab = tabName;
+
+  if (['process', 'caption', 'gallery'].includes(tabName)) {
+    tabName = lastTab;
+  } else if (tabName !== '') {
+    lastTab = tabName;
+  }
+
   if (tabName !== '') return tabName;
   // legacy method
   if (gradioApp().getElementById('tab_txt2img')?.style.display === 'block') tabName = 'txt2img';
