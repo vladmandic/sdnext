@@ -92,7 +92,7 @@ def rgb_to_ycbcr_tensor(image: torch.ByteTensor) -> torch.FloatTensor:
 
 @devices.inference_context()
 def ycbcr_tensor_to_rgb(ycbcr: torch.FloatTensor) -> torch.ByteTensor:
-    ycbcr_img = (ycbcr / 2)
+    ycbcr_img = ycbcr / 2
     y = ycbcr_img[:,0,:,:].add_(0.5)
     cb = ycbcr_img[:,1,:,:]
     cr = ycbcr_img[:,2,:,:]
