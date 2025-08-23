@@ -1,12 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-22
+## Update for 2025-08-23
 
 - **UI**  
   - improved image scaling in img2img and control interfaces  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  
+  - improve handling of pre-quantized flux models  
 
 ## Update for 2025-08-20
 

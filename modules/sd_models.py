@@ -1157,13 +1157,18 @@ def unload_model_weights(op='model'):
         shared.log.debug(f'Unload {op}: {memory_stats()}')
 
 
-def hf_auth_check(checkpoint_info):
+def hf_auth_check(checkpoint_info, force:bool=False):
     login = None
-    try:
-        if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)) or (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for already downloaded models
-            return True
-    except Exception:
-        pass
+    if not force:
+        try:
+            # skip check for single-file safetensors models
+            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)):
+                return True
+            # skip check for local diffusers folders
+            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))):
+                return True
+        except Exception:
+            pass
     try:
         login = modelloader.hf_login()
         repo_id = path_to_repo(checkpoint_info)
