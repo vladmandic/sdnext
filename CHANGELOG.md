@@ -2,8 +2,13 @@
 
 ## Update for 2025-08-23
 
+- **Models**  
+  - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
+  - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
+  - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
 - **Core**
   - enable offload during pre-forward by default  
+  - update `requirements`  
 - **UI**  
   - improved image scaling in img2img and control interfaces  
 - **Fixes**

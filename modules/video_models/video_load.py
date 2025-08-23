@@ -1,4 +1,3 @@
-import os
 import copy
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te

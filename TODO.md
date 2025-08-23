@@ -30,6 +30,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Under Consideration
 
+- [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  

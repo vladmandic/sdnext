@@ -102,6 +102,9 @@ predefined_sd3 = {
     "Alimama Inpainting SD35": 'alimama-creative/SD3-Controlnet-Inpainting',
     "Alimama SoftEdge SD35": 'alimama-creative/SD3-Controlnet-Softedge',
 }
+predefined_qwen = {
+    "InstantX Union Qwen": 'InstantX/Qwen-Image-ControlNet-Union',
+}
 variants = {
     'NoobAI Canny XL': 'fp16',
     'NoobAI Lineart Anime XL': 'fp16',
@@ -116,6 +119,7 @@ all_models.update(predefined_sd15)
 all_models.update(predefined_sdxl)
 all_models.update(predefined_f1)
 all_models.update(predefined_sd3)
+all_models.update(predefined_qwen)
 cache_dir = 'models/control/controlnet'
 load_lock = threading.Lock()
 
@@ -150,6 +154,8 @@ def api_list_models(model_type: str = None):
         model_list += list(predefined_f1)
     if model_type == 'sd3' or model_type == 'all':
         model_list += list(predefined_sd3)
+    if model_type == 'qwen' or model_type == 'all':
+        model_list += list(predefined_qwen)
     model_list += sorted(find_models())
     return model_list
 
@@ -170,6 +176,8 @@ def list_models(refresh=False):
         models = ['None'] + list(predefined_f1) + sorted(find_models())
     elif modules.shared.sd_model_type == 'sd3':
         models = ['None'] + list(predefined_sd3) + sorted(find_models())
+    elif modules.shared.sd_model_type == 'qwen':
+        models = ['None'] + list(predefined_qwen) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
         models = ['None'] + sorted(predefined_sd15) + sorted(predefined_sdxl) + sorted(predefined_f1) + sorted(predefined_sd3) + sorted(find_models())
@@ -222,12 +230,15 @@ class ControlNet():
         elif shared.sd_model_type == 'sd3':
             from diffusers import SD3ControlNetModel as cls
             config = 'InstantX/SD3-Controlnet-Canny'
+        elif shared.sd_model_type == 'qwen':
+            from diffusers import QwenImageControlNetModel as cls
+            config = 'InstantX/Qwen-Image-ControlNet-Union'
         else:
             log.error(f'Control {what}: type={shared.sd_model_type} unsupported model')
             return None, None
         return cls, config
 
-    def load_safetensors(self, model_id, model_path, cls, config):
+    def load_safetensors(self, model_id, model_path, cls, config): # pylint: disable:unused-argument
         name = os.path.splitext(model_path)[0]
         config_path = None
         if not os.path.exists(model_path):
@@ -422,6 +433,16 @@ class ControlNetPipeline():
                 controlnet=controlnets, # can be a list
             )
             sd_models.move_model(self.pipeline, pipeline.device)
+        elif detect.is_qwen(pipeline) and len(controlnets) > 0:
+            from diffusers import QwenImageControlNetPipeline
+            self.pipeline = QwenImageControlNetPipeline(
+                vae=pipeline.vae,
+                text_encoder=pipeline.text_encoder,
+                tokenizer=pipeline.tokenizer,
+                transformer=pipeline.transformer,
+                scheduler=pipeline.scheduler,
+                controlnet=controlnets, # can be a list
+            )
         elif len(loras) > 0:
             self.pipeline = pipeline
             for lora in loras:

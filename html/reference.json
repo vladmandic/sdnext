@@ -1,4 +1,3 @@
-
 {
   "Tempest-by-Vlad XL": {
     "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
@@ -140,40 +139,47 @@
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
 
-  "lodestones Chroma Unlocked HD": {
+  "lodestones Chroma1 HD": {
     "path": "lodestones/Chroma1-HD",
     "preview": "lodestones--Chroma-HD.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the high-res fine-tune of the Chroma1-Base at a 1024x1024 resolution.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": ""
   },
-  "lodestones Chroma Unlocked HD Annealed": {
-    "path": "vladmandic/chroma-unlocked-v50-annealed",
-    "preview": "lodestones--Chroma-annealed.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+  "lodestones Chroma1 Base": {
+    "path": "lodestones/Chroma1-Base",
+    "preview": "lodestones--Chroma-HD.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the core 512x512 model. It's a solid, all-around foundation for pretty much any creative project.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": ""
   },
-  "lodestones Chroma Unlocked HD Flash": {
+  "lodestones Chroma1 Flash": {
     "path": "lodestones/Chroma1-Flash",
     "preview": "lodestones--Chroma-flash.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. A fine-tuned version of the Chroma1-Base made to find the best way to make these flow matching models faster.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 1.0"
+    "extras": ""
   },
-  "lodestones Chroma Unlocked v48": {
+  "lodestones Chroma1 v50 Preview Annealed": {
+    "path": "vladmandic/chroma-unlocked-v50-annealed",
+    "preview": "lodestones--Chroma-annealed.jpg",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Re-tweaked variant with extra noise added.",
+    "skip": true,
+    "extras": ""
+  },
+  "lodestones Chroma1 v48 Preview": {
     "path": "vladmandic/chroma-unlocked-v48",
     "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 1.0"
+    "extras": ""
   },
-  "lodestones Chroma Unlocked v48 Detail Calibrated": {
+  "lodestones Chroma1 v48 Preview Calibrated": {
     "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
     "preview": "lodestones--Chroma-detail.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. The model is still training right now, and I’d love to hear your thoughts! Your input and feedback are really appreciated.",
+    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning but with some detail calibration.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 1.0"
+    "extras": ""
   },
 
   "Qwen-Image": {
@@ -340,7 +346,6 @@
     "preview": "Shitao--OmniGen-v1.jpg",
     "skip": true
   },
-
   "VectorSpaceLab OmniGen v2": {
     "path": "OmniGen2/OmniGen2",
     "desc": "OmniGen2 is a powerful and efficient unified multimodal model. Unlike OmniGen v1, OmniGen2 features two distinct decoding pathways for text and image modalities, utilizing unshared parameters and a decoupled image tokenizer.",
@@ -462,7 +467,6 @@
     "skip": true,
     "extras": "sampler: Default"
   },
-
   "AlphaVLLM Lumina 2": {
     "path": "Alpha-VLLM/Lumina-Image-2.0",
     "desc": "A Unified and Efficient Image Generative Model. Lumina-Image-2.0 is a 2 billion parameter flow-based diffusion transformer capable of generating images from text descriptions.",
@@ -604,6 +608,7 @@
     "preview": "MeissonFlow--Meissonic.jpg",
     "skip": true
   },
+
   "aMUSEd 256": {
     "path": "huggingface/amused/amused-256",
     "skip": true,
@@ -624,6 +629,7 @@
     "preview": "warp-ai--wuerstchen.jpg",
     "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 0.0"
   },
+
   "KOALA 700M": {
     "path": "huggingface/etri-vilab/koala-700m-llava-cap",
     "variant": "fp16",
@@ -632,22 +638,26 @@
     "preview": "etri-vilab--koala-700m-llava-cap.jpg",
     "extras": "sampler: Default"
   },
+
   "Tsinghua UniDiffuser": {
     "path": "thu-ml/unidiffuser-v1",
     "desc": "UniDiffuser is a unified diffusion framework to fit all distributions relevant to a set of multi-modal data in one transformer. UniDiffuser is able to perform image, text, text-to-image, image-to-text, and image-text pair generation by setting proper timesteps without additional overhead.\nSpecifically, UniDiffuser employs a variation of transformer, called U-ViT, which parameterizes the joint noise prediction network. Other components perform as encoders and decoders of different modalities, including a pretrained image autoencoder from Stable Diffusion, a pretrained image ViT-B/32 CLIP encoder, a pretrained text ViT-L CLIP encoder, and a GPT-2 text decoder finetuned by ourselves.",
     "preview": "thu-ml--unidiffuser-v1.jpg",
     "extras": "width: 512, height: 512, sampler: Default"
   },
+
   "SalesForce BLIP-Diffusion": {
     "path": "salesforce/blipdiffusion",
     "desc": "BLIP-Diffusion, a new subject-driven image generation model that supports multimodal control which consumes inputs of subject images and text prompts. Unlike other subject-driven generation models, BLIP-Diffusion introduces a new multimodal encoder which is pre-trained to provide subject representation.",
     "preview": "salesforce--blipdiffusion.jpg"
   },
+
   "InstaFlow 0.9B": {
     "path": "XCLiu/instaflow_0_9B_from_sd_1_5",
     "desc": "InstaFlow is an ultra-fast, one-step image generator that achieves image quality close to Stable Diffusion. This efficiency is made possible through a recent Rectified Flow technique, which trains probability flows with straight trajectories, hence inherently requiring only a single step for fast inference.",
     "preview": "XCLiu--instaflow_0_9B_from_sd_1_5.jpg"
   },
+
   "DeepFloyd IF Medium": {
     "path": "DeepFloyd/IF-I-M-v1.0",
     "desc": "DeepFloyd-IF is a pixel-based text-to-image triple-cascaded diffusion model, that can generate pictures with new state-of-the-art for photorealism and language understanding. The result is a highly efficient model that outperforms current state-of-the-art models, achieving a zero-shot FID-30K score of 6.66 on the COCO dataset. It is modular and composed of frozen text mode and three pixel cascaded diffusion modules, each designed to generate images of increasing resolution: 64x64, 256x256, and 1024x1024.",
