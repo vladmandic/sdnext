@@ -10,6 +10,7 @@
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  
   - improve handling of pre-quantized flux models  
+  - fix networks reference models display on windows  
 
 ## Update for 2025-08-20
 
