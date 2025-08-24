@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-23
+## Update for 2025-08-24
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -17,6 +17,7 @@
   - improve handling of pre-quantized flux models  
   - fix networks reference models display on windows  
   - wan use correct pipeline for i2v models  
+  - qwen-image with hires  
 
 ## Update for 2025-08-20
 

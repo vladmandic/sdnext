@@ -223,6 +223,11 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             shared.state.update('Upscale', 0, 1)
             output.images = resize_hires(p, latents=output.images)
             sd_hijack_hypertile.hypertile_set(p, hr=True)
+        elif torch.is_tensor(output.images) and output.images.shape[-1] == 3: # nhwc
+            if output.images.dim() == 3:
+                output.images = TF.to_pil_image(output.images.permute(2,0,1))
+            elif output.images.dim() == 4:
+                output.images = [TF.to_pil_image(output.images[i].permute(2,0,1)) for i in range(output.images.shape[0])]
 
         strength = p.hr_denoising_strength if p.hr_denoising_strength > 0 else p.denoising_strength
         if (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:

@@ -382,8 +382,15 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         if 'width' in possible and 'height' in possible:
             vae_scale_factor = sd_vae.get_vae_scale_factor(model)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
-                args['width'] = vae_scale_factor * args['image'].shape[-1]
-                args['height'] = vae_scale_factor * args['image'].shape[-2]
+                if args['image'].shape[-1] == 3: # nhwc
+                    args['width'] = args['image'].shape[-2]
+                    args['height'] = args['image'].shape[-3]
+                elif args['image'].shape[-3] == 3: # nchw
+                    args['width'] = args['image'].shape[-1]
+                    args['height'] = args['image'].shape[-2]
+                else: # assume latent
+                    args['width'] = vae_scale_factor * args['image'].shape[-1]
+                    args['height'] = vae_scale_factor * args['image'].shape[-2]
             elif isinstance(args['image'], Image.Image):
                 args['width'] = args['image'].width
                 args['height'] = args['image'].height
