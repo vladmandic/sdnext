@@ -25,6 +25,7 @@ debug = shared.log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else
 debug('Trace: EN')
 card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
+        {base_model_box}
         <div class='overlay'>
             <div class='name {reference}'>{title}</div>
         </div>
@@ -39,11 +40,11 @@ card_full = '''
 '''
 card_list = '''
     <div class='card card-list' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-version='{version}' data-size='{size}' data-search='{search}'>
+        {base_model_box}
         <div style='display: flex'>
             <span class='details' title="Get details" onclick="showCardDetails(event)">&#x1f6c8;</span>&nbsp;
             <div class='name {reference}' style='flex-flow: column'>{title}&nbsp;
                 <div class='tags tags-list'></div>
-                <div class='version'>{version}</div>
             </div>
         </div>
     </div>
@@ -324,6 +325,7 @@ class ExtraNetworksPage:
 
         try:
             base_model = ''
+            base_model_box = ''
             info = self.find_info(item.get('filename'))
             item_hash = item.get('hash', None)
             if info and item_hash and ('modelVersions' in info):
@@ -334,6 +336,9 @@ class ExtraNetworksPage:
                             break
                     if base_model:
                         break
+                if base_model:
+                    base_model_box_style = "position: absolute; top: 4px; left: 4px; background-color: rgba(0, 0, 0, 0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; z-index: 1;"
+                    base_model_box = f"<div style='{base_model_box_style}'>{html.escape(base_model)}</div>"
             
             onclick = f'cardClicked({item.get("prompt", None)})'
             args = {
@@ -354,9 +359,10 @@ class ExtraNetworksPage:
                 "card_click": item.get("onclick", '"' + html.escape(onclick) + '"'),
                 "mtime": item.get("mtime", 0),
                 "size": item.get("size", 0),
-                "version": html.escape(base_model),
+                "version": item.get("version", ''),
                 "color": random_bright_color(),
                 "reference": "reference" if 'Reference' in item.get('name', '') else "",
+                "base_model_box": base_model_box,
             }
             # alias = item.get("alias", None)
             # if alias is not None:
