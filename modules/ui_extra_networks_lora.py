@@ -97,7 +97,10 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "metadata": json.dumps(l.metadata, indent=4) if l.metadata else None,
                 "mtime": mtime,
                 "size": size,
-                "version": l.sd_version,
+                "version": ( # Base model extraction
+                    info.get("modelVersions", [{}])[0].get("baseModel", "N/A")
+                    if info else "N/A"
+                ),
                 "info": info,
                 "description": self.find_description(l.filename, info),
                 "tags": self.get_tags(l, info),
