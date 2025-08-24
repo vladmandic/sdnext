@@ -98,8 +98,8 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "mtime": mtime,
                 "size": size,
                 "version": ( # Base model extraction
-                    info.get("modelVersions", [{}])[0].get("baseModel", "N/A")
-                    if info else "N/A"
+                    (info.get("modelVersions", [{}])[0].get("baseModel") or l.sd_version or "N/A")
+                    if info else (l.sd_version or "N/A")
                 ),
                 "info": info,
                 "description": self.find_description(l.filename, info),
