@@ -277,6 +277,7 @@ class ExtraNetworksPage:
                 continue
             style = 'color: var(--color-accent)' if subdir in ['All', 'Local', 'Diffusers', 'Reference'] else ''
             subdirs_html += f'<button class="lg secondary gradio-button custom-button" onclick="extraNetworksSearchButton(event)" style="{style}">{html.escape(subdir)}</button><br>'
+        self.html = ''
         self.create_items(tabname)
         versions = sorted({item.get("version", "Unknown") for item in self.items if item.get("version")})
         versions_html = ''
