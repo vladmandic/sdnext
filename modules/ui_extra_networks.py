@@ -276,7 +276,11 @@ class ExtraNetworksPage:
             if len(subdir) == 0:
                 continue
             style = 'color: var(--color-accent)' if subdir in ['All', 'Local', 'Diffusers', 'Reference'] else ''
-            subdirs_html += f'<button class="lg secondary gradio-button custom-button" onclick="extraNetworksSearchButton(event)" style="{style}">{html.escape(subdir)}</button><br>'
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference']:
+                style = 'network-reference'
+            else:
+                style = 'network-folder'
+            subdirs_html += f'<button class="lg secondary gradio-button custom-button {style}" onclick="extraNetworksSearchButton(event)">{html.escape(subdir)}</button><br>'
         self.html = ''
         self.create_items(tabname)
         self.create_xyz_grid()
