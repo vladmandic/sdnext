@@ -1903,7 +1903,7 @@ div:has(>#tab-gallery-folders) {
   width: 512px;
   height: 512px;
   background-repeat: no-repeat;
-  animation: color 8s infinite alternate, move 3s infinite alternate;
+  animation: hue 5s infinite alternate;
 }
 
 .loading {
@@ -1919,7 +1919,7 @@ div:has(>#tab-gallery-folders) {
   border: var(--spacing-md) solid transparent;
   border-radius: 50%;
   border-top: var(--spacing-md) solid var(--primary-600);
-  animation: spin 2s linear infinite, pulse 1.5s ease-in-out infinite;
+  animation: spin 2s linear infinite, hue 5s infinite alternate;
   position: border-box;
 }
 
@@ -1933,6 +1933,7 @@ div:has(>#tab-gallery-folders) {
   right: 6px;
   border-radius: 50%;
   border: var(--spacing-md) solid transparent;
+  animation: hue 5s infinite alternate;
 }
 
 .loader::before {
@@ -2099,18 +2100,6 @@ div:has(>#tab-gallery-folders) {
   filter: blur(0);
 }
 
-@keyframes move {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -2120,16 +2109,7 @@ div:has(>#tab-gallery-folders) {
   }
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-}
-
-@keyframes color {
+@keyframes hue {
   0% {
     filter: hue-rotate(0deg);
   }
