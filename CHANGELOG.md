@@ -18,10 +18,11 @@
 - **Fixes**
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  
-  - improve handling of pre-quantized flux models  
   - fix networks reference models display on windows  
-  - wan use correct pipeline for i2v models  
-  - qwen-image with hires  
+  - fix handling of pre-quantized `flux` models  
+  - fix `wan` use correct pipeline for i2v models  
+  - fix `qwen-image` with hires  
+  - fix `omnigen-2`  
 
 ## Update for 2025-08-20
 
