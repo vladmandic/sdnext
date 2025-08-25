@@ -9,8 +9,9 @@ const localeData = {
   type: 2,
   hint: null,
   btn: null,
-  expandTimeout: null, // New property for expansion timeout
-  currentElement: null, // Track current element for expansion
+  expandTimeout: null,
+  currentElement: null,
+  elementHintMap: new WeakMap(), // Store hints separately from DOM
 };
 let localeTimeout = null;
 
@@ -21,17 +22,17 @@ async function cycleLocale() {
     const index = allLocales.indexOf(localeData.prev);
     localeData.locale = allLocales[(index + 1) % allLocales.length];
     localeData.btn.innerText = localeData.locale;
-    // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
     localeData.finished = false;
     localeData.data = [];
     localeData.prev = localeData.locale;
+    localeData.elementHintMap = new WeakMap();
     window.opts.ui_locale = localeData.locale;
-    setHints(); // eslint-disable-line no-use-before-define
+    setHints();
   }, 250);
 }
 
 async function resetLocale() {
-  clearTimeout(localeTimeout); // Prevent the single click logic
+  clearTimeout(localeTimeout);
   localeData.locale = 'en';
   log('resetLocale', localeData.locale);
   const index = allLocales.indexOf(localeData.locale);
@@ -39,8 +40,9 @@ async function resetLocale() {
   localeData.btn.innerText = localeData.locale;
   localeData.finished = false;
   localeData.data = [];
+  localeData.elementHintMap = new WeakMap();
   window.opts.ui_locale = localeData.locale;
-  setHints(); // eslint-disable-line no-use-before-define
+  setHints();
 }
 
 async function tooltipCreate() {
@@ -64,18 +66,15 @@ async function tooltipCreate() {
   if (window.opts.tooltips === 'UI tooltips') localeData.type = 2;
 }
 
-async function expandTooltip(element, longHint) {
+async function expandTooltip(element, hintData) {
   if (localeData.currentElement === element && localeData.hint.classList.contains('tooltip-show')) {
-    // Hide the progress ring
     const ring = localeData.hint.querySelector('.tooltip-progress-ring');
     if (ring) {
       ring.style.opacity = '0';
     }
 
-    // Expand the container
     localeData.hint.classList.add('tooltip-expanded');
 
-    // After container starts expanding, reveal the long content
     setTimeout(() => {
       const longContent = localeData.hint.querySelector('.long-content');
       if (longContent) {
@@ -86,6 +85,15 @@ async function expandTooltip(element, longHint) {
 }
 
 async function tooltipShow(e) {
+  // Get hint data from WeakMap or dataset
+  const hintData = localeData.elementHintMap.get(e.target) || {
+    hint: e.target.dataset?.hint,
+    longHint: e.target.dataset?.longHint,
+    reload: e.target.dataset?.reload,
+  };
+
+  if (!hintData.hint) return;
+
   // Clear any existing expansion timeout
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
@@ -96,80 +104,76 @@ async function tooltipShow(e) {
   localeData.hint.classList.remove('tooltip-expanded');
   localeData.currentElement = e.target;
 
-  if (e.target.dataset.hint) {
-    // Create progress ring SVG
-    const progressRing = `
-      <div class="tooltip-progress-ring">
-        <svg viewBox="0 0 12 12">
-          <circle class="ring-background" cx="6" cy="6" r="5"></circle>
-          <circle class="ring-progress" cx="6" cy="6" r="5"></circle>
-        </svg>
-      </div>
-    `;
+  // Create progress ring SVG
+  const progressRing = `
+    <div class="tooltip-progress-ring">
+      <svg viewBox="0 0 12 12">
+        <circle class="ring-background" cx="6" cy="6" r="5"></circle>
+        <circle class="ring-progress" cx="6" cy="6" r="5"></circle>
+      </svg>
+    </div>
+  `;
 
-    // Set up the complete content structure from the start
-    let content = `
-      <div class="tooltip-header">
-        <b>${e.target.textContent}</b>
-        ${e.target.dataset.longHint ? progressRing : ''}
-      </div>
-      <div class="separator"></div>
-      ${e.target.dataset.hint}
-    `;
+  // Set up the complete content structure from the start
+  let content = `
+    <div class="tooltip-header">
+      <b>${e.target.textContent}</b>
+      ${hintData.longHint ? progressRing : ''}
+    </div>
+    <div class="separator"></div>
+    ${hintData.hint}
+  `;
 
-    // Add long content if available, but keep it hidden
-    if (e.target.dataset.longHint) {
-      content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`;
+  // Add long content if available, but keep it hidden
+  if (hintData.longHint) {
+    content += `<div class="long-content"><div class="separator"></div>${hintData.longHint}</div>`;
+  }
+
+  // Add reload notice if needed
+  if (hintData.reload) {
+    const reloadType = hintData.reload;
+    let reloadText = '';
+
+    if (reloadType === 'model') {
+      reloadText = 'Requires model reload';
+    } else if (reloadType === 'server') {
+      reloadText = 'Requires server restart';
     }
 
-    // Add reload notice if needed
-    if (e.target.dataset.reload) {
-      const reloadType = e.target.dataset.reload;
-      let reloadText = '';
-      
-      if (reloadType === 'model') {
-        reloadText = 'Requires model reload';
-      } else if (reloadType === 'server') {
-        reloadText = 'Requires server restart';
-      }
-      
-      if (reloadText) {
-        content += `
-          <div class="tooltip-reload-notice">
-            <div class="separator"></div>
-            <span class="tooltip-reload-text">${reloadText}</span>
-          </div>
-        `;
-      }
+    if (reloadText) {
+      content += `
+        <div class="tooltip-reload-notice">
+          <div class="separator"></div>
+          <span class="tooltip-reload-text">${reloadText}</span>
+        </div>
+      `;
+    }
+  }
+
+  localeData.hint.innerHTML = content;
+  localeData.hint.classList.add('tooltip-show');
+
+  if (e.clientX > window.innerWidth / 2) {
+    localeData.hint.classList.add('tooltip-left');
+  } else {
+    localeData.hint.classList.remove('tooltip-left');
+  }
+
+  // Set up expansion timer if long hint is available
+  if (hintData.longHint) {
+    const ring = localeData.hint.querySelector('.tooltip-progress-ring');
+    const ringProgress = localeData.hint.querySelector('.ring-progress');
+
+    if (ring && ringProgress) {
+      setTimeout(() => {
+        ring.classList.add('active');
+        ringProgress.classList.add('animate');
+      }, 100);
     }
 
-    localeData.hint.innerHTML = content;
-    localeData.hint.classList.add('tooltip-show');
-
-    if (e.clientX > window.innerWidth / 2) {
-      localeData.hint.classList.add('tooltip-left');
-    } else {
-      localeData.hint.classList.remove('tooltip-left');
-    }
-
-    // Set up expansion timer if long hint is available
-    if (e.target.dataset.longHint) {
-      // Start progress ring animation
-      const ring = localeData.hint.querySelector('.tooltip-progress-ring');
-      const ringProgress = localeData.hint.querySelector('.ring-progress');
-
-      if (ring && ringProgress) {
-        // Show the ring and start animation
-        setTimeout(() => {
-          ring.classList.add('active');
-          ringProgress.classList.add('animate');
-        }, 100);
-      }
-
-      localeData.expandTimeout = setTimeout(() => {
-        expandTooltip(e.target, e.target.dataset.longHint);
-      }, 3000);
-    }
+    localeData.expandTimeout = setTimeout(() => {
+      expandTooltip(e.target, hintData);
+    }, 3000);
   }
 }
 
@@ -188,11 +192,11 @@ async function validateHints(json, elements) {
   json.missing = [];
   const data = Object.values(json).flat().filter((e) => e.hint.length > 0);
   for (const e of data) e.label = e.label.trim();
-  let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort(); // should be case sensitive
+  let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort();
   let duplicateUI = original.filter((e, i, a) => a.indexOf(e.toLowerCase()) !== i).sort();
-  original = [...new Set(original)]; // remove duplicates
-  duplicateUI = [...new Set(duplicateUI)]; // remove duplicates
-  const current = data.map((e) => e.label.toLowerCase().trim()).sort(); // should be case sensitive
+  original = [...new Set(original)];
+  duplicateUI = [...new Set(duplicateUI)];
+  const current = data.map((e) => e.label.toLowerCase().trim()).sort();
   log('all elements:', original);
   log('all hints:', current);
   log('hints-differences', { elements: original.length, hints: current.length });
@@ -209,7 +213,7 @@ async function addMissingHints(json, missingHints) {
   json.missing = [];
   for (const h of missingHints.sort()) {
     if (h.length <= 1) continue;
-    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' }); // Add longHint property
+    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' });
   }
   log('missing hints', missingHints);
   log('added missing hints:', { missing: json.missing });
@@ -223,8 +227,6 @@ async function removeOrphanedHints(json, orphanedHints) {
 }
 
 async function replaceButtonText(el) {
-  // https://www.nerdfonts.com/cheat-sheet
-  // use unicode of icon with format nf-md-<icon>_circle
   const textIcons = {
     Generate: '\uf144',
     Enqueue: '\udb81\udc17',
@@ -257,7 +259,7 @@ async function getLocaleData(desiredLocale = null) {
     localeData.prev = localeData.locale;
   }
   log('getLocale', desiredLocale, localeData.locale);
-  // primary
+
   let json = {};
   try {
     let res = await fetch(`${window.subpath}/file=html/locale_${localeData.locale}.json`);
@@ -279,68 +281,104 @@ async function getLocaleData(desiredLocale = null) {
 async function setHints(analyze = false) {
   let json = {};
   let overrideData = [];
-  if (localeData.finished) return;
+
   if (Object.keys(opts).length === 0) return;
+
   const elements = [
     ...Array.from(gradioApp().querySelectorAll('button')),
     ...Array.from(gradioApp().querySelectorAll('h2')),
     ...Array.from(gradioApp().querySelectorAll('label > span')),
     ...Array.from(gradioApp().querySelectorAll('.label-wrap > span')),
+    // Include tab buttons specifically
+    ...Array.from(gradioApp().querySelectorAll('.tab-nav > button')),
   ];
+
   if (elements.length === 0) return;
+
+  // Load data only if not already loaded
   if (localeData.data.length === 0) {
     json = await getLocaleData(window.opts.ui_locale);
     overrideData = Object.values(json.override || {}).flat().filter((e) => e.hint.length > 0);
     const jsonData = Object.values(json).flat().filter((e) => e.hint.length > 0);
     localeData.data = [...overrideData, ...jsonData];
   }
+
   if (!localeData.hint) tooltipCreate();
+
   let localized = 0;
   let hints = 0;
   const t0 = performance.now();
+
   for (const possible of elements) {
     let el = possible;
     if (possible.querySelector('span')) el = possible.querySelector('span');
-    if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) continue; // skip icon buttons
+    if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) continue;
+
+    // Get text to match against
+    const elementText = el.dataset?.original || el.textContent;
+
     let found;
-    if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
-    else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+    if (elementText) {
+      found = localeData.data.find((l) => l.label.toLowerCase().trim() === elementText.toLowerCase().trim());
+    }
+
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
       localized++;
       el.textContent = found.localized;
-    } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) { // reset to english
+    } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) {
       el.textContent = found.label;
     }
-    // replaceButtonText(el);
+
     if (found?.hint?.length > 0) {
       hints++;
+
       if (localeData.type === 1) {
         el.title = found.hint;
       } else if (localeData.type === 2) {
+        // Store hint data in both dataset and WeakMap
+        const hintData = {
+          hint: found.hint,
+          longHint: found.longHint || null,
+          reload: found.reload || null,
+        };
+
+        // Store in WeakMap for persistence
+        localeData.elementHintMap.set(el, hintData);
+
+        // Also set dataset attributes for compatibility
         el.dataset.hint = found.hint;
-        // Set long hint if available
-        if (found.longHint && found.longHint.length > 0) {
-          el.dataset.longHint = found.longHint;
-        }
-        // Set reload type if available
-        if (found.reload && found.reload.length > 0) {
-          el.dataset.reload = found.reload;
-        }
+        if (found.longHint) el.dataset.longHint = found.longHint;
+        if (found.reload) el.dataset.reload = found.reload;
+
+        // Remove old listeners if any
+        el.removeEventListener('mouseover', tooltipShow);
+        el.removeEventListener('mouseout', tooltipHide);
+        el.removeEventListener('click', tooltipHide);
+
+        // Add new listeners
         el.addEventListener('mouseover', tooltipShow);
         el.addEventListener('mouseout', tooltipHide);
         el.addEventListener('click', tooltipHide);
-      } else {
-        // tooltips disabled
       }
     }
   }
+
   localeData.finished = true;
   localeData.initial = false;
   const t1 = performance.now();
-  // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
-  log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
-  // sortUIElements();
+
+  log('setHints', {
+    type: localeData.type,
+    locale: localeData.locale,
+    elements: elements.length,
+    localized,
+    hints,
+    data: localeData.data.length,
+    override: overrideData.length,
+    time: Math.round(t1 - t0),
+  });
+
   if (analyze) {
     const [missingHints, orphanedHints] = await validateHints(json, elements);
     await addMissingHints(json, missingHints);
@@ -348,8 +386,18 @@ async function setHints(analyze = false) {
   }
 }
 
+// Force refresh hints on tab changes
+onUiTabChange(() => {
+  // Small delay to let DOM settle
+  setTimeout(() => {
+    localeData.finished = false; // Allow setHints to run again
+    setHints();
+  }, 100);
+});
+
 const analyzeHints = async () => {
   localeData.finished = false;
   localeData.data = [];
+  localeData.elementHintMap = new WeakMap();
   await setHints(true);
 };
