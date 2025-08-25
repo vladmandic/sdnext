@@ -290,6 +290,28 @@ function extraNetworksSearchButton(event) {
   }
 }
 
+function extraNetworksFilterVersion(event) {
+  // log('extraNetworksFilterVersion', event);
+  const version = event.target.textContent.trim();
+  const activeTab = gradioApp().querySelector('.extra-networks-tab:not([style*="display: none"])');
+  if (!activeTab) return;
+  const cardContainer = activeTab.querySelector('.extra-network-cards');
+  if (!cardContainer) return;
+  if (cardContainer.dataset.activeVersion === version) {
+    cardContainer.dataset.activeVersion = '';
+    cardContainer.querySelectorAll('.card').forEach(card => card.style.display = '');
+  } else {
+    cardContainer.dataset.activeVersion = version;
+    cardContainer.querySelectorAll('.card').forEach(card => {
+      if (card.dataset.version === version) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+}
+
 let desiredStyle = '';
 function selectStyle(name) {
   desiredStyle = name;
