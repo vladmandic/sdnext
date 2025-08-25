@@ -9,9 +9,10 @@ const localeData = {
   type: 2,
   hint: null,
   btn: null,
-  expandTimeout: null,
-  currentElement: null,
+  expandTimeout: null, // New property for expansion timeout
+  currentElement: null, // Track current element for expansion
   elementHintMap: new WeakMap(), // Store hints separately from DOM
+  delegationSetup: false, // Track if global delegation is setup
 };
 let localeTimeout = null;
 
@@ -22,17 +23,19 @@ async function cycleLocale() {
     const index = allLocales.indexOf(localeData.prev);
     localeData.locale = allLocales[(index + 1) % allLocales.length];
     localeData.btn.innerText = localeData.locale;
+    // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
     localeData.finished = false;
     localeData.data = [];
     localeData.prev = localeData.locale;
     localeData.elementHintMap = new WeakMap();
+    // Don't reset delegationSetup as it should persist
     window.opts.ui_locale = localeData.locale;
-    setHints();
+    setHints(); // eslint-disable-line no-use-before-define
   }, 250);
 }
 
 async function resetLocale() {
-  clearTimeout(localeTimeout);
+  clearTimeout(localeTimeout); // Prevent the single click logic
   localeData.locale = 'en';
   log('resetLocale', localeData.locale);
   const index = allLocales.indexOf(localeData.locale);
@@ -41,8 +44,9 @@ async function resetLocale() {
   localeData.finished = false;
   localeData.data = [];
   localeData.elementHintMap = new WeakMap();
+  // Don't reset delegationSetup as it should persist
   window.opts.ui_locale = localeData.locale;
-  setHints();
+  setHints(); // eslint-disable-line no-use-before-define
 }
 
 async function tooltipCreate() {
@@ -68,13 +72,16 @@ async function tooltipCreate() {
 
 async function expandTooltip(element, hintData) {
   if (localeData.currentElement === element && localeData.hint.classList.contains('tooltip-show')) {
+    // Hide the progress ring
     const ring = localeData.hint.querySelector('.tooltip-progress-ring');
     if (ring) {
       ring.style.opacity = '0';
     }
 
+    // Expand the container
     localeData.hint.classList.add('tooltip-expanded');
 
+    // After container starts expanding, reveal the long content
     setTimeout(() => {
       const longContent = localeData.hint.querySelector('.long-content');
       if (longContent) {
@@ -85,11 +92,14 @@ async function expandTooltip(element, hintData) {
 }
 
 async function tooltipShow(e) {
-  // Get hint data from WeakMap or dataset
-  const hintData = localeData.elementHintMap.get(e.target) || {
-    hint: e.target.dataset?.hint,
-    longHint: e.target.dataset?.longHint,
-    reload: e.target.dataset?.reload,
+  // For event delegation, ensure we have the right target
+  const target = e.target || e;
+
+  // Get hint data from WeakMap first, then fall back to dataset
+  const hintData = localeData.elementHintMap.get(target) || {
+    hint: target.dataset?.hint,
+    longHint: target.dataset?.longHint,
+    reload: target.dataset?.reload,
   };
 
   if (!hintData.hint) return;
@@ -102,7 +112,7 @@ async function tooltipShow(e) {
 
   // Remove expanded class and reset current element
   localeData.hint.classList.remove('tooltip-expanded');
-  localeData.currentElement = e.target;
+  localeData.currentElement = target;
 
   // Create progress ring SVG
   const progressRing = `
@@ -117,7 +127,7 @@ async function tooltipShow(e) {
   // Set up the complete content structure from the start
   let content = `
     <div class="tooltip-header">
-      <b>${e.target.textContent}</b>
+      <b>${target.textContent}</b>
       ${hintData.longHint ? progressRing : ''}
     </div>
     <div class="separator"></div>
@@ -133,13 +143,11 @@ async function tooltipShow(e) {
   if (hintData.reload) {
     const reloadType = hintData.reload;
     let reloadText = '';
-
     if (reloadType === 'model') {
       reloadText = 'Requires model reload';
     } else if (reloadType === 'server') {
       reloadText = 'Requires server restart';
     }
-
     if (reloadText) {
       content += `
         <div class="tooltip-reload-notice">
@@ -161,10 +169,12 @@ async function tooltipShow(e) {
 
   // Set up expansion timer if long hint is available
   if (hintData.longHint) {
+    // Start progress ring animation
     const ring = localeData.hint.querySelector('.tooltip-progress-ring');
     const ringProgress = localeData.hint.querySelector('.ring-progress');
 
     if (ring && ringProgress) {
+      // Show the ring and start animation
       setTimeout(() => {
         ring.classList.add('active');
         ringProgress.classList.add('animate');
@@ -172,7 +182,7 @@ async function tooltipShow(e) {
     }
 
     localeData.expandTimeout = setTimeout(() => {
-      expandTooltip(e.target, hintData);
+      expandTooltip(target, hintData);
     }, 3000);
   }
 }
@@ -188,15 +198,51 @@ async function tooltipHide(e) {
   localeData.currentElement = null;
 }
 
+// Setup global event delegation that persists through DOM changes
+function setupGlobalDelegation() {
+  if (localeData.delegationSetup) return;
+
+  // Use event delegation on document level for maximum persistence
+  document.addEventListener('mouseover', (e) => {
+    const target = e.target;
+    if (target && (target.dataset?.hasHint === 'true' || localeData.elementHintMap.has(target))) {
+      tooltipShow({ target, clientX: e.clientX, clientY: e.clientY });
+    }
+  }, true);
+
+  document.addEventListener('mouseout', (e) => {
+    const target = e.target;
+    if (target && (target.dataset?.hasHint === 'true' || localeData.elementHintMap.has(target))) {
+      if (!target.contains(e.relatedTarget)) {
+        tooltipHide({ target });
+      }
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    if (localeData.hint && localeData.hint.classList.contains('tooltip-show')) {
+      tooltipHide({ target: localeData.currentElement });
+    }
+  }, true);
+
+  localeData.delegationSetup = true;
+  log('Global event delegation setup for tooltips');
+}
+
+// Setup global event delegation for tooltips (only once)
+if (localeData.type === 2 && !localeData.delegationSetup) {
+  setupGlobalDelegation();
+}
+
 async function validateHints(json, elements) {
   json.missing = [];
   const data = Object.values(json).flat().filter((e) => e.hint.length > 0);
   for (const e of data) e.label = e.label.trim();
-  let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort();
+  let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort(); // should be case sensitive
   let duplicateUI = original.filter((e, i, a) => a.indexOf(e.toLowerCase()) !== i).sort();
-  original = [...new Set(original)];
-  duplicateUI = [...new Set(duplicateUI)];
-  const current = data.map((e) => e.label.toLowerCase().trim()).sort();
+  original = [...new Set(original)]; // remove duplicates
+  duplicateUI = [...new Set(duplicateUI)]; // remove duplicates
+  const current = data.map((e) => e.label.toLowerCase().trim()).sort(); // should be case sensitive
   log('all elements:', original);
   log('all hints:', current);
   log('hints-differences', { elements: original.length, hints: current.length });
@@ -213,7 +259,7 @@ async function addMissingHints(json, missingHints) {
   json.missing = [];
   for (const h of missingHints.sort()) {
     if (h.length <= 1) continue;
-    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' });
+    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' }); // Add longHint property
   }
   log('missing hints', missingHints);
   log('added missing hints:', { missing: json.missing });
@@ -227,6 +273,8 @@ async function removeOrphanedHints(json, orphanedHints) {
 }
 
 async function replaceButtonText(el) {
+  // https://www.nerdfonts.com/cheat-sheet
+  // use unicode of icon with format nf-md-<icon>_circle
   const textIcons = {
     Generate: '\uf144',
     Enqueue: '\udb81\udc17',
@@ -259,7 +307,7 @@ async function getLocaleData(desiredLocale = null) {
     localeData.prev = localeData.locale;
   }
   log('getLocale', desiredLocale, localeData.locale);
-
+  // primary
   let json = {};
   try {
     let res = await fetch(`${window.subpath}/file=html/locale_${localeData.locale}.json`);
@@ -278,21 +326,61 @@ async function getLocaleData(desiredLocale = null) {
   return json;
 }
 
+async function replaceTextContent(el, text) {
+  if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) return;
+  if (el.querySelector('span')) el = el.querySelector('span');
+  if (el.querySelector('div')) el = el.querySelector('div');
+  if (el.classList.contains('mask-icon')) return; // skip icon buttons
+  if (el.dataset.selector) { // replace on rehosted child if exists
+    el = el.firstElementChild || el.querySelector(el.dataset.selector);
+    replaceTextContent(el, text);
+    return;
+  }
+  el.textContent = text;
+}
+
+async function setHint(el, entry) {
+  // Store hint data in WeakMap for persistence
+  const hintData = {
+    hint: entry.hint,
+    longHint: entry.longHint || null,
+    reload: entry.reload || null,
+  };
+  localeData.elementHintMap.set(el, hintData);
+
+  if (localeData.type === 1) {
+    el.title = entry.hint;
+  } else if (localeData.type === 2) {
+    // Also set dataset attributes for compatibility
+    el.dataset.hint = entry.hint;
+    if (entry.longHint && entry.longHint.length > 0) el.dataset.longHint = entry.longHint;
+    if (entry.reload && entry.reload.length > 0) el.dataset.reload = entry.reload;
+
+    // Mark element as having hints for event delegation
+    el.dataset.hasHint = 'true';
+
+    // Don't add individual listeners here - we'll use global delegation
+  } else {
+    // tooltips disabled
+  }
+}
+
 async function setHints(analyze = false) {
   let json = {};
   let overrideData = [];
-
+  // Remove early return to allow re-initialization after tab changes
+  // if (localeData.finished) return;
   if (Object.keys(opts).length === 0) return;
-
   const elements = [
     ...Array.from(gradioApp().querySelectorAll('button')),
     ...Array.from(gradioApp().querySelectorAll('h2')),
     ...Array.from(gradioApp().querySelectorAll('label > span')),
     ...Array.from(gradioApp().querySelectorAll('.label-wrap > span')),
-    // Include tab buttons specifically
+    // Include all tab buttons specifically
     ...Array.from(gradioApp().querySelectorAll('.tab-nav > button')),
+    ...Array.from(gradioApp().querySelectorAll('#settings .tab-nav > button')),
+    ...Array.from(gradioApp().querySelectorAll('#system .tab-nav > button')),
   ];
-
   if (elements.length === 0) return;
 
   // Load data only if not already loaded
@@ -309,75 +397,33 @@ async function setHints(analyze = false) {
   let hints = 0;
   const t0 = performance.now();
 
-  for (const possible of elements) {
-    let el = possible;
-    if (possible.querySelector('span')) el = possible.querySelector('span');
-    if (el.children.length === 1 && el.firstElementChild.classList.contains('mask-icon')) continue;
-
-    // Get text to match against
-    const elementText = el.dataset?.original || el.textContent;
-
+  for (const el of elements) {
+    // localize elements text
     let found;
-    if (elementText) {
-      found = localeData.data.find((l) => l.label.toLowerCase().trim() === elementText.toLowerCase().trim());
-    }
+    if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+    else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
 
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
       localized++;
-      el.textContent = found.localized;
-    } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) {
-      el.textContent = found.label;
+      replaceTextContent(el, found.localized);
+    } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) { // reset to english
+      replaceTextContent(el, found.label);
     }
 
+    // set hints - always re-apply to handle DOM changes
     if (found?.hint?.length > 0) {
       hints++;
-
-      if (localeData.type === 1) {
-        el.title = found.hint;
-      } else if (localeData.type === 2) {
-        // Store hint data in both dataset and WeakMap
-        const hintData = {
-          hint: found.hint,
-          longHint: found.longHint || null,
-          reload: found.reload || null,
-        };
-
-        // Store in WeakMap for persistence
-        localeData.elementHintMap.set(el, hintData);
-
-        // Also set dataset attributes for compatibility
-        el.dataset.hint = found.hint;
-        if (found.longHint) el.dataset.longHint = found.longHint;
-        if (found.reload) el.dataset.reload = found.reload;
-
-        // Remove old listeners if any
-        el.removeEventListener('mouseover', tooltipShow);
-        el.removeEventListener('mouseout', tooltipHide);
-        el.removeEventListener('click', tooltipHide);
-
-        // Add new listeners
-        el.addEventListener('mouseover', tooltipShow);
-        el.addEventListener('mouseout', tooltipHide);
-        el.addEventListener('click', tooltipHide);
-      }
+      setHint(el, found);
     }
   }
 
   localeData.finished = true;
   localeData.initial = false;
   const t1 = performance.now();
-
-  log('setHints', {
-    type: localeData.type,
-    locale: localeData.locale,
-    elements: elements.length,
-    localized,
-    hints,
-    data: localeData.data.length,
-    override: overrideData.length,
-    time: Math.round(t1 - t0),
-  });
+  // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
+  log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
+  // sortUIElements();
 
   if (analyze) {
     const [missingHints, orphanedHints] = await validateHints(json, elements);
@@ -386,18 +432,39 @@ async function setHints(analyze = false) {
   }
 }
 
-// Force refresh hints on tab changes
+// Force refresh hints on tab changes (main tabs)
 onUiTabChange(() => {
   // Small delay to let DOM settle
   setTimeout(() => {
     localeData.finished = false; // Allow setHints to run again
     setHints();
-  }, 100);
+  }, 25);
+});
+
+// Also handle any click on tab buttons directly
+onUiUpdate(() => {
+  // Find all tab buttons
+  const tabButtons = gradioApp().querySelectorAll('.tab-nav > button, #settings .tab-nav > button, #system .tab-nav > button');
+
+  tabButtons.forEach((btn) => {
+    // Check if this button already has our click handler
+    if (!btn.dataset.hintClickHandlerAdded) {
+      btn.dataset.hintClickHandlerAdded = 'true';
+
+      // Add click handler to force hint refresh
+      btn.addEventListener('click', () => {
+        setTimeout(() => {
+          localeData.finished = false;
+          setHints();
+        }, 25); // Slightly longer delay for tab content to load
+      });
+    }
+  });
 });
 
 const analyzeHints = async () => {
   localeData.finished = false;
   localeData.data = [];
-  localeData.elementHintMap = new WeakMap();
+  // Don't recreate WeakMap unless necessary to preserve existing mappings
   await setHints(true);
 };
