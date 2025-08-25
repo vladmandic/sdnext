@@ -279,7 +279,7 @@ class ExtraNetworksPage:
             subdirs_html += f'<button class="lg secondary gradio-button custom-button" onclick="extraNetworksSearchButton(event)" style="{style}">{html.escape(subdir)}</button><br>'
         self.html = ''
         self.create_items(tabname)
-        versions = sorted({item.get("version", "N/A") for item in self.items if item.get("version")})
+        versions = sorted({item.get("version", "") for item in self.items if item.get("version")})
         versions_html = ''
         for ver in versions:
             versions_html += f'<button class="lg secondary gradio-button custom-button" onclick="extraNetworksFilterVersion(event)" style="margin-left:4px">{html.escape(ver)}</button><br>'

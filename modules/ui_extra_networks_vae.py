@@ -31,7 +31,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                     "size": size,
                     "info": info,
                     "description": self.find_description(filename, info),
-                    "version": info.get("modelVersions", [{}])[0].get("baseModel", "N/A") if info else "N/A",
+                    "version": info.get("modelVersions", [{}])[0].get("baseModel", "") if info else "",
                 }
                 yield record
             except Exception as e:
