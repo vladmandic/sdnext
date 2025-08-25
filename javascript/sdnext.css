@@ -1197,7 +1197,7 @@ table.settings-value-table td {
 }
 
 .extra-networks .search textarea {
-  width: calc(120px / 1.1);
+  width: calc(140px / 1.1);
   resize: none;
   margin-right: 2px;
 }
@@ -1233,7 +1233,7 @@ table.settings-value-table td {
   padding: 3px 3px 3px 12px;
   text-align: left;
   text-indent: -6px;
-  width: 120px;
+  width: 140px;
   width: 100%;
 }
 
@@ -1249,7 +1249,7 @@ table.settings-value-table td {
 .extra-network-subdirs {
   background: var(--input-background-fill);
   border-radius: 4px;
-  min-width: max(15%, 120px);
+  min-width: max(15%, 140px);
   overflow-x: hidden;
   overflow-y: auto;
   padding-top: 0.5em;
@@ -1471,7 +1471,6 @@ table.settings-value-table td {
   overflow-y: auto;
 }
 
-
 .extra-details td:first-child {
   font-weight: bold;
   vertical-align: top;
@@ -1479,6 +1478,29 @@ table.settings-value-table td {
 
 .extra-details .gradio-image {
   max-height: 50vh;
+}
+
+.network-folder::before {
+  content: "󰉖 ";
+  margin-right: 0.8em;
+}
+
+.network-reference {
+  filter: contrast(0.9);
+}
+
+.network-reference::before {
+  content: "󰴊 ";
+  margin-right: 0.8em;
+}
+
+.network-model {
+  opacity: 0.6;
+}
+
+.network-model::before {
+  content: "󰴉 ";
+  margin-right: 0.8em;
 }
 
 .input-accordion-checkbox {
