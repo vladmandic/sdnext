@@ -260,7 +260,7 @@ def civit_search_metadata(title: str = None):
         if type(title) == str:
             if page.title != title:
                 continue
-        if page.name == 'style':
+        if page.name == 'style' or page.name == 'wildcards':
             continue
         for item in page.list_items():
             if item is None:

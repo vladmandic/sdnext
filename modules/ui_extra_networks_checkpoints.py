@@ -63,7 +63,8 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             }
             record["info"] = self.find_info(checkpoint.filename)
             record["description"] = self.find_description(checkpoint.filename, record["info"])
-            record["version"] = record["info"].get("modelVersions", [{}])[0].get("baseModel", "N/A") if record["info"] else "N/A"
+            version = self.find_version(checkpoint, record["info"])
+            record["version"] = version[0].get("baseModel", "") if record["info"] else ""
 
         except Exception as e:
             shared.log.debug(f'Networks error: type=model file="{name}" {e}')

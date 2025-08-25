@@ -17,7 +17,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         lora_load.list_available_networks()
 
     @staticmethod
-    def get_tags(l, info):
+    def get_tags(l, info, version):
         tags = {}
         try:
             if l.metadata is not None:
@@ -37,19 +37,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                     tag = ' '.join(words[1:]).lower()
                     tags[tag] = words[0]
 
-            def find_version():
-                found_versions = []
-                current_hash = l.hash[:8].upper()
-                all_versions = info.get('modelVersions', [])
-                for v in info.get('modelVersions', []):
-                    for f in v.get('files', []):
-                        if any(h.startswith(current_hash) for h in f.get('hashes', {}).values()):
-                            found_versions.append(v)
-                if len(found_versions) == 0:
-                    found_versions = all_versions
-                return found_versions
-
-            for v in find_version():  # trigger words from info json
+            for v in version:  # trigger words from info json
                 possible_tags = v.get('trainedWords', [])
                 if isinstance(possible_tags, list):
                     for tag_str in possible_tags:
@@ -87,6 +75,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
             name = os.path.splitext(os.path.relpath(l.filename, shared.cmd_opts.lora_dir))[0]
             size, mtime = modelstats.stat(l.filename)
             info = self.find_info(l.filename)
+            version = self.find_version(l, info)
             item = {
                 "type": 'Lora',
                 "name": name,
@@ -97,10 +86,10 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "metadata": json.dumps(l.metadata, indent=4) if l.metadata else None,
                 "mtime": mtime,
                 "size": size,
-                "version": info.get("modelVersions", [{}])[0].get("baseModel", l.sd_version) if info else l.sd_version,
+                "version": version[0].get("baseModel", l.sd_version) if info else l.sd_version,
                 "info": info,
                 "description": self.find_description(l.filename, info),
-                "tags": self.get_tags(l, info),
+                "tags": self.get_tags(l, info, version),
             }
             return item
         except Exception as e:

@@ -149,23 +149,32 @@ class ExtraNetworksPage:
         return text.replace('~tabname', tabname)
 
     def create_xyz_grid(self):
-        """
-        xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz_grid.py"][0].module
+        pass
 
-        def add_prompt(p, opt, x):
-            for item in [x for x in self.items if x["name"] == opt]:
-                try:
-                    p.prompt = f'{p.prompt} {eval(item["prompt"])}' # pylint: disable=eval-used
-                except Exception as e:
-                    shared.log.error(f'Cannot evaluate extra network prompt: {item["prompt"]} {e}')
-
-        if not any(self.title in x.label for x in xyz_grid.axis_options):
-            if self.title == 'Model':
-                return
-            opt = xyz_grid.AxisOption(f"[Network] {self.title}", str, add_prompt, choices=lambda: [x["name"] for x in self.items])
-            if opt not in xyz_grid.axis_options:
-                xyz_grid.axis_options.append(opt)
-        """
+    def find_version(self, item, info):
+        all_versions = info.get('modelVersions', [])
+        try:
+            found_versions = []
+            if item is None:
+                return all_versions
+            elif hasattr(item, 'hash') and item.hash is not None:
+                current_hash = item.hash[:8].upper()
+            elif hasattr(item, 'shorthash') and item.shorthash is not None:
+                current_hash = item.shorthash[:8].upper()
+            elif hasattr(item, 'sha256') and item.sha256 is not None:
+                current_hash = item.sha256[:8].upper()
+            else:
+                current_hash = None
+            for v in info.get('modelVersions', []):
+                for f in v.get('files', []):
+                    if any(h.startswith(current_hash) for h in f.get('hashes', {}).values()):
+                        found_versions.append(v)
+            if len(found_versions) == 0:
+                found_versions = all_versions
+            return found_versions
+        except Exception as e:
+            errors.display(e, 'Network version')
+            return all_versions
 
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
@@ -224,7 +233,6 @@ class ExtraNetworksPage:
         t1 = time.time()
         debug(f'EN create-items: page={self.name} items={len(self.items)} time={t1-t0:.2f}')
         self.list_time += t1-t0
-
 
     def create_page(self, tabname, skip = False):
         debug(f'EN create-page: {self.name}')
