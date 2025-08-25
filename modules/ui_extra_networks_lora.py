@@ -37,14 +37,13 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                     tag = ' '.join(words[1:]).lower()
                     tags[tag] = words[0]
 
-            for v in version:  # trigger words from info json
-                possible_tags = v.get('trainedWords', [])
-                if isinstance(possible_tags, list):
-                    for tag_str in possible_tags:
-                        for tag in tag_str.split(','):
-                            tag = tag.strip().lower()
-                            if tag not in tags:
-                                tags[tag] = 0
+            possible_tags = version.get('trainedWords', [])
+            if isinstance(possible_tags, list):
+                for tag_str in possible_tags:
+                    for tag in tag_str.split(','):
+                        tag = tag.strip().lower()
+                        if tag not in tags:
+                            tags[tag] = 0
 
             possible_tags = info.get('tags', []) # tags from info json
             if not isinstance(possible_tags, list):
@@ -86,7 +85,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "metadata": json.dumps(l.metadata, indent=4) if l.metadata else None,
                 "mtime": mtime,
                 "size": size,
-                "version": version[0].get("baseModel", l.sd_version) if info else l.sd_version,
+                "version": version.get("baseModel", l.sd_version) if info else l.sd_version,
                 "info": info,
                 "description": self.find_description(l.filename, info),
                 "tags": self.get_tags(l, info, version),

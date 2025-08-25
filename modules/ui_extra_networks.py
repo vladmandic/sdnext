@@ -153,10 +153,11 @@ class ExtraNetworksPage:
 
     def find_version(self, item, info):
         all_versions = info.get('modelVersions', [])
+        if len(all_versions) == 0:
+            return {}
         try:
-            found_versions = []
             if item is None:
-                return all_versions
+                return all_versions[0]
             elif hasattr(item, 'hash') and item.hash is not None:
                 current_hash = item.hash[:8].upper()
             elif hasattr(item, 'shorthash') and item.shorthash is not None:
@@ -164,17 +165,14 @@ class ExtraNetworksPage:
             elif hasattr(item, 'sha256') and item.sha256 is not None:
                 current_hash = item.sha256[:8].upper()
             else:
-                return all_versions
+                return all_versions[0]
             for v in info.get('modelVersions', []):
                 for f in v.get('files', []):
                     if any(h.startswith(current_hash) for h in f.get('hashes', {}).values()):
-                        found_versions.append(v)
-            if len(found_versions) == 0:
-                found_versions = all_versions
-            return found_versions
+                        return v
         except Exception as e:
             errors.display(e, 'Network version')
-            return all_versions
+        return all_versions[0]
 
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
