@@ -1041,7 +1041,7 @@
   {"id":"","label":"reprocess face","localized":"","reload":"","hint":"reprocess face"},
   {"id":"","label":"reprocess refine","localized":"","reload":"","hint":"reprocess refine"},
   {"id":"","label":"request browser notifications","localized":"","reload":"","hint":"request browser notifications"},
-  {"id":"","label":"rescale","localized":"","reload":"","hint":"rescale"},
+  {"id":"","label":"rescale","localized":"","reload":"","hint":"rescale betas with zero terminal snr"},
   {"id":"","label":"rescale betas with zero terminal snr","localized":"","reload":"","hint":"rescale betas with zero terminal snr"},
   {"id":"","label":"reset anchors","localized":"","reload":"","hint":"reset anchors"},
   {"id":"","label":"residual diff threshold","localized":"","reload":"","hint":"residual diff threshold"},
