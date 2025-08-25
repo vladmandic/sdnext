@@ -13,6 +13,7 @@
 - **UI**  
   - improved image scaling in img2img and control interfaces  
   - add base model type to networks display, thanks @Artheriax  
+  - add additional hints to ui  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  
