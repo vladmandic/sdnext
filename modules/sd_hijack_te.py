@@ -11,6 +11,9 @@ def hijack_encode_prompt(*args, **kwargs):
     # if hasattr(shared.sd_model, 'text_encoder') and shared.sd_model.text_encoder is not None:
     #     sd_models.move_model(shared.sd_model.text_encoder, devices.device)
     try:
+        prompt = kwargs.get('prompt', None) or (args[0] if len(args) > 0 else None)
+        if prompt is not None:
+            shared.log.debug(f'Encode: prompt="{prompt}" hijack=True')
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
         shared.log.error(f'Encode prompt: {e}')
