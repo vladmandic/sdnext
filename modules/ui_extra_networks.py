@@ -164,7 +164,7 @@ class ExtraNetworksPage:
             elif hasattr(item, 'sha256') and item.sha256 is not None:
                 current_hash = item.sha256[:8].upper()
             else:
-                current_hash = None
+                return all_versions
             for v in info.get('modelVersions', []):
                 for f in v.get('files', []):
                     if any(h.startswith(current_hash) for h in f.get('hashes', {}).values()):
