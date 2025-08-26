@@ -148,7 +148,7 @@
   },
   "lodestones Chroma1 Base": {
     "path": "lodestones/Chroma1-Base",
-    "preview": "lodestones--Chroma-HD.jpg",
+    "preview": "lodestones--Chroma-Base.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the core 512x512 model. It's a solid, all-around foundation for pretty much any creative project.",
     "skip": true,
     "extras": ""
@@ -191,7 +191,7 @@
   },
   "Qwen-Image-Edit": {
     "path": "Qwen/Qwen-Image-Edit",
-    "preview": "Qwen--Qwen-Image.jpg",
+    "preview": "Qwen--Qwen-Image-Edit.jpg",
     "desc": " Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
     "skip": true,
     "extras": ""
