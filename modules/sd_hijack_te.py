@@ -6,11 +6,12 @@ from modules import shared, errors, timer, sd_models
 def hijack_encode_prompt(*args, **kwargs):
     shared.state.begin('TE')
     t0 = time.time()
-    if 'max_sequence_length' in kwargs:
+    if 'max_sequence_length' in kwargs and kwargs['max_sequence_length'] is not None:
         kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], os.environ.get('HIDREAM_MAX_SEQUENCE_LENGTH', 256))
-    # if hasattr(shared.sd_model, 'text_encoder') and shared.sd_model.text_encoder is not None:
-    #     sd_models.move_model(shared.sd_model.text_encoder, devices.device)
     try:
+        prompt = kwargs.get('prompt', None) or (args[0] if len(args) > 0 else None)
+        if prompt is not None:
+            shared.log.debug(f'Encode: prompt="{prompt}" hijack=True')
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
         shared.log.error(f'Encode prompt: {e}')

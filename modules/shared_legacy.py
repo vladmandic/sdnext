@@ -36,7 +36,6 @@ legacy_options = options_section(('legacy_options', "Legacy options"), {
     "dataset_filename_join_string": LegacyOption(" ", "Filename join string", gr.Textbox, { "visible": False }),
     "dataset_filename_word_regex": LegacyOption("", "Filename word regex", gr.Textbox, { "visible": False }),
     "diffusers_force_zeros": LegacyOption(False, "Force zeros for prompts when empty", gr.Checkbox, {"visible": False}),
-    "disable_all_extensions": LegacyOption("none", "Disable all extensions (preserves the list of disabled extensions)", gr.Radio, {"choices": ["none", "user", "all"]}),
     "disable_nan_check": LegacyOption(True, "Disable NaN check", gr.Checkbox, {"visible": False}),
     "embeddings_templates_dir": LegacyOption("", "Embeddings train templates directory", gr.Textbox, { "visible": False }),
     "extra_networks_card_fit": LegacyOption("cover", "UI image contain method", gr.Radio, {"choices": ["contain", "cover", "fill"], "visible": False}),

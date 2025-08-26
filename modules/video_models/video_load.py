@@ -1,4 +1,3 @@
-import os
 import copy
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te
@@ -6,7 +5,6 @@ from modules.video_models import models_def, video_utils, video_vae, video_overr
 
 
 loaded_model = None
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_model(selected: models_def.Model):
@@ -24,7 +22,7 @@ def load_model(selected: models_def.Model):
     # text encoder
     try:
         quant_args = model_quant.create_config(module='TE')
-        debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+        shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         text_encoder = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
@@ -41,7 +39,7 @@ def load_model(selected: models_def.Model):
     # transformer
     try:
         quant_args = model_quant.create_config(module='Model')
-        debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+        shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         transformer = selected.dit_cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit or selected.repo,
             subfolder=selected.dit_folder,
@@ -60,7 +58,7 @@ def load_model(selected: models_def.Model):
 
     # model
     try:
-        debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
+        shared.log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
         shared.sd_model = selected.repo_cls.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             transformer=transformer,

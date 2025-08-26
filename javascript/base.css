@@ -98,7 +98,7 @@ table.settings-value-table td { padding: 0.4em; border: 1px solid #ccc; max-widt
 .extra-network-cards .card:hover .overlay { background: rgba(0, 0, 0, 0.40); }
 .extra-network-cards .card:hover .preview { box-shadow: none; filter: grayscale(100%); }
 .extra-network-cards .card:hover .overlay { background: rgba(0, 0, 0, 0.40); }
-.extra-network-cards .card .tags { margin: 4px; display: none; overflow-wrap: break-word; }
+.extra-network-cards .card .tags { margin: 4px; display: none; overflow-wrap: anywhere; }
 .extra-network-cards .card .tag { padding: 2px; margin: 2px; background: var(--neutral-700); cursor: pointer; display: inline-block; }
 .extra-network-cards .card .actions > span { padding: 4px; }
 .extra-network-cards .card:hover .actions { display: block; }

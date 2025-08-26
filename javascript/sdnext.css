@@ -1197,7 +1197,7 @@ table.settings-value-table td {
 }
 
 .extra-networks .search textarea {
-  width: calc(120px / 1.1);
+  width: calc(140px / 1.1);
   resize: none;
   margin-right: 2px;
 }
@@ -1233,7 +1233,7 @@ table.settings-value-table td {
   padding: 3px 3px 3px 12px;
   text-align: left;
   text-indent: -6px;
-  width: 120px;
+  width: 140px;
   width: 100%;
 }
 
@@ -1249,7 +1249,7 @@ table.settings-value-table td {
 .extra-network-subdirs {
   background: var(--input-background-fill);
   border-radius: 4px;
-  min-width: max(15%, 120px);
+  min-width: max(15%, 140px);
   overflow-x: hidden;
   overflow-y: auto;
   padding-top: 0.5em;
@@ -1376,6 +1376,16 @@ table.settings-value-table td {
   display: block;
 }
 
+.extra-network-cards .card:hover {
+  z-index: 100;
+  position: relative;
+}
+
+.extra-network-cards .card:hover .tags {
+  display: block;
+  z-index: 101;  /* Optional: ensure tags are above everything */
+}
+
 .extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
   background-color: var(--data-color);
   content: '';
@@ -1461,7 +1471,6 @@ table.settings-value-table td {
   overflow-y: auto;
 }
 
-
 .extra-details td:first-child {
   font-weight: bold;
   vertical-align: top;
@@ -1469,6 +1478,29 @@ table.settings-value-table td {
 
 .extra-details .gradio-image {
   max-height: 50vh;
+}
+
+.network-folder::before {
+  content: "󰉖 ";
+  margin-right: 0.8em;
+}
+
+.network-reference {
+  filter: contrast(0.9);
+}
+
+.network-reference::before {
+  content: "󰴊 ";
+  margin-right: 0.8em;
+}
+
+.network-model {
+  opacity: 0.6;
+}
+
+.network-model::before {
+  content: "󰴉 ";
+  margin-right: 0.8em;
 }
 
 .input-accordion-checkbox {
@@ -1867,70 +1899,73 @@ div:has(>#tab-gallery-folders) {
 }
 
 .splash {
-  display: block;
-  height: 100vh;
-  left: 0;
   position: fixed;
-  text-align: center;
   top: 0;
+  left: 0;
   width: 100vw;
+  height: 100vh;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .motd {
+  margin-top: 1em;
   color: var(--body-text-color-subdued);
   font-family: monospace;
   font-variant: all-petite-caps;
-  margin-top: 2em;
+  font-size: 1.2em;
 }
 
 .splash-img {
-  animation: color 10s infinite alternate;
-  background-repeat: no-repeat;
-  background-size: contain;
-  height: 512px;
-  margin: 10% auto 0 auto;
-  max-width: 80vw;
+  margin: 0;
   width: 512px;
+  height: 512px;
+  background-repeat: no-repeat;
+  animation: hue 5s infinite alternate;
 }
 
 .loading {
   color: white;
-  left: 50%;
-  position: absolute;
-  top: 20%;
-  transform: translateX(-50%);
+  position: border-box;
+  top: 85%;
+  font-size: 1.5em;
 }
 
 .loader {
-  animation: spin 4s linear infinite;
+  width: 100px;
+  height: 100px;
   border: var(--spacing-md) solid transparent;
   border-radius: 50%;
   border-top: var(--spacing-md) solid var(--primary-600);
-  height: 300px;
-  position: relative;
-  width: 300px;
+  animation: spin 2s linear infinite, hue 5s infinite alternate;
+  position: border-box;
 }
 
-.loader::before, .loader::after {
-  border: var(--spacing-md) solid transparent;
-  border-radius: 50%;
-  bottom: 6px;
+.loader::before,
+.loader::after {
   content: "";
-  left: 6px;
   position: absolute;
-  right: 6px;
   top: 6px;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  border-radius: 50%;
+  border: var(--spacing-md) solid transparent;
+  animation: hue 5s infinite alternate;
 }
 
 .loader::before {
-  animation: 3s spin linear infinite;
   border-top-color: var(--primary-900);
+  animation: spin 3s linear infinite;
 }
 
 .loader::after {
-  animation: spin 1.5s linear infinite;
   border-top-color: var(--primary-300);
+  animation: spin 1.5s linear infinite;
 }
 
 .docs-search textarea {
@@ -2087,35 +2122,21 @@ div:has(>#tab-gallery-folders) {
   filter: blur(0);
 }
 
-@keyframes move {
-  from {
-    background-position-x: 0, -40px;
-  }
-
-  to {
-    background-position-x: 0, 40px;
-  }
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
-
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes color {
-  from {
-
-    filter: hue-rotate(0deg)
+@keyframes hue {
+  0% {
+    filter: hue-rotate(0deg);
   }
-
-  to {
-
-    filter: hue-rotate(360deg)
+  100% {
+    filter: hue-rotate(360deg);
   }
 }
 

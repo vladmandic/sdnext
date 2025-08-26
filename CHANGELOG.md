@@ -1,8 +1,34 @@
 # Change Log for SD.Next
 
+## Update for 2025-08-25
+
+- **Models**  
+  - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
+  - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
+  - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+- **Core**
+  - enable offload during pre-forward by default  
+  - improve offloading of very large models  
+  - update `requirements`  
+- **UI**  
+  - improved image scaling in img2img and control interfaces  
+  - add base model type to networks display, thanks @Artheriax  
+  - additional hints to ui, thanks @Artheriax  
+  - additional artwork for reference models in networks, thanks @liutyi  
+- **Fixes**
+  - normalize path hanlding when deleting images  
+  - fix hidden model tags in networks display  
+  - fix networks reference models display on windows  
+  - fix handling of pre-quantized `flux` models  
+  - fix `wan` use correct pipeline for i2v models  
+  - fix `qwen-image` with hires  
+  - fix `omnigen-2`  
+
 ## Update for 2025-08-20
 
-A quick service release with several important hotfixes, but also adding support for new Qwen variants...
+A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
 - **Models**
   - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
@@ -22,6 +48,7 @@ A quick service release with several important hotfixes, but also adding support
 - **UI**
   - new artwork for reference models in networks  
     thanks @liutyi  
+  - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
   - localization support for ModernUI  
   - single-click on locale rotates current locale  
     double-click on locale resets locale to `en`  
@@ -46,6 +73,7 @@ A quick service release with several important hotfixes, but also adding support
   - install `hf_transfter` and `hf_xet` when needed  
   - fix ui cropped network tags  
   - enum reference models on startup  
+  - dont report errors if agent scheduler is disabled  
 
 ## Update for 2025-08-15
 

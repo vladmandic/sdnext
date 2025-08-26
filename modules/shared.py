@@ -154,20 +154,20 @@ options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": False }),
 }))
 
-options_templates.update(options_section(('model_options', "Models Options"), {
+options_templates.update(options_section(('model_options', "Model Options"), {
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
     "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
-    "model_wan_stage": OptionInfo("first", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
+    "model_wan_stage": OptionInfo("low noise", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {
     "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
     "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
-    "diffusers_offload_pre": OptionInfo(False, "Offload during pre-forward"),
+    "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
     "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
     "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Balanced offload GPU low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Balanced offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
@@ -701,6 +701,11 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
 }))
+
+options_templates.update(options_section(('extensions', "Extensions"), {
+    "disable_all_extensions": OptionInfo("none", "Disable all extensions", gr.Radio, {"choices": ["none", "user", "all"]}),
+}))
+
 
 options_templates.update(options_section(('hidden_options', "Hidden options"), {
     # internal options

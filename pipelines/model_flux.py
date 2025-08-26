@@ -7,7 +7,7 @@ from pipelines import generic
 
 def load_flux(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
-    sd_models.hf_auth_check(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info, force=True)
 
     if 'Fill' in repo_id:
         cls_name = diffusers.FluxFillPipeline
@@ -38,13 +38,9 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
     transformer = None
     text_encoder_2 = None
 
-    # handle transformer svdquant if available, t5 is handled inside load_text_encoder
-    prequantized = model_quant.get_quant(checkpoint_info.path)
-    if model_quant.check_nunchaku('Model'):
-        from pipelines.flux.flux_nunchaku import load_flux_nunchaku
-        transformer = load_flux_nunchaku(repo_id)
     # handle prequantized models
-    elif prequantized == 'nf4':
+    prequantized = model_quant.get_quant(checkpoint_info.path)
+    if prequantized == 'nf4':
         from pipelines.flux.flux_nf4 import load_flux_nf4
         transformer, text_encoder_2 = load_flux_nf4(checkpoint_info)
     elif prequantized == 'qint8' or prequantized == 'qint4':
@@ -53,6 +49,11 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
     elif prequantized == 'fp4' or prequantized == 'fp8':
         from pipelines.flux.flux_bnb import load_flux_bnb
         transformer = load_flux_bnb(checkpoint_info, diffusers_load_config)
+
+    # handle transformer svdquant if available, t5 is handled inside load_text_encoder
+    if transformer is None and model_quant.check_nunchaku('Model'):
+        from pipelines.flux.flux_nunchaku import load_flux_nunchaku
+        transformer = load_flux_nunchaku(repo_id)
 
     # finally load transformer and text encoder if not already loaded
     if transformer is None:
