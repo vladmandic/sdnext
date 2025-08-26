@@ -11,8 +11,7 @@ const localeData = {
   btn: null,
   expandTimeout: null, // New property for expansion timeout
   currentElement: null, // Track current element for expansion
-  elementHintMap: new WeakMap(), // Store hints separately from DOM
-  delegationSetup: false, // Track if global delegation is setup
+  observer: null, // MutationObserver for DOM changes
 };
 let localeTimeout = null;
 
@@ -27,8 +26,6 @@ async function cycleLocale() {
     localeData.finished = false;
     localeData.data = [];
     localeData.prev = localeData.locale;
-    localeData.elementHintMap = new WeakMap();
-    // Don't reset delegationSetup as it should persist
     window.opts.ui_locale = localeData.locale;
     setHints(); // eslint-disable-line no-use-before-define
   }, 250);
@@ -43,8 +40,6 @@ async function resetLocale() {
   localeData.btn.innerText = localeData.locale;
   localeData.finished = false;
   localeData.data = [];
-  localeData.elementHintMap = new WeakMap();
-  // Don't reset delegationSetup as it should persist
   window.opts.ui_locale = localeData.locale;
   setHints(); // eslint-disable-line no-use-before-define
 }
@@ -68,9 +63,20 @@ async function tooltipCreate() {
   if (window.opts.tooltips === 'None') localeData.type = 0;
   if (window.opts.tooltips === 'Browser default') localeData.type = 1;
   if (window.opts.tooltips === 'UI tooltips') localeData.type = 2;
+
+  // Setup event delegation for tooltips instead of individual listeners
+  if (localeData.type === 2) {
+    gradioApp().addEventListener('mouseover', tooltipShowDelegated);
+    gradioApp().addEventListener('mouseout', tooltipHideDelegated);
+  }
+
+  // Initialize DOM observer for immediate hint application
+  if (!localeData.observer) {
+    initializeDOMObserver();
+  }
 }
 
-async function expandTooltip(element, hintData) {
+async function expandTooltip(element, longHint) {
   if (localeData.currentElement === element && localeData.hint.classList.contains('tooltip-show')) {
     // Hide the progress ring
     const ring = localeData.hint.querySelector('.tooltip-progress-ring');
@@ -91,19 +97,20 @@ async function expandTooltip(element, hintData) {
   }
 }
 
+async function tooltipShowDelegated(e) {
+  // Use event delegation to handle dynamically created elements
+  if (e.target.dataset && e.target.dataset.hint) {
+    tooltipShow(e);
+  }
+}
+
+async function tooltipHideDelegated(e) {
+  if (e.target.dataset && e.target.dataset.hint) {
+    tooltipHide(e);
+  }
+}
+
 async function tooltipShow(e) {
-  // For event delegation, ensure we have the right target
-  const target = e.target || e;
-
-  // Get hint data from WeakMap first, then fall back to dataset
-  const hintData = localeData.elementHintMap.get(target) || {
-    hint: target.dataset?.hint,
-    longHint: target.dataset?.longHint,
-    reload: target.dataset?.reload,
-  };
-
-  if (!hintData.hint) return;
-
   // Clear any existing expansion timeout
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
@@ -112,78 +119,80 @@ async function tooltipShow(e) {
 
   // Remove expanded class and reset current element
   localeData.hint.classList.remove('tooltip-expanded');
-  localeData.currentElement = target;
+  localeData.currentElement = e.target;
 
-  // Create progress ring SVG
-  const progressRing = `
-    <div class="tooltip-progress-ring">
-      <svg viewBox="0 0 12 12">
-        <circle class="ring-background" cx="6" cy="6" r="5"></circle>
-        <circle class="ring-progress" cx="6" cy="6" r="5"></circle>
-      </svg>
-    </div>
-  `;
+  if (e.target.dataset.hint) {
+    // Create progress ring SVG
+    const progressRing = `
+      <div class="tooltip-progress-ring">
+        <svg viewBox="0 0 12 12">
+          <circle class="ring-background" cx="6" cy="6" r="5"></circle>
+          <circle class="ring-progress" cx="6" cy="6" r="5"></circle>
+        </svg>
+      </div>
+    `;
 
-  // Set up the complete content structure from the start
-  let content = `
-    <div class="tooltip-header">
-      <b>${target.textContent}</b>
-      ${hintData.longHint ? progressRing : ''}
-    </div>
-    <div class="separator"></div>
-    ${hintData.hint}
-  `;
+    // Set up the complete content structure from the start
+    let content = `
+      <div class="tooltip-header">
+        <b>${e.target.textContent}</b>
+        ${e.target.dataset.longHint ? progressRing : ''}
+      </div>
+      <div class="separator"></div>
+      ${e.target.dataset.hint}
+    `;
 
-  // Add long content if available, but keep it hidden
-  if (hintData.longHint) {
-    content += `<div class="long-content"><div class="separator"></div>${hintData.longHint}</div>`;
-  }
-
-  // Add reload notice if needed
-  if (hintData.reload) {
-    const reloadType = hintData.reload;
-    let reloadText = '';
-    if (reloadType === 'model') {
-      reloadText = 'Requires model reload';
-    } else if (reloadType === 'server') {
-      reloadText = 'Requires server restart';
-    }
-    if (reloadText) {
-      content += `
-        <div class="tooltip-reload-notice">
-          <div class="separator"></div>
-          <span class="tooltip-reload-text">${reloadText}</span>
-        </div>
-      `;
-    }
-  }
-
-  localeData.hint.innerHTML = content;
-  localeData.hint.classList.add('tooltip-show');
-
-  if (e.clientX > window.innerWidth / 2) {
-    localeData.hint.classList.add('tooltip-left');
-  } else {
-    localeData.hint.classList.remove('tooltip-left');
-  }
-
-  // Set up expansion timer if long hint is available
-  if (hintData.longHint) {
-    // Start progress ring animation
-    const ring = localeData.hint.querySelector('.tooltip-progress-ring');
-    const ringProgress = localeData.hint.querySelector('.ring-progress');
-
-    if (ring && ringProgress) {
-      // Show the ring and start animation
-      setTimeout(() => {
-        ring.classList.add('active');
-        ringProgress.classList.add('animate');
-      }, 100);
+    // Add long content if available, but keep it hidden
+    if (e.target.dataset.longHint) {
+      content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`;
     }
 
-    localeData.expandTimeout = setTimeout(() => {
-      expandTooltip(target, hintData);
-    }, 3000);
+    // Add reload notice if needed
+    if (e.target.dataset.reload) {
+      const reloadType = e.target.dataset.reload;
+      let reloadText = '';
+      if (reloadType === 'model') {
+        reloadText = 'Requires model reload';
+      } else if (reloadType === 'server') {
+        reloadText = 'Requires server restart';
+      }
+      if (reloadText) {
+        content += `
+          <div class="tooltip-reload-notice">
+            <div class="separator"></div>
+            <span class="tooltip-reload-text">${reloadText}</span>
+          </div>
+        `;
+      }
+    }
+
+    localeData.hint.innerHTML = content;
+    localeData.hint.classList.add('tooltip-show');
+
+    if (e.clientX > window.innerWidth / 2) {
+      localeData.hint.classList.add('tooltip-left');
+    } else {
+      localeData.hint.classList.remove('tooltip-left');
+    }
+
+    // Set up expansion timer if long hint is available
+    if (e.target.dataset.longHint) {
+      // Start progress ring animation
+      const ring = localeData.hint.querySelector('.tooltip-progress-ring');
+      const ringProgress = localeData.hint.querySelector('.ring-progress');
+
+      if (ring && ringProgress) {
+        // Show the ring and start animation
+        setTimeout(() => {
+          ring.classList.add('active');
+          ringProgress.classList.add('animate');
+        }, 100);
+      }
+
+      localeData.expandTimeout = setTimeout(() => {
+        expandTooltip(e.target, e.target.dataset.longHint);
+      }, 3000);
+    }
   }
 }
 
@@ -196,42 +205,6 @@ async function tooltipHide(e) {
 
   localeData.hint.classList.remove('tooltip-show', 'tooltip-expanded');
   localeData.currentElement = null;
-}
-
-// Setup global event delegation that persists through DOM changes
-function setupGlobalDelegation() {
-  if (localeData.delegationSetup) return;
-
-  // Use event delegation on document level for maximum persistence
-  document.addEventListener('mouseover', (e) => {
-    const target = e.target;
-    if (target && (target.dataset?.hasHint === 'true' || localeData.elementHintMap.has(target))) {
-      tooltipShow({ target, clientX: e.clientX, clientY: e.clientY });
-    }
-  }, true);
-
-  document.addEventListener('mouseout', (e) => {
-    const target = e.target;
-    if (target && (target.dataset?.hasHint === 'true' || localeData.elementHintMap.has(target))) {
-      if (!target.contains(e.relatedTarget)) {
-        tooltipHide({ target });
-      }
-    }
-  }, true);
-
-  document.addEventListener('click', (e) => {
-    if (localeData.hint && localeData.hint.classList.contains('tooltip-show')) {
-      tooltipHide({ target: localeData.currentElement });
-    }
-  }, true);
-
-  localeData.delegationSetup = true;
-  log('Global event delegation setup for tooltips');
-}
-
-// Setup global event delegation for tooltips (only once)
-if (localeData.type === 2 && !localeData.delegationSetup) {
-  setupGlobalDelegation();
 }
 
 async function validateHints(json, elements) {
@@ -340,26 +313,16 @@ async function replaceTextContent(el, text) {
 }
 
 async function setHint(el, entry) {
-  // Store hint data in WeakMap for persistence
-  const hintData = {
-    hint: entry.hint,
-    longHint: entry.longHint || null,
-    reload: entry.reload || null,
-  };
-  localeData.elementHintMap.set(el, hintData);
-
   if (localeData.type === 1) {
     el.title = entry.hint;
   } else if (localeData.type === 2) {
-    // Also set dataset attributes for compatibility
     el.dataset.hint = entry.hint;
     if (entry.longHint && entry.longHint.length > 0) el.dataset.longHint = entry.longHint;
     if (entry.reload && entry.reload.length > 0) el.dataset.reload = entry.reload;
-
-    // Mark element as having hints for event delegation
-    el.dataset.hasHint = 'true';
-
-    // Don't add individual listeners here - we'll use global delegation
+    // Don't add individual listeners - we use event delegation now
+    // This means we don't need to reattach listeners when elements are recreated
+    // el.addEventListener('mouseover', tooltipShow);
+    // el.addEventListener('mouseout', tooltipHide);
   } else {
     // tooltips disabled
   }
@@ -368,41 +331,30 @@ async function setHint(el, entry) {
 async function setHints(analyze = false) {
   let json = {};
   let overrideData = [];
-  // Remove early return to allow re-initialization after tab changes
-  // if (localeData.finished) return;
+  if (localeData.finished) return;
   if (Object.keys(opts).length === 0) return;
   const elements = [
     ...Array.from(gradioApp().querySelectorAll('button')),
     ...Array.from(gradioApp().querySelectorAll('h2')),
     ...Array.from(gradioApp().querySelectorAll('label > span')),
     ...Array.from(gradioApp().querySelectorAll('.label-wrap > span')),
-    // Include all tab buttons specifically
-    ...Array.from(gradioApp().querySelectorAll('.tab-nav > button')),
-    ...Array.from(gradioApp().querySelectorAll('#settings .tab-nav > button')),
-    ...Array.from(gradioApp().querySelectorAll('#system .tab-nav > button')),
   ];
   if (elements.length === 0) return;
-
-  // Load data only if not already loaded
   if (localeData.data.length === 0) {
     json = await getLocaleData(window.opts.ui_locale);
     overrideData = Object.values(json.override || {}).flat().filter((e) => e.hint.length > 0);
     const jsonData = Object.values(json).flat().filter((e) => e.hint.length > 0);
     localeData.data = [...overrideData, ...jsonData];
   }
-
   if (!localeData.hint) tooltipCreate();
-
   let localized = 0;
   let hints = 0;
   const t0 = performance.now();
-
   for (const el of elements) {
     // localize elements text
     let found;
     if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
-
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
       localized++;
@@ -410,21 +362,18 @@ async function setHints(analyze = false) {
     } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) { // reset to english
       replaceTextContent(el, found.label);
     }
-
-    // set hints - always re-apply to handle DOM changes
+    // set hints
     if (found?.hint?.length > 0) {
       hints++;
       setHint(el, found);
     }
   }
-
   localeData.finished = true;
   localeData.initial = false;
   const t1 = performance.now();
   // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
   log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
   // sortUIElements();
-
   if (analyze) {
     const [missingHints, orphanedHints] = await validateHints(json, elements);
     await addMissingHints(json, missingHints);
@@ -432,39 +381,95 @@ async function setHints(analyze = false) {
   }
 }
 
-// Force refresh hints on tab changes (main tabs)
-onUiTabChange(() => {
-  // Small delay to let DOM settle
-  setTimeout(() => {
-    localeData.finished = false; // Allow setHints to run again
-    setHints();
-  }, 25);
-});
-
-// Also handle any click on tab buttons directly
-onUiUpdate(() => {
-  // Find all tab buttons
-  const tabButtons = gradioApp().querySelectorAll('.tab-nav > button, #settings .tab-nav > button, #system .tab-nav > button');
-
-  tabButtons.forEach((btn) => {
-    // Check if this button already has our click handler
-    if (!btn.dataset.hintClickHandlerAdded) {
-      btn.dataset.hintClickHandlerAdded = 'true';
-
-      // Add click handler to force hint refresh
-      btn.addEventListener('click', () => {
-        setTimeout(() => {
-          localeData.finished = false;
-          setHints();
-        }, 25); // Slightly longer delay for tab content to load
-      });
-    }
-  });
-});
-
 const analyzeHints = async () => {
   localeData.finished = false;
   localeData.data = [];
-  // Don't recreate WeakMap unless necessary to preserve existing mappings
   await setHints(true);
 };
+
+// Apply hints to a single element immediately
+async function applyHintToElement(el) {
+  if (!localeData.data || localeData.data.length === 0) return;
+  if (!el.textContent) return;
+
+  // Check if element matches our selector criteria
+  const isValidElement =
+    el.tagName === 'BUTTON' ||
+    el.tagName === 'H2' ||
+    (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap')));
+
+  if (!isValidElement) return;
+
+  // Find matching hint data
+  let found;
+  if (el.dataset.original) {
+    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+  } else {
+    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+  }
+
+  // Apply localization if found
+  if (found?.localized?.length > 0) {
+    if (!el.dataset.original) el.dataset.original = el.textContent;
+    replaceTextContent(el, found.localized);
+  }
+
+  // Apply hint if found
+  if (found?.hint?.length > 0) {
+    setHint(el, found);
+  }
+}
+
+// Initialize MutationObserver for immediate hint application
+function initializeDOMObserver() {
+  if (localeData.observer) {
+    localeData.observer.disconnect();
+  }
+
+  localeData.observer = new MutationObserver((mutations) => {
+    // Process added nodes immediately
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Apply hints to the node itself
+            applyHintToElement(node);
+
+            // Apply hints to all relevant children
+            const elements = [
+              ...Array.from(node.querySelectorAll('button')),
+              ...Array.from(node.querySelectorAll('h2')),
+              ...Array.from(node.querySelectorAll('label > span')),
+              ...Array.from(node.querySelectorAll('.label-wrap > span')),
+            ];
+
+            // Include the node itself if it matches
+            if (node.matches && (
+              node.matches('button') ||
+              node.matches('h2') ||
+              node.matches('label > span') ||
+              node.matches('.label-wrap > span')
+            )) {
+              elements.push(node);
+            }
+
+            // Apply hints immediately to all found elements
+            elements.forEach(el => applyHintToElement(el));
+          }
+        }
+      }
+    }
+  });
+
+  // Start observing the entire gradio app for changes
+  const targetNode = gradioApp();
+  if (targetNode) {
+    localeData.observer.observe(targetNode, {
+      childList: true,
+      subtree: true
+    });
+  }
+}
+
+// Export for external use if needed
+const forceReapplyHints = () => setHints();
