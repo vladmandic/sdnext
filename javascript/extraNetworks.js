@@ -299,15 +299,12 @@ function extraNetworksFilterVersion(event) {
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';
-    cardContainer.querySelectorAll('.card').forEach(card => card.style.display = '');
+    cardContainer.querySelectorAll('.card').forEach((card) => card.style.display = '');
   } else {
     cardContainer.dataset.activeVersion = version;
-    cardContainer.querySelectorAll('.card').forEach(card => {
-      if (card.dataset.version === version) {
-        card.style.display = '';
-      } else {
-        card.style.display = 'none';
-      }
+    cardContainer.querySelectorAll('.card').forEach((card) => {
+      if (card.dataset.version === version) card.style.display = '';
+      else card.style.display = 'none';
     });
   }
 }
