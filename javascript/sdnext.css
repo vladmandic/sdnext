@@ -1748,6 +1748,13 @@ background: var(--background-color)
   width: max-content;
 }
 
+#tab-gallery-files gallery-file {
+  /* Add a vertical gutter between items (left/right), matching existing small row spacing */
+  display: inline-block;
+  margin-right: 0.2em;
+  vertical-align: top; /* keep rows aligned on the top edge */
+}
+
 #tab-gallery-files {
   display: block;
   height: 75vh;
@@ -1844,6 +1851,22 @@ div:has(>#tab-gallery-folders) {
   height: 100% !important;
   object-fit: contain;
 }
+
+/* Gallery video preview matches image preview sizing and layout */
+#tab-gallery-video {
+  height: 63vh;
+}
+
+/* Ensure the <video> element fills the preview column and preserves aspect */
+#tab-gallery-video video {
+  width: 100%;
+  height: 100% !important;
+  object-fit: contain;
+  background: none;
+}
+
+/* Gradio container around the video should not add extra spacing */
+#tab-gallery-video .wrap { height: 100%; }
 
 .gallery-sort {
   background: var(--input-background-fill) !important;
