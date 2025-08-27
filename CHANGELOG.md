@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-25
+## Update for 2025-08-27
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -14,6 +14,7 @@
   - improved image scaling in img2img and control interfaces  
   - add base model type to networks display, thanks @Artheriax  
   - additional hints to ui, thanks @Artheriax  
+  - add video support to gallery, thanks @CalamitousFelicitousness  
   - additional artwork for reference models in networks, thanks @liutyi  
 - **Fixes**
   - normalize path hanlding when deleting images  
@@ -23,6 +24,7 @@
   - fix `wan` use correct pipeline for i2v models  
   - fix `qwen-image` with hires  
   - fix `omnigen-2`  
+  - fix ui hints display  
 
 ## Update for 2025-08-20
 
