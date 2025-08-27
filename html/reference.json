@@ -196,7 +196,7 @@
     "skip": true,
     "extras": ""
   },
-  "Qwen-Lightning": {
+  "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "Qwen-Lightning.jpg",
     "desc": " Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
