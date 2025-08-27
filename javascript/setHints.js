@@ -9,8 +9,9 @@ const localeData = {
   type: 2,
   hint: null,
   btn: null,
-  expandTimeout: null, // New property for expansion timeout
+  expandTimeout: null, // Property for expansion timeout
   currentElement: null, // Track current element for expansion
+  observer: null, // MutationObserver for DOM changes
 };
 let localeTimeout = null;
 
@@ -62,6 +63,17 @@ async function tooltipCreate() {
   if (window.opts.tooltips === 'None') localeData.type = 0;
   if (window.opts.tooltips === 'Browser default') localeData.type = 1;
   if (window.opts.tooltips === 'UI tooltips') localeData.type = 2;
+
+  // Setup event delegation for tooltips instead of individual listeners
+  if (localeData.type === 2) {
+    gradioApp().addEventListener('mouseover', tooltipShowDelegated); // eslint-disable-line no-use-before-define
+    gradioApp().addEventListener('mouseout', tooltipHideDelegated); // eslint-disable-line no-use-before-define
+  }
+
+  // Initialize DOM observer for immediate hint application
+  if (!localeData.observer) {
+    initializeDOMObserver(); // eslint-disable-line no-use-before-define
+  }
 }
 
 async function expandTooltip(element, longHint) {
@@ -82,6 +94,19 @@ async function expandTooltip(element, longHint) {
         longContent.classList.add('show');
       }
     }, 100);
+  }
+}
+
+async function tooltipShowDelegated(e) {
+  // Use event delegation to handle dynamically created elements
+  if (e.target.dataset && e.target.dataset.hint) {
+    tooltipShow(e); // eslint-disable-line no-use-before-define
+  }
+}
+
+async function tooltipHideDelegated(e) {
+  if (e.target.dataset && e.target.dataset.hint) {
+    tooltipHide(e); // eslint-disable-line no-use-before-define
   }
 }
 
@@ -294,8 +319,6 @@ async function setHint(el, entry) {
     el.dataset.hint = entry.hint;
     if (entry.longHint && entry.longHint.length > 0) el.dataset.longHint = entry.longHint;
     if (entry.reload && entry.reload.length > 0) el.dataset.reload = entry.reload;
-    el.addEventListener('mouseover', tooltipShow);
-    el.addEventListener('mouseout', tooltipHide);
   } else {
     // tooltips disabled
   }
@@ -359,3 +382,89 @@ const analyzeHints = async () => {
   localeData.data = [];
   await setHints(true);
 };
+
+// Apply hints to a single element immediately
+async function applyHintToElement(el) {
+  if (!localeData.data || localeData.data.length === 0) return;
+  if (!el.textContent) return;
+
+  // Check if element matches our selector criteria
+  const isValidElement = el.tagName === 'BUTTON'
+    || el.tagName === 'H2'
+    || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap')));
+
+  if (!isValidElement) return;
+
+  // Find matching hint data
+  let found;
+  if (el.dataset.original) {
+    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+  } else {
+    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+  }
+
+  // Apply localization if found
+  if (found?.localized?.length > 0) {
+    if (!el.dataset.original) el.dataset.original = el.textContent;
+    replaceTextContent(el, found.localized);
+  }
+
+  // Apply hint if found
+  if (found?.hint?.length > 0) {
+    setHint(el, found);
+  }
+}
+
+// Initialize MutationObserver for immediate hint application
+function initializeDOMObserver() {
+  if (localeData.observer) {
+    localeData.observer.disconnect();
+  }
+
+  localeData.observer = new MutationObserver((mutations) => {
+    // Process added nodes immediately
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Apply hints to the node itself
+            applyHintToElement(node);
+
+            // Apply hints to all relevant children
+            const elements = [
+              ...Array.from(node.querySelectorAll('button')),
+              ...Array.from(node.querySelectorAll('h2')),
+              ...Array.from(node.querySelectorAll('label > span')),
+              ...Array.from(node.querySelectorAll('.label-wrap > span')),
+            ];
+
+            // Include the node itself if it matches
+            if (node.matches && (
+              node.matches('button')
+              || node.matches('h2')
+              || node.matches('label > span')
+              || node.matches('.label-wrap > span')
+            )) {
+              elements.push(node);
+            }
+
+            // Apply hints immediately to all found elements
+            elements.forEach((el) => applyHintToElement(el));
+          }
+        }
+      }
+    }
+  });
+
+  // Start observing the entire gradio app for changes
+  const targetNode = gradioApp();
+  if (targetNode) {
+    localeData.observer.observe(targetNode, {
+      childList: true,
+      subtree: true,
+    });
+  }
+}
+
+// Export for external use if needed
+const forceReapplyHints = () => setHints();
