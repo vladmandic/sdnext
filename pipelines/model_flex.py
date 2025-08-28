@@ -29,5 +29,6 @@ def load_flex(checkpoint_info, diffusers_load_config={}):
     del text_encoder_2
     del transformer
     sd_hijack_te.init_hijack(pipe)
+
     devices.torch_gc()
     return pipe

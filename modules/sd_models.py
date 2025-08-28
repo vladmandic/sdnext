@@ -57,22 +57,6 @@ i2i_pipes = [
 ]
 
 
-def copy_diffuser_options(new_pipe, orig_pipe):
-    new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
-    new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
-    new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
-    new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
-    new_pipe.has_accelerate = getattr(orig_pipe, 'has_accelerate', False)
-    new_pipe.current_attn_name = getattr(orig_pipe, 'current_attn_name', None)
-    new_pipe.default_scheduler = getattr(orig_pipe, 'default_scheduler', None)
-    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
-    new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
-    new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
-    add_noise_pred_to_diffusers_callback(new_pipe)
-    if new_pipe.has_accelerate:
-        set_accelerate(new_pipe)
-
-
 def set_huggingface_options():
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         sd_hijack_accelerate.hijack_accelerate()
@@ -870,6 +854,28 @@ def clean_diffuser_pipe(pipe):
         internal_dict.pop('requires_aesthetics_score', None)
         del pipe._internal_dict
         pipe.register_to_config(**internal_dict)
+
+
+def copy_diffuser_options(new_pipe, orig_pipe):
+    new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
+    new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
+    new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
+    new_pipe.loaded_loras = getattr(orig_pipe, 'loaded_loras', {})
+    new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
+    new_pipe.has_accelerate = getattr(orig_pipe, 'has_accelerate', False)
+    new_pipe.current_attn_name = getattr(orig_pipe, 'current_attn_name', None)
+    new_pipe.default_scheduler = getattr(orig_pipe, 'default_scheduler', None)
+    new_pipe.image_encoder = getattr(orig_pipe, 'image_encoder', None)
+    new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
+    new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
+    new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
+    new_pipe.task_args = getattr(orig_pipe, 'task_args', None)
+    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
+    new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
+    new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
+    add_noise_pred_to_diffusers_callback(new_pipe)
+    if new_pipe.has_accelerate:
+        set_accelerate(new_pipe)
 
 
 def backup_pipe_components(pipe):

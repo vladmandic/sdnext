@@ -16,6 +16,8 @@ def load_kolors(_checkpoint_info, diffusers_load_config={}):
         **diffusers_load_config,
     )
     pipe.vae.config.force_upcast = True
+
     sd_hijack_te.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
     return pipe

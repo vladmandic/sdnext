@@ -40,5 +40,6 @@ def load_lumina2(checkpoint_info, diffusers_load_config={}):
     del transformer
     del text_encoder
     sd_hijack_te.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
     return pipe

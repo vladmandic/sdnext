@@ -313,6 +313,7 @@ class ControlNet():
                             errors.display(e, 'Control')
                 if self.model is None:
                     return
+                self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)
                 if "Control" in opts.sdnq_quantize_weights:
@@ -441,7 +442,7 @@ class ControlNetPipeline():
                 tokenizer=pipeline.tokenizer,
                 transformer=pipeline.transformer,
                 scheduler=pipeline.scheduler,
-                controlnet=controlnets, # can be a list
+                controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
             )
         elif len(loras) > 0:
             self.pipeline = pipeline
@@ -463,11 +464,13 @@ class ControlNetPipeline():
         if dtype is not None:
             self.pipeline = self.pipeline.to(dtype)
 
+        controlnet = None # free up memory
+        controlnets = None
         sd_models.copy_diffuser_options(self.pipeline, pipeline)
         if opts.diffusers_offload_mode == 'none':
             sd_models.move_model(self.pipeline, devices.device)
-        from modules.sd_models import set_diffuser_offload
-        set_diffuser_offload(self.pipeline, 'model')
+        sd_models.clear_caches()
+        sd_models.set_diffuser_offload(self.pipeline, 'model')
 
         t1 = time.time()
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')

@@ -251,7 +251,6 @@ options_templates.update(options_section(('text_encoder', "Text Encoder"), {
     "sd_textencoder_cache_size": OptionInfo(4, "Text encoder cache size", gr.Slider, {"minimum": 0, "maximum": 16, "step": 1}),
     "sd_textencder_linebreak": OptionInfo(True, "Use line break as prompt segment marker", gr.Checkbox),
     "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
-    "te_hijack": OptionInfo(True, "Offload after prompt encode", gr.Checkbox),
     "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
     "te_shared_t5": OptionInfo(True, "T5: Use shared instance of text encoder"),
     "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),

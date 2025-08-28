@@ -1,6 +1,6 @@
 import transformers
 import diffusers
-from modules import shared, sd_models, devices, model_quant, sd_hijack_te
+from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hijack_vae
 from pipelines import generic
 
 
@@ -61,5 +61,7 @@ def load_kandinsky3(checkpoint_info, diffusers_load_config={}):
     del text_encoder
     del unet
     sd_hijack_te.init_hijack(pipe)
+    sd_hijack_vae.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
     return pipe

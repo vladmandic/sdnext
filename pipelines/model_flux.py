@@ -84,5 +84,6 @@ def load_flux(checkpoint_info, diffusers_load_config={}):
         apply_cache_on_pipe(pipe, residual_diff_threshold=0.12)
 
     sd_hijack_te.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
     return pipe

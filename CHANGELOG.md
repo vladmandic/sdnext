@@ -10,16 +10,17 @@
     if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
     *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
-- **Core**
-  - enable offload during pre-forward by default  
-  - improve offloading of very large models  
-  - update `requirements`  
 - **UI**  
   - improved image scaling in img2img and control interfaces  
   - add base model type to networks display, thanks @Artheriax  
   - additional hints to ui, thanks @Artheriax  
   - add video support to gallery, thanks @CalamitousFelicitousness  
   - additional artwork for reference models in networks, thanks @liutyi  
+- **Offloading**
+  - enable offload during pre-forward by default  
+  - improve offloading of models with multiple dits  
+  - improve offloading of models with impliciy vae processing  
+  - improve offloading of models with controlnet  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  

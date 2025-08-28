@@ -203,18 +203,19 @@ class OffloadHook(accelerate.hooks.ModelHook):
         return module
 
     def pre_forward(self, module, *args, **kwargs):
-        if self.last_pre != id(module): # offload every other module first time when new module starts pre-forward
-            self.last_pre = id(module)
+        _id = id(module)
+        if self.last_pre != _id and not hasattr(module, "offload_never"): # offload every other module first time when new module starts pre-forward
+            self.last_pre = _id
             if shared.opts.diffusers_offload_pre:
                 debug_move(f'Offload: type=balanced op=pre module={module.__class__.__name__}')
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
-                        if (id(module) != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
+                        if (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
 
-        if not devices.same_device(module.device, devices.device):
+        if not devices.same_device(module.device, devices.device): # move-to-device
             device_index = torch.device(devices.device).index
             if device_index is None:
                 device_index = 0
@@ -233,6 +234,13 @@ class OffloadHook(accelerate.hooks.ModelHook):
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory
+
+        if debug:
+            for pipe in get_pipe_variants():
+                for module_name in get_module_names(pipe):
+                    module_instance = getattr(pipe, module_name, None)
+                    shared.log.trace(f'Offload: type=balanced op=pre check module={module_instance.__class__.__name__} device={module_instance.device} dtype={module_instance.dtype}')
+
         return args, kwargs
 
     def post_forward(self, module, output):
@@ -292,7 +300,7 @@ def get_module_sizes(pipe=None, exclude=[]):
     return modules
 
 
-def move_module_to_cpu(module, op='unk'):
+def move_module_to_cpu(module, op='unk', force:bool=False):
     try:
         module_name = getattr(module, "module_name", module.__class__.__name__)
         module_size = offload_hook_instance.offload_map.get(module_name, offload_hook_instance.model_size())
@@ -301,7 +309,11 @@ def move_module_to_cpu(module, op='unk'):
         prev_gpu = used_gpu
         module_cls = module.__class__.__name__
         op = f'{op}:skip'
-        if module_cls in offload_hook_instance.offload_never:
+        if force:
+            op = f'{op}:force'
+            module = module.to(devices.cpu)
+            used_gpu -= module_size
+        elif module_cls in offload_hook_instance.offload_never:
             op = f'{op}:never'
         elif module_cls in offload_hook_instance.offload_always:
             op = f'{op}:always'
@@ -313,7 +325,7 @@ def move_module_to_cpu(module, op='unk'):
             used_gpu -= module_size
         if debug:
             quant = getattr(module, "quantization_method", None)
-            debug_move(f'Offload: type=balanced op={op} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={module_cls} size={module_size:.3f}')
+            debug_move(f'Offload: type=balanced op={op} gpu={prev_gpu:.3f}:{used_gpu:.3f} perc={perc_gpu:.2f}:{shared.opts.diffusers_offload_min_gpu_memory} ram={used_ram:.3f} current={module.device} dtype={module.dtype} quant={quant} module={module_cls} size={module_size:.3f}')
     except Exception as e:
         if 'out of memory' in str(e):
             devices.torch_gc(fast=True, force=True, reason='oom')
@@ -325,7 +337,7 @@ def move_module_to_cpu(module, op='unk'):
             errors.display(e, f'Offload: type=balanced op=apply module={getattr(module, "__name__", None)}')
 
 
-def apply_balanced_offload_to_module(module, op="apply"):
+def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
     module_name = getattr(module, "module_name", module.__class__.__name__)
     network_layer_name = getattr(module, "network_layer_name", None)
     device_map = getattr(module, "balanced_offload_device_map", None)
@@ -334,7 +346,7 @@ def apply_balanced_offload_to_module(module, op="apply"):
         module = accelerate.hooks.remove_hook_from_module(module, recurse=True)
     except Exception as e:
         shared.log.warning(f'Offload remove hook: module={module_name} {e}')
-    move_module_to_cpu(module, op=op)
+    move_module_to_cpu(module, op=op, force=force)
     try:
         module = accelerate.hooks.add_hook_to_module(module, offload_hook_instance, append=True)
     except Exception as e:
@@ -345,7 +357,7 @@ def apply_balanced_offload_to_module(module, op="apply"):
     if device_map and max_memory:
         module.balanced_offload_device_map = device_map
         module.balanced_offload_max_memory = max_memory
-    module.offload_post = shared.sd_model_type in offload_post and shared.opts.te_hijack and module_name.startswith("text_encoder")
+    module.offload_post = shared.sd_model_type in offload_post and module_name.startswith("text_encoder")
     if shared.opts.layerwise_quantization or getattr(module, 'quantization_method', None) == 'LayerWise':
         model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/readded
     devices.torch_gc(fast=True, force=True, reason='offload')

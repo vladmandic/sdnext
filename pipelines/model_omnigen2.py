@@ -42,5 +42,6 @@ def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     pipe.transformer = transformer # for omnigen2 transformer must be loaded after pipeline
 
     sd_hijack_te.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
     return pipe
