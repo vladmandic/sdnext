@@ -1866,7 +1866,9 @@ div:has(>#tab-gallery-folders) {
 }
 
 /* Gradio container around the video should not add extra spacing */
-#tab-gallery-video .wrap { height: 100%; }
+#tab-gallery-video .wrap {
+  height: 100%;
+}
 
 .gallery-sort {
   background: var(--input-background-fill) !important;
