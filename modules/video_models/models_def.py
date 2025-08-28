@@ -320,4 +320,18 @@ models = {
               te_cls=transformers.T5EncoderModel,
               dit_cls=diffusers.CogVideoXTransformer3DModel),
     ],
+    'nVidia Cosmos': [
+        Model(name='nvidia Cosmos Predict2 2B I2I',
+              url='https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image',
+              repo='nvidia/Cosmos-Predict2-2B-Video2World',
+              repo_cls=diffusers.Cosmos2VideoToWorldPipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.CosmosTransformer3DModel),
+        Model(name='nvidia Cosmos Predict2 2B I2I',
+              url='https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image',
+              repo='nvidia/Cosmos-Predict2-2B-Video2World',
+              repo_cls=diffusers.Cosmos2VideoToWorldPipeline,
+              te_cls=transformers.T5EncoderModel,
+              dit_cls=diffusers.CosmosTransformer3DModel),
+    ],
 }

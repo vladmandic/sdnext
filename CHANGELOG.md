@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-27
+## Update for 2025-08-28
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -16,6 +16,7 @@
   - additional hints to ui, thanks @Artheriax  
   - add video support to gallery, thanks @CalamitousFelicitousness  
   - additional artwork for reference models in networks, thanks @liutyi  
+  - improve ui hints display  
 - **Offloading**
   - enable offload during pre-forward by default  
   - improve offloading of models with multiple dits  
@@ -28,8 +29,7 @@
   - fix handling of pre-quantized `flux` models  
   - fix `wan` use correct pipeline for i2v models  
   - fix `qwen-image` with hires  
-  - fix `omnigen-2`  
-  - fix ui hints display  
+  - fix `omnigen-2` failure  
 
 ## Update for 2025-08-20
 
