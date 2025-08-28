@@ -9,6 +9,7 @@
   - [Nunchaku-Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
     if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
     *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+  - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
 - **UI**  
   - improved image scaling in img2img and control interfaces  

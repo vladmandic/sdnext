@@ -1,4 +1,3 @@
-import time
 import torch
 import diffusers
 import transformers
@@ -47,7 +46,6 @@ def load_sana(checkpoint_info, kwargs={}):
 
     kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
     shared.log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
-    t0 = time.time()
 
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
         kwargs['torch_dtype'] = devices.dtype

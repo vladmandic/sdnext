@@ -105,6 +105,12 @@ predefined_sd3 = {
 predefined_qwen = {
     "InstantX Union Qwen": 'InstantX/Qwen-Image-ControlNet-Union',
 }
+predefined_hunyuandit = {
+    "HunyuanDiT Canny": 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Canny',
+    "HunyuanDiT Pose": 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Pose',
+    "HunyuanDiT Depth": 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Depth',
+}
+
 variants = {
     'NoobAI Canny XL': 'fp16',
     'NoobAI Lineart Anime XL': 'fp16',
@@ -120,6 +126,7 @@ all_models.update(predefined_sdxl)
 all_models.update(predefined_f1)
 all_models.update(predefined_sd3)
 all_models.update(predefined_qwen)
+all_models.update(predefined_hunyuandit)
 cache_dir = 'models/control/controlnet'
 load_lock = threading.Lock()
 
@@ -156,6 +163,8 @@ def api_list_models(model_type: str = None):
         model_list += list(predefined_sd3)
     if model_type == 'qwen' or model_type == 'all':
         model_list += list(predefined_qwen)
+    if model_type == 'hunyuandit' or model_type == 'all':
+        model_list += list(predefined_hunyuandit)
     model_list += sorted(find_models())
     return model_list
 
@@ -178,6 +187,8 @@ def list_models(refresh=False):
         models = ['None'] + list(predefined_sd3) + sorted(find_models())
     elif modules.shared.sd_model_type == 'qwen':
         models = ['None'] + list(predefined_qwen) + sorted(find_models())
+    elif modules.shared.sd_model_type == 'hunyuandit':
+        models = ['None'] + list(predefined_hunyuandit) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
         models = ['None'] + sorted(predefined_sd15) + sorted(predefined_sdxl) + sorted(predefined_f1) + sorted(predefined_sd3) + sorted(find_models())
@@ -233,6 +244,9 @@ class ControlNet():
         elif shared.sd_model_type == 'qwen':
             from diffusers import QwenImageControlNetModel as cls
             config = 'InstantX/Qwen-Image-ControlNet-Union'
+        elif shared.sd_model_type == 'hunyuandit':
+            from diffusers import HunyuanDiT2DControlNetModel as cls
+            config = 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Canny'
         else:
             log.error(f'Control {what}: type={shared.sd_model_type} unsupported model')
             return None, None
@@ -444,6 +458,20 @@ class ControlNetPipeline():
                 scheduler=pipeline.scheduler,
                 controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
             )
+        elif detect.is_hunyuandit(pipeline) and len(controlnets) > 0:
+            from diffusers import HunyuanDiTControlNetPipeline
+            self.pipeline = HunyuanDiTControlNetPipeline(
+                vae=pipeline.vae,
+                text_encoder=pipeline.text_encoder,
+                tokenizer=pipeline.tokenizer,
+                text_encoder_2=pipeline.text_encoder_2,
+                tokenizer_2=pipeline.tokenizer_2,
+                transformer=pipeline.transformer,
+                scheduler=pipeline.scheduler,
+                safety_checker=None,
+                feature_extractor=None,
+                controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
+            )
         elif len(loras) > 0:
             self.pipeline = pipeline
             for lora in loras:
@@ -476,7 +504,7 @@ class ControlNetPipeline():
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')
 
     def restore(self):
-        if self.pipeline is not None:
+        if self.pipeline is not None and hasattr(self.pipeline, 'unload_lora_weights'):
             self.pipeline.unload_lora_weights()
         self.pipeline = None
         return self.orig_pipeline

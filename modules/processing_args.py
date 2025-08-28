@@ -358,8 +358,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     task_kwargs = task_specific_kwargs(p, model)
     pipe_args = getattr(p, 'task_args', {})
     model_args = getattr(model, 'task_args', {})
-    task_kwargs.update(pipe_args)
-    task_kwargs.update(model_args)
+    task_kwargs.update(pipe_args or {})
+    task_kwargs.update(model_args or {})
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():

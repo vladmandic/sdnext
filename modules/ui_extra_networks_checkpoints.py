@@ -43,6 +43,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
+                "version": "ref",
             }
 
     def create_item(self, name):

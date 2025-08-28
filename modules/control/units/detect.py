@@ -24,3 +24,7 @@ def is_sd3(model):
 
 def is_qwen(model):
     return is_compatible(model, pattern='Qwen')
+
+
+def is_hunyuandit(model):
+    return is_compatible(model, pattern='HunyuanDiT')
