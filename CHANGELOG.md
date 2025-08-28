@@ -18,6 +18,9 @@
   - add video support to gallery, thanks @CalamitousFelicitousness  
   - additional artwork for reference models in networks, thanks @liutyi  
   - improve ui hints display  
+  - configurable horizontal vs vertical panel layout  
+    in settings -> user interface -> panel min width  
+    *example*: if panel width is less than specified value, layout switches to verical  
 - **Offloading**
   - enable offload during pre-forward by default  
   - improve offloading of models with multiple dits  
