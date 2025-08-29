@@ -104,8 +104,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
             else:
                 group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
-        elif use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
-            group_size = -1 # override user value, fp8 + matmul doesn't support group sizes
+        elif use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
+            group_size = -1 # override user value, re-quantizing 8bit into 8bit is pointless
         elif group_size != -1 and not is_linear_type:
             group_size = max(group_size // 2, 1)
 
