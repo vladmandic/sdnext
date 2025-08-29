@@ -376,7 +376,6 @@ class SDNQQuantizer(DiffusersQuantizer):
         keep_in_fp32_modules: List[str] = [],
         **kwargs, # pylint: disable=unused-argument
     ):
-        print("AAAAA:", model.__class__.__name__, "|", getattr(model, "_keep_in_fp32_modules", "None"))
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
         elif getattr(model, "_keep_in_fp32_modules", None) is not None:
