@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-28
+## Update for 2025-08-29
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -15,6 +15,8 @@
     requires: generator=cpu, dtype=float16, offload=none  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
 - **UI**  
+  - default to **ModernUI**  
+    standard ui is still available via *settings -> user interface -> theme type*  
   - improved image scaling in img2img and control interfaces  
   - add base model type to networks display, thanks @Artheriax  
   - additional hints to ui, thanks @Artheriax  

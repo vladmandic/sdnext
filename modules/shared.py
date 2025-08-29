@@ -519,7 +519,7 @@ options_templates.update(options_section(('image-metadata', "Image Metadata"), {
 
 options_templates.update(options_section(('ui', "User Interface"), {
     "themes_sep_ui": OptionInfo("<h2>Theme options</h2>", "", gr.HTML),
-    "theme_type": OptionInfo("Standard", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
+    "theme_type": OptionInfo("Modern", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
     "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
     "gradio_theme": OptionInfo("black-teal", "UI theme", gr.Dropdown, lambda: {"choices": theme.list_themes()}, refresh=theme.refresh_themes),
 
