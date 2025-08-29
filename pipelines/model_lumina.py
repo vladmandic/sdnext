@@ -1,12 +1,13 @@
 import transformers
 import diffusers
-from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
+from modules import shared, sd_models, sd_hijack_te, devices, model_quant
 from pipelines import generic
 
 
 def load_lumina(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
-    modelloader.hf_login()
+    sd_models.hf_auth_check(checkpoint_info)
+
     load_config, _quant_config = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     shared.log.debug(f'Load model: type=LuminaSFT repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     pipe = diffusers.LuminaText2ImgPipeline.from_pretrained(
@@ -21,6 +22,7 @@ def load_lumina(checkpoint_info, diffusers_load_config={}):
 
 def load_lumina2(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
     if shared.opts.teacache_enabled:
         from modules import teacache

@@ -339,7 +339,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['OmniGen2']: # forced pipeline
-            from pipelines.model_omnigen2 import load_omnigen2
+            from pipelines.model_omnigen import load_omnigen2
             sd_model = load_omnigen2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['OmniGen']: # forced pipeline

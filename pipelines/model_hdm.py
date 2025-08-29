@@ -6,6 +6,7 @@ from modules import shared, devices, sd_models, errors
 
 def load_hdm(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
     try:
         devices.dtype = torch.float16
