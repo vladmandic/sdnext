@@ -39,6 +39,8 @@
   - fix `wan` use correct pipeline for i2v models  
   - fix `qwen-image` with hires  
   - fix `omnigen-2` failure  
+  - fix `auraflow` quantization  
+  - fix `kandinsky-3` noise  
 
 ## Update for 2025-08-20
 

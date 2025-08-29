@@ -292,6 +292,8 @@ class ExtraNetworksPage:
         self.html = ''
         self.create_items(tabname)
         versions = sorted({item.get("version", "") for item in self.items if item.get("version")})
+        if 'ref' in versions:
+            versions.remove('ref')
         versions_html = ''
         for ver in versions:
             versions_html += f'<button class="lg secondary gradio-button custom-button network-model" onclick="extraNetworksFilterVersion(event)">{html.escape(ver)}</button><br>'

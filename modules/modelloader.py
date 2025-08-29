@@ -210,7 +210,9 @@ def get_reference_opts(name: str, quiet=False):
         # shared.log.error(f'Reference: model="{name}" not found')
         return {}
     if not quiet:
-        shared.log.debug(f'Reference: model="{name}" {model_opts}')
+        desc = model_opts.copy()
+        desc.pop('desc', None)
+        shared.log.debug(f'Reference: model="{name}" {desc}')
     return model_opts
 
 
