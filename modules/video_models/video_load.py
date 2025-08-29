@@ -1,6 +1,6 @@
 import copy
 import time
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
 
 
@@ -79,13 +79,10 @@ def load_model(selected: models_def.Model):
     shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(selected.repo)
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model, offload=False)
+
     if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
-        shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
-        shared.sd_model.vae.decode = video_vae.hijack_vae_decode
-        shared.sd_model.vae.orig_encode = shared.sd_model.vae.encode
-        shared.sd_model.vae.encode = video_vae.hijack_vae_encode
+        sd_hijack_vae.init_hijack(shared.sd_model)
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
-        # shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
         sd_hijack_te.init_hijack(shared.sd_model)
     if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image

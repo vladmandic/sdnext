@@ -12,6 +12,7 @@ def load_pixart(checkpoint_info, diffusers_load_config={}):
     repo_id_tenc = repo_id
     repo_id_pipe = repo_id
 
+    # PixArt-alpha/PixArt-Sigma-XL-2-2K-MS only holds transformer
     if not file_exists(repo_id_tenc, "text_encoder/config.json"):
         repo_id_tenc = "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS"
     if not file_exists(repo_id_pipe, "model_index.json"):
