@@ -1,7 +1,5 @@
 import os
-import time
-import torch
-from modules import shared, sd_models, devices, timer, errors
+from modules import shared, devices
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None

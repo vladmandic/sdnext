@@ -1,6 +1,6 @@
 import transformers
 import diffusers
-from modules import shared, devices, modelloader, sd_models, shared_items, sd_hijack_te
+from modules import shared, devices, sd_models, shared_items, sd_hijack_te
 
 
 def load_meissonic(checkpoint_info, diffusers_load_config={}):

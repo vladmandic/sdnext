@@ -1,7 +1,7 @@
 import torch
 import diffusers
 import transformers
-from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
+from modules import shared, sd_models, sd_hijack_te, devices, model_quant
 
 
 def load_quants(kwargs, repo_id, cache_dir):
