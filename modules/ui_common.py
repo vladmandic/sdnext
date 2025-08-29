@@ -348,16 +348,19 @@ def create_override_inputs(tab): # pylint: disable=unused-argument
 
 
 def connect_reuse_seed(seed: gr.Number, reuse_seed: gr.Button, generation_info: gr.Textbox, is_subseed, subseed_strength=None):
-    """ Connects a 'reuse (sub)seed' button's click event so that it copies last used
-        (sub)seed value from generation info the to the seed field. If copying subseed and subseed strength
-        was 0, i.e. no variation seed was used, it copies the normal seed value instead."""
+    """Connect a "reuse seed" button so it copies the seed from the last
+    generation back into the seed field.
+
+    Works with both image and video results across txt2img, img2img and
+    control tabs. If copying subseed and subseed strength was 0 (no
+    variation seed used), the normal seed value is copied instead."""
     def copy_seed(gen_info_string: str, index: int):
         restore_seed = -1
         restore_strength = -1
         try:
             gen_info = json.loads(gen_info_string)
             shared.log.debug(f'Reuse: info={gen_info}')
-            index -= gen_info.get('index_of_first_image', 0)
+            index -= gen_info.get('index_of_first_image', gen_info.get('index_of_first_frame', 0))
             index = int(index)
             if is_subseed:
                 all_subseeds = gen_info.get('all_subseeds', [-1])

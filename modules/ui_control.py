@@ -51,28 +51,29 @@ def return_stats(t: float = None):
 
 
 def return_controls(res, t: float = None):
-    # return preview, image, video, gallery, text
+    # return preview, image, video, gallery, generation, text
     debug(f'Control received: type={type(res)} {res}')
     if t is None:
         perf = ''
     else:
         perf = return_stats(t)
     if res is None: # no response
-        return [None, None, None, None, '', perf]
+        return [None, None, None, None, '', '', perf]
     elif isinstance(res, str): # error response
-        return [None, None, None, None, res, perf]
-    elif isinstance(res, tuple): # standard response received as tuple via control_run->yield(output_images, process_image, result_txt)
-        preview_image = res[1] # may be None
-        output_image = res[0][0] if isinstance(res[0], list) else res[0] # may be image or list of images
+        return [None, None, None, None, '', res, perf]
+    elif isinstance(res, tuple): # standard response received as tuple via control_run->yield(...)
+        preview_image = res[1] if len(res) > 1 else None
+        output_image = res[0][0] if isinstance(res[0], list) else res[0]
         if isinstance(res[0], list):
-            output_gallery = res[0] if res[0][0] is not None else []
+            output_gallery = res[0] if res[0] and res[0][0] is not None else []
         else:
-            output_gallery = [res[0]] if res[0] is not None else [] # must return list, but can receive single image
-        result_txt = res[2] if len(res) > 2 else '' # do we have a message
-        output_video = res[3] if len(res) > 3 else None # do we have a video filename
-        return [preview_image, output_image, output_video, output_gallery, result_txt, perf]
+            output_gallery = [res[0]] if res[0] is not None else []
+        generation_info = res[2] if len(res) > 2 else ''
+        result_txt = res[3] if len(res) > 3 else ''
+        output_video = res[4] if len(res) > 4 else None
+        return [preview_image, output_image, output_video, output_gallery, generation_info, result_txt, perf]
     else: # unexpected
-        return [None, None, None, None, f'Control: Unexpected response: {type(res)}', perf]
+        return [None, None, None, None, '', f'Control: Unexpected response: {type(res)}', perf]
 
 
 def get_units(*values):
@@ -100,7 +101,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
     shared.state.begin('Generate')
     progress.add_task_to_queue(job_id)
     with call_queue.queue_lock:
-        yield [None, None, None, None, 'Control: starting', '']
+        yield [None, None, None, None, '', 'Control: starting', '']
         shared.mem_mon.reset()
         progress.start_task(job_id)
         try:
@@ -157,7 +158,7 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 batch_count, batch_size = ui_sections.create_batch_inputs('control', accordion=True)
 
-                seed, _reuse_seed, subseed, _reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('control', reuse_visible=False)
+                seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('control')
 
                 mask_controls = masking.create_segment_ui()
 
@@ -215,11 +216,13 @@ def create_ui(_blocks: gr.Blocks=None):
                     gr.HTML('<span id="control-output-button">Output</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-output') as output_tabs:
                         with gr.Tab('Gallery', id='out-gallery'):
-                            output_gallery, _output_gen_info, _output_html_info, _output_html_info_formatted, output_html_log = ui_common.create_output_panel("control", preview=False, prompt=prompt, height=gr_height)
+                            output_gallery, output_gen_info, _output_html_info, _output_html_info_formatted, output_html_log = ui_common.create_output_panel("control", preview=False, prompt=prompt, height=gr_height)
                         with gr.Tab('Image', id='out-image'):
                             output_image = gr.Image(label="Output", show_label=False, type="pil", interactive=False, tool="editor", height=gr_height, elem_id='control_output_image', elem_classes=['control-image'])
                         with gr.Tab('Video', id='out-video'):
                             output_video = gr.Video(label="Output", show_label=False, height=gr_height, elem_id='control_output_video', elem_classes=['control-image'])
+                    ui_common.connect_reuse_seed(seed, reuse_seed, output_gen_info, is_subseed=False)
+                    ui_common.connect_reuse_seed(subseed, reuse_subseed, output_gen_info, is_subseed=True, subseed_strength=subseed_strength)
                 with gr.Column(scale=9, elem_id='control-preview-column', visible=False) as column_preview:
                     gr.HTML('<span id="control-preview-button">Preview</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-preview'):
@@ -597,6 +600,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 output_image,
                 output_video,
                 output_gallery,
+                output_gen_info,
                 result_txt,
                 output_html_log,
             ]
