@@ -90,7 +90,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             try:
                 output_channel_size, channel_size = layer.weight.shape
             except Exception as e:
-                raise ValueError(f"SDNQ: layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
+                raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
             if use_quantized_matmul:
                 use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul:
@@ -376,6 +376,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         keep_in_fp32_modules: List[str] = [],
         **kwargs, # pylint: disable=unused-argument
     ):
+        print("AAAAA:", model.__class__.__name__, "|", getattr(model, "_keep_in_fp32_modules", "None"))
         if keep_in_fp32_modules is not None:
             self.modules_to_not_convert.extend(keep_in_fp32_modules)
         elif getattr(model, "_keep_in_fp32_modules", None) is not None:
