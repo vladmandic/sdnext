@@ -42,26 +42,26 @@ def quantize_int8(input: torch.FloatTensor, dim: int = -1) -> Tuple[torch.CharTe
     return input, scale
 
 
-def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
-    result = dequantize_asymmetric(weight, scale, zero_point, dtype, result_shape)
+def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
+    result = dequantize_asymmetric(weight, scale, zero_point, scale.dtype, result_shape)
     if result.ndim > 2: # convs
         result = result.flatten(1,-1)
     return quantize_int8(result.t_(), dim=0)
 
 
-def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, dtype: torch.dtype, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
-    result = dequantize_symmetric(weight, scale, dtype, result_shape)
+def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
+    result = dequantize_symmetric(weight, scale, scale.dtype, result_shape)
     if result.ndim > 2: # convs
         result = result.flatten(1,-1)
     return quantize_int8(result.t_(), dim=0)
 
 
-def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
-    return re_quantize_matmul_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, dtype, result_shape)
+def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
+    return re_quantize_matmul_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, result_shape)
 
 
-def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, dtype: torch.dtype, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
-    return re_quantize_matmul_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, dtype, result_shape)
+def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
+    return re_quantize_matmul_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, result_shape)
 
 
 class AsymmetricWeightsDequantizer(torch.nn.Module):
@@ -90,7 +90,7 @@ class AsymmetricWeightsDequantizer(torch.nn.Module):
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
 
     def re_quantize_matmul(self, weight, **kwargs): # pylint: disable=unused-argument
-        return re_quantize_matmul_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
+        return re_quantize_matmul_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_shape)
 
     def forward(self, weight, **kwargs): # pylint: disable=unused-argument
         return dequantize_asymmetric_compiled(weight, self.scale, self.zero_point, self.result_dtype, self.result_shape)
@@ -121,7 +121,7 @@ class SymmetricWeightsDequantizer(torch.nn.Module):
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
 
     def re_quantize_matmul(self, weight, **kwargs): # pylint: disable=unused-argument
-        return re_quantize_matmul_symmetric_compiled(weight, self.scale, self.result_dtype, self.result_shape)
+        return re_quantize_matmul_symmetric_compiled(weight, self.scale, self.result_shape)
 
     def forward(self, weight, skip_quantized_matmul=False, **kwargs): # pylint: disable=unused-argument
         skip_quantized_matmul = skip_quantized_matmul and not self.re_quantize_for_matmul
@@ -156,7 +156,7 @@ class PackedINTAsymmetricWeightsDequantizer(torch.nn.Module):
         return pack_int_asymetric(weight, self.weights_dtype)
 
     def re_quantize_matmul(self, weight, **kwargs): # pylint: disable=unused-argument
-        return re_quantize_matmul_packed_int_asymmetric_compiled(weight, self.scale, self.zero_point, self.quantized_weight_shape, self.result_dtype, self.result_shape, self.weights_dtype)
+        return re_quantize_matmul_packed_int_asymmetric_compiled(weight, self.scale, self.zero_point, self.quantized_weight_shape, self.result_shape, self.weights_dtype)
 
     def forward(self, weight, **kwargs): # pylint: disable=unused-argument
         return dequantize_packed_int_asymmetric_compiled(weight, self.scale, self.zero_point, self.quantized_weight_shape, self.result_dtype, self.result_shape, self.weights_dtype)
@@ -189,7 +189,7 @@ class PackedINTSymmetricWeightsDequantizer(torch.nn.Module):
         return pack_int_symetric(weight, self.weights_dtype)
 
     def re_quantize_matmul(self, weight, **kwargs): # pylint: disable=unused-argument
-        return re_quantize_matmul_packed_int_symmetric_compiled(weight, self.scale, self.quantized_weight_shape, self.result_dtype, self.result_shape, self.weights_dtype)
+        return re_quantize_matmul_packed_int_symmetric_compiled(weight, self.scale, self.quantized_weight_shape, self.result_shape, self.weights_dtype)
 
     def forward(self, weight, skip_quantized_matmul=False, **kwargs): # pylint: disable=unused-argument
         skip_quantized_matmul = skip_quantized_matmul and not self.re_quantize_for_matmul
