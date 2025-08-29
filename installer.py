@@ -768,10 +768,6 @@ def install_rocm_zluda():
                 # older rocm (5.7) uses torch 2.3 or older
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://download.pytorch.org/whl/rocm{rocm.version}')
 
-        if device is not None and rocm.version != "6.2" and rocm.get_blaslt_enabled():
-            log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
-            rocm.set_blaslt_enabled(device.blaslt_supported)
-
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
