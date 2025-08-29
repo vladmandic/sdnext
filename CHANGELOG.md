@@ -42,6 +42,7 @@
   - fix `auraflow` quantization  
   - fix `kandinsky-3` noise  
   - fix `infiniteyou` pipeline offloading  
+  - fix `skyreels-v2` image-to-video  
 
 ## Update for 2025-08-20
 

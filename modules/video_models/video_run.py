@@ -69,6 +69,8 @@ def generate(*args, **kwargs):
     elif 'T2V' in model:
         if init_image is not None:
             shared.log.warning('Video: op=T2V init image not supported')
+    else:
+        shared.log.warning(f'Video: unknown model type "{model}"')
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
