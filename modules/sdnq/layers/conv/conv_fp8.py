@@ -25,6 +25,8 @@ def conv_fp8_matmul(
     input, input_scale = quantize_fp8_matmul_input(input)
 
     if groups == 1:
+        if bias is not None and bias.dtype != torch.bfloat16:
+            bias = bias.to(dtype=torch.bfloat16)
         result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(mm_output_shape).to(return_dtype)
     else:
         scale = scale.view(groups, 1, scale.shape[1] // groups)
@@ -34,6 +36,8 @@ def conv_fp8_matmul(
         result = []
         if bias is not None:
             bias = bias.view(groups, bias.shape[0] // groups)
+            if bias.dtype != torch.bfloat16:
+                bias = bias.to(dtype=torch.bfloat16)
             for i in range(groups):
                 result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=input_scale[i], scale_b=scale[i], bias=bias[i], out_dtype=torch.bfloat16))
         else:
