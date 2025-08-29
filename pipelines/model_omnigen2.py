@@ -12,6 +12,7 @@ def load_omnigen2(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    shared.log.debug(f'Load model: type=OmniGen2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     transformer = OmniGen2Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",

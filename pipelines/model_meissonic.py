@@ -12,35 +12,40 @@ def load_meissonic(checkpoint_info, diffusers_load_config={}):
     shared_items.pipelines['Meissonic'] = MeissonicPipeline
 
     modelloader.hf_login()
-    fn = sd_models.path_to_repo(checkpoint_info)
+    repo_id = sd_models.path_to_repo(checkpoint_info)
     cache_dir = shared.opts.diffusers_dir
 
     diffusers_load_config['variant'] = 'fp16'
     diffusers_load_config['trust_remote_code'] = True
 
+    shared.log.debug(f'Load model: type=Meissonic repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     model = TransformerMeissonic.from_pretrained(
-        fn,
+        repo_id,
         subfolder="transformer",
         cache_dir=cache_dir,
         **diffusers_load_config,
     )
     vqvae = diffusers.VQModel.from_pretrained(
-        fn,
+        repo_id,
         subfolder="vqvae",
         cache_dir=cache_dir,
         **diffusers_load_config,
     )
     text_encoder = transformers.CLIPTextModelWithProjection.from_pretrained(
-        fn,
+        repo_id,
         subfolder="text_encoder",
         cache_dir=cache_dir,
     )
     tokenizer = transformers.CLIPTokenizer.from_pretrained(
-        fn,
+        repo_id,
         subfolder="tokenizer",
         cache_dir=cache_dir,
     )
-    scheduler = MeissonicScheduler.from_pretrained(fn, subfolder="scheduler", cache_dir=cache_dir)
+    scheduler = MeissonicScheduler.from_pretrained(
+        repo_id,
+        subfolder="scheduler",
+        cache_dir=cache_dir,
+    )
     pipe = MeissonicPipeline(
             vqvae=vqvae.to(devices.dtype),
             text_encoder=text_encoder.to(devices.dtype),

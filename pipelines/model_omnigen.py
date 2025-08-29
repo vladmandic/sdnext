@@ -7,6 +7,7 @@ def load_omnigen(checkpoint_info, diffusers_load_config={}): # pylint: disable=u
     vae = None
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    shared.log.debug(f'Load model: type=OmniGen repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     transformer = diffusers.OmniGenTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
