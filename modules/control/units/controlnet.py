@@ -252,7 +252,7 @@ class ControlNet():
             return None, None
         return cls, config
 
-    def load_safetensors(self, model_id, model_path, cls, config): # pylint: disable:unused-argument
+    def load_safetensors(self, model_id, model_path, cls, config): # pylint: disable=unused-argument
         name = os.path.splitext(model_path)[0]
         config_path = None
         if not os.path.exists(model_path):

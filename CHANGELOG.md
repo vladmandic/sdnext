@@ -10,6 +10,9 @@
     if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
     *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
   - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
+  - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
+    highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme for pretraining T2I model at home based on super-light architecture  
+    requires: generator=cpu, dtype=float16, offload=none  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
 - **UI**  
   - improved image scaling in img2img and control interfaces  

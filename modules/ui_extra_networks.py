@@ -56,7 +56,9 @@ def init_api():
         global allowed_dirs # pylint: disable=global-statement
         if len(allowed_dirs) == 0:
             allowed_dirs = shared.demo.allowed_paths
-        if not os.path.exists(filename):
+        if filename is None or len(filename) == 0:
+            return JSONResponse({ "error": "no filename" }, status_code=400)
+        if not os.path.exists(filename) or not os.path.isfile(filename):
             return JSONResponse({ "error": f"file {filename}: not found" }, status_code=404)
         if filename.startswith('html/') or filename.startswith('models/'):
             return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
