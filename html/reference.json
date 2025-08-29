@@ -557,9 +557,10 @@
     "extras": "sampler: Default"
   },
   "Playground v2.5": {
-    "path": "playground-v2.5-1024px-aesthetic.fp16.safetensors@https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic/resolve/main/playground-v2.5-1024px-aesthetic.fp16.safetensors?download=true",
-    "desc": "Playground v2.5 is a diffusion-based text-to-image generative model, and a successor to Playground v2. Playground v2.5 is the state-of-the-art open-source model in aesthetic quality. Our user studies demonstrate that our model outperforms SDXL, Playground v2, PixArt-α, DALL-E 3, and Midjourney 5.2.",
+    "path": "playgroundai/playground-v2.5-1024px-aesthetic",
+    "desc": "Playground v2.5 is a diffusion-based text-to-image generative model, and a successor to Playground v2. Playground v2.5 is the state-of-the-art open-source model in aesthetic quality.",
     "preview": "playgroundai--playground-v2_5-1024px-aesthetic.jpg",
+    "variant": "fp16",
     "extras": "sampler: DPM++ 2M EDM"
   },
 
