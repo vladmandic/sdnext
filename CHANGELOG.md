@@ -41,6 +41,7 @@
   - fix `omnigen-2` failure  
   - fix `auraflow` quantization  
   - fix `kandinsky-3` noise  
+  - fix `infiniteyou` pipeline offloading  
 
 ## Update for 2025-08-20
 
