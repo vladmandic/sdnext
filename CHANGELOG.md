@@ -31,6 +31,8 @@
   - improve offloading of models with multiple dits  
   - improve offloading of models with impliciy vae processing  
   - improve offloading of models with controlnet  
+- **SDNQ**
+  - add quantized matmul support for all quantization types and group sizes  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - fix hidden model tags in networks display  
@@ -43,6 +45,7 @@
   - fix `kandinsky-3` noise  
   - fix `infiniteyou` pipeline offloading  
   - fix `skyreels-v2` image-to-video  
+  - fix segfault on startup with rocm 6.4.3 and torch 2.8  
 
 ## Update for 2025-08-20
 
