@@ -277,6 +277,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         inputs = [None]
     output_images: List[Image.Image] = [] # output images
     processed_image: Image.Image = None # last processed image
+    info_txt = []
+    generation_info_js = ''
     if mask is not None and input_type == 0:
         input_type = 1 # inpaint always requires control_image
 
@@ -573,6 +575,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         if processed is not None:
                             output = processed.images
                             info_txt = [processed.infotext(p, i) for i in range(len(output))]
+                            generation_info_js = processed.js()
 
                         # output = pipe(**vars(p)).images # alternative direct pipe exec call
                     else: # blend all processed images and return
@@ -593,7 +596,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                     msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 else:
                                     msg = f'Control output | {index} of {len(inputs)} | Image {image_txt}'
-                                yield (output_image, blended_image, msg) # result is control_output, proces_output
+                                yield (output_image, blended_image, '', msg, None) # control_output, proces_output
 
                 if video is not None and frame is not None:
                     status, frame = video.read()
@@ -633,5 +636,5 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
-        yield (output_images, blended_image, html_txt, output_filename)
-    return (output_images, blended_image, html_txt, output_filename)
+        yield (output_images, blended_image, generation_info_js, html_txt, output_filename)
+    return (output_images, blended_image, generation_info_js, html_txt, output_filename)
