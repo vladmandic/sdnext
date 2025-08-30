@@ -601,7 +601,7 @@ def check_diffusers():
     if args.skip_git:
         install('diffusers')
         return
-    sha = '865ba102b397b6f761423705142cbf9078d7b6d7' # diffusers commit hash
+    sha = '9b721db205729d5a6e97a72312c3a0f4534064f1' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -626,7 +626,7 @@ def check_transformers():
     if args.use_directml:
         target = '4.52.4'
     else:
-        target = '4.55.4'
+        target = '4.56.0'
     if (pkg is None) or ((pkg.version != target) and (not args.experimental)):
         if pkg is None:
             log.info(f'Transformers install: version={target}')
@@ -1265,21 +1265,6 @@ def install_optional():
     except Exception:
         pass
     ts('optional', t_start)
-
-
-def install_sentencepiece():
-    if installed('sentencepiece', quiet=True):
-        pass
-    elif int(sys.version_info.minor) >= 13:
-        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
-        backup_cxxflags = os.environ.get('CXXFLAGS', None)
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
-        os.environ.setdefault('CXXFLAGS', '-include cstdint')
-        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
-        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
-    else:
-        install('sentencepiece', 'sentencepiece')
 
 
 def install_requirements():
