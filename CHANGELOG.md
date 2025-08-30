@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-29
+## Update for 2025-08-30
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -35,6 +35,7 @@
   - add quantized matmul support for all quantization types and group sizes  
 - **Fixes**
   - normalize path hanlding when deleting images  
+  - remove samplers filtering  
   - fix hidden model tags in networks display  
   - fix networks reference models display on windows  
   - fix handling of pre-quantized `flux` models  
