@@ -17,6 +17,8 @@
 - **UI**  
   - default to **ModernUI**  
     standard ui is still available via *settings -> user interface -> theme type*  
+  - mobile-friendly!  
+  - make hints touch-friendly: hold touch to display hint  
   - improved image scaling in img2img and control interfaces  
   - add base model type to networks display, thanks @Artheriax  
   - additional hints to ui, thanks @Artheriax  

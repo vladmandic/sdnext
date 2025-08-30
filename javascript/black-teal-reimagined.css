@@ -1007,11 +1007,11 @@ svg.feather.feather-image,
 }
 
 .splash-img {
-  margin: 0;
+  margin: 10% auto 0 auto;
   width: 512px;
   height: 512px;
   background-repeat: no-repeat;
-  animation: color 8s infinite alternate, move 3s infinite alternate;
+  animation: hue 5s infinite alternate;
 }
 
 .loading {

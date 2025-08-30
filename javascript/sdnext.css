@@ -1946,7 +1946,7 @@ div:has(>#tab-gallery-folders) {
 }
 
 .splash-img {
-  margin: 0;
+  margin: 10% auto 0 auto;
   width: 512px;
   height: 512px;
   background-repeat: no-repeat;

@@ -14,6 +14,7 @@ const localeData = {
   observer: null, // MutationObserver for DOM changes
 };
 let localeTimeout = null;
+const isTouchDevice = 'ontouchstart' in window;
 
 async function cycleLocale() {
   clearTimeout(localeTimeout);
@@ -64,66 +65,48 @@ async function tooltipCreate() {
   if (window.opts.tooltips === 'Browser default') localeData.type = 1;
   if (window.opts.tooltips === 'UI tooltips') localeData.type = 2;
 
-  // Setup event delegation for tooltips instead of individual listeners
-  if (localeData.type === 2) {
-    gradioApp().addEventListener('mouseover', tooltipShowDelegated); // eslint-disable-line no-use-before-define
-    gradioApp().addEventListener('mouseout', tooltipHideDelegated); // eslint-disable-line no-use-before-define
+  if (localeData.type === 2) { // setup event delegation for tooltips instead of individual listeners
+    if (isTouchDevice) {
+      gradioApp().addEventListener('touchstart', tooltipShowDelegated); // eslint-disable-line no-use-before-define
+      gradioApp().addEventListener('touchend', tooltipHideDelegated); // eslint-disable-line no-use-before-define
+    }
+    gradioApp().addEventListener('pointerover', tooltipShowDelegated); // eslint-disable-line no-use-before-define
+    gradioApp().addEventListener('pointerout', tooltipHideDelegated); // eslint-disable-line no-use-before-define
   }
-
-  // Initialize DOM observer for immediate hint application
-  if (!localeData.observer) {
-    initializeDOMObserver(); // eslint-disable-line no-use-before-define
-  }
+  if (!localeData.observer) initializeDOMObserver(); // eslint-disable-line no-use-before-define
 }
 
 async function expandTooltip(element, longHint) {
   if (localeData.currentElement === element && localeData.hint.classList.contains('tooltip-show')) {
-    // Hide the progress ring
     const ring = localeData.hint.querySelector('.tooltip-progress-ring');
-    if (ring) {
-      ring.style.opacity = '0';
-    }
-
-    // Expand the container
+    if (ring) ring.style.opacity = '0';
     localeData.hint.classList.add('tooltip-expanded');
-
-    // After container starts expanding, reveal the long content
     setTimeout(() => {
       const longContent = localeData.hint.querySelector('.long-content');
-      if (longContent) {
-        longContent.classList.add('show');
-      }
+      if (longContent) longContent.classList.add('show');
     }, 100);
   }
 }
 
-async function tooltipShowDelegated(e) {
-  // Use event delegation to handle dynamically created elements
-  if (e.target.dataset && e.target.dataset.hint) {
-    tooltipShow(e); // eslint-disable-line no-use-before-define
-  }
+async function tooltipShowDelegated(e) { // use event delegation to handle dynamically created elements
+  if (e.target.dataset && e.target.dataset.hint) tooltipShow(e); // eslint-disable-line no-use-before-define
 }
 
 async function tooltipHideDelegated(e) {
-  if (e.target.dataset && e.target.dataset.hint) {
-    tooltipHide(e); // eslint-disable-line no-use-before-define
-  }
+  if (e.target.dataset && e.target.dataset.hint) tooltipHide(e); // eslint-disable-line no-use-before-define
 }
 
 async function tooltipShow(e) {
-  // Clear any existing expansion timeout
-  if (localeData.expandTimeout) {
+  if (localeData.expandTimeout) { // clear any existing expansion timeout
     clearTimeout(localeData.expandTimeout);
     localeData.expandTimeout = null;
   }
 
-  // Remove expanded class and reset current element
-  localeData.hint.classList.remove('tooltip-expanded');
+  localeData.hint.classList.remove('tooltip-expanded'); // remove expanded class and reset current element
   localeData.currentElement = e.target;
 
   if (e.target.dataset.hint) {
-    // Create progress ring SVG
-    const progressRing = `
+    const progressRing = ` // create progress ring SVG
       <div class="tooltip-progress-ring">
         <svg viewBox="0 0 12 12">
           <circle class="ring-background" cx="6" cy="6" r="5"></circle>
@@ -131,8 +114,7 @@ async function tooltipShow(e) {
         </svg>
       </div>
     `;
-
-    // Set up the complete content structure from the start
+    // set up the complete content structure from the start
     let content = `
       <div class="tooltip-header">
         <b>${e.target.textContent}</b>
@@ -141,21 +123,12 @@ async function tooltipShow(e) {
       <div class="separator"></div>
       ${e.target.dataset.hint}
     `;
-
-    // Add long content if available, but keep it hidden
-    if (e.target.dataset.longHint) {
-      content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`;
-    }
-
-    // Add reload notice if needed
-    if (e.target.dataset.reload) {
+    if (e.target.dataset.longHint) content += `<div class="long-content"><div class="separator"></div>${e.target.dataset.longHint}</div>`; // add long content if available, but keep it hidden
+    if (e.target.dataset.reload) { // add reload notice if needed
       const reloadType = e.target.dataset.reload;
       let reloadText = '';
-      if (reloadType === 'model') {
-        reloadText = 'Requires model reload';
-      } else if (reloadType === 'server') {
-        reloadText = 'Requires server restart';
-      }
+      if (reloadType === 'model') reloadText = 'Requires model reload';
+      else if (reloadType === 'server') reloadText = 'Requires server restart';
       if (reloadText) {
         content += `
           <div class="tooltip-reload-notice">
@@ -169,40 +142,28 @@ async function tooltipShow(e) {
     localeData.hint.innerHTML = content;
     localeData.hint.classList.add('tooltip-show');
 
-    if (e.clientX > window.innerWidth / 2) {
-      localeData.hint.classList.add('tooltip-left');
-    } else {
-      localeData.hint.classList.remove('tooltip-left');
-    }
+    if (e.clientX > window.innerWidth / 2) localeData.hint.classList.add('tooltip-left');
+    else localeData.hint.classList.remove('tooltip-left');
 
-    // Set up expansion timer if long hint is available
-    if (e.target.dataset.longHint) {
-      // Start progress ring animation
-      const ring = localeData.hint.querySelector('.tooltip-progress-ring');
+    if (e.target.dataset.longHint) { // set up expansion timer if long hint is available
+      const ring = localeData.hint.querySelector('.tooltip-progress-ring'); // start progress ring animation
       const ringProgress = localeData.hint.querySelector('.ring-progress');
-
       if (ring && ringProgress) {
-        // Show the ring and start animation
         setTimeout(() => {
           ring.classList.add('active');
           ringProgress.classList.add('animate');
         }, 100);
       }
-
-      localeData.expandTimeout = setTimeout(() => {
-        expandTooltip(e.target, e.target.dataset.longHint);
-      }, 3000);
+      localeData.expandTimeout = setTimeout(() => expandTooltip(e.target, e.target.dataset.longHint), 3000);
     }
   }
 }
 
 async function tooltipHide(e) {
-  // Clear expansion timeout when hiding
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
     localeData.expandTimeout = null;
   }
-
   localeData.hint.classList.remove('tooltip-show', 'tooltip-expanded');
   localeData.currentElement = null;
 }
@@ -368,6 +329,7 @@ async function setHints(analyze = false) {
   localeData.initial = false;
   const t1 = performance.now();
   // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
+  log('touchDevice', isTouchDevice);
   log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
   // sortUIElements();
   if (analyze) {
@@ -388,31 +350,22 @@ async function applyHintToElement(el) {
   if (!localeData.data || localeData.data.length === 0) return;
   if (!el.textContent) return;
 
-  // Check if element matches our selector criteria
+  // check if element matches our selector criteria
   const isValidElement = el.tagName === 'BUTTON'
     || el.tagName === 'H2'
     || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap')));
-
   if (!isValidElement) return;
 
-  // Find matching hint data
-  let found;
-  if (el.dataset.original) {
-    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
-  } else {
-    found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
-  }
+  let found; // find matching hint data
+  if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+  else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
 
-  // Apply localization if found
-  if (found?.localized?.length > 0) {
+  if (found?.localized?.length > 0) { // apply localization if found
     if (!el.dataset.original) el.dataset.original = el.textContent;
     replaceTextContent(el, found.localized);
   }
 
-  // Apply hint if found
-  if (found?.hint?.length > 0) {
-    setHint(el, found);
-  }
+  if (found?.hint?.length > 0) setHint(el, found); // apply hint if found
 }
 
 // Initialize MutationObserver for immediate hint application
