@@ -32,46 +32,54 @@ processed = None # last known processed results
 
 class Processed:
     def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments=""):
-        self.images = images_list
+        self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
+
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
-        self.seed = seed if seed != -1 else p.seed
-        self.subseed = subseed
-        self.subseed_strength = p.subseed_strength
-        self.info = info or create_infotext(p)
-        self.comments = comments or ''
+        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
+        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+        self.styles = p.styles
+
+        self.images = images_list
         self.width = p.width if hasattr(p, 'width') else (self.images[0].width if len(self.images) > 0 else 0)
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
+
         self.sampler_name = p.sampler_name or ''
         self.cfg_scale = p.cfg_scale if p.cfg_scale > 1 else None
         self.cfg_end = p.cfg_end if p.cfg_end < 0 else None
         self.image_cfg_scale = p.image_cfg_scale or 0
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
+        self.denoising_strength = p.denoising_strength
+
         self.restore_faces = p.restore_faces or False
         self.face_restoration_model = shared.opts.face_restoration_model if p.restore_faces else None
         self.detailer = p.detailer_enabled or False
         self.detailer_model = shared.opts.detailer_model if p.detailer_enabled else None
-        self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
         self.seed_resize_from_w = p.seed_resize_from_w
         self.seed_resize_from_h = p.seed_resize_from_h
-        self.denoising_strength = p.denoising_strength
         self.extra_generation_params = p.extra_generation_params
         self.index_of_first_image = index_of_first_image
-        self.styles = p.styles
         self.job_timestamp = shared.state.job_timestamp
         self.clip_skip = p.clip_skip
         self.eta = p.eta
-        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
-        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+
+        self.seed = seed if seed != -1 else p.seed
+        self.subseed = subseed
         self.seed = int(self.seed if type(self.seed) != list else self.seed[0]) if self.seed is not None else -1
         self.subseed = int(self.subseed if type(self.subseed) != list else self.subseed[0]) if self.subseed is not None else -1
+        self.subseed_strength = p.subseed_strength
+
         self.is_using_inpainting_conditioning = p.is_using_inpainting_conditioning
+
         self.all_prompts = all_prompts or p.all_prompts or [self.prompt]
         self.all_negative_prompts = all_negative_prompts or p.all_negative_prompts or [self.negative_prompt]
         self.all_seeds = all_seeds or p.all_seeds or [self.seed]
         self.all_subseeds = all_subseeds or p.all_subseeds or [self.subseed]
+
+        self.info = info or create_infotext(p)
         self.infotexts = infotexts or [self.info]
+        self.comments = comments or ''
         memstats.reset_stats()
 
     def js(self):
@@ -460,7 +468,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if shared.opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True) # main save grid
 
-    results = Processed(
+    results = get_processed(
         p,
         images_list=output_images,
         seed=p.all_seeds[0],

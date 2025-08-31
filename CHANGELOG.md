@@ -38,6 +38,8 @@
   - improve offloading of models with controlnet  
 - **SDNQ**
   - add quantized matmul support for all quantization types and group sizes  
+- **Other**
+  - refactor reuse-seed and add functionality to all tabs  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - remove samplers filtering  

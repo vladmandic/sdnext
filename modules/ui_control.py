@@ -157,7 +157,9 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 batch_count, batch_size = ui_sections.create_batch_inputs('control', accordion=True)
 
-                seed, _reuse_seed, subseed, _reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('control', reuse_visible=False)
+                seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('control')
+                ui_common.reuse_seed(seed, reuse_seed, subseed=False)
+                ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
                 mask_controls = masking.create_segment_ui()
 
