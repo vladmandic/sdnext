@@ -26,6 +26,7 @@
   - additional artwork for reference models in networks, thanks @liutyi  
   - improve ui hints display  
   - restyled all toolbuttons to be modernui native  
+  - reodered system settings  
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
     *example*: if panel width is less than specified value, layout switches to verical  
