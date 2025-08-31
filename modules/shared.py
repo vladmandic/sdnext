@@ -532,10 +532,10 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "subpath": OptionInfo("", "Mount URL subpath"),
     "ui_request_timeout": OptionInfo(120000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 300000, "step": 10}),
 
-    "cards_sep_ui": OptionInfo("<h2>Card options</h2>", "", gr.HTML),
-    "extra_networks_card_size": OptionInfo(140, "UI card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
-    "extra_networks_card_cover": OptionInfo("sidebar", "UI position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
-    "extra_networks_card_square": OptionInfo(True, "UI disable variable aspect ratio"),
+    "cards_sep_ui": OptionInfo("<h2>Networks panel</h2>", "", gr.HTML),
+    "extra_networks_card_size": OptionInfo(140, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
+    "extra_networks_card_cover": OptionInfo("sidebar", "Network panel position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
+    "extra_networks_card_square": OptionInfo(True, "Disable variable aspect ratio"),
 
     "other_sep_ui": OptionInfo("<h2>Other...</h2>", "", gr.HTML),
     "ui_locale": OptionInfo("Auto", "UI locale", gr.Dropdown, lambda: {"choices": theme.list_locales()}),
@@ -555,7 +555,6 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
     "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
     "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
-
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {

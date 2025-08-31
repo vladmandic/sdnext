@@ -28,6 +28,8 @@
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
     *example*: if panel width is less than specified value, layout switches to verical  
+  - configurable grid images size  
+    in *settings -> user interface -> grid image size*  
 - **Offloading**
   - enable offload during pre-forward by default  
   - improve offloading of models with multiple dits  
