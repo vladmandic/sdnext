@@ -534,7 +534,7 @@ def create_segment_ui():
         with gr.Row():
             controls.append(gr.Checkbox(label="Live update", value=True, elem_id="control_mask_live_update"))
             btn_mask = ui_components.ToolButton(value=ui_symbols.refresh, visible=True, elem_id="control_mask_refresh", )
-            btn_lama = ui_components.ToolButton(value=ui_symbols.image, visible=True, elem_id="control_mask_lama")
+            btn_lama = ui_components.ToolButton(value=ui_symbols.image, visible=True, elem_id="control_mask_remove")
         with gr.Row():
             controls.append(gr.Checkbox(label="Inpaint masked only", value=False, elem_id="control_mask_only", ))
             controls.append(gr.Checkbox(label="Invert mask", value=False, elem_id="control_mask_invert"))

@@ -20,7 +20,7 @@ def create_ui(prompt, negative, styles, overrides):
                 with gr.Row():
                     frames = gr.Slider(label='LTX frames', minimum=1, maximum=513, step=1, value=17, elem_id="ltx_frames")
                     seed = gr.Number(label='LTX seed', value=-1, elem_id="ltx_seed", container=True)
-                    random_seed = ToolButton(ui_symbols.random, elem_id="ltx_random_seed")
+                    random_seed = ToolButton(ui_symbols.random, elem_id="ltx_seed_random")
             with gr.Accordion(open=False, label="Condition", elem_id='ltx_condition_accordion'):
                 condition_strength = gr.Slider(label='LTX condition strength', minimum=0.1, maximum=1.0, step=0.05, value=0.8, elem_id="ltx_condition_image_strength")
                 with gr.Tabs():
@@ -47,7 +47,7 @@ def create_ui(prompt, negative, styles, overrides):
                     mp4_interpolate = gr.Slider(label="LTX interpolation", minimum=0, maximum=10, value=0, step=1)
                 with gr.Row():
                     mp4_codec = gr.Dropdown(label="LTX codec", choices=['none', 'libx264'], value='libx264', type='value')
-                    ui_common.create_refresh_button(mp4_codec, get_codecs)
+                    ui_common.create_refresh_button(mp4_codec, get_codecs, elem_id="framepack_mp4_codec_refresh")
                     mp4_ext = gr.Textbox(label="LTX format", value='mp4', elem_id="framepack_mp4_ext")
                     mp4_opt = gr.Textbox(label="LTX options", value='crf:16', elem_id="framepack_mp4_ext")
                 with gr.Row():

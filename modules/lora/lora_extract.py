@@ -253,7 +253,7 @@ def create_ui():
             gr.HTML('<h2>&nbspExtract currently loaded LoRA(s)<br></h2>')
         with gr.Row():
             loaded = gr.Textbox(placeholder="Press refresh to query loaded LoRA", label="Loaded LoRA", interactive=False)
-            create_refresh_button(loaded, lambda: None, lambda: {'value': loaded_lora_str()}, "testid")
+            create_refresh_button(loaded, lambda: None, lambda: {'value': loaded_lora_str()}, "lora_extract_refresh")
         with gr.Group():
             with gr.Row():
                 modules = gr.CheckboxGroup(label="Modules to extract", value=['unet'], choices=['te', 'unet'])

@@ -40,7 +40,7 @@ def create_ui(prompt, negative, styles, _overrides):
             with gr.Accordion(label="Video", open=False):
                 with gr.Row():
                     mp4_codec = gr.Dropdown(label="FP codec", choices=['none', 'libx264'], value='libx264', type='value')
-                    ui_common.create_refresh_button(mp4_codec, get_codecs)
+                    ui_common.create_refresh_button(mp4_codec, get_codecs, elem_id="framepack_mp4_codec_refresh")
                     mp4_ext = gr.Textbox(label="FP format", value='mp4', elem_id="framepack_mp4_ext")
                     mp4_opt = gr.Textbox(label="FP options", value='crf:16', elem_id="framepack_mp4_ext")
                 with gr.Row():

@@ -77,11 +77,11 @@ def create_setting_component(key, is_quicksettings=False):
     if info.refresh is not None:
         if is_quicksettings:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
-            ui_common.create_refresh_button(res, info.refresh, info.component_args, f"refresh_{key}")
+            ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
         else:
             with gr.Row():
                 res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
-                ui_common.create_refresh_button(res, info.refresh, info.component_args, f"refresh_{key}")
+                ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
     elif info.folder is not None:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
@@ -323,7 +323,7 @@ def create_quicksettings(interfaces):
                 quicksetting_keys.append(k)
                 shared.settings_components[k] = component
             quicksetting_keys = gr.State(value=','.join(quicksetting_keys), elem_id="quicksettings_keys")
-            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_reset")
+            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_clear")
             btn_reset.click(fn=reset_quicksettings, inputs=[quicksetting_keys], outputs=quicksetting_components)
 
         generation_parameters_copypaste.connect_paste_params_buttons()

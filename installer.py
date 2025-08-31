@@ -447,6 +447,8 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
         stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
     stdout = stdout.strip()
     if result.returncode != 0 and not ignore:
+        if folder is None:
+            folder = 'root'
         if "couldn't find remote ref" in stdout: # not a git repo
             log.error(f'Git: folder="{folder}" could not identify repository')
         elif "no submodule mapping found" in stdout:
