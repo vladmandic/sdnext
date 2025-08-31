@@ -2,7 +2,7 @@ import math
 import gradio as gr
 from PIL import Image, ImageDraw
 from modules import images, devices, scripts_manager
-from modules.processing import Processed, process_images
+from modules.processing import get_processed, process_images
 from modules.shared import opts, state, log
 
 
@@ -108,5 +108,5 @@ class Script(scripts_manager.Script):
         combined_image = images.combine_grid(grid)
         if opts.samples_save:
             images.save_image(combined_image, p.outpath_samples, "", initial_seed, p.prompt, opts.samples_format, info=initial_info, p=p)
-        processed = Processed(p, [combined_image], initial_seed, initial_info)
+        processed = get_processed(p, [combined_image], initial_seed, initial_info)
         return processed

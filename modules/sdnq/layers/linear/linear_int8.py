@@ -1,7 +1,6 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-from typing import Tuple, Optional
-
+from typing import Tuple
 import torch
 
 from ...common import use_torch_compile # noqa: TID252

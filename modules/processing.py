@@ -27,6 +27,7 @@ get_sampler_index = processing_helpers.get_sampler_index
 validate_sample = processing_helpers.validate_sample
 decode_first_stage = processing_helpers.decode_first_stage
 images_tensor_to_samples = processing_helpers.images_tensor_to_samples
+processed = None # last known processed results
 
 
 class Processed:
@@ -113,6 +114,12 @@ class Processed:
         return f'{self.__class__.__name__}: {self.__dict__}'
 
 
+def get_processed(*args, **kwargs):
+    global processed # pylint: disable=global-statement
+    processed = Processed(*args, **kwargs)
+    return processed
+
+
 def process_images(p: StableDiffusionProcessing) -> Processed:
     timer.process.reset()
     debug(f'Process images: {vars(p)}')
@@ -133,7 +140,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             p.override_settings.pop(k, None)
     for k in p.override_settings.keys():
         stored_opts[k] = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
-    processed = None
+    results = None
     try:
         # if no checkpoint override or the override checkpoint can't be found, remove override entry and load opts checkpoint
         if p.override_settings.get('sd_model_checkpoint', None) is not None and sd_checkpoint.checkpoint_aliases.get(p.override_settings.get('sd_model_checkpoint')) is None:
@@ -196,11 +203,11 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                     shared.log.debug(f'Torch profile: {profile_args}')
                     shared.profiler = torch.profiler.profile(**profile_args)
                 shared.profiler.start()
-                processed = process_images_inner(p)
+                results = process_images_inner(p)
                 errors.profile_torch(shared.profiler, 'Process')
         else:
             with context_hypertile_vae(p), context_hypertile_unet(p):
-                processed = process_images_inner(p)
+                results = process_images_inner(p)
 
     finally:
         script_callbacks.after_process_callback(p)
@@ -215,7 +222,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                 if k == 'sd_vae':
                     sd_vae.reload_vae_weights()
         timer.process.record('post')
-    return processed
+    return results
 
 
 def process_init(p: StableDiffusionProcessing):
@@ -399,10 +406,10 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             samples = None
             timer.process.record('init')
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-                processed = p.scripts.process_images(p)
-                if processed is not None:
-                    samples = processed.images
-                    for script_image, script_infotext in zip(processed.images, processed.infotexts):
+                results = p.scripts.process_images(p)
+                if results is not None:
+                    samples = results.images
+                    for script_image, script_infotext in zip(results.images, results.infotexts):
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
             if samples is None:
@@ -453,7 +460,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if shared.opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True) # main save grid
 
-    processed = Processed(
+    results = Processed(
         p,
         images_list=output_images,
         seed=p.all_seeds[0],
@@ -464,7 +471,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         infotexts=infotexts,
     )
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
-        p.scripts.postprocess(p, processed)
+        p.scripts.postprocess(p, results)
     timer.process.record('post')
     p.ops = list(set(p.ops))
     if not p.disable_extra_networks:
@@ -474,4 +481,4 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')
-    return processed
+    return results

@@ -2,7 +2,7 @@
 
 import os
 import torch
-from modules import devices, shared
+from modules import shared
 
 torch_version = float(torch.__version__[:3])
 

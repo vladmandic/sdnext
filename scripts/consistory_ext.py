@@ -210,7 +210,7 @@ class Script(scripts_manager.Script):
                 images.append(image)
 
         shared.sd_model.disable_freeu()
-        processed = processing.Processed(p, images)
+        processed = processing.get_processed(p, images)
         return processed
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=arguments-differ, unused-argument

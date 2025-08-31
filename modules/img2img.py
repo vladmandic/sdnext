@@ -317,7 +317,7 @@ def img2img(id_task: str, state: str, mode: int,
     p.is_batch = mode == 5
     if p.is_batch:
         process_batch(p, img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir, args)
-        processed = processing.Processed(p, [], p.seed, "")
+        processed = processing.get_processed(p, [], p.seed, "")
     else:
         processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:

@@ -3,7 +3,7 @@ import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
 from modules import images, scripts_manager
-from modules.processing import Processed, process_images
+from modules.processing import get_processed, process_images
 from modules.shared import opts, state
 
 
@@ -222,7 +222,7 @@ class Script(scripts_manager.Script):
         combined_grid_image = images.image_grid(all_processed_images)
         if opts.return_grid and len(all_processed_images) > 1:
             all_images = [combined_grid_image] + all_processed_images
-        res = Processed(p, all_images, initial_seed_and_info[0], initial_seed_and_info[1])
+        res = get_processed(p, all_images, initial_seed_and_info[0], initial_seed_and_info[1])
         if opts.samples_save:
             for img in all_processed_images:
                 images.save_image(img, p.outpath_samples, "", res.seed, p.prompt, opts.samples_format, info=res.info, p=p)
