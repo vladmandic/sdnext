@@ -43,12 +43,11 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 
 <br>
 
-*Main interface using **StandardUI***:  
-![screenshot-standardui](https://github.com/user-attachments/assets/cab47fe3-9adb-4d67-aea9-9ee738df5dcc)
+*Main **desktop** interface using:  
+![screenshot-standardui](https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38)
 
-*Main interface using **ModernUI***:  
-
-![screenshot-modernui](https://github.com/user-attachments/assets/39e3bc9a-a9f7-4cda-ba33-7da8def08032)
+*Main **mobile** interface using:  
+![screenshot-modernui](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
 
 For screenshots and informations on other available themes, see [Themes](https://vladmandic.github.io/sdnext-docs/Themes/)
 
