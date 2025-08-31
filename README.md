@@ -45,12 +45,12 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 
 **Desktop** interface  
 <div align="center">
-<img src="https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5" alt="screenshot-modernui-desktop" width="60%">
+<img src="https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5" alt="screenshot-modernui-desktop" width="90%">
 </div>
 
 **Mobile** interface  
 <div align="center">
-<img src="https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38" alt="screenshot-modernui-mobile" width="25%">
+<img src="https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38" alt="screenshot-modernui-mobile" width="35%">
 </div>
 
 For screenshots and informations on other available themes, see [Themes](https://vladmandic.github.io/sdnext-docs/Themes/)
