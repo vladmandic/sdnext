@@ -200,7 +200,7 @@ def create_model_cards(all_models: list[Model]) -> str:
                 if image.url and len(image.url) > 0 and not image.url.lower().endswith('.mp4'):
                     previews.append(image.url)
         if len(previews) == 0:
-            previews = ['/sdapi/v1/network/thumb?filename=html/card-no-preview.png']
+            previews = ['/sdapi/v1/network/thumb?filename=html/missing.png']
         all_cards += card.format(id=model.id, name=model.name, type=model.type, preview=previews[0])
     html = details + cards.format(cards=all_cards)
     return html

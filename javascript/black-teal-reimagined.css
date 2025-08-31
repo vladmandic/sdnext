@@ -953,7 +953,7 @@ svg.feather.feather-image,
 }
 
 /* No Preview Card Styles */
-.extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
+.extra-network-cards .card:has(>img[src*="missing.png"])::before {
   content: '';
   position: absolute;
   width: 100%;

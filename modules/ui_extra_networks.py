@@ -349,7 +349,7 @@ class ExtraNetworksPage:
                 "filename": item.get('filename', ''),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
-                "preview": html.escape(item.get('preview', None) or self.link_preview('html/card-no-preview.png')),
+                "preview": html.escape(item.get('preview', None) or self.link_preview('html/missing.png')),
                 "width": 'var(--card-size)',
                 "height": 'var(--card-size)' if shared.opts.extra_networks_card_square else 'auto',
                 "fit": shared.opts.extra_networks_card_fit,
@@ -375,7 +375,7 @@ class ExtraNetworksPage:
 
     def find_preview_file(self, path):
         if path is None:
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         if os.path.join('models', 'Reference') in path:
             return path
         exts = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl"]
@@ -392,7 +392,7 @@ class ExtraNetworksPage:
                 if '.thumb.' not in file:
                     self.missing_thumbs.append(file)
                 return file
-        return 'html/card-no-preview.png'
+        return 'html/missing.png'
 
     def find_preview(self, filename):
         t0 = time.time()
@@ -442,7 +442,7 @@ class ExtraNetworksPage:
                     item['preview'] = self.link_preview(found)
                     debug(f'EN mapped-preview: {item["name"]}={found}')
             if item.get('preview', None) is None:
-                item['preview'] = self.link_preview('html/card-no-preview.png')
+                item['preview'] = self.link_preview('html/missing.png')
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
@@ -710,19 +710,19 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def fn_save_img(image):
         if ui.last_item is None or ui.last_item.local_preview is None:
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         images = []
         if ui.gallery is not None:
             images = list(ui.gallery.temp_files) # gallery cannot be used as input component so looking at most recently registered temp files
         if len(images) < 1:
             shared.log.warning(f'Network no image: item="{ui.last_item.name}"')
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         try:
             images.sort(key=lambda f: os.path.getmtime(f), reverse=True)
             image = Image.open(images[0])
         except Exception as e:
             shared.log.error(f'Network error opening image: item="{ui.last_item.name}" {e}')
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         fn_delete_img(image)
         if image.width > 512 or image.height > 512:
             image = image.convert('RGB')
@@ -741,7 +741,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if os.path.exists(file):
                 os.remove(file)
                 shared.log.debug(f'Network delete image: item="{ui.last_item.name}" filename="{file}"')
-        return 'html/card-no-preview.png'
+        return 'html/missing.png'
 
     def fn_save_desc(desc):
         if hasattr(ui.last_item, 'type') and ui.last_item.type == 'Style':

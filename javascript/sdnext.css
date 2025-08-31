@@ -1386,7 +1386,7 @@ table.settings-value-table td {
   z-index: 101;  /* Optional: ensure tags are above everything */
 }
 
-.extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
+.extra-network-cards .card:has(>img[src*="missing.png"])::before {
   background-color: var(--data-color);
   content: '';
   height: 100%;
