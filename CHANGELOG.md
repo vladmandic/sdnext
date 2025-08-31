@@ -48,6 +48,7 @@
   - fix `kandinsky-3` noise  
   - fix `infiniteyou` pipeline offloading  
   - fix `skyreels-v2` image-to-video  
+  - fix `flex2` img2img denoising strength  
   - fix segfault on startup with rocm 6.4.3 and torch 2.8  
 
 ## Update for 2025-08-20

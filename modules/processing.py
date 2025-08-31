@@ -371,7 +371,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         debug(f'Processing inner: args={vars(p)}')
         for n in range(p.n_iter):
             if p.n_iter > 1:
-                shared.log.debug(f'Processing: batch={n+1} total={p.n_iter}')
+                shared.log.debug(f'Processing: batch={n+1} total={p.n_iter} progress={(n+1)/p.n_iter:.2f}')
             shared.state.batch_no = n + 1
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n

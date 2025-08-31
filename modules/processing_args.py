@@ -310,8 +310,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'Flex2' in model.__class__.__name__:
         if len(getattr(p, 'init_images', [])) > 0:
             args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, 1)
-            # args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, int(p.denoising_strength * 255))
+            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, int(p.denoising_strength * 255))
             args['control_image'] = args['inpaint_image'].convert('L').convert('RGB') # will be interpreted as depth
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
