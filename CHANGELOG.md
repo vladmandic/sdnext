@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-08-30
+## Update for 2025-09-01
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -27,6 +27,7 @@
   - improve ui hints display  
   - restyled all toolbuttons to be modernui native  
   - reodered system settings  
+  - dynamic direction of dropdowns  
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
     *example*: if panel width is less than specified value, layout switches to verical  
@@ -55,6 +56,7 @@
   - fix `infiniteyou` pipeline offloading  
   - fix `skyreels-v2` image-to-video  
   - fix `flex2` img2img denoising strength  
+  - fix some use cases with access via reverse-proxy  
   - fix segfault on startup with rocm 6.4.3 and torch 2.8  
 
 ## Update for 2025-08-20
