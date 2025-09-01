@@ -179,7 +179,7 @@ class ExtraNetworksPage:
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
-        preview = f"/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
+        preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
     def create_thumb(self):
