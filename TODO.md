@@ -7,19 +7,16 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Remote TE  
 - Mobile ModernUI  
 - [Canvas](https://konvajs.org/)  
-
 - [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
-- Feature: Common repo for `T5` and `CLiP`  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
 - Video: Generic API support  
 - Video: LTX TeaCache and others  
 - Video: LTX API  
 - Video: LTX PromptEnhance
 - Video: LTX Conditioning preprocess
-- [WanAI-2.1 VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B)(https://github.com/huggingface/diffusers/pull/11582)  
 - [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
 
 ### Blocked items
@@ -30,6 +27,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Under Consideration
 
+- [X-Omni](https://github.com/X-Omni-Team/X-Omni/blob/main/README.md)
+- [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  

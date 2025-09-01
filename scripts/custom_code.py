@@ -2,7 +2,7 @@ import copy
 import ast
 import gradio as gr
 from modules import scripts_manager
-from modules.processing import Processed
+from modules.processing import Processed, get_processed
 from modules.shared import opts, cmd_opts, state # pylint: disable=unused-import
 
 
@@ -87,4 +87,4 @@ __webuitemp__()"""
         if isinstance(result, Processed):
             return result
 
-        return Processed(p, *display_result_data)
+        return get_processed(p, *display_result_data)

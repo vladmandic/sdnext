@@ -1,8 +1,7 @@
-import time
 import torch
 import diffusers
 import transformers
-from modules import shared, sd_models, sd_hijack_te, devices, modelloader, model_quant
+from modules import shared, sd_models, sd_hijack_te, devices, model_quant
 
 
 def load_quants(kwargs, repo_id, cache_dir):
@@ -23,8 +22,8 @@ def load_quants(kwargs, repo_id, cache_dir):
 
 
 def load_sana(checkpoint_info, kwargs={}):
-    modelloader.hf_login()
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
 
     kwargs.pop('load_connected_pipeline', None)
     kwargs.pop('safety_checker', None)
@@ -47,7 +46,6 @@ def load_sana(checkpoint_info, kwargs={}):
 
     kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
     shared.log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
-    t0 = time.time()
 
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
         kwargs['torch_dtype'] = devices.dtype
@@ -79,7 +77,6 @@ def load_sana(checkpoint_info, kwargs={}):
         shared.log.error(f'Load model: type=Sana {e}')
 
     sd_hijack_te.init_hijack(pipe)
-    t1 = time.time()
-    shared.log.debug(f'Load model: type=Sana target={devices.dtype} te={pipe.text_encoder.dtype} transformer={pipe.transformer.dtype} vae={pipe.vae.dtype} time={t1-t0:.2f}')
+
     devices.torch_gc(force=True, reason='load')
     return pipe

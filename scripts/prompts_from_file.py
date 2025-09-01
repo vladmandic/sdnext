@@ -3,7 +3,7 @@ import random
 import shlex
 import gradio as gr
 from modules import sd_samplers, errors, scripts_manager
-from modules.processing import Processed, process_images
+from modules.processing import get_processed, process_images
 from modules.shared import state, log
 
 
@@ -148,4 +148,4 @@ class Script(scripts_manager.Script):
             all_negative += proc.all_negative_prompts
             images += proc.images
             infotexts += proc.infotexts
-        return Processed(p, images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)
+        return get_processed(p, images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)

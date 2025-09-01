@@ -153,11 +153,12 @@ class InfUFluxPipeline:
         infusenet_path = os.path.join(infiniteyou_path, 'InfuseNetModel')
         quant_args = model_quant.create_config(module='Control')
         shared.log.debug(f'InfiniteYou: fn="{infusenet_path}" load infusenet')
-        self.infusenet = FluxControlNetModel.from_pretrained(
+        infusenet = FluxControlNetModel.from_pretrained(
             infusenet_path,
             torch_dtype=devices.dtype,
             **quant_args,
         )
+        infusenet.offload_never = True
         # assemble pipeline
         self.pipe = FluxInfuseNetPipeline(
                 vae=pipe.vae,
@@ -167,8 +168,9 @@ class InfUFluxPipeline:
                 tokenizer_2=pipe.tokenizer_2,
                 transformer=pipe.transformer,
                 scheduler=pipe.scheduler,
-                controlnet=self.infusenet,
+                controlnet=infusenet,
             )
+        del infusenet
         # Load image proj model
         num_tokens = image_proj_num_tokens
         image_emb_dim = 512

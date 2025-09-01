@@ -191,7 +191,6 @@ else:
 
     def set_blaslt_enabled(enabled: bool) -> None:
         if enabled:
-            load_library_global("/opt/rocm/lib/libhipblaslt.so") # Preload hipBLASLt.
             os.environ["HIPBLASLT_TENSILE_LIBPATH"] = blaslt_tensile_libpath
         else:
             os.environ["TORCH_BLAS_PREFER_HIPBLASLT"] = "0"

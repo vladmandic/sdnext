@@ -8,7 +8,7 @@ from ...common import use_torch_compile # noqa: TID252
 
 
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
-    input = input.flatten(0,-2).contiguous().to(dtype=torch.float32)
+    input = input.flatten(0,-2).to(dtype=torch.float32)
     input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
     input = torch.div(input, input_scale).clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
     return input, input_scale
@@ -23,7 +23,9 @@ def fp8_matmul(
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
     input, input_scale = quantize_fp8_matmul_input(input)
-    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=return_dtype).view(output_shape)
+    if bias is not None and bias.dtype != torch.bfloat16:
+        bias = bias.to(dtype=torch.bfloat16)
+    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(output_shape).to(return_dtype)
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

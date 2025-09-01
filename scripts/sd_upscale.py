@@ -2,7 +2,7 @@ import math
 import gradio as gr
 from PIL import Image
 from modules import processing, shared, images, devices, scripts_manager
-from modules.processing import Processed
+from modules.processing import get_processed
 from modules.shared import opts, state, log
 
 
@@ -89,6 +89,6 @@ class Script(scripts_manager.Script):
             if opts.samples_save:
                 images.save_image(combined_image, p.outpath_samples, "", start_seed, p.prompt, opts.samples_format, info=initial_info, p=p)
 
-        processed = Processed(p, result_images, seed, initial_info)
+        processed = get_processed(p, result_images, seed, initial_info)
         log.info(f"SD upscale: images={result_images}")
         return processed

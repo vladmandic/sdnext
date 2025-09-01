@@ -27,50 +27,59 @@ get_sampler_index = processing_helpers.get_sampler_index
 validate_sample = processing_helpers.validate_sample
 decode_first_stage = processing_helpers.decode_first_stage
 images_tensor_to_samples = processing_helpers.images_tensor_to_samples
+processed = None # last known processed results
 
 
 class Processed:
     def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments=""):
-        self.images = images_list
+        self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
+
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
-        self.seed = seed if seed != -1 else p.seed
-        self.subseed = subseed
-        self.subseed_strength = p.subseed_strength
-        self.info = info or create_infotext(p)
-        self.comments = comments or ''
+        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
+        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+        self.styles = p.styles
+
+        self.images = images_list
         self.width = p.width if hasattr(p, 'width') else (self.images[0].width if len(self.images) > 0 else 0)
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
+
         self.sampler_name = p.sampler_name or ''
         self.cfg_scale = p.cfg_scale if p.cfg_scale > 1 else None
         self.cfg_end = p.cfg_end if p.cfg_end < 0 else None
         self.image_cfg_scale = p.image_cfg_scale or 0
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
+        self.denoising_strength = p.denoising_strength
+
         self.restore_faces = p.restore_faces or False
         self.face_restoration_model = shared.opts.face_restoration_model if p.restore_faces else None
         self.detailer = p.detailer_enabled or False
         self.detailer_model = shared.opts.detailer_model if p.detailer_enabled else None
-        self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
         self.seed_resize_from_w = p.seed_resize_from_w
         self.seed_resize_from_h = p.seed_resize_from_h
-        self.denoising_strength = p.denoising_strength
         self.extra_generation_params = p.extra_generation_params
         self.index_of_first_image = index_of_first_image
-        self.styles = p.styles
         self.job_timestamp = shared.state.job_timestamp
         self.clip_skip = p.clip_skip
         self.eta = p.eta
-        self.prompt = self.prompt if type(self.prompt) != list else self.prompt[0]
-        self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
+
+        self.seed = seed if seed != -1 else p.seed
+        self.subseed = subseed
         self.seed = int(self.seed if type(self.seed) != list else self.seed[0]) if self.seed is not None else -1
         self.subseed = int(self.subseed if type(self.subseed) != list else self.subseed[0]) if self.subseed is not None else -1
+        self.subseed_strength = p.subseed_strength
+
         self.is_using_inpainting_conditioning = p.is_using_inpainting_conditioning
+
         self.all_prompts = all_prompts or p.all_prompts or [self.prompt]
         self.all_negative_prompts = all_negative_prompts or p.all_negative_prompts or [self.negative_prompt]
         self.all_seeds = all_seeds or p.all_seeds or [self.seed]
         self.all_subseeds = all_subseeds or p.all_subseeds or [self.subseed]
+
+        self.info = info or create_infotext(p)
         self.infotexts = infotexts or [self.info]
+        self.comments = comments or ''
         memstats.reset_stats()
 
     def js(self):
@@ -113,6 +122,12 @@ class Processed:
         return f'{self.__class__.__name__}: {self.__dict__}'
 
 
+def get_processed(*args, **kwargs):
+    global processed # pylint: disable=global-statement
+    processed = Processed(*args, **kwargs)
+    return processed
+
+
 def process_images(p: StableDiffusionProcessing) -> Processed:
     timer.process.reset()
     debug(f'Process images: {vars(p)}')
@@ -133,7 +148,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             p.override_settings.pop(k, None)
     for k in p.override_settings.keys():
         stored_opts[k] = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
-    processed = None
+    results = None
     try:
         # if no checkpoint override or the override checkpoint can't be found, remove override entry and load opts checkpoint
         if p.override_settings.get('sd_model_checkpoint', None) is not None and sd_checkpoint.checkpoint_aliases.get(p.override_settings.get('sd_model_checkpoint')) is None:
@@ -196,11 +211,11 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                     shared.log.debug(f'Torch profile: {profile_args}')
                     shared.profiler = torch.profiler.profile(**profile_args)
                 shared.profiler.start()
-                processed = process_images_inner(p)
+                results = process_images_inner(p)
                 errors.profile_torch(shared.profiler, 'Process')
         else:
             with context_hypertile_vae(p), context_hypertile_unet(p):
-                processed = process_images_inner(p)
+                results = process_images_inner(p)
 
     finally:
         script_callbacks.after_process_callback(p)
@@ -215,7 +230,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
                 if k == 'sd_vae':
                     sd_vae.reload_vae_weights()
         timer.process.record('post')
-    return processed
+    return results
 
 
 def process_init(p: StableDiffusionProcessing):
@@ -370,6 +385,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
         for n in range(p.n_iter):
+            if p.n_iter > 1:
+                shared.log.debug(f'Processing: batch={n+1} total={p.n_iter} progress={(n+1)/p.n_iter:.2f}')
             shared.state.batch_no = n + 1
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n
@@ -397,10 +414,10 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             samples = None
             timer.process.record('init')
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-                processed = p.scripts.process_images(p)
-                if processed is not None:
-                    samples = processed.images
-                    for script_image, script_infotext in zip(processed.images, processed.infotexts):
+                results = p.scripts.process_images(p)
+                if results is not None:
+                    samples = results.images
+                    for script_image, script_infotext in zip(results.images, results.infotexts):
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
             if samples is None:
@@ -451,7 +468,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 if shared.opts.grid_save:
                     images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True) # main save grid
 
-    processed = Processed(
+    results = get_processed(
         p,
         images_list=output_images,
         seed=p.all_seeds[0],
@@ -462,7 +479,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         infotexts=infotexts,
     )
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
-        p.scripts.postprocess(p, processed)
+        p.scripts.postprocess(p, results)
     timer.process.record('post')
     p.ops = list(set(p.ops))
     if not p.disable_extra_networks:
@@ -472,4 +489,4 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')
-    return processed
+    return results

@@ -48,6 +48,8 @@ def guess_by_name(fn, current_guess):
         return 'SegMoE'
     elif 'hunyuandit' in fn.lower():
         return 'HunyuanDiT'
+    elif 'hdm-xut' in fn.lower():
+        return 'hdm'
     elif 'pixart-xl' in fn.lower():
         return 'PixArt Alpha'
     elif 'stable-diffusion-3' in fn.lower():

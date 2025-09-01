@@ -48,11 +48,6 @@ def find_sampler_config(name):
     return config
 
 
-def visible_sampler_names():
-    visible_samplers = [x for x in all_samplers if x.name in shared.opts.show_samplers] if len(shared.opts.show_samplers) > 0 else all_samplers
-    return visible_samplers
-
-
 def restore_default(model):
     if model is None:
         return None
@@ -131,7 +126,7 @@ def create_sampler(name, model):
 def set_samplers():
     global samplers # pylint: disable=global-statement
     global samplers_for_img2img # pylint: disable=global-statement
-    samplers = visible_sampler_names()
+    samplers = all_samplers
     # samplers_for_img2img = [x for x in samplers if x.name != "PLMS"]
     samplers_for_img2img = samplers
     samplers_map.clear()

@@ -168,7 +168,7 @@ def atomic_civit_search_metadata(item, results):
         # log.error(f'CivitAI search metadata: item={item} {e}')
         return
     has_meta = os.path.isfile(meta) and os.stat(meta).st_size > 0
-    if ('card-no-preview.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
+    if ('missing.png' in item['preview'] or not has_meta) and os.path.isfile(item['filename']):
         sha = item.get('hash', None)
         found = False
         result = {
@@ -260,7 +260,7 @@ def civit_search_metadata(title: str = None):
         if type(title) == str:
             if page.title != title:
                 continue
-        if page.name == 'style':
+        if page.name == 'style' or page.name == 'wildcards':
             continue
         for item in page.list_items():
             if item is None:

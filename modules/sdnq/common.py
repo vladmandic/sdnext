@@ -2,7 +2,7 @@
 
 import os
 import torch
-from modules import devices, shared
+from modules import shared
 
 torch_version = float(torch.__version__[:3])
 
@@ -33,10 +33,6 @@ if hasattr(torch, "float8_e5m2fnuz"):
 
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 use_tensorwise_fp8_matmul = os.environ.get('SDNQ_USE_TENSORWISE_FP8_MATMUL', "1").lower() not in {"0", "false", "no"} # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
-
-quantized_matmul_dtypes = ("int8", "int7", "int6", "int5", "int4", "int3", "int2", "float8_e4m3fn", "float8_e5m2")
-if devices.backend in {"cpu", "openvino"}:
-    quantized_matmul_dtypes += ("float8_e4m3fnuz", "float8_e5m2fnuz")
 
 linear_types = ("Linear",)
 conv_types = ("Conv1d", "Conv2d", "Conv3d")

@@ -87,7 +87,7 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])
     for c in [ar_dropdown, width, height]:
         c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress=False)
-    res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_switch_btn")
+    res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_btn_swap")
     res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
     return width, height
 
@@ -111,12 +111,12 @@ def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=
     with gr.Accordion(open=False, label="Seed", elem_id=f"{tab}_seed_group", elem_classes=["small-accordion"]) if accordion else gr.Group():
         with gr.Row(elem_id=f"{tab}_seed_row", variant="compact"):
             seed = gr.Number(label='Initial seed', value=-1, elem_id=f"{tab}_seed", container=True)
-            random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_seed")
-            reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_seed", visible=reuse_visible)
+            random_seed = ToolButton(ui_symbols.random, elem_id=f"{tab}_seed_random")
+            reuse_seed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_seed_reuse", visible=reuse_visible)
         with gr.Row(elem_id=f"{tab}_subseed_row", variant="compact", visible=subseed_visible):
             subseed = gr.Number(label='Variation', value=-1, elem_id=f"{tab}_subseed", container=True)
-            random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_random_subseed")
-            reuse_subseed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_reuse_subseed", visible=reuse_visible)
+            random_subseed = ToolButton(ui_symbols.random, elem_id=f"{tab}_subseed_random")
+            reuse_subseed = ToolButton(ui_symbols.reuse, elem_id=f"{tab}_subseed_reuse", visible=reuse_visible)
             subseed_strength = gr.Slider(label='Variation strength', value=0.0, minimum=0, maximum=1, step=0.01, elem_id=f"{tab}_subseed_strength", elem_classes=["subseed-strength"])
         with gr.Row(visible=seed_resize_visible):
             seed_resize_from_w = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from width", value=0, elem_id=f"{tab}_seed_resize_from_w")
@@ -342,7 +342,7 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
             resize_name = gr.Dropdown(label=f"Method{prefix}" if non_zero else "Resize method", elem_id=f"{tab}_resize_name", choices=available_upscalers, value=available_upscalers[0], visible=True)
             resize_context_choices = ["Add with forward", "Remove with forward", "Add with backward", "Remove with backward"]
             resize_context = gr.Dropdown(label=f"Context{prefix}", elem_id=f"{tab}_resize_context", choices=resize_context_choices, value=resize_context_choices[0], visible=False)
-            resize_refresh_btn = ui_common.create_refresh_button(resize_name, modelloader.load_upscalers, lambda: {"choices": modelloader.load_upscalers()}, 'refresh_upscalers')
+            resize_refresh_btn = ui_common.create_refresh_button(resize_name, modelloader.load_upscalers, lambda: {"choices": modelloader.load_upscalers()}, f'{tab}_upscalers_refresh')
 
             def resize_mode_change(mode):
                 if mode is None or mode == 0:
@@ -365,9 +365,9 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                                 ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])
                                 for c in [ar_dropdown, width, height]:
                                     c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress=False)
-                                res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_switch_size_btn")
+                                res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_size_swap")
                                 res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
-                                detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size_btn")
+                                detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size")
                                 el = tab.split('_')[0]
                                 detect_image_size_btn.click(fn=lambda w, h, _: (w or gr.update(), h or gr.update()), _js=f'currentImageResolution{el}', inputs=[dummy_component, dummy_component, dummy_component], outputs=[width, height], show_progress=False)
                     with gr.Tab(label="Scale", id=1, elem_id=f"{tab}_scale_tab_scale") as tab_scale_by:

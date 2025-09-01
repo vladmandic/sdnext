@@ -47,7 +47,7 @@ def create_ui():
                     cache_state_dirname = gr.Textbox(value=None, visible=False)
                     with gr.Row():
                         model_dropdown = gr.Dropdown(label="Model", value="Please select model", choices=checkpoint_titles())
-                        create_refresh_button(model_dropdown, refresh_checkpoints, {}, "onnx_cache_refresh_diffusers_model")
+                        create_refresh_button(model_dropdown, refresh_checkpoints, {}, "onnx_cache_diffusers_model_refresh")
                     with gr.Row():
                         def remove_cache_onnx_converted(dirname: str):
                             shutil.rmtree(os.path.join(opts.onnx_cached_models_path, dirname))

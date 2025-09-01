@@ -2,7 +2,7 @@ import os
 import sys
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from pipelines import generic
 
 
@@ -33,11 +33,8 @@ def load_bria(checkpoint_info, diffusers_load_config={}):
 
     del text_encoder
     del transformer
-
     sd_hijack_te.init_hijack(pipe)
-    from modules.video_models import video_vae
-    pipe.vae.orig_decode = pipe.vae.decode
-    pipe.vae.decode = video_vae.hijack_vae_decode
+    sd_hijack_vae.init_hijack(pipe)
 
     devices.torch_gc()
     return pipe

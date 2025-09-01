@@ -77,11 +77,11 @@ def create_setting_component(key, is_quicksettings=False):
     if info.refresh is not None:
         if is_quicksettings:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
-            ui_common.create_refresh_button(res, info.refresh, info.component_args, f"refresh_{key}")
+            ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
         else:
             with gr.Row():
                 res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
-                ui_common.create_refresh_button(res, info.refresh, info.component_args, f"refresh_{key}")
+                ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
     elif info.folder is not None:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
@@ -175,10 +175,10 @@ def create_ui():
     global text_settings # pylint: disable=global-statement
     text_settings = gr.Textbox(elem_id="settings_json", elem_classes=["settings_json"], value=lambda: shared.opts.dumpjson(), visible=False)
     with gr.Row(elem_id="system_row"):
-        restart_submit = gr.Button(value="Restart server", variant='primary', elem_id="restart_submit")
-        shutdown_submit = gr.Button(value="Shutdown server", variant='primary', elem_id="shutdown_submit")
         unload_sd_model = gr.Button(value='Unload model', variant='primary', elem_id="sett_unload_sd_model")
         reload_sd_model = gr.Button(value='Reload model', variant='primary', elem_id="sett_reload_sd_model")
+        restart_submit = gr.Button(value="Restart server", variant='primary', elem_id="restart_submit")
+        shutdown_submit = gr.Button(value="Shutdown server", variant='primary', elem_id="shutdown_submit")
         enable_profiling = gr.Button(value='Start profiling', variant='primary', elem_id="enable_profiling")
 
     with gr.Tabs(elem_id="system") as system_tabs:
@@ -187,7 +187,6 @@ def create_ui():
         with gr.TabItem("Settings", id="system_settings", elem_id="tab_settings"):
             with gr.Row(elem_id="settings_row"):
                 settings_submit = gr.Button(value="Apply settings", variant='primary', elem_id="settings_submit")
-                preview_theme = gr.Button(value="Preview theme", variant='primary', elem_id="settings_preview_theme")
                 defaults_submit = gr.Button(value="Restore defaults", variant='primary', elem_id="defaults_submit")
             with gr.Row():
                 _settings_search = gr.Textbox(label="Search", elem_id="settings_search")
@@ -288,7 +287,6 @@ def create_ui():
     reload_sd_model.click(fn=reload_sd_weights, inputs=[], outputs=[])
     enable_profiling.click(fn=switch_profiling, inputs=[], outputs=[enable_profiling])
     request_notifications.click(fn=lambda: None, inputs=[], outputs=[], _js='function(){}')
-    preview_theme.click(fn=None, _js='previewTheme', inputs=[], outputs=[])
     settings_submit.click(
         fn=call_queue.wrap_gradio_call(run_settings, extra_outputs=[gr.update()]),
         inputs=components,
@@ -323,7 +321,7 @@ def create_quicksettings(interfaces):
                 quicksetting_keys.append(k)
                 shared.settings_components[k] = component
             quicksetting_keys = gr.State(value=','.join(quicksetting_keys), elem_id="quicksettings_keys")
-            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_reset")
+            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_clear")
             btn_reset.click(fn=reset_quicksettings, inputs=[quicksetting_keys], outputs=quicksetting_components)
 
         generation_parameters_copypaste.connect_paste_params_buttons()

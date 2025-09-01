@@ -28,10 +28,11 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             preview = v.get('preview', v['path'])
             preview_file = self.find_preview_file(os.path.join(reference_dir, preview))
             _size, mtime = modelstats.stat(preview_file)
+            name = os.path.normpath(os.path.join(reference_dir, k)).replace('\\', '/')
             yield {
                 "type": 'Model',
-                "name": os.path.join(reference_dir, k),
-                "title": os.path.join(reference_dir, k),
+                "name": name,
+                "title": name,
                 "filename": url,
                 "preview": self.find_preview(os.path.join(reference_dir, preview)),
                 "local_preview": preview_file,
@@ -42,6 +43,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
+                "version": "ref",
             }
 
     def create_item(self, name):
@@ -62,6 +64,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             }
             record["info"] = self.find_info(checkpoint.filename)
             record["description"] = self.find_description(checkpoint.filename, record["info"])
+            version = self.find_version(checkpoint, record["info"])
+            record["version"] = version.get("baseModel", "") if record["info"] else ""
+
         except Exception as e:
             shared.log.debug(f'Networks error: type=model file="{name}" {e}')
         return record

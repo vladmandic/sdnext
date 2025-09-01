@@ -28,6 +28,7 @@ def load_infiniteyou(model: str):
         model_version=model,
     )
     sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline)
+    sd_models.clear_caches(full=True)
     sd_models.set_diffuser_options(shared.sd_model)
 
 

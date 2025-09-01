@@ -310,7 +310,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if 'Flex2' in model.__class__.__name__:
         if len(getattr(p, 'init_images', [])) > 0:
             args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
-            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, 1)
+            args['inpaint_mask'] = Image.new('L', args['inpaint_image'].size, int(p.denoising_strength * 255))
             args['control_image'] = args['inpaint_image'].convert('L').convert('RGB') # will be interpreted as depth
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
@@ -358,8 +358,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     task_kwargs = task_specific_kwargs(p, model)
     pipe_args = getattr(p, 'task_args', {})
     model_args = getattr(model, 'task_args', {})
-    task_kwargs.update(pipe_args)
-    task_kwargs.update(model_args)
+    task_kwargs.update(pipe_args or {})
+    task_kwargs.update(model_args or {})
     if debug_enabled:
         debug_log(f'Process task args: {task_kwargs}')
     for k, v in task_kwargs.items():
@@ -382,8 +382,15 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         if 'width' in possible and 'height' in possible:
             vae_scale_factor = sd_vae.get_vae_scale_factor(model)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
-                args['width'] = vae_scale_factor * args['image'].shape[-1]
-                args['height'] = vae_scale_factor * args['image'].shape[-2]
+                if args['image'].shape[-1] == 3: # nhwc
+                    args['width'] = args['image'].shape[-2]
+                    args['height'] = args['image'].shape[-3]
+                elif args['image'].shape[-3] == 3: # nchw
+                    args['width'] = args['image'].shape[-1]
+                    args['height'] = args['image'].shape[-2]
+                else: # assume latent
+                    args['width'] = vae_scale_factor * args['image'].shape[-1]
+                    args['height'] = vae_scale_factor * args['image'].shape[-2]
             elif isinstance(args['image'], Image.Image):
                 args['width'] = args['image'].width
                 args['height'] = args['image'].height

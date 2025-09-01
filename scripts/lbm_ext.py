@@ -131,6 +131,6 @@ class Script(scripts_manager.Script):
 
         if output_image is not None:
             output_image.resize((ori_h_bg, ori_w_bg))
-            return processing.Processed(p, [output_image])
+            return processing.get_processed(p, [output_image])
         else:
             return processing.Processed(p, [])

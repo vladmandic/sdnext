@@ -160,14 +160,14 @@ options_templates.update(options_section(('model_options', "Model Options"), {
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
     "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
-    "model_wan_stage": OptionInfo("first", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
+    "model_wan_stage": OptionInfo("low noise", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {
     "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
     "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
-    "diffusers_offload_pre": OptionInfo(False, "Offload during pre-forward"),
+    "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
     "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
     "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Balanced offload GPU low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Balanced offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
@@ -251,7 +251,6 @@ options_templates.update(options_section(('text_encoder', "Text Encoder"), {
     "sd_textencoder_cache_size": OptionInfo(4, "Text encoder cache size", gr.Slider, {"minimum": 0, "maximum": 16, "step": 1}),
     "sd_textencder_linebreak": OptionInfo(True, "Use line break as prompt segment marker", gr.Checkbox),
     "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
-    "te_hijack": OptionInfo(True, "Offload after prompt encode", gr.Checkbox),
     "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
     "te_shared_t5": OptionInfo(True, "T5: Use shared instance of text encoder"),
     "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),
@@ -520,7 +519,7 @@ options_templates.update(options_section(('image-metadata', "Image Metadata"), {
 
 options_templates.update(options_section(('ui', "User Interface"), {
     "themes_sep_ui": OptionInfo("<h2>Theme options</h2>", "", gr.HTML),
-    "theme_type": OptionInfo("Standard", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
+    "theme_type": OptionInfo("Modern", "Theme type", gr.Radio, {"choices": ["Modern", "Standard", "None"]}),
     "theme_style": OptionInfo("Auto", "Theme mode", gr.Radio, {"choices": ["Auto", "Dark", "Light"]}),
     "gradio_theme": OptionInfo("black-teal", "UI theme", gr.Dropdown, lambda: {"choices": theme.list_themes()}, refresh=theme.refresh_themes),
 
@@ -533,10 +532,10 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "subpath": OptionInfo("", "Mount URL subpath"),
     "ui_request_timeout": OptionInfo(120000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 300000, "step": 10}),
 
-    "cards_sep_ui": OptionInfo("<h2>Card options</h2>", "", gr.HTML),
-    "extra_networks_card_size": OptionInfo(140, "UI card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
-    "extra_networks_card_cover": OptionInfo("sidebar", "UI position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
-    "extra_networks_card_square": OptionInfo(True, "UI disable variable aspect ratio"),
+    "cards_sep_ui": OptionInfo("<h2>Networks panel</h2>", "", gr.HTML),
+    "extra_networks_card_size": OptionInfo(140, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
+    "extra_networks_card_cover": OptionInfo("sidebar", "Network panel position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
+    "extra_networks_card_square": OptionInfo(True, "Disable variable aspect ratio"),
 
     "other_sep_ui": OptionInfo("<h2>Other...</h2>", "", gr.HTML),
     "ui_locale": OptionInfo("Auto", "UI locale", gr.Dropdown, lambda: {"choices": theme.list_locales()}),
@@ -556,7 +555,6 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
     "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
     "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
-
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {

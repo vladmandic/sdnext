@@ -14,8 +14,13 @@ const getENActiveTab = () => {
   else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
   else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
   else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
-  if (tabName in ['process', 'caption', 'gallery']) tabName = lastTab;
-  else lastTab = tabName;
+
+  if (['process', 'caption', 'gallery'].includes(tabName)) {
+    tabName = lastTab;
+  } else if (tabName !== '') {
+    lastTab = tabName;
+  }
+
   if (tabName !== '') return tabName;
   // legacy method
   if (gradioApp().getElementById('tab_txt2img')?.style.display === 'block') tabName = 'txt2img';
@@ -277,8 +282,31 @@ function extraNetworksSearchButton(event) {
   const tabName = getENActiveTab();
   const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const button = event.target;
-  searchTextarea.value = `${button.textContent.trim()}/`;
-  updateInput(searchTextarea);
+  if (searchTextarea) {
+    searchTextarea.value = `${button.textContent.trim()}/`;
+    updateInput(searchTextarea);
+  } else {
+    console.error(`Could not find the search textarea for the tab: ${tabName}`);
+  }
+}
+
+function extraNetworksFilterVersion(event) {
+  // log('extraNetworksFilterVersion', event);
+  const version = event.target.textContent.trim();
+  const activeTab = gradioApp().querySelector('.extra-networks-tab:not([style*="display: none"])');
+  if (!activeTab) return;
+  const cardContainer = activeTab.querySelector('.extra-network-cards');
+  if (!cardContainer) return;
+  if (cardContainer.dataset.activeVersion === version) {
+    cardContainer.dataset.activeVersion = '';
+    cardContainer.querySelectorAll('.card').forEach((card) => card.style.display = '');
+  } else {
+    cardContainer.dataset.activeVersion = version;
+    cardContainer.querySelectorAll('.card').forEach((card) => {
+      if (card.dataset.version === version) card.style.display = '';
+      else card.style.display = 'none';
+    });
+  }
 }
 
 let desiredStyle = '';

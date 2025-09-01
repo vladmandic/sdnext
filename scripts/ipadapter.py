@@ -63,7 +63,7 @@ class Script(scripts_manager.Script):
                     with gr.Row():
                         adapter = gr.Dropdown(label='Adapter', choices=list(ipadapter.get_adapters()), value='None')
                         adapters.append(adapter)
-                        ui_common.create_refresh_button(adapter, ipadapter.get_adapters)
+                        ui_common.create_refresh_button(adapter, ipadapter.get_adapters, elem_id=f"ipadapter_adapter_{i}_refresh")
                     with gr.Row():
                         scales.append(gr.Slider(label='Strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5))
                         crops.append(gr.Checkbox(label='Crop to portrait', value=False, interactive=True))

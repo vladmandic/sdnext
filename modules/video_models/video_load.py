@@ -1,12 +1,10 @@
-import os
 import copy
 import time
-from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te
-from modules.video_models import models_def, video_utils, video_vae, video_overrides, video_cache
+from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
+from modules.video_models import models_def, video_utils, video_overrides, video_cache
 
 
 loaded_model = None
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_model(selected: models_def.Model):
@@ -24,7 +22,7 @@ def load_model(selected: models_def.Model):
     # text encoder
     try:
         quant_args = model_quant.create_config(module='TE')
-        debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+        shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         text_encoder = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
@@ -41,7 +39,7 @@ def load_model(selected: models_def.Model):
     # transformer
     try:
         quant_args = model_quant.create_config(module='Model')
-        debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+        shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         transformer = selected.dit_cls.from_pretrained(
             pretrained_model_name_or_path=selected.dit or selected.repo,
             subfolder=selected.dit_folder,
@@ -60,7 +58,7 @@ def load_model(selected: models_def.Model):
 
     # model
     try:
-        debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
+        shared.log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
         shared.sd_model = selected.repo_cls.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
             transformer=transformer,
@@ -81,13 +79,10 @@ def load_model(selected: models_def.Model):
     shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(selected.repo)
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model, offload=False)
+
     if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
-        shared.sd_model.vae.orig_decode = shared.sd_model.vae.decode
-        shared.sd_model.vae.decode = video_vae.hijack_vae_decode
-        shared.sd_model.vae.orig_encode = shared.sd_model.vae.encode
-        shared.sd_model.vae.encode = video_vae.hijack_vae_encode
+        sd_hijack_vae.init_hijack(shared.sd_model)
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
-        # shared.sd_model.orig_encode_prompt = shared.sd_model.encode_prompt
         sd_hijack_te.init_hijack(shared.sd_model)
     if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image
