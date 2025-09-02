@@ -1,7 +1,7 @@
 from functools import wraps
 import torch
 import diffusers # pylint: disable=import-error
-from diffusers.utils import torch_utils # pylint: disable=import-error, unused-import # noqa: F401
+from diffusers.utils import torch_utils # pylint: disable=import-error, unused-import # noqa: F401,RUF100
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long
 
@@ -114,9 +114,9 @@ def ipex_diffusers(device_supports_fp64=False):
     diffusers.utils.torch_utils.fourier_filter = fourier_filter
     if not device_supports_fp64:
         # get around lazy imports
-        from diffusers.models import embeddings as diffusers_embeddings # pylint: disable=import-error, unused-import # noqa: F401
-        from diffusers.models import transformers as diffusers_transformers # pylint: disable=import-error, unused-import # noqa: F401
-        from diffusers.models import controlnets as diffusers_controlnets # pylint: disable=import-error, unused-import # noqa: F401
+        from diffusers.models import embeddings as diffusers_embeddings # pylint: disable=import-error, unused-import # noqa: F401,RUF100
+        from diffusers.models import transformers as diffusers_transformers # pylint: disable=import-error, unused-import # noqa: F401,RUF100
+        from diffusers.models import controlnets as diffusers_controlnets # pylint: disable=import-error, unused-import # noqa: F401,RUF100
         diffusers.models.embeddings.get_1d_sincos_pos_embed_from_grid = get_1d_sincos_pos_embed_from_grid
         diffusers.models.embeddings.FluxPosEmbed = FluxPosEmbed
         diffusers.models.embeddings.apply_rotary_emb = apply_rotary_emb
