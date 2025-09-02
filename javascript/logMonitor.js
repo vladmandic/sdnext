@@ -78,7 +78,7 @@ async function logMonitor() {
       for (const line of lines) addLogLine(line);
       if (!logConnected) {
         logConnected = true;
-        xhrPost(`${window.api}/sdapi/v1/log`, { debug: 'connected' });
+        xhrPost(`${window.api}/log`, { debug: 'connected' });
       }
     } else {
       logConnected = false;
