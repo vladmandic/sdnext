@@ -12,7 +12,7 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
 
     def parents(self, file):
         folder = os.path.dirname(file)
-        if folder != shared.opts.wildcards_dir and folder not in wildcards_list:
+        if folder != os.path.abspath(shared.opts.wildcards_dir) and folder not in wildcards_list:
             wildcards_list.append(folder)
             self.parents(folder)
 
