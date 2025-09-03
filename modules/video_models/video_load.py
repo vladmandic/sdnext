@@ -19,50 +19,61 @@ def load_model(selected: models_def.Model):
 
     video_cache.apply_teacache_patch(selected.dit_cls)
 
+    # overrides
+    kwargs = video_overrides.load_override(selected)
+
     # text encoder
     try:
-        quant_args = model_quant.create_config(module='TE')
+        load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
         shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
-        text_encoder = selected.te_cls.from_pretrained(
+        kwargs["text_encoder"] = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
             revision=selected.te_revision or selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
-            torch_dtype=devices.dtype,
+            **load_args,
             **quant_args
         )
     except Exception as e:
         shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
         errors.display(e, 'video')
-        text_encoder = None
 
     # transformer
     try:
-        quant_args = model_quant.create_config(module='Model')
-        shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
-        transformer = selected.dit_cls.from_pretrained(
-            pretrained_model_name_or_path=selected.dit or selected.repo,
-            subfolder=selected.dit_folder,
-            revision=selected.dit_revision or selected.repo_revision,
-            torch_dtype=devices.dtype,
-            cache_dir=shared.opts.hfcache_dir,
-            **quant_args
-        )
+        if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
+            # wan a14b has transformer and transformer_2
+            for dit_folder in selected.dit_folder:
+                # get a new quant arg on every loop to prevent the quant config classes getting entangled
+                load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
+                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+                kwargs[dit_folder] = selected.dit_cls.from_pretrained(
+                    pretrained_model_name_or_path=selected.dit or selected.repo,
+                    subfolder=dit_folder,
+                    revision=selected.dit_revision or selected.repo_revision,
+                    cache_dir=shared.opts.hfcache_dir,
+                    **load_args,
+                    **quant_args
+                )
+        else:
+            load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
+            shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+            kwargs["transformer"] = selected.dit_cls.from_pretrained(
+                pretrained_model_name_or_path=selected.dit or selected.repo,
+                subfolder=selected.dit_folder,
+                revision=selected.dit_revision or selected.repo_revision,
+                cache_dir=shared.opts.hfcache_dir,
+                **load_args,
+                **quant_args
+            )
     except Exception as e:
         shared.log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
         errors.display(e, 'video')
-        transformer = None
-
-    # overrides
-    kwargs = video_overrides.load_override(selected)
 
     # model
     try:
         shared.log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
         shared.sd_model = selected.repo_cls.from_pretrained(
             pretrained_model_name_or_path=selected.repo,
-            transformer=transformer,
-            text_encoder=text_encoder,
             revision=selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
