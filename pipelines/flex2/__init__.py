@@ -291,7 +291,7 @@ class Flex2Pipeline(FluxControlPipeline):
             )
             inpaint_image = self.vae.encode(inpaint_image).latent_dist.sample(generator=generator)
             inpaint_latents = (inpaint_image - self.vae.config.shift_factor) * self.vae.config.scaling_factor
-            height_inpaint_image, width_inpaint_image = control_image.shape[2:]
+            height_inpaint_image, width_inpaint_image = inpaint_image.shape[2:]
 
             inpaint_mask = self.prepare_image(
                 image=inpaint_mask,
