@@ -98,7 +98,7 @@ if sys.platform == "win32":
                 from modules.flash_attn_triton_amd import interface_fa
                 sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_flash_atten)
-                def sdpa_flash_atten(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None):
+                def sdpa_flash_atten(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False):
                     if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
                         if scale is None:
                             scale = query.shape[-1] ** (-0.5)
@@ -120,7 +120,7 @@ if sys.platform == "win32":
                         )
                         return out_padded[..., :head_size_og].transpose(1, 2)
                     else:
-                        return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+                        return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, enable_gqa=enable_gqa)
                 torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten
                 shared.log.debug('Torch attention: type="triton flash attention"')
         except Exception:
