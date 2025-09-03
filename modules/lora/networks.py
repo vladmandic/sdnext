@@ -15,6 +15,7 @@ def network_activate(include=[], exclude=[]):
     if shared.opts.diffusers_offload_mode == "sequential":
         sd_models.disable_offload(sd_model)
         sd_models.move_model(sd_model, device=devices.cpu)
+    device = None
     modules = {}
     components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer']
     components = [x for x in components if x not in exclude]

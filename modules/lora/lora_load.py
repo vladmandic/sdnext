@@ -277,7 +277,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 if recompile_model:
                     shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
                 lora_method = lora_overrides.get_method(shorthash)
-                if shared.opts.lora_force_diffusers or lora_method == 'diffusers': # OpenVINO only works with Diffusers LoRa loading
+                if lora_method == 'diffusers':
                     net = load_diffusers(name, network_on_disk, lora_scale=te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier)
                 elif lora_method == 'nunchaku':
                     pass # handled directly from extra_networks_lora.load_nunchaku
