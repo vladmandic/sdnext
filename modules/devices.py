@@ -470,8 +470,8 @@ def set_sdpa_params():
                             if enable_gqa:
                                 kwargs["enable_gqa"] = enable_gqa
                             return sdpa_pre_triton_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
-                torch.nn.functional.scaled_dot_product_attention = sdpa_triton_flash_atten
-                log.debug('Torch attention: type="triton flash attention"')
+                    torch.nn.functional.scaled_dot_product_attention = sdpa_triton_flash_atten
+                    log.debug('Torch attention: type="triton flash attention"')
             except Exception as err:
                 log.error(f'Torch attention: type="triton flash attention" {err}')
 
