@@ -447,7 +447,7 @@ def set_sdpa_params():
 
         if 'Triton Flash attention' in opts.sdp_options:
             try:
-                if sys.platform == "win32" and (backend == "zluda" or backend == "rocm"):
+                if backend in {"zluda", "rocm"}:
                     from modules.flash_attn_triton_amd import interface_fa
                     sdpa_pre_triton_flash_atten = torch.nn.functional.scaled_dot_product_attention
                     @wraps(sdpa_pre_triton_flash_atten)
