@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-02
+## Update for 2025-09-03
 
 - **Models**  
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -44,10 +44,12 @@
 - **Other**
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
-  - move zluda flash attenion to `Triton Flash attention` option  
+  - move zluda flash attenion to *Triton Flash attention* option  
+  - remove samplers filtering  
 - **Fixes**
   - normalize path hanlding when deleting images  
-  - remove samplers filtering  
+  - unified compile upscalers  
+  - fix OpenVINO with ControlNet  
   - fix hidden model tags in networks display  
   - fix networks reference models display on windows  
   - fix handling of pre-quantized `flux` models  
@@ -79,14 +81,14 @@ A quick service release with several important hotfixes, improved localization s
     *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
 - [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
   - updated with new models  
-- **Features**
+- **Features**  
   - new *setting -> huggingface -> download method*  
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
   - support for `qwen-image` lora  
   - new *setting -> quantization -> modules dtype dict*  
     used to manually override quant types per module  
-- **UI**
+- **UI**  
   - new artwork for reference models in networks  
     thanks @liutyi  
   - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
@@ -95,10 +97,10 @@ A quick service release with several important hotfixes, improved localization s
     double-click on locale resets locale to `en`  
   - exclude ModernUI from list of extensions  
     ModernUI is enabled in settings, not by manually enabling extension  
-- **Docs**
+- **Docs**  
   - Models and Video pages updated with links to original model repos, model licenses and original release dates  
     thanks @alerikaisattera  
-- **Fixes**
+- **Fixes**  
   - nunchaku use new download links and default to `0.3.2`  
     nunchaku wheels: <https://huggingface.co/nunchaku-tech/nunchaku/tree/main>  
   - fix OpenVINO with offloading  
