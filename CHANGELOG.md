@@ -28,6 +28,7 @@
   - restyled all toolbuttons to be modernui native  
   - reodered system settings  
   - dynamic direction of dropdowns  
+  - improve process tab layout
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
     *example*: if panel width is less than specified value, layout switches to verical  
