@@ -164,59 +164,17 @@ class UpscalerData:
 
 
 def compile_upscaler(model):
-    try:
-        if shared.opts.ipex_optimize and "Upscaler" in shared.opts.ipex_optimize:
-            t0 = time.time()
-            import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
-            model.eval()
-            model.training = False
-            model = ipex.optimize(model, dtype=devices.dtype, inplace=True, weights_prepack=False) # pylint: disable=attribute-defined-outside-init
-            t1 = time.time()
-            shared.log.info(f"Upscaler IPEX Optimize: time={t1-t0:.2f}")
-    except Exception as e:
-        shared.log.warning(f"Upscaler IPEX Optimize: error: {e}")
+    if "Upscaler" in shared.opts.ipex_optimize:
+        try:
+            from modules.sd_models_compile import ipex_optimize
+            model = ipex_optimize(model, apply_to_components=False, op="Upscaler")
+        except Exception as e:
+            shared.log.warning(f"Upscaler IPEX Optimize: error: {e}")
 
-    try:
-        if "Upscaler" in shared.opts.cuda_compile and shared.opts.cuda_compile_backend != 'none':
-            import torch._dynamo # pylint: disable=unused-import,redefined-outer-name
-            if shared.opts.cuda_compile_backend not in torch._dynamo.list_backends(): # pylint: disable=protected-access
-                shared.log.warning(f"Upscaler compile not available: backend={shared.opts.cuda_compile_backend} available={torch._dynamo.list_backends()}") # pylint: disable=protected-access
-                return model
-            else:
-                shared.log.info(f"Upscaler compile: backend={shared.opts.cuda_compile_backend} available={torch._dynamo.list_backends()}") # pylint: disable=protected-access
-
-            if shared.opts.cuda_compile_backend == "openvino_fx":
-                from modules.intel.openvino import openvino_fx # pylint: disable=unused-import
-                if shared.compiled_model_state is None:
-                    from modules.sd_models_compile import CompiledModelState
-                    shared.compiled_model_state = CompiledModelState()
-
-            log_level = logging.WARNING if 'verbose' in shared.opts.cuda_compile_options else logging.CRITICAL # pylint: disable=protected-access
-            if hasattr(torch, '_logging'):
-                torch._logging.set_logs(dynamo=log_level, aot=log_level, inductor=log_level) # pylint: disable=protected-access
-            torch._dynamo.config.verbose = 'verbose' in shared.opts.cuda_compile_options # pylint: disable=protected-access
-            torch._dynamo.config.suppress_errors = 'verbose' not in shared.opts.cuda_compile_options # pylint: disable=protected-access
-
-            try:
-                torch._inductor.config.conv_1x1_as_mm = True # pylint: disable=protected-access
-                torch._inductor.config.coordinate_descent_tuning = True # pylint: disable=protected-access
-                torch._inductor.config.epilogue_fusion = False # pylint: disable=protected-access
-                torch._inductor.config.coordinate_descent_check_all_directions = True # pylint: disable=protected-access
-                torch._inductor.config.use_mixed_mm = True # pylint: disable=protected-access
-                # torch._inductor.config.force_fuse_int_mm_with_mul = True # pylint: disable=protected-access
-            except Exception as e:
-                shared.log.error(f"Torch inductor config error: {e}")
-
-            t0 = time.time()
-            model = torch.compile(model,
-                mode=shared.opts.cuda_compile_mode,
-                backend=shared.opts.cuda_compile_backend,
-                fullgraph='fullgraph' in shared.opts.cuda_compile_options,
-                dynamic='dynamic' in shared.opts.cuda_compile_options,
-            ) # pylint: disable=attribute-defined-outside-init
-            setup_logging() # compile messes with logging so reset is needed
-            t1 = time.time()
-            shared.log.info(f"Upscaler compile: time={t1-t0:.2f}")
-    except Exception as e:
-        shared.log.warning(f"Upscaler compile error: {e}")
+    if "Upscaler" in shared.opts.cuda_compile:
+        try:
+            from modules.sd_models_compile import compile_torch
+            model = compile_torch(model, apply_to_components=False, op="Upscaler")
+        except Exception as e:
+            shared.log.warning(f"Upscaler compile error: {e}")
     return model
