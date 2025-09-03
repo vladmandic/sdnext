@@ -61,6 +61,7 @@
   - fix `infiniteyou` pipeline offloading  
   - fix `skyreels-v2` image-to-video  
   - fix `flex2` img2img denoising strength  
+  - fix `flex2` contronet vs inpaint image selection, thanks @alerikaisattera  
   - fix some use cases with access via reverse-proxy  
   - fix segfault on startup with `rocm==6.4.3` and `torch==2.8`  
   - fix wildcards folders traversal, thanks @dymil  
