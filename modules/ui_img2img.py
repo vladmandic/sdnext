@@ -159,8 +159,8 @@ def create_ui():
 
             img2img_gallery, img2img_generation_info, img2img_html_info, _img2img_html_info_formatted, img2img_html_log = ui_common.create_output_panel("img2img", prompt=img2img_prompt)
 
-            ui_common.connect_reuse_seed(seed, reuse_seed, img2img_generation_info, is_subseed=False)
-            ui_common.connect_reuse_seed(subseed, reuse_subseed, img2img_generation_info, is_subseed=True, subseed_strength=subseed_strength)
+            ui_common.reuse_seed(seed, reuse_seed, subseed=False)
+            ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
             img2img_prompt_img.change(fn=modules.images.image_data, inputs=[img2img_prompt_img], outputs=[img2img_prompt, img2img_prompt_img])
             dummy_component1 = gr.Textbox(visible=False, value='dummy')

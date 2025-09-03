@@ -20,10 +20,12 @@ def get_default_modes(cmd_opts, mem_stat):
                 cmd_opts.medvram = True # VAE Tiling and other stuff
                 default_offload_mode = "balanced"
                 default_diffusers_offload_min_gpu_memory = 0
+                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=medvram")
             elif gpu_memory >= 24:
                 default_offload_mode = "balanced"
                 default_diffusers_offload_max_gpu_memory = 0.8
+                default_diffusers_offload_always = ', '.join(['T5EncoderModel', 'UMT5EncoderModel'])
                 default_diffusers_offload_never = ', '.join(['CLIPTextModel', 'CLIPTextModelWithProjection', 'AutoencoderKL'])
                 log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=highvram")
             else:
@@ -39,11 +41,15 @@ def get_default_modes(cmd_opts, mem_stat):
     default_cross_attention = "Scaled-Dot-Product"
 
     if devices.backend == "zluda":
-        default_sdp_options = ['Flash attention', 'Math attention', 'Dynamic attention']
+        default_sdp_options = ['Math attention', 'Dynamic attention']
     elif devices.backend in {"rocm", "directml", "cpu", "mps"}:
         default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention']
     else:
         default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention']
+
+    default_sdp_choices = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention', 'CK Flash attention', 'Sage attention']
+    if devices.backend in {"rocm", "zluda"}:
+        default_sdp_choices.insert(4, 'Triton Flash attention') # insert after Dynamic attention
 
     return (
         default_offload_mode,
@@ -51,6 +57,7 @@ def get_default_modes(cmd_opts, mem_stat):
         default_diffusers_offload_max_gpu_memory,
         default_cross_attention,
         default_sdp_options,
+        default_sdp_choices,
         default_diffusers_offload_always,
         default_diffusers_offload_never
     )

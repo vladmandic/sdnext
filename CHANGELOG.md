@@ -1,5 +1,69 @@
 # Change Log for SD.Next
 
+## Update for 2025-09-02
+
+- **Models**  
+  - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
+  - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
+    *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
+  - [Nunchaku-Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
+    *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+  - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
+  - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
+    highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme for pretraining T2I model at home based on super-light architecture  
+    requires: generator=cpu, dtype=float16, offload=none  
+  - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+- **UI**  
+  - default to **ModernUI**  
+    standard ui is still available via *settings -> user interface -> theme type*  
+  - mobile-friendly!  
+  - make hints touch-friendly: hold touch to display hint  
+  - improved image scaling in img2img and control interfaces  
+  - add base model type to networks display, thanks @Artheriax  
+  - additional hints to ui, thanks @Artheriax  
+  - add video support to gallery, thanks @CalamitousFelicitousness  
+  - additional artwork for reference models in networks, thanks @liutyi  
+  - improve ui hints display  
+  - restyled all toolbuttons to be modernui native  
+  - reodered system settings  
+  - dynamic direction of dropdowns  
+  - configurable horizontal vs vertical panel layout  
+    in settings -> user interface -> panel min width  
+    *example*: if panel width is less than specified value, layout switches to verical  
+  - configurable grid images size  
+    in *settings -> user interface -> grid image size*  
+- **Offloading**
+  - enable offload during pre-forward by default  
+  - improve offloading of models with multiple dits  
+  - improve offloading of models with impliciy vae processing  
+  - improve offloading of models with controlnet  
+- **SDNQ**
+  - add quantized matmul support for all quantization types and group sizes  
+- **Other**
+  - refactor reuse-seed and add functionality to all tabs  
+  - refactor modernui js codebase  
+  - move zluda flash attenion to `Triton Flash attention` option  
+- **Fixes**
+  - normalize path hanlding when deleting images  
+  - remove samplers filtering  
+  - fix hidden model tags in networks display  
+  - fix networks reference models display on windows  
+  - fix handling of pre-quantized `flux` models  
+  - fix `wan` use correct pipeline for i2v models  
+  - fix `qwen-image` with hires  
+  - fix `omnigen-2` failure  
+  - fix `auraflow` quantization  
+  - fix `kandinsky-3` noise  
+  - fix `infiniteyou` pipeline offloading  
+  - fix `skyreels-v2` image-to-video  
+  - fix `flex2` img2img denoising strength  
+  - fix some use cases with access via reverse-proxy  
+  - fix segfault on startup with `rocm==6.4.3` and `torch==2.8`  
+  - fix wildcards folders traversal, thanks @dymil  
+  - fix zluda flash attention with enable_gqa  
+  - fix `wan a14b` quantization  
+
 ## Update for 2025-08-20
 
 A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...

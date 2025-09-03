@@ -46,3 +46,5 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if 'LTX' in cls:
         p.task_args['width'] = 32 * (p.width // 32)
         p.task_args['height'] = 32 * (p.height // 32)
+    if 'SkyReelsV2DiffusionForcing' in cls:
+        p.task_args['overlap_history'] = 17

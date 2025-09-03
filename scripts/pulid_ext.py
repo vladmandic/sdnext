@@ -273,7 +273,7 @@ class Script(scripts_manager.Script):
                     id_scale=strength,
                     )[0]
             info = processing.create_infotext(p)
-            processed = processing.Processed(p, [output], info=info)
+            processed = processing.get_processed(p, [output], info=info)
             shared.state.end()
         else: # let processing run the pipeline
             p.task_args['id_embedding'] = id_embedding

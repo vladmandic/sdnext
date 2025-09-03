@@ -57,22 +57,6 @@ i2i_pipes = [
 ]
 
 
-def copy_diffuser_options(new_pipe, orig_pipe):
-    new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
-    new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
-    new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
-    new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
-    new_pipe.has_accelerate = getattr(orig_pipe, 'has_accelerate', False)
-    new_pipe.current_attn_name = getattr(orig_pipe, 'current_attn_name', None)
-    new_pipe.default_scheduler = getattr(orig_pipe, 'default_scheduler', None)
-    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
-    new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
-    new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
-    add_noise_pred_to_diffusers_callback(new_pipe)
-    if new_pipe.has_accelerate:
-        set_accelerate(new_pipe)
-
-
 def set_huggingface_options():
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         sd_hijack_accelerate.hijack_accelerate()
@@ -321,7 +305,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['AuraFlow']: # forced pipeline
             from pipelines.model_auraflow import load_auraflow
             sd_model = load_auraflow(checkpoint_info, diffusers_load_config)
-            allow_post_quant = True
+            allow_post_quant = False
         elif model_type in ['FLUX']:
             from pipelines.model_flux import load_flux
             sd_model = load_flux(checkpoint_info, diffusers_load_config)
@@ -355,7 +339,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['OmniGen2']: # forced pipeline
-            from pipelines.model_omnigen2 import load_omnigen2
+            from pipelines.model_omnigen import load_omnigen2
             sd_model = load_omnigen2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['OmniGen']: # forced pipeline
@@ -397,7 +381,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['Kandinsky 2.2']:
             from pipelines.model_kandinsky import load_kandinsky22
             sd_model = load_kandinsky22(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
+            allow_post_quant = True
         elif model_type in ['Kandinsky 3.0']:
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
@@ -405,6 +389,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['NextStep']:
             from pipelines.model_nextstep import load_nextstep
             sd_model = load_nextstep(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
+        elif model_type in ['hdm']:
+            from pipelines.model_hdm import load_hdm
+            sd_model = load_hdm(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
@@ -539,16 +527,34 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 
 
 def set_overrides(sd_model, checkpoint_info):
-    if 'bigaspv25' in checkpoint_info.name.lower():
+    checkpoint_info_name = checkpoint_info.name.lower()
+    if 'bigaspv25' in checkpoint_info_name or 'nyaflow' in checkpoint_info_name:
         scheduler_config = sd_model.scheduler.config
         scheduler_config['prediction_type'] = 'flow_prediction'
+        scheduler_config['use_flow_sigmas'] = True
+        scheduler_config['beta_schedule'] = 'linear'
         sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
         shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
-    if 'vpred' in checkpoint_info.name.lower() or 'v-pred' in checkpoint_info.name.lower():
+    elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
         scheduler_config = sd_model.scheduler.config
         scheduler_config['prediction_type'] = 'v_prediction'
+        scheduler_config['rescale_betas_zero_snr'] = True
         sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction"')
+        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
+    elif checkpoint_info.path.lower().endswith('.safetensors'):
+        try:
+            from safetensors import safe_open
+            with safe_open(checkpoint_info.path, framework='pt') as f:
+                keys = f.keys()
+            if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
+                scheduler_config = sd_model.scheduler.config
+                scheduler_config['prediction_type'] = 'v_prediction'
+                if 'ztsnr' in keys:
+                    scheduler_config['rescale_betas_zero_snr'] = True
+                sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+                shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
+        except Exception as e:
+            shared.log.debug(f'Setting override from keys failed: {e}')
 
 
 def set_defaults(sd_model, checkpoint_info):
@@ -854,6 +860,28 @@ def clean_diffuser_pipe(pipe):
         pipe.register_to_config(**internal_dict)
 
 
+def copy_diffuser_options(new_pipe, orig_pipe):
+    new_pipe.sd_checkpoint_info = getattr(orig_pipe, 'sd_checkpoint_info', None)
+    new_pipe.sd_model_checkpoint = getattr(orig_pipe, 'sd_model_checkpoint', None)
+    new_pipe.embedding_db = getattr(orig_pipe, 'embedding_db', None)
+    new_pipe.loaded_loras = getattr(orig_pipe, 'loaded_loras', {})
+    new_pipe.sd_model_hash = getattr(orig_pipe, 'sd_model_hash', None)
+    new_pipe.has_accelerate = getattr(orig_pipe, 'has_accelerate', False)
+    new_pipe.current_attn_name = getattr(orig_pipe, 'current_attn_name', None)
+    new_pipe.default_scheduler = getattr(orig_pipe, 'default_scheduler', None)
+    new_pipe.image_encoder = getattr(orig_pipe, 'image_encoder', None)
+    new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
+    new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
+    new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
+    new_pipe.task_args = getattr(orig_pipe, 'task_args', None)
+    new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
+    new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
+    new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
+    add_noise_pred_to_diffusers_callback(new_pipe)
+    if new_pipe.has_accelerate:
+        set_accelerate(new_pipe)
+
+
 def backup_pipe_components(pipe):
     if pipe is None:
         return {}
@@ -1157,13 +1185,18 @@ def unload_model_weights(op='model'):
         shared.log.debug(f'Unload {op}: {memory_stats()}')
 
 
-def hf_auth_check(checkpoint_info):
+def hf_auth_check(checkpoint_info, force:bool=False):
     login = None
-    try:
-        if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)) or (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for already downloaded models
-            return True
-    except Exception:
-        pass
+    if not force:
+        try:
+            # skip check for single-file safetensors models
+            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)):
+                return True
+            # skip check for local diffusers folders
+            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))):
+                return True
+        except Exception:
+            pass
     try:
         login = modelloader.hf_login()
         repo_id = path_to_repo(checkpoint_info)

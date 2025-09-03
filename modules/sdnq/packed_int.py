@@ -122,6 +122,21 @@ def pack_uint2(tensor: torch.ByteTensor) -> torch.ByteTensor:
     return packed_tensor
 
 
+def pack_uint1(tensor: torch.Tensor) -> torch.Tensor:
+    packed_tensor = tensor.contiguous().reshape(-1, 8)
+    packed_tensor = torch.bitwise_or(
+        torch.bitwise_or(
+            torch.bitwise_or(packed_tensor[:, 0], torch.bitwise_left_shift(packed_tensor[:, 1], 1)),
+            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 2], 2), torch.bitwise_left_shift(packed_tensor[:, 3], 3))
+        ),
+        torch.bitwise_or(
+            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 4], 4), torch.bitwise_left_shift(packed_tensor[:, 5], 5)),
+            torch.bitwise_or(torch.bitwise_left_shift(packed_tensor[:, 6], 6), torch.bitwise_left_shift(packed_tensor[:, 7], 7))
+        ),
+    )
+    return packed_tensor
+
+
 def unpack_uint7(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
     result = torch.stack(
         (
@@ -246,6 +261,23 @@ def unpack_uint2(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.By
     return result
 
 
+def unpack_uint1(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
+    result = torch.stack(
+        (
+            torch.bitwise_and(packed_tensor, 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 1), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 2), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 3), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 4), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 5), 1),
+            torch.bitwise_and(torch.bitwise_right_shift(packed_tensor, 6), 1),
+            torch.bitwise_right_shift(packed_tensor, 7),
+        ),
+        dim=-1
+    ).reshape(shape)
+    return result
+
+
 packed_int_function_dict = {
     "int7": {"pack": pack_uint7, "unpack": unpack_uint7},
     "int6": {"pack": pack_uint6, "unpack": unpack_uint6},
@@ -259,4 +291,6 @@ packed_int_function_dict = {
     "uint4": {"pack": pack_uint4, "unpack": unpack_uint4},
     "uint3": {"pack": pack_uint3, "unpack": unpack_uint3},
     "uint2": {"pack": pack_uint2, "unpack": unpack_uint2},
+    "uint1": {"pack": pack_uint1, "unpack": unpack_uint1},
+    "bool": {"pack": pack_uint1, "unpack": unpack_uint1},
 }

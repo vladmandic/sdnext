@@ -76,6 +76,8 @@ def get_model_type(pipe):
     # hybrid models
     elif 'Wan' in name:
         model_type = 'wanai'
+    elif 'HDM-xut' in name:
+        model_type = 'hdm'
     else:
         model_type = name
     return model_type

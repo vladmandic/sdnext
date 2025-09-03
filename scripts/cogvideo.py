@@ -205,7 +205,7 @@ class Script(scripts_manager.Script):
         self.offload(offload)
         frames = self.generate(p, model)
         devices.torch_gc()
-        processed = processing.Processed(p, images_list=frames)
+        processed = processing.get_processed(p, images_list=frames)
         shared.state.end()
         return processed
 

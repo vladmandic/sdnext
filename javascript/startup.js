@@ -8,18 +8,18 @@ async function initStartup() {
   if (window.setupLogger) await setupLogger();
 
   // all items here are non-blocking async calls
-  initModels();
-  getUIDefaults();
-  initPromptChecker();
-  initContextMenu();
-  initDragDrop();
-  initAccordions();
-  initSettings();
-  initImageViewer();
-  initGallery();
-  initiGenerationParams();
-  initChangelog();
-  setupControlUI();
+  await initModels();
+  await getUIDefaults();
+  await initPromptChecker();
+  await initContextMenu();
+  await initDragDrop();
+  await initAccordions();
+  await initSettings();
+  await initImageViewer();
+  await initGallery();
+  await initiGenerationParams();
+  await initChangelog();
+  await setupControlUI();
 
   // reconnect server session
   await reconnectUI();

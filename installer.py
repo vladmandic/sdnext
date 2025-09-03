@@ -447,6 +447,8 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
         stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
     stdout = stdout.strip()
     if result.returncode != 0 and not ignore:
+        if folder is None:
+            folder = 'root'
         if "couldn't find remote ref" in stdout: # not a git repo
             log.error(f'Git: folder="{folder}" could not identify repository')
         elif "no submodule mapping found" in stdout:
@@ -601,7 +603,7 @@ def check_diffusers():
     if args.skip_git:
         install('diffusers')
         return
-    sha = '4fcd0bc7ebb934a1559d0b516f09534ba22c8a0d' # diffusers commit hash
+    sha = '9b721db205729d5a6e97a72312c3a0f4534064f1' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -622,18 +624,22 @@ def check_transformers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    pkg = pkg_resources.working_set.by_key.get('transformers', None)
+    pkg_transofmers = pkg_resources.working_set.by_key.get('transformers', None)
+    pkg_tokenizers = pkg_resources.working_set.by_key.get('tokenizers', None)
     if args.use_directml:
-        target = '4.52.4'
+        target_transformers = '4.52.4'
+        target_tokenizers = '0.21.4'
     else:
-        target = '4.55.2'
-    if (pkg is None) or ((pkg.version != target) and (not args.experimental)):
-        if pkg is None:
-            log.info(f'Transformers install: version={target}')
+        target_transformers = '4.56.0'
+        target_tokenizers = '0.22.0'
+    if (pkg_transofmers is None) or ((pkg_transofmers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
+        if pkg_transofmers is None:
+            log.info(f'Transformers install: version={target_transformers}')
         else:
-            log.info(f'Transformers update: current={pkg.version} target={target}')
+            log.info(f'Transformers update: current={pkg_transofmers.version} target={target_transformers}')
         pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-        pip(f'install --upgrade transformers=={target}', ignore=False, quiet=True, uv=False)
+        pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
+        pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
     ts('transformers', t_start)
 
 
@@ -767,10 +773,6 @@ def install_rocm_zluda():
             else:
                 # older rocm (5.7) uses torch 2.3 or older
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://download.pytorch.org/whl/rocm{rocm.version}')
-
-        if device is not None and rocm.version != "6.2" and rocm.get_blaslt_enabled():
-            log.debug(f'ROCm hipBLASLt: arch={device.name} available={device.blaslt_supported}')
-            rocm.set_blaslt_enabled(device.blaslt_supported)
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
@@ -1269,21 +1271,6 @@ def install_optional():
     except Exception:
         pass
     ts('optional', t_start)
-
-
-def install_sentencepiece():
-    if installed('sentencepiece', quiet=True):
-        pass
-    elif int(sys.version_info.minor) >= 13:
-        backup_cmake_policy = os.environ.get('CMAKE_POLICY_VERSION_MINIMUM', None)
-        backup_cxxflags = os.environ.get('CXXFLAGS', None)
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
-        os.environ.setdefault('CXXFLAGS', '-include cstdint')
-        install('git+https://github.com/google/sentencepiece#subdirectory=python', 'sentencepiece')
-        os.environ.setdefault('CMAKE_POLICY_VERSION_MINIMUM', backup_cmake_policy)
-        os.environ.setdefault('CXXFLAGS', backup_cxxflags)
-    else:
-        install('sentencepiece', 'sentencepiece')
 
 
 def install_requirements():

@@ -4,7 +4,7 @@ import numpy as np
 import gradio as gr
 from PIL import Image
 from modules import images, processing, shared, scripts_manager
-from modules.processing import Processed
+from modules.processing import get_processed
 from modules.shared import opts, state
 
 
@@ -95,5 +95,5 @@ class Script(scripts_manager.Script):
             grid = [images.image_grid(imgs, rows=1)] if opts.return_grid else []
             imgs = [img] + grid
 
-        processed = Processed(p, images_list=imgs, seed=p.seed, info=info)
+        processed = get_processed(p, images_list=imgs, seed=p.seed, info=info)
         return processed

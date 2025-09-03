@@ -16,6 +16,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
             try:
                 size, mtime = modelstats.stat(filename)
                 info = self.find_info(filename)
+                version = self.find_version(None, info)
                 record = {
                     "type": 'VAE',
                     "name": name,
@@ -31,6 +32,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                     "size": size,
                     "info": info,
                     "description": self.find_description(filename, info),
+                    "version": version.get("baseModel", "N/A") if info else "N/A",
                 }
                 yield record
             except Exception as e:
