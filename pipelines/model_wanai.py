@@ -24,6 +24,7 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
             fn,
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
+            **quant_args,
         )
     else:
         shared.log.debug(f'Load model: type=WanAI {subfolder}="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
