@@ -43,6 +43,7 @@
 - **Other**
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
+  - move zluda flash attenion to `Triton Flash attention` option  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - remove samplers filtering  
@@ -60,6 +61,8 @@
   - fix some use cases with access via reverse-proxy  
   - fix segfault on startup with `rocm==6.4.3` and `torch==2.8`  
   - fix wildcards folders traversal, thanks @dymil  
+  - fix zluda flash attention with enable_gqa  
+  - fix `wan a14b` quantization  
 
 ## Update for 2025-08-20
 
