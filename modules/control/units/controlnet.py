@@ -355,6 +355,12 @@ class ControlNet():
                         log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
                     self.model.to(self.device)
+                if "Control" in opts.cuda_compile:
+                    try:
+                        from modules.sd_models_compile import compile_torch
+                        self.model = compile_torch(self.model, apply_to_components=False, op="Control")
+                    except Exception as e:
+                        shared.log.warning(f"Control compile error: {e}")
                 t1 = time.time()
                 self.model_id = model_id
                 log.info(f'Control {what} model loaded: id="{model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
