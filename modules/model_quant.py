@@ -12,6 +12,7 @@ from installer import installed, install, log, setup_logging
 ao = None
 bnb = None
 optimum_quanto = None
+trt = None
 quant_last_model_name = None
 quant_last_model_device = None
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
@@ -103,6 +104,33 @@ def create_quanto_config(kwargs = None, allow: bool = True, module: str = 'Model
     return kwargs
 
 
+def create_trt_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = []):
+    from modules import shared
+    if allow and (module == 'any' or module in shared.opts.trt_quantization):
+        load_trt()
+        if trt is None:
+            return kwargs
+        trt_config_data = {
+            "fp8": {"quant_type": "FP8", "quant_method": "modelopt", "modules_to_not_convert": []},
+            "int8": {"quant_type": "INT8", "quant_method": "modelopt", "modules_to_not_convert": []},
+            "int4": {"quant_type": "INT4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv", "patch_embed"]},
+            "nf4": {"quant_type": "NF4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "scale_block_quantize": 8, "scale_channel_quantize": -1, "modules_to_not_convert": ["conv"]},
+            "nvfp4": {"quant_type": "NVFP4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv"]},
+        }
+        trt_quant_config = trt_config_data[shared.opts.trt_quantization_type].copy()
+        for m in modules_to_not_convert:
+            if m not in trt_quant_config['modules_to_not_convert']:
+                trt_quant_config['modules_to_not_convert'].append(m)
+        trt_config = diffusers.quantizers.quantization_config.NVIDIAModelOptConfig(**trt_quant_config)
+        log.debug(f'Quantization: module={module} type=tensorrt dtype={shared.opts.trt_quantization_type}')
+        if kwargs is None:
+            return trt_config
+        else:
+            kwargs['quantization_config'] = trt_config
+            return kwargs
+    return kwargs
+
+
 def get_sdnq_devices():
     from modules import devices, shared
     if shared.opts.device_map == "gpu":
@@ -121,6 +149,7 @@ def get_sdnq_devices():
         quantization_device = None
         return_device = None
     return quantization_device, return_device
+
 
 def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
     from modules import shared
@@ -224,6 +253,11 @@ def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modu
         if debug:
             log.trace(f'Quantization: type=torchao config={kwargs.get("quantization_config", None)}')
         return kwargs
+    kwargs = create_trt_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=tensorrt config={kwargs.get("quantization_config", None)}')
+        return kwargs
     return kwargs
 
 
@@ -304,6 +338,30 @@ def load_quanto(msg='', silent=False):
         if len(msg) > 0:
             log.error(f"{msg} failed to import optimum.quanto: {e}")
         optimum_quanto = None
+        if not silent:
+            raise
+    return None
+
+
+def load_trt(msg='', silent=False):
+    global trt # pylint: disable=global-statement
+    if trt is not None:
+        return trt
+    try:
+        install('nvidia-modelopt')
+        import pydantic
+        if pydantic.__version__.startswith('1'):
+            log.error('Quantization: type=tensorrt pydantic==2 required')
+            return None
+        import modelopt
+        trt = modelopt
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.debug(f'Quantization: type=tensorrt version={trt.__version__} fn={fn}') # pylint: disable=protected-access
+        return trt
+    except Exception as e:
+        if len(msg) > 0:
+            log.error(f"{msg} failed to import tensorrt: {e}")
+        trt = None
         if not silent:
             raise
     return None
