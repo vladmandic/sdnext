@@ -4,7 +4,7 @@ import threading
 from typing import Union
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
 from modules.control.units import detect
-from modules.shared import log, opts, listdir
+from modules.shared import log, opts, cmd_opts, listdir
 from modules import errors, sd_models, devices, model_quant
 from modules.processing import StableDiffusionProcessingControl
 
@@ -327,7 +327,7 @@ class ControlNet():
                             errors.display(e, 'Control')
                 if self.model is None:
                     return
-                if not shared.cmd_opts.lowvram: # lowvram will cause unet<->controlnet to ping-pong but saves more memory  
+                if not cmd_opts.lowvram: # lowvram will cause unet<->controlnet to ping-pong but saves more memory  
                     self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)
