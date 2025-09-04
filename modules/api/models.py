@@ -21,6 +21,14 @@ class ModelDef(BaseModel):
     field_exclude: bool = False
 
 
+class DummyConfig:
+    dummy_value = None
+
+
+if not hasattr(BaseModel, "__config__"):
+    BaseModel.__config__ = DummyConfig
+
+
 class PydanticModelGenerator:
     def __init__(
         self,
@@ -210,6 +218,8 @@ ReqTxt2Img = PydanticModelGenerator(
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
 ).generate_model()
+if not hasattr(ReqTxt2Img, "__config__"):
+    ReqTxt2Img.__config__ = DummyConfig
 StableDiffusionTxt2ImgProcessingAPI = ReqTxt2Img
 
 class ResTxt2Img(BaseModel):
@@ -238,6 +248,8 @@ ReqImg2Img = PydanticModelGenerator(
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
 ).generate_model()
+if not hasattr(ReqImg2Img, "__config__"):
+    ReqImg2Img.__config__ = DummyConfig
 StableDiffusionImg2ImgProcessingAPI = ReqImg2Img
 
 class ResImg2Img(BaseModel):
