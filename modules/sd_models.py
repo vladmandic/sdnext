@@ -528,7 +528,7 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 
 def set_overrides(sd_model, checkpoint_info):
     checkpoint_info_name = checkpoint_info.name.lower()
-    if 'bigaspv25' in checkpoint_info_name or 'nyaflow' in checkpoint_info_name:
+    if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
         scheduler_config = sd_model.scheduler.config
         scheduler_config['prediction_type'] = 'flow_prediction'
         scheduler_config['use_flow_sigmas'] = True
