@@ -77,6 +77,9 @@ def create_sampler(name, model):
     else:
         requires_flow = False
 
+    # sdxl allows both flow and discrete samplers
+    is_flexible = (model is not None) and ('XL' in model.__class__.__name__)
+    
     # restore default scheduler
     if name == 'Default' and hasattr(model, 'scheduler'):
         return restore_default(model)
@@ -91,10 +94,12 @@ def create_sampler(name, model):
     is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (getattr(sampler.sampler.config, 'prediction_type', None) == 'flow_prediction')
 
     # validate sampler prediction type
-    if (model is not None) and (is_flow and not requires_flow):
+    if (model is not None) and is_flexible:
+        pass
+    elif (model is not None) and (is_flow and not requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with discrete prediction')
         return restore_default(model)
-    if (model is not None) and (not is_flow and requires_flow):
+    elif (model is not None) and (not is_flow and requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with flow prediction')
         return restore_default(model)
 
