@@ -1,5 +1,4 @@
 import sys
-from functools import wraps
 import torch
 from modules import shared
 

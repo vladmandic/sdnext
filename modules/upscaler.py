@@ -1,11 +1,8 @@
 import os
 import copy
-import time
-import logging
 from abc import abstractmethod
 from PIL import Image
-from modules import devices, modelloader, shared
-from installer import setup_logging
+from modules import modelloader, shared
 
 
 models = None
