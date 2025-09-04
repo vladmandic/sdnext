@@ -327,7 +327,8 @@ class ControlNet():
                             errors.display(e, 'Control')
                 if self.model is None:
                     return
-                self.model.offload_never = True
+                if not shared.cmd_opts.lowvram: # lowvram will cause unet<->controlnet to ping-pong but saves more memory  
+                    self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)
                 if "Control" in opts.sdnq_quantize_weights:
@@ -360,7 +361,7 @@ class ControlNet():
                         from modules.sd_models_compile import compile_torch
                         self.model = compile_torch(self.model, apply_to_components=False, op="Control")
                     except Exception as e:
-                        shared.log.warning(f"Control compile error: {e}")
+                        log.warning(f"Control compile error: {e}")
                 t1 = time.time()
                 self.model_id = model_id
                 log.info(f'Control {what} model loaded: id="{model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')

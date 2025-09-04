@@ -176,6 +176,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.param_map = {}
         self.last_pre = None
         self.last_post = None
+        self.last_cls = None
         gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
         shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never}')
         self.validate()
@@ -202,10 +203,16 @@ class OffloadHook(accelerate.hooks.ModelHook):
     def init_hook(self, module):
         return module
 
+    def offload_allowed(self, module):
+        if hasattr(module, "offload_never"):
+            return False
+        if hasattr(module, 'nets') and any(hasattr(n, "offload_never") for n in module.nets):
+            return False
+        return True
+
     def pre_forward(self, module, *args, **kwargs):
         _id = id(module)
-        if self.last_pre != _id and not hasattr(module, "offload_never"): # offload every other module first time when new module starts pre-forward
-            self.last_pre = _id
+        if (self.last_pre != _id) and (module.__class__.__name__ != self.last_cls) and self.offload_allowed(module): # offload every other module first time when new module starts pre-forward
             if shared.opts.diffusers_offload_pre:
                 debug_move(f'Offload: type=balanced op=pre module={module.__class__.__name__}')
                 for pipe in get_pipe_variants():
@@ -214,6 +221,8 @@ class OffloadHook(accelerate.hooks.ModelHook):
                         module_cls = module_instance.__class__.__name__
                         if (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
+                self.last_cls = module.__class__.__name__
+        self.last_pre = _id
 
         if not devices.same_device(module.device, devices.device): # move-to-device
             device_index = torch.device(devices.device).index
@@ -239,7 +248,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             for pipe in get_pipe_variants():
                 for module_name in get_module_names(pipe):
                     module_instance = getattr(pipe, module_name, None)
-                    shared.log.trace(f'Offload: type=balanced op=pre check module={module_instance.__class__.__name__} device={module_instance.device} dtype={module_instance.dtype}')
+                    shared.log.trace(f'Offload: type=balanced op=pre:status module={module_instance.__class__.__name__} device={module_instance.device} dtype={module_instance.dtype}')
 
         return args, kwargs
 

@@ -28,7 +28,8 @@
   - restyled all toolbuttons to be modernui native  
   - reodered system settings  
   - dynamic direction of dropdowns  
-  - improve process tab layout
+  - improve process tab layout  
+  - improve detection of active tab  
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
     *example*: if panel width is less than specified value, layout switches to verical  
@@ -39,6 +40,7 @@
   - improve offloading of models with multiple dits  
   - improve offloading of models with impliciy vae processing  
   - improve offloading of models with controlnet  
+  - more aggressive offloading of controlnets with lowvram flag  
 - **SDNQ**
   - add quantized matmul support for all quantization types and group sizes  
 - **Other**
@@ -46,6 +48,7 @@
   - refactor modernui js codebase  
   - move zluda flash attenion to *Triton Flash attention* option  
   - remove samplers filtering  
+  - allow both flow-matching and discrete samplers for sdxl models  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  
