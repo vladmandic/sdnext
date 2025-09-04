@@ -165,7 +165,7 @@ class Script(scripts_manager.Script):
 
         processed.info = processed.infotext(p, 0)
         processed.infotexts = [processed.info]
-        if shared.opts.samples_save and not p.do_not_save_samples:
+        if shared.opts.samples_save and not p.do_not_save_samples and processed.images is not None:
             for i, image in enumerate(processed.images):
                 info = processing.create_infotext(p, index=i)
                 images.save_image(image, path=p.outpath_samples, seed=p.all_seeds[i], prompt=p.all_prompts[i], info=info, p=p)

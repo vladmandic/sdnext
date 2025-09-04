@@ -20,9 +20,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Blocked items
 
-- Upgrade: unblock `pydantic` and `albumentations`
-  - see <https://github.com/Cschlaefli/automatic>
-  - blocked by `insightface`
+- Upgrade: `pydantic`  
+  - see <https://github.com/Cschlaefli/automatic>  
+- Upgrade: `albumentations`  
+  - blocked by `insightface`  
 
 ### Under Consideration
 

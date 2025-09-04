@@ -480,14 +480,17 @@ class ExtraNetworksPage:
         if shared.cmd_opts.no_metadata:
             return data
         if path is not None:
+            t0 = time.time()
             fn = os.path.splitext(path)[0] + '.json'
-            if os.path.exists(fn):
-                t0 = time.time()
+            if not data and os.path.exists(fn):
                 data = shared.readfile(fn, silent=True)
-                if type(data) is list:
-                    data = data[0]
-                t1 = time.time()
-                self.info_time += t1-t0
+            fn = os.path.join(path, 'model_index.json')
+            if not data and os.path.exists(fn):
+                data = shared.readfile(fn, silent=True)
+            if type(data) is list:
+                data = data[0]
+            t1 = time.time()
+            self.info_time += t1-t0
         return data
 
 

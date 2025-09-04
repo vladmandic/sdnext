@@ -45,6 +45,9 @@ class NetworkOnDisk:
         self.set_hash(sha256)
         self.sd_version = self.detect_version()
 
+    def __str__(self):
+        return f"NetworkOnDisk(name={self.name} filename={self.filename}"
+
     def detect_version(self):
         base = str(self.metadata.get('ss_base_model_version', "")).lower()
         arch = str(self.metadata.get('modelspec.architecture', "")).lower()

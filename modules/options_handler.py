@@ -64,7 +64,11 @@ class Options():
         """sets an option and calls its onchange callback, returning True if the option changed and False otherwise"""
         oldval = self.data.get(key, None)
         if oldval is None:
-            oldval = self.data_labels[key].default
+            if key in self.data_labels:
+                oldval = self.data_labels[key].default
+            else:
+                log.warning(f'Settings: key={key} value={value} unknown')
+                return False
         if oldval == value:
             return False
         try:

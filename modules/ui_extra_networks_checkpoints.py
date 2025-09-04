@@ -6,6 +6,16 @@ from modules import shared, ui_extra_networks, sd_models, modelstats
 
 
 reference_dir = os.path.join('models', 'Reference')
+version_map = {
+    "QwenEdit": "Qwen",
+    "Flux.1 D": "Flux",
+    "Flux.1 S": "Flux",
+    "FluxKontext": "Flux",
+    "SDXL 1.0": "SD XL",
+    "SDXL Hyper": "SD XL",
+    "StableDiffusion3": "SD 3",
+    "StableDiffusionXL": "SD XL",
+}
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
     def __init__(self):
@@ -62,10 +72,16 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "mtime": mtime,
                 "size": size,
             }
-            record["info"] = self.find_info(checkpoint.filename)
-            record["description"] = self.find_description(checkpoint.filename, record["info"])
-            version = self.find_version(checkpoint, record["info"])
-            record["version"] = version.get("baseModel", "") if record["info"] else ""
+            record['info'] = self.find_info(checkpoint.filename)
+            record['description'] = self.find_description(checkpoint.filename, record['info'])
+            version = self.find_version(checkpoint, record['info'])
+            if 'baseModel' in version:
+                record['version'] = version.get("baseModel", "")
+            elif '_class_name' in record['info']:
+                record['version'] = record['info'].get('_class_name', '').replace('Pipeline', '').replace('Image', '')
+            else:
+                record['version'] = ''
+            record['version'] = version_map.get(record['version'], record['version'])
 
         except Exception as e:
             shared.log.debug(f'Networks error: type=model file="{name}" {e}')

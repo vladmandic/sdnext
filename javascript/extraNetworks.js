@@ -293,9 +293,8 @@ function extraNetworksSearchButton(event) {
 function extraNetworksFilterVersion(event) {
   // log('extraNetworksFilterVersion', event);
   const version = event.target.textContent.trim();
-  const activeTab = gradioApp().querySelector('.extra-networks-tab:not([style*="display: none"])');
-  if (!activeTab) return;
-  const cardContainer = activeTab.querySelector('.extra-network-cards');
+  const activeTab = getENActiveTab();
+  const cardContainer = gradioApp().querySelector(`#${activeTab}_model_cards`);
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';

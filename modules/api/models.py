@@ -188,7 +188,7 @@ class ItemExtension(BaseModel):
     branch: str = Field(default="uknnown", title="Branch", description="Extension Repository Branch")
     commit_hash: str = Field(title="Commit Hash", description="Extension Repository Commit Hash")
     version: str = Field(title="Version", description="Extension Version")
-    commit_date: str = Field(title="Commit Date", description="Extension Repository Commit Date")
+    commit_date: Union[str, int] = Field(title="Commit Date", description="Extension Repository Commit Date")
     enabled: bool = Field(title="Enabled", description="Flag specifying whether this extension is enabled")
 
 ### request/response classes
@@ -311,13 +311,13 @@ class ReqPostLog(BaseModel):
     error: Optional[str] = Field(default=None, title="Error message", description="The error message to log")
 
 class ReqHistory(BaseModel):
-    id: str = Field(default=None, title="Task ID", description="Task ID")
+    id: Union[int, str, None] = Field(default=None, title="Task ID", description="Task ID")
 
 class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
 
 class ResProgress(BaseModel):
-    id: str = Field(title="TaskID", description="Task ID")
+    id: Union[int, str, None] = Field(title="TaskID", description="Task ID")
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
@@ -325,7 +325,7 @@ class ResProgress(BaseModel):
     textinfo: Optional[str] = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
-    id: str = Field(title="ID", description="Task ID")
+    id: Union[int, str, None] = Field(title="ID", description="Task ID")
     job: str = Field(title="Job", description="Job name")
     op: str = Field(title="Operation", description="Operation name")
     start: Union[float, None] = Field(title="Start", description="Start time")
@@ -337,7 +337,7 @@ class ResStatus(BaseModel):
     task: str = Field(title="Task", description="Current job")
     timestamp: Optional[str] = Field(title="Timestamp", description="Timestamp of the current job")
     current: str = Field(title="Task", description="Current job")
-    id: str = Field(title="ID", description="ID of the current task")
+    id: Union[int, str, None] = Field(title="ID", description="ID of the current task")
     job: int = Field(title="Job", description="Current job")
     jobs: int = Field(title="Jobs", description="Total jobs")
     total: int = Field(title="Total Jobs", description="Total jobs")
@@ -348,7 +348,6 @@ class ResStatus(BaseModel):
     elapsed: Optional[float] = Field(default=None, title="Elapsed time")
     eta: Optional[float] = Field(default=None, title="ETA in secs")
     progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
-
 
 class ReqInterrogate(BaseModel):
     image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
