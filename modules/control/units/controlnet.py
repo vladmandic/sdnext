@@ -327,7 +327,7 @@ class ControlNet():
                             errors.display(e, 'Control')
                 if self.model is None:
                     return
-                if not cmd_opts.lowvram: # lowvram will cause unet<->controlnet to ping-pong but saves more memory  
+                if not cmd_opts.lowvram: # lowvram will cause unet<->controlnet to ping-pong but saves more memory
                     self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)

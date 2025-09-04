@@ -1244,6 +1244,15 @@ def install_gradio():
             install(pkg, quiet=True)
 
 
+def install_pydantic():
+    if args.new:
+        install('pydantic==2.11.7', ignore=True, quiet=True)
+        reload('pydantic', '2.11.7')
+    else:
+        install('pydantic==1.10.21', ignore=True, quiet=True)
+        reload('pydantic', '1.10.21')
+
+
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
@@ -1259,10 +1268,8 @@ def install_optional():
     install('Cython', ignore=True, quiet=True)
     install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
     install('albumentations==1.4.3', ignore=True, quiet=True)
-    install('pydantic==1.10.21', ignore=True, quiet=True)
-    reload('pydantic', '1.10.21')
-    install('gguf', ignore=True)
     install('av', ignore=True, quiet=True)
+    install('gguf', ignore=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
@@ -1297,6 +1304,7 @@ def install_requirements():
         for line in lines:
             if not installed(line, quiet=True):
                 _res = install(line)
+    install_pydantic()
     if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')

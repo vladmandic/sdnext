@@ -79,7 +79,7 @@ def create_sampler(name, model):
 
     # sdxl allows both flow and discrete samplers
     is_flexible = (model is not None) and ('XL' in model.__class__.__name__)
-    
+
     # restore default scheduler
     if name == 'Default' and hasattr(model, 'scheduler'):
         return restore_default(model)

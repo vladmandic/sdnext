@@ -49,6 +49,7 @@
   - move zluda flash attenion to *Triton Flash attention* option  
   - remove samplers filtering  
   - allow both flow-matching and discrete samplers for sdxl models  
+  - cleanup command line parameters  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  
