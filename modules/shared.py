@@ -15,7 +15,7 @@ from modules.dml import memory_providers, default_memory_provider, directml_do_h
 from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
-from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system
+from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
 from modules.ui_components import DropdownEditable
 from modules.options import OptionInfo, options_section
 import modules.memmon
@@ -627,7 +627,7 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "interrogate_clip_chunk_size": OptionInfo(1024, "CLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 8,  "visible": False}),
 
     "interrogate_vlm_sep": OptionInfo("<h2>VLM</h2>", "", gr.HTML),
-    "interrogate_vlm_model": OptionInfo(list(vlm_models)[0], "VLM: default model", gr.Dropdown, {"choices": list(vlm_models)}),
+    "interrogate_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models)}),
     "interrogate_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts }),
     "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: default prompt"),
     "interrogate_vlm_num_beams": OptionInfo(3, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),

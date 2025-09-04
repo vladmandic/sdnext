@@ -14,9 +14,13 @@ processor = None
 model = None
 loaded: str = None
 quant_args = {}
+vlm_default = "Alibaba Qwen 2.5 VL 4B"
 vlm_models = {
-    "Microsoft Florence 2 Base": "microsoft/Florence-2-base", # 0.5GB
-    "Microsoft Florence 2 Large": "microsoft/Florence-2-large", # 1.5GB
+    "Google Gemma 3 4B": "google/gemma-3-4b-it",
+    "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
+    "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
+    "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
+    "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
     "MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
     "MiaoshouAI PromptGen 1.5 Large": "MiaoshouAI/Florence-2-large-PromptGen-v1.5@28a42440e39c9c32b83f7ae74ec2b3d1540404f0", # 3.3GB
     "MiaoshouAI PromptGen 2.0 Base": "MiaoshouAI/Florence-2-base-PromptGen-v2.0", # 1.1GB
@@ -24,9 +28,6 @@ vlm_models = {
     "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
     "Moondream 2": "vikhyatk/moondream2", # 3.7GB
-    "Google Gemma 3 4B": "google/gemma-3-4b-it",
-    "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
-    "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
@@ -198,10 +199,10 @@ def gemma(question: str, image: Image.Image, repo: str = None, system_prompt: st
         system_content.append({"type": "text", "text": system_prompt})
 
     user_content = []
-    if image is not None:
-        user_content.append({"type": "image", "image": b64(image)})
     if question is not None and len(question) > 4:
         user_content.append({"type": "text", "text": question})
+    if image is not None:
+        user_content.append({"type": "image", "image": b64(image)})
     conversation = [
         { "role": "system", "content": system_content},
         { "role": "user", "content": user_content },
