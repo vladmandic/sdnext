@@ -7,10 +7,10 @@ let lastTab = 'control';
 
 const getENActiveTab = () => {
   let tabName = '';
-  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility()) tabName = 'txt2img';
-  else if (gradioApp().getElementById('img2img_prompt')?.checkVisibility()) tabName = 'img2img';
-  else if (gradioApp().getElementById('control_prompt')?.checkVisibility()) tabName = 'control';
-  else if (gradioApp().getElementById('video_prompt')?.checkVisibility()) tabName = 'video';
+  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility() || gradioApp().getElementById('txt2img_generate')?.checkVisibility()) tabName = 'txt2img';
+  else if (gradioApp().getElementById('img2img_prompt')?.checkVisibility() || gradioApp().getElementById('img2img_generate')?.checkVisibility()) tabName = 'img2img';
+  else if (gradioApp().getElementById('control_prompt')?.checkVisibility() || gradioApp().getElementById('control_generate')?.checkVisibility()) tabName = 'control';
+  else if (gradioApp().getElementById('video_prompt')?.checkVisibility() || gradioApp().getElementById('video_generate')?.checkVisibility()) tabName = 'video';
   else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
   else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
   else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
