@@ -46,6 +46,9 @@
   - **nunchaku**: update to `nunchaku==1.0.0`  
     *note*: nunchaku updated the repo which will trigger re-download of nunchaku models when first used  
     nunchaku is currently available for: *Flux.1 Dev/Schnell/Kontext/Krea/Depth/Fill*, *Qwen-Image/Qwen-Lightning*, *SANA-1.6B*  
+  - **tensorrt**: new quantization engine from nvidia  
+    *experimental*: requires new pydantic package which *may* break other things, to enable start sdnext with `--new` flag  
+    *note*: this is model quantization only, no support for tensorRT inference yet  
 - **Other**
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
@@ -53,6 +56,7 @@
   - remove samplers filtering  
   - allow both flow-matching and discrete samplers for sdxl models  
   - cleanup command line parameters  
+  - add `--new` command line flag to enable testing of new packages without breaking existing installs  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

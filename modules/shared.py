@@ -224,8 +224,8 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "layerwise_quantization_nonblocking": OptionInfo(False, "Layerwise non-blocking operations", gr.Checkbox),
 
     "trt_quantization_sep": OptionInfo("<h2>TensorRT</h2>", "", gr.HTML),
-    "trt_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "LLM", "VAE"]}),
-    "trt_quantization_type": OptionInfo("nvfp4", "Quantization type", gr.Dropdown, {"choices": ["int8", "int4", "fp8", "nf4", "nvfp4"]}),
+    "trt_quantization": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model"]}),
+    "trt_quantization_type": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": ["int8", "int4", "fp8", "nf4", "nvfp4"]}),
 
     "nncf_compress_sep": OptionInfo("<h2>NNCF: Neural Network Compression Framework</h2>", "", gr.HTML, {"visible": cmd_opts.use_openvino}),
     "nncf_compress_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE"], "visible": cmd_opts.use_openvino}),

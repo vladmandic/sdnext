@@ -111,9 +111,9 @@ def create_trt_config(kwargs = None, allow: bool = True, module: str = 'Model', 
         if trt is None:
             return kwargs
         trt_config_data = {
-            "fp8": {"quant_type": "FP8", "quant_method": "modelopt", "modules_to_not_convert": []},
             "int8": {"quant_type": "INT8", "quant_method": "modelopt", "modules_to_not_convert": []},
             "int4": {"quant_type": "INT4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv", "patch_embed"]},
+            "fp8": {"quant_type": "FP8", "quant_method": "modelopt", "modules_to_not_convert": []},
             "nf4": {"quant_type": "NF4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "scale_block_quantize": 8, "scale_channel_quantize": -1, "modules_to_not_convert": ["conv"]},
             "nvfp4": {"quant_type": "NVFP4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv"]},
         }
