@@ -13,6 +13,8 @@
     highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
     for pretraining T2I model at home based on super-light architecture  
     requires: generator=cpu, dtype=float16, offload=none  
+  - [Apple FastVLM](https://huggingface.co/apple/FastVLM-0.5B) in 0.5B, 1.5B and 7B variants  
+    available in captioning tab  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
 - **UI**
   - default to **ModernUI**  

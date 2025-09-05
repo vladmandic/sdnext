@@ -19,6 +19,14 @@ vlm_models = {
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
     "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
+    "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
+    "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
+    "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
+    "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
+    "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
+    "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
+    "Apple FastVLM 7B": "apple/FastVLM-7B",
     "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
     "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
     "MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
@@ -30,11 +38,6 @@ vlm_models = {
     "Moondream 2": "vikhyatk/moondream2", # 3.7GB
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
-    "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
-    "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
-    "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
-    "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
-    "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
     "Salesforce BLIP Large": "Salesforce/blip-vqa-capfilt-large", # 1.5GB
     "Microsoft GIT TextCaps Base": "microsoft/git-base-textcaps", # 0.7GB
@@ -117,6 +120,49 @@ def get_kwargs():
     if shared.opts.interrogate_vlm_top_p > 0:
         kwargs['top_p'] = shared.opts.interrogate_vlm_top_p
     return kwargs
+
+
+def fastvlm(question: str, image: Image.Image, repo: str = None):
+    global processor, model, loaded # pylint: disable=global-statement
+    if model is None or loaded != repo:
+        shared.log.debug(f'Interrogate load: vlm="{repo}"')
+        model = None
+        processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True)
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            repo,
+            torch_dtype=devices.dtype,
+            # device_map="auto",
+            trust_remote_code=True,
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
+        )
+        loaded = repo
+        devices.torch_gc()
+    sd_models.move_model(model, devices.device)
+    if len(question) < 2:
+        question = "Describe the image."
+    question = question.replace('<', '').replace('>', '')
+    IMAGE_TOKEN_INDEX = -200  # what the model code looks for
+    messages = [{"role": "user", "content": f"<image>\n{question}"}]
+    rendered = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
+    pre, post = rendered.split("<image>", 1)
+    pre_ids = processor(pre,  return_tensors="pt", add_special_tokens=False).input_ids
+    post_ids = processor(post, return_tensors="pt", add_special_tokens=False).input_ids
+    img_tok = torch.tensor([[IMAGE_TOKEN_INDEX]], dtype=pre_ids.dtype)
+    input_ids = torch.cat([pre_ids, img_tok, post_ids], dim=1)
+    input_ids = input_ids.to(devices.device)
+    attention_mask = torch.ones_like(input_ids, device=devices.device)
+    px = model.get_vision_tower().image_processor(images=image, return_tensors="pt")
+    px = px["pixel_values"].to(model.device, dtype=model.dtype)
+    with devices.inference_context():
+        outputs = model.generate(
+            inputs=input_ids,
+            attention_mask=attention_mask,
+            images=px,
+            max_new_tokens=128,
+        )
+    answer = processor.decode(outputs[0], skip_special_tokens=True)
+    return answer
 
 
 def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
@@ -630,6 +676,8 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
             answer = ovis(question, image, vqa_model)
         elif 'sa2' in vqa_model.lower():
             answer = sa2(question, image, vqa_model)
+        elif 'fastvlm' in vqa_model.lower():
+            answer = fastvlm(question, image, vqa_model)
         else:
             answer = 'unknown model'
     except Exception as e:
