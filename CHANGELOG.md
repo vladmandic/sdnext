@@ -57,6 +57,9 @@
   - allow both flow-matching and discrete samplers for sdxl models  
   - cleanup command line parameters  
   - add `--new` command line flag to enable testing of new packages without breaking existing installs  
+- **OpenVINO**
+  - update to `openvino==2025.3.0`  
+  - add deprecation warning for Python 3.9  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

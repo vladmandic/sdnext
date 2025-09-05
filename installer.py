@@ -822,15 +822,18 @@ def install_ipex():
 
 def install_openvino():
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.9 and 3.13')
     log.info('OpenVINO: selected')
+    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
+    if int(sys.version_info.major) == 3 and int(sys.version_info.minor) == 9:
+        log.warning("Python 3.9 suppot will be removed with the next OpenVINO release!")
+
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.2.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.17.0'), 'nncf')
+    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
+    install(os.environ.get('NNCF_COMMAND', 'nncf==2.18.0'), 'nncf')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if os.environ.get("NEOReadDebugKeys", None) is None:
         os.environ.setdefault('NEOReadDebugKeys', '1')
