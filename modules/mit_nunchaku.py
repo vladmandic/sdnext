@@ -4,7 +4,7 @@ from installer import log, pip
 from modules import devices
 
 
-ver = '0.3.2'
+ver = '1.0.0'
 ok = False
 
 
@@ -46,7 +46,7 @@ def install_nunchaku():
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
             return False
         torch_ver = torch.__version__[:3]
-        if torch_ver not in ['2.5', '2.6', '2.7', '2.8']:
+        if torch_ver not in ['2.5', '2.6', '2.7', '2.8', '2.9']:
             log.error(f'Nunchaku: torch={torch.__version__} unsupported')
         suffix = 'x86_64' if arch == 'linux' else 'win_amd64'
         url = os.environ.get('NUNCHAKU_COMMAND', None)
@@ -55,7 +55,6 @@ def install_nunchaku():
             url = f'https://huggingface.co/nunchaku-tech/nunchaku/resolve/main/nunchaku-{ver}'
             url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}{suffix}.whl'
         cmd = f'install --upgrade {url}'
-        # pip install https://huggingface.co/mit-han-lab/nunchaku/resolve/main/nunchaku-0.2.0+torch2.6-cp311-cp311-linux_x86_64.whl
         log.debug(f'Nunchaku: install="{url}"')
         pip(cmd, ignore=False, uv=False)
         importlib.reload(pkg_resources)

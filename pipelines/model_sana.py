@@ -6,10 +6,11 @@ from modules import shared, sd_models, sd_hijack_te, devices, model_quant
 
 def load_quants(kwargs, repo_id, cache_dir):
     kwargs_copy = kwargs.copy()
-    if 'Sana_1600M' in repo_id and model_quant.check_nunchaku('Model'): # only sana-1600m
+    if 'Sana_1600M_1024px' in repo_id and model_quant.check_nunchaku('Model'): # only available model
         import nunchaku
         nunchaku_precision = nunchaku.utils.get_precision()
-        nunchaku_repo = f"mit-han-lab/svdq-{nunchaku_precision}-sana-1600m"
+        nunchaku_repo = "nunchaku-tech/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
+        # https://huggingface.co/nunchaku-tech/nunchaku-sana/blob/main/svdq-int4_r32-sana1.6b.safetensors
         shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
         kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
     elif model_quant.check_quant('Model'):

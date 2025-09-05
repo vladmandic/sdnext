@@ -1,20 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-03
+## Update for 2025-09-05
 
-- **Models**  
+- **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
   - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
     *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
-  - [Nunchaku-Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
-    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
-    *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+  - [Nunchaku-Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) and [Nunchaku-Flux.1-Krea-Dev](https://huggingface.co/nunchaku-tech/nunchaku-flux.1-krea-dev)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine,  
   - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
   - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
-    highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme for pretraining T2I model at home based on super-light architecture  
+    highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
+    for pretraining T2I model at home based on super-light architecture  
     requires: generator=cpu, dtype=float16, offload=none  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
-- **UI**  
+- **UI**
   - default to **ModernUI**  
     standard ui is still available via *settings -> user interface -> theme type*  
   - mobile-friendly!  
@@ -41,8 +41,11 @@
   - improve offloading of models with impliciy vae processing  
   - improve offloading of models with controlnet  
   - more aggressive offloading of controlnets with lowvram flag  
-- **SDNQ**
-  - add quantized matmul support for all quantization types and group sizes  
+- **Quantization**
+  - **sdnq**: add quantized matmul support for all quantization types and group sizes  
+  - **nunchaku**: update to `nunchaku==1.0.0`  
+    *note*: nunchaku updated the repo which will trigger re-download of nunchaku models when first used  
+    nunchaku is currently available for: *Flux.1 Dev/Schnell/Kontext/Krea/Depth/Fill*, *Qwen-Image/Qwen-Lightning*, *SANA-1.6B*  
 - **Other**
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
