@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-05
+## Update for 2025-09-06
 
 - **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
