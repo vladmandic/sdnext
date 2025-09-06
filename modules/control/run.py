@@ -269,6 +269,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 *input_script_args,
         ):
     global pipe, original_pipeline # pylint: disable=global-statement
+    if 'refine' in state:
+        enable_hr = True
 
     unit.current = units
     debug_log(f'Control: type={unit_type} input={inputs} init={inits} type={input_type}')

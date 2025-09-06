@@ -33,17 +33,32 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
         # set ops
         if state == 'reprocess_refine':
-            # use new upscale values
-            hr_scale, hr_upscaler, hr_resize_mode, hr_resize_context, hr_resize_x, hr_resize_y, hr_upscale_to_x, hr_upscale_to_y = p.hr_scale, p.hr_upscaler, p.hr_resize_mode, p.hr_resize_context, p.hr_resize_x, p.hr_resize_y, p.hr_upscale_to_x, p.hr_upscale_to_y # txt2img
-            height, width, scale_by, resize_mode, resize_name, resize_context = p.height, p.width, p.scale_by, p.resize_mode, p.resize_name, p.resize_context # img2img
+            width, width_before, width_after, width_mask = p.width, p.width_before, p.width_after, p.width_mask
+            height, height_before, height_after, height_mask = p.height, p.height_before, p.height_after, p.height_mask
+            scale_by, scale_by_before, scale_by_after, scale_by_mask = p.scale_by, p.scale_by_before, p.scale_by_after, p.scale_by_mask
+            resize_name, resize_name_before, resize_name_after, resize_name_mask = p.resize_name, p.resize_name_before, p.resize_name_after, p.resize_name_mask
+            resize_mode, resize_mode_before, resize_mode_after, resize_mode_mask = p.resize_mode, p.resize_mode_before, p.resize_mode_after, p.resize_mode_mask
+            resize_context, resize_context_before, resize_context_after, resize_context_mask = p.resize_context, p.resize_context_before, p.resize_context_after, p.resize_context_mask
+            selected_scale_tab, selected_scale_tab_before, selected_scale_tab_after, selected_scale_tab_mask = p.selected_scale_tab, p.selected_scale_tab_before, p.selected_scale_tab_after, p.selected_scale_tab_mask
+            hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_second_pass_steps = p.hr_scale, p.hr_resize_mode, p.hr_resize_context, p.hr_upscaler, p.hr_second_pass_steps
+            hr_resize_x, hr_resize_y, hr_upscale_to_x, hr_upscale_to_y, hr_denoising_strength = p.hr_resize_x, p.hr_resize_y, p.hr_upscale_to_x, p.hr_upscale_to_y, p.hr_denoising_strength
+
             p = last_p
             p.skip = ['encode', 'base']
             p.state = state
             p.enable_hr = True
             p.hr_force = True
-            p.hr_scale, p.hr_upscaler, p.hr_resize_mode, p.hr_resize_context, p.hr_resize_x, p.hr_resize_y, p.hr_upscale_to_x, p.hr_upscale_to_y = hr_scale, hr_upscaler, hr_resize_mode, hr_resize_context, hr_resize_x, hr_resize_y, hr_upscale_to_x, hr_upscale_to_y
-            p.height, p.width, p.scale_by, p.resize_mode, p.resize_name, p.resize_context = height, width, scale_by, resize_mode, resize_name, resize_context
             p.init_images = None
+
+            p.width, p.width_before, p.width_after, p.width_mask = width, width_before, width_after, width_mask
+            p.height, p.height_before, p.height_after, p.height_mask = height, height_before, height_after, height_mask
+            p.resize_name, p.resize_name_before, p.resize_name_after, p.resize_name_mask = resize_name, resize_name_before, resize_name_after, resize_name_mask
+            p.resize_mode, p.resize_mode_before, p.resize_mode_after, p.resize_mode_mask = resize_mode, resize_mode_before, resize_mode_after, resize_mode_mask
+            p.resize_context, p.resize_context_before, p.resize_context_after, p.resize_context_mask = resize_context, resize_context_before, resize_context_after, resize_context_mask
+            p.selected_scale_tab, p.selected_scale_tab_before, p.selected_scale_tab_after, p.selected_scale_tab_mask = selected_scale_tab, selected_scale_tab_before, selected_scale_tab_after, selected_scale_tab_mask
+            p.scale_by, p.scale_by_before, p.scale_by_after, p.scale_by_mask = scale_by, scale_by_before, scale_by_after, scale_by_mask
+            p.hr_scale, p.hr_resize_mode, p.hr_resize_context, p.hr_upscaler, p.hr_second_pass_steps = hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_second_pass_steps
+            p.hr_resize_x, p.hr_resize_y, p.hr_upscale_to_x, p.hr_upscale_to_y, p.hr_denoising_strength = hr_resize_x, hr_resize_y, hr_upscale_to_x, hr_upscale_to_y, hr_denoising_strength
         if state == 'reprocess_detail':
             p.skip = ['encode', 'base', 'hires']
             p.detailer_enabled = True

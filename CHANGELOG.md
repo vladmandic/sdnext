@@ -84,6 +84,7 @@
   - fix wildcards folders traversal, thanks @dymil  
   - fix zluda flash attention with enable_gqa  
   - fix `wan a14b` quantization  
+  - fix reprocess workflow for control with hires  
 
 ## Update for 2025-08-20
 

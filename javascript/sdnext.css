@@ -1357,7 +1357,7 @@ table.settings-value-table td {
 .extra-network-cards .card .version {
   background: gray;
   font-weight: bolder;
-  left: 0;
+  right: 0;
   line-height: 0.9rem;
   margin: 4px;
   opacity: 75%;

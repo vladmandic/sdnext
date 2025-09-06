@@ -932,7 +932,7 @@ svg.feather.feather-image,
 .extra-network-cards .card .version {
   position: absolute;
   top: 0;
-  left: 0;
+  right: 0;
   padding: 2px;
   font-weight: bolder;
   text-shadow: 1px 1px black;
