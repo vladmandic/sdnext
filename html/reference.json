@@ -203,10 +203,10 @@
     "skip": true,
     "extras": "steps: 8"
   },
-  "Qwen-Image-Distill-Full": {
+  "Qwen-Image-Distill": {
     "path": "SahilCarterr/Qwen-Image-Distill-Full",
-    "preview": "Qwen-Image-Distill-Full.jpg",
-    "desc": "Qwen-Image-Distill-Full is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
+    "preview": "Qwen-Image-Distill.jpg",
+    "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
     "skip": true,
     "extras": "steps: 15"
   },
