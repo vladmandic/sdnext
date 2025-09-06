@@ -825,7 +825,7 @@ def install_openvino():
     log.info('OpenVINO: selected')
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if int(sys.version_info.major) == 3 and int(sys.version_info.minor) == 9:
-        log.warning("Python 3.9 suppot will be removed with the next OpenVINO release!")
+        log.warning("Python 3.9 support will be removed with the next OpenVINO release!")
 
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
