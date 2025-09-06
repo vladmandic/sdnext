@@ -2,12 +2,24 @@
 
 ## Update for 2025-09-06
 
+### Highlights for 2025-09-06
+
+*What's new*? Big one is that we're (finally) switching the default UI to **ModernUI**!  
+StandardUI is still available and can be selected in settings, but ModernUI is now the default for new installs  
+*What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
+Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-09-06
+
 - **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
   - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
     *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
   - [Nunchaku-Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image) and [Nunchaku-Flux.1-Krea-Dev](https://huggingface.co/nunchaku-tech/nunchaku-flux.1-krea-dev)  
-    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine,  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization & inference engine  
+  - [Qwen-Lightning-Edit](https://huggingface.co/vladmandic/Qwen-Lightning-Edit) and [Qwen-Image-Distill](https://huggingface.co/SahilCarterr/Qwen-Image-Distill-Full) variants  
   - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
   - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
     highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  

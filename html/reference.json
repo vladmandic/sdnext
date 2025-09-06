@@ -210,6 +210,13 @@
     "skip": true,
     "extras": "steps: 15"
   },
+  "Qwen-Image-Lightning-Edit": {
+    "path": "vladmandic/Qwen-Lightning-Edit",
+    "preview": "Qwen-Lightning.jpg",
+    "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
+    "skip": true,
+    "extras": "steps: 8"
+  },
 
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",

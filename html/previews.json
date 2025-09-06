@@ -22,5 +22,6 @@
   "lodestones--Chroma1-HD": "models/Reference/lodestones--Chroma-HD.jpg",
   "chroma-unlocked-v50": "models/Reference/lodestones Chroma Unlocked HD",
   "chroma-unlocked-v50-annealed": "models/Reference/lodestones Chroma Unlocked HD",
-  "vladmandic--Qwen-Lightning": "models/Reference/Qwen-Lightning.jpg"
+  "vladmandic--Qwen-Lightning": "models/Reference/Qwen-Lightning.jpg",
+  "vladmandic--Qwen-Lightning-Edit": "models/Reference/Qwen-Lightning.jpg"
 }
