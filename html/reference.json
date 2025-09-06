@@ -192,16 +192,23 @@
   "Qwen-Image-Edit": {
     "path": "Qwen/Qwen-Image-Edit",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
-    "desc": " Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
+    "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
     "skip": true,
     "extras": ""
   },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "Qwen-Lightning.jpg",
-    "desc": " Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
+    "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8"
+  },
+  "Qwen-Image-Distill-Full": {
+    "path": "SahilCarterr/Qwen-Image-Distill-Full",
+    "preview": "Qwen-Image-Distill-Full.jpg",
+    "desc": "Qwen-Image-Distill-Full is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
+    "skip": true,
+    "extras": "steps: 15"
   },
 
   "Ostris Flex.2 Preview": {
