@@ -111,14 +111,22 @@ def init_api():
         item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
         if item is None:
             return JSONResponse({ 'item': 'none' })
-        return JSONResponse(item)
-
+        obj = json.dumps(item, cls=DateTimeEncoder)
+        return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, o):
+        from datetime import datetime
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
 
 
 class ExtraNetworksPage:
