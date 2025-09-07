@@ -240,36 +240,20 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         else:
             args['clip_skip'] = clip_skip - 1
 
-    if 'timesteps' in possible:
-        timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
-        timesteps = [int(x) for x in timesteps if x.isdigit()]
-        if len(timesteps) > 0:
-            if hasattr(model.scheduler, 'set_timesteps') and "timesteps" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys()):
-                try:
-                    args['timesteps'] = timesteps
-                    p.steps = len(timesteps)
-                    p.timesteps = timesteps
-                    steps = p.steps
-                    shared.log.debug(f'Sampler: steps={len(timesteps)} timesteps={timesteps}')
-                except Exception as e:
-                    shared.log.error(f'Sampler timesteps: {e}')
-            else:
-                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} timesteps not supported')
-    if 'sigmas' in possible:
-        sigmas = re.split(',| ', shared.opts.schedulers_timesteps)
-        sigmas = [float(x)/1000.0 for x in sigmas if x.isdigit()]
-        if len(sigmas) > 0:
-            if hasattr(model.scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys()):
-                try:
-                    args['sigmas'] = sigmas
-                    p.steps = len(sigmas)
-                    p.timesteps = sigmas
-                    steps = p.steps
-                    shared.log.debug(f'Sampler: steps={len(sigmas)} sigmas={sigmas}')
-                except Exception as e:
-                    shared.log.error(f'Sampler sigmas: {e}')
-            else:
-                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} sigmas not supported')
+    timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
+    if len(timesteps) > 0:
+        if ('timesteps' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("timesteps" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
+            p.timesteps = [int(x) for x in timesteps if x.isdigit()]
+            p.steps = len(timesteps)
+            args['timesteps'] = p.timesteps
+            shared.log.debug(f'Sampler: steps={len(p.timesteps)} timesteps={p.timesteps}')
+        elif ('sigmas' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("sigmas" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
+            p.timesteps = [float(x)/1000.0 for x in timesteps if x.isdigit()]
+            args['sigmas'] = p.timesteps
+            p.steps = len(p.timesteps)
+            shared.log.debug(f'Sampler: steps={len(p.timesteps)} sigmas={p.timesteps}')
+        else:
+            shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} timesteps not supported')
 
     if hasattr(model, 'scheduler') and hasattr(model.scheduler, 'noise_sampler_seed') and hasattr(model.scheduler, 'noise_sampler'):
         model.scheduler.noise_sampler = None # noise needs to be reset instead of using cached values
