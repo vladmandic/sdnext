@@ -241,7 +241,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['clip_skip'] = clip_skip - 1
 
     timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
-    if len(timesteps) > 0:
+    if len(timesteps) > 2:
         if ('timesteps' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("timesteps" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
             p.timesteps = [int(x) for x in timesteps if x.isdigit()]
             p.steps = len(timesteps)
@@ -249,8 +249,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             shared.log.debug(f'Sampler: steps={len(p.timesteps)} timesteps={p.timesteps}')
         elif ('sigmas' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("sigmas" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
             p.timesteps = [float(x)/1000.0 for x in timesteps if x.isdigit()]
-            args['sigmas'] = p.timesteps
             p.steps = len(p.timesteps)
+            args['sigmas'] = p.timesteps
             shared.log.debug(f'Sampler: steps={len(p.timesteps)} sigmas={p.timesteps}')
         else:
             shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} timesteps not supported')
