@@ -6,6 +6,7 @@
 
 *What's new*? Big one is that we're (finally) switching the default UI to **ModernUI**!  
 StandardUI is still available and can be selected in settings, but ModernUI is now the default for new installs  
+
 *What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
 Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
 
@@ -24,7 +25,7 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
     highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
     for pretraining T2I model at home based on super-light architecture  
-    requires: generator=cpu, dtype=float16, offload=none  
+    *requires*: generator=cpu, dtype=float16, offload=none, both positive and negative prompts are required and must be long & detailed  
   - [Apple FastVLM](https://huggingface.co/apple/FastVLM-0.5B) in 0.5B, 1.5B and 7B variants  
     available in captioning tab  
   - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
