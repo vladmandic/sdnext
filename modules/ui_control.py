@@ -547,7 +547,7 @@ def create_ui(_blocks: gr.Blocks=None):
             for u in units:
                 controls.extend(u.controls)
             btn_update = gr.Button('Update', interactive=True, visible=False, elem_id='control_update')
-            btn_update.click(fn=get_units, inputs=controls, outputs=[], show_progress=True, queue=False)
+            btn_update.click(fn=get_units, inputs=controls, outputs=[], show_progress=False, queue=False)
 
             show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             show_preview.change(fn=lambda x: gr.update(visible=x), inputs=[show_preview], outputs=[column_preview])
@@ -561,7 +561,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 _js="controlInputMode",
                 inputs=[input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder],
                 outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
-                show_progress=True,
+                show_progress=False,
                 queue=False,
             )
 
