@@ -72,6 +72,7 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - cleanup command line parameters  
   - add `--new` command line flag to enable testing of new packages without breaking existing installs  
   - downgrade rocm to `torch==2.7.1`  
+  - set the minimum supported rocm version on linux to `rocm==6.0`  
 - **OpenVINO**
   - update to `openvino==2025.3.0`  
   - add deprecation warning for Python 3.9  
