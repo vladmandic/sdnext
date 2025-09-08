@@ -17,14 +17,6 @@ device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp6
 if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
     if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 7):
         use_dynamic_attention = False # torch 2.7 has flash atten support
-    elif (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
-        try:
-            x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
-            del x
-            torch.xpu.empty_cache()
-            use_dynamic_attention = False
-        except Exception:
-            use_dynamic_attention = True
     else:
         use_dynamic_attention = True
 else:

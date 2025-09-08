@@ -803,6 +803,9 @@ def install_ipex():
     if os.environ.get("PYTORCH_ENABLE_XPU_FALLBACK", None) is None:
         os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1') # CPU fallback for unsupported ops
 
+    if os.environ.get("UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS", None) is None:
+        os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1') # Work around the 4G alloc limit on Alchemist
+
     # FP64 emulation causes random UR Errors
     #if os.environ.get("OverrideDefaultFP64Settings", None) is None:
     #    os.environ.setdefault('OverrideDefaultFP64Settings', '1')
