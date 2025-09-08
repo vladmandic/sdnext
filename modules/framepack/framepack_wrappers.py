@@ -164,6 +164,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
             width=w,
             height=h,
         )
+        p.ops.append('video')
         prompts = prepare_prompts(p, init_image, prompt, section_prompt, num_sections, vlm_enhance, vlm_model, vlm_system_prompt)
 
         async_run(

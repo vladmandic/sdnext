@@ -620,7 +620,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         image_txt = ''
         p.init_images = output_images # may be used for hires
 
-    if video_type != 'None' and isinstance(output_images, list):
+    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops:
         p.do_not_save_grid = True # pylint: disable=attribute-defined-outside-init
         output_filename = images.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
         if shared.opts.gradio_skip_video:

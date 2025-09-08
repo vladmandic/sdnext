@@ -697,7 +697,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 # refiner
                 (refiner_start, "Refiner start"),
                 (refiner_steps, "Refiner steps"),
-                (refiner_prompt, "refiner prompt"),
+                (refiner_prompt, "Refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # pag
                 (pag_scale, "PAG scale"),

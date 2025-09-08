@@ -275,7 +275,6 @@ def process_samples(p: StableDiffusionProcessing, samples):
     for i, sample in enumerate(samples):
         debug(f'Processing result: index={i+1}/{len(samples)}')
         p.batch_index = i
-        info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
         if isinstance(sample, Image.Image) or (isinstance(sample, list) and isinstance(sample[0], Image.Image)):
             image = sample
             sample = np.array(sample)
@@ -286,6 +285,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         if p.restore_faces:
             p.ops.append('restore')
             if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                 images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-restore")
             sample = face_restoration.restore_faces(sample, p)
             if sample is not None:
@@ -294,6 +294,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         if p.detailer_enabled:
             p.ops.append('detailer')
             if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                 images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-detailer")
             sample = detailer.detail(sample, p)
             if sample is not None:
@@ -306,6 +307,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 p.color_corrections = None
                 p.color_corrections = orig
                 image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
+                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                 images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")
             image = apply_color_correction(p.color_corrections[i], image)
 
@@ -324,6 +326,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
             image2 = Image.new('RGBa', image.size)
             mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
             image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
+            info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
             if shared.opts.save_mask:
                 images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
             if shared.opts.save_mask_composite:
@@ -336,6 +339,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 out_images.append(image_mask_composite)
 
         if shared.opts.include_mask:
+            info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
             if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
                 p.image_mask = create_binary_mask(p.overlay_images[0])
                 p.image_mask = ImageOps.invert(p.image_mask)
@@ -354,6 +358,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         if p.resize_mode_after != 0 and p.resize_name_after != 'None':
             image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
 
+        info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
         if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:
             images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
 

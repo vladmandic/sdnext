@@ -78,6 +78,7 @@ def framepack_post(request: ReqFramepack):
     shared.log.trace(f"API FramePack: id={task_id} init={init_image.shape} end={end_image.shape if end_image else None} {request}")
 
     generator = run_framepack(
+        _ui_state=None,
         task_id=f'task({task_id})',
         variant=request.variant,
         init_image=init_image,

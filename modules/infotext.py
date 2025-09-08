@@ -63,6 +63,7 @@ def parse(infotext):
         return params
     params['Prompt'] = prompt
     params['Negative prompt'] = negative
+    debug(f'Params: {params}')
     for key, val in params.copy().items():
         val = unquote(val).strip(" ,\n").replace('\\\n', '')
         size = re_size.match(val)
