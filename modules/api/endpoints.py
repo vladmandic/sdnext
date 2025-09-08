@@ -17,11 +17,15 @@ def get_upscalers():
     return [{"name": upscaler.name, "model_name": upscaler.scaler.model_name, "model_path": upscaler.data_path, "model_url": None, "scale": upscaler.scale} for upscaler in shared.sd_upscalers]
 
 def get_sd_models():
-    from modules import sd_models, sd_models_config
-    return [{"title": x.title, "model_name": x.name, "filename": x.filename, "type": x.type, "hash": x.shorthash, "sha256": x.sha256, "config": sd_models_config.find_checkpoint_config_near_filename(x)} for x in sd_models.checkpoints_list.values()]
+    from modules import sd_checkpoint
+    checkpoints = []
+    for v in sd_checkpoint.checkpoints_list.values():
+        checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256})
+    return checkpoints
 
-def get_hypernetworks():
-    return [{"name": name, "path": shared.hypernetworks[name]} for name in shared.hypernetworks]
+def get_controlnets(model_type: Optional[str] = None):
+    from modules.control.units.controlnet import api_list_models
+    return api_list_models(model_type)
 
 def get_detailers():
     return [{"name":x.name(), "cmd_dir": getattr(x, "cmd_dir", None)} for x in shared.detailers]
@@ -30,21 +34,10 @@ def get_prompt_styles():
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
 
 def get_embeddings():
-    from modules import sd_hijack
-    db = sd_hijack.model_hijack.embedding_db
-    def convert_embedding(embedding):
-        return {"step": embedding.step, "sd_checkpoint": embedding.sd_checkpoint, "sd_checkpoint_name": embedding.sd_checkpoint_name, "shape": embedding.shape, "vectors": embedding.vectors}
-
-    def convert_embeddings(embeddings):
-        return {embedding.name: convert_embedding(embedding) for embedding in embeddings.values()}
-
-    return {"loaded": convert_embeddings(db.word_embeddings), "skipped": convert_embeddings(db.skipped_embeddings)}
-
-def get_loras():
-    from modules.lora import network, lora_load
-    def create_lora_json(obj: network.NetworkOnDisk):
-        return { "name": obj.name, "alias": obj.alias, "path": obj.filename, "metadata": obj.metadata }
-    return [create_lora_json(obj) for obj in lora_load.available_networks.values()]
+    db = getattr(shared.sd_model, 'embedding_db', None) if shared.sd_loaded else None
+    if db is None:
+        return models.ResEmbeddings(loaded=[], skipped=[])
+    return models.ResEmbeddings(loaded=list(db.word_embeddings.keys()), skipped=list(db.skipped_embeddings.keys()))
 
 def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, filename: Optional[str] = None, title: Optional[str] = None, fullname: Optional[str] = None, hash: Optional[str] = None): # pylint: disable=redefined-builtin
     res = []
@@ -75,21 +68,14 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
 
 def get_interrogate():
     from modules.interrogate.openclip import refresh_clip_models
-    return ['clip', 'deepdanbooru'] + refresh_clip_models()
+    return ['deepdanbooru'] + refresh_clip_models()
 
 def post_interrogate(req: models.ReqInterrogate):
     if req.image is None or len(req.image) < 64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    if req.model == "clip":
-        try:
-            from modules.interrogate import openclip
-            caption = openclip.interrogator.interrogate(image)
-        except Exception as e:
-            caption = str(e)
-        return models.ResInterrogate(caption=caption)
-    elif req.model == "deepdanbooru" or req.model == 'deepbooru':
+    if req.model == "deepdanbooru" or req.model == 'deepbooru':
         from modules.interrogate import deepbooru
         caption = deepbooru.model.tag(image)
         return models.ResInterrogate(caption=caption)
@@ -122,20 +108,80 @@ def post_unload_checkpoint():
     sd_models.unload_model_weights(op='refiner')
     return {}
 
-def post_reload_checkpoint():
+def post_reload_checkpoint(force:bool=False):
     from modules import sd_models
+    if force:
+        sd_models.unload_model_weights(op='model')
     sd_models.reload_model_weights()
     return {}
 
+def post_lock_checkpoint(lock:bool=False):
+    from modules import modeldata
+    modeldata.model_data.locked = lock
+    return {}
+
+def get_checkpoint():
+    if not shared.sd_loaded or shared.sd_model is None:
+        checkpoint = {
+            'type': None,
+            'class': None,
+        }
+    else:
+        checkpoint = {
+            'type': shared.sd_model_type,
+            'class': shared.sd_model.__class__.__name__,
+        }
+        if hasattr(shared.sd_model, 'sd_model_checkpoint'):
+            checkpoint['checkpoint'] = shared.sd_model.sd_model_checkpoint
+        if hasattr(shared.sd_model, 'sd_checkpoint_info'):
+            checkpoint['title'] = shared.sd_model.sd_checkpoint_info.title
+            checkpoint['name'] = shared.sd_model.sd_checkpoint_info.name
+            checkpoint['filename'] = shared.sd_model.sd_checkpoint_info.filename
+            checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
+    return checkpoint
+
+def set_checkpoint(sd_model_checkpoint: str, dtype:str=None, force:bool=False):
+    from modules import sd_models, devices
+    if force:
+        sd_models.unload_model_weights(op='model')
+    if dtype is not None:
+        shared.opts.cuda_dtype = dtype
+        devices.set_dtype()
+    shared.opts.sd_model_checkpoint = sd_model_checkpoint
+    model = sd_models.reload_model_weights()
+    return { 'ok': model is not None }
+
 def post_refresh_checkpoints():
-    return shared.refresh_checkpoints()
+    shared.refresh_checkpoints()
+    return {}
 
 def post_refresh_vae():
-    return shared.refresh_vaes()
+    shared.refresh_vaes()
+    return {}
 
-def post_refresh_loras():
-    from modules.lora import lora_load
-    return lora_load.list_available_networks()
+def get_modules():
+    from modules import modelstats
+    model = modelstats.analyze()
+    if model is None:
+        return {}
+    model_obj = {
+        'model': model.name,
+        'type': model.type,
+        'class': model.cls,
+        'size': model.size,
+        'mtime': str(model.mtime),
+        'modules': []
+    }
+    for m in model.modules:
+        model_obj['modules'].append({
+            'class': m.cls,
+            'params': m.params,
+            'modules': m.modules,
+            'quant': m.quant,
+            'device': str(m.device),
+            'dtype': str(m.dtype)
+        })
+    return model_obj
 
 def get_extensions_list():
     from modules import extensions

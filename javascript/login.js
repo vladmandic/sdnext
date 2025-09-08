@@ -12,7 +12,7 @@ const loginCSS = `
 
 const loginHTML = `
   <div id="loginDiv" style="margin: 15% auto; max-width: 200px; padding: 2em; background: var(--background-fill-secondary);">
-    <h2>Login</h2> 
+    <h2>Login</h2>
     <label for="username" style="margin-top: 0.5em">Username</label>
     <input type="text" id="loginUsername" name="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em">
     <label for="password" style="margin-top: 0.5em">Password</label>

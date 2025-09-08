@@ -2,7 +2,6 @@ import sys
 from typing import Union
 import torch
 from torch._prims_common import DeviceLikeType
-import onnxruntime as ort
 from modules import shared, devices, zluda_installer
 from modules.zluda_installer import core, default_agent # pylint: disable=unused-import
 from modules.onnx_impl.execution_providers import available_execution_providers, ExecutionProvider
@@ -26,16 +25,15 @@ def test(device: DeviceLikeType) -> Union[Exception, None]:
 
 def initialize_zluda():
     shared.cmd_opts.device_id = None
-    device = devices.get_optimal_device()
-    if not devices.cuda_ok or not devices.has_zluda() or PLATFORM != "win32":
+    if not devices.cuda_ok or not devices.has_zluda():
         return
 
-    from modules.zluda_hijacks import do_hijack
-    do_hijack()
-
     torch.backends.cudnn.enabled = zluda_installer.MIOpen_enabled
-    if not zluda_installer.MIOpen_enabled:
-        torch.backends.cuda.enable_cudnn_sdp(False)
+    if hasattr(torch.backends.cuda, "enable_cudnn_sdp"):
+        if not zluda_installer.MIOpen_enabled:
+            torch.backends.cuda.enable_cudnn_sdp(False)
+            torch.backends.cuda.enable_cudnn_sdp = do_nothing
+    else:
         torch.backends.cuda.enable_cudnn_sdp = do_nothing
     torch.backends.cuda.enable_flash_sdp(False)
     torch.backends.cuda.enable_flash_sdp = torch.backends.cuda.enable_cudnn_sdp
@@ -43,11 +41,17 @@ def initialize_zluda():
     torch.backends.cuda.enable_mem_efficient_sdp = do_nothing
 
     # ONNX Runtime is not supported
-    ort.capi._pybind_state.get_available_providers = lambda: [v for v in available_execution_providers if v != ExecutionProvider.CUDA] # pylint: disable=protected-access
-    ort.get_available_providers = ort.capi._pybind_state.get_available_providers # pylint: disable=protected-access
-    if shared.opts.onnx_execution_provider == ExecutionProvider.CUDA:
+    try:
+        import onnxruntime as ort
+        ort.capi._pybind_state.get_available_providers = lambda: [v for v in available_execution_providers if v != ExecutionProvider.CUDA] # pylint: disable=protected-access
+        ort.get_available_providers = ort.capi._pybind_state.get_available_providers # pylint: disable=protected-access
+        if shared.opts.onnx_execution_provider == ExecutionProvider.CUDA:
+            shared.opts.onnx_execution_provider = ExecutionProvider.CPU
+    except Exception as e:
+        shared.log.warning(f'ZLUDA ONNX runtime: {e}')
         shared.opts.onnx_execution_provider = ExecutionProvider.CPU
 
+    device = devices.get_optimal_device()
     result = test(device)
     if result is not None:
         shared.log.warning(f'ZLUDA device failed to pass basic operation test: index={device.index}, device_name={torch.cuda.get_device_name(device)}')

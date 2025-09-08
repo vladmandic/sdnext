@@ -1,6 +1,7 @@
 # xyz grid that shows as selectable script
 import os
 import csv
+import time
 import random
 from collections import namedtuple
 from copy import copy
@@ -9,11 +10,11 @@ from io import StringIO
 from PIL import Image
 import numpy as np
 import gradio as gr
-from scripts.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
-from scripts.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
-from scripts.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
-from scripts.xyz_grid_shared import apply_field, apply_task_args, apply_setting, apply_prompt, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_dict, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing # pylint: disable=no-name-in-module, unused-import
-from modules import shared, errors, scripts, images, processing
+from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_shared import apply_field, apply_task_args, apply_setting, apply_prompt, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing # pylint: disable=no-name-in-module, unused-import
+from modules import shared, errors, scripts_manager, images, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs
 import modules.ui_symbols as symbols
@@ -22,7 +23,7 @@ import modules.ui_symbols as symbols
 debug = shared.log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     current_axis_options = []
 
     def title(self):
@@ -303,7 +304,7 @@ class Script(scripts.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
-                return processing.Processed(p, [], p.seed, "")
+                return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
             pc.override_settings_restore_afterwards = False
@@ -311,6 +312,8 @@ class Script(scripts.Script):
             x_opt.apply(pc, x, xs)
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
+
+            t0 = time.time()
             try:
                 processed = processing.process_images(pc)
             except Exception as e:
@@ -341,7 +344,8 @@ class Script(scripts.Script):
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 grid_text = f'{len(zs)}x{len(xs)}x{len(ys)}' if len(zs) > 0 else f'{len(xs)}x{len(ys)}'
                 grid_infotext[0] = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=grid_text)
-            return processed
+            t1 = time.time()
+            return processed, t1-t0
 
         with SharedSettingsStackHelper():
             processed = draw_xyz_grid(
@@ -364,9 +368,12 @@ class Script(scripts.Script):
                 include_text=include_text,
             )
 
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
+            shared.sd_model.restore_pipeline()
+
         if not processed.images:
             return processed # something broke, no further handling needed.
-        # processed.images = (1)*grid + (z > 1 ? z : 0)*subgrids + (x*y*z)*images
+
         have_grid = 1 if include_grid else 0
         have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
         have_images = processed.images[have_grid+have_subgrids:]

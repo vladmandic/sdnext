@@ -2,9 +2,17 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import diffusers
-import onnxruntime as ort
+from installer import log, installed, install
+
 
 initialized = False
+
+
+try:
+    import onnxruntime as ort
+except Exception as e:
+    log.error(f'ONNX import error: {e}')
+    ort = None
 
 
 class DynamicSessionOptions(ort.SessionOptions):
@@ -193,7 +201,6 @@ def initialize_onnx():
     global initialized # pylint: disable=global-statement
     if initialized:
         return
-    from installer import log, installed
     from modules import devices
     if not installed('onnx', quiet=True):
         return
@@ -202,53 +209,43 @@ def initialize_onnx():
         from .execution_providers import ExecutionProvider, TORCH_DEVICE_TO_EP, available_execution_providers
         if devices.backend == "rocm":
             TORCH_DEVICE_TO_EP["cuda"] = ExecutionProvider.ROCm
-        from .pipelines.onnx_stable_diffusion_pipeline import OnnxStableDiffusionPipeline
-        from .pipelines.onnx_stable_diffusion_img2img_pipeline import OnnxStableDiffusionImg2ImgPipeline
-        from .pipelines.onnx_stable_diffusion_inpaint_pipeline import OnnxStableDiffusionInpaintPipeline
-        from .pipelines.onnx_stable_diffusion_upscale_pipeline import OnnxStableDiffusionUpscalePipeline
-
-        OnnxRuntimeModel.__module__ = 'diffusers' # OnnxRuntimeModel Hijack.
-        diffusers.OnnxRuntimeModel = OnnxRuntimeModel
-
-        diffusers.OnnxStableDiffusionPipeline = OnnxStableDiffusionPipeline
-        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionPipeline
-
-        diffusers.OnnxStableDiffusionImg2ImgPipeline = OnnxStableDiffusionImg2ImgPipeline
-        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionImg2ImgPipeline
-
-        diffusers.OnnxStableDiffusionInpaintPipeline = OnnxStableDiffusionInpaintPipeline
-        diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionInpaintPipeline
-
-        diffusers.OnnxStableDiffusionUpscalePipeline = OnnxStableDiffusionUpscalePipeline
-
         log.debug(f'ONNX: version={ort.__version__}, available={available_execution_providers}')
+
     except Exception as e:
-        log.error(f'ONNX failed to initialize: {e}')
-
-    try:
-        # load xl pipelines. may fail if the user has the latest diffusers (0.30.x)
-        import optimum.onnxruntime
-        from .pipelines.onnx_stable_diffusion_xl_pipeline import OnnxStableDiffusionXLPipeline
-        from .pipelines.onnx_stable_diffusion_xl_img2img_pipeline import OnnxStableDiffusionXLImg2ImgPipeline
-
-        diffusers.OnnxStableDiffusionXLPipeline = OnnxStableDiffusionXLPipeline
-        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion-xl"] = diffusers.OnnxStableDiffusionXLPipeline
-
-        diffusers.OnnxStableDiffusionXLImg2ImgPipeline = OnnxStableDiffusionXLImg2ImgPipeline
-        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion-xl"] = diffusers.OnnxStableDiffusionXLImg2ImgPipeline
-
-        diffusers.ORTStableDiffusionXLPipeline = diffusers.OnnxStableDiffusionXLPipeline # Huggingface model compatibility
-        diffusers.ORTStableDiffusionXLImg2ImgPipeline = diffusers.OnnxStableDiffusionXLImg2ImgPipeline
-
-        optimum.onnxruntime.modeling_diffusion.ORTPipelinePart.to = ORTPipelinePart_to # pylint: disable=protected-access
-    except Exception as e:
-        log.debug(f'ONNX failed to initialize XL pipelines: {e}')
+        log.error(f'ONNX initialization: {e}')
 
     initialized = True
 
 
+def initialize_onnx_pipelines():
+    try: # may fail on onnx import
+        import onnx # pylint: disable=unused-import
+        OnnxRuntimeModel.__module__ = 'diffusers' # OnnxRuntimeModel Hijack.
+        diffusers.OnnxRuntimeModel = OnnxRuntimeModel
+        from .pipelines.onnx_stable_diffusion_pipeline import OnnxStableDiffusionPipeline
+        from .pipelines.onnx_stable_diffusion_img2img_pipeline import OnnxStableDiffusionImg2ImgPipeline
+        from .pipelines.onnx_stable_diffusion_inpaint_pipeline import OnnxStableDiffusionInpaintPipeline
+        from .pipelines.onnx_stable_diffusion_upscale_pipeline import OnnxStableDiffusionUpscalePipeline
+        from .pipelines.onnx_stable_diffusion_xl_pipeline import OnnxStableDiffusionXLPipeline
+        from .pipelines.onnx_stable_diffusion_xl_img2img_pipeline import OnnxStableDiffusionXLImg2ImgPipeline
+        diffusers.OnnxStableDiffusionPipeline = OnnxStableDiffusionPipeline
+        diffusers.OnnxStableDiffusionImg2ImgPipeline = OnnxStableDiffusionImg2ImgPipeline
+        diffusers.OnnxStableDiffusionInpaintPipeline = OnnxStableDiffusionInpaintPipeline
+        diffusers.OnnxStableDiffusionUpscalePipeline = OnnxStableDiffusionUpscalePipeline
+        diffusers.OnnxStableDiffusionXLPipeline = OnnxStableDiffusionXLPipeline
+        diffusers.OnnxStableDiffusionXLImg2ImgPipeline = OnnxStableDiffusionXLImg2ImgPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionImg2ImgPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["onnx-stable-diffusion"] = diffusers.OnnxStableDiffusionInpaintPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion-xl"] = diffusers.OnnxStableDiffusionXLPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["onnx-stable-diffusion-xl"] = diffusers.OnnxStableDiffusionXLImg2ImgPipeline
+        diffusers.ORTStableDiffusionXLPipeline = diffusers.OnnxStableDiffusionXLPipeline # Huggingface model compatibility
+        diffusers.ORTStableDiffusionXLImg2ImgPipeline = diffusers.OnnxStableDiffusionXLImg2ImgPipeline
+    except Exception as e:
+        log.error(f'ONNX initialization: {e}')
+
+
 def install_olive():
-    from installer import installed, install, log
     if installed("olive-ai"):
         return
     try:

@@ -165,4 +165,3 @@ class MiDaSInference(nn.Module):
     def forward(self, x):
         prediction = self.model(x)
         return prediction
-

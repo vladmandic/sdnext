@@ -44,8 +44,7 @@ class Timer:
     def summary(self, min_time=default_min_time, total=True):
         if self.profile:
             min_time = -1
-        if self.total <= 0:
-            self.total = sum(self.records.values())
+        self.total = sum(self.records.values())
         res = f"total={self.total:.2f} " if total else ''
         additions = [x for x in self.records.items() if x[1] >= min_time]
         additions = sorted(additions, key=lambda x: x[1], reverse=True)
@@ -60,6 +59,8 @@ class Timer:
     def dct(self, min_time=default_min_time):
         if self.profile:
             res = {k: round(v, 4) for k, v in self.records.items()}
+        self.total = sum(self.records.values())
+        self.records['total'] = self.total
         res = {k: round(v, 2) for k, v in self.records.items() if v >= min_time}
         res = {k: v for k, v in sorted(res.items(), key=lambda x: x[1], reverse=True)} # noqa: C416 # pylint: disable=unnecessary-comprehension
         return res
@@ -71,3 +72,4 @@ startup = Timer()
 process = Timer()
 launch = Timer()
 init = Timer()
+load = Timer()

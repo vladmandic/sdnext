@@ -1,43 +1,12 @@
 import math
 import gradio as gr
-import modules.scripts as scripts
-from modules import images
+from modules import images, scripts_manager
 from modules.processing import process_images
-from modules.shared import opts, state, log
+from modules.shared import opts, log
 import modules.sd_samplers
 
 
-def draw_xy_grid(xs, ys, x_label, y_label, cell):
-    res = []
-
-    ver_texts = [[images.GridAnnotation(y_label(y))] for y in ys]
-    hor_texts = [[images.GridAnnotation(x_label(x))] for x in xs]
-
-    first_processed = None
-
-    state.job_count = len(xs) * len(ys)
-
-    for iy, y in enumerate(ys):
-        for ix, x in enumerate(xs):
-            state.job = f"{ix + iy * len(xs) + 1} out of {len(xs) * len(ys)}"
-
-            processed = cell(x, y)
-            if first_processed is None:
-                first_processed = processed
-
-            res.append(processed.images[0])
-
-    if images.check_grid_size(res):
-        grid = images.image_grid(res, rows=len(ys))
-        grid = images.draw_grid_annotations(grid, res[0].width, res[0].height, hor_texts, ver_texts)
-        first_processed.images = [grid]
-    else:
-        first_processed.images = res
-
-    return first_processed
-
-
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return "Prompt matrix"
 

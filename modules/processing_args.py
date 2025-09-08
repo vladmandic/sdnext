@@ -7,7 +7,7 @@ import inspect
 import torch
 import numpy as np
 from PIL import Image
-from modules import shared, errors, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, prompt_parser_diffusers, timer, extra_networks
+from modules import shared, errors, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, prompt_parser_diffusers, timer, extra_networks, sd_vae
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import resize_hires, fix_prompts, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, get_generator, set_latents, apply_circular # pylint: disable=unused-import
 from modules.api import helpers
@@ -19,6 +19,7 @@ disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
 def task_specific_kwargs(p, model):
+    vae_scale_factor = sd_vae.get_vae_scale_factor(model)
     task_args = {}
     is_img2img_model = bool('Zero123' in shared.sd_model.__class__.__name__)
     if len(getattr(p, 'init_images', [])) > 0:
@@ -30,12 +31,15 @@ def task_specific_kwargs(p, model):
         p.ops.append('txt2img')
         if hasattr(p, 'width') and hasattr(p, 'height'):
             task_args = {
-                'width': 8 * math.ceil(p.width / 8),
-                'height': 8 * math.ceil(p.height / 8),
+                'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor),
+                'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor),
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in sd_models.i2i_pipes:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if 'hires' not in p.ops:
             p.ops.append('img2img')
         if p.vae_type == 'Remote':
@@ -45,17 +49,20 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-        if model.__class__.__name__ == 'FluxImg2ImgPipeline': # needs explicit width/height
+        if model.__class__.__name__ == 'FluxImg2ImgPipeline' or model.__class__.__name__ == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width = p.init_images[0].shape[-1] * 16
-                p.height = p.init_images[0].shape[-2] * 16
+                p.width, p.height = p.init_images[0].shape[-1] * vae_scale_factor, p.init_images[0].shape[-2] * vae_scale_factor
             else:
-                p.width = 8 * math.ceil(p.init_images[0].width / 8)
-                p.height = 8 * math.ceil(p.init_images[0].height / 8)
+                p.width, p.height = 8 * math.ceil(p.init_images[0].width / vae_scale_factor), 8 * math.ceil(p.init_images[0].height / vae_scale_factor)
+            if model.__class__.__name__ == 'FluxKontextPipeline':
+                aspect_ratio = p.width / p.height
+                max_area = max(p.width, p.height)**2
+                p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
+                p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
+                task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
-        if model.__class__.__name__ == 'OmniGenPipeline':
-            p.width = 16 * math.ceil(p.init_images[0].width / 16)
-            p.height = 16 * math.ceil(p.init_images[0].height / 16)
+        elif model.__class__.__name__ == 'OmniGenPipeline' or model.__class__.__name__ == 'OmniGen2Pipeline':
+            p.width, p.height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             task_args = {
                 'width': p.width,
                 'height': p.height,
@@ -64,14 +71,17 @@ def task_specific_kwargs(p, model):
     elif sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {
-            'width': 8 * math.ceil(p.width / 8) if hasattr(p, 'width') else None,
-            'height': 8 * math.ceil(p.height / 8) if hasattr(p, 'height') else None,
+            'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor) if hasattr(p, 'width') else None,
+            'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor) if hasattr(p, 'height') else None,
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            model.register_to_config(requires_aesthetics_score = False)
+            if model.__class__.__name__ in [sd_models.i2i_pipes]:
+                pass
+            else:
+                model.register_to_config(requires_aesthetics_score = False)
         if p.detailer_enabled:
             p.ops.append('detailer')
         else:
@@ -89,6 +99,10 @@ def task_specific_kwargs(p, model):
             'height': height,
             'width': width,
         }
+
+    # model specific args
+    if model.__class__.__name__ == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
+        task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
     if model.__class__.__name__ == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -138,13 +152,16 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
+    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
+
     parser = 'fixed'
     prompt_attention = prompt_attention or shared.opts.prompt_attention
     if (prompt_attention != 'fixed') and ('Onnx' not in model.__class__.__name__) and ('prompt' not in p.task_args) and (
         'StableDiffusion' in model.__class__.__name__ or
         'StableCascade' in model.__class__.__name__ or
         'Flux' in model.__class__.__name__ or
-        'HiDreamImage' in model.__class__.__name__
+        'Chroma' in model.__class__.__name__ or
+        'HiDreamImagePipeline' in model.__class__.__name__
     ):
         try:
             prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
@@ -157,18 +174,21 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     else:
         prompt_parser_diffusers.embedder = None
 
-    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
     if 'prompt' in possible:
         if 'OmniGen' in model.__class__.__name__:
-            prompts = [p.replace('|image|', '<|image_1|>') for p in prompts]
-        if 'HiDreamImage' in model.__class__.__name__:
+            prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
+        if ('HiDreamImage' in model.__class__.__name__) and (prompt_parser_diffusers.embedder is not None):
             args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
             prompt_embeds = prompt_parser_diffusers.embedder('prompt_embeds')
             args['prompt_embeds_t5'] = prompt_embeds[0]
             args['prompt_embeds_llama3'] = prompt_embeds[1]
-        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
-            args['prompt_embeds'] = prompt_parser_diffusers.embedder('prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
+        elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and ('prompt_embeds' in possible) and (prompt_parser_diffusers.embedder is not None):
+            embeds = prompt_parser_diffusers.embedder('prompt_embeds')
+            if embeds is None:
+                shared.log.warning('Prompt parser encode: empty prompt embeds')
+                args['prompt'] = prompts
+            else:
+                args['prompt_embeds'] = embeds
                 if 'StableCascade' in model.__class__.__name__:
                     args['prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('positive_pooleds').unsqueeze(0)
                 elif 'XL' in model.__class__.__name__:
@@ -177,23 +197,26 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
                 elif 'Flux' in model.__class__.__name__:
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
+                elif 'Chroma' in model.__class__.__name__:
+                    args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
         else:
             args['prompt'] = prompts
     if 'negative_prompt' in possible:
-        if 'HiDreamImage' in model.__class__.__name__:
+        if 'HiDreamImage' in model.__class__.__name__ and prompt_parser_diffusers.embedder is not None:
             args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
             negative_prompt_embeds = prompt_parser_diffusers.embedder('negative_prompt_embeds')
             args['negative_prompt_embeds_t5'] = negative_prompt_embeds[0]
             args['negative_prompt_embeds_llama3'] = negative_prompt_embeds[1]
         elif hasattr(model, 'text_encoder') and hasattr(model, 'tokenizer') and 'negative_prompt_embeds' in possible and prompt_parser_diffusers.embedder is not None:
             args['negative_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_prompt_embeds')
-            if prompt_parser_diffusers.embedder is not None:
-                if 'StableCascade' in model.__class__.__name__:
-                    args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
-                elif 'XL' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
-                elif 'StableDiffusion3' in model.__class__.__name__:
-                    args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            if 'StableCascade' in model.__class__.__name__:
+                args['negative_prompt_embeds_pooled'] = prompt_parser_diffusers.embedder('negative_pooleds').unsqueeze(0)
+            elif 'XL' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'StableDiffusion3' in model.__class__.__name__:
+                args['negative_pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('negative_pooleds')
+            elif 'Chroma' in model.__class__.__name__:
+                args['negative_prompt_attention_mask'] = prompt_parser_diffusers.embedder('negative_prompt_attention_masks')
         else:
             if 'PixArtSigmaPipeline' in model.__class__.__name__: # pixart-sigma pipeline throws list-of-list for negative prompt
                 args['negative_prompt'] = negative_prompts[0]
@@ -231,7 +254,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 except Exception as e:
                     shared.log.error(f'Sampler timesteps: {e}')
             else:
-                shared.log.warning(f'Sampler: sampler={model.scheduler.__class__.__name__} timesteps not supported')
+                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} timesteps not supported')
     if 'sigmas' in possible:
         sigmas = re.split(',| ', shared.opts.schedulers_timesteps)
         sigmas = [float(x)/1000.0 for x in sigmas if x.isdigit()]
@@ -246,7 +269,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 except Exception as e:
                     shared.log.error(f'Sampler sigmas: {e}')
             else:
-                shared.log.warning(f'Sampler: sampler={model.scheduler.__class__.__name__} sigmas not supported')
+                shared.log.warning(f'Sampler: cls={model.scheduler.__class__.__name__} sigmas not supported')
 
     if hasattr(model, 'scheduler') and hasattr(model.scheduler, 'noise_sampler_seed') and hasattr(model.scheduler, 'noise_sampler'):
         model.scheduler.noise_sampler = None # noise needs to be reset instead of using cached values
@@ -272,7 +295,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             kwargs['output_type'] = 'np' # only set latent if model has vae
 
     # model specific
-    if 'Kandinsky' in model.__class__.__name__:
+    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("guidance_scale") # remove
@@ -331,19 +354,21 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     continue
             args[arg] = kwargs[arg]
 
+    # handle task specific args
     task_kwargs = task_specific_kwargs(p, model)
-    for arg in task_kwargs:
-        # if arg in possible and arg not in args: # task specific args should not override args
-        if arg in possible:
-            args[arg] = task_kwargs[arg]
-    task_args = getattr(p, 'task_args', {})
+    pipe_args = getattr(p, 'task_args', {})
+    model_args = getattr(model, 'task_args', {})
+    task_kwargs.update(pipe_args)
+    task_kwargs.update(model_args)
     if debug_enabled:
-        debug_log(f'Process task args: {task_args}')
-    for k, v in task_args.items():
+        debug_log(f'Process task args: {task_kwargs}')
+    for k, v in task_kwargs.items():
         if k in possible:
             args[k] = v
         else:
             debug_log(f'Process unknown task args: {k}={v}')
+
+    # handle cross-attention args
     cross_attention_args = getattr(p, 'cross_attention_kwargs', {})
     if debug_enabled:
         debug_log(f'Process cross-attention args: {cross_attention_args}')
@@ -355,18 +380,21 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     # handle missing resolution
     if args.get('image', None) is not None and ('width' not in args or 'height' not in args):
         if 'width' in possible and 'height' in possible:
+            vae_scale_factor = sd_vae.get_vae_scale_factor(model)
             if isinstance(args['image'], torch.Tensor) or isinstance(args['image'], np.ndarray):
-                args['width'] = 8 * args['image'].shape[-1]
-                args['height'] = 8 * args['image'].shape[-2]
+                args['width'] = vae_scale_factor * args['image'].shape[-1]
+                args['height'] = vae_scale_factor * args['image'].shape[-2]
             elif isinstance(args['image'], Image.Image):
                 args['width'] = args['image'].width
                 args['height'] = args['image'].height
             elif isinstance(args['image'][0], torch.Tensor) or isinstance(args['image'][0], np.ndarray):
-                args['width'] = 8 * args['image'][0].shape[-1]
-                args['height'] = 8 * args['image'][0].shape[-2]
+                args['width'] = vae_scale_factor * args['image'][0].shape[-1]
+                args['height'] = vae_scale_factor * args['image'][0].shape[-2]
             else:
-                args['width'] = 8 * math.ceil(args['image'][0].width / 8)
-                args['height'] = 8 * math.ceil(args['image'][0].height / 8)
+                args['width'] = vae_scale_factor * math.ceil(args['image'][0].width / vae_scale_factor)
+                args['height'] = vae_scale_factor * math.ceil(args['image'][0].height / vae_scale_factor)
+    if 'max_area' in possible and 'width' in args and 'height' in args and 'max_area' not in args:
+        args['max_area'] = args['width'] * args['height']
 
     # handle implicit controlnet
     if 'control_image' in possible and 'control_image' not in args and 'image' in args:
@@ -390,18 +418,20 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         clean['generator'] = f'{generator[0].device}:{[g.initial_seed() for g in generator]}'
     clean['parser'] = parser
     for k, v in clean.copy().items():
-        if isinstance(v, torch.Tensor) or isinstance(v, np.ndarray):
+        if v is None:
+            clean[k] = None
+        elif isinstance(v, torch.Tensor) or isinstance(v, np.ndarray):
             clean[k] = v.shape
-        if isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
+        elif isinstance(v, list) and len(v) > 0 and (isinstance(v[0], torch.Tensor) or isinstance(v[0], np.ndarray)):
             clean[k] = [x.shape for x in v]
-        if not debug_enabled and k.endswith('_embeds'):
+        elif not debug_enabled and k.endswith('_embeds'):
             del clean[k]
             clean['prompt'] = 'embeds'
     task = str(sd_models.get_diffusers_task(model)).replace('DiffusersTaskType.', '')
     shared.log.info(f'{desc}: pipeline={model.__class__.__name__} task={task} batch={p.iteration + 1}/{p.n_iter}x{p.batch_size} set={clean}')
 
     if p.hdr_clamp or p.hdr_maximize or p.hdr_brightness != 0 or p.hdr_color != 0 or p.hdr_sharpen != 0:
-        shared.log.debug(f'HDR: clamp={p.hdr_clamp} maximize={p.hdr_maximize} brightness={p.hdr_brightness} color={p.hdr_color} sharpen={p.hdr_sharpen} threshold={p.hdr_threshold} boundary={p.hdr_boundary} max={p.hdr_max_boundry} center={p.hdr_max_center}')
+        shared.log.debug(f'HDR: clamp={p.hdr_clamp} maximize={p.hdr_maximize} brightness={p.hdr_brightness} color={p.hdr_color} sharpen={p.hdr_sharpen} threshold={p.hdr_threshold} boundary={p.hdr_boundary} max={p.hdr_max_boundary} center={p.hdr_max_center}')
     if shared.cmd_opts.profile:
         t1 = time.time()
         shared.log.debug(f'Profile: pipeline args: {t1-t0:.2f}')

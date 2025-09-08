@@ -9,7 +9,7 @@ from modules import shared, devices, processing, images, sd_vae_approx, sd_vae_t
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])
 approximation_indexes = { "Simple": 0, "Approximate": 1, "TAESD": 2, "Full VAE": 3 }
-flow_models = ['f1', 'sd3', 'lumina', 'auraflow', 'sana', 'lumina2', 'cogview4']
+flow_models = ['f1', 'sd3', 'lumina', 'auraflow', 'sana', 'lumina2', 'cogview4', 'h1', 'cosmos', 'chroma', 'omnigen', 'omnigen2']
 warned = False
 queue_lock = threading.Lock()
 
@@ -52,9 +52,9 @@ def single_sample_to_image(sample, approximation=None):
         if len(sample.shape) == 4 and sample.shape[0]: # likely animatediff latent
             sample = sample.permute(1, 0, 2, 3)[0]
         if approximation == 2: # TAESD
-            if (len(sample.shape) == 3 or len(sample.shape) == 4) and shared.opts.live_preview_downscale and (sample.shape[-1] > 128 or sample.shape[-2] > 128):
+            if (len(sample.shape) == 3 or len(sample.shape) == 4) and shared.opts.live_preview_downscale and (sample.shape[-1]*sample.shape[-2] > 128*128):
                 try:
-                    scale = 128 / max(sample.shape[-1], sample.shape[-2])
+                    scale = (128 * 128) / (sample.shape[-1] * sample.shape[-2])
                     sample = torch.nn.functional.interpolate(sample.unsqueeze(0), scale_factor=[scale, scale], mode='bilinear', align_corners=False)[0]
                 except Exception:
                     pass

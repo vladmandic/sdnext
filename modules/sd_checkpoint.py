@@ -112,11 +112,9 @@ def setup_model():
     list_models()
     sd_hijack_accelerate.hijack_hfhub()
     # sd_hijack_accelerate.hijack_torch_conv()
-    if not shared.native:
-        enable_midas_autodownload()
 
 
-def checkpoint_titles(use_short=False): # pylint: disable=unused-argument
+def checkpoint_titles():
     def convert(name):
         return int(name) if name.isdigit() else name.lower()
     def alphanumeric_key(key):
@@ -129,7 +127,7 @@ def list_models():
     global checkpoints_list # pylint: disable=global-statement
     checkpoints_list.clear()
     checkpoint_aliases.clear()
-    ext_filter = [".safetensors"] if shared.opts.sd_disable_ckpt or shared.native else [".ckpt", ".safetensors"]
+    ext_filter = [".safetensors"]
     model_list = list(modelloader.load_models(model_path=model_path, model_url=None, command_path=shared.opts.ckpt_dir, ext_filter=ext_filter, download_name=None, ext_blacklist=[".vae.ckpt", ".vae.safetensors"]))
     safetensors_list = []
     for filename in sorted(model_list, key=str.lower):
@@ -138,44 +136,59 @@ def list_models():
         if checkpoint_info.name is not None:
             checkpoint_info.register()
     diffusers_list = []
-    if shared.native:
-        for repo in modelloader.load_diffusers_models(clear=True):
-            checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'])
-            diffusers_list.append(checkpoint_info)
-            if checkpoint_info.name is not None:
-                checkpoint_info.register()
+    for repo in modelloader.load_diffusers_models(clear=True):
+        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'])
+        diffusers_list.append(checkpoint_info)
+        if checkpoint_info.name is not None:
+            checkpoint_info.register()
     if shared.cmd_opts.ckpt is not None:
-        if not os.path.exists(shared.cmd_opts.ckpt) and not shared.native:
-            if shared.cmd_opts.ckpt.lower() != "none":
-                shared.log.warning(f'Load model: path="{shared.cmd_opts.ckpt}" not found')
-        else:
-            checkpoint_info = CheckpointInfo(shared.cmd_opts.ckpt)
-            if checkpoint_info.name is not None:
-                checkpoint_info.register()
-                shared.opts.data['sd_model_checkpoint'] = checkpoint_info.title
+        checkpoint_info = CheckpointInfo(shared.cmd_opts.ckpt)
+        if checkpoint_info.name is not None:
+            checkpoint_info.register()
+            shared.opts.data['sd_model_checkpoint'] = checkpoint_info.title
     elif shared.cmd_opts.ckpt != shared.default_sd_model_file and shared.cmd_opts.ckpt is not None:
         shared.log.warning(f'Load model: path="{shared.cmd_opts.ckpt}" not found')
-    shared.log.info(f'Available Models: safetensors="{shared.opts.ckpt_dir}":{len(safetensors_list)} diffusers="{shared.opts.diffusers_dir}":{len(diffusers_list)} items={len(checkpoints_list)} time={time.time()-t0:.2f}')
+    shared.log.info(f'Available Models: safetensors="{shared.opts.ckpt_dir}":{len(safetensors_list)} diffusers="{shared.opts.diffusers_dir}":{len(diffusers_list)} reference={len(list(shared.reference_models))} items={len(checkpoints_list)} time={time.time()-t0:.2f}')
     checkpoints_list = dict(sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename))
 
+
 def update_model_hashes():
-    txt = []
+    def update_model_hashes_table(rows):
+        html = """
+            <table class="simple-table">
+                <thead>
+                    <tr><th>Name</th><th>Type</th><th>Hash</th></tr>
+                </thead>
+                <tbody>
+                    {tbody}
+                </tbody>
+            </table>
+        """
+        tbody = ''
+        for row in rows:
+            try:
+                tbody += f"""
+                    <tr>
+                        <td>{row.name}</td>
+                        <td>{row.type}</td>
+                        <td>{row.shorthash}</td>
+                    </tr>
+                """
+            except Exception as e:
+                shared.log.error(f'Model list: row={row} {e}')
+        return html.format(tbody=tbody)
+
     lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.hash is None]
-    # shared.log.info(f'Models list: short hash missing for {len(lst)} out of {len(checkpoints_list)} models')
     for ckpt in lst:
         ckpt.hash = model_hash(ckpt.filename)
-        # txt.append(f'Calculated short hash: <b>{ckpt.title}</b> {ckpt.hash}')
-    # txt.append(f'Updated short hashes for <b>{len(lst)}</b> out of <b>{len(checkpoints_list)}</b> models')
     lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.sha256 is None or ckpt.shorthash is None]
     shared.log.info(f'Models list: hash missing={len(lst)} total={len(checkpoints_list)}')
+    updated = []
     for ckpt in lst:
         ckpt.sha256 = hashes.sha256(ckpt.filename, f"checkpoint/{ckpt.name}")
         ckpt.shorthash = ckpt.sha256[0:10] if ckpt.sha256 is not None else None
-        if ckpt.sha256 is not None:
-            txt.append(f'Hash: <b>{ckpt.title}</b> {ckpt.shorthash}')
-    txt.append(f'Updated hashes for <b>{len(lst)}</b> out of <b>{len(checkpoints_list)}</b> models')
-    txt = '<br>'.join(txt)
-    return txt
+        updated.append(ckpt)
+        yield update_model_hashes_table(updated)
 
 
 def remove_hash(s):
@@ -188,6 +201,7 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
         checkpoint_info.type = 'huggingface'
         return checkpoint_info
+
     if s.startswith('huggingface/'):
         model_name = s.replace('huggingface/', '')
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
@@ -215,15 +229,6 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         checkpoint_info = CheckpointInfo(s)
         return checkpoint_info
 
-    # reference search
-    """
-    found = sorted([info for info in shared.reference_models.values() if os.path.basename(info['path']).lower().startswith(s.lower())], key=lambda x: len(x['path']))
-    if found and len(found) == 1:
-        checkpoint_info = CheckpointInfo(found[0]['path']) # create a virutal model info
-        checkpoint_info.type = 'huggingface'
-        return checkpoint_info
-    """
-
     # huggingface search
     if shared.opts.sd_checkpoint_autodownload and s.count('/') == 1:
         modelloader.hf_login()
@@ -239,7 +244,8 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
 
     # civitai search
     if shared.opts.sd_checkpoint_autodownload and s.startswith("https://civitai.com/api/download/models"):
-        fn = modelloader.download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
+        from modules.civitai.download_civitai import download_civit_model_thread
+        fn = download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
         if fn is not None:
             checkpoint_info = CheckpointInfo(fn)
             return checkpoint_info
@@ -252,13 +258,10 @@ def model_hash(filename):
     try:
         with open(filename, "rb") as file:
             import hashlib
-            # t0 = time.time()
             m = hashlib.sha256()
             file.seek(0x100000)
             m.update(file.read(0x10000))
             shorthash = m.hexdigest()[0:8]
-            # t1 = time.time()
-            # shared.log.debug(f'Calculating short hash: {filename} hash={shorthash} time={(t1-t0):.2f}')
             return shorthash
     except FileNotFoundError:
         return 'NOFILE'
@@ -266,16 +269,9 @@ def model_hash(filename):
         return 'NOHASH'
 
 
-def select_checkpoint(op='model'):
-    if op == 'dict':
-        model_checkpoint = shared.opts.sd_model_dict
-    elif op == 'refiner':
-        model_checkpoint = shared.opts.data.get('sd_model_refiner', None)
-    else:
-        model_checkpoint = shared.opts.sd_model_checkpoint
-    if len(model_checkpoint) < 3:
-        return None
-    if model_checkpoint is None or model_checkpoint == 'None':
+def select_checkpoint(op='model', sd_model_checkpoint=None):
+    model_checkpoint = sd_model_checkpoint or (shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None))
+    if model_checkpoint is None or model_checkpoint == 'None' or len(model_checkpoint) < 3:
         return None
     checkpoint_info = get_closet_checkpoint_match(model_checkpoint)
     if checkpoint_info is not None:
@@ -285,17 +281,13 @@ def select_checkpoint(op='model'):
         shared.log.error("No models found")
         shared.log.info("Set system paths to use existing folders")
         shared.log.info("  or use --models-dir <path-to-folder> to specify base folder with all models")
-        shared.log.info("  or use --ckpt-dir <path-to-folder> to specify folder with sd models")
         shared.log.info("  or use --ckpt <path-to-checkpoint> to force using specific model")
         return None
-    # checkpoint_info = next(iter(checkpoints_list.values()))
     if model_checkpoint is not None:
         if model_checkpoint != 'model.safetensors' and model_checkpoint != 'stabilityai/stable-diffusion-xl-base-1.0':
             shared.log.info(f'Load {op}: search="{model_checkpoint}" not found')
         else:
             shared.log.info("Selecting first available checkpoint")
-        # shared.log.warning(f"Loading fallback checkpoint: {checkpoint_info.title}")
-        # shared.opts.data['sd_model_checkpoint'] = checkpoint_info.title
     else:
         shared.log.info(f'Load {op}: select="{checkpoint_info.title if checkpoint_info is not None else None}"')
     return checkpoint_info
@@ -375,45 +367,7 @@ def read_metadata_from_safetensors(filename):
     t1 = time.time()
     global sd_metadata_timer # pylint: disable=global-statement
     sd_metadata_timer += (t1 - t0)
-    # except Exception as e:
-    #    shared.log.error(f"Error reading metadata from: {filename} {e}")
     return res
-
-
-def enable_midas_autodownload():
-    """
-    Gives the ldm.modules.midas.api.load_model function automatic downloading.
-
-    When the 512-depth-ema model, and other future models like it, is loaded,
-    it calls midas.api.load_model to load the associated midas depth model.
-    This function applies a wrapper to download the model to the correct
-    location automatically.
-    """
-    from urllib import request
-    import ldm.modules.midas.api
-    midas_path = os.path.join(paths.models_path, 'midas')
-    for k, v in ldm.modules.midas.api.ISL_PATHS.items():
-        file_name = os.path.basename(v)
-        ldm.modules.midas.api.ISL_PATHS[k] = os.path.join(midas_path, file_name)
-    midas_urls = {
-        "dpt_large": "https://github.com/intel-isl/DPT/releases/download/1_0/dpt_large-midas-2f21e586.pt",
-        "dpt_hybrid": "https://github.com/intel-isl/DPT/releases/download/1_0/dpt_hybrid-midas-501f0c75.pt",
-        "midas_v21": "https://github.com/AlexeyAB/MiDaS/releases/download/midas_dpt/midas_v21-f6b98070.pt",
-        "midas_v21_small": "https://github.com/AlexeyAB/MiDaS/releases/download/midas_dpt/midas_v21_small-70d6b9c8.pt",
-    }
-    ldm.modules.midas.api.load_model_inner = ldm.modules.midas.api.load_model
-
-    def load_model_wrapper(model_type):
-        path = ldm.modules.midas.api.ISL_PATHS[model_type]
-        if not os.path.exists(path):
-            if not os.path.exists(midas_path):
-                os.mkdir(midas_path)
-            shared.log.info(f"Downloading midas model weights for {model_type} to {path}")
-            request.urlretrieve(midas_urls[model_type], path)
-            shared.log.info(f"{model_type} downloaded")
-        return ldm.modules.midas.api.load_model_inner(model_type)
-
-    ldm.modules.midas.api.load_model = load_model_wrapper
 
 
 def scrub_dict(dict_obj, keys):

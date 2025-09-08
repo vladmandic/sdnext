@@ -1,6 +1,7 @@
 # xyz grid that shows up as alwayson script
 import os
 import csv
+import time
 import random
 from collections import namedtuple
 from copy import copy
@@ -9,10 +10,10 @@ from io import StringIO
 from PIL import Image
 import numpy as np
 import gradio as gr
-from scripts.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
-from scripts.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
-from scripts.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
-from modules import shared, errors, scripts, images, processing
+from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
+from modules import shared, errors, scripts_manager, images, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs
 import modules.ui_symbols as symbols
@@ -23,11 +24,11 @@ xyz_results_cache = None
 debug = shared.log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     current_axis_options = []
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible
+        return scripts_manager.AlwaysVisible
 
     def title(self):
         return "XYZ Grid"
@@ -177,7 +178,7 @@ class Script(scripts.Script):
         global active, xyz_results_cache # pylint: disable=W0603
         xyz_results_cache = None
         if not enabled or active:
-            return
+            return None
         active = True
         if not no_fixed_seeds:
             processing.fix_seed(p)
@@ -322,7 +323,7 @@ class Script(scripts.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
-                return processing.Processed(p, [], p.seed, "")
+                return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
             pc.override_settings_restore_afterwards = False
@@ -331,6 +332,7 @@ class Script(scripts.Script):
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)
 
+            t0 = time.time()
             try:
                 processed = processing.process_images(pc)
             except Exception as e:
@@ -362,7 +364,8 @@ class Script(scripts.Script):
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 info = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(zs)}x{len(xs)}x{len(ys)}')
                 grid_infotext.insert(0, info)
-            return processed
+            t1 = time.time()
+            return processed, t1-t0
 
         with SharedSettingsStackHelper():
             processed: processing.Processed = draw_xyz_grid(
@@ -385,10 +388,13 @@ class Script(scripts.Script):
                 include_text=include_text,
             )
 
+        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
+            shared.sd_model.restore_pipeline()
+
         if not processed.images:
             active = False
             return processed # something broke, no further handling needed.
-        # processed.images = (1)*grid + (z > 1 ? z : 0)*subgrids + (x*y*z)*images
+
         have_grid = 1 if include_grid else 0
         have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
         have_images = processed.images[have_grid+have_subgrids:]

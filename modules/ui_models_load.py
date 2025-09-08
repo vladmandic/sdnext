@@ -284,7 +284,7 @@ def create_ui(gr_status, gr_file):
         cls = gr.Textbox(label="Model class", placeholder="Class name", interactive=False)
     with gr.Row():
         repo = gr.Textbox(label="Model repo", placeholder="Repo name", interactive=True)
-        link = gr.HTML(value="", interactive=False)
+        link = gr.HTML(value="")
     with gr.Row():
         headers =  ['ID', 'Name', 'Loadable', 'Default', 'Class', 'Local', 'Remote', 'Dtype', 'Quant']
         datatype = ['number', 'str', 'bool', 'str', 'str', 'str', 'str', 'str', 'bool']
@@ -296,8 +296,6 @@ def create_ui(gr_status, gr_file):
             wrap=True,
             headers=headers,
             datatype=datatype,
-            max_rows=None,
-            max_cols=None,
             type='array',
             elem_id="model_loader_df",
         )

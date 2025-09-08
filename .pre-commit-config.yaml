@@ -19,48 +19,33 @@ ci:
 repos:
 # Standard hooks
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  rev: v5.0.0
   hooks:
   - id: check-added-large-files
   - id: check-case-conflict
   - id: check-merge-conflict
   - id: check-symlinks
+  - id: check-illegal-windows-names
+  - id: check-merge-conflict
+  - id: detect-private-key
+  - id: check-builtin-literals
+  - id: check-case-conflict
+  - id: check-symlinks
   - id: check-yaml
-    args: ["--allow-multiple-documents"]
-  - id: debug-statements
+  - id: check-json
+  - id: check-toml
+  - id: check-xml
   - id: end-of-file-fixer
   - id: mixed-line-ending
+  - id: check-executables-have-shebangs
+    exclude: |
+            (?x)^(
+                .*.bat|
+                .*.ps1
+            )$
   - id: trailing-whitespace
     exclude: |
             (?x)^(
                 .*\.md|
                 .github/ISSUE_TEMPLATE/.*\.yml
             )$
-
-- repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: 'v0.0.285'
-  hooks:
-    - id: ruff
-      args: [--fix, --exit-non-zero-on-fix]
-- repo: local
-  hooks:
-    - id: pylint
-      name: pylint
-      entry: pylint
-      language: system
-      types: [python]
-      args: []
-
-# Black, the code formatter, natively supports pre-commit
-# - repo: https://github.com/psf/black
-#   rev: 23.7.0
-#   hooks:
-#   - id: black
-#     exclude: ^(docs)
-
-# Changes tabs to spaces
-# - repo: https://github.com/Lucas-C/pre-commit-hooks
-#   rev: v1.5.3
-#   hooks:
-#   - id: remove-tabs
-#     exclude: ^(docs)

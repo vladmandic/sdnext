@@ -17,11 +17,13 @@
 ## -----------------------------------------------------------------------------
 
 import torch
+import torch.nn.functional as F
 from transformers import CLIPTokenizer, T5Tokenizer
 from diffusers import StableDiffusionPipeline
 from diffusers import StableDiffusionXLPipeline
 from diffusers import StableDiffusion3Pipeline
 from diffusers import FluxPipeline
+from diffusers import ChromaPipeline
 from modules.prompt_parser import parse_prompt_attention  # use built-in A1111 parser
 
 
@@ -86,8 +88,9 @@ def get_prompts_tokens_with_weights(
 
 
 def get_prompts_tokens_with_weights_t5(
-        t5_tokenizer: T5Tokenizer
-        , prompt: str
+        t5_tokenizer: T5Tokenizer,
+        prompt: str,
+        add_special_tokens: bool = True
 ):
     """
     Get prompt token ids and weights, this function works for both prompt and negative prompt
@@ -96,18 +99,22 @@ def get_prompts_tokens_with_weights_t5(
         prompt = "empty"
 
     texts_and_weights = parse_prompt_attention(prompt)
-    text_tokens, text_weights = [], []
+    text_tokens, text_weights, text_masks = [], [], []
     for word, weight in texts_and_weights:
         # tokenize and discard the starting and the ending token
-        token = t5_tokenizer(
-            word
-            , truncation=False  # so that tokenize whatever length prompt
-            , add_special_tokens=True
-        ).input_ids
-        # the returned token is a 1d list: [320, 1125, 539, 320]
+        inputs = t5_tokenizer(
+            word,
+            truncation=False,  # so that tokenize whatever length prompt
+            add_special_tokens=add_special_tokens,
+            return_length=False,
+        )
+
+        token = inputs.input_ids
+        mask = inputs.attention_mask
 
         # merge the new tokens to the all tokens holder: text_tokens
         text_tokens = [*text_tokens, *token]
+        text_masks = [*text_masks, *mask]
 
         # each token chunk will come with one weight, like ['red cat', 2.0]
         # need to expand weight for each token.
@@ -115,7 +122,7 @@ def get_prompts_tokens_with_weights_t5(
 
         # append the weight back to the weight holder: text_weights
         text_weights = [*text_weights, *chunk_weights]
-    return text_tokens, text_weights
+    return text_tokens, text_weights, text_masks
 
 
 def group_tokens_and_weights(
@@ -432,13 +439,13 @@ def get_weighted_text_embeddings_sdxl(
         , pad_last_block=pad_last_block
     )
 
-    prompt_token_groups_2, prompt_weight_groups_2 = group_tokens_and_weights(
+    prompt_token_groups_2, _prompt_weight_groups_2 = group_tokens_and_weights(
         prompt_tokens_2.copy()
         , prompt_weights_2.copy()
         , pad_last_block=pad_last_block
     )
 
-    neg_prompt_token_groups_2, neg_prompt_weight_groups_2 = group_tokens_and_weights(
+    neg_prompt_token_groups_2, _neg_prompt_weight_groups_2 = group_tokens_and_weights(
         neg_prompt_tokens_2.copy()
         , neg_prompt_weights_2.copy()
         , pad_last_block=pad_last_block
@@ -602,7 +609,6 @@ def get_weighted_text_embeddings_sdxl_refiner(
             , generator = torch.Generator(text2img_pipe.device).manual_seed(2)
         ).images[0]
     """
-    import math
     eos = 49407  # pipe.tokenizer.eos_token_id
 
     # tokenizer 2
@@ -724,7 +730,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
 
         for z in range(len(neg_weight_tensor_2)):
             if neg_weight_tensor_2[z] != 1.0:
-                ow = neg_weight_tensor_2[z] - 1
+                # ow = neg_weight_tensor_2[z] - 1
                 # neg_weight = 1 + (math.exp(ow)/(math.exp(ow) + 1) - 0.5) * 2
 
                 # add weight method 1:
@@ -1068,11 +1074,11 @@ def get_weighted_text_embeddings_sd3(
     )
 
     # tokenizer 3
-    prompt_tokens_3, prompt_weights_3 = get_prompts_tokens_with_weights_t5(
+    prompt_tokens_3, prompt_weights_3, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_3, prompt
     )
 
-    neg_prompt_tokens_3, neg_prompt_weights_3 = get_prompts_tokens_with_weights_t5(
+    neg_prompt_tokens_3, neg_prompt_weights_3, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_3, neg_prompt
     )
 
@@ -1141,13 +1147,13 @@ def get_weighted_text_embeddings_sd3(
         , pad_last_block=pad_last_block
     )
 
-    prompt_token_groups_2, prompt_weight_groups_2 = group_tokens_and_weights(
+    prompt_token_groups_2, _prompt_weight_groups_2 = group_tokens_and_weights(
         prompt_tokens_2.copy()
         , prompt_weights_2.copy()
         , pad_last_block=pad_last_block
     )
 
-    neg_prompt_token_groups_2, neg_prompt_weight_groups_2 = group_tokens_and_weights(
+    neg_prompt_token_groups_2, _neg_prompt_weight_groups_2 = group_tokens_and_weights(
         neg_prompt_tokens_2.copy()
         , neg_prompt_weights_2.copy()
         , pad_last_block=pad_last_block
@@ -1323,7 +1329,6 @@ def get_weighted_text_embeddings_sd3(
     sd3_neg_prompt_embeds = torch.cat([clip_neg_prompt_embeds, t5_neg_prompt_embeds], dim=-2)
 
     # padding
-    import torch.nn.functional as F
     size_diff = sd3_neg_prompt_embeds.size(1) - sd3_prompt_embeds.size(1)
     # Calculate padding. Format for pad is (padding_left, padding_right, padding_top, padding_bottom, padding_front, padding_back)
     # Since we are padding along the second dimension (axis=1), we need (0, 0, padding_top, padding_bottom, 0, 0)
@@ -1364,11 +1369,11 @@ def get_weighted_text_embeddings_flux1(
     )
 
     # tokenizer 2 - google/t5-v1_1-xxl
-    prompt_tokens_2, prompt_weights_2 = get_prompts_tokens_with_weights_t5(
+    prompt_tokens_2, prompt_weights_2, _ = get_prompts_tokens_with_weights_t5(
         pipe.tokenizer_2, prompt2
     )
 
-    prompt_token_groups, prompt_weight_groups = group_tokens_and_weights(
+    prompt_token_groups, _prompt_weight_groups = group_tokens_and_weights(
         prompt_tokens.copy()
         , prompt_weights.copy()
         , pad_last_block=True
@@ -1424,3 +1429,131 @@ def get_weighted_text_embeddings_flux1(
     t5_prompt_embeds = t5_prompt_embeds.to(dtype=pipe.text_encoder_2.dtype, device=device)
 
     return t5_prompt_embeds, prompt_embeds
+
+
+def get_weighted_text_embeddings_chroma(
+    pipe: ChromaPipeline,
+    prompt: str = "",
+    neg_prompt: str = "",
+    device=None
+):
+    """
+    This function can process long prompt with weights for Chroma model
+
+    Args:
+        pipe (ChromaPipeline)
+        prompt (str)
+        neg_prompt (str)
+        device (torch.device, optional): Device to run the embeddings on.
+    Returns:
+        prompt_embeds (torch.Tensor)
+        prompt_attention_mask (torch.Tensor)
+        neg_prompt_embeds (torch.Tensor)
+        neg_prompt_attention_mask (torch.Tensor)
+    """
+    if device is None:
+        device = pipe.text_encoder.device
+
+    dtype = pipe.text_encoder.dtype
+
+    prompt_tokens, prompt_weights, prompt_masks = get_prompts_tokens_with_weights_t5(
+        pipe.tokenizer, prompt, add_special_tokens=False
+    )
+
+    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = get_prompts_tokens_with_weights_t5(
+        pipe.tokenizer, neg_prompt, add_special_tokens=False
+    )
+
+    prompt_tokens, prompt_weights, prompt_masks = pad_prompt_tokens_to_length_chroma(
+        pipe,
+        prompt_tokens,
+        prompt_weights,
+        prompt_masks
+    )
+
+    prompt_embeds, prompt_masks = get_weighted_prompt_embeds_with_attention_mask_chroma(
+        pipe,
+        prompt_tokens,
+        prompt_weights,
+        prompt_masks,
+        device=device,
+        dtype=dtype)
+
+    neg_prompt_tokens, neg_prompt_weights, neg_prompt_masks = pad_prompt_tokens_to_length_chroma(
+        pipe,
+        neg_prompt_tokens,
+        neg_prompt_weights,
+        neg_prompt_masks
+    )
+
+    neg_prompt_embeds, neg_prompt_masks = get_weighted_prompt_embeds_with_attention_mask_chroma(
+        pipe,
+        neg_prompt_tokens,
+        neg_prompt_weights,
+        neg_prompt_masks,
+        device=device,
+        dtype=dtype)
+    # debug, will be removed later
+
+    return prompt_embeds, prompt_masks, neg_prompt_embeds, neg_prompt_masks
+
+
+def get_weighted_prompt_embeds_with_attention_mask_chroma(
+    pipe: ChromaPipeline,
+    tokens,
+    weights,
+    masks,
+    device,
+    dtype
+):
+    prompt_tokens = torch.tensor([tokens], dtype=torch.long, device=device)
+    prompt_masks = torch.tensor([masks], dtype=torch.long, device=device)
+    prompt_embeds = pipe.text_encoder(prompt_tokens, output_hidden_states=False, attention_mask=prompt_masks)[0].squeeze(0)
+    for z in range(len(weights)):
+        if weights[z] != 1.0:
+            prompt_embeds[z] = prompt_embeds[z] * weights[z]
+    prompt_embeds = prompt_embeds.unsqueeze(0).to(dtype=dtype, device=device)
+    return prompt_embeds, prompt_masks
+
+
+def pad_prompt_tokens_to_length_chroma(pipe, input_tokens, input_weights, input_masks, min_length=5, add_eos_token=True):
+    """
+    Implementation of Chroma's padding for prompt embeddings.
+    Pads the embeddings to the maximum length found in the batch, while ensuring
+    that the padding tokens are masked correctly while keeping at least one padding and one eos token unmasked.
+
+    https://huggingface.co/lodestones/Chroma#tldr-masking-t5-padding-tokens-enhanced-fidelity-and-increased-stability-during-training
+    """
+
+    output_tokens = input_tokens.copy()
+    output_weights = input_weights.copy()
+    output_masks = input_masks.copy()
+
+    pad_token_id = pipe.tokenizer.pad_token_id
+    eos_token_id = pipe.tokenizer.eos_token_id
+
+    pad_length = 1
+
+    for j, token in enumerate(output_tokens):
+        if token == pad_token_id:
+            output_masks[j] = 0
+            pad_length = 0
+
+    current_length = len(output_tokens)
+
+    if current_length < min_length:
+        pad_length = min_length - current_length
+
+    if pad_length > 0:
+        output_tokens += [pad_token_id] * pad_length
+        output_weights += [1.0] * pad_length
+        output_masks += [0] * pad_length
+
+    output_masks[-1] = 1
+
+    if add_eos_token and output_tokens[-1] != eos_token_id:
+        output_tokens += [eos_token_id]
+        output_weights += [1.0]
+        output_masks += [1]
+
+    return output_tokens, output_weights, output_masks

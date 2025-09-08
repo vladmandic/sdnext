@@ -8,122 +8,160 @@ from modules import shared, shared_items, devices, errors, model_tools
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 
 
-def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
+def guess_by_size(fn, current_guess):
+    if os.path.isfile(fn) and fn.endswith('.safetensors'):
+        size = round(os.path.getsize(fn) / 1024 / 1024)
+        if (size > 0 and size < 128):
+            shared.log.warning(f'Model size smaller than expected: file="{fn}" size={size} MB')
+        elif (size >= 316 and size <= 324) or (size >= 156 and size <= 164): # 320 or 160
+            shared.log.warning(f'Model detected as VAE model, but attempting to load as model: file="{fn}" size={size} MB')
+            return 'VAE'
+        elif (size >= 2002 and size <= 2038): # 2032
+            return 'Stable Diffusion 1.5'
+        elif (size >= 3138 and size <= 3142): #3140
+            return 'Stable Diffusion XL'
+        elif (size >= 3361 and size <= 3369): # 3368
+            return 'Stable Diffusion Upscale'
+        elif (size >= 4891 and size <= 4899): # 4897
+            return 'Stable Diffusion XL Inpaint'
+        elif (size >= 4970 and size <= 4976): # 4973
+            return 'Stable Diffusion 2' # SD v2 but could be eps or v-prediction
+        elif (size >= 5791 and size <= 5799): # 5795
+            return 'Stable Diffusion XL Refiner'
+        elif (size > 5692 and size < 5698) or (size > 4134 and size < 4138) or (size > 10362 and size < 10366) or (size > 15028 and size < 15228):
+            return 'Stable Diffusion 3'
+        elif (size >= 6420 and size <= 7220): # 6420, IustriousRedux is 6541, monkrenRealisticINT_v10 is 7217
+            return 'Stable Diffusion XL'
+        elif (size >= 9791 and size <= 9799): # 9794
+            return 'Stable Diffusion XL Instruct'
+        elif (size >= 18414 and size <= 18420): # sd35-large aio
+            return 'Stable Diffusion 3'
+        elif (size >= 20000 and size <= 40000):
+            return 'FLUX'
+    return current_guess
+
+
+def guess_by_name(fn, current_guess):
+    if 'instaflow' in fn.lower():
+        return 'InstaFlow'
+    elif 'segmoe' in fn.lower():
+        return 'SegMoE'
+    elif 'hunyuandit' in fn.lower():
+        return 'HunyuanDiT'
+    elif 'pixart-xl' in fn.lower():
+        return 'PixArt Alpha'
+    elif 'stable-diffusion-3' in fn.lower():
+        return 'Stable Diffusion 3'
+    elif 'stable-cascade' in fn.lower() or 'stablecascade' in fn.lower() or 'wuerstchen3' in fn.lower() or ('sotediffusion' in fn.lower() and "v2" in fn.lower()):
+        if devices.dtype == torch.float16:
+            shared.log.warning('Stable Cascade does not support Float16')
+        return 'Stable Cascade'
+    elif 'pixart-sigma' in fn.lower():
+        return 'PixArt Sigma'
+    elif 'sana' in fn.lower():
+        return 'Sana'
+    elif 'lumina-next' in fn.lower():
+        return 'Lumina-Next'
+    elif 'lumina-image-2' in fn.lower():
+        return 'Lumina 2'
+    elif 'kolors' in fn.lower():
+        return 'Kolors'
+    elif 'auraflow' in fn.lower():
+        return 'AuraFlow'
+    elif 'cogview3' in fn.lower():
+        return 'CogView 3'
+    elif 'cogview4' in fn.lower():
+        return 'CogView 4'
+    elif 'meissonic' in fn.lower():
+        return 'Meissonic'
+    elif 'monetico' in fn.lower():
+        return 'Monetico'
+    elif 'omnigen2' in fn.lower():
+        return 'OmniGen2'
+    elif 'omnigen' in fn.lower():
+        return 'OmniGen'
+    elif 'sd3' in fn.lower():
+        return 'Stable Diffusion 3'
+    elif 'hidream' in fn.lower():
+        return 'HiDream'
+    elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
+        return 'Chroma'
+    elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
+        size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
+        if size > 11000 and size < 16000:
+            shared.log.warning(f'Model detected as FLUX UNET model, but attempting to load a base model: file="{fn}" size={size} MB')
+        return 'FLUX'
+    elif 'flex.2' in fn.lower():
+        return 'FLEX'
+    elif 'cosmos-predict2' in fn.lower():
+        return 'Cosmos'
+    elif 'f-lite' in fn.lower():
+        return 'FLite'
+    elif 'wan' in fn.lower():
+        return 'WanAI'
+    elif 'bria' in fn.lower():
+        return 'Bria'
+    elif 'qwen' in fn.lower():
+        return 'Qwen'
+    elif 'nextstep' in fn.lower():
+        return 'NextStep'
+    elif 'kandinsky-2-1' in fn.lower():
+        return 'Kandinsky 2.1'
+    elif 'kandinsky-2-2' in fn.lower():
+        return 'Kandinsky 2.2'
+    elif 'kandinsky-3' in fn.lower():
+        return 'Kandinsky 3.0'
+    return current_guess
+
+
+def guess_by_diffusers(fn, current_guess):
+    exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
+    index = os.path.join(fn, 'model_index.json')
+    if os.path.exists(index) and os.path.isfile(index):
+        index = shared.readfile(index, silent=True)
+        name = index.get('_name_or_path', None)
+        if name is not None and name in exclude_by_name:
+            return current_guess, None
+        cls = index.get('_class_name', None)
+        if cls is not None:
+            pipeline = getattr(diffusers, cls, None)
+            if pipeline is None:
+                pipeline = cls
+        if callable(pipeline):
+            pipelines = shared_items.get_pipelines()
+            for k, v in pipelines.items():
+                if v is not None and v.__name__ == pipeline.__name__:
+                    return k, v
+    return current_guess, None
+
+
+def guess_variant(fn, current_guess):
+    if 'inpaint' in fn.lower():
+        if current_guess == 'Stable Diffusion':
+            return 'Stable Diffusion Inpaint'
+        elif current_guess == 'Stable Diffusion XL':
+            return 'Stable Diffusion XL Inpaint'
+    elif 'instruct' in fn.lower():
+        if current_guess == 'Stable Diffusion':
+            return 'Stable Diffusion Instruct'
+        elif current_guess == 'Stable Diffusion XL':
+            return 'Stable Diffusion XL Instruct'
+    return current_guess
+
+
+def detect_pipeline(f: str, op: str = 'model'):
     guess = shared.opts.diffusers_pipeline
-    warn = shared.log.warning if warning else lambda *args, **kwargs: None
-    size = 0
     pipeline = None
     if guess == 'Autodetect':
         try:
-            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion'
-            # guess by size
-            if os.path.isfile(f) and f.endswith('.safetensors'):
-                size = round(os.path.getsize(f) / 1024 / 1024)
-                if (size > 0 and size < 128):
-                    warn(f'Model size smaller than expected: {f} size={size} MB')
-                elif (size >= 316 and size <= 324) or (size >= 156 and size <= 164): # 320 or 160
-                    warn(f'Model detected as VAE model, but attempting to load as model: {op}={f} size={size} MB')
-                    guess = 'VAE'
-                elif (size >= 2002 and size <= 2038): # 2032
-                    guess = 'Stable Diffusion 1.5'
-                elif (size >= 3138 and size <= 3142): #3140
-                    guess = 'Stable Diffusion XL'
-                elif (size >= 3361 and size <= 3369): # 3368
-                    guess = 'Stable Diffusion Upscale'
-                elif (size >= 4891 and size <= 4899): # 4897
-                    guess = 'Stable Diffusion XL Inpaint'
-                elif (size >= 4970 and size <= 4976): # 4973
-                    guess = 'Stable Diffusion 2' # SD v2 but could be eps or v-prediction
-                elif (size >= 5791 and size <= 5799): # 5795
-                    if op == 'model':
-                        warn(f'Model detected as SD-XL refiner model, but attempting to load a base model: {op}={f} size={size} MB')
-                    guess = 'Stable Diffusion XL Refiner'
-                elif (size > 5692 and size < 5698) or (size > 4134 and size < 4138) or (size > 10362 and size < 10366) or (size > 15028 and size < 15228):
-                    guess = 'Stable Diffusion 3'
-                elif (size >= 6611 and size <= 7220): # 6617, HassakuXL is 6776, monkrenRealisticINT_v10 is 7217
-                    guess = 'Stable Diffusion XL'
-                elif (size >= 9791 and size <= 9799): # 9794
-                    guess = 'Stable Diffusion XL Instruct'
-                elif (size >= 18414 and size <= 18420): # sd35-large aio
-                    guess = 'Stable Diffusion 3'
-                elif (size >= 20000 and size <= 40000):
-                    guess = 'FLUX'
-            # guess by name
-            if 'instaflow' in f.lower():
-                guess = 'InstaFlow'
-            if 'segmoe' in f.lower():
-                guess = 'SegMoE'
-            if 'hunyuandit' in f.lower():
-                guess = 'HunyuanDiT'
-            if 'pixart-xl' in f.lower():
-                guess = 'PixArt Alpha'
-            if 'stable-diffusion-3' in f.lower():
-                guess = 'Stable Diffusion 3'
-            if 'stable-cascade' in f.lower() or 'stablecascade' in f.lower() or 'wuerstchen3' in f.lower() or ('sotediffusion' in f.lower() and "v2" in f.lower()):
-                if devices.dtype == torch.float16:
-                    warn('Stable Cascade does not support Float16')
-                guess = 'Stable Cascade'
-            if 'pixart-sigma' in f.lower():
-                guess = 'PixArt Sigma'
-            if 'sana' in f.lower():
-                guess = 'Sana'
-            if 'lumina-next' in f.lower():
-                guess = 'Lumina-Next'
-            if 'lumina-image-2' in f.lower():
-                guess = 'Lumina2'
-            if 'kolors' in f.lower():
-                guess = 'Kolors'
-            if 'auraflow' in f.lower():
-                guess = 'AuraFlow'
-            if 'cogview3' in f.lower():
-                guess = 'CogView 3'
-            if 'cogview4' in f.lower():
-                guess = 'CogView 4'
-            if 'meissonic' in f.lower():
-                guess = 'Meissonic'
-                pipeline = 'custom'
-            if 'monetico' in f.lower():
-                guess = 'Monetico'
-                pipeline = 'custom'
-            if 'omnigen' in f.lower():
-                guess = 'OmniGen'
-                pipeline = 'custom'
-            if 'sd3' in f.lower():
-                guess = 'Stable Diffusion 3'
-            if 'hidream' in f.lower():
-                guess = 'HiDream'
-            if 'flux' in f.lower() or 'flex.1' in f.lower() or 'lodestones' in f.lower():
-                guess = 'FLUX'
-                if size > 11000 and size < 16000:
-                    warn(f'Model detected as FLUX UNET model, but attempting to load a base model: {op}={f} size={size} MB')
-            if 'flex.2' in f.lower():
-                guess = 'FLEX'
-            # guess for diffusers
-            index = os.path.join(f, 'model_index.json')
-            if os.path.exists(index) and os.path.isfile(index):
-                index = shared.readfile(index, silent=True)
-                cls = index.get('_class_name', None)
-                if cls is not None:
-                    pipeline = getattr(diffusers, cls)
-                if 'Flux' in pipeline.__name__ and guess != 'FLEX':
-                    guess = 'FLUX'
-                if 'StableDiffusion3' in pipeline.__name__:
-                    guess = 'Stable Diffusion 3'
-                if 'Lumina2' in pipeline.__name__:
-                    guess = 'Lumina 2'
-            # switch for specific variant
-            if guess == 'Stable Diffusion' and 'inpaint' in f.lower():
-                guess = 'Stable Diffusion Inpaint'
-            elif guess == 'Stable Diffusion' and 'instruct' in f.lower():
-                guess = 'Stable Diffusion Instruct'
-            if guess == 'Stable Diffusion XL' and 'inpaint' in f.lower():
-                guess = 'Stable Diffusion XL Inpaint'
-            elif guess == 'Stable Diffusion XL' and 'instruct' in f.lower():
-                guess = 'Stable Diffusion XL Instruct'
-            # get actual pipeline
+            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+            guess = guess_by_size(f, guess)
+            guess = guess_by_name(f, guess)
+            guess, pipeline = guess_by_diffusers(f, guess)
+            guess = guess_variant(f, guess)
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
+            shared.log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
             if debug_load is not None:
-                shared.log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}" size={size}MB')
                 t0 = time.time()
                 keys = model_tools.get_safetensor_keys(f)
                 if keys is not None and len(keys) > 0:
@@ -139,16 +177,14 @@ def detect_pipeline(f: str, op: str = 'model', warning=True, quiet=False):
             return None, None
     else:
         try:
-            size = round(os.path.getsize(f) / 1024 / 1024)
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
-            if not quiet:
-                shared.log.info(f'Load {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}" size={size}MB')
+            shared.log.info(f'Load {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
         except Exception as e:
             shared.log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
 
     if pipeline is None:
-        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" size={size} not recognized')
-        pipeline = diffusers.StableDiffusionPipeline
+        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" not recognized')
+        pipeline = diffusers.DiffusionPipeline
     return pipeline, guess
 
 

@@ -1,13 +1,13 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules import scripts, processing, shared, images
+from modules import scripts_manager, processing, shared, images
 
 
 debug = shared.log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     original_pipeline = None
     original_prompt_attention = None
 
@@ -15,7 +15,7 @@ class Script(scripts.Script):
         return 'Face: Multiple ID Transfers'
 
     def show(self, is_img2img):
-        return True if shared.native else False
+        return True
 
     def load_images(self, files):
         init_images = []
@@ -92,12 +92,12 @@ class Script(scripts.Script):
                 gr.HTML('<a href="https://photo-maker.github.io/" target="_blank">&nbsp Tenecent ARC Lab PhotoMaker</a><br>')
             with gr.Row():
                 pm_model = gr.Dropdown(label='PhotoMaker Model', choices=['PhotoMaker v1', 'PhotoMaker v2'], value='PhotoMaker v2')
-                pm_trigger = gr.Text(label='Trigger word', placeholder="enter one word in prompt")
+                pm_trigger = gr.Textbox(label='Trigger word', placeholder="enter one word in prompt")
             with gr.Row():
                 pm_strength = gr.Slider(label='Strength', minimum=0.0, maximum=2.0, step=0.01, value=1.0)
                 pm_start = gr.Slider(label='Start', minimum=0.0, maximum=1.0, step=0.01, value=0.5)
         with gr.Row():
-            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], type='file', interactive=True, height=100)
+            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], interactive=True, height=100)
         with gr.Row():
             gallery = gr.Gallery(show_label=False, value=[])
         files.change(fn=self.load_images, inputs=[files], outputs=[gallery])
@@ -106,8 +106,6 @@ class Script(scripts.Script):
         return [mode, gallery, reswapper_model, reswapper_original, ip_model, ip_override, ip_cache, ip_strength, ip_structure, id_strength, id_conditioning, id_cache, pm_model, pm_trigger, pm_strength, pm_start, fs_cache]
 
     def run(self, p: processing.StableDiffusionProcessing, mode, input_images, reswapper_model, reswapper_original, ip_model, ip_override, ip_cache, ip_strength, ip_structure, id_strength, id_conditioning, id_cache, pm_model, pm_trigger, pm_strength, pm_start, fs_cache): # pylint: disable=arguments-differ, unused-argument
-        if not shared.native:
-            return None
         if mode == 'None':
             return None
         if input_images is None or len(input_images) == 0:

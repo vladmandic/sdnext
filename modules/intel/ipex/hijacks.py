@@ -9,16 +9,21 @@ from modules import devices, errors
 torch_version = float(torch.__version__[:3])
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
-if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0' and (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
-    try:
-        x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
-        del x
-        torch.xpu.empty_cache()
-        can_allocate_plus_4gb = True
-    except Exception:
-        can_allocate_plus_4gb = False
+if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
+    if torch_version >= 2.7:
+        use_dynamic_attention = False # torch 2.7 has flash atten support
+    elif (torch.xpu.get_device_properties(devices.device).total_memory / 1024 / 1024 / 1024) > 4.1:
+        try:
+            x = torch.ones((33000,33000), dtype=torch.float32, device=devices.device)
+            del x
+            torch.xpu.empty_cache()
+            use_dynamic_attention = False
+        except Exception:
+            use_dynamic_attention = True
+    else:
+        use_dynamic_attention = True
 else:
-    can_allocate_plus_4gb = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '-1')
+    use_dynamic_attention = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '1')
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
 
@@ -51,13 +56,41 @@ def return_xpu(device): # keep the device instance type, aka return string if th
 # Autocast
 original_autocast_init = torch.amp.autocast_mode.autocast.__init__
 @wraps(torch.amp.autocast_mode.autocast.__init__)
-def autocast_init(self, device_type, dtype=None, enabled=True, cache_enabled=None):
-    if device_type == "cuda" or device_type == "xpu":
+def autocast_init(self, device_type=None, dtype=None, enabled=True, cache_enabled=None):
+    if device_type is None or check_cuda(device_type) or check_device_type(device_type, "xpu"):
         if dtype is None:
             dtype = devices.dtype
         return original_autocast_init(self, device_type="xpu", dtype=dtype, enabled=enabled, cache_enabled=cache_enabled)
     else:
         return original_autocast_init(self, device_type=device_type, dtype=dtype, enabled=enabled, cache_enabled=cache_enabled)
+
+
+original_grad_scaler_init = torch.amp.grad_scaler.GradScaler.__init__
+@wraps(torch.amp.grad_scaler.GradScaler.__init__)
+def GradScaler_init(self, device: str = None, init_scale: float = 2.0**16, growth_factor: float = 2.0, backoff_factor: float = 0.5, growth_interval: int = 2000, enabled: bool = True):
+    if device is None or check_cuda(device):
+        return original_grad_scaler_init(self, device=return_xpu(device), init_scale=init_scale, growth_factor=growth_factor, backoff_factor=backoff_factor, growth_interval=growth_interval, enabled=enabled)
+    else:
+        return original_grad_scaler_init(self, device=device, init_scale=init_scale, growth_factor=growth_factor, backoff_factor=backoff_factor, growth_interval=growth_interval, enabled=enabled)
+
+
+original_is_autocast_enabled = torch.is_autocast_enabled
+@wraps(torch.is_autocast_enabled)
+def torch_is_autocast_enabled(device_type=None):
+    if device_type is None or check_cuda(device_type):
+        return original_is_autocast_enabled(return_xpu(device_type))
+    else:
+        return original_is_autocast_enabled(device_type)
+
+
+original_get_autocast_dtype = torch.get_autocast_dtype
+@wraps(torch.get_autocast_dtype)
+def torch_get_autocast_dtype(device_type=None):
+    if device_type is None or check_cuda(device_type) or check_device_type(device_type, "xpu"):
+        return devices.dtype
+    else:
+        return original_get_autocast_dtype(device_type)
+
 
 # Latent Antialias CPU Offload:
 # IPEX 2.5 and above has partial support but doesn't really work most of the time.
@@ -94,7 +127,7 @@ def as_tensor(data, dtype=None, device=None):
         return original_as_tensor(data, dtype=dtype, device=device)
 
 
-if can_allocate_plus_4gb:
+if not use_dynamic_attention:
     original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
 else:
     # 32 bit attention workarounds for Alchemist:
@@ -217,13 +250,20 @@ def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
                 dtype = torch.float32
     return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
 
-original_Tensor_to = torch.Tensor.to
+torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
     if check_cuda(device):
-        return original_Tensor_to(self, return_xpu(device), *args, **kwargs)
+        if not device_supports_fp64 and kwargs.get("dtype", None) == torch.float64:
+            kwargs["dtype"] = torch.float32
+        return self.original_Tensor_to(return_xpu(device), *args, **kwargs)
     else:
-        return original_Tensor_to(self, device, *args, **kwargs)
+        if not device_supports_fp64:
+            if kwargs.get("dtype", None) == torch.float64 and ((device is None and self.device.type == "xpu") or (device is not None and torch.device(device).type == "xpu")):
+                kwargs["dtype"] = torch.float32
+            elif device == torch.float64 and self.device.type == "xpu":
+                device = torch.float32
+        return self.original_Tensor_to(device, *args, **kwargs)
 
 original_Tensor_cuda = torch.Tensor.cuda
 @wraps(torch.Tensor.cuda)
@@ -346,6 +386,12 @@ def torch_cuda_device(device):
     else:
         return torch.xpu.device(device)
 
+@wraps(torch.cuda.set_device)
+def torch_cuda_set_device(device):
+    if check_cuda(device):
+        torch.xpu.set_device(return_xpu(device))
+    else:
+        torch.xpu.set_device(device)
 
 # torch.Generator has to be a class for isinstance checks
 original_torch_Generator = torch.Generator
@@ -360,7 +406,7 @@ class torch_Generator(original_torch_Generator):
 
 # Hijack Functions:
 def ipex_hijacks():
-    global device_supports_fp64, can_allocate_plus_4gb
+    global device_supports_fp64
     if torch_version >= 2.4:
         torch.UntypedStorage.cuda = UntypedStorage_cuda
         torch.UntypedStorage.to = UntypedStorage_to
@@ -379,6 +425,7 @@ def ipex_hijacks():
     torch.load = torch_load
     torch.cuda.synchronize = torch_cuda_synchronize
     torch.cuda.device = torch_cuda_device
+    torch.cuda.set_device = torch_cuda_set_device
 
     torch.Generator = torch_Generator
     torch._C.Generator = torch_Generator
@@ -404,4 +451,34 @@ def ipex_hijacks():
     if not device_supports_fp64:
         torch.from_numpy = from_numpy
         torch.as_tensor = as_tensor
-    return device_supports_fp64, can_allocate_plus_4gb
+
+    try:
+        import torchvision
+        torchvision.transforms._functional_tensor.interpolate = interpolate
+    except Exception:
+        pass
+
+    # AMP:
+    torch.amp.grad_scaler.GradScaler.__init__ = GradScaler_init
+    torch.is_autocast_enabled = torch_is_autocast_enabled
+    torch.get_autocast_gpu_dtype = torch_get_autocast_dtype
+    torch.get_autocast_dtype = torch_get_autocast_dtype
+
+    if hasattr(torch.xpu, "amp"):
+        if not hasattr(torch.xpu.amp, "custom_fwd"):
+            torch.xpu.amp.custom_fwd = torch.cuda.amp.custom_fwd
+            torch.xpu.amp.custom_bwd = torch.cuda.amp.custom_bwd
+        if not hasattr(torch.xpu.amp, "GradScaler"):
+            torch.xpu.amp.GradScaler = torch.amp.grad_scaler.GradScaler
+        torch.cuda.amp = torch.xpu.amp
+    else:
+        if not hasattr(torch.amp, "custom_fwd"):
+            torch.amp.custom_fwd = torch.cuda.amp.custom_fwd
+            torch.amp.custom_bwd = torch.cuda.amp.custom_bwd
+        torch.cuda.amp = torch.amp
+
+    if not hasattr(torch.cuda.amp, "common"):
+        torch.cuda.amp.common = nullcontext()
+    torch.cuda.amp.common.amp_definitely_not_available = lambda: False
+
+    return device_supports_fp64

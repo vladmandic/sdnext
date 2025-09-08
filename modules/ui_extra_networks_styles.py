@@ -1,6 +1,7 @@
 import os
 import html
 import json
+from datetime import datetime
 from modules import shared, extra_networks, ui_extra_networks, styles
 
 
@@ -80,6 +81,7 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
                 "type": 'Style',
                 "name": name,
                 "title": k,
+                "alias": os.path.splitext(os.path.basename(style.filename))[0],
                 "filename": style.filename,
                 "preview": style.preview if getattr(style, 'preview', None) is not None and style.preview.startswith('data:') else None,
                 "description": style.description if getattr(style, 'description', None) is not None and len(style.description) > 0 else txt,
@@ -89,7 +91,7 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
                 "wildcards": getattr(style, 'wildcards', ''),
                 "local_preview": f"{fn}.{shared.opts.samples_format}",
                 "onclick": '"' + html.escape(f"""return selectStyle({json.dumps(name)})""") + '"',
-                "mtime": getattr(style, 'mtime', 0),
+                "mtime": getattr(style, 'mtime', datetime.fromtimestamp(0)),
                 "size": os.path.getsize(style.filename),
             }
         except Exception as e:

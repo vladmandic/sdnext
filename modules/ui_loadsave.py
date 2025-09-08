@@ -26,7 +26,9 @@ class UiLoadsave:
 
         def apply_field(obj, field, condition=None, init_field=None):
             key = f"{path}/{field}"
-            if getattr(obj, 'custom_script_source', None) is not None:
+            if hasattr(obj, 'use_original'):
+                pass
+            elif getattr(obj, 'custom_script_source', None) is not None:
                 key = f"customscript/{obj.custom_script_source}/{key}"
             if getattr(obj, 'do_not_save_to_config', False):
                 return
@@ -45,7 +47,9 @@ class UiLoadsave:
                     init_field(saved_value)
             if debug_ui and key in self.component_mapping and not key.startswith('customscript'):
                 errors.log.warning(f'UI duplicate: key="{key}" id={getattr(obj, "elem_id", None)} class={getattr(obj, "elem_classes", None)}')
-            if field == 'value' and key not in self.component_mapping:
+            if hasattr(obj, 'skip'):
+                pass
+            if (field == 'value') and (key not in self.component_mapping):
                 self.component_mapping[key] = x
             if field == 'open' and key not in self.component_mapping:
                 self.component_open[key] = x

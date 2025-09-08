@@ -12,27 +12,37 @@ hf_decode_endpoints = {
     'sd': 'https://q1bj3bpq6kzilnsu.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://x2dmsqunjd6k9prw.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
-    'h1': 'https://whhx50ex1aryqvw6.us-east-1.aws.endpoints.huggingface.cloud',
     'hunyuanvideo': 'https://o7ywnmrahorts457.us-east-1.aws.endpoints.huggingface.cloud',
 }
+hf_decode_endpoints['pixartalpha'] = hf_decode_endpoints['sd']
+hf_decode_endpoints['pixartsigma'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['hunyuandit'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['auraflow'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
+hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['lumina2'] = hf_decode_endpoints['f1']
+
 hf_encode_endpoints = {
     'sd': 'https://qc6479g0aac6qwy9.us-east-1.aws.endpoints.huggingface.cloud',
     'sdxl': 'https://xjqqhmyn62rog84g.us-east-1.aws.endpoints.huggingface.cloud',
     'f1': 'https://ptccx55jz97f9zgo.us-east-1.aws.endpoints.huggingface.cloud',
+    'chroma': 'https://ptccx55jz97f9zgo.us-east-1.aws.endpoints.huggingface.cloud',
 }
+hf_encode_endpoints['pixartalpha'] = hf_encode_endpoints['sd']
+hf_encode_endpoints['pixartsigma'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['hunyuandit'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['auraflow'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['omnigen'] = hf_encode_endpoints['sdxl']
+hf_encode_endpoints['h1'] = hf_encode_endpoints['f1']
+hf_encode_endpoints['lumina2'] = hf_encode_endpoints['f1']
+
 dtypes = {
     "float16": torch.float16,
     "float32": torch.float32,
     "bfloat16": torch.bfloat16,
     "uint8": torch.uint8,
 }
-
-
-def h1_pack_latents(latents, _batch_size, _num_channels_latents, _height, _width): # TODO hidream: pack latents for remote vae
-    # latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
-    # latents = latents.permute(0, 2, 4, 1, 3, 5)
-    # latents = latents.reshape(batch_size, (height // 2) * (width // 2) // (num_channels_latents * 4), num_channels_latents * 4)
-    return latents
 
 
 def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str = None) -> Image.Image:
@@ -55,11 +65,8 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
         params = {}
         try:
             latent = latent_copy[i]
-            if model_type != 'f1':
+            if model_type not in ['f1', 'chroma']:
                 latent = latent.unsqueeze(0)
-            # if model_type == 'h1':
-            #     num_channels_latents = shared.sd_model.transformer.config.in_channels
-            #     latent = h1_pack_latents(latent, 1, num_channels_latents, height, width) # pylint: disable=protected-access
             params = {
                 "input_tensor_type": "binary",
                 "shape": list(latent.shape),
@@ -84,7 +91,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-            if (model_type == 'f1' or model_type == 'h1') and (width > 0) and (height > 0):
+            if model_type in {'f1', 'h1', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:

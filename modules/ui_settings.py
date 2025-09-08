@@ -1,6 +1,7 @@
 import os
 import gradio as gr
-from modules import timer, shared, paths, theme, sd_models, modelloader, ui_common, ui_loadsave, ui_history, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import timer, shared, paths, theme, sd_models, modelloader, generation_parameters_copypaste, call_queue, script_callbacks
+from modules import ui_common, ui_loadsave, ui_history, ui_components, ui_symbols
 
 
 text_settings = None # holds json of entire shared.opts
@@ -48,10 +49,6 @@ def get_value_for_setting(key):
     return gr.update(value=value, **args)
 
 
-def ordered_ui_categories():
-    return ['dimensions', 'sampler', 'seed', 'denoising', 'cfg', 'checkboxes', 'accordions', 'override_settings', 'scripts'] # a1111 compatibility item, not implemented
-
-
 def create_setting_component(key, is_quicksettings=False):
     def fun():
         return shared.opts.data[key] if key in shared.opts.data else shared.opts.data_labels[key].default
@@ -88,7 +85,6 @@ def create_setting_component(key, is_quicksettings=False):
     elif info.folder is not None:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
-            # ui_common.create_browse_button(res, f"folder_{key}")
     else:
         try:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
@@ -97,7 +93,10 @@ def create_setting_component(key, is_quicksettings=False):
             res = None
 
     if res is not None and not is_quicksettings:
-        res.change(fn=None, inputs=res, _js=f'(val) => markIfModified("{key}", val)')
+        try:
+            res.change(fn=None, inputs=res, _js=f'(val) => markIfModified("{key}", val)')
+        except Exception as e:
+            shared.log.error(f'Quicksetting: component={res} {e}')
         if dirty_indicator is not None:
             dirty_indicator.click(fn=lambda: shared.opts.get_default(key), outputs=[res], show_progress=False)
         dirtyable_setting.__exit__()
@@ -120,6 +119,9 @@ def run_settings(*args):
     changed = []
     for key, value, comp in zip(shared.opts.data_labels.keys(), args, components):
         if comp == dummy_component or value=='dummy': # or getattr(comp, 'visible', True) is False or key in hidden_list:
+            # actual = shared.opts.data.get(key, None)  # ensure the key is in data
+            # default = shared.opts.data_labels[key].default
+            # shared.log.warning(f'Setting skip: key={key} value={value} actual={actual} default={default} comp={comp}')
             continue
         if not shared.opts.same_type(value, shared.opts.data_labels[key].default):
             shared.log.error(f'Setting bad value: {key}={value} expecting={type(shared.opts.data_labels[key].default).__name__}')
@@ -127,8 +129,9 @@ def run_settings(*args):
         if shared.opts.set(key, value):
             changed.append(key)
     if shared.opts.cuda_compile_backend == "olive-ai":
-        from modules.onnx_impl import install_olive
+        from modules.onnx_impl import install_olive, initialize_onnx_pipelines
         install_olive()
+        initialize_onnx_pipelines()
     if shared.cmd_opts.use_directml:
         from modules.dml import directml_override_opts
         directml_override_opts()
@@ -139,9 +142,9 @@ def run_settings(*args):
         if shared.opts.cuda_compile_backend != "openvino_fx":
             shared.log.warning("OpenVINO: Setting Torch Compiler backend to OpenVINO FX")
             shared.opts.cuda_compile_backend = "openvino_fx"
-        if shared.opts.sd_backend != "diffusers":
-            shared.log.warning("OpenVINO: Setting backend to Diffusers")
-            shared.opts.sd_backend = "diffusers"
+    if shared.opts.sd_backend != "diffusers":
+        shared.log.error('Legacy option: backend=original is no longer supported')
+        shared.opts.sd_backend = "diffusers"
     try:
         if len(changed) > 0:
             shared.opts.save(shared.config_filename)
@@ -163,7 +166,8 @@ def run_settings_single(value, key, progress=False):
         from modules.dml import directml_override_opts
         directml_override_opts()
     shared.opts.save(shared.config_filename)
-    shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
+    if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet']:
+        shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
     return get_value_for_setting(key), shared.opts.dumpjson()
 
 
@@ -186,11 +190,12 @@ def create_ui():
                 preview_theme = gr.Button(value="Preview theme", variant='primary', elem_id="settings_preview_theme")
                 defaults_submit = gr.Button(value="Restore defaults", variant='primary', elem_id="defaults_submit")
             with gr.Row():
-                _settings_search = gr.Text(label="Search", elem_id="settings_search")
+                _settings_search = gr.Textbox(label="Search", elem_id="settings_search")
 
             result = gr.HTML(elem_id="settings_result")
             script_callbacks.ui_settings_callback() # let extensions create settings
             sections = []
+            options_count = len(shared.opts.data_labels)
             for item in shared.opts.data_labels.values(): # get unique sections from all items
                 if len(item.section) == 2:
                     section_id, section_text = item.section
@@ -203,7 +208,7 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
-            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))}')
+            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))} quicksettings={len(quicksettings_list)}')
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:
@@ -228,11 +233,13 @@ def create_ui():
                                         current_items.append(key)
                                         components.append(component)
                         create_dirty_indicator(section_id, current_items)
+                components_count = len(components)
+                if components_count != options_count:
+                    shared.log.error(f'Settings: count mismatch: options={options_count} components={components_count}')
 
                 with gr.TabItem("Show all pages", elem_id="settings_show_all_pages"):
                     create_dirty_indicator("show_all_pages", [])
                 request_notifications = gr.Button(value='Request browser notifications', elem_id="request_notifications", visible=False)
-
 
         with gr.TabItem("Update", id="system_update", elem_id="tab_update"):
             from modules import update
@@ -244,6 +251,22 @@ def create_ui():
 
         with gr.TabItem("History", id="system_history", elem_id="tab_history"):
             ui_history.create_ui()
+
+        with gr.TabItem("GPU Monitor", id="system_gpu", elem_id="tab_gpu"):
+            with gr.Row(elem_id='gpu-controls'):
+                gpu_start = gr.Button(value="Start", elem_id="gpu_start", variant="primary")
+                gpu_stop = gr.Button(value="Stop", elem_id="gpu_stop", variant="primary")
+                gpu_start.click(fn=lambda: None, _js='startGPU', inputs=[], outputs=[])
+                gpu_stop.click(fn=lambda: None, _js='disableGPU', inputs=[], outputs=[])
+            gr.HTML('''
+                <div class="gpu" id="gpu">
+                    <table class="gpu-table" id="gpu-table">
+                        <thead><tr><th></th><th></th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="gpuChart"></div>
+                </div>
+            ''', elem_id='gpu-container', visible=True)
 
         with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
             from modules.onnx_impl import ui as ui_onnx
@@ -276,6 +299,15 @@ def create_ui():
     shutdown_submit.click(fn=lambda: shared.restart_server(restart=False), _js="restartReload")
 
 
+def reset_quicksettings(quick_components):
+    quick_components = quick_components.split(',')
+    updates = []
+    for key in quick_components:
+        shared.log.warning(f'Reset: setting={key}')
+        updates.append(gr.update(value=shared.opts.get_default(key)))
+    return updates
+
+
 def create_quicksettings(interfaces):
     shared.tab_names = []
     for _interface, label, _ifid in interfaces:
@@ -283,9 +315,16 @@ def create_quicksettings(interfaces):
 
     with gr.Blocks(theme=theme.gradio_theme, analytics_enabled=False, title="SD.Next") as ui_app:
         with gr.Row(elem_id="quicksettings", variant="compact"):
+            quicksetting_components = []
+            quicksetting_keys = []
             for k, _item in sorted(quicksettings_list, key=lambda x: quicksettings_names.get(x[1], x[0])):
                 component = create_setting_component(k, is_quicksettings=True)
+                quicksetting_components.append(component)
+                quicksetting_keys.append(k)
                 shared.settings_components[k] = component
+            quicksetting_keys = gr.State(value=','.join(quicksetting_keys), elem_id="quicksettings_keys")
+            btn_reset = ui_components.ToolButton(value=ui_symbols.clear, visible=True, elem_id="quicksettings_reset")
+            btn_reset.click(fn=reset_quicksettings, inputs=[quicksetting_keys], outputs=quicksetting_components)
 
         generation_parameters_copypaste.connect_paste_params_buttons()
 

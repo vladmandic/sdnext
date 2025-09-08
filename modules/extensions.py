@@ -19,6 +19,76 @@ def active():
         return [x for x in extensions if x.enabled]
 
 
+def temp_disable_extensions():
+    disable_safe = [
+        'sd-webui-controlnet',
+        'multidiffusion-upscaler-for-automatic1111',
+        'a1111-sd-webui-lycoris',
+        'sd-webui-agent-scheduler',
+        'clip-interrogator-ext',
+        'stable-diffusion-webui-images-browser',
+    ]
+    disable_diffusers = [
+        'sd-webui-controlnet',
+        'multidiffusion-upscaler-for-automatic1111',
+        'a1111-sd-webui-lycoris',
+        'sd-webui-animatediff',
+    ]
+    disable_themes = [
+        'sd-webui-lobe-theme',
+        'cozy-nest',
+        'sdnext-modernui',
+    ]
+    disabled = []
+    if shared.cmd_opts.theme is not None:
+        theme_name = shared.cmd_opts.theme
+    else:
+        theme_name = f'{shared.opts.theme_type.lower()}/{shared.opts.gradio_theme}'
+    if theme_name == 'lobe':
+        disable_themes.remove('sd-webui-lobe-theme')
+    elif theme_name == 'cozy-nest' or theme_name == 'cozy':
+        disable_themes.remove('cozy-nest')
+    elif '/' not in theme_name: # set default themes per type
+        if theme_name == 'standard' or theme_name == 'default':
+            theme_name = 'standard/black-teal'
+        if theme_name == 'modern':
+            theme_name = 'modern/Default'
+        if theme_name == 'gradio':
+            theme_name = 'gradio/default'
+        if theme_name == 'huggingface':
+            theme_name = 'huggingface/blaaa'
+
+    if theme_name.lower().startswith('standard') or theme_name.lower().startswith('default'):
+        shared.opts.data['theme_type'] = 'Standard'
+        shared.opts.data['gradio_theme'] = theme_name[9:]
+    elif theme_name.lower().startswith('modern'):
+        shared.opts.data['theme_type'] = 'Modern'
+        shared.opts.data['gradio_theme'] = theme_name[7:]
+        disable_themes.remove('sdnext-modernui')
+    elif theme_name.lower().startswith('huggingface') or theme_name.lower().startswith('gradio') or theme_name.lower().startswith('none'):
+        shared.opts.data['theme_type'] = 'None'
+        shared.opts.data['gradio_theme'] = theme_name
+    else:
+        shared.log.error(f'UI theme invalid: theme="{theme_name}" available={["standard/*", "modern/*", "none/*"]} fallback="standard/black-teal"')
+        shared.opts.data['theme_type'] = 'Standard'
+        shared.opts.data['gradio_theme'] = 'black-teal'
+
+    for ext in disable_themes:
+        if ext.lower() not in shared.opts.disabled_extensions:
+            disabled.append(ext)
+    if shared.cmd_opts.safe:
+        for ext in disable_safe:
+            if ext.lower() not in shared.opts.disabled_extensions:
+                disabled.append(ext)
+    for ext in disable_diffusers:
+        if ext.lower() not in shared.opts.disabled_extensions:
+            disabled.append(ext)
+    disabled.append('Lora')
+
+    shared.cmd_opts.controlnet_loglevel = 'WARNING'
+    return disabled
+
+
 class Extension:
     def __init__(self, name, path, enabled=True, is_builtin=False):
         self.name = name
@@ -69,7 +139,7 @@ class Extension:
                     if repo.active_branch:
                         self.branch = repo.active_branch.name
                 except Exception:
-                    pass
+                    self.branch = 'unknown'
                 self.commit_hash = head.hexsha
                 self.version = f"<p>{self.commit_hash[:8]}</p><p>{datetime.fromtimestamp(self.commit_date).strftime('%a %b%d %Y %H:%M')}</p>"
             except Exception as ex:
@@ -77,7 +147,7 @@ class Extension:
                 self.remote = None
 
     def list_files(self, subdir, extension):
-        from modules import scripts
+        from modules import scripts_manager
         dirpath = os.path.join(self.path, subdir)
         if not os.path.isdir(dirpath):
             return []
@@ -89,7 +159,7 @@ class Extension:
             if os.path.isfile(os.path.join(dirpath, "..", ".priority")):
                 with open(os.path.join(dirpath, "..", ".priority"), "r", encoding="utf-8") as f:
                     priority = str(f.read().strip())
-            res.append(scripts.ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
+            res.append(scripts_manager.ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
             if priority != '50':
                 shared.log.debug(f'Extension priority override: {os.path.dirname(dirpath)}:{priority}')
         res = [x for x in res if os.path.splitext(x.path)[1].lower() == extension and os.path.isfile(x.path)]
@@ -150,8 +220,11 @@ def list_extensions():
                 continue
             extension_names.append(extension_dirname)
             extension_paths.append((extension_dirname, path, dirname == extensions_builtin_dir))
-    disabled_extensions = shared.opts.disabled_extensions + shared.temp_disable_extensions()
+    if shared.opts.theme_type == 'Modern' and 'sdnext-modernui' in shared.opts.disabled_extensions:
+        shared.opts.disabled_extensions.remove('sdnext-modernui')
+    disabled_extensions = [e.lower() for e in shared.opts.disabled_extensions + temp_disable_extensions()]
     for dirname, path, is_builtin in extension_paths:
-        extension = Extension(name=dirname, path=path, enabled=dirname not in disabled_extensions, is_builtin=is_builtin)
+        enabled = dirname.lower() not in disabled_extensions
+        extension = Extension(name=dirname, path=path, enabled=enabled, is_builtin=is_builtin)
         extensions.append(extension)
     shared.log.debug(f'Extensions: disabled={[e.name for e in extensions if not e.enabled]}')

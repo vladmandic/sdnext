@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from skimage import transform as trans
 
 
 ### https://github.com/somanchiu/ReSwapper/blob/GAN/Image.py
@@ -74,6 +73,7 @@ arcface_dst = np.array(
 
 
 def estimate_norm(lmk, image_size=112,mode='arcface'): # pylint: disable=unused-argument
+    from skimage import transform as trans
     if image_size%112==0:
         ratio = float(image_size)/112.0
         diff_x = 0
@@ -126,6 +126,7 @@ def square_crop(im, S):
 
 
 def transform(data, center, output_size, scale, rotation):
+    from skimage import transform as trans
     scale_ratio = scale
     rot = float(rotation) * np.pi / 180.0
     t1 = trans.SimilarityTransform(scale=scale_ratio)

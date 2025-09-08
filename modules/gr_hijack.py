@@ -1,7 +1,7 @@
 from PIL import Image
 import gradio as gr
 import gradio.processing_utils
-from modules import scripts, patches, gr_tempdir
+from modules import scripts_manager, patches, gr_tempdir
 
 
 hijacked = False
@@ -44,14 +44,14 @@ def add_classes_to_gradio_component(comp):
 
 def IOComponent_init(self, *args, **kwargs):
     self.webui_tooltip = kwargs.pop('tooltip', None)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.before_component(self, **kwargs)
-    scripts.script_callbacks.before_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.before_component(self, **kwargs)
+    scripts_manager.script_callbacks.before_component_callback(self, **kwargs)
     res = original_IOComponent_init(self, *args, **kwargs) # pylint: disable=assignment-from-no-return
     add_classes_to_gradio_component(self)
-    scripts.script_callbacks.after_component_callback(self, **kwargs)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.after_component(self, **kwargs)
+    scripts_manager.script_callbacks.after_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.after_component(self, **kwargs)
     return res
 
 
@@ -65,14 +65,14 @@ def Block_get_config(self):
 
 
 def BlockContext_init(self, *args, **kwargs):
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.before_component(self, **kwargs)
-    scripts.script_callbacks.before_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.before_component(self, **kwargs)
+    scripts_manager.script_callbacks.before_component_callback(self, **kwargs)
     res = original_BlockContext_init(self, *args, **kwargs) # pylint: disable=assignment-from-no-return
     add_classes_to_gradio_component(self)
-    scripts.script_callbacks.after_component_callback(self, **kwargs)
-    if scripts.scripts_current is not None:
-        scripts.scripts_current.after_component(self, **kwargs)
+    scripts_manager.script_callbacks.after_component_callback(self, **kwargs)
+    if scripts_manager.scripts_current is not None:
+        scripts_manager.scripts_current.after_component(self, **kwargs)
     return res
 
 
@@ -84,14 +84,46 @@ def Blocks_get_config_file(self, *args, **kwargs):
     return config
 
 
+def patch_gradio():
+    def wrap_gradio_js(fn):
+        def wrapper(*args, js=None, _js=None, **kwargs):
+            if _js is not None:
+                js = _js
+            return fn(*args, js=js, **kwargs)
+        return wrapper
+
+    gradio.components.Button.click = wrap_gradio_js(gradio.components.Button.click)
+    gradio.components.Textbox.submit = wrap_gradio_js(gradio.components.Textbox.submit)
+    gradio.components.Image.clear = wrap_gradio_js(gradio.components.Image.clear)
+    gradio.components.Image.change = wrap_gradio_js(gradio.components.Image.change)
+    gradio.components.Image.upload = wrap_gradio_js(gradio.components.Image.upload)
+    gradio.components.Video.change = wrap_gradio_js(gradio.components.Video.change)
+    gradio.components.Video.clear = wrap_gradio_js(gradio.components.Video.clear)
+    gradio.components.Slider.change = wrap_gradio_js(gradio.components.Slider.change)
+    gradio.components.Dropdown.change = wrap_gradio_js(gradio.components.Dropdown.change)
+    gradio.components.File.change = wrap_gradio_js(gradio.components.File.change)
+    gradio.components.File.clear = wrap_gradio_js(gradio.components.File.clear)
+    gradio.components.Number.change = wrap_gradio_js(gradio.components.Number.change)
+    gradio.components.Textbox.change = wrap_gradio_js(gradio.components.Textbox.change)
+    gradio.components.Radio.change = wrap_gradio_js(gradio.components.Radio.change)
+    gradio.components.Checkbox.change = wrap_gradio_js(gradio.components.Checkbox.change)
+    gradio.components.CheckboxGroup.change = wrap_gradio_js(gradio.components.CheckboxGroup.change)
+    gradio.components.ColorPicker.change = wrap_gradio_js(gradio.components.ColorPicker.change)
+    gradio.layouts.Tab.select = wrap_gradio_js(gradio.layouts.Tab.select)
+    gradio.components.Image.edit = lambda *args, **kwargs: None
+    # gradio.components.image.Image.__init__ missing tool, brush_radius, mask_opacity, edit()
+
 def init():
     global hijacked, original_IOComponent_init, original_Block_get_config, original_BlockContext_init, original_Blocks_get_config_file # pylint: disable=global-statement
     if hijacked:
         return
     gr.components.Image.preprocess =  gr_image_preprocess
-    gr.components.IOComponent.pil_to_temp_file =  gr_tempdir.pil_to_temp_file
-    original_IOComponent_init = patches.patch(__name__, obj=gr.components.IOComponent, field="__init__", replacement=IOComponent_init)
+    if hasattr(gr.components, 'IOComponent'):
+        gr.components.IOComponent.pil_to_temp_file =  gr_tempdir.pil_to_temp_file
+        original_IOComponent_init = patches.patch(__name__, obj=gr.components.IOComponent, field="__init__", replacement=IOComponent_init)
     original_Block_get_config = patches.patch(__name__, obj=gr.blocks.Block, field="get_config", replacement=Block_get_config)
     original_BlockContext_init = patches.patch(__name__, obj=gr.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
     original_Blocks_get_config_file = patches.patch(__name__, obj=gr.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)
+    if not gr.__version__.startswith('3.43'):
+        patch_gradio()
     hijacked = True

@@ -1,14 +1,14 @@
 import gradio as gr
 import diffusers
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Kohya HiRes Fix'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

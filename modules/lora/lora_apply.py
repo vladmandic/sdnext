@@ -45,8 +45,8 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                     self.network_weights_backup = True
                 else:
                     self.network_weights_backup = weight.clone().to(devices.cpu)
-                    if self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
-                        self.nncf_decompressor_backup = self.pre_ops["0"].to(devices.cpu)
+                    if hasattr(self, "sdnq_dequantizer"):
+                        self.sdnq_dequantizer_backup = self.sdnq_dequantizer.to(devices.cpu)
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -79,11 +79,10 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             continue
         try:
             t0 = time.time()
-            if self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
-                return_device = self.weight.data.device
-                self.weight.data = self.weight.data.to(devices.device) # pre_ops are always in devices.device
-                weight = self.pre_ops["0"](self, return_decompressed_only=True).to(devices.device)
-                self.weight.data = self.weight.data.to(return_device)
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                weight = self.sdnq_dequantizer_backup.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
+            elif hasattr(self, "sdnq_dequantizer"):
+                weight = self.sdnq_dequantizer.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
@@ -139,23 +138,36 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             # weight._quantize(devices.device) / weight.to(device=device)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
-    elif not bias and self.__class__.__name__.startswith('NNCF') and hasattr(self, "pre_ops") and len(self.pre_ops) == 1:
-        num_bits = None
-        is_asym_mode = None
+    elif not bias and hasattr(self, "sdnq_dequantizer"):
         try:
-            from modules.model_quant_nncf import nncf_compress_layer
-            num_bits = self.pre_ops["0"].num_bits
-            is_asym_mode = self.pre_ops["0"].quantization_mode == "asymmetric"
-            self.weight = torch.nn.Parameter(model_weights.to(devices.device), requires_grad=False)
-            dequant_weight = self.pre_ops["0"](self, return_decompressed_only=True)
+            from modules.sdnq import sdnq_quantize_layer
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                sdnq_dequantizer = self.sdnq_dequantizer_backup.to(devices.device)
+            else:
+                sdnq_dequantizer = self.sdnq_dequantizer.to(devices.device)
+            dequant_weight = sdnq_dequantizer(model_weights.to(devices.device), skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul)
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.pre_ops.pop("0")
-            self = nncf_compress_layer(self, num_bits, is_asym_mode, torch_dtype=devices.dtype, quant_conv=shared.opts.nncf_quantize_conv_layers)
+            self.sdnq_dequantizer = None
+            self = sdnq_quantize_layer(
+                self,
+                sdnq_dequantizer.weights_dtype,
+                torch_dtype=devices.dtype,
+                group_size=shared.opts.sdnq_quantize_weights_group_size,
+                quant_conv=shared.opts.sdnq_quantize_conv_layers,
+                use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+                use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+                dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+                non_blocking=False,
+                quantization_device=devices.device,
+                return_device=device,
+                param_name=getattr(self, 'network_layer_name', None),
+            )
             self = self.to(device)
+            weight = None
             del dequant_weight
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA quant=nncf cls={self.__class__.__name__} bits={num_bits} is_asym_mode={is_asym_mode} weight={self.weight} lora_weights={lora_weights} {e}')
+            shared.log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} weight={self.weight} lora_weights={lora_weights} {e}')
     else:
         try:
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
@@ -217,8 +229,9 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             network_add_weights(self, model_weights=weights_backup, lora_weights=updown, deactivate=deactivate, device=device, bias=False)
         else:
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
-            if hasattr(self, "nncf_decompressor_backup"):
-                self.pre_ops["0"] = self.nncf_decompressor_backup.to(devices.device) # model.to doesn't move pre_ops, send them here
+            if hasattr(self, "sdnq_dequantizer_backup"):
+                self.sdnq_dequantizer = self.sdnq_dequantizer_backup.to(device)
+                del self.sdnq_dequantizer_backup
 
     if bias_backup is not None:
         self.bias = None

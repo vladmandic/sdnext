@@ -10,10 +10,13 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 def load_override(selected: Model):
     kwargs = {}
-    if selected.name == 'Allegro T2V':
+    # Allegro
+    if 'Allegro T2V' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLAllegro.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
-    if selected.name == 'LTXVideo 0.9.5 I2V':
+    # LTX
+    if 'LTXVideo 0.9.5 I2V' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
+    # WAN
     if 'WAN 2.1 14B' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
     debug(f'Video overrides: model="{selected.name}" kwargs={list(kwargs)}')

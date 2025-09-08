@@ -52,6 +52,7 @@ def generate(*args, **kwargs):
     p.state = ui_state
     p.do_not_save_grid = True
     p.do_not_save_samples = not save_frames
+    p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_video
     if 'I2V' in model:
         if init_image is None:
             return video_utils.queue_err('init image not set')
@@ -71,7 +72,7 @@ def generate(*args, **kwargs):
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-    devices.torch_gc(force=True)
+    devices.torch_gc(force=True, reason='video')
 
     # set args
     processing.fix_seed(p)

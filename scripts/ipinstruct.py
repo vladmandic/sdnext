@@ -7,7 +7,7 @@ encoder: `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`=3.94GB
 import os
 import importlib
 import gradio as gr
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 repo = 'https://github.com/vladmandic/IP-Instruct'
@@ -16,7 +16,7 @@ encoder = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
 folder = os.path.join('repositories', 'ip_instruct')
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -27,7 +27,7 @@ class Script(scripts.Script):
 
     def show(self, is_img2img):
         if shared.cmd_opts.experimental:
-            return not is_img2img if shared.native else False
+            return not is_img2img
         else:
             return False
 
@@ -45,7 +45,7 @@ class Script(scripts.Script):
         with gr.Row():
             query = gr.Textbox(lines=1, label='Query', placeholder='use the composition from the image')
         with gr.Row():
-            image = gr.Image(value=None, label='Image', type='pil', source='upload', width=256, height=256)
+            image = gr.Image(value=None, label='Image', type='pil', width=256, height=256)
         with gr.Row():
             strength = gr.Slider(label="Strength", value=1.0, minimum=0, maximum=2.0, step=0.05)
             tokens = gr.Slider(label="Tokens", value=4, minimum=1, maximum=32, step=1)

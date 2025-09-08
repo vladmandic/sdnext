@@ -21,8 +21,6 @@ def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_
     t0 = time.time()
     name = name.replace(".", "_")
     shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_diffusers}')
-    if not shared.native:
-        return None
     if not hasattr(shared.sd_model, 'load_lora_weights'):
         shared.log.error(f'Network load: type=LoRA class={shared.sd_model.__class__} does not implement load lora')
         return None
@@ -85,7 +83,7 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
+    if shared.sd_model_type in ['f1', 'chroma']: # if kohya flux lora, convert state_dict
         state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
     if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
         try:
@@ -148,8 +146,8 @@ def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
             if net_module is not None:
                 network_types.append(nettype.__class__.__name__)
                 break
-            module_errors += 1
         if net_module is None:
+            module_errors += 1
             if l.debug:
                 shared.log.error(f'LoRA unhandled: name={name} key={key} weights={weights.w.keys()}')
         else:
@@ -220,10 +218,7 @@ def list_available_networks():
             available_networks[entry.name] = entry
             if entry.alias in available_network_aliases:
                 forbidden_network_aliases[entry.alias.lower()] = 1
-            if shared.opts.lora_preferred_name == 'filename':
-                available_network_aliases[entry.name] = entry
-            else:
-                available_network_aliases[entry.alias] = entry
+            available_network_aliases[entry.name] = entry
             if entry.shorthash:
                 available_network_hash_lookup[entry.shorthash] = entry
         except OSError as e: # should catch FileNotFoundError and PermissionError etc.
@@ -319,7 +314,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 shared.log.trace(f'Network load: type=LoRA list={shared.sd_model.get_list_adapters()}')
                 shared.log.trace(f'Network load: type=LoRA active={shared.sd_model.get_active_adapters()}')
             shared.sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
-            if shared.opts.lora_fuse_diffusers and not lora_overrides.check_fuse():
+            if shared.opts.lora_fuse_diffusers and not lora_overrides.disable_fuse():
                 shared.sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
                 shared.sd_model.unload_lora_weights()
             l.timer.activate += time.time() - t1

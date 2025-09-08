@@ -35,8 +35,8 @@ def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_s
 def create_ui():
     shared.log.debug('UI initialize: img2img')
     import modules.img2img # pylint: disable=redefined-outer-name
-    modules.scripts.scripts_current = modules.scripts.scripts_img2img
-    modules.scripts.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
+    modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_img2img
+    modules.scripts_manager.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
     with gr.Blocks(analytics_enabled=False) as _img2img_interface:
         img2img_prompt, img2img_prompt_styles, img2img_negative_prompt, img2img_submit, img2img_reprocess, img2img_paste, img2img_extra_networks_button, img2img_token_counter, img2img_token_button, img2img_negative_token_counter, img2img_negative_token_button = ui_sections.create_toprow(is_img2img=True, id_part="img2img")
         img2img_prompt_img = gr.File(label="", elem_id="img2img_prompt_image", file_count="single", type="binary", visible=False)
@@ -47,7 +47,7 @@ def create_ui():
             timer.startup.record('ui-networks')
 
         with gr.Row(elem_id="img2img_interface", equal_height=False):
-            with gr.Column(variant='compact', elem_id="img2img_settings"):
+            with gr.Column(variant='compact', elem_id="img2img_settings", elem_classes=['settings-column']):
                 copy_image_buttons = []
                 copy_image_destinations = {}
 
@@ -68,20 +68,20 @@ def create_ui():
                     img2img_selected_tab = gr.State(0) # pylint: disable=abstract-class-instantiated
                     state = gr.Textbox(value='', visible=False)
                     with gr.TabItem('Image', id='img2img_image', elem_id="img2img_image_tab") as tab_img2img:
-                        img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, source="upload", interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
-                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img')
+                        img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
+                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img', what='input')
                         add_copy_image_controls('img2img', img_init)
 
                     with gr.TabItem('Inpaint', id='img2img_inpaint', elem_id="img2img_inpaint_tab") as tab_inpaint:
-                        img_inpaint = gr.Image(label="", elem_id="img2img_inpaint", show_label=False, source="upload", interactive=True, type="pil", tool="sketch", image_mode="RGBA", height=512)
+                        img_inpaint = gr.Image(label="", elem_id="img2img_inpaint", show_label=False, interactive=True, type="pil", tool="sketch", image_mode="RGBA", height=512)
                         add_copy_image_controls('inpaint', img_inpaint)
 
                     with gr.TabItem('Sketch', id='img2img_sketch', elem_id="img2img_sketch_tab") as tab_sketch:
-                        img_sketch = gr.Image(label="", elem_id="img2img_sketch", show_label=False, source="upload", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
+                        img_sketch = gr.Image(label="", elem_id="img2img_sketch", show_label=False, interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
                         add_copy_image_controls('sketch', img_sketch)
 
                     with gr.TabItem('Composite', id='img2img_composite', elem_id="img2img_composite_tab") as tab_inpaint_color:
-                        img_composite = gr.Image(label="", show_label=False, elem_id="img2img_composite", source="upload", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
+                        img_composite = gr.Image(label="", show_label=False, elem_id="img2img_composite", interactive=True, type="pil", tool="color-sketch", image_mode="RGBA", height=512)
                         img_composite_orig = gr.State(None) # pylint: disable=abstract-class-instantiated
                         img_composite_orig_update = False
 
@@ -99,8 +99,8 @@ def create_ui():
                         add_copy_image_controls('composite', img_composite)
 
                     with gr.TabItem('Upload', id='inpaint_upload', elem_id="img2img_inpaint_upload_tab") as tab_inpaint_upload:
-                        init_img_inpaint = gr.Image(label="Image for img2img", show_label=False, source="upload", interactive=True, type="pil", elem_id="img_inpaint_base")
-                        init_mask_inpaint = gr.Image(label="Mask", source="upload", interactive=True, type="pil", elem_id="img_inpaint_mask")
+                        init_img_inpaint = gr.Image(label="Image for img2img", show_label=False, interactive=True, type="pil", elem_id="img_inpaint_base")
+                        init_mask_inpaint = gr.Image(label="Mask", interactive=True, type="pil", elem_id="img_inpaint_mask")
 
                     with gr.TabItem('Batch', id='batch', elem_id="img2img_batch_tab") as tab_batch:
                         gr.HTML("<p style='padding-bottom: 1em;' class=\"text-gray-500\">Run image processing on upload images or files in a folder<br>If masks are provided will run inpaint</p>")
@@ -132,7 +132,7 @@ def create_ui():
                             refiner_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Denoise start', value=0.0, elem_id="img2img_refiner_start")
 
                     vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('img2img')
-                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('img2img')
+                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('img2img')
                     enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength = shared.yolo.ui('img2img')
 
@@ -144,8 +144,7 @@ def create_ui():
                             mask_alpha = gr.Slider(label="Alpha", minimum=0.0, maximum=1.0, step=0.05, value=1.0, elem_id="img2img_mask_alpha")
                         with gr.Row():
                             inpainting_mask_invert = gr.Radio(label='Inpaint Mode', choices=['masked', 'invert'], value='masked', type="index", elem_id="img2img_mask_mode")
-                            inpaint_full_res = gr.Radio(label="Inpaint area", choices=["full", "masked"], type="index", value="full", elem_id="img2img_inpaint_full_res")
-                            inpainting_fill = gr.Radio(label='Masked content', choices=['fill', 'original', 'noise', 'nothing'], value='original', type="index", elem_id="img2img_inpainting_fill", visible=not shared.native)
+                            inpaint_full_res = gr.Radio(label="Inpaint area", choices=["full", "masked"], value="full", type="index", elem_id="img2img_inpaint_full_res")
 
                         def select_img2img_tab(tab):
                             return gr.update(visible=tab in [2, 3, 4]), gr.update(visible=tab == 3)
@@ -156,7 +155,7 @@ def create_ui():
                     override_settings = ui_common.create_override_inputs('img2img')
 
                 with gr.Group(elem_id="img2img_script_container"):
-                    img2img_script_inputs = modules.scripts.scripts_img2img.setup_ui(parent='img2img', accordion=True)
+                    img2img_script_inputs = modules.scripts_manager.scripts_img2img.setup_ui(parent='img2img', accordion=True)
 
             img2img_gallery, img2img_generation_info, img2img_html_info, _img2img_html_info_formatted, img2img_html_log = ui_common.create_output_panel("img2img", prompt=img2img_prompt)
 
@@ -174,7 +173,6 @@ def create_ui():
                 steps,
                 sampler_index,
                 mask_blur, mask_alpha,
-                inpainting_fill,
                 vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
                 batch_count, batch_size,
@@ -190,7 +188,7 @@ def create_ui():
                 resize_mode, resize_name, resize_context,
                 inpaint_full_res, inpaint_full_res_padding, inpainting_mask_invert,
                 img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir,
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundry, hdr_color_picker, hdr_tint_ratio,
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative,
                 override_settings,
             ]
@@ -230,14 +228,15 @@ def create_ui():
             )
             interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
 
-            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt, steps], outputs=[img2img_token_counter])
-            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt, steps], outputs=[img2img_negative_token_counter])
+            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = False)
+            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui_img2img, img2img_gallery)
             img2img_paste_fields = [
                 # prompt
                 (img2img_prompt, "Prompt"),
                 (img2img_negative_prompt, "Negative prompt"),
+                (img2img_prompt_styles, "Styles"),
                 # sampler
                 (sampler_index, "Sampler"),
                 (steps, "Steps"),
@@ -297,14 +296,13 @@ def create_ui():
                 # inpaint
                 (mask_blur, "Mask blur"),
                 (mask_alpha, "Mask alpha"),
+                (inpaint_full_res_padding, "Mask padding"),
                 (inpainting_mask_invert, "Mask invert"),
-                (inpainting_fill, "Masked content"),
                 (inpaint_full_res, "Mask area"),
-                (inpaint_full_res_padding, "Masked padding"),
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
-                *modules.scripts.scripts_img2img.infotext_fields
+                *modules.scripts_manager.scripts_img2img.infotext_fields
             ]
             generation_parameters_copypaste.add_paste_fields("img2img", img_init, img2img_paste_fields, override_settings)
             generation_parameters_copypaste.add_paste_fields("sketch", img_sketch, img2img_paste_fields, override_settings)

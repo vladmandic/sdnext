@@ -2,8 +2,10 @@ from typing import Optional, List
 from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
 from modules import errors, shared
+from modules.api import models
 
 
 processor = None # cached instance of processor
@@ -65,8 +67,8 @@ class APIProcess():
     def post_preprocess(self, req: ReqPreprocess):
         global processor # pylint: disable=global-statement
         from modules.control import processors
-        models = list(processors.config)
-        if req.model not in models:
+        processors_list = list(processors.config)
+        if req.model not in processors_list:
             return JSONResponse(status_code=400, content={"error": f"Processor model not found: id={req.model}"})
         image = decode_base64_to_image(req.image)
         if processor is None or processor.processor_id != req.model:
@@ -129,3 +131,47 @@ class APIProcess():
                 boxes.append(item.box)
         shared.state.end(api=False)
         return ResFace(classes=classes, labels=labels, scores=scores, boxes=boxes, images=images)
+
+    def post_prompt_enhance(self, req: models.ReqPromptEnhance):
+        from modules import processing_helpers
+        seed = req.seed or -1
+        seed = processing_helpers.get_fixed_seed(seed)
+        prompt = ''
+        if req.type == 'text':
+            from modules.scripts_manager import scripts_txt2img
+            model = 'google/gemma-3-1b-it' if req.model is None or len(req.model) < 4 else req.model
+            instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
+            prompt = instance.enhance(
+                model=model,
+                prompt=req.prompt,
+                system=req.system_prompt,
+                seed=seed,
+                nsfw=req.nsfw,
+            )
+        elif req.type == 'image':
+            from modules.scripts_manager import scripts_txt2img
+            model = 'google/gemma-3-4b-it' if req.model is None or len(req.model) < 4 else req.model
+            instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
+            prompt = instance.enhance(
+                model=model,
+                prompt=req.prompt,
+                system=req.system_prompt,
+                image=decode_base64_to_image(req.image),
+                seed=seed,
+                nsfw=req.nsfw,
+            )
+        elif req.type == 'video':
+            from modules.ui_video_vlm import enhance_prompt
+            model = 'Google Gemma 3 4B' if req.model is None or len(req.model) < 4 else req.model
+            prompt = enhance_prompt(
+                enable=True,
+                image=decode_base64_to_image(req.image),
+                prompt=req.prompt,
+                model=model,
+                system_prompt=req.system_prompt,
+                nsfw=req.nsfw,
+            )
+        else:
+            raise HTTPException(status_code=400, detail="prompt enhancement: invalid type")
+        res = models.ResPromptEnhance(prompt=prompt, seed=seed)
+        return res

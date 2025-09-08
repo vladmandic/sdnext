@@ -17,7 +17,7 @@ DLL_MAPPING = {
     'cufftw.dll': 'cufftw64_10.dll',
     'nvrtc.dll': 'nvrtc64_112_0.dll',
 }
-HIPSDK_TARGETS = ['rocblas.dll', 'rocsolver.dll', 'hipfft.dll',]
+HIPSDK_TARGETS = ['rocblas.dll', 'rocsolver.dll', 'rocsparse.dll', 'hipfft.dll',]
 
 MIOpen_enabled = False
 
@@ -69,8 +69,8 @@ def set_default_agent(agent: rocm.Agent):
     default_agent = agent
 
 
-def is_reinstall_needed() -> bool: # ZLUDA<3.8.7
-    return not os.path.exists(os.path.join(path, 'cufftw.dll'))
+def is_reinstall_needed() -> bool: # ZLUDA<3.9.4
+    return os.path.exists(os.path.join(path, 'cudart.dll'))
 
 
 def install():
@@ -78,7 +78,7 @@ def install():
         return
 
     platform = "windows"
-    commit = os.environ.get("ZLUDA_HASH", "dba64c0966df2c71e82255e942c96e2e1cea3a2d")
+    commit = os.environ.get("ZLUDA_HASH", "5e717459179dc272b7d7d23391f0fad66c7459cf")
     if os.environ.get("ZLUDA_NIGHTLY", "0") == "1":
         log.warning("Environment variable 'ZLUDA_NIGHTLY' will be removed. Please use command-line argument '--use-nightly' instead.")
         args.use_nightly = True

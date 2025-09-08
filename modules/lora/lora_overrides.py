@@ -32,16 +32,22 @@ force_models_diffusers = [ # forced always
     'kandinsky',
     'hunyuandit',
     'auraflow',
+    'lumina2',
+    'qwen',
+    'bria',
+    'flite',
+    'cosmos',
     # video models
     'hunyuanvideo',
     'cogvideo',
-    'wanvideo',
+    'wanai',
     'ltxvideo',
     'mochivideo',
     'allegrovideo',
 ]
 
 force_classes_diffusers = [ # forced always
+    'FluxKontextPipeline', 'FluxKontextInpaintPipeline',
 ]
 
 fuse_ignore = [
@@ -63,5 +69,10 @@ def get_method(shorthash=''):
     else:
         return 'native'
 
-def check_fuse():
+
+def disable_fuse():
+    if hasattr(shared.sd_model, 'quantization_config'):
+        return True
+    if hasattr(shared.sd_model, 'transformer') and hasattr(shared.sd_model.transformer, 'quantization_config'):
+        return True
     return shared.sd_model_type in fuse_ignore

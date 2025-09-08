@@ -1,20 +1,20 @@
 import json
 from PIL import Image
 import gradio as gr
-from modules import scripts, processing, shared, ipadapter, ui_common
+from modules import scripts_manager, processing, shared, ipadapter, ui_common
 
 
 MAX_ADAPTERS = 4
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     standalone = True
 
     def title(self):
         return 'IP Adapters'
 
     def show(self, is_img2img):
-        return scripts.AlwaysVisible if shared.native else False
+        return scripts_manager.AlwaysVisible
 
     def load_images(self, files):
         init_images = []
@@ -66,31 +66,29 @@ class Script(scripts.Script):
                         ui_common.create_refresh_button(adapter, ipadapter.get_adapters)
                     with gr.Row():
                         scales.append(gr.Slider(label='Strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5))
-                        crops.append(gr.Checkbox(label='Crop to portrait', default=False, interactive=True))
+                        crops.append(gr.Checkbox(label='Crop to portrait', value=False, interactive=True))
                     with gr.Row():
                         starts.append(gr.Slider(label='Start', minimum=0.0, maximum=1.0, step=0.1, value=0))
                         ends.append(gr.Slider(label='End', minimum=0.0, maximum=1.0, step=0.1, value=1))
                     with gr.Row():
-                        files.append(gr.File(label='Input images', file_count='multiple', file_types=['image'], type='file', interactive=True, height=100))
+                        files.append(gr.File(label='Input images', file_count='multiple', file_types=['image'], interactive=True, height=100))
                     with gr.Row():
                         image_galleries.append(gr.Gallery(show_label=False, value=[], visible=False, container=False, rows=1))
                     with gr.Row():
-                        masks.append(gr.File(label='Input masks', file_count='multiple', file_types=['image'], type='file', interactive=True, height=100))
+                        masks.append(gr.File(label='Input masks', file_count='multiple', file_types=['image'], interactive=True, height=100))
                     with gr.Row():
                         mask_galleries.append(gr.Gallery(show_label=False, value=[], visible=False))
                     files[i].change(fn=self.load_images, inputs=[files[i]], outputs=[image_galleries[i]])
                     masks[i].change(fn=self.load_images, inputs=[masks[i]], outputs=[mask_galleries[i]])
                 units.append(unit)
             num_adapters.change(fn=self.display_units, inputs=[num_adapters], outputs=units)
-            layers_active = gr.Checkbox(label='Layer options', default=False, interactive=True)
+            layers_active = gr.Checkbox(label='Layer options', value=False, interactive=True)
             layers_label = gr.HTML('<a href="https://huggingface.co/docs/diffusers/main/en/using-diffusers/ip_adapter#style--layout-control" target="_blank">InstantStyle: advanced layer activation</a>', visible=False)
-            layers = gr.Text(label='Layer scales', placeholder='{\n"down": {"block_2": [0.0, 1.0]},\n"up": {"block_0": [0.0, 1.0, 0.0]}\n}', rows=1, type='text', interactive=True, lines=5, visible=False, show_label=False)
+            layers = gr.Textbox(label='Layer scales', placeholder='{\n"down": {"block_2": [0.0, 1.0]},\n"up": {"block_0": [0.0, 1.0, 0.0]}\n}', type='text', interactive=True, lines=5, visible=False, show_label=False)
             layers_active.change(fn=self.display_advanced, inputs=[layers_active], outputs=[layers_label, layers])
         return [num_adapters] + [unload_adapter] + adapters + scales + files + crops + starts + ends + masks + [layers_active] + [layers]
 
     def process(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
-        if not shared.native:
-            return
         args = list(args) if args is not None else []
         if len(args) == 0:
             return

@@ -22,8 +22,8 @@ ReqControl = models.create_model_from_signature(
     func = run.control_run,
     model_name = "StableDiffusionProcessingControl",
     additional_fields = [
-        {"key": "sampler_name", "type": str, "default": "UniPC"},
-        {"key": "script_name", "type": str, "default": None},
+        {"key": "sampler_name", "type": str, "default": "Default"},
+        {"key": "script_name", "type": Optional[str], "default": None},
         {"key": "script_args", "type": list, "default": []},
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},

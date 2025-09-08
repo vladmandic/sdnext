@@ -68,7 +68,7 @@ def create_ui():
                         with gr.Row():
                             cache_list_optimized_headers = ["height", "width"]
                             cache_list_optimized_types = ["str", "str"]
-                            cache_list_optimized = gr.Dataframe(None, label="Optimized caches", show_label=True, overflow_row_behaviour='paginate', interactive=False, max_rows=10, headers=cache_list_optimized_headers, datatype=cache_list_optimized_types, type="array")
+                            cache_list_optimized = gr.Dataframe(None, label="Optimized caches", show_label=True, interactive=False, headers=cache_list_optimized_headers, datatype=cache_list_optimized_types, type="array")
                             cache_list_optimized.select(fn=select_cache_optimized, inputs=[cache_list_optimized,], outputs=[cache_optimized_selected,])
                         cache_remove_optimized = gr.Button(value="Remove selected cache", visible=False)
                         cache_remove_optimized.click(fn=remove_cache_optimized, inputs=[cache_state_dirname, cache_optimized_selected,])

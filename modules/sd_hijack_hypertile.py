@@ -181,22 +181,24 @@ def context_hypertile_vae(p):
     if shared.opts.cross_attention_optimization == 'Sub-quadratic':
         shared.log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
         return nullcontext()
-    global height, width, max_h, max_w, error_reported # pylint: disable=global-statement
+    global max_h, max_w, error_reported # pylint: disable=global-statement
     error_reported = False
     error_reported = False
-    height, width = p.height, p.width
+    set_resolution(p)
     max_h, max_w = 0, 0
-    vae = getattr(p.sd_model, "vae", None) if shared.native else getattr(p.sd_model, "first_stage_model", None)
+    vae = getattr(p.sd_model, "vae", None)
+    if height == 0 or width == 0:
+        log.warning('Hypertile VAE disabled: resolution unknown')
+        return nullcontext()
     if height % 8 != 0 or width % 8 != 0:
         log.warning(f'Hypertile VAE disabled: width={width} height={height} are not divisible by 8')
         return nullcontext()
     if vae is None:
-        # shared.log.warning('Hypertile VAE is enabled but no VAE model was found')
         return nullcontext()
     else:
         tile_size = shared.opts.hypertile_vae_tile if shared.opts.hypertile_vae_tile > 0 else max(128, 64 * min(p.width // 128, p.height // 128))
         min_tile_size = shared.opts.hypertile_unet_min_tile if shared.opts.hypertile_unet_min_tile > 0 else 128
-        shared.log.info(f'Applying hypertile: vae={min_tile_size}/{tile_size}')
+        shared.log.info(f'Applying HyperTile: vae={min_tile_size}/{tile_size}')
         p.extra_generation_params['Hypertile VAE'] = tile_size
         return split_attention(vae, tile_size=tile_size, min_tile_size=min_tile_size, swap_size=shared.opts.hypertile_vae_swap_size)
 
@@ -208,11 +210,14 @@ def context_hypertile_unet(p):
     if shared.opts.cross_attention_optimization == 'Sub-quadratic' and not shared.cmd_opts.experimental:
         shared.log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
         return nullcontext()
-    global height, width, max_h, max_w, error_reported # pylint: disable=global-statement
+    global max_h, max_w, error_reported # pylint: disable=global-statement
     error_reported = False
-    height, width = p.height, p.width
+    set_resolution(p)
     max_h, max_w = 0, 0
-    unet = getattr(p.sd_model, "unet", None) if shared.native else getattr(p.sd_model.model, "diffusion_model", None)
+    unet = getattr(p.sd_model, "unet", None)
+    if height == 0 or width == 0:
+        log.warning('Hypertile VAE disabled: resolution unknown')
+        return nullcontext()
     if height % 8 != 0 or width % 8 != 0:
         log.warning(f'Hypertile UNet disabled: width={width} height={height} are not divisible by 8')
         return nullcontext()
@@ -222,24 +227,32 @@ def context_hypertile_unet(p):
     else:
         tile_size = shared.opts.hypertile_unet_tile if shared.opts.hypertile_unet_tile > 0 else max(128, 64 * min(p.width // 128, p.height // 128))
         min_tile_size = shared.opts.hypertile_unet_min_tile if shared.opts.hypertile_unet_min_tile > 0 else 128
-        shared.log.info(f'Applying hypertile: unet={min_tile_size}/{tile_size}')
+        shared.log.info(f'Applying HyperTile: unet={min_tile_size}/{tile_size}')
         p.extra_generation_params['Hypertile UNet'] = tile_size
         return split_attention(unet, tile_size=tile_size, min_tile_size=min_tile_size, swap_size=shared.opts.hypertile_unet_swap_size, depth=shared.opts.hypertile_unet_depth)
 
 
 def hypertile_set(p, hr=False):
     from modules import shared
-    global height, width, error_reported, reset_needed, skip_hypertile # pylint: disable=global-statement
+    global error_reported, reset_needed, skip_hypertile # pylint: disable=global-statement
     if not shared.opts.hypertile_unet_enabled:
         return
     error_reported = False
+    set_resolution(p, hr=hr)
+    skip_hypertile = shared.opts.hypertile_hires_only and not getattr(p, 'is_hr_pass', False)
+    reset_needed = True
+
+
+def set_resolution(p, hr=False):
+    global height, width # pylint: disable=global-statement
     if hr:
         x = getattr(p, 'hr_upscale_to_x', 0)
         y = getattr(p, 'hr_upscale_to_y', 0)
         width = y if y > 0 else p.width
         height = x if x > 0 else p.height
     else:
-        width=p.width
-        height=p.height
-    skip_hypertile = shared.opts.hypertile_hires_only and not getattr(p, 'is_hr_pass', False)
-    reset_needed = True
+        width = p.width
+        height = p.height
+    if height == 0 or width == 0:
+        if hasattr(p, 'init_images') and isinstance(p.init_images, list) and len(p.init_images) > 0:
+            height, width = p.init_images[0].size

@@ -64,7 +64,10 @@ class Exif: # pylint: disable=single-string-used-for-slots
 
     def decode(self, s: bytes):
         remove_prefix = lambda text, prefix: text[len(prefix):] if text.startswith(prefix) else text # pylint: disable=unnecessary-lambda-assignment
-        for encoding in ['utf-8', 'utf-16', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
+        # from encodings.aliases import aliases
+        # cp = list(set(aliases.values()))
+        for encoding in ['utf_16_be', 'utf-8', 'utf-16', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
+        # for encoding in cp:
             try:
                 s = remove_prefix(s, b'UNICODE')
                 s = remove_prefix(s, b'ASCII')

@@ -3,7 +3,7 @@ import io
 import os
 from PIL import Image
 import gradio as gr
-from modules.paths import data_path
+from modules.paths import params_path
 from modules import shared, gr_tempdir, script_callbacks, images
 from modules.infotext import parse, mapping, quote, unquote # pylint: disable=unused-import
 
@@ -138,15 +138,6 @@ def should_skip(param):
     return skip
 
 
-def bind_buttons(buttons, image_component, send_generate_info):
-    """old function for backwards compatibility; do not use this, use register_paste_params_button"""
-    for tabname, button in buttons.items():
-        source_text_component = send_generate_info if isinstance(send_generate_info, gr.components.Component) else None
-        source_tabname = send_generate_info if isinstance(send_generate_info, str) else None
-        bindings = ParamBinding(paste_button=button, tabname=tabname, source_text_component=source_text_component, source_image_component=image_component, source_tabname=source_tabname)
-        register_paste_params_button(bindings)
-
-
 def register_paste_params_button(binding: ParamBinding):
     registered_param_bindings.append(binding)
 
@@ -194,17 +185,6 @@ def send_image(x):
     return image
 
 
-def send_image_and_dimensions(x):
-    image = x if isinstance(x, Image.Image) else image_from_url_text(x)
-    if shared.opts.send_size and isinstance(image, Image.Image):
-        w = image.width
-        h = image.height
-    else:
-        w = gr.update()
-        h = gr.update()
-    return image, w, h
-
-
 def create_override_settings_dict(text_pairs):
     res = {}
     params = {}
@@ -223,9 +203,8 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
 
     def paste_func(prompt):
         if prompt is None or len(prompt.strip()) == 0:
-            filename = os.path.join(data_path, "params.txt")
-            if os.path.exists(filename):
-                with open(filename, "r", encoding="utf8") as file:
+            if os.path.exists(params_path):
+                with open(params_path, "r", encoding="utf8") as file:
                     prompt = file.read()
                 shared.log.debug(f'Prompt parse: type="params" prompt="{prompt}"')
             else:
@@ -258,8 +237,10 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                     if hasattr(output, "step") and type(output.step) == float:
                         valtype = float
                     debug(f'Paste: "{key}"="{v}" type={valtype} var={vars(output)}')
-                    if valtype == bool and v == "False":
-                        val = False
+                    if valtype == bool:
+                        val = False if v.lower() == "false" else True
+                    elif valtype == list:
+                        val = v if isinstance(v, list) else [item.strip() for item in v.split(',')]
                     else:
                         val = valtype(v)
                     res.append(gr.update(value=val))

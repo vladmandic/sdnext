@@ -77,19 +77,19 @@ predefined_sdxl = {
     # 'StabilityAI Sketch R256': 'stabilityai/control-lora/control-LoRAs-rank256/control-lora-sketch-rank256.safetensors',
 }
 predefined_f1 = {
-    "InstantX Union": 'InstantX/FLUX.1-dev-Controlnet-Union',
-    "InstantX Canny": 'InstantX/FLUX.1-dev-Controlnet-Canny',
-    "JasperAI Depth": 'jasperai/Flux.1-dev-Controlnet-Depth',
-    "BlackForrestLabs Canny LoRA": '/huggingface.co/black-forest-labs/FLUX.1-Canny-dev-lora/flux1-canny-dev-lora.safetensors',
-    "BlackForrestLabs Depth LoRA": '/huggingface.co/black-forest-labs/FLUX.1-Depth-dev-lora/flux1-depth-dev-lora.safetensors',
-    "JasperAI Surface Normals": 'jasperai/Flux.1-dev-Controlnet-Surface-Normals',
-    "JasperAI Upscaler": 'jasperai/Flux.1-dev-Controlnet-Upscaler',
-    "Shakker-Labs Union": 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro',
-    "Shakker-Labs Pose": 'Shakker-Labs/FLUX.1-dev-ControlNet-Pose',
-    "Shakker-Labs Depth": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
-    "XLabs-AI Canny": 'XLabs-AI/flux-controlnet-canny-diffusers',
-    "XLabs-AI Depth": 'XLabs-AI/flux-controlnet-depth-diffusers',
-    "XLabs-AI HED": 'XLabs-AI/flux-controlnet-hed-diffusers'
+    "InstantX Union F1": 'InstantX/FLUX.1-dev-Controlnet-Union',
+    "InstantX Canny F1": 'InstantX/FLUX.1-dev-Controlnet-Canny',
+    "JasperAI Depth F1": 'jasperai/Flux.1-dev-Controlnet-Depth',
+    "BlackForrestLabs Canny LoRA F1": '/huggingface.co/black-forest-labs/FLUX.1-Canny-dev-lora/flux1-canny-dev-lora.safetensors',
+    "BlackForrestLabs Depth LoRA F1": '/huggingface.co/black-forest-labs/FLUX.1-Depth-dev-lora/flux1-depth-dev-lora.safetensors',
+    "JasperAI Surface Normals F1": 'jasperai/Flux.1-dev-Controlnet-Surface-Normals',
+    "JasperAI Upscaler F1": 'jasperai/Flux.1-dev-Controlnet-Upscaler',
+    "Shakker-Labs Union F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro',
+    "Shakker-Labs Pose F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Pose',
+    "Shakker-Labs Depth F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
+    "XLabs-AI Canny F1": 'XLabs-AI/flux-controlnet-canny-diffusers',
+    "XLabs-AI Depth F1": 'XLabs-AI/flux-controlnet-depth-diffusers',
+    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers'
 }
 predefined_sd3 = {
     "StabilityAI Canny SD35": 'diffusers-internal-dev/sd35-controlnet-canny-8b',
@@ -137,6 +137,23 @@ def find_models():
 
 find_models()
 
+
+def api_list_models(model_type: str = None):
+    import modules.shared
+    model_type = model_type or modules.shared.sd_model_type
+    model_list = []
+    if model_type == 'sd' or model_type == 'all':
+        model_list += list(predefined_sd15)
+    if model_type == 'sdxl' or model_type == 'all':
+        model_list += list(predefined_sdxl)
+    if model_type == 'f1' or model_type == 'all':
+        model_list += list(predefined_f1)
+    if model_type == 'sd3' or model_type == 'all':
+        model_list += list(predefined_sd3)
+    model_list += sorted(find_models())
+    return model_list
+
+
 def list_models(refresh=False):
     import modules.shared
     global models # pylint: disable=global-statement
@@ -172,11 +189,15 @@ class ControlNet():
         if model_id is not None:
             self.load()
 
+    def __str__(self):
+        return f' ControlNet(id={self.model_id} model={self.model.__class__.__name__})' if self.model_id and self.model else ''
+
     def reset(self):
         if self.model is not None:
             debug_log(f'Control {what} model unloaded')
-        self.model = None
-        self.model_id = None
+            self.model = None
+            self.model_id = None
+            devices.torch_gc(force=True, reason='controlnet')
 
     def get_class(self, model_id:str=''):
         from modules import shared
@@ -206,7 +227,7 @@ class ControlNet():
             return None, None
         return cls, config
 
-    def load_safetensors(self, model_id, model_path):
+    def load_safetensors(self, model_id, model_path, cls, config):
         name = os.path.splitext(model_path)[0]
         config_path = None
         if not os.path.exists(model_path):
@@ -231,11 +252,7 @@ class ControlNet():
             config_path = f'{name}.json'
         if config_path is not None:
             self.load_config['original_config_file '] = config_path
-        cls, config = self.get_class(model_id)
-        if cls is None:
-            log.error(f'Control {what} model load: unknown base model')
-        else:
-            self.model = cls.from_single_file(model_path, config=config, **self.load_config)
+        self.model = cls.from_single_file(model_path, config=config, **self.load_config)
 
     def load(self, model_id: str = None, force: bool = True) -> str:
         with load_lock:
@@ -261,9 +278,13 @@ class ControlNet():
                     # log.debug(f'Control {what} model: id="{model_id}" path="{model_path}" already loaded')
                     return
                 log.debug(f'Control {what} model loading: id="{model_id}" path="{model_path}"')
-                cls, _config = self.get_class(model_id)
+                cls, config = self.get_class(model_id)
+                if cls is None:
+                    log.error(f'Control {what} model load: id="{model_id}" unknown base model')
+                    return
+                self.reset()
                 if model_path.endswith('.safetensors'):
-                    self.load_safetensors(model_id, model_path)
+                    self.load_safetensors(model_id, model_path, cls, config)
                 else:
                     kwargs = {}
                     if '/bin' in model_path:
@@ -271,9 +292,6 @@ class ControlNet():
                         self.load_config['use_safetensors'] = False
                     else:
                         self.load_config['use_safetensors'] = True
-                    if cls is None:
-                        log.error(f'Control {what} model load: id="{model_id}" unknown base model')
-                        return
                     if variants.get(model_id, None) is not None:
                         kwargs['variant'] = variants[model_id]
                     try:
@@ -286,21 +304,29 @@ class ControlNet():
                     return
                 if self.dtype is not None:
                     self.model.to(self.dtype)
-                if "ControlNet" in opts.nncf_compress_weights:
+                if "Control" in opts.sdnq_quantize_weights:
                     try:
-                        log.debug(f'Control {what} model NNCF Compress: id="{model_id}"')
-                        from modules.model_quant import nncf_compress_model
-                        self.model = nncf_compress_model(self.model)
+                        log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
+                        from modules.model_quant import sdnq_quantize_model
+                        self.model = sdnq_quantize_model(self.model)
                     except Exception as e:
-                        log.error(f'Control {what} model NNCF Compression failed: id="{model_id}" {e}')
-                elif "ControlNet" in opts.optimum_quanto_weights:
+                        log.error(f'Control {what} model SDNQ Compression failed: id="{model_id}" {e}')
+                elif "Control" in opts.optimum_quanto_weights:
                     try:
                         log.debug(f'Control {what} model Optimum Quanto: id="{model_id}"')
-                        model_quant.load_quanto('Load model: type=ControlNet')
+                        model_quant.load_quanto('Load model: type=Control')
                         from modules.model_quant import optimum_quanto_model
                         self.model = optimum_quanto_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model Optimum Quanto: id="{model_id}" {e}')
+                elif "Control" in opts.torchao_quantization:
+                    try:
+                        log.debug(f'Control {what} model Torch AO: id="{model_id}"')
+                        model_quant.load_torchao('Load model: type=Control')
+                        from modules.model_quant import torchao_quantization
+                        self.model = torchao_quantization(self.model)
+                    except Exception as e:
+                        log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
                     self.model.to(self.device)
                 t1 = time.time()
@@ -352,22 +378,9 @@ class ControlNetPipeline():
                 unet=pipeline.unet,
                 scheduler=pipeline.scheduler,
                 feature_extractor=getattr(pipeline, 'feature_extractor', None),
+                image_encoder=getattr(pipeline, 'image_encoder', None),
                 controlnet=controlnets, # can be a list
             )
-        elif detect.is_sd15(pipeline) and len(controlnets) > 0:
-            from diffusers import StableDiffusionControlNetPipeline
-            self.pipeline = StableDiffusionControlNetPipeline(
-                vae=pipeline.vae,
-                text_encoder=pipeline.text_encoder,
-                tokenizer=pipeline.tokenizer,
-                unet=pipeline.unet,
-                scheduler=pipeline.scheduler,
-                feature_extractor=getattr(pipeline, 'feature_extractor', None),
-                requires_safety_checker=False,
-                safety_checker=None,
-                controlnet=controlnets, # can be a list
-            )
-            sd_models.move_model(self.pipeline, pipeline.device)
         elif detect.is_f1(pipeline) and len(controlnets) > 0:
             from diffusers import FluxControlNetPipeline
             self.pipeline = FluxControlNetPipeline(
@@ -394,6 +407,21 @@ class ControlNetPipeline():
                 scheduler=pipeline.scheduler,
                 controlnet=controlnets, # can be a list
             )
+        elif detect.is_sd15(pipeline) and len(controlnets) > 0:
+            from diffusers import StableDiffusionControlNetPipeline
+            self.pipeline = StableDiffusionControlNetPipeline(
+                vae=pipeline.vae,
+                text_encoder=pipeline.text_encoder,
+                tokenizer=pipeline.tokenizer,
+                unet=pipeline.unet,
+                scheduler=pipeline.scheduler,
+                feature_extractor=getattr(pipeline, 'feature_extractor', None),
+                image_encoder=getattr(pipeline, 'image_encoder', None),
+                requires_safety_checker=False,
+                safety_checker=None,
+                controlnet=controlnets, # can be a list
+            )
+            sd_models.move_model(self.pipeline, pipeline.device)
         elif len(loras) > 0:
             self.pipeline = pipeline
             for lora in loras:
@@ -424,6 +452,7 @@ class ControlNetPipeline():
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')
 
     def restore(self):
-        self.pipeline.unload_lora_weights()
+        if self.pipeline is not None:
+            self.pipeline.unload_lora_weights()
         self.pipeline = None
         return self.orig_pipeline

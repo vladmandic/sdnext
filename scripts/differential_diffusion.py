@@ -1845,7 +1845,7 @@ import gradio as gr
 import diffusers
 from PIL import Image, ImageEnhance, ImageOps # pylint: disable=reimported
 from torchvision import transforms
-from modules import errors, shared, devices, scripts, processing, sd_models, images
+from modules import errors, shared, devices, scripts_manager, processing, sd_models, images
 
 
 detector = None
@@ -1856,12 +1856,12 @@ MODELS = {
 }
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Differential diffusion: Individual Pixel Strength'
 
     def show(self, is_img2img):
-        return is_img2img if shared.native else False
+        return is_img2img
 
     def ui(self, _is_img2img):
         with gr.Row():
@@ -1872,7 +1872,7 @@ class Script(scripts.Script):
             strength = gr.Slider(minimum=0.0, maximum=2.0, value=1.0, label='Mask strength')
             model = gr.Dropdown(label='Model', choices=['None', 'DPT Tiny', 'DPT Hybrid', 'DPT Large'], value='None')
         with gr.Row():
-            image = gr.Image(label="Image map", show_label=False, type="pil", source="upload", interactive=True, tool="editor", visible=True, image_mode='RGB')
+            image = gr.Image(label="Image map", show_label=False, type="pil", interactive=True, tool="editor", visible=True, image_mode='RGB')
         return enabled, strength, invert, model, image
 
     def depthmap(self, image_init: Image.Image, image_map: Image.Image, model: str, strength: float, invert: bool):

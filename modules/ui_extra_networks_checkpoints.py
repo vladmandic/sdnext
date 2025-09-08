@@ -2,7 +2,7 @@ import os
 import html
 import json
 import concurrent
-from modules import shared, ui_extra_networks, sd_models
+from modules import shared, ui_extra_networks, sd_models, modelstats
 
 
 reference_dir = os.path.join('models', 'Reference')
@@ -18,12 +18,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
             return []
         for k, v in shared.reference_models.items():
-            if not shared.native:
-                if not v.get('original', False):
-                    continue
-                url = v.get('alt', None) or v['path']
-            else:
-                url = v['path']
+            url = v['path']
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
@@ -31,16 +26,18 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 else:
                     continue
             preview = v.get('preview', v['path'])
+            preview_file = self.find_preview_file(os.path.join(reference_dir, preview))
+            _size, mtime = modelstats.stat(preview_file)
             yield {
                 "type": 'Model',
                 "name": os.path.join(reference_dir, k),
                 "title": os.path.join(reference_dir, k),
                 "filename": url,
                 "preview": self.find_preview(os.path.join(reference_dir, preview)),
-                "local_preview": self.find_preview_file(os.path.join(reference_dir, preview)),
-                "onclick": '"' + html.escape(f"""return selectReference({json.dumps(url)})""") + '"',
+                "local_preview": preview_file,
+                "onclick": '"' + html.escape(f"selectReference({json.dumps(url)})") + '"',
                 "hash": None,
-                "mtime": 0,
+                "mtime": mtime,
                 "size": 0,
                 "info": {},
                 "metadata": {},
@@ -51,7 +48,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         record = None
         try:
             checkpoint: sd_models.CheckpointInfo = sd_models.checkpoints_list.get(name)
-            exists = os.path.exists(checkpoint.filename)
+            size, mtime = modelstats.stat(checkpoint.filename)
             record = {
                 "type": 'Model',
                 "name": checkpoint.name,
@@ -59,9 +56,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "filename": checkpoint.filename,
                 "hash": checkpoint.shorthash,
                 "metadata": checkpoint.metadata,
-                "onclick": '"' + html.escape(f"""return selectCheckpoint({json.dumps(name)})""") + '"',
-                "mtime": os.path.getmtime(checkpoint.filename) if exists else 0,
-                "size": os.path.getsize(checkpoint.filename) if exists else 0,
+                "onclick": '"' + html.escape(f"selectCheckpoint({json.dumps(name)})") + '"',
+                "mtime": mtime,
+                "size": size,
             }
             record["info"] = self.find_info(checkpoint.filename)
             record["description"] = self.find_description(checkpoint.filename, record["info"])
@@ -83,7 +80,4 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         return items
 
     def allowed_directories_for_previews(self):
-        if shared.native:
-            return [v for v in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, reference_dir] if v is not None]
-        else:
-            return [v for v in [shared.opts.ckpt_dir, reference_dir, sd_models.model_path] if v is not None]
+        return [v for v in [shared.opts.ckpt_dir, reference_dir, sd_models.model_path] if v is not None]

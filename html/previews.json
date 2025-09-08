@@ -14,5 +14,8 @@
   "Efficient-Large-Model--Sana_1600M_4Kpx_BF16_diffusers": "models/Reference/Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
   "Efficient-Large-Model--Sana_600M_1024px_diffusers": "models/Reference/Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
   "stabilityai--stable-video-diffusion-img2vid-xt-1-1": "models/Reference/stabilityai--stable-video-diffusion-img2vid-xt.jpg",
-  "shuttleai--shuttle-3-diffusion": "models/Reference/shuttleai--shuttle-3-diffusion.jpg"
+  "shuttleai--shuttle-3-diffusion": "models/Reference/shuttleai--shuttle-3-diffusion.jpg",
+  "HiDream-ai/HiDream-I1-Full": "models/Reference/HiDream-I1 Full",
+  "vladmandic/chroma-unlocked-v50": "models/Reference/lodestones Chroma Unlocked HD",
+  "vladmandic/chroma-unlocked-v50-annealed": "models/Reference/lodestones Chroma Unlocked HD"
 }

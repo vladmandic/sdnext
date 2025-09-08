@@ -1,6 +1,5 @@
 import os
 import sys
-import contextlib
 import torch
 try:
     import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
@@ -21,7 +20,7 @@ def ipex_init(): # pylint: disable=too-many-statements
             try:
                 # force xpu device on torch compile and triton
                 # import inductor utils to get around lazy import
-                from torch._inductor import utils as torch_inductor_utils # pylint: disable=import-error, unused-import
+                from torch._inductor import utils as torch_inductor_utils # pylint: disable=import-error, unused-import # noqa: F401
                 torch._inductor.utils.GPU_TYPES = ["xpu"]
                 torch._inductor.utils.get_gpu_type = lambda *args, **kwargs: "xpu"
                 from triton import backends as triton_backends # pylint: disable=import-error
@@ -40,7 +39,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.is_available = torch.xpu.is_available
             torch.cuda.is_initialized = torch.xpu.is_initialized
             torch.cuda.is_current_stream_capturing = lambda: False
-            torch.cuda.set_device = torch.xpu.set_device
             torch.cuda.stream = torch.xpu.stream
             torch.cuda.Event = torch.xpu.Event
             torch.cuda.Stream = torch.xpu.Stream
@@ -127,15 +125,34 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Tuple = torch.xpu.Tuple
                 torch.cuda.List = torch.xpu.List
 
+            if torch_version < 2.8:
+                if has_ipex:
+                    torch.cuda.memory_summary = torch.xpu.memory_summary
+                    torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
+
+            if torch_version < 2.9:
+                # torch._int_mm via onednn quantized matmul is supported with torch 2.9
+                # ipex 2.7+ has the same torch._int_mm support as torch 2.9 but doesn't support torch.compile
+                # torch._int_mm directly uses onednn quantized matmul
+                # onednn qlinear is a wrapper around onednn quantized matmul
+                if hasattr(torch.ops, "onednn") and hasattr(torch.ops.onednn, "qlinear_pointwise"):
+                    def onednn_mm(x: torch.Tensor, y: torch.Tensor):
+                        # supports int8, fp32, fp16, and bf16 matmul with accumulation using a different dtype
+                        # int8 matmul with onednn is slower than 16 bit with dim_size < 4096
+                        return torch.ops.onednn.qlinear_pointwise.default(x, 1.0, 0, y, torch.ones(1, device=y.device), torch.zeros(1, device=y.device), None, 1.0, 0, torch.float32, "none", [], "none")
+                    torch._int_mm = onednn_mm
+                    try:
+                        # torch.compile fix
+                        from .int_mm import qlinear_unary
+                        torch._inductor.mkldnn_lowerings.register_onednn_fusion_ops.qlinear_unary = qlinear_unary
+                    except Exception as e:
+                        pass
 
             # Memory:
             if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
-            if has_ipex:
-                torch.cuda.memory_summary = torch.xpu.memory_summary
-                torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
             torch.cuda.memory = torch.xpu.memory
             torch.cuda.memory_stats = torch.xpu.memory_stats
             torch.cuda.memory_allocated = torch.xpu.memory_allocated
@@ -160,29 +177,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.seed = torch.xpu.seed
             torch.cuda.seed_all = torch.xpu.seed_all
             torch.cuda.initial_seed = torch.xpu.initial_seed
-
-            # AMP:
-            if has_ipex:
-                torch.xpu.amp.custom_fwd = torch.cuda.amp.custom_fwd
-                torch.xpu.amp.custom_bwd = torch.cuda.amp.custom_bwd
-                torch.cuda.amp = torch.xpu.amp
-                if torch_version < 2.3:
-                    torch.is_autocast_enabled = torch.xpu.is_autocast_xpu_enabled
-                    torch.get_autocast_gpu_dtype = torch.xpu.get_autocast_xpu_dtype
-
-                if not hasattr(torch.cuda.amp, "common"):
-                    torch.cuda.amp.common = contextlib.nullcontext()
-                torch.cuda.amp.common.amp_definitely_not_available = lambda: False
-
-                try:
-                    torch.cuda.amp.GradScaler = torch.xpu.amp.GradScaler
-                except Exception: # pylint: disable=broad-exception-caught
-                    try:
-                        from .gradscaler import gradscaler_init # pylint: disable=import-outside-toplevel, import-error
-                        gradscaler_init()
-                        torch.cuda.amp.GradScaler = torch.xpu.amp.GradScaler
-                    except Exception: # pylint: disable=broad-exception-caught
-                        torch.cuda.amp.GradScaler = ipex.cpu.autocast._grad_scaler.GradScaler
 
             # C
             if torch_version < 2.3:
@@ -217,10 +211,10 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.ipc_collect = lambda *args, **kwargs: None
             torch.cuda.utilization = lambda *args, **kwargs: 0
 
-            device_supports_fp64, can_allocate_plus_4gb = ipex_hijacks()
+            device_supports_fp64 = ipex_hijacks()
             try:
                 from .diffusers import ipex_diffusers
-                ipex_diffusers(device_supports_fp64=device_supports_fp64, can_allocate_plus_4gb=can_allocate_plus_4gb)
+                ipex_diffusers(device_supports_fp64=device_supports_fp64)
             except Exception: # pylint: disable=broad-exception-caught
                 pass
             torch.cuda.is_xpu_hijacked = True

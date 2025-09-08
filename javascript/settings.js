@@ -181,6 +181,10 @@ async function initSettings() {
   if (settingsInitialized) return;
   settingsInitialized = true;
   const tabNavElements = gradioApp().querySelector('#settings > .tab-nav');
+  if (!tabNavElements) {
+    error('initSettings', 'No tab nav elements found');
+    return;
+  }
   const tabNavButtons = gradioApp().querySelectorAll('#settings > .tab-nav > button');
   const tabElements = gradioApp().querySelectorAll('#settings > div:not(.tab-nav)');
   const observer = new MutationObserver((mutations) => {

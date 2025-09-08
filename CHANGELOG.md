@@ -1,5 +1,775 @@
 # Change Log for SD.Next
 
+## Update for 2025-08-20
+
+A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+- **Models**
+  - [Qwen-Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit)  
+    Image editing using natural language prompting, similar to `Flux.1-Kontext`, but based on larger 20B `Qwen-Image` model  
+  - [Nunchaku-Qwen-Image](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization engine, currently available for Flux.1, SANA and Qwen-Image models  
+    *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
+- [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+  - updated with new models  
+- **Features**
+  - new *setting -> huggingface -> download method*  
+    default is `rust` as new `xet` is known to cause issues  
+  - support for `flux.1-kontext` lora  
+  - support for `qwen-image` lora  
+  - new *setting -> quantization -> modules dtype dict*  
+    used to manually override quant types per module  
+- **UI**
+  - new artwork for reference models in networks  
+    thanks @liutyi  
+  - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
+  - localization support for ModernUI  
+  - single-click on locale rotates current locale  
+    double-click on locale resets locale to `en`  
+  - exclude ModernUI from list of extensions  
+    ModernUI is enabled in settings, not by manually enabling extension  
+- **Docs**
+  - Models and Video pages updated with links to original model repos, model licenses and original release dates  
+    thanks @alerikaisattera  
+- **Fixes**
+  - nunchaku use new download links and default to `0.3.2`  
+    nunchaku wheels: <https://huggingface.co/nunchaku-tech/nunchaku/tree/main>  
+  - fix OpenVINO with offloading  
+  - add explicit offload calls on prompt encode  
+  - error reporting on model load failure  
+  - fix torch version checks  
+  - remove extra cache clear  
+  - enable explicit sync calls for `rocm` on windows  
+  - note if restart-needed on initial startup import error  
+  - bypass diffusers-lora-fuse on quantized models  
+  - monkey-patch diffusers to use original weights shape when loading lora  
+  - guard against null prompt  
+  - install `hf_transfter` and `hf_xet` when needed  
+  - fix ui cropped network tags  
+  - enum reference models on startup  
+  - dont report errors if agent scheduler is disabled  
+
+## Update for 2025-08-15
+
+### Highlights for 2025-08-15
+
+New release two weeks after the last one and its a big one with over 150 commits!
+- Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+- Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
+- Plus continuing with major **UI** work with new embedded **Docs/Wiki** search, redesigned real-time **hints**, **wildcards** UI selector, built-in **GPU monitor**, **CivitAI** integration and more!  
+- On the compute side, new profiles for high-vram GPUs, offloading improvements, parallel-load for large models, support for new `torch` release and improved quality when using low-bit quantization!      
+- [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html): pre-generated image gallery with 60 models (45 base and 15 finetunes) and 40 different styles resulting in 2,400 high resolution images!  
+  gallery additionally includes model details such as typical load and inference times as well as sizes and types of each model component (*e.g. unet, transformer, text-encoder, vae*)  
+- And (*as always*) many bugfixes and improvements to existing features!  
+
+![sd-samples](https://github.com/user-attachments/assets/3efc8603-0766-4e4e-a4cb-d8c9b13d1e1d)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+*Note*: Change-in-behavior - locations of downloaded HuggingFace models and components are changed to allow for de-duplication of common modules and switched from using system default cache folder to `models/huggingface`  
+SD.Next will warn on startup on unused cache entries that can be removed. Also, to take advantage of de-duplication, you'll need to delete models from your `models/Diffusers` folder and let SD.Next re-download them!  
+
+### Details for 2025-08-15
+
+- **Models**  
+  - [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/)  
+    new image foundational model with *20B* params DiT and using *Qwen2.5-VL-7B* as the text-encoder!  
+    available via *networks -> models -> reference*  
+    *note*: this model is almost 2x the size of Flux, quantization and offloading are highly recommended!  
+    *recommended* params: *steps=50, attention-guidance=4*  
+    also available is pre-packaged [Qwen-Lightning](https://huggingface.co/vladmandic/Qwen-Lightning)  
+    which is an unofficial merge of [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) with [Qwen-Lightning-LoRA](https://github.com/ModelTC/Qwen-Image-Lightning/) to improve quality and allow for generating in 8-steps!  
+  - [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
+    new 12B base model compatible with FLUX.1-Dev from *Black Forest Labs* with opinionated aesthetics and aesthetic preferences in mind  
+    available via *networks -> models -> reference*  
+  - [Chroma](https://huggingface.co/lodestones/Chroma)  
+    great model based on FLUX.1 and then redesigned and retrained by *lodestones*  
+    update with latest **HD**, **HD Flash** and **HD Annealed** variants which are based on *v50* release  
+    available via *networks -> models -> reference*  
+  - [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers)  
+    SkyReels-V2 is a genarative video model based on Wan-2.1 but with heavily modified execution to allow for infinite-length video generation  
+    supported variants are:  
+    - diffusion-forcing: *T2I DF 1.3B* for 540p videos, *T2I DF 14B* for 720p videos, *I2I DF 14B* for 720p videos  
+    - standard: *T2I 14B* for 720p videos and *I2I 14B* for 720p videos  
+  - [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers)  
+    basic support for *Wan 2.1 VACE 1.3B* and *14B* variants  
+    optimized support with granular guidance control will follow soon  
+  - [HunyuanDiT-Distilled](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
+    variant of HunyuanDiT with reduced steps and improved performance  
+**Torch**  
+  - Set default to `torch==2.8.0` for *CUDA, ROCm and OpenVINO*  
+  - Add support for `torch==2.9.0-nightly`  
+- **UI**  
+  - new embedded docs/wiki search!  
+    **Docs** search: fully-local and works in real-time on all document pages  
+    **Wiki** search: uses github api to search online wiki pages  
+  - updated real-time hints, thanks @CalamitousFelicitousness  
+  - add **Wilcards** UI  
+    in networks display  
+  - every heading element is collapsible!  
+  - quicksettings reset button to restore all quicksettings to default values  
+    because things do sometimes get wrong...  
+  - configurable image fit in all image views  
+  - rewritten **CivitAI downloader**  
+    in *models -> civitai*  
+    *hint*: you can enter model id in a search bar to pull information on specific model directly  
+    *hint*: you can download individual versions or batch-download all-at-once!  
+  - redesigned **GPU monitor**  
+    - standard-ui: *system -> gpu monitor*  
+    - modern-ui: *aside -> console -> gpu monitor*  
+    - supported for *nVidia CUDA* and *AMD ROCm* platforms  
+    - configurable interval in *settings -> user interface*  
+  - updated *models* tab
+    - updated *models -> current* tab  
+    - updated *models -> list models* tab  
+    - updated *models -> metadata* tab  
+  - updated *extensions* tab
+  - redesigned *settings -> user interface*  
+  - gallery bypass browser cache for thumbnails  
+  - gallery safer delete operation  
+  - networks display indicator for currently active items  
+    applies to: *styles, loras*  
+  - apply privacy blur to hf and civitai tokens  
+  - image download will now use actual image filename  
+  - increase default and maximum ui request timeout to 2min/5min  
+  - *hint*: card layout  
+    card layout is used by networks, gallery, civitai search, etc.  
+    you can change card size in *settings -> user interface*  
+- **Offloading**  
+  - changed **default** values for offloading based on detected gpu memory  
+    see [offloading docs](https://vladmandic.github.io/sdnext-docs/Offload/) for details  
+  - new feature to specify which modules to offload always or never  
+    in *settings -> model offloading -> offload always/never*  
+  - new `highvram` profile provides significant performance boost on gpus with more than 24gb  
+  - new `offload during pre-forward` option  
+    in *settings -> model offloading*  
+    switches from explicit offloading to implicit offloading on module execution change  
+  - new `diffusers_offload_nonblocking` exerimental setting  
+    instructs torch to use non-blocking move operations when possible  
+- **Features**  
+  - new `T5: Use shared instance of text encoder` option  
+    in *settings -> text encoder*  
+    since a lot of new models use T5 text encoder, this option allows to share  
+    the same instance across all models without duplicate downloads  
+    *note* this will not reduce size of your already downloaded models, but will reduce size of future downloads  
+  - **Wan** select which stage to run: *first/second/both* with configurable *boundary ration* when running both stages  
+    in settings -> model options  
+  - prompt parser allow explict `BOS` and `EOS` tokens in prompt  
+  - **Nunchaku** support for *FLUX.1-Fill* and *FLUX.1-Depth* models  
+  - update requirements/packages  
+  - use model vae scale-factor for image width/heigt calculations  
+  - **SDNQ** add `modules_dtype_dict` to quantize *Qwen Image* with mixed dtype  
+  - **prompt enhance**
+    add `allura-org/Gemma-3-Glitter-4B`, `Qwen/Qwen3-4B-Instruct-2507`, `Qwen/Qwen2.5-VL-3B-Instruct` model support  
+    improve system prompt  
+  - **schedulers** add **Flash FlowMatch**  
+  - **model loader** add parallel loader option  
+    enabled by default, selectable in *settings -> model loading*  
+  - **filename namegen** use exact sequence number instead of next available  
+    this allows for more predictable and consistent filename generation  
+  - **network delete** new feature that allows to delete network from disk  
+    in *networks -> show details -> delete*  
+    this will also delete description, metadata and previews associated with the network  
+    only applicable to safetensors networks, not downloaded diffuser models  
+- **Wiki**  
+  - Models page updated with links to original model repos and model licenses, thanks @alerikaisattera  
+  - Updated Model-Support with newly supported models  
+  - Updated Offload, Prompting, API pages  
+- **API**
+  - add `/sdapi/v1/checkpoint` POST endpoint to simply load a model  
+  - add `/sdapi/v1/modules` GET endpoint to get info on model components/modules  
+  - all generate endpoints now support `sd_model_checkpoint` parameter  
+    this allows to specify which model to use for generation without needing to use additional endpoints  
+- **Refactor**
+  - change default huggingface cache folder from system default to `models/huggingface`  
+    sd.next will warn on startup on unused cache entries  
+  - new unified pipeline component loader in `pipelines/generic`  
+  - remove **LDSR**  
+  - remove `api-only` cli option  
+- **Docker**  
+  - update cuda base image: `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime`  
+  - update official builds: <https://hub.docker.com/r/vladmandic/sdnext-cuda/tags>  
+- **Fixes**  
+  - refactor legacy processing loop  
+  - fix settings components mismatch  
+  - fix *Wan 2.2-5B I2V* workflow  
+  - fix *Wan* T2I workflow  
+  - fix OpenVINO  
+  - fix video model vs pipeline mismatch  
+  - fix video generic save frames  
+  - fix inpaint image metadata  
+  - fix processing image save loop  
+  - fix progress bar with refine/detailer  
+  - fix api progress reporting endpoint  
+  - fix `openvino` backend failing to compile  
+  - fix `zluda` with hip-sdk==6.4
+  - fix `nunchaku` fallback on unsupported model  
+  - fix `nunchaku` windows download links  
+  - fix *Flux.1-Kontext-Dev* with variable resolution  
+  - use `utf_16_be` as primary metadata decoding  
+  - fix `sd35` width/height alignment  
+  - fix `nudenet` api  
+  - fix global state tracking  
+  - fix ui tab detection for networks  
+  - fix ui checkbox/radio styling for non-default themes  
+  - fix loading custom transformers and t5 safetensors tunes  
+  - add mtime to reference models  
+  - patch torch version so 3rd party libraries can use expected format  
+  - unified stat size/mtime calls  
+  - reapply offloading on ipadapter load  
+  - api set default script-name  
+  - avoid forced gc and rely on thresholds  
+  - add missing interrogate in output panel  
+
+## Update for 2025-07-29
+
+### Highlights for 2025-07-29
+
+This is a big one: simply looking at number of changes, probably the biggest release since the project started!  
+
+Feature highlights include:  
+- [ModernUI](https://github.com/user-attachments/assets/6f156154-0b0a-4be2-94f0-979e9f679501) has quite some redesign which should make it more user friendly and easier to navigate plus several new UI themes  
+  If you're still using **StandardUI**, give [ModernUI](https://vladmandic.github.io/sdnext-docs/Themes/) a try!  
+- New models such as [WanAI 2.2](https://wan.video/) in 5B and A14B variants for both *text-to-video* and *image-to-video* workflows as well as *text-to-image* workflow!  
+  and also [FreePik F-Lite](https://huggingface.co/Freepik/F-Lite), [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2) and [bigASP 2.5](https://civitai.com/models/1789765?modelVersionId=2025412)  
+- Redesigned [Video](https://vladmandic.github.io/sdnext-docs/Video) interface with support for general video models plus optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack) and [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX) support  
+- Fully integrated nudity detection and optional censorship with [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet)  
+- New background replacement and relightning methods using **Latent Bridge Matching** and new **PixelArt** processing filter  
+- Enhanced auto-detection of default sampler types/settings results in avoiding common mistakes  
+- Additional **LLM/VLM** models available for captioning and prompt enhance  
+- Number of workflow and general quality-of-life improvements, especially around **Styles**, **Detailer**, **Preview**, **Batch**, **Control**  
+- Compute improvements  
+- [Wiki](https://github.com/vladmandic/automatic/wiki) & [Docs](https://vladmandic.github.io/sdnext-docs/) updates, especially new end-to-end [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page  
+
+In this release we finally break with legacy with the removal of the original [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui/) codebase which has not been maintained for a while now  
+This plus major cleanup of codebase and external dependencies resulted in ~55k LoC (*lines-of-code*) reduction and spread over [~750 files](https://github.com/vladmandic/sdnext/pull/4017) in ~200 commits!  
+
+We also switched project license to [Apache-2.0](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) which means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+
+And (*as always*) many bugfixes and improvements to existing features!  
+For details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+> [!NOTE]  
+> We recommend clean install for this release due to sheer size of changes  
+> Although upgrades and existing installations are tested and should work fine!  
+
+![Screenshot](https://github.com/user-attachments/assets/6f156154-0b0a-4be2-94f0-979e9f679501)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-07-29
+
+- **License**  
+  - SD.Next [license](https://github.com/vladmandic/sdnext/blob/dev/LICENSE.txt) switched from **aGPL-v3.0** to **Apache-v2.0**  
+    this means that SD.Next is now fully compatible with commercial and non-commercial use and redistribution regardless of modifications!  
+- **Models**
+  - [WanAI Wan 2.2](https://github.com/Wan-Video/Wan2.2) both 5B and A14B variants, for both T2V and I2V support  
+    go to: *video -> generic -> wan -> pick variant*  
+    optimized support with *VACE*, etc. will follow soon  
+    *caution* Wan2.2 on its own is ~68GB, but also includes optional second-stage for later low-noise processing which is absolutely massive at additional ~54GB  
+    you can enable second stage processing in *settings -> model options*, its disabled by default  
+    *note*: quantization and offloading are highly recommended regardless of first-stage only or both stages!  
+  - [WanAI Wan](https://wan.video/) T2V models for T2I workflows  
+    Wan is originally designed for *video* workflows, but now also be used for *text-to-image* workflows!  
+    supports *Wan-2.1 in 1.3B* and 14B variants and *Wan-2.2 in 5B and A14B* variants  
+    supports all standard features such as quantization, offloading, TAESD preview generation, LoRA support etc.  
+    can also load unet/transformer fine-tunes in safetensors format using UNET loader  
+    simply select in *networks -> models -> reference*  
+    *note* 1.3B model is a bit too small for good results and 14B is very large at 78GB even without second-stage so aggressive quantization and offloading are recommended  
+  - [FreePik F-Lite](https://huggingface.co/Freepik/F-Lite) in *7B, 10B and Texture* variants  
+    F-Lite is a 7B/10B model trained exclusively on copyright-safe and SFW content, trained on internal dataset comprising approximately 80 million copyright-safe images  
+    available via *networks -> models -> reference*  
+  - [Bria 3.2](https://huggingface.co/briaai/BRIA-3.2)  
+    Bria is a smaller 4B parameter model built entirely on licensed data and safe for commercial use  
+    *note*: this is a gated model, you need to [accept terms](https://huggingface.co/briaai/BRIA-3.2) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+    available via *networks -> models -> reference*  
+  - [bigASP 2.5](https://civitai.com/models/1789765)  
+    bigASP is an experimental SDXL finetune using Flow matching method  
+    load as usual, and leave sampler set to *Default*  
+    or you can use following samplers: *UniPC, DPM, DEIS, SA*  
+    required sampler settings: *prediction-method=flow-prediction*, *sigma-method=flowmatch*  
+    recommended sampler settings: *flow-shift=1.0*  
+  - [LBM: Latent Bridge Matching](https://github.com/gojasper/LBM)  
+    very fast automatic image background replacement methods with relightning!  
+    *simple*: automatic background replacement using [BiRefNet](https://github.com/ZhengPeng7/BiRefNet)  
+    *relighting*: automatic background replacement with reglighting so source image fits desired background  
+    with optional composite blending  
+    available in *img2img or control -> scripts*  
+  - add **FLUX.1-Kontext-Dev** inpaint workflow  
+  - add **FLUX.1-Kontext-Dev** **Nunchaku** support  
+    *note*: FLUX.1 Kontext is about 2-3x faster with Nunchaku vs standard execution!  
+  - support **FLUX.1** all-in-one safetensors  
+  - support for [Google Gemma 3n](https://huggingface.co/google/gemma-3n-E4B-it) E2B and E4B LLM/VLM models  
+    available in **prompt enhance** and process **captioning**  
+  - support for [HuggingFace SmolLM3](https://huggingface.co/HuggingFaceTB/SmolLM3-3B) 3B LLM model  
+    available in **prompt enhance**  
+  - add [fal AuraFlow 0.2](https://huggingface.co/fal/AuraFlow-v0.2) in addition to existing [fal AuraFlow 0.3](https://huggingface.co/fal/AuraFlow-v0.3) due to large differences in model behavior  
+    available via *networks -> models -> reference*  
+  - add integrated [NudeNet](https://vladmandic.github.io/sdnext-docs/NudeNet) as built-in functionality  
+    *note*: used to be available as a separate [extension](https://github.com/vladmandic/sd-extension-nudenet)  
+- **Video**
+  - redesigned **Video** interface  
+  - support for **Generic** video models  
+    includes support for many video models without specific per-model optimizations  
+    included: *Hunyuan, LTX, WAN, Mochi, Latte, Allegro, Cog*  
+    supports quantization, offloading, frame interpolation, etc.  
+  - support for optimized [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
+    with *t2i, i2i, flf2v* workflows  
+    LoRA support, prompt enhance, etc.  
+    now fully integrated instead of being a separate extension  
+  - support for optmized [LTXVideo](https://vladmandic.github.io/sdnext-docs/LTX)  
+    with *t2i, i2i, v2v* workflows  
+    optional native upsampling and video refine workflows  
+    LoRA support with different conditioning types such as Canny/Depth/Pose, etc.  
+  - support for post load quantization  
+- **UI**  
+  - major update to modernui layout  
+  - add new Windows-like *Blocks* UI theme  
+  - redesign of the *Flat* UI theme  
+  - enhanced look&feel for *Gallery* tab with better search and collapsible sections, thanks to @CalamitousFelicitousness
+- **WIKI**  
+  - new [Parameters](https://vladmandic.github.io/sdnext-docs/Parameters/) page that lists and explains all generation parameters  
+    massive thanks to @CalamitousFelicitousness for bringing this to life!  
+  - updated *Models, Video, LTX, FramePack, Styles*, etc.
+- **Compute**  
+  - support for [SageAttention2++](https://github.com/thu-ml/SageAttention)  
+    provides 10-15% performance improvement over default SDPA for transformer-based models!  
+    enable in *settings -> compute settings -> sdp options*  
+    *note*: SD.Next will use either SageAttention v1/v2/v2++, depending which one is installed  
+    until authors provide pre-build wheels for v2++, you need to install it manually or SD.Next will auto-install v1  
+  - support for `torch.compile` for LLM: captioning/prompt-enhannce  
+  - support for `torch.compile` with repeated-blocks  
+    reduces time-to-compile 5x without loss of performance!  
+    enable in *settings -> model compile -> repeated*  
+    *note*: torch.compile is not compatible with balanced offload  
+- **Other**  
+  - **Styles** can now include both generation params and server settings  
+    see [Styles docs](https://vladmandic.github.io/sdnext-docs/Styles/) for details  
+  - **TAESD** is now default preview type since its the only one that supports most new models  
+  - support **TAESD** preview and remote VAE for **HunyuanDit**  
+  - support **TAESD** preview and remote VAE for **AuraFlow**  
+  - support **TAESD** preview for **WanAI**  
+  - SD.Next now starts with *locked* state preventing model loading until startup is complete  
+  - warn when modifying legacy settings that are no longer supported, but available for compatibilty  
+  - warn on incompatible sampler and automatically restore default sampler  
+  - **XYZ grid** can now work with control tab:  
+    if controlnet or processor are selected in xyz grid, they will overwrite settings from first unit in control tab,  
+    when using controlnet/processor selected in xyz grid, behavior is forced as control-only  
+    also freely selectable are control strength, start and end values  
+  - **Batch** warn on unprocessable images and skip operations on errors so that other images can still be processed  
+  - **Metadata** improved parsing and detect foreign metadata  
+    detect ComfyUI images  
+    detect InvokeAI images  
+  - **Detailer** add `expert` mode where list of detailer models can be converted to textbox for manual editing  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Detailer/) for more information  
+  - **Detailer** add option to merge multiple results from each detailer model  
+    for example, hands model can result in two hands each being processed separately or both hands can be merged into one composite job  
+  - **Control** auto-update width/height on image upload  
+  - **Control** auto-determine image save path depending on operations performed  
+  - autodetect **V-prediction** models and override default sampler prediction type as needed  
+- **SDNQ**  
+  - use inference context during quantization  
+  - use static compile  
+  - rename quantization type for text encoders `default` option to `Same as model`  
+- **API**  
+  - add `/sdapi/v1/lock-checkpoint` endpoint that can be used to lock/unlock model changes  
+    if model is locked, it cannot be changed using normal load or unload methods  
+- **Fixes**
+  - allow theme type `None` to be set in config  
+  - installer dont cache installed state  
+  - fix Cosmos-Predict2 retrying TAESD download  
+  - better handle startup import errors  
+  - fix traceback width preventing copy&paste  
+  - fix ansi controle output from scripts/extensions  
+  - fix diffusers models non-unique hash  
+  - fix loading of manually downloaded diffuser models  
+  - fix api `/sdapi/v1/embeddings` endpoint  
+  - fix incorrect reporting of deleted and modified files  
+  - fix SD3.x loader and TAESD preview  
+  - fix xyz with control enabled  
+  - fix control order of image save operations  
+  - fix control batch-input processing  
+  - fix modules merge save model  
+  - fix torchvision bicubic upsample with ipex  
+  - fix instantir pipeline  
+  - fix prompt encoding if prompts within batch have different segment counts  
+  - fix detailer min/max size  
+  - fix loopback script  
+  - fix networks tags display  
+  - fix yolo refresh models  
+  - cleanup control infotext  
+  - allow upscaling with models that have implicit VAE processing  
+  - framepack improve offloading  
+  - improve prompt parser tokenizer loader  
+  - improve scripts error handling  
+  - improve infotext param parsing  
+  - improve extensions ui search  
+  - improve model type autodetection  
+  - improve model auth check for hf repos  
+  - improve Chroma prompt padding as per recommendations  
+  - lock directml torch to `torch-directml==0.2.4.dev240913`  
+  - lock directml transformers to `transformers==4.52.4`  
+  - improve install of `sentencepiece` tokenizer  
+  - add int8 matmul fallback for ipex with onednn qlinear  
+- **Refactoring**  
+  *note*: none of the removals result in loss-of-functionality since all those features are already re-implemented  
+  goal here is to remove legacy code, code duplication and reduce code complexity  
+  - obsolete **original backend**  
+  - remove majority of legacy **a1111** codebase  
+  - remove legacy ldm codebase: `/repositories/ldm`  
+  - remove legacy blip codebase: `/repositories/blip`  
+  - remove legacy codeformer codebase: `/repositories/codeformer`  
+  - remove legacy clip patch model: `/models/karlo`  
+  - remove legacy model configs: `/configs/*.yaml`  
+  - remove legacy submodule: `/modules/k-diffusion`  
+  - remove legacy hypernetworks support: `/modules/hypernetworks`  
+  - remove legacy lora support: `/extensions-builtin/Lora`  
+  - remove legacy clip/blip interrogate module  
+  - remove modern-ui remove `only-original` vs `only-diffusers` code paths  
+  - refactor control processing and separate preprocessing and image save ops  
+  - refactor modernui layouts to rely on accordions more than individual controls  
+  - refactore pipeline apply/unapply optional components & features  
+  - split monolithic `shared.py`  
+  - cleanup `/modules`: move pipeline loaders to `/pipelines` root  
+  - cleanup `/modules`: move code folders used by pipelines to `/pipelines/<pipeline>` folder  
+  - cleanup `/modules`: move code folders used by scripts to `/scripts/<script>` folder  
+  - cleanup `/modules`: global rename `modules.scripts` to avoid conflict with `/scripts`  
+  - override `gradio` installer  
+  - major refactoring of requirements and dependencies to unblock `numpy>=2.1.0`  
+  - patch `insightface`  
+  - patch `facelib`  
+  - patch `numpy`  
+  - stronger lint rules  
+    add separate `npm run lint`, `npm run todo`, `npm run test`, `npm run format` macros  
+
+## Update for 2025-06-30
+
+### Highlights for 2025-06-30
+
+New release with ~100 commits...So what's new? Well, its been a busy few weeks with new models coming out quite frequently:  
+- New T2I/I2I models: **OmniGen-2, Cosmos-Predict2, FLUX.1-Kontext, Chroma**  
+- Additional VLM models: **JoyCaption Beta, MoonDream 2**  
+- Additional upscalers: **UltraSharp v2**  
+
+And (as always) many bugfixes and improvements to existing features!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-06-30
+
+- **Models**
+  - [Models Wiki page](https://vladmandic.github.io/sdnext-docs/Models/) is updated will all new models  
+    *note* all new image models larger than 30GB, so [offloading](https://vladmandic.github.io/sdnext-docs/Offload/) and [quantization](https://vladmandic.github.io/sdnext-docs/Quantization/) are necessary!  
+  - [OmniGen2](https://huggingface.co/OmniGen2/OmniGen2)  
+    - OmniGen2 is a powerful unified multimodal model that supports t2i and i2i workflows and uses 4B transformer with Qwen-VL-2.5 4B VLM  
+    - available via *networks -> models -> reference*  
+  - [nVidia Cosmos-Predict2 T2I](https://research.nvidia.com/labs/dir/cosmos-predict2/) *2B and 14B*  
+    - Cosmos-Predict2 T2I is a new foundational model from Nvidia in two variants: small 2B and large 14B
+    - available via *networks -> models -> reference*  
+    - *note*: 14B variant is a very large model at 36GB
+    - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Text2Image) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Black Forest Labs FLUX.1 Kontext I2I](https://bfl.ai/announcements/flux-1-kontext-dev) *Dev* variant  
+    - FLUX.1-Kontext is a 12B model billion parameter capable of editing images based on text instructions  
+    - model is primarily designed for image editing workflows, but also works for text-to-image workflows  
+    - requirements are similar to regular FLUX.1 although 2x slower  
+    - available via *networks -> models -> reference*  
+    - *note*: this is a gated model, you need to [accept terms](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev) and set your [huggingface token](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [lodestones Chroma](https://huggingface.co/lodestones/Chroma)  
+    - Chroma is a 8.9B parameter model based on *FLUX.1-schnell* and fully Apache 2.0 licensed  
+    - available via *networks -> models -> reference*  
+    - *note*: model is still in training so future updates will trigger re-download  
+    - large credits to @Trojaner for work on bringing Chroma support to SD.Next and all the optimizations around it!  
+  - [JoyCaption Beta](https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava) support (in addition to existing JoyCaption Alpha)  
+    - new version of highly popular captioning model  
+    - available via *caption -> vlm caption*  
+  - [MoonDream 2](https://huggingface.co/vikhyatk/moondream2) support (updated)  
+    - really good 2B captioning model that can work on different levels of detail  
+    - available via *caption -> vlm caption*  
+  - [UltraSharp v2](https://huggingface.co/Kim2091/UltraSharpV2) support  
+    - one of the best upscalers (traditional, non-diffusion) available today!  
+    - available via *process -> upscale -> chainner*  
+- **Changes**  
+  - Update all core requirements  
+  - Support Remote VAE with *Omnigen, Lumina 2 and PixArt*  
+  - Enable quantization for captioning: *Gemma, Qwen, SMOL, Florence, JoyCaption*  
+  - Add `--trace` command line param that enables trace logging  
+  - Use Diffusers version of *OmniGen*  
+  - Control move global settings to control elements -> control settings tab  
+  - Control add setting to run hires with or without control  
+  - Update OpenVINO to 2025.2.0  
+  - Simplified and unified quantization enabled for options  
+  - Add **PixelArt** filter to processing tab  
+- **SDNQ Quantization**  
+  - Add `auto` quantization mode  
+  - Add `modules_to_not_convert` support for post mode  
+  - Improve offload compatibility  
+  - Fix Qwen 2.5 with int8 matmul  
+  - Fix Dora loading  
+  - Remove per layer GC  
+  - Add support for XYZ grid to test quantization modes  
+    *note*: you need to enable quantization and choose what it applies on, then xyz grid can change quantization mode  
+    *note*: you can also enable 'add time info' to compare performance of different quantization modes  
+- **API**
+  - Add `/sdapi/v1/network?page=<page_name>&item=<item_name>` endpoint that returns full network info  
+  - Add `/sdapi/v1/lora?lora=<lora_name>` endpoint that returns full lora info and metadata  
+  - Add `/sdapi/v1/controlnets?model_type=<model_type|all|None>` endpoints that returns list of available controlnets for specific model type  
+  - Set default sampler to `Default`  
+- **Fixes**  
+  - IPEX with DPM2++ FlowMatch samplers  
+  - Invalid attention processor with ControlNet  
+  - LTXVideo default scheduler  
+  - Balanced offload with OmniGen  
+  - Quantization with OmniGen  
+  - Do not save empty `params.txt` file  
+  - Override `params.txt` using `SD_PATH_PARAMS` env variable  
+  - Add `wheel` to requirements due to `pip` change  
+  - Case-insensitive sampler name matching  
+  - Fix delete file with gallery views  
+  - Add `SD_SAVE_DEBUG` env variable to report all params and metadata save operations as they happen  
+  - Fix TAESD model type detection  
+  - Fix LoRA loader incorrectly reporting errors  
+  - Fix hypertile for img2img and inpaint operations  
+  - Fix prompt parser batch size  
+  - Fix process batch with batch count  
+  - Fix process batch double image save  
+  - Fix unapply texture tiling  
+  - Fix nunchaku batch support  
+  - Fix LoRA change detection on pipeline type change  
+  - Fix LoRA load order when it includes text-encoder data  
+  - Suppress torch empty logging  
+  - Improve TAESD live preview downscale handling  
+
+## Update for 2025-06-16
+
+- **Feature**  
+  - Support for Python 3.13  
+  - TeaCache support for Lumina 2  
+  - Custom UNet and VAE loading support for Lumina 2  
+- **Changes**  
+  - Increase the medvram mode threshold from 8GB to 12GB  
+  - Set CPU backend to use FP32 by default  
+  - Relax Python version checks for Zluda  
+  - Make VAE options not require model reload  
+  - Add warning about incompatible attention processors  
+- **Torch**  
+  - Set default to `torch==2.7.1`  
+  - Force upgrade pip when installing Torch  
+- **ROCm**  
+  - Support ROCm 6.4 with `--use-nightly`  
+  - Don't override user set gfx version  
+  - Don't override gfx version with RX 9000  
+  - Fix flash-atten repo  
+- **SDNQ Quantization**  
+  - Add group size support for convolutional layers  
+  - Add quantized matmul support for for convolutional layers  
+  - Add 7-bit, 5-bit and 3-bit quantization support  
+  - Add separate quant mode option for Text Encoders  
+  - Fix forced FP32 with tensorwise FP8 matmul  
+  - Fix PyTorch <= 2.4 compatibility with FP8 matmul  
+  - Fix VAE with conv quant  
+  - Don't ignore the Quantize with GPU option with offload mode `none` and `model`  
+  - High VRAM usage with Lumina 2  
+- **Fixes**  
+  - Meissonic with multiple generators  
+  - OmniGen with new transformers  
+  - Invalid attention processors  
+  - PixArt Sigma Small and Large loading  
+  - TAESD previews with PixArt and Lumina 2  
+  - VAE Tiling with non-default tile sizes  
+  - Lumina 2 with IPEX  
+  - Nunchaku updated repo  
+  - Double loading of models with custom UNets  
+
+## Update for 2025-06-02
+
+### Highlights for 2025-06-02
+
+This release is all about quantization: with new SD.Next own quantization method: **SDNQ**  
+**SDNQ** is based on **NNCF**, but has been re-implemented, optimized and evolved enough to become its own quantization method!  
+It's fully cross-platform, supports all GPUs and includes tons of quantization methods:
+- *8-bit, 6-bit, 4-bit, 2-bit and 1-bit int and uint*
+- *8-bit e5, e4 and fnuz float*
+
+Also unlike most traditional methods, its also applicable to nearly all model types  
+
+*Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance or capabilities of your existing workflow! For example, you may not have issues with SD15 or SDXL, but you may have been limited running at high resolutions or with multiple ControlNet due to VRAM requirements - this will significantly reduce memory requirements. And on-the-fly quantization takes just few seconds during model load, there is no need to have multiple quant models permanently saved.  
+
+On a different topic, **SD.Next Wiki & Docs** and its **UI Hints** and **UI Localization** system are community efforts and any contributions are welcome!  
+You dont need any coding experience, but if you learned something and you find documentation either wrong or insufficient, please do suggest edits!  
+Take a look at [Docs](https://github.com/vladmandic/sdnext/wiki/Docs), [Hints](https://github.com/vladmandic/sdnext/wiki/Hints) and [Localization](https://github.com/vladmandic/sdnext/wiki/Locale) contribution guides
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-06-02
+
+- **SDNQ Quantization**  
+  - Renamed `NNCF` to `SDNQ`  
+  - Renamed quantization scheme names to the underlying dtype names instead of NNCF names  
+    - `INT8_SYM` -> `int8`  
+    - `INT8` -> `uint8`  
+    - `INT4_SYM` -> `int4`  
+    - `INT4` -> `uint4`  
+  - Add `float8_e4m3fn`, `float8_e5m2`, `float8_e4m3fnuz`, `float8_e5m2fnuz`, `int6`, `uint6`, `int2`, `uint2` and `uint1` support  
+  - Add quantized matmul support for `float8_e4m3fn` and `float8_e5m2`  
+  - Set the default quant mode to `pre`  
+  - Use per token input quant with int8 and fp8 quantized matmul  
+  - Implement better layer hijacks  
+  - Add an option to toggle quantize with GPU  
+  - Fix conv quant and add support for conv quant with asym modes  
+  - Fix lora weight change  
+  - Fix high RAM usage with pre mode  
+  - Fix scale and zero_point not being offloaded  
+- **IPEX**  
+  - Disabe Dynamic Attention by default on PyTorch 2.7  
+  - Remove GradScaler hijack and use `torch.amp.GradScaler` instead  
+- **Feature**  
+  - TeaCache support for HiDream I1  
+- **Changes**  
+  - Set the default attention optimizer to Scaled-Dot-Product on all backends  
+  - Enable Dynamic attention for Scaled-Dot-Product with ROCm, DirectML, MPS and CPU backends  
+- **Fixes**
+  - Gallery duplicate entries  
+  - Prompt enhancement args mismatch  
+
+## Update for 2025-05-17
+
+*Curious how your system is performing?*  
+Run a built-in benchmark and compare to over 15k unique results world-wide: [Benchmark data](https://vladmandic.github.io/sd-extension-system-info/pages/benchmark.html)!  
+From slowest 0.02 it/s running on 6th gen CPU without acceleration up to 275+ it/s running on tuned GH100 system!  
+
+Also, since quantization is becoming a necessity for almost all new models, see comparison of different quantization methods available in SD.Next: [Quantization](https://vladmandic.github.io/sdnext-docs/Quantization/)  
+*Hint*: Even if you may not need quantization for your current model, it may be worth trying it out as it can significantly improve performance!  
+
+For ZLUDA users, this update adds [compatibility](https://github.com/vladmandic/sdnext/issues/3918) with with latest AMD Adrenaline drivers  
+
+Btw, last few releases have been smaller, but more regular so do check posts about previous releases as features do quickly add up!  
+
+- **Wiki**  
+  - Updates for: *Quantization, NNCF, WSL, ZLUDA, ROCm*  
+- **Models**  
+  - [Index AniSora v1 5B](https://huggingface.co/IndexTeam/Index-anisora) I2V  
+    Based on CogVideoX architecture, trained as animated video generation model: This Project presenting Bilibili's gift to the anime world!  
+  - [Index AniSora v1 RL 5B](https://github.com/bilibili/Index-anisora?tab=readme-ov-file#anisorav10_rl) I2V  
+    RL-optimized AniSoraV1.0 for enhanced anime-style output  
+- **Compute**  
+  - ZLUDA: update to `zluda==3.9.5` with `torch==2.7.0`  
+    *Note*: delete `.zluda` folder so that newest zluda will be installed if you are using the latest AMD Adrenaline driver  
+  - NNCF: added experimental support for direct INT8 MatMul  
+- **Feature**  
+  - Prompt Enhance: option to allow/disallow NSFW content  
+- **Fixes**  
+  - OpenVINO: force cpu device  
+  - Gradio: major cleanup and fixing defaults and ranges  
+  - Pydantic: update to api types  
+  - UI defaults: match correct prompt components  
+  - NNCF with ControlNet  
+  - NNCF with CogVideo
+  - IPEX with CogVideo  
+  - JXL image format metadata handling  
+
+## Update for 2025-05-12
+
+### Highlights for 2025-05-12
+
+First of all NNCF quantization engine has gone through some major enhancements and its now much faster, both in quantization as well as actual inference!  
+And its a only truly cross-platform solution for quantization as all other methods are platform specific.  
+
+*Note* if you're a ZLUDA user, see notes on GPU driver compatibility as recent Andrenaline drivers do cause problems!  
+And if you're a ROCm user, this release brings much faster compile times on Linux as well as first (experimental) builds for Windows!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
+
+### Details for 2025-05-12
+
+- **Compute**
+  - **NNCF**  
+    - Faster quantization  
+    - Faster inference with support for `torch.triton`  
+      up to 3.5x faster with INT4 and 2x faster with INT8  
+    - New settings: *NNCF -> Group size*  
+      default is a balance between performance (higher size) and quality (lower size)  
+      0 is default at 64, -1 disables grouping  
+  - **ZLUDA**:
+    - *warning*: AMD Adrenaline 25.5.1 drivers are NOT COMPATIBLE with ZLUDA
+      see [issue](https://github.com/vladmandic/sdnext/issues/3918) for details
+  - **ROCm**
+    - first working builds of **Torch with ROCm on Windows**  
+      highly experimental  
+      reach out on Discord if you want to test it  
+- **Features**
+  - Prompt Enhancer: support for *img2img* workflows  
+    in img2img prompt enhancer will first analyze input image and then incorporate user prompt to create enhanced prompt  
+  - **FramePack**
+    - improve LoRA compatibility  
+    - add metadata to video  
+  - **UI**
+    - ModernUI: support for History tab  
+    - ModernUI: support for FramePack tab  
+  - **API**  
+    - add `/sdapi/v1/framepack` endpoint with full support for FramePack including all optional settings  
+      see example: `sd-extension-framepack/create-video.py`  
+    - add `/sdapi/v1/checkpoint` endpoint to get info on currently loaded model/checkpoint  
+      see example: `cli/api-checkpoint.py`  
+    - add `/sdapi/v1/prompt-enhance` endpoint to enhance prompt using LLM  
+      see example: `cli/api-enhance.py`  
+      supports text, image and video prompts with or without input image  
+      *note*: if input image is provided, model should be left at default `gemma-3-4b-it` as most other LLMs do not support hybrid workflows  
+- **Fixes**
+  - Latent Diffusion Upscale
+  - Model load: support SDXL safetensors packaged without VAE  
+  - ROCm: disable cuDNN benchmark, fixes slow MIOpen tuning with `torch==2.7`  
+  - Extensions: use in-process installer for extensions-builtin, improves startup performance  
+  - FramePack: monkey-patch for dynamically installed `av`  
+  - Logging: reduce spam while progress is active  
+  - LoRA: legacy handler enable/disable  
+  - LoRA: force clear-cache on model unload  
+  - ADetailer: fix enable/disable  
+  - ZLUDA: improve compatibility with older GPUs  
+
+## Update for 2025-05-06
+
+Minor refesh with several bugfixes and updates to core libraries  
+Plus new features with **FramePack** and **HiDream-E1**
+
+- **Features**  
+  - [FramePack](https://vladmandic.github.io/sdnext-docs/FramePack)  
+    add **T2V** mode in addition to **I2V** and **FLF2V**  
+    support for new **F1: forward-only** model variant in addition to regular **bi-directional**  
+    add **prompt enhance** using VLM: it will analyze input image and then create enhanced prompt based on user prompt and image  
+    add **prompt interpolation**, section prompts do not need to match exact video section count  
+    and improved performance  
+    [Docs](https://vladmandic.github.io/sdnext-docs/FramePack) rewrite!  
+  - **Prompt-Enhhance**  
+    add **Qwen3** *0.6B/1.7B/4B* models  
+    add thinking mode support (for models that have it)  
+  - [HiDream-E1](https://huggingface.co/HiDream-ai/HiDream-E1-Full) natural language image-editing model built on HiDream-I1  
+    available via  *networks -> models -> reference*  
+    *note*: right now HiDream-E1 is limited to 768x768 images, so you must force resize image before running it  
+- **Other**  
+  - CUDA: set default to `torch==2.7.0` with `cuda==12.8`  
+  - ZLUDA: update to `zluda==3.9.4` and `flash-attn-2`  
+  - Docker: pre-install `ffmpeg`  
+  - Wiki: updated pages: *FramePack, Video, ROCm, ZLUDA, Quantization*  
+  - Gallery: support JXL image format  
+  - Scheduler: add sigmoid beta scheduler  
+  - GitHub: updated issue template  
+- **Fixes**  
+  - FramePack: correct dtype  
+  - NNCF: check dependencies and register quant type  
+  - API: refresh checkpoint list  
+  - API: vlm-api endpoint  
+  - Styles: save style with prompt  
+  - Texture tiling: fix apply when switching models  
+  - Diffusers: slow initial startup  
+  - Gated access: obfuscate and log token used for access  
+  - SDXL refiner workflow  
+  - Control: t2i-adapter workflow  
+  - Control: xs-controlnet workflow  
+  - Control: lllite-workflow  
+  - Control: refiner workflow with multiple control elements  
+
 ## Highlights for 2025-04-28
 
 Another major release with *over 120 commits*!  
@@ -26,7 +796,7 @@ What else?
     implemented as an extension for **SD.Next** (for the moment while dev is ongoing)  
     generate high-quality videos with pretty much unlimited duration and with limited VRAM!  
     install as any other extension and for details see extension [README](https://github.com/vladmandic/sd-extension-framepack/blob/main/README.md)  
-    - I2V & FLF2V support with explicit strength controls   
+    - I2V & FLF2V support with explicit strength controls  
     - complex actions: modify prompts for each section of the video  
     - LoRA support: use normal **HunyuanVideo** LoRAs  
     - decode: use local, tiny or remote VAE  
@@ -138,7 +908,7 @@ There are quite a few other performance and quality-of-life improvements in this
 
 - **Models**  
   - [HiDream-I1](https://huggingface.co/HiDream-ai/HiDream-I1-Full) in fast, dev and full variants!  
-    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters   
+    new absolutely massive image generative foundation model with **17B** parameters and 4 text-encoders with additional **8.3B** parameters  
     simply select from *networks -> models -> reference*  
     due to size (over 25B params in 58GB), offloading and on-the-fly quantization are pretty much a necessity  
     see [HiDream Wiki page](https://github.com/vladmandic/sdnext/wiki/HiDream) for details  
@@ -197,7 +967,7 @@ Time for another major release with ~120 commits and [ChangeLog](https://github.
 *Highlights?*  
 Video...Brand new Video processing module with support for all latest models: **WAN21, Hunyuan, LTX, Cog, Allegro, Mochi1, Latte1** in both *T2V* and *I2V* workflows  
 And combined with *on-the-fly quantization*, support for *Local/Tiny/Remote* VAE, acceleration modules such as *FasterCache or PAB*, and more!  
-Models...And support for new models: **CogView-4**, **SANA 1.5**, 
+Models...And support for new models: **CogView-4**, **SANA 1.5**,  
 
 *Plus...*  
 - New **Prompt Enhance** using LLM,
@@ -496,7 +1266,7 @@ We're back with another update with nearly 100 commits!
   - updated **CUDA** receipe to `torch==2.6.0` with `cuda==12.6` and add prebuilt image  
   - added **ROCm** receipe and prebuilt image  
   - added **IPEX** receipe and add prebuilt image  
-  - added **OpenVINO** receipe and prebuilt image   
+  - added **OpenVINO** receipe and prebuilt image  
 - **System**  
   - improve **python==3.12** compatibility  
   - **Torch**  
@@ -569,7 +1339,7 @@ Just one week after latest release and what a week it was with over 50 commits!
 
 - **GitHub**
   - rename core repo from <https://github.com/vladmandic/automatic> to <https://github.com/vladmandic/sdnext>  
-    old repo url should automatically redirect to new one for seamless transition and in-place upgrades   
+    old repo url should automatically redirect to new one for seamless transition and in-place upgrades  
     all internal links have been updated  
     wiki content and docs site have been updated  
 - **Docs**:
@@ -860,7 +1630,7 @@ Commit hash: `master: #dcfc9f3` `dev: #935cac6`
   - optimizations: full offload, quantization and tiling support  
   - [TeaCache](https://github.com/ali-vilab/TeaCache/blob/main/TeaCache4LTX-Video/README.md) integration  
 - **VAE**:  
-  - tiling granular options in *settings -> variable auto encoder*  
+  - tiling granular options in *settings -> Variational Auto Encoder*  
 - **UI**:  
   - live preview optimizations and error handling  
   - live preview high quality output, thanks @Disty0  
@@ -918,7 +1688,7 @@ We've also added support for several new models such as highly anticipated [NVLa
 And several new SOTA video models: [Lightricks LTX-Video](https://huggingface.co/Lightricks/LTX-Video), [Hunyuan Video](https://huggingface.co/tencent/HunyuanVideo) and [Genmo Mochi.1 Preview](https://huggingface.co/genmo/mochi-1-preview)  
 
 And a lot of **Control** and **IPAdapter** goodies  
-- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models 
+- for **SDXL** there is new [ProMax](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0), improved *Union* and *Tiling* models  
 - for **FLUX.1** there are [Flux Tools](https://blackforestlabs.ai/flux-1-tools/) as well as official *Canny* and *Depth* models,  
   a cool [Redux](https://huggingface.co/black-forest-labs/FLUX.1-Redux-dev) model as well as [XLabs](https://huggingface.co/XLabs-AI/flux-ip-adapter-v2) IP-adapter
 - for **SD3.5** there are official *Canny*, *Blur* and *Depth* models in addition to existing 3rd party models  
@@ -3212,7 +3982,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - lightweight native implementation of T2I adapters which can guide generation towards specific image style  
     - supports most T2I models, not limited to SD 1.5  
     - models are auto-downloaded on first use
-    - for IP adapter support in *Original* backend, use standard *ControlNet* extension  
   - **AnimateDiff**
     - lightweight native implementation of AnimateDiff models:  
       *AnimateDiff 1.4, 1.5 v1, 1.5 v2, AnimateFace*
@@ -3220,7 +3989,6 @@ Also new is support for **SDXL-Turbo** as well as new **Kandinsky 3** models and
     - models are auto-downloaded on first use  
     - for video saving support, see video support section
     - can be combined with IP-Adapter for even better results!  
-    - for AnimateDiff support in *Original* backend, use standard *AnimateDiff* extension  
   - **HDR latent control**, based on [article](https://huggingface.co/blog/TimothyAlexisVass/explaining-the-sdxl-latent-space#long-prompts-at-high-guidance-scales-becoming-possible)  
     - in *Advanced* params
     - allows control of *latent clamping*, *color centering* and *range maximization*  

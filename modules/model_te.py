@@ -4,7 +4,6 @@ import torch
 import transformers
 from safetensors.torch import load_file
 from modules import shared, devices, files_cache, errors, model_quant
-from installer import install
 
 
 te_dict = {}
@@ -16,10 +15,14 @@ def load_t5(name=None, cache_dir=None):
     global loaded_te # pylint: disable=global-statement
     if name is None:
         return None
+    cache_dir = cache_dir or shared.opts.hfcache_dir
     from modules import modelloader
     modelloader.hf_login()
     repo_id = 'stabilityai/stable-diffusion-3-medium-diffusers'
-    fn = te_dict.get(name) if name in te_dict else None
+    if os.path.exists(name):
+        fn = name
+    else:
+        fn = te_dict.get(name) if name in te_dict else None
 
     if fn is not None and name.lower().endswith('gguf'):
         from modules import ggml
@@ -41,20 +44,19 @@ def load_t5(name=None, cache_dir=None):
             if torch.is_floating_point(param) and not is_param_float8_e4m3fn:
                 param = param.to(devices.dtype)
                 set_module_tensor_to_device(t5, param_name, device=0, value=param)
-        if shared.opts.diffusers_eval:
-            t5.eval()
         if t5.dtype != devices.dtype:
             try:
                 t5 = t5.to(dtype=devices.dtype)
             except Exception:
                 shared.log.error(f"T5: Failed to cast text encoder to {devices.dtype}, set dtype to {t5.dtype}")
                 raise
+        del state_dict
 
     elif fn is not None:
         with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
             t5_config = transformers.T5Config(**json.load(f))
         state_dict = load_file(fn)
-        t5 = transformers.T5EncoderModel.from_pretrained(None, state_dict=state_dict, config=t5_config)
+        t5 = transformers.T5EncoderModel.from_pretrained(None, state_dict=state_dict, config=t5_config, torch_dtype=devices.dtype)
 
     elif 'fp16' in name.lower():
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
@@ -70,24 +72,34 @@ def load_t5(name=None, cache_dir=None):
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'int8' in name.lower():
-        from modules.model_quant import create_nncf_config
-        quantization_config = create_nncf_config(kwargs=None, allow_nncf=True, module="any")
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        from modules.model_quant import create_sdnq_config
+        quantization_config = create_sdnq_config(kwargs=None, allow=True, module='any', weights_dtype='int8')
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+
+    elif 'uint4' in name.lower():
+        from modules.model_quant import create_sdnq_config
+        quantization_config = create_sdnq_config(kwargs=None, allow=True, module='any', weights_dtype='uint4')
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'qint4' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
         quantization_config = transformers.QuantoConfig(weights='int4')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'qint8' in name.lower():
         model_quant.load_quanto('Load model: type=T5')
         quantization_config = transformers.QuantoConfig(weights='int8')
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif '/' in name:
         shared.log.debug(f'Load model: type=T5 repo={name}')
         quant_config = model_quant.create_config(module='TE')
-        t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
+        if quantization_config is not None:
+            t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
 
     else:
         t5 = None
@@ -134,6 +146,7 @@ def load_vit_l():
     te = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config)
     te = te.to(dtype=devices.dtype)
     loaded_te = shared.opts.sd_text_encoder
+    del state_dict
     return te
 
 
@@ -144,6 +157,7 @@ def load_vit_g():
     te = transformers.CLIPTextModelWithProjection.from_pretrained(pretrained_model_name_or_path=None, state_dict=state_dict, config=config)
     te = te.to(dtype=devices.dtype)
     loaded_te = shared.opts.sd_text_encoder
+    del state_dict
     return te
 
 

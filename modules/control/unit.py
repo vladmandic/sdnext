@@ -13,14 +13,15 @@ from modules.control.units import reference # pylint: disable=unused-import
 default_device = None
 default_dtype = None
 unit_types = ['t2i adapter', 'controlnet', 'xs', 'lite', 'reference', 'ip']
+current = []
 
 
 class Unit(): # mashup of gradio controls and mapping to actual implementation classes
     def update_choices(self, model_id=None):
         name = model_id or self.model_name
-        if name == 'InstantX Union':
+        if name == 'InstantX Union F1':
             self.choices = ['canny', 'tile', 'depth', 'blur', 'pose', 'gray', 'lq']
-        elif name == 'Shakker-Labs Union':
+        elif name == 'Shakker-Labs Union F1':
             self.choices = ['canny', 'tile', 'depth', 'blur', 'pose', 'gray', 'lq']
         elif name == 'Xinsir Union XL':
             self.choices = ['openpose', 'depth', 'scribble', 'canny', 'normal']
@@ -30,7 +31,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
             self.choices = ['default']
 
     def __str__(self):
-        return f'Unit: type={self.type} enabled={self.enabled} strength={self.strength} start={self.start} end={self.end} mode={self.mode} tile={self.tile}'
+        return f'Unit(index={self.index} enabled={self.enabled} type="{self.type}" strength={self.strength} start={self.start} end={self.end}{self.process}{self.controlnet})'
 
     def __init__(self,
                  # values
@@ -58,6 +59,8 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                  result_txt = None,
                  extra_controls: list = [],
         ):
+        self.model_id = model_id
+        self.process_id = process_id
         self.controls = [gr.Label(value=unit_type, visible=False)] # separator
         self.index = index
         self.enabled = enabled or False
@@ -80,8 +83,6 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         # global settings but passed per-unit
         self.factor = 1.0
         self.guess = False
-        self.start = 0
-        self.end = 1
         # reference settings
         self.attention = 'Attention'
         self.fidelity = 0.5
@@ -91,16 +92,6 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         self.choices = ['default']
         # control tile
         self.tile = '1x1'
-
-        def reset():
-            if self.process is not None:
-                self.process.reset()
-            if self.adapter is not None:
-                self.adapter.reset()
-            if self.controlnet is not None:
-                self.controlnet.reset()
-            self.override = None
-            return [True, 'None', 'None', 1.0] # reset ui values
 
         def enabled_change(val):
             self.enabled = val
@@ -240,7 +231,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                 self.controls.append(process_id)
                 process_id.change(fn=self.process.load, inputs=[process_id], outputs=[result_txt], show_progress=True)
         if reset_btn is not None:
-            reset_btn.click(fn=reset, inputs=[], outputs=[enabled_cb, model_id, process_id, model_strength])
+            reset_btn.click(fn=self.reset, inputs=[], outputs=[enabled_cb, model_id, process_id, model_strength])
         if preview_btn is not None:
             preview_btn.click(fn=self.process.preview, inputs=[], outputs=[preview_process]) # return list of images for gallery
         if image_upload is not None:
@@ -261,3 +252,13 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
         if control_tile is not None:
             self.controls.append(control_tile)
             control_tile.change(fn=control_tile_change, inputs=[control_tile])
+
+    def reset(self):
+        if self.process is not None:
+            self.process.reset()
+        if self.adapter is not None:
+            self.adapter.reset()
+        if self.controlnet is not None:
+            self.controlnet.reset()
+        self.override = None
+        return [True, 'None', 'None', 1.0] # reset ui values

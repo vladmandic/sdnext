@@ -141,10 +141,14 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
     def changed(self, requested: List[str], include: List[str], exclude: List[str]):
         if shared.opts.lora_force_reload:
             return True
-        sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+        sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
         if not hasattr(sd_model, 'loaded_loras'):
             sd_model.loaded_loras = {}
-        key = f'{",".join(include)}:{",".join(exclude)}'
+        if include is None or len(include) == 0:
+            include = ['all']
+        if exclude is None or len(exclude) == 0:
+            exclude = ['none']
+        key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
         debug_log(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if len(requested) != len(loaded):
@@ -206,7 +210,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p):
-        if shared.native and len(lora_load.diffuser_loaded) > 0:
+        if len(lora_load.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 unload_diffusers()
         if self.active and l.debug:

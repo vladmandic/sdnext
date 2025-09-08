@@ -1,7 +1,7 @@
 <div align="center">
 <img src="https://github.com/vladmandic/sdnext/raw/master/html/logo-transparent.png" width=200 alt="SD.Next">
 
-**Image Diffusion implementation with advanced features**
+# SD.Next: All-in-one WebUI for AI generative image and video creation
 
 ![Last update](https://img.shields.io/github/last-commit/vladmandic/sdnext?svg=true)
 ![License](https://img.shields.io/github/license/vladmandic/sdnext?svg=true)
@@ -29,13 +29,13 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 - Multiple UIs!  
   ▹ **Standard | Modern**  
 - Multiple [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
-- Built-in Control for Text, Image, Batch and video processing!  
+- Built-in Control for Text, Image, Batch and Video processing!  
 - Multiplatform!  
- ▹ **Windows | Linux | MacOS | nVidia | AMD | IntelArc/IPEX | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
+ ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | Intel Arc / IPEX XPU | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
 - Platform specific autodetection and tuning performed on install  
-- Optimized processing with latest `torch` developments with built-in support for model compile, quantize and compress  
+- Optimized processing with latest `torch` developments with built-in support for model compile and quantize  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
-  Quantization and compression methods: *BitsAndBytes | TorchAO | Optimum-Quanto | NNCF*  
+  Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO*  
 - **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
 - Built-in queue management  
 - Built in installer with automatic updates and dependency management  
@@ -77,8 +77,8 @@ Plus Docker container receipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](https:
 
 - Get started with **SD.Next** by following the [installation instructions](https://vladmandic.github.io/sdnext-docs/Installation/)  
 - For more details, check out [advanced installation](https://vladmandic.github.io/sdnext-docs/Advanced-Install/) guide  
-- List and explanation of [command line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/)
-- Install walkthrough [video](https://www.youtube.com/watch?v=nWTnTyFTuAs)
+- List and explanation of [command line arguments](https://vladmandic.github.io/sdnext-docs/CLI-Arguments/)  
+- Install walkthrough [video](https://www.youtube.com/watch?v=nWTnTyFTuAs)  
 
 > [!TIP]
 > And for platform specific information, check out  

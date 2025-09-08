@@ -9,9 +9,6 @@ class UpscalerDiffusion(Upscaler):
     def __init__(self, dirname): # pylint: disable=super-init-not-called
         self.name = "SDUpscale"
         self.user_path = dirname
-        if not shared.native:
-            super().__init__()
-            return
         self.scalers = [
             UpscalerData(name="Diffusion Latent Upscaler 2x", path="stabilityai/sd-x2-latent-upscaler", upscaler=self, model=None, scale=4),
             UpscalerData(name="Diffusion Latent Upscaler 4x", path="stabilityai/stable-diffusion-x4-upscaler", upscaler=self, model=None, scale=4),
@@ -55,7 +52,7 @@ class UpscalerDiffusion(Upscaler):
             'prompt': '',
             'negative_prompt': '',
             'image': img,
-            'num_inference_steps': 20,
+            'num_inference_steps': shared.opts.upscaler_latent_steps,
             'guidance_scale': 7.5,
             'generator': generator,
             'latents': None,

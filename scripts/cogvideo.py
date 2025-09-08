@@ -13,19 +13,19 @@ import torch
 from torchvision import transforms
 import diffusers
 import numpy as np
-from modules import scripts, shared, devices, errors, sd_models, processing
+from modules import scripts_manager, shared, devices, errors, sd_models, processing
 from modules.processing_callbacks import diffusers_callback, set_callbacks_p
 
 
 debug = (os.environ.get('SD_LOAD_DEBUG', None) is not None) or (os.environ.get('SD_PROCESS_DEBUG', None) is not None)
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'Video: CogVideoX (Legacy)'
 
     def show(self, is_img2img):
-        return shared.native
+        return True
 
 
     def ui(self, is_img2img):
@@ -42,8 +42,8 @@ class Script(scripts.Script):
             override = gr.Checkbox(label='Override resolution', value=True)
         with gr.Accordion('Optional init image or video', open=False):
             with gr.Row():
-                image = gr.Image(value=None, label='Image', type='pil', source='upload', width=256, height=256)
-                video = gr.Video(value=None, label='Video', source='upload', width=256, height=256)
+                image = gr.Image(value=None, label='Image', type='pil', width=256, height=256)
+                video = gr.Video(value=None, label='Video', width=256, height=256)
         with gr.Row():
             from modules.ui_sections import create_video_inputs
             video_type, duration, loop, pad, interpolate = create_video_inputs(tab='img2img' if is_img2img else 'txt2img')

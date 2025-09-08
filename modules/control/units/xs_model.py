@@ -631,6 +631,7 @@ class ControlNetXSModel(ModelMixin, ConfigMixin):
         t_emb = t_emb.to(dtype=sample.dtype)
 
         if self.config.learn_embedding: # pylint: disable=no-member
+            base_model = base_model.to(self.control_model.device)
             ctrl_temb = self.control_model.time_embedding(t_emb, timestep_cond)
             base_temb = base_model.time_embedding(t_emb, timestep_cond)
             interpolation_param = self.config.time_embedding_mix**0.3 # pylint: disable=no-member

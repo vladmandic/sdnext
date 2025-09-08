@@ -4,7 +4,7 @@ import time
 import contextlib
 import gradio as gr
 from PIL import Image
-from modules import shared, devices, errors, scripts, processing, processing_helpers, sd_models
+from modules import shared, devices, errors, scripts_manager, processing, processing_helpers, sd_models
 
 
 debug = os.environ.get('SD_PULID_DEBUG', None) is not None
@@ -13,7 +13,7 @@ registered = False
 uploaded_images = []
 
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def __init__(self):
         self.pulid = None
         self.cache = None
@@ -25,12 +25,12 @@ class Script(scripts.Script):
         return 'PuLID: ID Customization'
 
     def show(self, _is_img2img):
-        return shared.native
+        return True
 
     def dependencies(self):
         from installer import install, installed, reload
         if not installed('insightface==0.7.3', reload=False, quiet=True):
-            install('insightface==0.7.3', ignore=False)
+            install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
             install('albumentations==1.4.3', ignore=False, reinstall=True)
             install('pydantic==1.10.21', ignore=False, reinstall=True, force=True)
             reload('pydantic')
@@ -47,15 +47,17 @@ class Script(scripts.Script):
             return fun
 
         import sys
-        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k][0]
-        options = [
-            xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
-            xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
-            xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
-        ]
-        for option in options:
-            if option not in xyz_classes.axis_options:
-                xyz_classes.axis_options.append(option)
+        xyz_classes = [v for k, v in sys.modules.items() if 'xyz_grid_classes' in k]
+        if xyz_classes and len(xyz_classes) > 0:
+            xyz_classes = xyz_classes[0]
+            options = [
+                xyz_classes.AxisOption("[PuLID] Strength", float, apply_field("pulid_strength")),
+                xyz_classes.AxisOption("[PuLID] Zero", int, apply_field("pulid_zero")),
+                xyz_classes.AxisOption("[PuLID] Ortho", str, apply_field("pulid_ortho"), choices=lambda: ['off', 'v1', 'v2']),
+            ]
+            for option in options:
+                if option not in xyz_classes.axis_options:
+                    xyz_classes.axis_options.append(option)
 
 
     def decode_image(self,  b64):
@@ -86,8 +88,8 @@ class Script(scripts.Script):
         with gr.Row():
             gr.HTML('<a href="https://github.com/ToTheBeginning/PuLID">&nbsp PuLID: Pure and Lightning ID Customization</a><br>')
         with gr.Row():
-            strength = gr.Slider(label = 'Strength', value = 0.8, mininimum = 0, maximum = 1, step = 0.01)
-            zero = gr.Slider(label = 'Zero', value = 20, mininimum = 0, maximum = 80, step = 1)
+            strength = gr.Slider(label = 'Strength', value = 0.8, minimum = 0, maximum = 1, step = 0.01)
+            zero = gr.Slider(label = 'Zero', value = 20, minimum = 0, maximum = 80, step = 1)
         with gr.Row():
             sampler = gr.Dropdown(label="Sampler", value='dpmpp_sde', choices=['dpmpp_2m', 'dpmpp_2m_sde', 'dpmpp_2s_ancestral', 'dpmpp_3m_sde', 'dpmpp_sde', 'euler', 'euler_ancestral'])
             ortho = gr.Dropdown(label="Ortho", choices=['off', 'v1', 'v2'], value='v2')
@@ -97,7 +99,7 @@ class Script(scripts.Script):
             restore = gr.Checkbox(label='Restore pipe on end', value=False)
             offload = gr.Checkbox(label='Offload face module', value=True)
         with gr.Row():
-            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], type='file', interactive=True, height=100)
+            files = gr.File(label='Input images', file_count='multiple', file_types=['image'], interactive=True, height=100)
         with gr.Row():
             gallery = gr.Gallery(show_label=False, value=[], visible=False, container=False, rows=1)
         files.change(fn=self.load_images, inputs=[files], outputs=[gallery])
@@ -137,14 +139,14 @@ class Script(scripts.Script):
             shared.log.error('PuLID: no images')
             return None
 
-        supported_model_list = ['sdxl']
+        supported_model_list = ['sdxl', 'f1']
         if shared.sd_model_type not in supported_model_list:
             shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         if self.pulid is None:
             self.dependencies()
             try:
-                from modules import pulid # pylint: disable=redefined-outer-name
+                from scripts import pulid # pylint: disable=redefined-outer-name
                 self.pulid = pulid
                 from diffusers import pipelines
                 pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["pulid"] = pulid.StableDiffusionXLPuLIDPipeline
@@ -168,15 +170,12 @@ class Script(scripts.Script):
             p.batch_size = 1
 
         sdp = shared.opts.cross_attention_optimization == "Scaled-Dot-Product"
-        sampler_fn = getattr(self.pulid.sampling, f'sample_{sampler}', None)
         strength = getattr(p, 'pulid_strength', strength)
         zero = getattr(p, 'pulid_zero', zero)
         ortho = getattr(p, 'pulid_ortho', ortho)
         sampler = getattr(p, 'pulid_sampler', sampler)
         restore = getattr(p, 'pulid_restore', restore)
         p.pulid_restore = restore
-        if sampler_fn is None:
-            sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
 
         if shared.sd_model_type == 'sdxl' and not hasattr(shared.sd_model, 'pipe'):
             try:
@@ -203,9 +202,42 @@ class Script(scripts.Script):
                 shared.log.error(f'PuLID: failed to create pipeline: {e}')
                 errors.display(e, 'PuLID')
                 return None
+        elif shared.sd_model_type == 'f1':
+            # TODO nunchaku: pulid-f1
+            shared.log.error('PuLID: f1 not supported')
+            return None
 
+        if shared.sd_model_type == 'sdxl':
+            processed = self.run_sdxl(p, images, strength, zero, sampler, ortho, restore, offload, version)
+        elif shared.sd_model_type == 'f1':
+            processed = None
+        else:
+            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            processed = None
+        return processed
+
+    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
+        _strength, _zero, _sampler, _ortho, _gallery, restore, _offload, _version = args
+        if shared.sd_model_type == "sdxl" and hasattr(shared.sd_model, 'pipe'):
+            restore = getattr(p, 'pulid_restore', restore)
+            if restore:
+                if hasattr(shared.sd_model, 'app'):
+                    shared.sd_model.app = None
+                    shared.sd_model.ip_adapter = None
+                    shared.sd_model.face_helper = None
+                    shared.sd_model.clip_vision_model = None
+                    shared.sd_model.handler_ante = None
+                shared.sd_model = shared.sd_model.pipe
+                devices.torch_gc(force=True, reason='pulid')
+            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
+        return processed
+
+    def run_sdxl(self, p: processing.StableDiffusionProcessing, images: list, strength: float, zero: int, sampler: str, ortho: str, restore: bool, offload: bool, version: str):
+        sampler_fn = getattr(self.pulid.sampling, f'sample_{sampler}', None)
+        if sampler_fn is None:
+            sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
         shared.sd_model.sampler = sampler_fn
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" sdp={sdp} strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
+        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
         self.pulid.attention.NUM_ZERO = zero
         self.pulid.attention.ORTHO = ortho == 'v1'
         self.pulid.attention.ORTHO_v2 = ortho == 'v2'
@@ -255,20 +287,4 @@ class Script(scripts.Script):
 
         # interim = [Image.fromarray(img) for img in shared.sd_model.debug_img_list]
         # shared.log.debug(f'PuLID: time={t1-t0:.2f}')
-        return processed
-
-    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
-        _strength, _zero, _sampler, _ortho, _gallery, restore, _offload, _version = args
-        if hasattr(shared.sd_model, 'pipe') and shared.sd_model_type == "sdxl":
-            restore = getattr(p, 'pulid_restore', restore)
-            if restore:
-                if hasattr(shared.sd_model, 'app'):
-                    shared.sd_model.app = None
-                    shared.sd_model.ip_adapter = None
-                    shared.sd_model.face_helper = None
-                    shared.sd_model.clip_vision_model = None
-                    shared.sd_model.handler_ante = None
-                shared.sd_model = shared.sd_model.pipe
-                devices.torch_gc(force=True)
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
         return processed

@@ -81,11 +81,9 @@ class Agent:
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
     def get_gfx_version(self) -> Union[str, None]:
-        if self.gfx_version >= 0x1200:
-            return "12.0.0"
-        elif self.gfx_version >= 0x1100:
+        if self.gfx_version >= 0x1101 and self.gfx_version < 0x1200:
             return "11.0.0"
-        elif self.gfx_version >= 0x1000:
+        elif self.gfx_version != 0x1030 and self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
             # gfx1010 users had to override gfx version to 10.3.0 in Linux
             # it is unknown whether overriding is needed in ZLUDA
             return "10.3.0"
@@ -206,7 +204,7 @@ else:
         if agent.gfx_version >= 0x1100 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
             # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
             # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
-            default = "https://github.com/Disty0/flash-attention@navi_rotary_fix"
+            default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
         return os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None

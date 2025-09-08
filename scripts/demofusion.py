@@ -14,7 +14,7 @@ from diffusers.schedulers import KarrasDiffusionSchedulers
 from diffusers.utils import is_accelerate_available, is_accelerate_version
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
-from modules import scripts, processing, shared, sd_models, devices
+from modules import scripts_manager, processing, shared, sd_models, devices
 
 
 ### Class definition
@@ -1219,12 +1219,12 @@ class DemoFusionSDXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderM
 
 ### Script definition
 
-class Script(scripts.Script):
+class Script(scripts_manager.Script):
     def title(self):
         return 'DemoFusion: High-Resolution Image Generation'
 
     def show(self, is_img2img):
-        return not is_img2img if shared.native else False
+        return not is_img2img
 
     # return signature is array of gradio components
     def ui(self, _is_img2img):

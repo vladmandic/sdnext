@@ -54,7 +54,7 @@ def find_sdpa_slice_sizes(query_shape, key_shape, query_element_size, slice_rate
 if devices.sdpa_pre_dyanmic_atten is None:
     devices.sdpa_pre_dyanmic_atten = torch.nn.functional.scaled_dot_product_attention
 @wraps(devices.sdpa_pre_dyanmic_atten)
-def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, **kwargs):
+def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs):
     is_unsqueezed = False
     if query.dim() == 3:
         query = query.unsqueeze(0)
@@ -63,6 +63,9 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
             key = key.unsqueeze(0)
         if value.dim() == 3:
             value = value.unsqueeze(0)
+    if enable_gqa:
+        key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
+        value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
     do_batch_split, do_head_split, do_query_split, split_batch_size, split_head_size, split_query_size = find_sdpa_slice_sizes(query.shape, key.shape, query.element_size(), slice_rate=shared.opts.dynamic_attention_slice_rate, trigger_rate=shared.opts.dynamic_attention_trigger_rate)
 
     # Slice SDPA
@@ -88,7 +91,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                                 key[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                                 value[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                                 attn_mask=attn_mask[start_idx:end_idx, start_idx_h:end_idx_h, start_idx_q:end_idx_q, :] if attn_mask is not None else attn_mask,
-                                dropout_p=dropout_p, is_causal=is_causal, **kwargs
+                                dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs
                             )
                     else:
                         hidden_states[start_idx:end_idx, start_idx_h:end_idx_h, :, :] = devices.sdpa_pre_dyanmic_atten(
@@ -96,7 +99,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                             key[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                             value[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                             attn_mask=attn_mask[start_idx:end_idx, start_idx_h:end_idx_h, :, :] if attn_mask is not None else attn_mask,
-                            dropout_p=dropout_p, is_causal=is_causal, **kwargs
+                            dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs
                         )
             else:
                 hidden_states[start_idx:end_idx, :, :, :] = devices.sdpa_pre_dyanmic_atten(
@@ -104,12 +107,12 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                     key[start_idx:end_idx, :, :, :],
                     value[start_idx:end_idx, :, :, :],
                     attn_mask=attn_mask[start_idx:end_idx, :, :, :] if attn_mask is not None else attn_mask,
-                    dropout_p=dropout_p, is_causal=is_causal, **kwargs
+                    dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs
                 )
         if devices.backend != "directml":
             getattr(torch, query.device.type).synchronize()
     else:
-        hidden_states = devices.sdpa_pre_dyanmic_atten(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, **kwargs)
+        hidden_states = devices.sdpa_pre_dyanmic_atten(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
     if is_unsqueezed:
         hidden_states = hidden_states.squeeze(0)
     return hidden_states

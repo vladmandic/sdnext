@@ -1,7 +1,6 @@
 import sys
 from enum import Enum
 from typing import Tuple, List
-import onnxruntime as ort
 from installer import log
 from modules import devices
 
@@ -15,7 +14,6 @@ class ExecutionProvider(str, Enum):
     OpenVINO = "OpenVINOExecutionProvider"
 
 
-available_execution_providers: List[ExecutionProvider] = ort.get_available_providers()
 EP_TO_NAME = {
     ExecutionProvider.CPU: "gpu-cpu", # ???
     ExecutionProvider.DirectML: "gpu-dml",
@@ -31,6 +29,15 @@ TORCH_DEVICE_TO_EP = {
     "privateuseone": ExecutionProvider.DirectML,
     "meta": None,
 }
+
+
+try:
+    import onnxruntime as ort
+    available_execution_providers: List[ExecutionProvider] = ort.get_available_providers()
+except Exception as e:
+    log.error(f'ONNX import error: {e}')
+    available_execution_providers = []
+    ort = None
 
 
 def get_default_execution_provider() -> ExecutionProvider:

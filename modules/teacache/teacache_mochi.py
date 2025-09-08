@@ -65,7 +65,7 @@ def teacache_mochi_forward(
         if self.cnt == 0 or self.cnt == self.num_steps-1:
             should_calc = True
             self.accumulated_rel_l1_distance = 0
-        else: 
+        else:
             coefficients = [-3.51241319e+03,  8.11675948e+02, -6.09400215e+01,  2.42429681e+00, 3.05291719e-03]
             rescale_func = np.poly1d(coefficients)
             self.accumulated_rel_l1_distance += rescale_func(((modulated_inp-self.previous_modulated_input).abs().mean() / self.previous_modulated_input.abs().mean()).cpu().item())
@@ -74,11 +74,11 @@ def teacache_mochi_forward(
             else:
                 should_calc = True
                 self.accumulated_rel_l1_distance = 0
-        self.previous_modulated_input = modulated_inp  
+        self.previous_modulated_input = modulated_inp
         self.cnt += 1
         if self.cnt == self.num_steps:
-            self.cnt = 0         
-    
+            self.cnt = 0
+
     if self.enable_teacache:
         if not should_calc:
             hidden_states += self.previous_residual
@@ -112,7 +112,7 @@ def teacache_mochi_forward(
                             image_rotary_emb=image_rotary_emb,
                     )
             hidden_states = self.norm_out(hidden_states, temb)
-            self.previous_residual = hidden_states - ori_hidden_states                
+            self.previous_residual = hidden_states - ori_hidden_states
     else:
         for i, block in enumerate(self.transformer_blocks):
                 if torch.is_grad_enabled() and self.gradient_checkpointing:

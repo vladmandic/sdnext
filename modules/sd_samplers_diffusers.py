@@ -13,30 +13,30 @@ debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
 try:
     from diffusers import (
         CMStochasticIterativeScheduler,
-        UniPCMultistepScheduler,
-        DDIMScheduler,
-        EulerDiscreteScheduler,
-        EulerAncestralDiscreteScheduler,
-        EDMEulerScheduler,
-        FlowMatchEulerDiscreteScheduler,
-        DEISMultistepScheduler,
-        SASolverScheduler,
-        DPMSolverSinglestepScheduler,
-        DPMSolverMultistepScheduler,
-        DPMSolverMultistepInverseScheduler,
-        EDMDPMSolverMultistepScheduler,
         CosineDPMSolverMultistepScheduler,
-        DPMSolverSDEScheduler,
-        HeunDiscreteScheduler,
-        FlowMatchHeunDiscreteScheduler,
-        LCMScheduler,
-        FlowMatchLCMScheduler,
-        PNDMScheduler,
-        IPNDMScheduler,
+        DDIMScheduler,
         DDPMScheduler,
-        LMSDiscreteScheduler,
-        KDPM2DiscreteScheduler,
+        DEISMultistepScheduler,
+        DPMSolverMultistepInverseScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSDEScheduler,
+        DPMSolverSinglestepScheduler,
+        EDMDPMSolverMultistepScheduler,
+        EDMEulerScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        FlowMatchEulerDiscreteScheduler,
+        FlowMatchHeunDiscreteScheduler,
+        FlowMatchLCMScheduler,
+        HeunDiscreteScheduler,
+        IPNDMScheduler,
         KDPM2AncestralDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        LCMScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+        SASolverScheduler,
+        UniPCMultistepScheduler,
     )
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
@@ -51,11 +51,8 @@ try:
     from modules.schedulers.scheduler_bdia import BDIA_DDIMScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_ufogen import UFOGenScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_unipc_flowmatch import FlowUniPCMultistepScheduler # pylint: disable=ungrouped-imports
+    from modules.schedulers.scheduler_flashflow import FlashFlowMatchEulerDiscreteScheduler # pylint: disable=ungrouped-imports
     from modules.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_kohaku import KohakuLoNyuYogScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_smea import SMEAScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_dy import DYScheduler # pylint: disable=ungrouped-imports
-    # from modules.schedulers.scheduler_negative import EulerNegativeScheduler # pylint: disable=ungrouped-imports
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
@@ -66,7 +63,7 @@ config = {
     # prediction_type is ideally set in model as well, but it maybe needed that we do auto-detect of model type in the future
     'All': { 'num_train_timesteps': 1000, 'beta_start': 0.0001, 'beta_end': 0.02, 'beta_schedule': 'linear', 'prediction_type': 'epsilon' },
 
-    'UniPC': { 'predict_x0': True, 'sample_max_value': 1.0, 'solver_order': 2, 'solver_type': 'bh2', 'thresholding': False, 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_karras_sigmas': False, 'lower_order_final': True, 'timestep_spacing': 'linspace', 'final_sigmas_type': 'zero', 'rescale_betas_zero_snr': False },
+    'UniPC': { 'flow_shift': 1, 'predict_x0': True, 'sample_max_value': 1.0, 'solver_order': 2, 'solver_type': 'bh2', 'thresholding': False, 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_karras_sigmas': False, 'lower_order_final': True, 'timestep_spacing': 'linspace', 'final_sigmas_type': 'zero', 'rescale_betas_zero_snr': False },
     'DDIM': { 'clip_sample': False, 'set_alpha_to_one': True, 'steps_offset': 0, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'leading', 'rescale_betas_zero_snr': False, 'thresholding': False },
 
     'Euler': { 'steps_offset': 0, 'interpolation_type': "linear", 'rescale_betas_zero_snr': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_karras_sigmas': False },
@@ -74,10 +71,6 @@ config = {
     'Euler SGM': { 'steps_offset': 0, 'interpolation_type': "linear", 'rescale_betas_zero_snr': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'trailing', 'use_beta_sigmas': False, 'use_exponential_sigmas': False, 'use_karras_sigmas': False, 'prediction_type': "sample" },
     'Euler EDM': { 'sigma_schedule': "karras" },
     'Euler FlowMatch': { 'timestep_spacing': "linspace", 'shift': 1, 'use_dynamic_shifting': False, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False },
-    # 'Euler SMEA': {},
-    # 'Euler DY': {},
-    # 'Euler Negative': {},
-    # 'Kohaku LoNyu': {},
 
     'DPM++': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 1 },
     'DPM++ 2M': { 'thresholding': False, 'sample_max_value': 1.0, 'algorithm_type': "dpmsolver++", 'solver_type': "midpoint", 'lower_order_final': True, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_flow_sigmas': False, 'use_beta_sigmas': False, 'use_lu_lambdas': False, 'final_sigmas_type': 'zero', 'timestep_spacing': 'linspace', 'solver_order': 2 },
@@ -112,6 +105,7 @@ config = {
     'VDM Solver': { 'clip_sample_range': 2.0, },
     'TCD': { 'set_alpha_to_one': True, 'rescale_betas_zero_snr': False, 'beta_schedule': 'scaled_linear' },
     'TDD': { },
+    'Flash FlowMatch': { 'shift': 1, 'use_dynamic_shifting': False, 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False },
     'PeRFlow': { 'prediction_type': 'ddim_eps' },
     'UFOGen': { },
     'BDIA DDIM': { 'clip_sample': False, 'set_alpha_to_one': True, 'steps_offset': 0, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'leading', 'rescale_betas_zero_snr': False, 'thresholding': False, 'gamma': 1.0 },
@@ -135,9 +129,6 @@ samplers_data_diffusers = [
     SamplerData('Euler SGM', lambda model: DiffusionSampler('Euler SGM', EulerDiscreteScheduler, model), [], {}),
     SamplerData('Euler EDM', lambda model: DiffusionSampler('Euler EDM', EDMEulerScheduler, model), [], {}),
     SamplerData('Euler FlowMatch', lambda model: DiffusionSampler('Euler FlowMatch', FlowMatchEulerDiscreteScheduler, model), [], {}),
-    # SamplerData('Euler SMEA', lambda model: DiffusionSampler('Euler SMEA', SMEAScheduler, model), [], {}),
-    # SamplerData('Euler DY', lambda model: DiffusionSampler('Euler DY', DYScheduler, model), [], {}),
-    # SamplerData('Euler Negative', lambda model: DiffusionSampler('Euler Negative', EulerNegativeScheduler, model), [], {}),
 
     SamplerData('DPM++', lambda model: DiffusionSampler('DPM++', DPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM++ 2M', lambda model: DiffusionSampler('DPM++ 2M', DPMSolverMultistepScheduler, model), [], {}),
@@ -164,6 +155,7 @@ samplers_data_diffusers = [
 
     SamplerData('Heun', lambda model: DiffusionSampler('Heun', HeunDiscreteScheduler, model), [], {}),
     SamplerData('Heun FlowMatch', lambda model: DiffusionSampler('Heun FlowMatch', FlowMatchHeunDiscreteScheduler, model), [], {}),
+    SamplerData('Flash FlowMatch', lambda model: DiffusionSampler('Flash FlowMatch', FlashFlowMatchEulerDiscreteScheduler, model), [], {}),
 
     SamplerData('DEIS', lambda model: DiffusionSampler('DEIS', DEISMultistepScheduler, model), [], {}),
     SamplerData('SA Solver', lambda model: DiffusionSampler('SA Solver', SASolverScheduler, model), [], {}),
@@ -185,7 +177,6 @@ samplers_data_diffusers = [
     SamplerData('TDD', lambda model: DiffusionSampler('TDD', TDDScheduler, model), [], {}),
     SamplerData('PeRFlow', lambda model: DiffusionSampler('PeRFlow', PeRFlowScheduler, model), [], {}),
     SamplerData('UFOGen', lambda model: DiffusionSampler('UFOGen', UFOGenScheduler, model), [], {}),
-    # SamplerData('Kohaku LoNyu', lambda model: DiffusionSampler('Kohaku LoNyu', KohakuLoNyuYogScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]
@@ -232,6 +223,8 @@ class DiffusionSampler:
                 self.config['beta_schedule'] = 'scaled_linear'
             elif shared.opts.schedulers_beta_schedule == 'cosine':
                 self.config['beta_schedule'] = 'squaredcos_cap_v2'
+            elif shared.opts.schedulers_beta_schedule == 'sigmoid':
+                self.config['beta_schedule'] = 'sigmoid'
 
         timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
         timesteps = [int(x) for x in timesteps if x.isdigit()]
@@ -267,6 +260,8 @@ class DiffusionSampler:
             self.config['beta_end'] = shared.opts.schedulers_beta_end
         if 'shift' in self.config:
             self.config['shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift > 0 else 3
+        if 'flow_shift' in self.config:
+            self.config['flow_shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift > 0 else 3
         if 'use_dynamic_shifting' in self.config:
             self.config['use_dynamic_shifting'] = True if shared.opts.schedulers_shift == 0 else shared.opts.schedulers_dynamic_shift
         if 'use_beta_sigmas' in self.config and 'sigma_schedule' in self.config:
@@ -296,7 +291,6 @@ class DiffusionSampler:
         possible = signature.parameters.keys()
         for key in self.config.copy().keys():
             if key not in possible:
-                # shared.log.warning(f'Sampler: sampler="{name}" config={self.config} invalid={key}')
                 del self.config[key]
         debug_log(f'Sampler: name="{name}"')
         debug_log(f'Sampler: config={self.config}')
@@ -306,7 +300,7 @@ class DiffusionSampler:
         try:
             sampler = constructor(**self.config)
         except Exception as e:
-            shared.log.error(f'Sampler: sampler="{name}" {e}')
+            shared.log.error(f'Sampler: "{name}" {e}')
             if debug:
                 errors.display(e, 'Samplers')
             self.sampler = None
@@ -316,20 +310,23 @@ class DiffusionSampler:
             accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accept_scale_noise = hasattr(sampler, "scale_noise")
-            debug_log(f'Sampler: sampler="{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
+            debug_log(f'Sampler: "{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
             if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
-                shared.log.warning(f'Sampler: sampler="{name}" does not accept sigmas')
+                shared.log.warning(f'Sampler: "{name}" does not accept sigmas')
                 self.sampler = None
                 return
             if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
-                shared.log.warning(f'Sampler: sampler="{name}" does not implement scale noise')
+                shared.log.warning(f'Sampler: "{name}" does not implement scale noise')
                 self.sampler = None
                 return
 
+        # monkey-patch to allow sdxl pipeline to execute flowmatch samplers
+        if not hasattr(sampler, 'scale_model_input'):
+            sampler.scale_model_input = lambda x, _y: x
+        if not hasattr(sampler, 'init_noise_sigma'):
+            sampler.init_noise_sigma = 1.0
+
         self.sampler = sampler
-        if name == 'DC Solver':
-            if not hasattr(self.sampler, 'dc_ratios'):
-                pass
 
         # shared.log.debug_log(f'Sampler: class="{self.sampler.__class__.__name__}" config={self.sampler.config}')
         self.sampler.name = name

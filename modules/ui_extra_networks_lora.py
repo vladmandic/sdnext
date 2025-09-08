@@ -1,7 +1,7 @@
 import os
 import json
 import concurrent
-from modules import shared, ui_extra_networks
+from modules import shared, ui_extra_networks, modelstats
 from modules.lora import lora_load
 
 
@@ -85,21 +85,23 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         try:
             # path, _ext = os.path.splitext(l.filename)
             name = os.path.splitext(os.path.relpath(l.filename, shared.cmd_opts.lora_dir))[0]
+            size, mtime = modelstats.stat(l.filename)
+            info = self.find_info(l.filename)
             item = {
                 "type": 'Lora',
                 "name": name,
+                "alias": os.path.splitext(os.path.basename(l.filename))[0],
                 "filename": l.filename,
                 "hash": l.shorthash,
                 "prompt": json.dumps(f" <lora:{l.get_alias()}:{shared.opts.extra_networks_default_multiplier}>"),
                 "metadata": json.dumps(l.metadata, indent=4) if l.metadata else None,
-                "mtime": os.path.getmtime(l.filename),
-                "size": os.path.getsize(l.filename),
+                "mtime": mtime,
+                "size": size,
                 "version": l.sd_version,
+                "info": info,
+                "description": self.find_description(l.filename, info),
+                "tags": self.get_tags(l, info),
             }
-            info = self.find_info(l.filename)
-            item["info"] = info
-            item["description"] = self.find_description(l.filename, info) # use existing info instead of double-read
-            item["tags"] = self.get_tags(l, info)
             return item
         except Exception as e:
             shared.log.error(f'Networks: type=lora file="{name}" {e}')

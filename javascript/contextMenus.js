@@ -149,7 +149,6 @@ async function initContextMenu() {
     appendContextMenuOption(id, 'Generate forever', () => generateForever(`#${tab}_generate`));
     appendContextMenuOption(id, 'Apply selected style', quickApplyStyle);
     appendContextMenuOption(id, 'Quick save style', quickSaveStyle);
-    appendContextMenuOption(id, 'nVidia overlay', initNVML);
     id = `#${tab}_reprocess`;
     appendContextMenuOption(id, 'Decode full quality', () => reprocessClick(`${tab}`, 'reprocess_decode'), true);
     appendContextMenuOption(id, 'Refine & HiRes pass', () => reprocessClick(`${tab}`, 'reprocess_refine'), true);

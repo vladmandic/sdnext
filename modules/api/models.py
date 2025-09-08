@@ -67,8 +67,11 @@ class PydanticModelGenerator:
     def generate_model(self):
         model_fields = { d.field: (d.field_type, Field(default=d.field_value, alias=d.field_alias, exclude=d.field_exclude)) for d in self._model_def }
         DynamicModel = create_model(self._model_name, **model_fields)
-        DynamicModel.__config__.allow_population_by_field_name = True
-        DynamicModel.__config__.allow_mutation = True
+        try:
+            DynamicModel.__config__.allow_population_by_field_name = True
+            DynamicModel.__config__.allow_mutation = True
+        except Exception:
+            pass
         return DynamicModel
 
 ### item classes
@@ -182,7 +185,7 @@ class ItemScript(BaseModel):
 class ItemExtension(BaseModel):
     name: str = Field(title="Name", description="Extension name")
     remote: str = Field(title="Remote", description="Extension Repository URL")
-    branch: str = Field(title="Branch", description="Extension Repository Branch")
+    branch: str = Field(default="uknnown", title="Branch", description="Extension Repository Branch")
     commit_hash: str = Field(title="Commit Hash", description="Extension Repository Commit Hash")
     version: str = Field(title="Version", description="Extension Version")
     commit_date: str = Field(title="Commit Date", description="Extension Repository Commit Date")
@@ -195,9 +198,9 @@ ReqTxt2Img = PydanticModelGenerator(
     StableDiffusionProcessingTxt2Img,
     [
         {"key": "sampler_index", "type": Union[int, str], "default": 0},
-        {"key": "sampler_name", "type": str, "default": "UniPC"},
+        {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
-        {"key": "script_name", "type": str, "default": "none"},
+        {"key": "script_name", "type": Optional[str], "default": ""},
         {"key": "script_args", "type": list, "default": []},
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},
@@ -221,13 +224,11 @@ ReqImg2Img = PydanticModelGenerator(
         {"key": "sampler_index", "type": Union[int, str], "default": 0},
         {"key": "sampler_name", "type": str, "default": "UniPC"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
-        {"key": "script_name", "type": str, "default": "none"},
-        {"key": "script_args", "type": list, "default": []},
         {"key": "init_images", "type": list, "default": None},
         {"key": "denoising_strength", "type": float, "default": 0.5},
-        {"key": "mask", "type": str, "default": None},
+        {"key": "mask", "type": Optional[str], "default": None},
         {"key": "include_init_images", "type": bool, "default": False, "exclude": True},
-        {"key": "script_name", "type": str, "default": None},
+        {"key": "script_name", "type": Optional[str], "default": ""},
         {"key": "script_args", "type": list, "default": []},
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},
@@ -261,10 +262,23 @@ class ReqProcess(BaseModel):
     upscaler_1: str = Field(default="None", title="Main upscaler", description=f"The name of the main upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     upscaler_2: str = Field(default="None", title="Refine upscaler", description=f"The name of the secondary upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     extras_upscaler_2_visibility: float = Field(default=0, title="Refine upscaler visibility", ge=0, le=1, allow_inf_nan=False, description="Sets the visibility of secondary upscaler, values should be between 0 and 1.")
-    upscale_first: bool = Field(default=False, title="Upscale first", description="Should the upscaler run before restoring faces?")
 
 class ResProcess(BaseModel):
     html_info: str = Field(title="HTML info", description="A series of HTML tags containing the process info.")
+
+
+class ReqPromptEnhance(BaseModel):
+    prompt: str = Field(title="Prompt", description="Prompt to enhance")
+    type: str = Field(title="Type", default='text', description="Type of enhancement to perform")
+    model: Optional[str] = Field(title="Model", default=None, description="Model to use for enhancement")
+    system_prompt: Optional[str] = Field(title="System prompt", default=None, description="Model system prompt")
+    image: Optional[str] = Field(title="Image", default=None, description="Image to work on, must be a Base64 string containing the image's data.")
+    seed: int = Field(title="Seed", default=-1, description="Seed used to generate the prompt")
+    nsfw: bool = Field(title="NSFW", default=True, description="Should NSFW content be allowed?")
+
+class ResPromptEnhance(BaseModel):
+    prompt: str = Field(title="Prompt", description="Enhanced prompt")
+    seed: int = Field(title="Seed", description="Seed used to generate the prompt")
 
 class ReqProcessImage(ReqProcess):
     image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
@@ -292,9 +306,9 @@ class ReqGetLog(BaseModel):
 
 
 class ReqPostLog(BaseModel):
-    message: Optional[str] = Field(title="Message", description="The info message to log")
-    debug: Optional[str] = Field(title="Debug message", description="The debug message to log")
-    error: Optional[str] = Field(title="Error message", description="The error message to log")
+    message: Optional[str] = Field(default=None, title="Message", description="The info message to log")
+    debug: Optional[str] = Field(default=None, title="Debug message", description="The debug message to log")
+    error: Optional[str] = Field(default=None, title="Error message", description="The error message to log")
 
 class ReqHistory(BaseModel):
     id: str = Field(default=None, title="Task ID", description="Task ID")
@@ -307,8 +321,8 @@ class ResProgress(BaseModel):
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
-    current_image: str = Field(default=None, title="Current image", description="The current image in base64 format. opts.show_progress_every_n_steps is required for this to work.")
-    textinfo: str = Field(default=None, title="Info text", description="Info text used by WebUI.")
+    current_image: Optional[str] = Field(default=None, title="Current image", description="The current image in base64 format. opts.show_progress_every_n_steps is required for this to work.")
+    textinfo: Optional[str] = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
     id: str = Field(title="ID", description="Task ID")
@@ -331,9 +345,9 @@ class ResStatus(BaseModel):
     steps: int = Field(title="Steps", description="Total steps")
     queued: int = Field(title="Queued", description="Number of queued tasks")
     uptime: int = Field(title="Uptime", description="Uptime of the server")
-    elapsed: Optional[float] = Field(title="Elapsed time")
-    eta: Optional[float] = Field(title="ETA in secs")
-    progress: Optional[float] = Field(title="Progress", description="The progress with a range of 0 to 1")
+    elapsed: Optional[float] = Field(default=None, title="Elapsed time")
+    eta: Optional[float] = Field(default=None, title="ETA in secs")
+    progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
 
 
 class ReqInterrogate(BaseModel):
@@ -355,6 +369,7 @@ class ReqVQA(BaseModel):
     image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
     model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
     question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System prompt", description="Prompt to shape how the model interprets and responds to user prompts.")
 
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
@@ -363,10 +378,10 @@ class ResVQA(BaseModel):
     answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
 
 class ResTrain(BaseModel):
-    info: str = Field(title="Train info", description="Response string from train embedding or hypernetwork task.")
+    info: str = Field(title="Train info", description="Response string from train embedding task.")
 
 class ResCreate(BaseModel):
-    info: str = Field(title="Create info", description="Response string from create embedding or hypernetwork task.")
+    info: str = Field(title="Create info", description="Response string from create embedding task.")
 
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
@@ -389,7 +404,7 @@ _options = vars(shared.parser)['_option_string_actions']
 for key in _options:
     if _options[key].dest != 'help':
         flag = _options[key]
-        _type = str
+        _type = Optional[str]
         if _options[key].default is not None:
             _type = type(_options[key].default)
         flags.update({flag.dest: (_type, Field(default=flag.default, description=flag.help))})
@@ -397,8 +412,8 @@ for key in _options:
 FlagsModel = create_model("Flags", **flags)
 
 class ResEmbeddings(BaseModel):
-    loaded: Dict[str, ItemEmbedding] = Field(title="Loaded", description="Embeddings loaded for the current model")
-    skipped: Dict[str, ItemEmbedding] = Field(title="Skipped", description="Embeddings skipped for the current model (likely due to architecture incompatibility)")
+    loaded: list = Field(default=None, title="loaded", description="List of loaded embeddings")
+    skipped: list = Field(default=None, title="skipped", description="List of skipped embeddings")
 
 class ResMemory(BaseModel):
     ram: dict = Field(title="RAM", description="System memory stats")
@@ -409,16 +424,10 @@ class ResScripts(BaseModel):
     img2img: list = Field(default=None, title="Img2img", description="Titles of scripts (img2img)")
     control: list = Field(default=None, title="Control", description="Titles of scripts (control)")
 
-class ResNVML(BaseModel): # definition of http response
-    name: str = Field(title="Name")
-    version: dict = Field(title="Version")
-    pci: dict = Field(title="Version")
-    memory: dict = Field(title="Version")
-    clock: dict = Field(title="Version")
-    load: dict = Field(title="Version")
-    power: list = []
-    state: str = Field(title="State")
-
+class ResGPU(BaseModel): # definition of http response
+    name: str = Field(title="GPU Name")
+    data: dict = Field(title="Name/Value data")
+    chart: list[float, float] = Field(title="Exactly two items to place on chart")
 
 # helper function
 
@@ -467,6 +476,9 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: Typ
         __base__=base_model,
         __config__=config,
     )
-    model.__config__.allow_population_by_field_name = True
-    model.__config__.allow_mutation = True
+    try:
+        model.__config__.allow_population_by_field_name = True
+        model.__config__.allow_mutation = True
+    except Exception:
+        pass
     return model

@@ -84,18 +84,6 @@ def full_vqgan_decode(latents, model):
     return decoded
 
 
-def vae_interpose(latents, target):
-    from modules.interposer import Interposer
-    interposer = Interposer()
-    converted = interposer.convert(src=shared.sd_model_type, dst=target, latents=latents)
-    if converted is None:
-        return None
-    interposer.vae = interposer.vae.to(device=devices.device, dtype=devices.dtype)
-    decoded = interposer.vae.decode(converted, return_dict=False)[0]
-    interposer.vae = interposer.vae.to(device=devices.cpu)
-    return decoded
-
-
 def full_vae_decode(latents, model):
     t0 = time.time()
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
@@ -107,16 +95,13 @@ def full_vae_decode(latents, model):
         devices.torch_gc(force=True)
         shared.mem_mon.reset()
 
-    # decoded = vae_interpose(latents, shared.opts.vae_interpose)
-    # if decoded is not None:
-    #    return decoded
-
     base_device = None
     if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False):
         base_device = sd_models.move_base(model, devices.cpu)
     elif shared.opts.diffusers_offload_mode != "sequential":
         sd_models.move_model(model.vae, devices.device)
 
+    sd_models.set_vae_options(model, vae=None, op='decode')
     upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
@@ -125,15 +110,11 @@ def full_vae_decode(latents, model):
             model.vae.orig_dtype = model.vae.dtype
             model.vae = model.vae.to(dtype=torch.float32)
     latents = latents.to(devices.device)
-    if getattr(model.vae, "post_quant_conv", None) is not None:
-        latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
-    else:
-        latents = latents.to(model.vae.dtype)
 
     # normalize latents
     latents_mean = model.vae.config.get("latents_mean", None)
     latents_std = model.vae.config.get("latents_std", None)
-    scaling_factor = model.vae.config.get("scaling_factor", None)
+    scaling_factor = model.vae.config.get("scaling_factor", 1.0)
     shift_factor = model.vae.config.get("shift_factor", None)
     if latents_mean and latents_std:
         latents_mean = (torch.tensor(latents_mean).view(1, -1, 1, 1).to(latents.device, latents.dtype))
@@ -143,6 +124,21 @@ def full_vae_decode(latents, model):
         latents = latents / scaling_factor
     if shift_factor:
         latents = latents + shift_factor
+
+    # check dims
+    if model.vae.__class__.__name__ in ['AutoencoderKLWan'] and latents.ndim == 4:
+        latents = latents.unsqueeze(2) # wan is __nhw
+
+    # handle quants
+    if getattr(model.vae, "post_quant_conv", None) is not None:
+        if getattr(model.vae.post_quant_conv, "bias", None) is not None:
+            latents = latents.to(model.vae.post_quant_conv.bias.dtype)
+        elif "VAE" in shared.opts.sdnq_quantize_weights:
+            latents = latents.to(devices.dtype_vae)
+        else:
+            latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
+    else:
+        latents = latents.to(model.vae.dtype)
 
     log_debug(f'VAE config: {model.vae.config}')
     try:
@@ -172,7 +168,8 @@ def full_vae_decode(latents, model):
     if debug:
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
-    shared.log.debug(f'Decode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device}:{latents.dtype} time={t1-t0:.3f}')
+    vae_scale_factor = sd_vae.get_vae_scale_factor(model)
+    shared.log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device}:{latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 
@@ -187,6 +184,7 @@ def full_vae_encode(image, model):
     vae_name = sd_vae.loaded_vae_file if sd_vae.loaded_vae_file is not None else "default"
     log_debug(f'Encode vae="{vae_name}" dtype={model.vae.dtype} upcast={model.vae.config.get("force_upcast", None)}')
 
+    sd_models.set_vae_options(model, vae=None, op='encode')
     upcast = (model.vae.dtype == torch.float16) and (getattr(model.vae.config, 'force_upcast', False) or shared.opts.no_half_vae)
     if upcast:
         if hasattr(model, 'upcast_vae'): # this is done by diffusers automatically if output_type != 'latent'
@@ -248,8 +246,8 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if output_type == "pil":
                     images = model.numpy_to_pil(images)
             else:
-                import diffusers
-                model.image_processor = diffusers.image_processor.VaeImageProcessor()
+                from diffusers.image_processor import VaeImageProcessor
+                model.image_processor = VaeImageProcessor()
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
@@ -290,9 +288,9 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latent_num_frames = (frames - 1) // model.vae_temporal_compression_ratio + 1
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access
         latents = model._denormalize_latents(latents, model.vae.latents_mean, model.vae.latents_std, model.vae.config.scaling_factor) # pylint: disable=protected-access
-    if hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None: # FLUX
+    if hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None and latents.ndim == 3: # FLUX
         latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
-    if len(latents.shape) == 3: # lost a batch dim in hires
+    if latents.ndim == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()

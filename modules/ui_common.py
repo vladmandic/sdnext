@@ -4,9 +4,8 @@ import os
 import shutil
 import platform
 import subprocess
-from functools import reduce
 import gradio as gr
-from modules import call_queue, shared, prompt_parser, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts, script_callbacks, infotext
+from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
 
 
 folder_symbol = ui_symbols.folder
@@ -20,10 +19,14 @@ def gr_show(visible=True):
 
 def update_generation_info(generation_info, html_info, img_index):
     try:
-        generation_info = json.loads(generation_info)
-        if img_index < 0 or img_index >= len(generation_info["infotexts"]):
-            return html_info, generation_info
-        info = generation_info["infotexts"][img_index]
+        generation_json = json.loads(generation_info)
+        if len(generation_json["infotexts"]) == 0:
+            return html_info, 'no infotexts found'
+        if img_index == -1:
+            img_index = 0
+        if img_index >= len(generation_json["infotexts"]):
+            return html_info, 'error fetching infotext'
+        info = generation_json["infotexts"][img_index]
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
     except Exception:
@@ -31,8 +34,8 @@ def update_generation_info(generation_info, html_info, img_index):
     return html_info, html_info
 
 
-def plaintext_to_html(text):
-    res = '<p class="plaintext">' + "<br>\n".join([f"{html.escape(x)}" for x in text.split('\n')]) + '</p>'
+def plaintext_to_html(text, elem_classes=[]):
+    res = f'<p class="plaintext {" ".join(elem_classes)}">' + '<br>\n'.join([f"{html.escape(x)}" for x in text.split('\n')]) + '</p>'
     return res
 
 
@@ -54,7 +57,7 @@ def infotext_to_html(text):
     return code
 
 
-def delete_files(js_data, files, _html_info, index):
+def delete_files(js_data, files, all_files, index):
     try:
         data = json.loads(js_data)
     except Exception:
@@ -63,25 +66,26 @@ def delete_files(js_data, files, _html_info, index):
     if index > -1 and shared.opts.save_selected_only and (index >= data['index_of_first_image']):
         files = [files[index]]
         start_index = index
-        filenames = []
-    filenames = []
-    fullfns = []
+    deleted = []
+    all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
     for _image_index, filedata in enumerate(files, start_index):
-        if 'name' in filedata and os.path.isfile(filedata['name']):
-            fullfn = filedata['name']
-            filenames.append(os.path.basename(fullfn))
-            try:
-                os.remove(fullfn)
-                base, _ext = os.path.splitext(fullfn)
-                desc = f'{base}.txt'
-                if os.path.exists(desc):
-                    os.remove(desc)
-                fullfns.append(fullfn)
-                shared.log.info(f"Deleting image: {fullfn}")
-            except Exception as e:
-                shared.log.error(f'Error deleting file: {fullfn} {e}')
-    files = [image for image in files if image['name'] not in fullfns]
-    return files, plaintext_to_html(f"Deleted: {filenames[0] if len(filenames) > 0 else 'none'}")
+        try:
+            fn = filedata['name']
+            if os.path.exists(fn) and os.path.isfile(fn):
+                deleted.append(fn)
+                os.remove(fn)
+                if fn in all_files:
+                    all_files.remove(fn)
+                shared.log.info(f'Delete: image="{fn}"')
+            base, _ext = os.path.splitext(fn)
+            desc = f'{base}.txt'
+            if os.path.exists(desc) and os.path.isfile(desc):
+                os.remove(desc)
+                shared.log.info(f'Delete: text="{fn}"')
+        except Exception as e:
+            shared.log.error(f'Delete: file="{fn}" {e}')
+    deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
+    return all_files, plaintext_to_html(f"Deleted: {deleted}", ['performance'])
 
 
 def save_files(js_data, files, html_info, index):
@@ -136,7 +140,6 @@ def save_files(js_data, files, html_info, index):
             p.infotexts.append(p.infotext)
         if 'name' in filedata and ('tmp' not in filedata['name']) and os.path.isfile(filedata['name']):
             fullfn = filedata['name']
-            filenames.append(os.path.basename(fullfn))
             fullfns.append(fullfn)
             destination = shared.opts.outdir_save
             namegen = images.FilenameGenerator(p, seed=p.all_seeds[i], prompt=p.all_prompts[i], image=None)  # pylint: disable=no-member
@@ -145,6 +148,8 @@ def save_files(js_data, files, html_info, index):
             destination = namegen.sanitize(destination)
             os.makedirs(destination, exist_ok = True)
             tgt_filename = os.path.join(destination, os.path.basename(fullfn))
+            relfn = os.path.relpath(tgt_filename, shared.opts.outdir_save)
+            filenames.append(relfn)
             if not os.path.exists(tgt_filename):
                 try:
                     shutil.copy(fullfn, destination)
@@ -173,7 +178,14 @@ def save_files(js_data, files, html_info, index):
                 geninfo, _ = images.read_info_from_image(image)
                 items = infotext.parse(geninfo)
                 p = PObject(items)
-            fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=p.all_seeds[i], prompt=p.all_prompts[i], info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+            try:
+                seed = p.all_seeds[i] if i < len(p.all_seeds) else p.seed
+                prompt = p.all_prompts[i] if i < len(p.all_prompts) else p.prompt
+                fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+            except Exception as e:
+                fullfn, txt_fullfn = None, None
+                shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
+                errors.display(e, 'save')
             if fullfn is None:
                 continue
             filename = os.path.relpath(fullfn, shared.opts.outdir_save)
@@ -192,7 +204,7 @@ def save_files(js_data, files, html_info, index):
                     with open(fullfns[i], mode="rb") as f:
                         zip_file.writestr(filenames[i], f.read())
         fullfns.insert(0, zip_filepath)
-    return gr.File.update(value=fullfns, visible=True), plaintext_to_html(f"Saved: {filenames[0] if len(filenames) > 0 else 'none'}")
+    return gr.File.update(value=fullfns, visible=True), plaintext_to_html(f"Saved: {filenames[0] if len(filenames) > 0 else 'none'}", ['performance'])
 
 
 def open_folder(result_gallery, gallery_index = 0):
@@ -219,24 +231,6 @@ def open_folder(result_gallery, gallery_index = 0):
             subprocess.Popen(["xdg-open", path]) # pylint: disable=consider-using-with
 
 
-def interrogate_clip(image): # legacy function
-    if image is None:
-        shared.log.error("Interrogate: no image selected")
-        return gr.update()
-    from modules.interrogate import openclip
-    prompt = openclip.interrogator.interrogate(image)
-    return gr.update() if prompt is None else prompt
-
-
-def interrogate_booru(image): # legacy function
-    if image is None:
-        shared.log.error("Interrogate: no image selected")
-        return gr.update()
-    from modules.interrogate import deepbooru
-    prompt = deepbooru.model.tag(image)
-    return gr.update() if prompt is None else prompt
-
-
 def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1):
     with gr.Column(variant='panel', elem_id=f"{tabname}_results", scale=scale):
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
@@ -256,7 +250,9 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                         elem_classes=["gallery_main"],
                                        )
             if prompt is not None:
-                ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt)
+                ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt, what='output')
+            button_image_fit = gr.Button(ui_symbols.resize, elem_id=f"{tabname}_image_fit", elem_classes=['image-fit'])
+            button_image_fit.click(fn=None, _js="cycleImageFit", inputs=[], outputs=[])
 
         with gr.Column(elem_id=f"{tabname}_footer", elem_classes="gallery_footer"):
             dummy_component = gr.Label(visible=False)
@@ -270,10 +266,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 save = gr.Button('Save', elem_id=f'save_{tabname}')
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
                 if transfer:
-                    if not shared.native:
-                        buttons = generation_parameters_copypaste.create_buttons(["img2img", "inpaint", "extras"])
-                    else:
-                        buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
+                    buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
                 else:
                     buttons = None
 
@@ -296,18 +289,18 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[download_files, html_log],
                 )
-                delete.click(fn=call_queue.wrap_gradio_call(delete_files),show_progress=False,
-                    _js="(x, y, z, i) => [x, y, z, selected_gallery_index()]",
+                delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress=False,
+                    _js="(x, y, i, j) => [x, y, ...selected_gallery_files()]",
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[result_gallery, html_log],
                 )
 
             if tabname == "txt2img":
-                paste_field_names = scripts.scripts_txt2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_txt2img.paste_field_names
             elif tabname == "img2img":
-                paste_field_names = scripts.scripts_img2img.paste_field_names
+                paste_field_names = scripts_manager.scripts_img2img.paste_field_names
             elif tabname == "control":
-                paste_field_names = scripts.scripts_control.paste_field_names
+                paste_field_names = scripts_manager.scripts_control.paste_field_names
             else:
                 paste_field_names = []
             debug(f'Paste field: tab={tabname} fields={paste_field_names}')
@@ -342,19 +335,6 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args = No
     refresh_button = ui_components.ToolButton(value=ui_symbols.refresh, elem_id=elem_id, visible=visible)
     refresh_button.click(fn=refresh, inputs=[], outputs=[refresh_component])
     return refresh_button
-
-
-def create_browse_button(browse_component, elem_id):
-    def browse(folder):
-        # import subprocess
-        if folder is not None:
-            return gr.update(value = folder)
-        return gr.update()
-
-    browse_button = ui_components.ToolButton(value=ui_symbols.folder, elem_id=elem_id)
-    browse_button.click(fn=browse, _js="async () => await browseFolder()", inputs=[browse_component], outputs=[browse_component])
-    # browse_button.click(fn=browse, inputs=[browse_component], outputs=[browse_component])
-    return browse_button
 
 
 def create_override_inputs(tab): # pylint: disable=unused-argument
@@ -397,7 +377,7 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed: gr.Button, generation_info: 
         reuse_seed.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text, steps):
+def update_token_counter(text):
     token_count = 0
     max_length = 75
     if shared.state.job_count > 0:
@@ -405,24 +385,13 @@ def update_token_counter(text, steps):
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
-    if not shared.native:
-        from modules import sd_hijack
-        try:
-            _, prompt_flat_list, _ = prompt_parser.get_multicond_prompt_list([text])
-            prompt_schedules = prompt_parser.get_learned_conditioning_prompt_schedules(prompt_flat_list, steps)
-        except Exception:
-            prompt_schedules = [[[steps, text]]]
-        flat_prompts = reduce(lambda list1, list2: list1+list2, prompt_schedules)
-        prompts = [prompt_text for _step, prompt_text in flat_prompts]
-        token_count, max_length = max([sd_hijack.model_hijack.get_prompt_lengths(prompt) for prompt in prompts], key=lambda args: args[0])
-    elif shared.native:
-        if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-            has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
-            has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
-            ids = shared.sd_model.tokenizer(prompt)
-            ids = getattr(ids, 'input_ids', [])
-            token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-            max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
-            if max_length is None or max_length < 0 or max_length > 10000:
-                max_length = 0
+    if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
+        has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
+        has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
+        ids = shared.sd_model.tokenizer(prompt)
+        ids = getattr(ids, 'input_ids', [])
+        token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
+        max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
+        if max_length is None or max_length < 0 or max_length > 10000:
+            max_length = 0
     return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)

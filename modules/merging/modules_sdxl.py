@@ -8,7 +8,7 @@ import torch
 from safetensors.torch import load_file
 import diffusers
 import transformers
-from modules import shared, devices
+from modules import shared, devices, errors
 
 
 class Recipe:
@@ -33,6 +33,11 @@ class Recipe:
     lora = {
     }
     fuse = 1.0
+
+    def __repr__(self):
+        return f'Recipe(name="{self.name}" version="{self.version}" author="{self.author}" desc="{self.desc}" hint="{self.hint}" license="{self.license}" dtype="{self.dtype}" fuse={self.fuse} diffusers={self.diffusers} safetensors={self.safetensors})'
+
+
 class Test:
     generate = True
     prompt = 'astronaut in a diner drinking coffee with burger and french fries on the table'
@@ -41,6 +46,8 @@ class Test:
     height = 1024
     guidance = 4
     steps = 20
+
+
 recipe = Recipe()
 test = Test()
 pipeline: diffusers.StableDiffusionXLPipeline = None
@@ -89,6 +96,7 @@ def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         pipe.unet = unet.to(device=devices.device, dtype=recipe.dtype)
     except Exception as e:
         yield msg(f'unet: {e}')
+
 
 def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
     if recipe.scheduler is None and override is None:
@@ -262,11 +270,13 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
     folder = os.path.join(shared.opts.diffusers_dir, f'models--{author}--{recipe.name}')
     if len(recipe.version) > 0:
         folder += f'-{recipe.version}'
-    if not recipe.diffusers or recipe.safetensors:
+    if not (recipe.diffusers or recipe.safetensors):
+        shared.log.debug(f'Modules merge: type=sdxl {recipe} skipping save')
         return
     try:
         yield msg('save')
         yield msg(f'pretrained={folder}')
+        shared.log.info(f'Modules merge save: type=sdxl diffusers="{folder}"')
         pipe.save_pretrained(folder, safe_serialization=True, push_to_hub=False)
         with open(os.path.join(folder, 'vae', 'config.json'), 'r', encoding='utf8') as f:
             vae_config = json.load(f)
@@ -283,13 +293,16 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
                 fn = os.path.join(shared.opts.ckpt_dir, fn)
             if not fn.endswith('.safetensors'):
                 fn += '.safetensors'
+            shared.log.info(f'Modules merge save: type=sdxl safetensors="{fn}"')
             yield msg(f'safetensors={fn}')
             from modules.merging import convert_sdxl
-            metadata = convert_sdxl(model_path=folder, checkpoint_path=fn, metadata=get_metadata())
+            metadata = convert_sdxl.convert(model_path=folder, checkpoint_path=fn, metadata=get_metadata())
             if 'modelspec.thumbnail' in metadata:
-                metadata['modelspec.thumbnail'] = f"{metadata['modelspec.thumbnail'].split(',')[0]}:{len(metadata['modelspec.thumbnail'])}"
+                metadata['modelspec.thumbnail'] = f"{metadata['modelspec.thumbnail'].split(',')[0]}:{len(metadata['modelspec.thumbnail'])}" # pylint: disable=use-maxsplit-arg
             yield msg(f'metadata={metadata}')
     except Exception as e:
+        shared.log.error(f'Modules merge save: {e}')
+        errors.display(e, 'merge')
         yield msg(f'save: {e}')
 
 
@@ -298,6 +311,7 @@ def merge():
     yield from load_base()
     if pipeline is None:
         return
+    shared.log.info(f'Modules merge: type=sdxl {recipe}')
     pipeline = pipeline.to(device=devices.device, dtype=recipe.dtype)
     yield from load_scheduler(pipeline)
     yield from load_unet(pipeline)

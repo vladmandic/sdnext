@@ -4,6 +4,30 @@ import torch
 from modules import shared, sd_models
 
 
+def walk(folder: str):
+    files = []
+    for root, _, filenames in os.walk(folder):
+        for filename in filenames:
+            files.append(os.path.join(root, filename))
+    return files
+
+
+def stat(fn: str):
+    if fn is None or len(fn) == 0 or not os.path.exists(fn):
+        return 0, datetime.fromtimestamp(0)
+    fs_stat = os.stat(fn, follow_symlinks=False)
+    mtime = datetime.fromtimestamp(fs_stat.st_mtime).replace(microsecond=0)
+    if os.path.islink(fn):
+        size = 0
+    elif os.path.isfile(fn):
+        size = round(fs_stat.st_size)
+    elif os.path.isdir(fn):
+        size = round(sum(stat(fn)[0] for fn in walk(fn)))
+    else:
+        size = 0
+    return size, mtime
+
+
 class Module():
     name: str = ''
     cls: str = None
@@ -11,6 +35,7 @@ class Module():
     dtype: str = None
     params: int = 0
     modules: int = 0
+    quant: str = None
     config: dict = None
 
     def __init__(self, name, module):
@@ -25,6 +50,7 @@ class Module():
             self.dtype = getattr(module, 'dtype', None)
             self.params = sum(p.numel() for p in module.parameters(recurse=True))
             self.modules = len(list(module.modules()))
+            self.quant = getattr(module, 'quantization_method', None)
 
     def __repr__(self):
         s = f'name="{self.name}" cls={self.cls} config={self.config is not None}'
@@ -58,17 +84,15 @@ class Model():
             self.name = self.info.name or self.name
             self.hash = self.info.shorthash or ''
             self.meta = self.info.metadata or {}
-            if os.path.exists(self.info.filename):
-                stat = os.stat(self.info.filename)
-                self.mtime = datetime.fromtimestamp(stat.st_mtime).replace(microsecond=0)
-                if os.path.isfile(self.info.filename):
-                    self.size = round(stat.st_size)
+            self.size, self.mtime = stat(self.info.filename)
 
     def __repr__(self):
         return f'model="{self.name}" type={self.type} class={self.cls} size={self.size} mtime="{self.mtime}" modules={self.modules}'
 
 
 def analyze():
+    if not shared.sd_loaded:
+        return None
     model = Model(shared.opts.sd_model_checkpoint)
     if model.cls == '':
         return model
@@ -78,6 +102,8 @@ def analyze():
         keys = sd_models.get_signature(shared.sd_model).keys()
     model.modules.clear()
     for k in keys: # pylint: disable=protected-access
+        if k.startswith('_'):
+            continue
         component = getattr(shared.sd_model, k, None)
         module = Module(k, component)
         model.modules.append(module)

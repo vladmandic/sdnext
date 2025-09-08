@@ -25,10 +25,12 @@ skip_install = False # parsed by some extensions
 
 
 try:
-    from modules.timer import launch
+    from modules.timer import launch, init
     rec = launch.record
+    init_summary = init.summary
 except Exception:
     rec = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
+    init_summary = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
 
 
 def init_args():
@@ -43,9 +45,9 @@ def init_args():
 def init_paths():
     global script_path, extensions_dir # pylint: disable=global-statement
     import modules.paths
-    modules.paths.register_paths()
     script_path = modules.paths.script_path
     extensions_dir = modules.paths.extensions_dir
+    sys.path.insert(0, script_path)
     rec('paths')
 
 
@@ -110,8 +112,8 @@ def check_run(command): # compatbility function
 
 
 @lru_cache()
-def is_installed(package): # compatbility function
-    return installer.installed(package)
+def is_installed(pkg): # compatbility function
+    return installer.installed(pkg)
 
 
 @lru_cache()
@@ -167,7 +169,7 @@ def clean_server():
     modules_to_remove = ['webui', 'modules', 'scripts', 'gradio',
                          'onnx', 'torch', 'pytorch', 'lightning', 'tensor', 'diffusers', 'transformers', 'tokenize', 'safetensors', 'gguf', 'accelerate', 'peft', 'triton', 'huggingface',
                          'PIL', 'cv2', 'timm', 'numpy', 'scipy', 'sympy', 'sklearn', 'skimage', 'sqlalchemy', 'flash_attn', 'bitsandbytes', 'xformers', 'matplotlib', 'optimum', 'pandas', 'pi', 'git', 're', 'altair',
-                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'k_diffusion', 'gfpgan', 'war',
+                         'framepack', 'nudenet', 'agent_scheduler', 'basicsr', 'gfpgan', 'war',
                          'fastapi', 'urllib', 'uvicorn', 'web', 'http', 'google', 'starlette', 'socket']
     removed_removed = []
     for module_loaded in modules_loaded:
@@ -219,10 +221,7 @@ def start_server(immediate=True, server=None):
         installer.log.trace('Logging: level=trace')
         server.wants_restart = False
     else:
-        if args.api_only:
-            uvicorn = server.api_only()
-        else:
-            uvicorn = server.webui(restart=not immediate)
+        uvicorn = server.webui(restart=not immediate)
     if args.profile:
         pr.disable()
         installer.print_profile(pr, 'WebUI')
@@ -258,12 +257,18 @@ def main():
         installer.set_environment()
     if args.uv:
         installer.install("uv", "uv")
+    installer.install_gradio()
     installer.check_torch()
     installer.check_onnx()
+    installer.check_transformers()
     installer.check_diffusers()
+    installer.install_sentencepiece()
     installer.check_modified_files()
+    if args.test:
+        installer.log.info('Startup: test mode')
+        installer.quick_allowed = False
     if args.reinstall:
-        installer.log.info('Forcing reinstall of all packages')
+        installer.log.info('Startup: force reinstall of all packages')
         installer.quick_allowed = False
     if args.skip_all:
         installer.log.info('Startup: skip all')
@@ -290,6 +295,7 @@ def main():
                 installer.log.warning(f'See log file for more details: {installer.log_file}')
     installer.extensions_preload(parser) # adds additional args from extensions
     args = installer.parse_args(parser)
+    installer.log.info(f'Installer time: {init_summary()}')
     get_custom_args()
 
     uv, instance = start_server(immediate=True, server=None)
@@ -303,8 +309,10 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if float(args.status) > 0 and t_current - t_server > float(args.status):
-            installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {instance.state.status()}')
+        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
+            s = instance.state.status()
+            if (s.timestamp is None) or (s.step == 0): # dont spam during active job
+                installer.log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
         if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
             installer.log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
@@ -318,7 +326,7 @@ def main():
             else:
                 installer.log.info('Exiting...')
                 break
-        time.sleep(1)
+        time.sleep(1.0)
 
 
 if __name__ == "__main__":

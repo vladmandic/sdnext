@@ -24,17 +24,24 @@ from modules import shared, devices, sd_models
 
 # importing openvino.runtime forces DeprecationWarning to "always"
 # And Intel's own libs (NNCF) imports the deprecated module
-# Reset the warnings back to ignore:
+# Don't allow openvino to override warning filters:
 try:
     import warnings
+    filterwarnings = warnings.filterwarnings
+    warnings.filterwarnings = lambda *args, **kwargs: None
     import openvino.runtime # pylint: disable=unused-import
-    warnings.filterwarnings(action="ignore", category=DeprecationWarning)
+    warnings.filterwarnings = filterwarnings
 except Exception:
     pass
 
+try:
+    # silence the pytorch version warning
+    nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
+except Exception:
+    pass
 
 # Set default params
-torch._dynamo.config.cache_size_limit = 64 # pylint: disable=protected-access
+torch._dynamo.config.cache_size_limit = max(64, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
 torch._dynamo.eval_frame.check_if_dynamo_supported = lambda: True # pylint: disable=protected-access
 if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
     torch._dynamo.config.inline_inbuilt_nn_modules = False # pylint: disable=protected-access
@@ -46,6 +53,24 @@ DEFAULT_OPENVINO_PYTHON_CONFIG = MappingProxyType(
         "allow_single_op_fusion": True,
     },
 )
+
+dtype_mapping = {
+        torch.float32: Type.f32,
+        torch.float64: Type.f64,
+        torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
+        torch.float8_e4m3fn: Type.f8e4m3,
+        torch.float8_e5m2: Type.f8e5m2,
+        torch.int64: Type.i64,
+        torch.uint64: Type.u64,
+        torch.int32: Type.i32,
+        torch.uint32: Type.u32,
+        torch.int8: Type.i8,
+        torch.uint8: Type.u8,
+        torch.bool: Type.boolean
+    }
+if hasattr(torch, "float8_e8m0fnu"):
+    dtype_mapping[torch.float8_e8m0fnu] = Type.f8e8m0
 
 
 class OpenVINOGraphModule(torch.nn.Module):
@@ -214,17 +239,6 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = Non
                     f.write("\n")
                 f.close()
 
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
-
     idx_minus = 0
     for idx, input_data in enumerate(example_inputs):
         if isinstance(input_data, int):
@@ -277,17 +291,6 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
     global dont_use_4bit_nncf
     global dont_use_nncf
     global dont_use_quant
-
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
 
     for idx, input_data in enumerate(example_inputs):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
@@ -513,7 +516,7 @@ def openvino_fx(subgraph, example_inputs, options=None):
             else:
                 # Delete unused subgraphs
                 subgraph = subgraph.apply(sd_models.convert_to_faketensors)
-                devices.torch_gc(force=True)
+                devices.torch_gc(force=True, reason='openvino')
 
             # Model is fully supported and already cached. Run the cached OV model directly.
             compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, *example_inputs)

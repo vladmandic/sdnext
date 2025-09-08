@@ -1,6 +1,6 @@
 import time
 from PIL import Image
-from modules import shared, processing, images, sd_models
+from modules import shared, processing, images, sd_models, sd_vae
 
 
 def get_tile(image: Image.Image, x: int, y: int, sx: int, sy: int) -> Image.Image:
@@ -23,17 +23,18 @@ def run_tiling(p: processing.StableDiffusionProcessing, input_image: Image.Image
     sx, sy = p.control_tile.split('x')
     sx = int(sx)
     sy = int(sy)
+    vae_scale_factor = sd_vae.get_vae_scale_factor()
     if sx <= 0 or sy <= 0:
         raise ValueError('Control Tile: invalid tile size')
     control_image = p.task_args.get('control_image', None) or p.task_args.get('image', None)
     control_upscaled = None
     if isinstance(control_image, list) and len(control_image) > 0:
-        w, h = 8 * int(sx * control_image[0].width) // 8, 8 * int(sy * control_image[0].height) // 8
+        w, h = vae_scale_factor * int(sx * control_image[0].width) // vae_scale_factor, vae_scale_factor * int(sy * control_image[0].height) // vae_scale_factor
         control_upscaled = images.resize_image(resize_mode=1 if sx==sy else 5, im=control_image[0], width=w, height=h, context='add with forward')
     init_image = p.override or input_image
     init_upscaled = None
     if init_image is not None:
-        w, h = 8 * int(sx * init_image.width) // 8, 8 * int(sy * init_image.height) // 8
+        w, h = vae_scale_factor * int(sx * init_image.width) // vae_scale_factor, vae_scale_factor * int(sy * init_image.height) // vae_scale_factor
         init_upscaled = images.resize_image(resize_mode=1 if sx==sy else 5, im=init_image, width=w, height=h, context='add with forward')
     t1 = time.time()
     shared.log.debug(f'Control Tile: scale={sx}x{sy} resize={"fixed" if sx==sy else "context"} control={control_upscaled} init={init_upscaled} time={t1-t0:.3f}')

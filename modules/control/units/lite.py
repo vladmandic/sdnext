@@ -74,6 +74,9 @@ class ControlLLLite():
         if model_id is not None:
             self.load()
 
+    def __str__(self):
+        return f' ControlLLLite(id={self.model_id} model={self.model.__class__.__name__})' if self.model_id and self.model else ''
+
     def reset(self):
         if self.model is not None:
             debug(f'Control {what} model unloaded')
@@ -125,6 +128,7 @@ class ControlLLLite():
 class ControlLLitePipeline():
     def __init__(self, pipeline: Union[StableDiffusionXLPipeline, StableDiffusionPipeline]):
         self.pipeline = pipeline
+        # self.pipeline.__class__.__name__ = 'ControlLLLitePipeline'
         self.nets = []
 
     def apply(self, controlnet: Union[ControlNetLLLite, list[ControlNetLLLite]], image, conditioning):

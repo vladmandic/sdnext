@@ -21,7 +21,7 @@ repository-code: 'https://github.com/vladmandic/sdnext'
 abstract: >-
   SD.Next: Advanced Implementation of Stable Diffusion
   and other diffusion models for text, image and video
-  generation  
+  generation
 keywords:
   - stablediffusion diffusers sdnext
 license: Apache-2.0
