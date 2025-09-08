@@ -56,7 +56,9 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - improve offloading of models with controlnet  
   - more aggressive offloading of controlnets with lowvram flag  
 - **Quantization**
-  - **sdnq**: add quantized matmul support for all quantization types and group sizes  
+  - **sdnq**
+    - add quantized matmul support for all quantization types and group sizes  
+    - improve the performance of low bit quants  
   - **nunchaku**: update to `nunchaku==1.0.0`  
     *note*: nunchaku updated the repo which will trigger re-download of nunchaku models when first used  
     nunchaku is currently available for: *Flux.1 Dev/Schnell/Kontext/Krea/Depth/Fill*, *Qwen-Image/Qwen-Lightning*, *SANA-1.6B*  
@@ -74,9 +76,8 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - downgrade rocm to `torch==2.7.1`  
   - set the minimum supported rocm version on linux to `rocm==6.0`  
   - disallow `zluda` and `directml` on non-windows platforms  
-- **OpenVINO**
-  - update to `openvino==2025.3.0`  
-  - add deprecation warning for Python 3.9  
+  - update openvino to `openvino==2025.3.0`  
+  - add deprecation warning for `python==3.9`  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

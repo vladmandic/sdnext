@@ -583,6 +583,8 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
                 sys.exit(1)
     if int(sys.version_info.minor) == 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
+    if int(sys.version_info.minor) == 9:
+        log.warning("Python 3.9 support is scheduled to be removed")
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
@@ -713,7 +715,7 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32": # TODO install: enable ROCm for windows when available
-        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.9 and 3.13')
+        #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
 
         if args.device_id is not None:
             if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
@@ -743,7 +745,7 @@ def install_rocm_zluda():
             log.info('Using CPU-only torch')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     else:
-        #check_python(supported_minors=[9, 10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.9 and 3.13')
+        #check_python(supported_minors=[10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.10 and 3.13')
 
         if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
             os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
@@ -787,7 +789,7 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[9, 10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.9 and 3.13')
+    #check_python(supported_minors=[10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.10 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
@@ -826,8 +828,6 @@ def install_openvino():
     t_start = time.time()
     log.info('OpenVINO: selected')
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
-    if int(sys.version_info.major) == 3 and int(sys.version_info.minor) == 9:
-        log.warning("Python 3.9 support will be removed with the next OpenVINO release!")
 
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
