@@ -909,6 +909,16 @@ def check_torch():
     # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} diml={allow_directml} openvino={allow_openvino}')
     torch_command = os.environ.get('TORCH_COMMAND', '')
 
+    if sys.platform != 'win32':
+        if args.use_zluda:
+            log.error('ZLUDA is only supported on Windows')
+            if not args.ignore:
+                sys.exit(1)
+        if args.use_directml:
+            log.error('DirectML is only supported on Windows')
+            if not args.ignore:
+                sys.exit(1)
+
     if torch_command != '':
         pass
     else:
