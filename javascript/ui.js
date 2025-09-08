@@ -189,6 +189,7 @@ function get_tab_index(tabId) {
     .forEach((button, i) => {
       if (button.className.indexOf('selected') !== -1) res = i;
     });
+  console.log('get_tab_index', tabId, res);
   return res;
 }
 

@@ -121,8 +121,8 @@ def create_ui(_blocks: gr.Blocks=None):
 
     with gr.Blocks(analytics_enabled = False) as control_ui:
         prompt, styles, negative, btn_generate, btn_reprocess, btn_paste, btn_extra, prompt_counter, btn_prompt_counter, negative_counter, btn_negative_counter  = ui_sections.create_toprow(is_img2img=False, id_part='control')
-        txt_prompt_img = gr.File(label="", elem_id="control_prompt_image", file_count="single", type="binary", visible=False)
-        txt_prompt_img.change(fn=images.image_data, inputs=[txt_prompt_img], outputs=[prompt, txt_prompt_img])
+        prompt_img = gr.File(label="", elem_id="control_prompt_image", file_count="single", type="binary", visible=False)
+        prompt_img.change(fn=images.image_data, inputs=[prompt_img], outputs=[prompt, prompt_img])
 
         with gr.Group(elem_id="control_interface"):
 

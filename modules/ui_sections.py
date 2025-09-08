@@ -10,7 +10,6 @@ def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visibl
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         return [gr.Textbox.update(value=prompt), gr.Textbox.update(value=prompt_neg), gr.Dropdown.update(value=[])]
 
-
     def parse_style(styles):
         return styles.split('|') if styles is not None else None
 

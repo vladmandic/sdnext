@@ -95,6 +95,8 @@ def add_paste_fields(tabname, init_img, fields, override_settings_component=None
         modules.ui.img2img_paste_fields = fields # compatibility
     elif tabname == 'control':
         modules.ui.control_paste_fields = fields
+    elif tabname == 'video':
+        modules.ui.video_paste_fields = fields
 
 
 def get_all_fields():

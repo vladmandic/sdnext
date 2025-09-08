@@ -40,6 +40,7 @@ def create_ui():
     with gr.Blocks(analytics_enabled=False) as _img2img_interface:
         img2img_prompt, img2img_prompt_styles, img2img_negative_prompt, img2img_submit, img2img_reprocess, img2img_paste, img2img_extra_networks_button, img2img_token_counter, img2img_token_button, img2img_negative_token_counter, img2img_negative_token_button = ui_sections.create_toprow(is_img2img=True, id_part="img2img")
         img2img_prompt_img = gr.File(label="", elem_id="img2img_prompt_image", file_count="single", type="binary", visible=False)
+        img2img_prompt_img.change(fn=modules.images.image_data, inputs=[img2img_prompt_img], outputs=[img2img_prompt, img2img_prompt_img])
 
         with gr.Row(variant='compact', elem_id="img2img_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
             from modules import ui_extra_networks
@@ -162,7 +163,6 @@ def create_ui():
             ui_common.reuse_seed(seed, reuse_seed, subseed=False)
             ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
-            img2img_prompt_img.change(fn=modules.images.image_data, inputs=[img2img_prompt_img], outputs=[img2img_prompt, img2img_prompt_img])
             dummy_component1 = gr.Textbox(visible=False, value='dummy')
             dummy_component2 = gr.Number(visible=False, value=0)
             img2img_args = [

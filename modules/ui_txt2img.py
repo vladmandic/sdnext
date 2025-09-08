@@ -12,8 +12,8 @@ def create_ui():
     with gr.Blocks(analytics_enabled=False) as _txt2img_interface:
         txt2img_prompt, txt2img_prompt_styles, txt2img_negative_prompt, txt2img_submit, txt2img_reprocess, txt2img_paste, txt2img_extra_networks_button, txt2img_token_counter, txt2img_token_button, txt2img_negative_token_counter, txt2img_negative_token_button = ui_sections.create_toprow(is_img2img=False, id_part="txt2img")
 
-        txt_prompt_img = gr.File(label="", elem_id="txt2img_prompt_image", file_count="single", type="binary", visible=False)
-        txt_prompt_img.change(fn=images.image_data, inputs=[txt_prompt_img], outputs=[txt2img_prompt, txt_prompt_img])
+        txt2img_prompt_img = gr.File(label="", elem_id="txt2img_prompt_image", file_count="single", type="binary", visible=False)
+        txt2img_prompt_img.change(fn=images.image_data, inputs=[txt2img_prompt_img], outputs=[txt2img_prompt, txt2img_prompt_img])
 
         with gr.Row(variant='compact', elem_id="txt2img_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
             from modules import ui_extra_networks

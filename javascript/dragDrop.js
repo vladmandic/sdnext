@@ -1,10 +1,9 @@
-// allows drag-dropping files into gradio image elements, and also pasting images from clipboard
-
 function isValidImageList(files) {
   return files && files?.length === 1 && ['image/png', 'image/gif', 'image/jpeg'].includes(files[0].type);
 }
 
 function dropReplaceImage(imgWrap, files) {
+  log('dropReplaceImage', imgWrap, files);
   if (!isValidImageList(files)) return;
   const tmpFile = files[0];
   imgWrap.querySelector('.modify-upload button + button, .touch-none + div button + button')?.click();
@@ -23,7 +22,6 @@ function dropReplaceImage(imgWrap, files) {
   };
 
   if (imgWrap.closest('#pnginfo_image')) {
-    // special treatment for PNG Info tab, wait for fetch request to finish
     const oldFetch = window.fetch;
     window.fetch = async (input, options) => {
       const response = await oldFetch(input, options);
@@ -57,6 +55,7 @@ window.document.addEventListener('dragover', (e) => {
 
 window.document.addEventListener('drop', (e) => {
   const target = e.composedPath()[0];
+  log('dropEvent', e, target);
   if (!target.placeholder) return;
   if (target.placeholder.indexOf('Prompt') === -1) return;
   const imgWrap = target.closest('[data-testid="image"]');
@@ -69,6 +68,7 @@ window.document.addEventListener('drop', (e) => {
 });
 
 window.addEventListener('paste', (e) => {
+  log('pasteEvent', e);
   const { files } = e.clipboardData;
   if (!isValidImageList(files)) return;
   const visibleImageFields = [...gradioApp().querySelectorAll('[data-testid="image"]')]

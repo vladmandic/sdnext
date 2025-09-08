@@ -79,7 +79,7 @@ def parse(infotext):
             params[f"{key}-2"] = int(size.group(2))
         elif isinstance(params[key], str):
             params[key] = val
-        debug(f'Param parsed: type={type(params[key])} "{key}"={params[key]} raw="{val}"')
+        debug(f'Param parsed: type={type(params[key])} "{key}"="{params[key]}" raw="{val}"')
 
     return params
 
