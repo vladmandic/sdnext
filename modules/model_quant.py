@@ -131,7 +131,7 @@ def create_trt_config(kwargs = None, allow: bool = True, module: str = 'Model', 
     return kwargs
 
 
-def get_sdnq_devices():
+def get_sdnq_devices(mode="pre"):
     from modules import devices, shared
     if shared.opts.device_map == "gpu":
         quantization_device = devices.device
@@ -139,7 +139,7 @@ def get_sdnq_devices():
     elif shared.opts.device_map == "cpu":
         quantization_device = devices.cpu
         return_device = devices.cpu
-    elif shared.opts.diffusers_offload_mode in {"none", "model"}:
+    elif shared.opts.diffusers_offload_mode in {"none", "model"} or (mode == "post" and shared.opts.sdnq_quantize_shuffle_weights):
         quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
         return_device = devices.device
     elif shared.opts.sdnq_quantize_with_gpu:
@@ -188,7 +188,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         except Exception as e:
             log.warning(f'Quantization: SDNQ failed to parse sdnq_modules_dtype_dict: {e}')
 
-        quantization_device, return_device = get_sdnq_devices()
+        quantization_device, return_device = get_sdnq_devices(mode="pre")
 
         sdnq_config = SDNQConfig(
             weights_dtype=weights_dtype,
@@ -474,7 +474,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     if weights_dtype is None or weights_dtype == 'none':
         return model
 
-    quantization_device, return_device = get_sdnq_devices()
+    quantization_device, return_device = get_sdnq_devices(mode="post")
 
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
