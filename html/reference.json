@@ -198,21 +198,21 @@
   },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
-    "preview": "Qwen-Lightning.jpg",
+    "preview": "vladmandic--Qwen-Lightning.jpg",
     "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8"
   },
   "Qwen-Image-Distill": {
     "path": "SahilCarterr/Qwen-Image-Distill-Full",
-    "preview": "Qwen-Image-Distill.jpg",
+    "preview": "SahilCarterr--Qwen-Image-Distill-Full.jpg",
     "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
     "skip": true,
     "extras": "steps: 15"
   },
   "Qwen-Image-Lightning-Edit": {
     "path": "vladmandic/Qwen-Lightning-Edit",
-    "preview": "Qwen-Lightning.jpg",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
     "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8"
