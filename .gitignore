@@ -36,15 +36,13 @@ tunableop_results*.csv
 *.rar
 *.7z
 *.pyc
+*.whl
+/*.whl
 /*.bat
 /*.sh
 /*.txt
 /*.mp3
 /*.lnk
-!webui.bat
-!webui.sh
-!package.json
-!requirements.txt
 
 # pyinstaller
 *.spec
