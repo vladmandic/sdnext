@@ -31,7 +31,7 @@ goto :show_stdout_stderr
 
 :launch
 echo Starting application...
-%PYTHON% launch.py %*
+%PYTHON% launch.py --allow-code --enable_insecure_extension_access --use_cuda --xformers %*
 pause
 exit /b
 

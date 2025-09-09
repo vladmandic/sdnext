@@ -58,18 +58,18 @@ pyparsing==3.2.3
 typing-extensions==4.14.1
 sentencepiece==0.2.1
 
-# additional
+# # additional
 blendmodes
 scipy==1.14.1
 torchdiffeq
 scikit-image
 seam-carving
 
-# lint
+# # lint
 ruff
 pylint
 pre-commit
 
-# block
+# # block
 torch!=2.5.0
 torchvision!=0.20.0
