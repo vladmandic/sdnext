@@ -1,7 +1,7 @@
 from modules import shared, sd_models, devices, model_quant, errors # pylint: disable=unused-import
 
 
-def load_hyimage(checkpoint_info, diffusers_load_config={}):
+def load_hyimage(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

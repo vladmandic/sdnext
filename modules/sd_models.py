@@ -271,38 +271,38 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
     unload_model_weights(op=op)
     shared.sd_model = None
     try:
-        if model_type in ['Stable Cascade']: # forced pipeline
+        if model_type in ['Stable Cascade']:
             from pipelines.model_stablecascade import load_cascade_combined
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['InstaFlow']: # forced pipeline
+        elif model_type in ['InstaFlow']:
             pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
             shared_items.pipelines['InstaFlow'] = pipeline
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['SegMoE']: # forced pipeline
+        elif model_type in ['SegMoE']:
             from pipelines.segmoe.segmoe_model import SegMoEPipeline
             sd_model = SegMoEPipeline(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model = sd_model.pipe # segmoe pipe does its stuff in __init__ and __call__ is the original pipeline
             allow_post_quant = True
             shared_items.pipelines['SegMoE'] = SegMoEPipeline
-        elif model_type in ['PixArt Sigma']: # forced pipeline
+        elif model_type in ['PixArt Sigma']:
             from pipelines.model_pixart import load_pixart
             sd_model = load_pixart(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Sana']: # forced pipeline
+        elif model_type in ['Sana']:
             from pipelines.model_sana import load_sana
             sd_model = load_sana(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Lumina-Next']: # forced pipeline
+        elif model_type in ['Lumina-Next']:
             from pipelines.model_lumina import load_lumina
             sd_model = load_lumina(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['Kolors']: # forced pipeline
+        elif model_type in ['Kolors']:
             from pipelines.model_kolors import load_kolors
             sd_model = load_kolors(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['AuraFlow']: # forced pipeline
+        elif model_type in ['AuraFlow']:
             from pipelines.model_auraflow import load_auraflow
             sd_model = load_auraflow(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -326,23 +326,23 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['CogView 3']: # forced pipeline
+        elif model_type in ['CogView 3']:
             from pipelines.model_cogview import load_cogview3
             sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['CogView 4']: # forced pipeline
+        elif model_type in ['CogView 4']:
             from pipelines.model_cogview import load_cogview4
             sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Meissonic']: # forced pipeline
+        elif model_type in ['Meissonic']:
             from pipelines.model_meissonic import load_meissonic
             sd_model = load_meissonic(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['OmniGen2']: # forced pipeline
+        elif model_type in ['OmniGen2']:
             from pipelines.model_omnigen import load_omnigen2
             sd_model = load_omnigen2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['OmniGen']: # forced pipeline
+        elif model_type in ['OmniGen']:
             from pipelines.model_omnigen import load_omnigen
             sd_model = load_omnigen(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -396,7 +396,7 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             allow_post_quant = False
         elif model_type in ['HunyuanImage']:
             from pipelines.model_hyimage import load_hyimage
-            sd_model = load_hyimage(checkpoint_info, diffusers_load_config)
+            sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
