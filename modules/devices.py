@@ -481,6 +481,7 @@ def set_sdpa_params():
             try:
                 if backend == "rocm":
                     if not installed('flash-attn'):
+                        log.info('Building CK Flash attention...')
                         agent = rocm.Agent(getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000"))
                         install(rocm.get_flash_attention_command(agent), reinstall=True)
                 else:
