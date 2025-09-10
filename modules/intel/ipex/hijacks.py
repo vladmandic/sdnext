@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 import os
 from functools import wraps
@@ -132,7 +132,7 @@ else:
     # 32 bit attention workarounds for Alchemist:
     try:
         from .attention import dynamic_scaled_dot_product_attention as original_scaled_dot_product_attention
-    except Exception: # pylint: disable=broad-exception-caught
+    except ImportError:
         original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
 
 @wraps(torch.nn.functional.scaled_dot_product_attention)
