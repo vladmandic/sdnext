@@ -32,7 +32,7 @@ class Backend(Enum):
 errors.install([gr])
 demo: gr.Blocks = None
 api = None
-url = 'https://github.com/vladmandic/sdnext'
+url = 'https://github.com/aleph23/autovlad'
 cmd_opts = cmd_args.parse_args()
 parser = cmd_args.parser
 hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
