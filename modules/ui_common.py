@@ -69,9 +69,13 @@ def delete_files(js_data, files, all_files, index):
     deleted = []
     all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
     all_files = [os.path.normpath(f) for f in all_files]
+    reference_dir = os.path.join('models', 'Reference')
     for _image_index, filedata in enumerate(files, start_index):
         try:
             fn = os.path.normpath(filedata['name'])
+            if reference_dir in fn:
+                shared.log.warning(f'Delete: file="{fn}" not allowed')
+                continue
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
                 os.remove(fn)

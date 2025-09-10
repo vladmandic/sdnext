@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-08
+## Update for 2025-09-10
 
-### Highlights for 2025-09-08
+### Highlights for 2025-09-10
 
 *What's new*? Big one is that we're (finally) switching the default UI to **ModernUI**!  
 StandardUI is still available and can be selected in settings, but ModernUI is now the default for new installs  
@@ -12,7 +12,7 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867)
 
-### Details for 2025-09-08
+### Details for 2025-09-10
 
 - **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -50,6 +50,7 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
     *example*: if panel width is less than specified value, layout switches to verical  
   - configurable grid images size  
     in *settings -> user interface -> grid image size*  
+  - gallery now includes reference model images  
 - **Offloading**
   - enable offload during pre-forward by default  
   - improve offloading of models with multiple dits  
