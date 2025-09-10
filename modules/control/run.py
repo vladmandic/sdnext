@@ -256,7 +256,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
-                detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3,
+                detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
@@ -360,6 +360,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_negative = detailer_negative,
         detailer_steps = detailer_steps,
         detailer_strength = detailer_strength,
+        detailer_resolution = detailer_resolution,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,

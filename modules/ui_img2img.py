@@ -135,7 +135,7 @@ def create_ui():
                     vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('img2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('img2img')
                     enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
-                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength = shared.yolo.ui('img2img')
+                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.yolo.ui('img2img')
 
                     # with gr.Group(elem_id="inpaint_controls", visible=False) as inpaint_controls:
                     with gr.Accordion(open=False, label="Mask", elem_classes=["small-accordion"], elem_id="img2img_mask_group") as inpaint_controls:
@@ -174,7 +174,7 @@ def create_ui():
                 sampler_index,
                 mask_blur, mask_alpha,
                 vae_type, tiling, hidiffusion,
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
                 cfg_scale, image_cfg_scale,
                 diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
@@ -270,6 +270,7 @@ def create_ui():
                 (detailer_negative, "Detailer negative"),
                 (detailer_steps, "Detailer steps"),
                 (detailer_strength, "Detailer strength"),
+                (detailer_resolution, "Detailer resolution"),
                 # second pass
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),

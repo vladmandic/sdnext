@@ -11,12 +11,10 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
-- Video: Generic API support  
-- Video: LTX TeaCache and others  
-- Video: LTX API  
-- Video: LTX PromptEnhance
-- Video: LTX Conditioning preprocess
-- [Cosmos-Predict2-Video](https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World)(https://github.com/huggingface/diffusers/pull/11695)  
+- Video Core: API  
+- Video LTX: TeaCache and others, API, Conditioning preprocess Video: LTX API  
+- <https://huggingface.co/tencent/HunyuanImage-2.1>
+- <https://huggingface.co/Alpha-VLLM/Lumina-DiMOO>
 
 ### Blocked items
 

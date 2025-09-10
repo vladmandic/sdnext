@@ -81,6 +81,8 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - disallow `zluda` and `directml` on non-windows platforms  
   - update openvino to `openvino==2025.3.0`  
   - add deprecation warning for `python==3.9`  
+  - **Detailer** allow manually setting processing resolution  
+    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

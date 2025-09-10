@@ -126,6 +126,9 @@ def process_base(p: processing.StableDiffusionProcessing):
     update_sampler(p, shared.sd_model)
     timer.process.record('prepare')
     process_pre(p)
+    desc = 'Base'
+    if 'detailer' in p.ops:
+        desc = 'Detail'
     base_args = set_pipeline_args(
         p=p,
         model=shared.sd_model,
@@ -143,7 +146,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         num_frames=getattr(p, 'frames', 1),
         output_type='latent',
         clip_skip=p.clip_skip,
-        desc='Base',
+        desc=desc,
     )
     base_steps = base_args.get('prior_num_inference_steps', None) or p.steps or base_args.get('num_inference_steps', None)
     shared.state.update(get_job_name(p, shared.sd_model), base_steps, 1)

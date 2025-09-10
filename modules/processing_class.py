@@ -57,6 +57,7 @@ class StableDiffusionProcessing:
                  detailer_negative: str = '',
                  detailer_steps: int = 10,
                  detailer_strength: float = 0.3,
+                 detailer_resolution: int = 1024,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -204,6 +205,7 @@ class StableDiffusionProcessing:
         self.detailer_negative = detailer_negative
         self.detailer_steps = detailer_steps
         self.detailer_strength = detailer_strength
+        self.detailer_resolution = detailer_resolution
         self.restore_faces = restore_faces
         self.init_images = init_images
         self.resize_mode = resize_mode
