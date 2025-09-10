@@ -394,6 +394,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_hdm import load_hdm
             sd_model = load_hdm(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['HunyuanImage']:
+            from pipelines.model_hyimage import load_hyimage
+            sd_model = load_hyimage(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:

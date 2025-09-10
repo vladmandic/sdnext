@@ -55,6 +55,7 @@ pipelines = {
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
+    'HunyuanImage': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
