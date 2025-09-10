@@ -204,7 +204,7 @@ else:
             # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
             # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
             default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
-        return os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+        return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
     version_torch = get_version_torch()

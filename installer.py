@@ -1271,8 +1271,9 @@ def install_pydantic():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('git+https://github.com/Disty0/BasicSR@2b6a12c28e0c81bfb13b7e984144f0b0f5461484', 'basicsr')
-    install('git+https://github.com/Disty0/GFPGAN@09b1190eabbc77e5f15c61fa7c38a2064b403e20', 'gfpgan')
+    install('--no-build-isolation git+https://github.com/Disty0/BasicSR@1b26b226bcbace972c3f661d62dd5edbc1e0138f', 'basicsr')
+    install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@86c4253654c883523b9cf01c2ad20b08559a82a2', 'gfpgan')
+    install('facexlib', 'facexlib')
     install('clean-fid', quiet=True)
     install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
     install('optimum-quanto==0.2.7', ignore=True, quiet=True)
