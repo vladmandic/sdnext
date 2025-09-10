@@ -1,3 +1,5 @@
+from typing import Tuple, Optional
+
 import os
 import torch
 from functools import cache, wraps
