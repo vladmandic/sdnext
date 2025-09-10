@@ -420,9 +420,9 @@ class YoloRestorer(Detailer):
             with gr.Row():
                 classes = gr.Textbox(label="Detailer classes", placeholder="Classes", elem_id=f"{tab}_detailer_classes")
             with gr.Row():
-                prompt = gr.Textbox(label="Detailer prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_prompt")
+                prompt = gr.Textbox(label="Detailer prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_prompt", elem_classes=["prompt"])
             with gr.Row():
-                negative = gr.Textbox(label="Detailer negative prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_negative")
+                negative = gr.Textbox(label="Detailer negative prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_negative", elem_classes=["prompt"])
             with gr.Row():
                 steps = gr.Slider(label="Detailer steps", elem_id=f"{tab}_detailer_steps", value=10, minimum=0, maximum=99, step=1)
                 strength = gr.Slider(label="Detailer strength", elem_id=f"{tab}_detailer_strength", value=0.3, minimum=0, maximum=1, step=0.01)
