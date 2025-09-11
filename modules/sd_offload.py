@@ -68,7 +68,6 @@ def set_accelerate(sd_model):
 
 
 def apply_group_offload(sd_model, op:str='model'):
-    # TODO model load: group offload
     offload_dct = {
         'onload_device': devices.device,
         'offload_device': devices.cpu,
@@ -83,10 +82,7 @@ def apply_group_offload(sd_model, op:str='model'):
     if hasattr(sd_model, "enable_group_offload"):
         sd_model.enable_group_offload(**offload_dct)
     else:
-        modules = sd_model._internal_dict.items() if hasattr(sd_model, "_internal_dict") else []# pylint: disable=protected-access
-        modules = [m for m in modules if hasattr(m, "enable_group_offload")]
-        for module in modules:
-            module.enable_group_offload(**offload_dct)
+        shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} not supported')
     set_accelerate(sd_model)
     return sd_model
 

@@ -482,7 +482,7 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
             if m.repo_cls is not None:
                 models_cls.append(m.repo_cls.__name__)
     is_video_model = shared.sd_model.__class__.__name__ in models_cls
-    override_video_pipelines = ['WanPipeline']
+    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
     if is_video_model and not is_video_pipeline:
         shared.log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')

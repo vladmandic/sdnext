@@ -19,9 +19,10 @@ disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
 def task_specific_kwargs(p, model):
+    model_cls = model.__class__.__name__
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
     task_args = {}
-    is_img2img_model = bool('Zero123' in shared.sd_model.__class__.__name__)
+    is_img2img_model = bool('Zero123' in model_cls)
     if len(getattr(p, 'init_images', [])) > 0:
         if isinstance(p.init_images[0], str):
             p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
@@ -36,7 +37,7 @@ def task_specific_kwargs(p, model):
             }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            if model.__class__.__name__ in sd_models.i2i_pipes:
+            if model_cls in sd_models.i2i_pipes:
                 pass
             else:
                 model.register_to_config(requires_aesthetics_score = False)
@@ -49,19 +50,19 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-        if model.__class__.__name__ == 'FluxImg2ImgPipeline' or model.__class__.__name__ == 'FluxKontextPipeline': # needs explicit width/height
+        if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
                 p.width, p.height = p.init_images[0].shape[-1] * vae_scale_factor, p.init_images[0].shape[-2] * vae_scale_factor
             else:
                 p.width, p.height = 8 * math.ceil(p.init_images[0].width / vae_scale_factor), 8 * math.ceil(p.init_images[0].height / vae_scale_factor)
-            if model.__class__.__name__ == 'FluxKontextPipeline':
+            if model_cls == 'FluxKontextPipeline':
                 aspect_ratio = p.width / p.height
                 max_area = max(p.width, p.height)**2
                 p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
                 p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
                 task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
-        elif model.__class__.__name__ == 'OmniGenPipeline' or model.__class__.__name__ == 'OmniGen2Pipeline':
+        elif model_cls == 'OmniGenPipeline' or model_cls == 'OmniGen2Pipeline':
             p.width, p.height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             task_args = {
                 'width': p.width,
@@ -78,7 +79,7 @@ def task_specific_kwargs(p, model):
         }
     elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
-            if model.__class__.__name__ in [sd_models.i2i_pipes]:
+            if model_cls in [sd_models.i2i_pipes]:
                 pass
             else:
                 model.register_to_config(requires_aesthetics_score = False)
@@ -101,9 +102,9 @@ def task_specific_kwargs(p, model):
         }
 
     # model specific args
-    if model.__class__.__name__ == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
+    if model_cls == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
-    if model.__class__.__name__ == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if model_cls == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
@@ -114,7 +115,7 @@ def task_specific_kwargs(p, model):
             'width': p.width if hasattr(p, 'width') else None,
             'height': p.height if hasattr(p, 'height') else None,
         }
-    if model.__class__.__name__ == 'BlipDiffusionPipeline':
+    if model_cls == 'BlipDiffusionPipeline':
         if len(getattr(p, 'init_images', [])) == 0:
             shared.log.error('BLiP diffusion requires init image')
             return task_args
@@ -124,6 +125,9 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
+    if model.__class__.__name__ == 'WanImageToVideoPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+        task_args['image'] = p.init_images[0]
+
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
     return task_args
