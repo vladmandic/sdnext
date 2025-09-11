@@ -1,7 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from modules import errors, shared, processing_helpers
+from modules.processing import StableDiffusionProcessingControl
 from modules.api import models, helpers
 from modules.control import run
 
@@ -31,9 +32,33 @@ ReqControl = models.create_model_from_signature(
         {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
         {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
         {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
-        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+        # {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
 )
+if not hasattr(ReqControl, "__config__"):
+    ReqControl.__config__ = models.DummyConfig
+
+"""
+ReqControl = models.PydanticModelGenerator(
+    "StableDiffusionProcessingControl",
+    StableDiffusionProcessingControl,
+    [
+        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_name", "type": str, "default": "Default"},
+        {"key": "script_name", "type": Optional[str], "default": ""},
+        {"key": "script_args", "type": list, "default": []},
+        {"key": "send_images", "type": bool, "default": True},
+        {"key": "save_images", "type": bool, "default": False},
+        {"key": "alwayson_scripts", "type": dict, "default": {}},
+        {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
+        {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
+        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+    ]
+).generate_model()
+if not hasattr(ReqControl, "__config__"):
+    ReqControl.__config__ = models.DummyConfig
+"""
 
 
 class ResControl(BaseModel):

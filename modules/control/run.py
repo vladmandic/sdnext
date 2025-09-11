@@ -17,6 +17,7 @@ from modules import devices, shared, errors, processing, images, sd_models, sd_v
 from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
+from modules.generation_parameters_copypaste import create_override_settings_dict
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -266,6 +267,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 enable_hr: bool = False, hr_sampler_index: int = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
+                extra: dict = {},
                 *input_script_args,
         ):
     global pipe, original_pipeline # pylint: disable=global-statement
@@ -287,6 +289,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         sampler_index = 0
     if hr_sampler_index is None:
         hr_sampler_index = sampler_index
+    if isinstance(extra, list):
+        extra = create_override_settings_dict(extra)
 
     p = StableDiffusionProcessingControl(
         prompt = prompt,
@@ -370,6 +374,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         # path
         outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_control_samples,
         outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_control_grids,
+        # overrides
+        override_settings=extra
+
     )
     p.state = state
     p.is_tile = False

@@ -1314,6 +1314,8 @@ def install_requirements():
         install_optional()
     installed('torch', reload=True) # reload packages cache
     log.info('Install: verifying requirements')
+    if args.new:
+        log.debug('Install: flag=new')
     with open('requirements.txt', 'r', encoding='utf8') as f:
         lines = [line.strip() for line in f.readlines() if line.strip() != '' and not line.startswith('#') and line is not None]
         for line in lines:
