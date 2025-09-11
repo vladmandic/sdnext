@@ -40,6 +40,16 @@ def get_quant(name):
     return 'none'
 
 
+def dont_quant():
+    from modules import shared
+    models_list = re.split(r'[ ,]+', shared.opts.models_not_to_quant)
+    models_list = [m.lower().strip() for m in models_list]
+    if shared.sd_model_type.lower() in models_list:
+        shared.log.debug(f'Quantization: model={shared.sd_model_type} skip')
+        return True
+    return False
+
+
 def create_bnb_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None):
     from modules import shared, devices
     if allow and (module == 'any' or module in shared.opts.bnb_quantization):
@@ -237,6 +247,8 @@ def check_nunchaku(module: str = ''):
 
 
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
+    if dont_quant():
+        return kwargs
     if kwargs is None:
         kwargs = {}
     kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
@@ -755,16 +767,6 @@ def get_dit_args(load_config:dict=None, module:str=None, device_map:bool=False, 
     else:
         quant_args = {}
     return config, quant_args
-
-
-def dont_quant():
-    from modules import shared
-    models_list = re.split(r'[ ,]+', shared.opts.models_not_to_quant)
-    models_list = [m.lower().strip() for m in models_list]
-    if shared.sd_model_type.lower() in models_list:
-        shared.log.debug(f'Quantization: model={shared.sd_model_type} skip')
-        return True
-    return False
 
 
 def do_post_load_quant(sd_model, allow=True):

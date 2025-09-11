@@ -176,7 +176,7 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
     "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
     "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
     "offload_group_sep": OptionInfo("<h2>Group Offload</h2>", "", gr.HTML),
-    "group_offload_type": OptionInfo("block_level", "Group offload type", gr.Radio, {"choices": ['block_level', 'leaf_level']}),
+    "group_offload_type": OptionInfo("leaf_level", "Group offload type", gr.Radio, {"choices": ['leaf_level', 'block_level']}),
     "group_offload_stream": OptionInfo(False, "Use torch streams", gr.Checkbox),
     'group_offload_record': OptionInfo(False, "Record torch streams", gr.Checkbox),
     'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),

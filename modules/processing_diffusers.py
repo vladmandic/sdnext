@@ -144,8 +144,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
         num_frames=getattr(p, 'frames', 1),
-        # output_type='latent',
-        output_type='np',
+        output_type='latent',
         clip_skip=p.clip_skip,
         desc=desc,
     )
