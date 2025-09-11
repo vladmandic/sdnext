@@ -53,11 +53,15 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
     in *settings -> user interface -> grid image size*  
   - gallery now includes reference model images  
 - **Offloading**
-  - enable offload during pre-forward by default  
-  - improve offloading of models with multiple dits  
-  - improve offloading of models with impliciy vae processing  
-  - improve offloading of models with controlnet  
-  - more aggressive offloading of controlnets with lowvram flag  
+  - **balanced**
+    - enable offload during pre-forward by default  
+    - improve offloading of models with multiple dits  
+    - improve offloading of models with impliciy vae processing  
+    - improve offloading of models with controlnet  
+    - more aggressive offloading of controlnets with lowvram flag  
+  - **group**
+    - new offloading method, using *type=leaf* works on a similar level as sequential offloading  
+      and can present siginificant savings on low-vram gpus, but comes at the higher performace cost  
 - **Quantization**
   - option to specify models types not to quantize: *settings -> quantization*  
     allows for having quantization enabled, but skipping specific model types that do not need it  
