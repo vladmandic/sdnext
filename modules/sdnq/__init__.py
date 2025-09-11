@@ -194,10 +194,14 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = [], modules_dtype_dict: Dict[str, List[str]] = {}, op=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, op=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
     for param_name, module in model.named_children():
         if param_name in modules_to_not_convert:
             continue
@@ -380,7 +384,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         self,
         model,
         device_map, # pylint: disable=unused-argument
-        keep_in_fp32_modules: List[str] = [],
+        keep_in_fp32_modules: List[str] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
         if keep_in_fp32_modules is not None:
