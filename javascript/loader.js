@@ -30,7 +30,7 @@ async function removeSplash() {
   const splash = document.getElementById('splash');
   if (splash) splash.remove();
   log('removeSplash');
-  const t = Math.round(performance.now() - appStartTime) / 1000;
+  const t = Math.round(performance.now() - appStartTime);
   log('startupTime', t);
   xhrPost(`${window.api}/log`, { message: `ready time=${t}` });
 }

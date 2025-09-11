@@ -1278,7 +1278,7 @@ def install_optional():
     install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
     install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     install('torchao==0.10.0', ignore=True, quiet=True)
-    install('bitsandbytes==0.46.1', ignore=True, quiet=True)
+    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
     install('pynvml', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     install('Cython', ignore=True, quiet=True)

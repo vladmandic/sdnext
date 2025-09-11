@@ -167,16 +167,24 @@ options_templates.update(options_section(('model_options', "Model Options"), {
 options_templates.update(options_section(('offload', "Model Offloading"), {
     "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
     "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
-    "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
     "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
-    "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Balanced offload GPU low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
-    "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Balanced offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
-    "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Balanced offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
+    "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
+    "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
+    "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Offload low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
+    "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
+    "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
     "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
     "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
+    "offload_group_sep": OptionInfo("<h2>Group Offload</h2>", "", gr.HTML),
+    "group_offload_type": OptionInfo("block_level", "Group offload type", gr.Radio, {"choices": ['block_level', 'leaf_level']}),
+    "group_offload_stream": OptionInfo(False, "Use torch streams", gr.Checkbox),
+    'group_offload_record': OptionInfo(False, "Record torch streams", gr.Checkbox),
+    'group_offload_blocks': OptionInfo(1, "Offload blocks", gr.Number),
 }))
 
 options_templates.update(options_section(("quantization", "Model Quantization"), {
+    "models_not_to_quant": OptionInfo("", "List of model types not to quantize"),
+
     "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "LLM", "Control", "VAE"]}),
     "sdnq_quantize_mode": OptionInfo("auto", "Quantization mode", gr.Dropdown, {"choices": ["auto", "pre", "post"]}),

@@ -137,6 +137,10 @@ def full_vae_decode(latents, model):
             latents = latents.to(devices.dtype_vae)
         else:
             latents = latents.to(next(iter(model.vae.post_quant_conv.parameters())).dtype)
+        # if getattr(model.vae.post_quant_conv, "bias", None) is not None:
+            # model.vae.post_quant_conv.bias = torch.nn.Parameter(model.vae.post_quant_conv.bias.to(devices.device), requires_grad=False)
+        # if getattr(model.vae.post_quant_conv, "weight", None) is not None:
+            # model.vae.post_quant_conv.weight = torch.nn.Parameter(model.vae.post_quant_conv.weight.to(devices.device), requires_grad=False)
     else:
         latents = latents.to(model.vae.dtype)
 

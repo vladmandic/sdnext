@@ -4,6 +4,7 @@ window.subpath = '';
 
 async function initStartup() {
   const t0 = performance.now();
+  log('gradio', `time=${Math.round(t0 - appStartTime)}`);
   log('initStartup');
   if (window.setupLogger) await setupLogger();
 

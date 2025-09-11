@@ -6,15 +6,12 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - Remote TE  
 - [Canvas](https://konvajs.org/)  
-- [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
+- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
-- Feature: Diffusers [group offloading](https://github.com/vladmandic/sdnext/issues/4049)  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
 - Video Core: API  
 - Video LTX: TeaCache and others, API, Conditioning preprocess Video: LTX API  
-- <https://huggingface.co/tencent/HunyuanImage-2.1>
-- <https://huggingface.co/Alpha-VLLM/Lumina-DiMOO>
 
 ### Blocked items
 
@@ -39,22 +36,20 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Remove: CodeFormer  
 - Remove: GFPGAN  
 - ModernUI: Lite vs Expert mode  
-
-### Future Considerations
-- [TensorRT](https://github.com/huggingface/diffusers/pull/11173)  
+- Engine: TensorRT acceleration
 
 ### New models
 
 #### Diffusers:WiP
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
-#### External:Unified/MultiModal
+#### External
+- [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
+- [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
-#### External:Image2Image/Editing
 - [Step1X](https://github.com/stepfun-ai/Step1X-Edit)  
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit)  
-#### External:Video
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 - [SelfForcing](https://github.com/guandeh17/Self-Forcing)  
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)  
@@ -80,7 +75,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - lora: add t5 key support for sd35/f1
 - lora: maybe force imediate quantization
 - model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model load: group offload
 - model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
 - modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux

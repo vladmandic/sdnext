@@ -18,10 +18,12 @@ const AppyOpts = [
 ];
 
 async function updateOpts(json_string) {
+  const t0 = performance.now();
   const settings_data = JSON.parse(json_string);
   const new_opts = settings_data.values;
   opts_metadata = settings_data.metadata;
 
+  const t1 = performance.now();
   for (const op of monitoredOpts) {
     const key = Object.keys(op)[0];
     const callback = op[key];
@@ -37,8 +39,9 @@ async function updateOpts(json_string) {
     if (callback) callback(new_opts[key], opts[key]);
   }
 
+  const t2 = performance.now();
   window.opts = new_opts;
-  log('updateOpts', Object.keys(new_opts).length);
+  log('updateOpts', `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
   Object.entries(opts_metadata).forEach(([opt, meta]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = new Set();

@@ -105,8 +105,8 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanImageToVideoPipeline
 
-    # sd_hijack_te.init_hijack(pipe)
-    # sd_hijack_vae.init_hijack(pipe)
+    sd_hijack_te.init_hijack(pipe)
+    sd_hijack_vae.init_hijack(pipe)
 
     devices.torch_gc()
     return pipe

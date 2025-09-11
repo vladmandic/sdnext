@@ -300,7 +300,7 @@ def load_bnb(msg='', silent=False):
     if not installed('bitsandbytes'):
         if devices.backend == 'cuda':
             # forcing a version will uninstall the multi-backend-refactor branch of bnb
-            install('bitsandbytes==0.46.1', quiet=True)
+            install('bitsandbytes==0.47.0', quiet=True)
             log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
@@ -757,8 +757,20 @@ def get_dit_args(load_config:dict=None, module:str=None, device_map:bool=False, 
     return config, quant_args
 
 
+def dont_quant():
+    from modules import shared
+    models_list = re.split(r'[ ,]+', shared.opts.models_not_to_quant)
+    models_list = [m.lower().strip() for m in models_list]
+    if shared.sd_model_type.lower() in models_list:
+        shared.log.debug(f'Quantization: model={shared.sd_model_type} skip')
+        return True
+    return False
+
+
 def do_post_load_quant(sd_model, allow=True):
     from modules import shared
+    if dont_quant():
+        return sd_model
     if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
         shared.log.debug('Load model: post_quant=sdnq')
         sd_model = sdnq_quantize_weights(sd_model)

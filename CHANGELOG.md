@@ -59,6 +59,9 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - improve offloading of models with controlnet  
   - more aggressive offloading of controlnets with lowvram flag  
 - **Quantization**
+  - option to specify models types not to quantize: *settings -> quantization*  
+    allows for having quantization enabled, but skipping specific model types that do not need it  
+    *example*: `sd, sdxl`  
   - **sdnq**
     - add quantized matmul support for all quantization types and group sizes  
     - improve the performance of low bit quants  

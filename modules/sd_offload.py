@@ -71,11 +71,11 @@ def apply_group_offload(sd_model, op:str='model'):
     offload_dct = {
         'onload_device': devices.device,
         'offload_device': devices.cpu,
-        'offload_type': 'block_level', # 'leaf_level',
-        'num_blocks_per_group': 1,
+        'offload_type': shared.opts.group_offload_type,
+        'num_blocks_per_group': shared.opts.group_offload_blocks,
         'non_blocking': shared.opts.diffusers_offload_nonblocking,
-        'use_stream': False,
-        'record_stream': False,
+        'use_stream': shared.opts.group_offload_stream,
+        'record_stream': shared.opts.group_offload_record,
         'low_cpu_mem_usage': False,
     }
     shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} options={offload_dct}')

@@ -144,7 +144,8 @@ def process_base(p: processing.StableDiffusionProcessing):
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
         num_frames=getattr(p, 'frames', 1),
-        output_type='latent',
+        # output_type='latent',
+        output_type='np',
         clip_skip=p.clip_skip,
         desc=desc,
     )
@@ -348,7 +349,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
         for i in range(len(output.images)):
             image = output.images[i]
             noise_level = round(350 * p.denoising_strength)
-            output_type='latent'
+            output_type = 'latent'
             if 'Upscale' in shared.sd_refiner.__class__.__name__ or 'Flux' in shared.sd_refiner.__class__.__name__ or 'Kandinsky' in shared.sd_refiner.__class__.__name__:
                 image = processing_vae.vae_decode(latents=image, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
                 p.extra_generation_params['Noise level'] = noise_level

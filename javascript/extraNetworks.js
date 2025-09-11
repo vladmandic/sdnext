@@ -178,7 +178,7 @@ async function filterExtraNetworksForTab(searchTerm) {
     found += cards.filter((elem) => elem.style.display === '').length;
   }
   const t1 = performance.now();
-  log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(1000 * (t1 - t0)) / 1000000}`);
+  log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(t1 - t0)}`);
 }
 
 function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
@@ -214,6 +214,7 @@ function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
 }
 
 function sortExtraNetworks(fixed = 'no') {
+  const t0 = performance.now();
   const sortDesc = ['Default', 'Name [A-Z]', 'Name [Z-A]', 'Date [Newest]', 'Date [Oldest]', 'Size [Largest]', 'Size [Smallest]'];
   const pagename = getENActivePage();
   if (!pagename) return 'sort error: unknown page';
@@ -241,7 +242,8 @@ function sortExtraNetworks(fixed = 'no') {
     for (const card of cards) pg.appendChild(card);
   }
   const desc = sortDesc[sortVal];
-  log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num });
+  const t1 = performance.now();
+  log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num, time: Math.round(t1 - t0) });
   return desc;
 }
 
