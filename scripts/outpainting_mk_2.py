@@ -206,7 +206,7 @@ class Script(scripts_manager.Script):
         p.n_iter = 1
         state.job_count = batch_count * ((1 if left > 0 else 0) + (1 if right > 0 else 0) + (1 if up > 0 else 0) + (1 if down > 0 else 0))
         all_processed_images = []
-        for i in range(batch_count):
+        for _i in range(batch_count):
             imgs = [init_img] * batch_size
             if left > 0:
                 imgs = expand(imgs, batch_size, left, is_left=True)

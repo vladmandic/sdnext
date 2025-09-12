@@ -276,7 +276,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         shared.state.end(jobid)
         if tensors is not None and len(tensors) > 0:
             return vae_postprocess(tensors, model, output_type)
-    
+
     jobid = shared.state.begin('VAE Decode')
     if latents.shape[0] == 0:
         shared.log.error(f'VAE nothing to decode: {latents.shape}')

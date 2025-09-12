@@ -56,7 +56,7 @@ class Script(scripts_manager.Script):
             change = (final_denoising_strength - initial_denoising_strength) * strength
             return initial_denoising_strength + change
 
-        for n in range(initial_batch_count):
+        for _n in range(initial_batch_count):
             p.init_images = initial_init_images
             p.denoising_strength = initial_denoising_strength
             last_image = None

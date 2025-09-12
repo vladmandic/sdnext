@@ -195,7 +195,7 @@ class Script(scripts_manager.Script):
             shared.log.warning(f'ConsiStory: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
 
-        subject, concepts, prompts, dropout, sampler, steps, same, queries, sdsa, freeu, freeu_preset, alpha, injection = args # pylint: disable=unused-variable
+        subject, concepts, prompts, dropout, sampler, steps, same, queries, sdsa, freeu, _freeu_preset, alpha, injection = args # pylint: disable=unused-variable
 
         self.create_model() # create model if not already done
         concepts, anchors, prompts, alpha, steps, seed = self.set_args(p, *args) # set arguments

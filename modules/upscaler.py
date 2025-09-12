@@ -1,5 +1,4 @@
 import os
-import copy
 from abc import abstractmethod
 from PIL import Image
 from modules import modelloader, shared
