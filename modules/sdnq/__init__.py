@@ -539,3 +539,12 @@ class SDNQConfig(QuantizationConfigMixin):
 
         if self.modules_dtype_dict is None:
             self.modules_dtype_dict = {}
+
+
+import diffusers.quantizers.auto # noqa: E402,RUF100
+diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
+diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
+
+import transformers.quantizers.auto # noqa: E402,RUF100
+transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
+transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
