@@ -118,7 +118,7 @@ def process_post(p: processing.StableDiffusionProcessing):
 
 
 def process_base(p: processing.StableDiffusionProcessing):
-    shared.state.begin('Base')
+    jobid = shared.state.begin('Base')
     txt2img = is_txt2img()
     use_refiner_start = is_refiner_enabled(p) and (not p.is_hr_pass)
     use_denoise_start = not txt2img and p.refiner_start > 0 and p.refiner_start < 1
@@ -164,7 +164,9 @@ def process_base(p: processing.StableDiffusionProcessing):
             base_args['gate_step'] = p.gate_step
             output = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
         else:
+            taskid = shared.state.begin('Model')
             output = shared.sd_model(**base_args)
+            shared.state.end(taskid)
         if isinstance(output, dict):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
@@ -207,8 +209,8 @@ def process_base(p: processing.StableDiffusionProcessing):
     finally:
         process_post(p)
 
+    shared.state.end(jobid)
     shared.state.nextjob()
-    shared.state.end()
     return output
 
 
@@ -217,6 +219,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
     if (output is None) or (output.images is None):
         return output
     if p.enable_hr:
+        jobid = shared.state.begin('Hires')
         p.is_hr_pass = True
         if hasattr(p, 'init_hr'):
             p.init_hr(p.hr_scale, p.hr_upscaler, force=p.hr_force)
@@ -228,7 +231,6 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 p.hr_resize_context = p.resize_context
             p.hr_upscale_to_x = p.width * p.hr_scale if p.hr_resize_x == 0 else p.hr_resize_x
             p.hr_upscale_to_y = p.height * p.hr_scale if p.hr_resize_y == 0 else p.hr_resize_y
-        prev_job = shared.state.job
 
         # hires runs on original pipeline
         if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
@@ -240,7 +242,6 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             p.ops.append('upscale')
             if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_highres_fix and hasattr(shared.sd_model, 'vae'):
                 save_intermediate(p, latents=output.images, suffix="-before-hires")
-            shared.state.update('Upscale', 0, 1)
             output.images = resize_hires(p, latents=output.images)
             sd_hijack_hypertile.hypertile_set(p, hr=True)
         elif torch.is_tensor(output.images) and output.images.shape[-1] == 3: # nhwc
@@ -295,7 +296,9 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             try:
                 if 'base' in p.skip:
                     extra_networks.activate(p)
+                taskid = shared.state.begin('Model')
                 output = shared.sd_model(**hires_args) # pylint: disable=not-callable
+                shared.state.end(taskid)
                 if isinstance(output, dict):
                     output = SimpleNamespace(**output)
                 if hasattr(output, 'images'):
@@ -314,7 +317,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             if orig_image is not None:
                 p.task_args['image'] = orig_image
             p.denoising_strength = orig_denoise
-        shared.state.job = prev_job
+        shared.state.end(jobid)
         shared.state.nextjob()
         p.is_hr_pass = False
         timer.process.record('hires')
@@ -326,7 +329,6 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
     if (output is None) or (output.images is None):
         return output
     if is_refiner_enabled(p):
-        prev_job = shared.state.job
         if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_refiner and hasattr(shared.sd_model, 'vae'):
             save_intermediate(p, latents=output.images, suffix="-before-refiner")
         if shared.opts.diffusers_move_base:
@@ -335,6 +337,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
         if shared.state.interrupted or shared.state.skipped:
             shared.sd_model = orig_pipeline
             return output
+        jobid = shared.state.begin('Refine')
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         if shared.opts.diffusers_move_refiner:
             sd_models.move_model(shared.sd_refiner, devices.device)
@@ -400,7 +403,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
         elif shared.opts.diffusers_move_refiner:
             shared.log.debug('Moving to CPU: model=refiner')
             sd_models.move_model(shared.sd_refiner, devices.cpu)
-        shared.state.job = prev_job
+        shared.state.end(jobid)
         shared.state.nextjob()
         p.is_refiner_pass = False
         timer.process.record('refine')

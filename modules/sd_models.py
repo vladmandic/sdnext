@@ -1122,8 +1122,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     if checkpoint_info is None:
         unload_model_weights(op=op)
         return None
-    orig_state = copy.deepcopy(shared.state)
-    shared.state.begin('Load')
+    jobid = shared.state.begin('Load')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
     if sd_model is None:  # previous model load failed
@@ -1131,6 +1130,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     else:
         current_checkpoint_info = getattr(sd_model, 'sd_checkpoint_info', None)
         if current_checkpoint_info is not None and checkpoint_info is not None and current_checkpoint_info.filename == checkpoint_info.filename and not force:
+            shared.state.end(jobid)
             return None
         else:
             move_model(sd_model, devices.cpu)
@@ -1142,14 +1142,14 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     if sd_model is None or force:
         sd_model = None
         load_diffuser(checkpoint_info, op=op, revision=revision)
-        shared.state.end()
-        shared.state = orig_state
+        shared.state.end(jobid)
         if op == 'model':
             shared.opts.data["sd_model_checkpoint"] = checkpoint_info.title
             return model_data.sd_model
         else:
             shared.opts.data["sd_model_refiner"] = checkpoint_info.title
             return model_data.sd_refiner
+    shared.state.end(jobid)
     return None # should not be here
 
 

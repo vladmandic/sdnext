@@ -8,7 +8,7 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 
 def hijack_vae_decode(*args, **kwargs):
-    shared.state.begin('VAE')
+    jobid = shared.state.begin('VAE Decode')
     t0 = time.time()
     res = None
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
@@ -27,12 +27,12 @@ def hijack_vae_decode(*args, **kwargs):
         res = None
     t1 = time.time()
     timer.process.add('vae', t1-t0)
-    shared.state.end()
+    shared.state.end(jobid)
     return res
 
 
 def hijack_vae_encode(*args, **kwargs):
-    shared.state.begin('VAE')
+    jobid = shared.state.begin('VAE Encode')
     t0 = time.time()
     res = None
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
@@ -51,7 +51,7 @@ def hijack_vae_encode(*args, **kwargs):
         res = None
     t1 = time.time()
     timer.process.add('vae', t1-t0)
-    shared.state.end()
+    shared.state.end(jobid)
     return res
 
 

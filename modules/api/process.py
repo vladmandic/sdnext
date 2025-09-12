@@ -77,10 +77,10 @@ class APIProcess():
         for k, v in req.params.items():
             if k not in processors.config[processor.processor_id]['params']:
                 return JSONResponse(status_code=400, content={"error": f"Processor invalid parameter: id={req.model} {k}={v}"})
-        shared.state.begin('API-PRE', api=True)
+        jobid = shared.state.begin('API-PRE', api=True)
         processed = processor(image, local_config=req.params)
         image = encode_pil_to_base64(processed)
-        shared.state.end(api=False)
+        shared.state.end(jobid)
         return ResPreprocess(model=processor.processor_id, image=image)
 
     def get_mask(self):
@@ -103,10 +103,10 @@ class APIProcess():
                 return JSONResponse(status_code=400, content={"error": f"Mask invalid parameter: {k}={v}"})
             else:
                 setattr(masking.opts, k, v)
-        shared.state.begin('API-MASK', api=True)
+        jobid = shared.state.begin('API-MASK', api=True)
         with self.queue_lock:
             processed = masking.run_mask(input_image=image, input_mask=mask, return_type=req.type)
-        shared.state.end(api=False)
+        shared.state.end(jobid)
         if processed is None:
             return JSONResponse(status_code=400, content={"error": "Mask is none"})
         image = encode_pil_to_base64(processed)
@@ -115,7 +115,7 @@ class APIProcess():
     def post_detect(self, req: ReqFace):
         from modules.shared import yolo # pylint: disable=no-name-in-module
         image = decode_base64_to_image(req.image)
-        shared.state.begin('API-FACE', api=True)
+        jobid = shared.state.begin('API-FACE', api=True)
         images = []
         scores = []
         classes = []
@@ -129,7 +129,7 @@ class APIProcess():
                 classes.append(item.cls)
                 labels.append(item.label)
                 boxes.append(item.box)
-        shared.state.end(api=False)
+        shared.state.end(jobid)
         return ResFace(classes=classes, labels=labels, scores=scores, boxes=boxes, images=images)
 
     def post_prompt_enhance(self, req: models.ReqPromptEnhance):

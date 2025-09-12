@@ -12,9 +12,9 @@ debug_history = debug_output or os.environ.get('SD_STATE_HISTORY', None)
 
 
 class State:
-    job_history = []
-    task_history = []
     state_history = []
+    job_history = 0
+    task_history = 0
     image_history = 0
     latent_history = 0
     id = 0
@@ -45,7 +45,6 @@ class State:
     disable_preview = False
     preview_job = -1
     time_start = None
-    time_end = None
     need_restart = False
     server_start = time.time()
     oom = False
@@ -142,8 +141,14 @@ class State:
             res.status = 'running' if self.job != '' else 'idle'
         return res
 
-    def history(self, op:str):
-        job = { 'id': self.id, 'job': self.job.lower(), 'op': op.lower(), 'start': self.time_start, 'end': self.time_end, 'outputs': self.results }
+    def find(self, task_id:str):
+        for job in reversed(self.state_history):
+            if job['id'] == task_id:
+                return job
+        return None
+
+    def history(self, op:str, task_id:str=None, results:list=[]):
+        job = { 'id': task_id or self.id, 'job': self.job.lower(), 'op': op.lower(), 'timestamp': self.time_start, 'outputs': results }
         self.state_history.append(job)
         l = len(self.state_history)
         if l > 10000:
@@ -156,6 +161,8 @@ class State:
             self.results += results
         else:
             self.results.append(results)
+        if len(self.results) > 0:
+            self.history('output', self.id, results=self.results)
 
     def get_id(self, task_id:str=None):
         if task_id is None or task_id == 0:
@@ -165,52 +172,7 @@ class State:
         match = re.search(r'\((.*?)\)', task_id)
         return match.group(1) if match else task_id
 
-    def begin(self, title="", task_id=0, api=None):
-        import modules.devices
-        self.job_history.append(title)
-        self.total_jobs += 1
-        self.current_image = None
-        self.current_image_sampling_step = 0
-        self.current_latent = None
-        self.current_noise_pred = None
-        self.current_sigma = None
-        self.current_sigma_next = None
-        self.id_live_preview = 0
-        self.interrupted = False
-        self.preview_job = -1
-        self.results = []
-        self.id = self.get_id(task_id)
-        self.job = title
-        self.job_count = 1 # cannot be less than 1 on new job
-        self.frame_count = 0
-        self.batch_no = 0
-        self.batch_count = 0
-        self.job_no = 0
-        self.job_timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        self.paused = False
-        self._sampling_step = 0
-        self.sampling_steps = 0
-        self.skipped = False
-        self.textinfo = None
-        self.prediction_type = "epsilon"
-        self.api = api or self.api
-        self.time_start = time.time()
-        self.time_end = None
-        self.history('begin')
-        if debug_output:
-            log.trace(f'State begin: {self}')
-        modules.devices.torch_gc()
-
-    def end(self, api=None):
-        import modules.devices
-        if self.time_start is None: # someone called end before being
-            # fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            # log.debug(f'Access state.end: {fn}') # pylint: disable=protected-access
-            self.time_start = time.time()
-        if debug_output:
-            log.trace(f'State end: {self}')
-        self.time_end = time.time()
-        self.history('end')
+    def clear(self):
         self.id = ''
         self.job = ''
         self.job_count = 0
@@ -220,14 +182,57 @@ class State:
         self.paused = False
         self.interrupted = False
         self.skipped = False
+        self.results = []
+
+    def begin(self, title="", task_id=0, api=None):
+        import modules.devices
+        self.clear()
+        self.job_history += 1
+        self.total_jobs += 1
+        self.current_image = None
+        self.current_image_sampling_step = 0
+        self.current_latent = None
+        self.current_noise_pred = None
+        self.current_sigma = None
+        self.current_sigma_next = None
+        self.id_live_preview = 0
+        self.id = self.get_id(task_id)
+        self.job = title
+        self.job_count = 1 # cannot be less than 1 on new job
+        self.batch_no = 0
+        self.batch_count = 0
+        self.job_timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        self._sampling_step = 0
+        self.sampling_steps = 0
+        self.textinfo = None
+        self.prediction_type = "epsilon"
         self.api = api or self.api
+        self.time_start = time.time()
+        self.history('begin', self.id)
+        if debug_output:
+            log.trace(f'State begin: {self}')
+        modules.devices.torch_gc()
+        return self.id
+
+    def end(self, task_id=None):
+        import modules.devices
+        if debug_output:
+            log.trace(f'State end: {self}')
+        if task_id is not None:
+            prev_job = self.find(task_id)
+            if prev_job is not None:
+                self.id = prev_job['id']
+                self.job = prev_job['job']
+        self.time_start = time.time()
+        self.history('end', task_id or self.id)
+        self.clear()
         modules.devices.torch_gc()
 
     def step(self, step:int=1):
         self.sampling_step += step
 
     def update(self, job:str, steps:int=0, jobs:int=0):
-        self.task_history.append(job)
+        self.task_history += 1
         # self._sampling_step = 0
         if job == 'Ignore':
             return
@@ -237,8 +242,7 @@ class State:
         else:
             self.sampling_steps += (steps * jobs)
             self.job_count += jobs
-        self.job = job
-        self.history('update')
+        # self.job = job
         if debug_output:
             log.trace(f'State update: {self} steps={steps} jobs={jobs}')
 

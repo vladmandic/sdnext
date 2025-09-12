@@ -605,8 +605,7 @@ def sa2(question: str, image: Image.Image, repo: str = None):
 
 def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:Image.Image=None, model_name:str=None, quiet:bool=False):
     global quant_args # pylint: disable=global-statement
-    if not quiet:
-        shared.state.begin('Interrogate')
+    jobid = shared.state.begin('Interrogate')
     t0 = time.time()
     quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model
@@ -691,7 +690,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     t1 = time.time()
     if not quiet:
         shared.log.debug(f'Interrogate: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
-        shared.state.end()
+    shared.state.end(jobid)
     return answer
 
 
@@ -725,7 +724,7 @@ def batch(model_name, system_prompt, batch_files, batch_folder, batch_str, quest
     if len(files) == 0:
         shared.log.warning('Interrogate batch: type=vlm no images')
         return ''
-    shared.state.begin('Interrogate batch')
+    jobid = shared.state.begin('Interrogate batch')
     prompts = []
     if write:
         mode = 'w' if not append else 'a'
@@ -751,5 +750,5 @@ def batch(model_name, system_prompt, batch_files, batch_folder, batch_str, quest
     if write:
         writer.close()
     shared.opts.interrogate_offload = orig_offload
-    shared.state.end()
+    shared.state.end(jobid)
     return '\n\n'.join(prompts)

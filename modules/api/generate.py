@@ -109,7 +109,7 @@ class APIGenerate():
             p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
             for key, value in getattr(txt2imgreq, "extra", {}).items():
                 setattr(p, key, value)
-            shared.state.begin('API TXT', api=True)
+            jobid = shared.state.begin('API-TXT', api=True)
             script_args = script.init_script_args(p, txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
             p.script_args = tuple(script_args) # Need to pass args as tuple here
             if selectable_scripts is not None:
@@ -118,7 +118,7 @@ class APIGenerate():
                 processed = process_images(p)
             processed = scripts_manager.scripts_txt2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(api=False)
+            shared.state.end(jobid)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:
@@ -161,7 +161,7 @@ class APIGenerate():
             p.outpath_samples = shared.opts.outdir_img2img_samples
             for key, value in getattr(img2imgreq, "extra", {}).items():
                 setattr(p, key, value)
-            shared.state.begin('API-IMG', api=True)
+            jobid = shared.state.begin('API-IMG', api=True)
             script_args = script.init_script_args(p, img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner)
             p.script_args = tuple(script_args) # Need to pass args as tuple here
             if selectable_scripts is not None:
@@ -170,7 +170,7 @@ class APIGenerate():
                 processed = process_images(p)
             processed = scripts_manager.scripts_img2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(api=False)
+            shared.state.end(jobid)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:

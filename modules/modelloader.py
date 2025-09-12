@@ -53,7 +53,7 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
     if hub_id is None or len(hub_id) == 0:
         return None
     from diffusers import DiffusionPipeline
-    shared.state.begin('HuggingFace')
+    jobid = shared.state.begin('Download')
     if hub_id.startswith('huggingface/'):
         hub_id = hub_id.replace('huggingface/', '')
     if download_config is None:
@@ -98,9 +98,11 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
             debug(f'Diffusers download error: id="{hub_id}" {e}')
             if 'gated' in str(e):
                 shared.log.error(f'Diffusers download error: id="{hub_id}" model access requires login')
+                shared.state.end(jobid)
                 return None
     if pipeline_dir is None:
         shared.log.error(f'Diffusers download error: id="{hub_id}" {err}')
+        shared.state.end(jobid)
         return None
     try:
         model_info_dict = hf.model_info(hub_id).cardData if pipeline_dir is not None else None
@@ -113,7 +115,7 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
             f.write("True")
     if pipeline_dir is not None:
         shared.writefile(model_info_dict, os.path.join(pipeline_dir, "model_info.json"))
-    shared.state.end()
+    shared.state.end(jobid)
     return pipeline_dir
 
 

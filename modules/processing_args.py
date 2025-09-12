@@ -168,6 +168,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         'Chroma' in model.__class__.__name__ or
         'HiDreamImagePipeline' in model.__class__.__name__
     ):
+        jobid = shared.state.begin('TE Encode')
         try:
             prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
             parser = shared.opts.prompt_attention
@@ -176,6 +177,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             if os.environ.get('SD_PROMPT_DEBUG', None) is not None:
                 errors.display(e, 'Prompt parser encode')
         timer.process.record('prompt', reset=False)
+        shared.state.end(jobid)
     else:
         prompt_parser_diffusers.embedder = None
 

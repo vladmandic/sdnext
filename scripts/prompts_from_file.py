@@ -136,7 +136,6 @@ class Script(scripts_manager.Script):
         all_negative = []
         infotexts = []
         for args in jobs:
-            state.job = f"{state.job_no + 1} out of {state.job_count}"
             copy_p = copy.copy(p)
             for k, v in args.items():
                 setattr(copy_p, k, v)

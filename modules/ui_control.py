@@ -101,6 +101,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
     with call_queue.queue_lock:
         yield [None, None, None, None, 'Control: starting', '']
         shared.mem_mon.reset()
+        jobid = shared.state.begin('Control')
         progress.start_task(job_id)
         try:
             t = time.perf_counter()
@@ -112,7 +113,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             errors.display(e, 'Control')
             yield [None, None, None, None, f'Control: Exception: {e}', '']
         progress.finish_task(job_id)
-    shared.state.end()
+        shared.state.end(jobid)
 
 
 def create_ui(_blocks: gr.Blocks=None):

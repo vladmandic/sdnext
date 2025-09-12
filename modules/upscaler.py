@@ -90,8 +90,7 @@ class Upscaler:
         return img
 
     def upscale(self, img: Image, scale, selected_model: str = None):
-        orig_state = copy.deepcopy(shared.state)
-        shared.state.begin('Upscale')
+        jobid = shared.state.begin('Upscale')
         self.scale = scale
         if isinstance(img, Image.Image):
             dest_w = int(img.width * scale)
@@ -111,8 +110,7 @@ class Upscaler:
                     break
             if img.width != dest_w or img.height != dest_h:
                 img = img.resize((int(dest_w), int(dest_h)), resample=Image.Resampling.LANCZOS)
-        shared.state.end()
-        shared.state = orig_state
+        shared.state.end(jobid)
         return img
 
     @abstractmethod

@@ -8,7 +8,6 @@ loaded_model = None
 
 
 def load_model(selected: models_def.Model):
-    shared.state.begin('Load')
     if selected is None:
         return ''
     global loaded_model # pylint: disable=global-statement
@@ -16,6 +15,7 @@ def load_model(selected: models_def.Model):
         return ''
     sd_models.unload_model_weights()
     t0 = time.time()
+    jobid = shared.state.begin('Load')
 
     video_cache.apply_teacache_patch(selected.dit_cls)
 
@@ -111,5 +111,5 @@ def load_model(selected: models_def.Model):
     loaded_model = selected.name
     msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     shared.log.info(msg)
-    shared.state.end()
+    shared.state.end(jobid)
     return msg

@@ -90,7 +90,6 @@ class Script(scripts_manager.Script):
             p.init_images = [work[i]]
             p.image_mask = work_mask[i]
             p.latent_mask = work_latent_mask[i]
-            state.job = f"outpainting batch {i+1}/{batch_count}"
             processed = process_images(p)
             if initial_seed is None:
                 initial_seed = processed.seed

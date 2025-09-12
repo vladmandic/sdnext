@@ -252,7 +252,7 @@ class Script(scripts_manager.Script):
 
         p.seed = processing_helpers.get_fixed_seed(p.seed)
         if direct: # run pipeline directly
-            shared.state.begin('PuLID')
+            jobid = shared.state.begin('PuLID')
             processing.fix_seed(p)
             p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
             p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
@@ -273,7 +273,7 @@ class Script(scripts_manager.Script):
                     )[0]
             info = processing.create_infotext(p)
             processed = processing.get_processed(p, [output], info=info)
-            shared.state.end()
+            shared.state.end(jobid)
         else: # let processing run the pipeline
             p.task_args['id_embedding'] = id_embedding
             p.task_args['uncond_id_embedding'] = uncond_id_embedding

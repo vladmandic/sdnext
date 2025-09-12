@@ -1,4 +1,3 @@
-import copy
 import hashlib
 import os.path
 from rich import progress, errors
@@ -75,8 +74,7 @@ def sha256(filename, title, use_addnet_hash=False):
         return None
     if not os.path.isfile(filename):
         return None
-    orig_state = copy.deepcopy(shared.state)
-    shared.state.begin("Hash")
+    jobid = shared.state.begin("Hash")
     if use_addnet_hash:
         if progress_ok:
             try:
@@ -94,8 +92,7 @@ def sha256(filename, title, use_addnet_hash=False):
         "mtime": os.path.getmtime(filename),
         "sha256": sha256_value
     }
-    shared.state.end()
-    shared.state = orig_state
+    shared.state.end(jobid)
     dump_cache()
     return sha256_value
 

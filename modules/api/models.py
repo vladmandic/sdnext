@@ -339,9 +339,8 @@ class ResProgress(BaseModel):
 class ResHistory(BaseModel):
     id: Union[int, str, None] = Field(title="ID", description="Task ID")
     job: str = Field(title="Job", description="Job name")
-    op: str = Field(title="Operation", description="Operation name")
-    start: Union[float, None] = Field(title="Start", description="Start time")
-    end: Union[float, None] = Field(title="End", description="End time")
+    op: str = Field(title="Operation", description="Job state")
+    timestamp: Union[float, None] = Field(title="Timestamp", description="Job timestamp")
     outputs: List[str] = Field(title="Outputs", description="List of filenames")
 
 class ResStatus(BaseModel):

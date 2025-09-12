@@ -332,7 +332,6 @@ class YoloRestorer(Detailer):
 
             mask_all = []
             p.state = ''
-            prev_state = shared.state.job
             pc = copy(p)
             pc.ops.append('detailer')
 
@@ -348,8 +347,9 @@ class YoloRestorer(Detailer):
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
                 pc.recursion = True
-                shared.state.job = 'Detailer'
+                jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
+                shared.state.end(jobid)
                 del pc.recursion
                 if pp is not None and pp.images is not None and len(pp.images) > 0:
                     image = pp.images[0] # update image to be reused for next item
@@ -369,7 +369,6 @@ class YoloRestorer(Detailer):
             p.image_mask = orig_p.get('image_mask', None)
             p.state = orig_p.get('state', None)
             p.ops = orig_p.get('ops', [])
-            shared.state.job = prev_state
             shared.opts.data['mask_apply_overlay'] = orig_apply_overlay
             np_image = np.array(image)
 

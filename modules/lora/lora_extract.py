@@ -135,7 +135,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
     maxrank = int(maxrank)
     rank_ratio = 1 if not auto_rank else rank_ratio
     shared.log.debug(f'LoRA extract: modules={modules} maxrank={maxrank} auto={auto_rank} ratio={rank_ratio} fn="{fn}"')
-    shared.state.begin('LoRA extract')
+    jobid = shared.state.begin('LoRA extract')
 
     with rp.Progress(rp.TextColumn('[cyan]LoRA extract'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console) as progress:
 
@@ -226,7 +226,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             yield msg
             return
 
-    shared.state.end()
+    shared.state.end(jobid)
     meta = make_meta(fn, maxrank, rank_ratio)
     shared.log.debug(f'LoRA metadata: {meta}')
     try:

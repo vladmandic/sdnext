@@ -369,7 +369,6 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
-    """this is the main loop that both txt2img and img2img use; it calls func_init once inside all the scopes and func_sample once per batch"""
     if type(p.prompt) == list:
         assert len(p.prompt) > 0
     else:
@@ -383,7 +382,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.process(p)
 
-    shared.state.begin('Process')
+    jobid = shared.state.begin('Process')
     shared.state.batch_count = p.n_iter
     with devices.inference_context():
         t0 = time.time()
@@ -445,8 +444,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             batch_images, batch_infotexts = process_samples(p, samples)
             for batch_image, batch_infotext in zip(batch_images, batch_infotexts):
-                output_images.append(batch_image)
-                infotexts.append(batch_infotext)
+                if batch_image is not None and batch_image not in output_images:
+                    output_images.append(batch_image)
+                    infotexts.append(batch_infotext)
 
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
@@ -495,5 +495,5 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')
-    shared.state.end()
+    shared.state.end(jobid)
     return results

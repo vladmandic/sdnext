@@ -62,7 +62,7 @@ def download_civit_preview(model_path: str, preview_url: str):
     block_size = 16384 # 16KB blocks
     written = 0
     img = None
-    shared.state.begin('CivitAI')
+    jobid = shared.state.begin('Download')
     if pbar is None:
         pbar = p.Progress(p.TextColumn('[cyan]Download'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), p.TextColumn('[yellow]{task.description}'), console=shared.console)
     try:
@@ -82,8 +82,9 @@ def download_civit_preview(model_path: str, preview_url: str):
             img = Image.open(preview_file)
     except Exception as e:
         shared.log.error(f'CivitAI download error: url={preview_url} file="{preview_file}" written={written} {e}')
+        shared.state.end(jobid)
         return 500, '', str(e)
-    shared.state.end()
+    shared.state.end(jobid)
     if img is None:
         return 500, '', 'image is none'
     shared.log.info(f'CivitAI download: url={preview_url} file="{preview_file}" size={total_size} image={img.size}')
@@ -138,7 +139,7 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
 
     res += f' size={round((starting_pos + total_size)/1024/1024, 2)}Mb'
     shared.log.info(res)
-    shared.state.begin('CivitAI')
+    jobid = shared.state.begin('Download')
     block_size = 16384 # 16KB blocks
     written = starting_pos
     global pbar # pylint: disable=global-statement
@@ -171,7 +172,7 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
     elif os.path.exists(temp_file):
         shared.log.debug(f'Model download complete: temp="{temp_file}" path="{model_file}"')
         os.rename(temp_file, model_file)
-    shared.state.end()
+    shared.state.end(jobid)
     if os.path.exists(model_file):
         return model_file
     else:

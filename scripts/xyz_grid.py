@@ -167,6 +167,7 @@ class Script(scripts_manager.Script):
             include_time, include_text, margin_size,
             create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
            ): # pylint: disable=W0221
+        jobid = shared.state.begin('XYZ Grid')
         if not no_fixed_seeds:
             processing.fix_seed(p)
         if not shared.opts.return_grid:
@@ -348,7 +349,7 @@ class Script(scripts_manager.Script):
             return processed, t1-t0
 
         with SharedSettingsStackHelper():
-            processed = draw_xyz_grid(
+            processed: processing.Processed = draw_xyz_grid(
                 p,
                 xs=xs,
                 ys=ys,
@@ -404,4 +405,5 @@ class Script(scripts_manager.Script):
         if create_video and video_type != 'None' and not shared.state.interrupted:
             images.save_video(p, filename=None, images=have_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
 
+        shared.state.end(jobid)
         return processed

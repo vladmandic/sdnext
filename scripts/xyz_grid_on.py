@@ -184,6 +184,7 @@ class Script(scripts_manager.Script):
             processing.fix_seed(p)
         if not shared.opts.return_grid:
             p.batch_size = 1
+        jobid = shared.state.begin('XYZ Grid')
 
         def process_axis(opt, vals, vals_dropdown):
             if opt.label == 'Nothing':
@@ -430,6 +431,7 @@ class Script(scripts_manager.Script):
         p.disable_extra_networks = True
         active = False
         xyz_results_cache = processed
+        shared.state.end(jobid)
         return processed
 
 

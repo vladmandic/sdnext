@@ -208,7 +208,6 @@ class Script(scripts_manager.Script):
         all_processed_images = []
         for i in range(batch_count):
             imgs = [init_img] * batch_size
-            state.job = f"outpainting batch {i+1}/{batch_count}"
             if left > 0:
                 imgs = expand(imgs, batch_size, left, is_left=True)
             if right > 0:

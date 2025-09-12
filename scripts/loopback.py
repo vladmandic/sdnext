@@ -67,7 +67,6 @@ class Script(scripts_manager.Script):
                 p.do_not_save_grid = True
                 if opts.img2img_color_correction:
                     p.color_corrections = initial_color_corrections
-                state.job = f"loopback iteration {i+1}/{loops} batch {n+1}/{initial_batch_count}"
                 processed = processing.process_images(p)
                 if processed is None:
                     log.error("Loopback: processing output is none")

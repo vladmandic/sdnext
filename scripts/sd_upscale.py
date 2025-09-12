@@ -70,7 +70,6 @@ class Script(scripts_manager.Script):
             for i in range(batch_count):
                 p.batch_size = batch_size
                 p.init_images = work[i * batch_size:(i + 1) * batch_size]
-                state.job = f"upscale batch {i+1+n*batch_count}/{state.job_count}"
                 processed = processing.process_images(p)
                 if initial_info is None:
                     initial_info = processed.info

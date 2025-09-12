@@ -268,17 +268,16 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         model = model.pipe
     if latents is None or not torch.is_tensor(latents): # already decoded
         return latents
-    prev_job = shared.state.job
 
     if vae_type == 'Remote':
-        shared.state.job = 'Remote VAE'
+        jobid = shared.state.begin('Remote VAE')
         from modules.sd_vae_remote import remote_decode
         tensors = remote_decode(latents=latents, width=width, height=height)
-        shared.state.job = prev_job
+        shared.state.end(jobid)
         if tensors is not None and len(tensors) > 0:
             return vae_postprocess(tensors, model, output_type)
-
-    shared.state.job = 'VAE'
+    
+    jobid = shared.state.begin('VAE Decode')
     if latents.shape[0] == 0:
         shared.log.error(f'VAE nothing to decode: {latents.shape}')
         return []
@@ -308,11 +307,11 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
             decoded = 2.0 * decoded - 1.0 # typical normalized range
 
     images = vae_postprocess(decoded, model, output_type)
-    shared.state.job = prev_job
     if shared.cmd_opts.profile or debug:
         t1 = time.time()
         shared.log.debug(f'Profile: VAE decode: {t1-t0:.2f}')
     devices.torch_gc()
+    shared.state.end(jobid)
     return images
 
 

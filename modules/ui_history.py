@@ -6,7 +6,7 @@ from modules import shared
 def refresh():
     def ts(t):
         try:
-            return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
+            return time.strftime('%Y-%m-%d %H:%M:%S.%f', time.localtime(t))
         except Exception:
             return ''
 
@@ -16,8 +16,7 @@ def refresh():
             item['id'],
             item['job'],
             item['op'],
-            ts(item['start']),
-            ts(item['end']),
+            ts(item['timestamp']),
             len(item['outputs']),
         ])
     shared.log.info(f"History: records={len(items)}")
@@ -42,7 +41,7 @@ def create_ui():
     with gr.Row():
         history_table = gr.DataFrame(
             value=None,
-            headers=['ID', 'Job', 'Op', 'Start', 'End', 'Outputs'],
+            headers=['ID', 'Job', 'Op', 'Timestamp', 'Outputs'],
             label='History data',
             show_label=True,
             interactive=False,

@@ -1,8 +1,7 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from threading import Lock
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from modules import errors, shared, processing_helpers
-from modules.processing import StableDiffusionProcessingControl
 from modules.api import models, helpers
 from modules.control import run
 
@@ -180,7 +179,7 @@ class APIControl():
 
         # run
         with self.queue_lock:
-            shared.state.begin('API-CTL', api=True)
+            jobid = shared.state.begin('API-CTL', api=True)
             output_images = []
             output_processed = []
             output_info = ''
@@ -198,7 +197,7 @@ class APIControl():
                     output_info += item
                 else:
                     pass
-            shared.state.end(api=False)
+            shared.state.end(jobid)
 
         # return
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []
