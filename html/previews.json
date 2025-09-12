@@ -23,5 +23,7 @@
   "chroma-unlocked-v50": "models/Reference/lodestones Chroma Unlocked HD",
   "chroma-unlocked-v50-annealed": "models/Reference/lodestones Chroma Unlocked HD",
   "vladmandic--Qwen-Lightning": "models/Reference/Qwen-Lightning.jpg",
-  "vladmandic--Qwen-Lightning-Edit": "models/Reference/Qwen-Lightning.jpg"
+  "vladmandic--Qwen-Lightning-Edit": "models/Reference/Qwen-Lightning.jpg",
+  "Wan-AI--Wan2.2-T2V-A14B-Diffusers": "models/Reference/Wan2.2-T2V-A14B.jpg",
+  "Wan-AI--Wan2.1-T2V-14B-Diffusers": "models/Reference/Wan-AI--Wan2.1.jpg"
 }

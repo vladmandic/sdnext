@@ -118,6 +118,7 @@ def process_post(p: processing.StableDiffusionProcessing):
 
 
 def process_base(p: processing.StableDiffusionProcessing):
+    shared.state.begin('Base')
     txt2img = is_txt2img()
     use_refiner_start = is_refiner_enabled(p) and (not p.is_hr_pass)
     use_denoise_start = not txt2img and p.refiner_start > 0 and p.refiner_start < 1
@@ -207,6 +208,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         process_post(p)
 
     shared.state.nextjob()
+    shared.state.end()
     return output
 
 
@@ -518,8 +520,8 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
             p.init_images.append(p.init_images[-1])
     # pipeline type is set earlier in processing, but check for sanity
     is_control = getattr(p, 'is_control', False) is True
-    has_images = len(getattr(p, 'init_images' ,[])) > 0
-    if sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE and not has_images and not is_control:
+    has_images = len(getattr(p, 'init_images', [])) > 0
+    if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE) and (not has_images) and (not is_control):
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE) # reset pipeline
     if hasattr(shared.sd_model, 'unet') and hasattr(shared.sd_model.unet, 'config') and hasattr(shared.sd_model.unet.config, 'in_channels') and shared.sd_model.unet.config.in_channels == 9 and not is_control:
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING) # force pipeline
@@ -540,6 +542,10 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     else:
         images, _index=shared.history.selected
         output = SimpleNamespace(images=images)
+
+    if len(output.images) == 0 and has_images:
+        shared.log.debug('Processing: using input as base output')
+        output.images = p.init_images
 
     if shared.state.interrupted or shared.state.skipped:
         shared.sd_model = orig_pipeline

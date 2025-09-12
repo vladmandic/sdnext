@@ -383,6 +383,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
         p.scripts.process(p)
 
+    shared.state.begin('Process')
     shared.state.batch_count = p.n_iter
     with devices.inference_context():
         t0 = time.time()
@@ -494,4 +495,5 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')
+    shared.state.end()
     return results

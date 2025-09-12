@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-11
+## Update for 2025-09-12
 
-### Highlights for 2025-09-11
+### Highlights for 2025-09-12
 
 *What's new*? Big one is that we're (finally) switching the default UI to **ModernUI**!  
 StandardUI is still available and can be selected in settings, but ModernUI is now the default for new installs  
@@ -12,7 +12,7 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-09-11
+### Details for 2025-09-12
 
 - **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -88,6 +88,8 @@ Also, there are quite a few offloading improvements and many quality-of-life cha
   - disallow `zluda` and `directml` on non-windows platforms  
   - update openvino to `openvino==2025.3.0`  
   - add deprecation warning for `python==3.9`  
+  - allow setting denoise strength to 0 in control/img2img  
+    this allows to run workflows which only refine or detail existing image without changing it   
   - **Detailer** allow manually setting processing resolution  
     *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
 - **Fixes**

@@ -23,19 +23,20 @@ def task_specific_kwargs(p, model):
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
     task_args = {}
     is_img2img_model = bool('Zero123' in model_cls)
+    task_type = sd_models.get_diffusers_task(model)
     if len(getattr(p, 'init_images', [])) > 0:
         if isinstance(p.init_images[0], str):
             p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
         if isinstance(p.init_images[0], Image.Image):
             p.init_images = [i.convert('RGB') if i.mode != 'RGB' else i for i in p.init_images if i is not None]
-    if (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE or len(getattr(p, 'init_images', [])) == 0) and not is_img2img_model and 'video' not in p.ops:
+    if (task_type == sd_models.DiffusersTaskType.TEXT_2_IMAGE or len(getattr(p, 'init_images', [])) == 0) and not is_img2img_model and 'video' not in p.ops:
         p.ops.append('txt2img')
         if hasattr(p, 'width') and hasattr(p, 'height'):
             task_args = {
                 'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor),
                 'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor),
             }
-    elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
+    elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in sd_models.i2i_pipes:
                 pass
@@ -69,7 +70,7 @@ def task_specific_kwargs(p, model):
                 'height': p.height,
                 'input_images': [p.init_images], # omnigen expects list-of-lists
             }
-    elif sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
+    elif task_type == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {
             'width': vae_scale_factor * math.ceil(p.width / vae_scale_factor) if hasattr(p, 'width') else None,
@@ -77,7 +78,7 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
-    elif (sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
+    elif (task_type == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in [sd_models.i2i_pipes]:
                 pass

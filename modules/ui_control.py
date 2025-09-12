@@ -97,7 +97,6 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
         time.sleep(0.01)
     from modules.control.run import control_run
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
-    shared.state.begin('Generate')
     progress.add_task_to_queue(job_id)
     with call_queue.queue_lock:
         yield [None, None, None, None, 'Control: starting', '']
@@ -140,7 +139,7 @@ def create_ui(_blocks: gr.Blocks=None):
                     with gr.Row():
                         input_type = gr.Radio(label="Control input type", choices=['Control only', 'Init image same as control', 'Separate init image'], value='Control only', type='index', elem_id='control_input_type')
                     with gr.Row():
-                        denoising_strength = gr.Slider(minimum=0.01, maximum=1.0, step=0.01, label='Denoising strength', value=0.30, elem_id="control_input_denoising_strength")
+                        denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="control_input_denoising_strength")
 
                 with gr.Accordion(open=False, label="Size", elem_id="control_size", elem_classes=["small-accordion"]):
                     with gr.Tabs():
