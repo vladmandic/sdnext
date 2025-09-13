@@ -546,7 +546,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         images, _index=shared.history.selected
         output = SimpleNamespace(images=images)
 
-    if (ouput is None or len(output.images) == 0) and has_images:
+    if (output is None or len(output.images) == 0) and has_images:
         shared.log.debug('Processing: using input as base output')
         output.images = p.init_images
 
