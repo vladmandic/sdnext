@@ -235,28 +235,28 @@
 
   "Wan-AI Wan2.1 1.3B": {
     "path": "Wan-AI/Wan2.1-T2V-1.3B-Diffusers",
-    "preview": "Wan-AI--Wan2.1-1_3B.jpg",
+    "preview": "Wan-AI--Wan2.1-T2V-1.3B-Diffusers.jpg",
     "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
     "skip": true,
     "extras": "sampler: Default"
   },
   "Wan-AI Wan2.1 14B": {
     "path": "Wan-AI/Wan2.1-T2V-14B-Diffusers",
-    "preview": "Wan-AI--Wan2.1.jpg",
+    "preview": "Wan-AI--Wan2.1-T2V-14B-Diffusers.jpg",
     "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
     "skip": true,
     "extras": "sampler: Default"
   },
   "Wan-AI Wan2.2 5B": {
     "path": "Wan-AI/Wan2.2-TI2V-5B-Diffusers",
-    "preview": "Wan-AI--Wan2.2_5B.jpg",
+    "preview": "Wan-AI--Wan2.2-TI2V-5B-Diffusers.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
     "extras": "sampler: Default"
   },
   "Wan-AI Wan2.2 A14B": {
     "path": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
-    "preview": "Wan2.2-T2V-A14B.jpg",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
     "extras": "sampler: Default"
@@ -340,7 +340,6 @@
     "preview": "Efficient-Large-Model--Sana_600M_512px_diffusers.jpg",
     "skip": true
   },
-
   "nVidia Cosmos-Predict2 T2I 2B": {
     "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
@@ -414,7 +413,6 @@
     "desc": "SegMoE-4x2-v0 is an untrained Segmind Mixture of Diffusion Experts Model generated using segmoe from 4 Expert SDXL models. SegMoE is a powerful framework for dynamically combining Stable Diffusion Models into a Mixture of Experts within minutes without training",
     "extras": "sampler: Default"
   },
-
   "Pixart-α XL 2 Medium": {
     "path": "PixArt-alpha/PixArt-XL-2-512x512",
     "desc": "PixArt-α is a Transformer-based T2I diffusion model whose image generation quality is competitive with state-of-the-art image generators (e.g., Imagen, SDXL, and even Midjourney), and the training speed markedly surpasses existing large-scale T2I models. Extensive experiments demonstrate that PIXART-α excels in image quality, artistry, and semantic control. It can directly generate 512px images from text prompts within a single sampling process.",
@@ -430,21 +428,21 @@
   "Pixart-Σ Small": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-512-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxl2-512.jpg",
+    "preview": "PixArt-alpha--PixArt-Sigma-XL-2-512-MS.jpg",
     "skip": true,
     "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 2.0"
   },
   "Pixart-Σ Medium": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxl2-1024.jpg",
+    "preview": "PixArt-alpha--PixArt-Sigma-XL-2-1024-MS.jpg",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Pixart-Σ Large": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-2K-MS",
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
-    "preview": "PixArt-alpha--pixart_sigma_sdxl2-2K.jpg",
+    "preview": "PixArt-alpha--PixArt-Sigma-XL-2-2K-MS.jpg",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
@@ -458,7 +456,7 @@
   "Tencent HunyuanDiT 1.2 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Distilled.jpg",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers-Distilled.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Tencent HunyuanDiT 1.1": {
@@ -470,7 +468,7 @@
   "Tencent HunyuanDiT 1.1 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Distilled.jpg",
+    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled.jpg",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
 
