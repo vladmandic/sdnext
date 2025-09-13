@@ -17,6 +17,67 @@
   --sd-image-fit: contain;
 }
 
+:root {
+  --sd-primary-h: 180deg;
+  --color-blue: paleturquoise;
+  --color-debug: #7F7F7F;
+  --color-error: #9E2020;
+  --color-green: palegreen;
+  --color-info: #D4D4D4;
+  --color-red: palevioletred;
+  --color-trace: #666666;
+  --color-warning: #FF9900;
+  --sd-border-radius: 5px;
+  --sd-border-size: 2px;
+  --sd-button-hover-color: var(--sd-button-selected-color);
+  --sd-button-hover-text-color: var(--sd-button-selected-text-color);
+  --sd-button-normal-color: var(--sd-input-background-color);
+  --sd-button-normal-text-color: var(--sd-input-text-color);
+  --sd-button-selected-color: var(--sd-main-accent-color);
+  --sd-button-selected-text-color: var(--sd-input-hover-text-color);
+  --sd-gap-size: max(var(--sd-gap-size-val), var(--sd-border-size));
+  --sd-gap-size-val: 5px;
+  --sd-group-background-color: hsl(0deg 0% 16%);
+  --sd-group-border-color: hsl(0deg 0% 16%);
+  --sd-group-border-radius: 7px;
+  --sd-group-border-size: 2px;
+  --sd-button-height: 2.4em;
+  --sd-group-gap: 6px;
+  --sd-group-padding: 2px;
+  --sd-input-background-color: rgba(0, 0, 0, 0.25);
+  --sd-input-border-color: rgba(0, 0, 0, 0.1);
+  --sd-input-border-size: 2px;
+  --sd-input-font-size: var(--font-size);
+  --sd-input-height: 35px;
+  --sd-input-hover-text-color: var(--sd-input-text-color);
+  --sd-input-icon-height: calc(var(--sd-input-height) - var(--sd-input-border-size) * 2);
+  --sd-input-line-height: 23px;
+  --sd-input-padding: 5px;
+  --sd-input-placeholder-text-color: rgba(255, 255, 255, 0.35);
+  --sd-input-secondary-text-color: var(--sd-input-text-color);
+  --sd-input-slider-height: 0.6;
+  --sd-input-text-color: rgba(255, 255, 255, 0.75);
+  --sd-label-color: rgba(255, 255, 255, 0.75);
+  --sd-muted-color: rgba(255, 255, 255, 0.50);
+  --sd-main-accent-color: #7950ab;
+  --sd-main-background-color: rgb(32 32 32);
+  --sd-outline-color: var(--sd-button-hover-color);
+  --sd-outline-size: calc(var(--sd-border-size) * 0.8);
+  --sd-outside-gap-size: 8px;
+  --sd-extra-gap: 0;
+  --sd-panel-background-color: rgba(64, 64, 64, 0.5);
+  --sd-panel-border-color: rgba(64, 64, 64, 0.75);
+  --sd-panel-padding: 5px;
+  --sd-scrollbar-color: var(--sd-panel-border-color);
+  --sd-tooltip-text-color: var(--sd-input-background-color);
+  --sd-body-font: 'IBM Plex Mono', monospace;
+  --sd-text-font: 'IBM Plex Mono', monospace;
+  --sd-button-font: 'NotoSans', sans-serif;
+  --sd-image-fit: scale-down;
+  --sd-panel-min-width: 30em;
+  --sd-grid-image-size: 150px;
+}
+
 a {
   cursor: pointer;
   font-weight: bold;
@@ -411,6 +472,15 @@ color: var(--primary-500) !important
 
 #txt2img_gallery, #img2img_gallery {
   height: 50vh;
+}
+
+#history_table {
+  font-size: 0.9em;
+  text-align: left;
+  cursor: pointer;
+  max-height: 50vh;
+  overflow: auto;
+  background-color: var(--sd-main-background-color);
 }
 
 #control-result {
