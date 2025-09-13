@@ -1122,7 +1122,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     if checkpoint_info is None:
         unload_model_weights(op=op)
         return None
-    jobid = shared.state.begin('Load')
+    jobid = shared.state.begin('Load model')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
     if sd_model is None:  # previous model load failed

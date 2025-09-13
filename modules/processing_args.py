@@ -137,6 +137,7 @@ def task_specific_kwargs(p, model):
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:typing.Optional[list]=None, negative_prompts_2:typing.Optional[list]=None, prompt_attention:typing.Optional[str]=None, desc:typing.Optional[str]='', **kwargs):
     t0 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    argsid = shared.state.begin('Params')
     apply_circular(p.tiling, model)
     args = {}
     has_vae = hasattr(model, 'vae') or (hasattr(model, 'pipe') and hasattr(model.pipe, 'vae'))
@@ -445,4 +446,5 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         else:
             _args[k] = v
 
+    shared.state.end(argsid)
     return _args

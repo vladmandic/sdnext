@@ -62,7 +62,7 @@ def download_civit_preview(model_path: str, preview_url: str):
     block_size = 16384 # 16KB blocks
     written = 0
     img = None
-    jobid = shared.state.begin('Download')
+    jobid = shared.state.begin('Download CivitAI')
     if pbar is None:
         pbar = p.Progress(p.TextColumn('[cyan]Download'), p.DownloadColumn(), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TransferSpeedColumn(), p.TextColumn('[yellow]{task.description}'), console=shared.console)
     try:
@@ -139,7 +139,7 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
 
     res += f' size={round((starting_pos + total_size)/1024/1024, 2)}Mb'
     shared.log.info(res)
-    jobid = shared.state.begin('Download')
+    jobid = shared.state.begin('Download CivitAI')
     block_size = 16384 # 16KB blocks
     written = starting_pos
     global pbar # pylint: disable=global-statement

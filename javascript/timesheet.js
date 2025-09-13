@@ -1,14 +1,15 @@
 /* eslint max-classes-per-file: ["error", 2] */
 
 class Bubble {
-  constructor(min, start, end, label, scale) {
+  constructor(min, start, end, label, scale, type) {
+    this.type = type;
+    this.label = label;
     this.min = min;
     this.start = start;
     this.end = end;
     this.scale = scale;
     this.offset = Math.round(this.scale * (this.start - this.min));
     this.width = Math.round(this.scale * (this.end - this.start));
-    this.label = label;
     this.duration = Math.round(1000 * (this.end - this.start)) / 1000;
     this.title = `Job: ${this.label}\nDuration: ${this.duration}s\nStart: ${new Date(1000 * this.start).toLocaleString()}\nEnd: ${new Date(1000 * this.end).toLocaleString()}`;
   }
@@ -38,11 +39,11 @@ class Timesheet {
     html = [];
     for (let n = 0, m = this.data.length; n < m; n++) {
       const cur = this.data[n];
-      const bubble = new Bubble(this.min, cur.start, cur.end, cur.label, this.scale);
+      const bubble = new Bubble(this.min, cur.start, cur.end, cur.label, this.scale, cur.type);
       const line = [
-        `<span title="${bubble.title}" style="margin-left: ${bubble.offset}px; width: ${bubble.width}px;" class="bubble" data-duration="${bubble.duration}"></span>`,
-        `<span class="date">${bubble.duration}</span> `,
-        `<span class="label">${bubble.label}</span>`,
+        `<span title="${bubble.title}" style="margin-left: ${bubble.offset}px; width: ${bubble.width}px;" class="bubble bubble-${bubble.type}" data-duration="${bubble.duration}"></span>`,
+        `<span class="date" title="${bubble.title}">${bubble.duration}</span> `,
+        `<span class="label" title="${bubble.title}">${bubble.label}</span>`,
       ].join('');
       html.push(`<li>${line}</li>`);
     }

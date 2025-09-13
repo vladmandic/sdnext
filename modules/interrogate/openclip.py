@@ -135,7 +135,7 @@ def interrogate(image, mode, caption=None):
 
 
 def interrogate_image(image, clip_model, blip_model, mode):
-    jobid = shared.state.begin('Interrogate')
+    jobid = shared.state.begin('Interrogate CLiP')
     try:
         if shared.sd_loaded:
             from modules.sd_models import apply_balanced_offload # prevent circular import

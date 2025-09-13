@@ -1,8 +1,12 @@
+const inferenceTypes = ['inference', 'vae', 'te'];
+const ioTypes = ['load', 'save'];
+
 function refreshHistory() {
   log('refreshHistory');
   fetch(`${window.api}/history`, { priority: 'low' }).then((res) => {
     const timeline = document.getElementById('history_timeline');
     const table = document.getElementById('history_table');
+    timeline.innerHTML = '';
     res.json().then((data) => {
       if (!data || !data.length) {
         table.innerHTML = '<p>No history data available.</p>';
@@ -37,10 +41,13 @@ function refreshHistory() {
         if (entry.op === 'begin') {
           const start = entry.timestamp;
           const end = data.find((e) => (e.id === entry.id && e.op === 'end')) || data[data.length - 1].timestamp;
-          ts.push({ start, end: end.timestamp, label: entry.job, type: '' });
+          if (end.timestamp - start < 0.02) continue; // skip very short entries
+          if (inferenceTypes.some((type) => entry.job.toLowerCase().startsWith(type))) entry.type = 'inference';
+          else if (ioTypes.some((type) => entry.job.toLowerCase().startsWith(type))) entry.type = 'io';
+          else entry.type = 'default';
+          ts.push({ start, end: end.timestamp, label: entry.job, type: entry.type });
         }
       }
-      timeline.innerHTML = '';
       if (!ts.length) return;
       new Timesheet(timeline, ts); // eslint-disable-line no-undef, no-new
     });

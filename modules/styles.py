@@ -319,6 +319,7 @@ class StyleDatabase:
         if seeds is None or not isinstance(prompts, list):
             shared.log.error(f'Styles invalid seeds: {seeds}')
             return prompts, negatives
+        jobid = shared.state.begin('Styles')
         parsed_positive = []
         parsed_negative = []
         for i in range(len(prompts)):
@@ -331,6 +332,7 @@ class StyleDatabase:
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_negative.append(prompt)
+        shared.state.end(jobid)
         return parsed_positive, parsed_negative
 
     def apply_styles_to_prompt(self, prompt, styles, wildcards:bool=True):

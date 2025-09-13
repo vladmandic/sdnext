@@ -155,7 +155,7 @@ def load_model():
     if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
         log.info('Model: autoload=False')
     else:
-        jobid = shared.state.begin('Load')
+        jobid = shared.state.begin('Load model')
         thread_model = Thread(target=lambda: shared.sd_model)
         thread_model.start()
         thread_refiner = Thread(target=lambda: shared.sd_refiner)

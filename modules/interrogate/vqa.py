@@ -605,7 +605,7 @@ def sa2(question: str, image: Image.Image, repo: str = None):
 
 def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:Image.Image=None, model_name:str=None, quiet:bool=False):
     global quant_args # pylint: disable=global-statement
-    jobid = shared.state.begin('Interrogate')
+    jobid = shared.state.begin('Interrogate LLM')
     t0 = time.time()
     quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model

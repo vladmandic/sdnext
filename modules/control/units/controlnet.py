@@ -4,7 +4,7 @@ import threading
 from typing import Union
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
 from modules.control.units import detect
-from modules.shared import log, opts, cmd_opts, listdir
+from modules.shared import log, opts, cmd_opts, state, listdir
 from modules import errors, sd_models, devices, model_quant
 from modules.processing import StableDiffusionProcessingControl
 
@@ -308,6 +308,7 @@ class ControlNet():
                     log.error(f'Control {what} model load: id="{model_id}" unknown base model')
                     return
                 self.reset()
+                jobid = state.begin(f'Load {what}')
                 if model_path.endswith('.safetensors'):
                     self.load_safetensors(model_id, model_path, cls, config)
                 else:
@@ -365,6 +366,7 @@ class ControlNet():
                 t1 = time.time()
                 self.model_id = model_id
                 log.info(f'Control {what} model loaded: id="{model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
+                state.end(jobid)
                 return f'{what} loaded model: {model_id}'
             except Exception as e:
                 log.error(f'Control {what} model load: id="{model_id}" {e}')

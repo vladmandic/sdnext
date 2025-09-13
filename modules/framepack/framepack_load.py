@@ -61,7 +61,7 @@ def reset_model():
 
 
 def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_encoder_2:str=None, feature_extractor:str=None, image_encoder:str=None, transformer:str=None):
-    shared.state.begin('Load')
+    shared.state.begin('Load FramePack')
     if variant is not None:
         if variant not in models.keys():
             raise ValueError(f'FramePack: variant="{variant}" invalid')

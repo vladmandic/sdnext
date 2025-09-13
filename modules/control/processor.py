@@ -51,6 +51,7 @@ def preprocess_image(
         has_models:bool = False,
     ):
     t0 = time.time()
+    jobid = shared.state.begin('Preprocess')
 
     # run resize before
     if p.resize_mode_before != 0 and p.resize_name_before != 'None':
@@ -246,4 +247,5 @@ def preprocess_image(
 
     t1 = time.time()
     process_timer.add('proc', t1-t0)
+    shared.state.end(jobid)
     return processed_image, blended_image

@@ -316,6 +316,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
 
 
 def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
+    jobid = shared.state.begin('VAE Encode')
     import torchvision.transforms.functional as f
     if shared.state.interrupted or shared.state.skipped:
         return []
@@ -331,6 +332,7 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     else:
         latents = taesd_vae_encode(image=tensor)
     devices.torch_gc()
+    shared.state.end(jobid)
     return latents
 
 

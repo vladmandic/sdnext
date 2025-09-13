@@ -9,6 +9,7 @@ StandardUI is still available and can be selected in settings, but ModernUI is n
 
 *What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
 Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
+And check out new **history** tab in the right panel, it now shows visualization of entire processing timeline!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 

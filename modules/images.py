@@ -46,7 +46,7 @@ def atomically_save_image():
     Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
     while True:
         image, filename, extension, params, exifinfo, filename_txt, is_grid = save_queue.get()
-        jobid = shared.state.begin('Save')
+        jobid = shared.state.begin('Save image')
         shared.state.image_history += 1
         if len(exifinfo) > 2:
             with open(paths.params_path, "w", encoding="utf8") as file:

@@ -78,6 +78,7 @@ def save_video(
     size = pixels.element_size() * pixels.numel()
     shared.log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
     shared.log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
+    jobid = shared.state.begin('Save video')
     try:
         if stream is not None:
             stream.output_queue.push(('progress', (None, 'Saving video...')))
@@ -124,4 +125,5 @@ def save_video(
         shared.log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
+    shared.state.end(jobid)
     return t, output_video

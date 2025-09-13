@@ -597,12 +597,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
-                            if is_generator:
+                            if is_generator and frame is not None and video is not None:
                                 image_txt = f'{output_image.width}x{output_image.height}' if output_image is not None else 'None'
-                                if video is not None:
-                                    msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
-                                else:
-                                    msg = f'Control output | {index} of {len(inputs)} | Image {image_txt}'
+                                msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 yield (output_image, blended_image, msg) # result is control_output, proces_output
 
                 if video is not None and frame is not None:
@@ -643,5 +640,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
+        jobid = shared.state.begin('UI')
         yield (output_images, blended_image, html_txt, output_filename)
+        shared.state.end(jobid)
     return (output_images, blended_image, html_txt, output_filename)

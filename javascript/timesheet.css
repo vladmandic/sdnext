@@ -7,36 +7,6 @@
     background-color: var(--sd-main-background-color);
     position: relative;
 }
-.timesheet.color-scheme-default .bubble-default {
-    background-color: RGBA(252,  70,  74,  1);
-}
-.timesheet.color-scheme-default .bubble-lorem {
-    background-color: RGBA(154,  202,  39,  1);
-}
-.timesheet.color-scheme-default .bubble-ipsum {
-    background-color: RGBA(60,  182,  227,  1);
-}
-.timesheet.color-scheme-default .bubble-dolor {
-    background-color: RGBA(244,  207,  48,  1);
-}
-.timesheet.color-scheme-default .bubble-sit {
-    background-color: RGBA(169,  105,  202,  1);
-}
-.timesheet.color-scheme-alternative .bubble-default {
-    background-color: #f3552e;
-}
-.timesheet.color-scheme-alternative .bubble-lorem {
-    background-color: #88c33a;
-}
-.timesheet.color-scheme-alternative .bubble-ipsum {
-    background-color: #436ae0;
-}
-.timesheet.color-scheme-alternative .bubble-dolor {
-    background-color: #f4d234;
-}
-.timesheet.color-scheme-alternative .bubble-sit {
-    background-color: #707d86;
-}
 .timesheet .scale {
     height: 100%;
     position: absolute;
@@ -52,7 +22,8 @@
     line-height: 24px;
     font-weight: lighter;
     border-left: 1px dashed rgba(250, 250, 250, 0.2);
-    height: 100%}
+    height: 100%;
+}
 .timesheet .data {
     margin: 10px 0 10px 0;
     padding: 0;
@@ -93,29 +64,16 @@
     float: left;
     position: relative;
     top: 7px;
-    border-radius: 4px;
+    border-radius: 2px;
     margin: 0 10px 0 0;
     opacity: 0.7;
+}
+.bubble-default {
     background: var(--sd-main-accent-color);
 }
-#timesheet-alternative {
-    background-color: RGBA(247,  247,  247,  1);
-    border-radius: 5px;
+.bubble-inference {
+    background-color: violet;
 }
-#timesheet-alternative section {
-    color: RGBA(63,  68,  72,  1);
-    border-left: 1px dashed RGBA(63,  68,  72,  0.2);
-}
-#timesheet-alternative section:first-child {
-    border-left: 1px dashed transparent;
-}
-#timesheet-alternative .date {
-    display: none;
-}
-#timesheet-alternative .bubble {
-    margin-right: 7px;
-}
-#timesheet-alternative .label {
-    padding-left: 0px;
-    color: RGBA(48,  48,  48,  1);
+.bubble-io {
+    background-color: rgb(75, 75, 150);
 }

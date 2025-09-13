@@ -15,7 +15,7 @@ def load_model(selected: models_def.Model):
         return ''
     sd_models.unload_model_weights()
     t0 = time.time()
-    jobid = shared.state.begin('Load')
+    jobid = shared.state.begin('Load model')
 
     video_cache.apply_teacache_patch(selected.dit_cls)
 

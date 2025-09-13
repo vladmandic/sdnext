@@ -189,7 +189,6 @@ function get_tab_index(tabId) {
     .forEach((button, i) => {
       if (button.className.indexOf('selected') !== -1) res = i;
     });
-  console.log('get_tab_index', tabId, res);
   return res;
 }
 
@@ -297,7 +296,6 @@ function submit_video_wrapper(...args) {
   log('submitVideoWrapper', id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
   if (btn) btn.click();
-  else console.log('submit_video_wrapper: no button found', id);
 }
 
 function submit_postprocessing(...args) {
