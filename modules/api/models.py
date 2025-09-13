@@ -341,6 +341,7 @@ class ResHistory(BaseModel):
     job: str = Field(title="Job", description="Job name")
     op: str = Field(title="Operation", description="Job state")
     timestamp: Union[float, None] = Field(title="Timestamp", description="Job timestamp")
+    duration: Union[float, None] = Field(title="Duration", description="Job duration")
     outputs: List[str] = Field(title="Outputs", description="List of filenames")
 
 class ResStatus(BaseModel):

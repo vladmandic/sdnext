@@ -164,7 +164,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             base_args['gate_step'] = p.gate_step
             output = shared.sd_model.tgate(**base_args) # pylint: disable=not-callable
         else:
-            taskid = shared.state.begin('Model')
+            taskid = shared.state.begin('Inference')
             output = shared.sd_model(**base_args)
             shared.state.end(taskid)
         if isinstance(output, dict):
@@ -296,7 +296,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
             try:
                 if 'base' in p.skip:
                     extra_networks.activate(p)
-                taskid = shared.state.begin('Model')
+                taskid = shared.state.begin('Inference')
                 output = shared.sd_model(**hires_args) # pylint: disable=not-callable
                 shared.state.end(taskid)
                 if isinstance(output, dict):

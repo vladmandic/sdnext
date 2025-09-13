@@ -45,6 +45,7 @@ class State:
     disable_preview = False
     preview_job = -1
     time_start = None
+    duration = None
     need_restart = False
     server_start = time.time()
     oom = False
@@ -148,7 +149,14 @@ class State:
         return None
 
     def history(self, op:str, task_id:str=None, results:list=[]):
-        job = { 'id': task_id or self.id, 'job': self.job.lower(), 'op': op.lower(), 'timestamp': self.time_start, 'outputs': results }
+        job = {
+            'id': task_id or self.id,
+            'job': self.job.lower(),
+            'op': op.lower(),
+            'timestamp': self.time_start,
+            'duration': self.duration,
+            'outputs': results,
+         }
         self.state_history.append(job)
         l = len(self.state_history)
         if l > 10000:
@@ -179,6 +187,7 @@ class State:
         self.job_no = 0
         self.frame_count = 0
         self.preview_job = -1
+        self.duration = None
         self.paused = False
         self.interrupted = False
         self.skipped = False
@@ -223,6 +232,7 @@ class State:
             if prev_job is not None:
                 self.id = prev_job['id']
                 self.job = prev_job['job']
+                self.duration = round(time.time() - prev_job['timestamp'], 3) if prev_job['timestamp'] is not None else None
         self.time_start = time.time()
         self.history('end', task_id or self.id)
         self.clear()

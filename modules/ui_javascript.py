@@ -52,13 +52,16 @@ def html_login():
     return js
 
 
-def html_css(css: str):
+def html_css(css: list[str]):
     def stylesheet(fn):
         return f'<link rel="stylesheet" property="stylesheet" href="{webpath(fn)}">'
 
     head = ''
     if css is not None:
-        head += stylesheet(os.path.join(script_path, 'javascript', css))
+        for cssfile in css:
+            f = os.path.join(script_path, 'javascript', cssfile)
+            if os.path.isfile(f):
+                head += stylesheet(f)
     for cssfile in modules.scripts_manager.list_files_with_name("style.css"):
         if not os.path.isfile(cssfile):
             continue
@@ -86,12 +89,15 @@ def html_css(css: str):
 
 
 def reload_javascript():
-    base_css = theme.reload_gradio_theme()
     title = '<title>SD.Next</title>'
     manifest = f'<link rel="manifest" href="{webpath(os.path.join(script_path, "html", "manifest.json"))}">'
     login = html_login()
     js = html_head()
-    css = html_css(base_css)
+
+    css_base = theme.reload_gradio_theme()
+    css_timesheet = "timesheet.css"
+
+    css = html_css([css_base, css_timesheet])
     body = html_body()
 
     def template_response(*args, **kwargs):
