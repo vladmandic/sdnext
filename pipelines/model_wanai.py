@@ -81,9 +81,14 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     boundary_ratio = shared.opts.model_wan_boundary if transformer_2 is not None else None
-    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
 
-    cls = diffusers.WanPipeline
+    if 'Wan2.2-I2V' in repo_id:
+        cls = diffusers.WanImageToVideoPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanImageToVideoPipeline
+    else:
+        cls = diffusers.WanPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
+    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
     pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,
@@ -101,9 +106,6 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     del text_encoder
     del transformer
     del transformer_2
-
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
-    # diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanImageToVideoPipeline
 
     sd_hijack_te.init_hijack(pipe)
     sd_hijack_vae.init_hijack(pipe)

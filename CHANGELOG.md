@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-13
+## Update for 2025-09-14
 
-### Highlights for 2025-09-13
+### Highlights for 2025-09-14
 
 *What's new*? Big one is that we're (finally) switching the default UI to **ModernUI**!  
 StandardUI is still available and can be selected in settings, but ModernUI is now the default for new installs  
@@ -13,7 +13,7 @@ And check out new **history** tab in the right panel, it now shows visualization
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-09-13
+### Details for 2025-09-14
 
 - **Models**
   - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
@@ -1261,6 +1261,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
   - fix paste incorrect float to int cast  
   - fix server restart from ui  
   - fix style apply params  
+  - fix `wan22-i2v`  
   - do not allow edit of built-in styles  
   - improve lora compatibility with balanced offload  
 

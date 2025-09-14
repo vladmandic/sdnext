@@ -254,8 +254,15 @@
     "skip": true,
     "extras": "sampler: Default"
   },
-  "Wan-AI Wan2.2 A14B": {
+  "Wan-AI Wan2.2 A14B T2I": {
     "path": "Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "Wan-AI Wan2.2 A14B I2I": {
+    "path": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
