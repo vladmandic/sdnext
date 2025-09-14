@@ -12,6 +12,7 @@ from modules import timer, errors
 initialized = False
 errors.install()
 logging.getLogger("DeepSpeed").disabled = True
+timer.startup.record("loader")
 
 
 np = None
