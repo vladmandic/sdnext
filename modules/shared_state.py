@@ -189,13 +189,13 @@ class State:
         self.preview_job = -1
         self.duration = None
         self.paused = False
-        self.interrupted = False
-        self.skipped = False
         self.results = []
 
     def begin(self, title="", task_id=0, api=None):
         import modules.devices
         self.clear()
+        self.interrupted = False
+        self.skipped = False
         self.job_history += 1
         self.total_jobs += 1
         self.current_image = None

@@ -217,6 +217,8 @@ class YoloRestorer(Detailer):
         return [merged]
 
     def restore(self, np_image, p: processing.StableDiffusionProcessing = None):
+        if shared.state.interrupted or shared.state.skipped:
+            return np_image
         if hasattr(p, 'recursion'):
             return np_image
         if not hasattr(p, 'detailer_active'):

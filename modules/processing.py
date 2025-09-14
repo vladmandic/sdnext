@@ -282,81 +282,83 @@ def process_samples(p: StableDiffusionProcessing, samples):
             sample = validate_sample(sample)
             image = Image.fromarray(sample)
 
-        if p.restore_faces:
-            p.ops.append('restore')
-            if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+        if not shared.state.interrupted and not shared.state.skipped:
+
+            if p.restore_faces:
+                p.ops.append('restore')
+                if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-restore")
+                sample = face_restoration.restore_faces(sample, p)
+                if sample is not None:
+                    image = Image.fromarray(sample)
+
+            if p.detailer_enabled:
+                p.ops.append('detailer')
+                if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-detailer")
+                sample = detailer.detail(sample, p)
+                if sample is not None:
+                    image = Image.fromarray(sample)
+
+            if p.color_corrections is not None and i < len(p.color_corrections):
+                p.ops.append('color')
+                if not p.do_not_save_samples and shared.opts.save_images_before_color_correction:
+                    orig = p.color_corrections
+                    p.color_corrections = None
+                    p.color_corrections = orig
+                    image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
+                    info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                    images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")
+                image = apply_color_correction(p.color_corrections[i], image)
+
+            if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
+                pp = scripts_manager.PostprocessImageArgs(image)
+                p.scripts.postprocess_image(p, pp)
+                if pp.image is not None:
+                    image = pp.image
+
+            if shared.opts.mask_apply_overlay:
+                image = apply_overlay(image, p.paste_to, i, p.overlay_images)
+
+            if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
+                image_mask = p.mask_for_overlay.convert('RGB')
+                image1 = image.convert('RGBA').convert('RGBa')
+                image2 = Image.new('RGBa', image.size)
+                mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
+                image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
                 info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-restore")
-            sample = face_restoration.restore_faces(sample, p)
-            if sample is not None:
-                image = Image.fromarray(sample)
-
-        if p.detailer_enabled:
-            p.ops.append('detailer')
-            if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
-                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-detailer")
-            sample = detailer.detail(sample, p)
-            if sample is not None:
-                image = Image.fromarray(sample)
-
-        if p.color_corrections is not None and i < len(p.color_corrections):
-            p.ops.append('color')
-            if not p.do_not_save_samples and shared.opts.save_images_before_color_correction:
-                orig = p.color_corrections
-                p.color_corrections = None
-                p.color_corrections = orig
-                image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
-                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")
-            image = apply_color_correction(p.color_corrections[i], image)
-
-        if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-            pp = scripts_manager.PostprocessImageArgs(image)
-            p.scripts.postprocess_image(p, pp)
-            if pp.image is not None:
-                image = pp.image
-
-        if shared.opts.mask_apply_overlay:
-            image = apply_overlay(image, p.paste_to, i, p.overlay_images)
-
-        if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
-            image_mask = p.mask_for_overlay.convert('RGB')
-            image1 = image.convert('RGBA').convert('RGBa')
-            image2 = Image.new('RGBa', image.size)
-            mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
-            image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
-            info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-            if shared.opts.save_mask:
-                images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
-            if shared.opts.save_mask_composite:
-                images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
-            if shared.opts.return_mask:
-                out_infotexts.append(info)
-                out_images.append(image_mask)
-            if shared.opts.return_mask_composite:
-                out_infotexts.append(info)
-                out_images.append(image_mask_composite)
-
-        if shared.opts.include_mask:
-            info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-            if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
-                p.image_mask = create_binary_mask(p.overlay_images[0])
-                p.image_mask = ImageOps.invert(p.image_mask)
-                out_infotexts.append(info)
-                out_images.append(p.image_mask)
-            elif getattr(p, 'image_mask', None) is not None and isinstance(p.image_mask, Image.Image):
-                if getattr(p, 'mask_for_detailer', None) is not None:
+                if shared.opts.save_mask:
+                    images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
+                if shared.opts.save_mask_composite:
+                    images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
+                if shared.opts.return_mask:
                     out_infotexts.append(info)
-                    out_images.append(p.mask_for_detailer)
-                else:
+                    out_images.append(image_mask)
+                if shared.opts.return_mask_composite:
+                    out_infotexts.append(info)
+                    out_images.append(image_mask_composite)
+
+            if shared.opts.include_mask:
+                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
+                if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
+                    p.image_mask = create_binary_mask(p.overlay_images[0])
+                    p.image_mask = ImageOps.invert(p.image_mask)
                     out_infotexts.append(info)
                     out_images.append(p.image_mask)
+                elif getattr(p, 'image_mask', None) is not None and isinstance(p.image_mask, Image.Image):
+                    if getattr(p, 'mask_for_detailer', None) is not None:
+                        out_infotexts.append(info)
+                        out_images.append(p.mask_for_detailer)
+                    else:
+                        out_infotexts.append(info)
+                        out_images.append(p.image_mask)
 
-        if p.selected_scale_tab_after == 1:
-            p.width_after, p.height_after = int(image.width * p.scale_by_after), int(image.height * p.scale_by_after)
-        if p.resize_mode_after != 0 and p.resize_name_after != 'None':
-            image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
+            if p.selected_scale_tab_after == 1:
+                p.width_after, p.height_after = int(image.width * p.scale_by_after), int(image.height * p.scale_by_after)
+            if p.resize_mode_after != 0 and p.resize_name_after != 'None':
+                image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
 
         info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
         if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:

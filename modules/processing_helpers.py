@@ -298,28 +298,33 @@ def resize_init_images(p):
 
 
 def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler else latent
-    jobid = shared.state.begin('Resize')
-    if not torch.is_tensor(latents):
-        shared.log.warning('Hires: input is not tensor')
-        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-        shared.state.end(jobid)
-        return decoded
-
     if (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0) and hasattr(p, 'init_hr'):
         shared.log.error('Hires: missing upscaling dimensions')
-        shared.state.end(jobid)
-        return decoded
+        return latents
+
+    jobid = shared.state.begin('Resize')
 
     if p.hr_upscaler.lower().startswith('latent'):
+        if isinstance(latents, list):
+            try:
+                for i in range(len(latents)):
+                    if not torch.is_tensor(latents[i]):
+                        shared.log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
+                        latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
+                    latents = torch.cat(latents, dim=0)
+            except Exception as e:
+                shared.log.error(f'Hires: prepare latents: {e}')
+                resized = latents
+        elif not torch.is_tensor(latents):
+            shared.log.warning(f'Hires: input={type(latents)} not tensor')
         resized = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        shared.state.end(jobid)
-        return resized
+    else:
+        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
+        resized = []
+        for image in decoded:
+            resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
+            resized.append(resize)
 
-    decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-    resized = []
-    for image in decoded:
-        resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        resized.append(resize)
     devices.torch_gc()
     shared.state.end(jobid)
     return resized

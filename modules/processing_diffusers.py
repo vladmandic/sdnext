@@ -547,8 +547,9 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         output = SimpleNamespace(images=images)
 
     if (output is None or len(output.images) == 0) and has_images:
-        shared.log.debug('Processing: using input as base output')
-        output.images = p.init_images
+        if output is not None:
+            shared.log.debug('Processing: using input as base output')
+            output.images = p.init_images
 
     if shared.state.interrupted or shared.state.skipped:
         shared.sd_model = orig_pipeline
