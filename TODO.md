@@ -32,6 +32,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
+- [ByteDance OneReward](https://github.com/bytedance/OneReward)
+- [ByteDance USO](https://github.com/bytedance/USO)
 - Remove: Agent Scheduler  
 - Remove: CodeFormer  
 - Remove: GFPGAN  
@@ -40,12 +42,11 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### New models
 
-#### Diffusers:WiP
-- [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
-- [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
-#### External
 - [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
+- [Wan2.2 Fun](https://huggingface.co/collections/alibaba-pai/wan22-fun-68958eabec343b948f1225c5) (includes VACE, Control, etc)
+- [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
+- [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
 - [Step1X](https://github.com/stepfun-ai/Step1X-Edit)  
