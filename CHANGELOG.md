@@ -55,6 +55,7 @@ And check out new **history** tab in the right panel, it now shows visualization
   - configurable grid images size  
     in *settings -> user interface -> grid image size*  
   - gallery now includes reference model images  
+  - reference models now include indicator if they are *ready* or *need download*
 - **Offloading**
   - **balanced**
     - enable offload during pre-forward by default  

@@ -24,6 +24,7 @@ try:
 except Exception:
     config = {}
 
+reference_path = os.path.join('models', 'Reference')
 modules_path = os.path.dirname(os.path.realpath(__file__))
 script_path = os.path.dirname(modules_path)
 data_path = cli.data_dir
