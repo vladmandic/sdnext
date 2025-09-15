@@ -78,6 +78,8 @@ def apply_group_offload(sd_model, op:str='model'):
         'record_stream': shared.opts.group_offload_record,
         'low_cpu_mem_usage': False,
     }
+    if shared.opts.group_offload_type == 'block_level':
+        offload_dct['exclude_modules'] = ['vae']
     shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} options={offload_dct}')
     if hasattr(sd_model, "enable_group_offload"):
         sd_model.enable_group_offload(**offload_dct)

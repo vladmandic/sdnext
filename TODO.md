@@ -15,8 +15,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Blocked items
 
-- Upgrade: `pydantic`  
-  - see <https://github.com/Cschlaefli/automatic>  
 - Upgrade: `albumentations`  
   - blocked by `insightface`  
 
@@ -34,9 +32,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
-- Remove: Agent Scheduler  
-- Remove: CodeFormer  
-- Remove: GFPGAN  
+- Remove: `Agent Scheduler`  
+- Remove: `CodeFormer`
+- Remove: `GFPGAN`  
 - ModernUI: Lite vs Expert mode  
 - Engine: TensorRT acceleration
 
