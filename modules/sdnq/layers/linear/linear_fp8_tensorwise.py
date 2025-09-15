@@ -5,13 +5,12 @@ from typing import Tuple
 import torch
 
 from ...common import use_torch_compile # noqa: TID252
-from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from ...dequantizer import quantize_fp8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 
 
 def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).to(dtype=scale.dtype)
-    input_scale = torch.amax(input.abs(), dim=-1, keepdims=True).div_(448)
-    input = torch.div(input, input_scale).clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
+    input, input_scale = quantize_fp8(input, dim=-1)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)

@@ -42,6 +42,8 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
         zero_point = None
     if dtype_dict[weights_dtype]["is_integer"]:
         quantized_weight.round_()
+    else:
+        quantized_weight.nan_to_num_()
     quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
     return quantized_weight, scale, zero_point
 
