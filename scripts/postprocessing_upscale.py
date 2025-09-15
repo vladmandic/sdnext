@@ -23,15 +23,15 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
                                 with gr.Row(elem_id="upscaling_column_size"):
                                     upscaling_resize_w = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=1024, elem_id="extras_upscaling_resize_w")
                                     upscaling_resize_h = gr.Slider(minimum=64, maximum=4096, step=8, label="Height", value=1024, elem_id="extras_upscaling_resize_h")
-                                    upscaling_res_switch_btn = ToolButton(value=symbols.switch, elem_id="upscaling_res_switch_btn")
+                                    upscaling_res_switch_btn = ToolButton(value=symbols.switch, elem_id="upscaling_res_swap")
                                     upscaling_crop = gr.Checkbox(label='Crop to fit', value=True, elem_id="extras_upscaling_crop")
 
                 with gr.Row():
                     extras_upscaler_1 = gr.Dropdown(label='Upscaler', elem_id="extras_upscaler_1", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
 
                 with gr.Row():
-                    extras_upscaler_2 = gr.Dropdown(label='Refine Upscaler', elem_id="extras_upscaler_2", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
-                    extras_upscaler_2_visibility = gr.Slider(minimum=0.0, maximum=1.0, step=0.001, label="Upscaler 2 visibility", value=0.0, elem_id="extras_upscaler_2_visibility")
+                    extras_upscaler_2 = gr.Dropdown(label='Refine upscaler', elem_id="extras_upscaler_2", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
+                    extras_upscaler_2_visibility = gr.Slider(minimum=0.0, maximum=1.0, step=0.001, label="Blend strength", value=0.0, elem_id="extras_upscaler_2_visibility")
 
             upscaling_res_switch_btn.click(lambda w, h: (h, w), inputs=[upscaling_resize_w, upscaling_resize_h], outputs=[upscaling_resize_w, upscaling_resize_h], show_progress=False)
             tab_scale_by.select(fn=lambda: 0, inputs=[], outputs=[selected_tab])

@@ -7,6 +7,7 @@ from modules.processing_class import StableDiffusionProcessingControl
 from modules import shared, images, masking, sd_models
 from modules.timer import process as process_timer
 from modules.control import util
+from modules.control import processors as control_processors
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -50,6 +51,7 @@ def preprocess_image(
         has_models:bool = False,
     ):
     t0 = time.time()
+    jobid = shared.state.begin('Preprocess')
 
     # run resize before
     if p.resize_mode_before != 0 and p.resize_name_before != 'None':
@@ -108,7 +110,7 @@ def preprocess_image(
         if processed_image is not None:
             processed_images.append(processed_image)
         if shared.opts.control_unload_processor and process.processor_id is not None:
-            processors.config[process.processor_id]['dirty'] = True # to force reload
+            control_processors.config[process.processor_id]['dirty'] = True # to force reload
             process.model = None
 
     # blend processed images
@@ -245,4 +247,5 @@ def preprocess_image(
 
     t1 = time.time()
     process_timer.add('proc', t1-t0)
+    shared.state.end(jobid)
     return processed_image, blended_image

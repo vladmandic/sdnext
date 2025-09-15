@@ -248,7 +248,7 @@ def create_ui_logs():
 def create_ui_github():
     with gr.Row():
         github_search = gr.Textbox(label="Search GitHub Wiki Pages", elem_id="github_search", elem_classes="docs-search")
-        github_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="github_search_btn")
+        github_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="github_btn_search")
     with gr.Row():
         github_result = gr.HTML(elem_id="github_result", value='', elem_classes="github-result")
     with gr.Row():
@@ -262,7 +262,7 @@ def create_ui_github():
 def create_ui_docs():
     with gr.Row():
         docs_search = gr.Textbox(label="Search Docs", elem_id="github_search", elem_classes="docs-search")
-        docs_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="github_search_btn")
+        docs_search_btn = ui_components.ToolButton(value=ui_symbols.search, elem_id="docs_btn_search")
     with gr.Row():
         docs_result = gr.HTML(elem_id="docs_result", value='', elem_classes="docs-result")
     with gr.Row():

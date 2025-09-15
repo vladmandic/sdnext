@@ -134,7 +134,7 @@ class Script(scripts_manager.Script):
             app = get_app('buffalo_l')
             from modules.face.faceid import face_id
             processed_images = face_id(p, app=app, source_images=input_images, model=ip_model, override=ip_override, cache=ip_cache, scale=ip_strength, structure=ip_structure) # run faceid pipeline
-            processed = processing.Processed(p, images_list=processed_images, seed=p.seed, subseed=p.subseed, index_of_first_image=0) # manually created processed object
+            processed = processing.get_processed(p, images_list=processed_images, seed=p.seed, subseed=p.subseed, index_of_first_image=0) # manually created processed object
         elif mode == 'PhotoMaker': # photomaker creates pipeline and triggers original process_images
             from modules.face.insightface import get_app
             app = get_app('buffalo_l')
@@ -165,7 +165,7 @@ class Script(scripts_manager.Script):
 
         processed.info = processed.infotext(p, 0)
         processed.infotexts = [processed.info]
-        if shared.opts.samples_save and not p.do_not_save_samples:
+        if shared.opts.samples_save and not p.do_not_save_samples and processed.images is not None:
             for i, image in enumerate(processed.images):
                 info = processing.create_infotext(p, index=i)
                 images.save_image(image, path=p.outpath_samples, seed=p.all_seeds[i], prompt=p.all_prompts[i], info=info, p=p)

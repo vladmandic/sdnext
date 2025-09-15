@@ -40,6 +40,7 @@ def create_ui():
     with gr.Blocks(analytics_enabled=False) as _img2img_interface:
         img2img_prompt, img2img_prompt_styles, img2img_negative_prompt, img2img_submit, img2img_reprocess, img2img_paste, img2img_extra_networks_button, img2img_token_counter, img2img_token_button, img2img_negative_token_counter, img2img_negative_token_button = ui_sections.create_toprow(is_img2img=True, id_part="img2img")
         img2img_prompt_img = gr.File(label="", elem_id="img2img_prompt_image", file_count="single", type="binary", visible=False)
+        img2img_prompt_img.change(fn=modules.images.image_data, inputs=[img2img_prompt_img], outputs=[img2img_prompt, img2img_prompt_img])
 
         with gr.Row(variant='compact', elem_id="img2img_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
             from modules import ui_extra_networks
@@ -128,13 +129,13 @@ def create_ui():
 
                     with gr.Accordion(open=False, label="Denoise", elem_classes=["small-accordion"], elem_id="img2img_denoise_group"):
                         with gr.Row():
-                            denoising_strength = gr.Slider(minimum=0.0, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="img2img_denoising_strength")
+                            denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="img2img_denoising_strength")
                             refiner_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Denoise start', value=0.0, elem_id="img2img_refiner_start")
 
                     vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('img2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('img2img')
                     enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
-                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength = shared.yolo.ui('img2img')
+                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.yolo.ui('img2img')
 
                     # with gr.Group(elem_id="inpaint_controls", visible=False) as inpaint_controls:
                     with gr.Accordion(open=False, label="Mask", elem_classes=["small-accordion"], elem_id="img2img_mask_group") as inpaint_controls:
@@ -159,10 +160,9 @@ def create_ui():
 
             img2img_gallery, img2img_generation_info, img2img_html_info, _img2img_html_info_formatted, img2img_html_log = ui_common.create_output_panel("img2img", prompt=img2img_prompt)
 
-            ui_common.connect_reuse_seed(seed, reuse_seed, img2img_generation_info, is_subseed=False)
-            ui_common.connect_reuse_seed(subseed, reuse_subseed, img2img_generation_info, is_subseed=True, subseed_strength=subseed_strength)
+            ui_common.reuse_seed(seed, reuse_seed, subseed=False)
+            ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
-            img2img_prompt_img.change(fn=modules.images.image_data, inputs=[img2img_prompt_img], outputs=[img2img_prompt, img2img_prompt_img])
             dummy_component1 = gr.Textbox(visible=False, value='dummy')
             dummy_component2 = gr.Number(visible=False, value=0)
             img2img_args = [
@@ -174,7 +174,7 @@ def create_ui():
                 sampler_index,
                 mask_blur, mask_alpha,
                 vae_type, tiling, hidiffusion,
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
                 cfg_scale, image_cfg_scale,
                 diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
@@ -270,6 +270,7 @@ def create_ui():
                 (detailer_negative, "Detailer negative"),
                 (detailer_steps, "Detailer steps"),
                 (detailer_strength, "Detailer strength"),
+                (detailer_resolution, "Detailer resolution"),
                 # second pass
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),

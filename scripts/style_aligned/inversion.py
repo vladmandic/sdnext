@@ -49,7 +49,7 @@ def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
 
 def _encode_text_sdxl(model: StableDiffusionXLPipeline, prompt: str) -> tuple[dict[str, T], T]:
     device = model._execution_device # pylint: disable=protected-access
-    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.tokenizer, model.text_encoder, device) # pylint: disable=unused-variable
+    prompt_embeds, _pooled_prompt_embeds, = _get_text_embeddings(prompt, model.tokenizer, model.text_encoder, device) # pylint: disable=unused-variable
     prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model.tokenizer_2, model.text_encoder_2, device)
     prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
     text_encoder_projection_dim = model.text_encoder_2.config.projection_dim

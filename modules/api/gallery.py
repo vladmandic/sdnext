@@ -128,8 +128,10 @@ def register_api(app: FastAPI): # register api
 
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
     def get_folders():
+        reference_dir = os.path.join('models', 'Reference')
         folders = [shared.opts.data.get(f, '') for f in OPTS_FOLDERS]
         folders += list(shared.opts.browser_folders.split(','))
+        folders += [reference_dir]
         folders = [f.strip() for f in folders if f != '']
         folders = list(dict.fromkeys(folders)) # filter duplicates
         folders = [f for f in folders if os.path.isdir(f)]

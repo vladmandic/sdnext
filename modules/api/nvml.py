@@ -31,7 +31,7 @@ def get_nvml():
     try:
         from modules.memstats import ram_stats
         if not nvml_initialized:
-            install('pynvml', quiet=True)
+            install('nvidia-ml-py', quiet=True)
             import pynvml # pylint: disable=redefined-outer-name
             pynvml.nvmlInit()
             log.debug('NVML initialized')

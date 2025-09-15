@@ -1,5 +1,4 @@
 import sys
-from functools import wraps
 import torch
 from modules import shared
 
@@ -93,35 +92,5 @@ if sys.platform == "win32":
                         shared.log.warning(f'[TRITON] defaulting mem_bus_width=128 for device "{name}".')
                 return props
             triton.runtime.driver.active.utils.get_device_properties = triton_runtime_driver_active_utils_get_device_properties
-
-            if 'Flash attention' in shared.opts.sdp_options:
-                from modules.flash_attn_triton_amd import interface_fa
-                sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
-                @wraps(sdpa_pre_flash_atten)
-                def sdpa_flash_atten(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None):
-                    if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
-                        if scale is None:
-                            scale = query.shape[-1] ** (-0.5)
-                        head_size_og = query.size(3)
-                        if head_size_og % 8 != 0:
-                            query = torch.nn.functional.pad(query, [0, 8 - head_size_og % 8])
-                            key = torch.nn.functional.pad(key, [0, 8 - head_size_og % 8])
-                            value = torch.nn.functional.pad(value, [0, 8 - head_size_og % 8])
-                        query = query.transpose(1, 2)
-                        out_padded = torch.zeros_like(query)
-                        interface_fa.fwd(
-                            query,
-                            key.transpose(1, 2),
-                            value.transpose(1, 2),
-                            out_padded,
-                            dropout_p,
-                            scale,
-                            is_causal,
-                        )
-                        return out_padded[..., :head_size_og].transpose(1, 2)
-                    else:
-                        return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
-                torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten
-                shared.log.debug('Torch attention: type="triton flash attention"')
         except Exception:
             pass

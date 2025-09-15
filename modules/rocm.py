@@ -191,7 +191,6 @@ else:
 
     def set_blaslt_enabled(enabled: bool) -> None:
         if enabled:
-            load_library_global("/opt/rocm/lib/libhipblaslt.so") # Preload hipBLASLt.
             os.environ["HIPBLASLT_TENSILE_LIBPATH"] = blaslt_tensile_libpath
         else:
             os.environ["TORCH_BLAS_PREFER_HIPBLASLT"] = "0"
@@ -201,11 +200,11 @@ else:
 
     def get_flash_attention_command(agent: Agent):
         default = "git+https://github.com/ROCm/flash-attention"
-        if agent.gfx_version >= 0x1100 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
+        if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
             # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
             # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
             default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
-        return os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+        return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
     version_torch = get_version_torch()

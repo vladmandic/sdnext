@@ -1,5 +1,129 @@
 # Change Log for SD.Next
 
+## Update for 2025-09-15
+
+### Highlights for 2025-09-15
+
+*What's new*? Big one is that we're (*finally*) switching the default UI to **ModernUI**, for both desktop and mobile use!  
+**StandardUI** is still available and can be selected in settings, but ModernUI is now the default for new installs  
+
+*What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
+Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
+And check out new **history** tab in the right panel, it now shows visualization of entire processing timeline!  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-09-15
+
+- **Models**
+  - **Chroma** final versions: [Chroma1-HD](https://huggingface.co/lodestones/Chroma1-HD), [Chroma1-Base](https://huggingface.co/lodestones/Chroma1-Base) and [Chroma1-Flash](https://huggingface.co/lodestones/Chroma1-Flash)  
+  - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
+    *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
+  - [Qwen-Lightning-Edit](https://huggingface.co/vladmandic/Qwen-Lightning-Edit) and [Qwen-Image-Distill](https://huggingface.co/SahilCarterr/Qwen-Image-Distill-Full) variants  
+  - **Nuchaku** variants of [Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image), [Qwen-Image-Edit](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit), [Nunchaku-Qwen-Image-Edit-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit)
+  - **Nunchaku** variant of [Flux.1-Krea-Dev](https://huggingface.co/nunchaku-tech/nunchaku-flux.1-krea-dev)  
+    if you have a compatible nVidia GPU, Nunchaku is the fastest quantization & inference engine  
+  - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
+  - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
+    highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
+    for pretraining T2I model at home based on super-light architecture  
+    *requires*: generator=cpu, dtype=float16, offload=none, both positive and negative prompts are required and must be long & detailed  
+  - [Apple FastVLM](https://huggingface.co/apple/FastVLM-0.5B) in 0.5B, 1.5B and 7B variants  
+    available in captioning tab  
+  - updated [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
+- **UI**
+  - default to **ModernUI**  
+    standard ui is still available via *settings -> user interface -> theme type*  
+  - mobile-friendly!  
+  - new **History** section in the right panel  
+    shows detailed job history plus timeline of the execution  
+  - make hints touch-friendly: hold touch to display hint  
+  - improved image scaling in img2img and control interfaces  
+  - add base model type to networks display, thanks @Artheriax  
+  - additional hints to ui, thanks @Artheriax  
+  - add video support to gallery, thanks @CalamitousFelicitousness  
+  - additional artwork for reference models in networks, thanks @liutyi  
+  - improve ui hints display  
+  - restyled all toolbuttons to be modernui native  
+  - reodered system settings  
+  - dynamic direction of dropdowns  
+  - improve process tab layout  
+  - improve detection of active tab  
+  - configurable horizontal vs vertical panel layout  
+    in settings -> user interface -> panel min width  
+    *example*: if panel width is less than specified value, layout switches to verical  
+  - configurable grid images size  
+    in *settings -> user interface -> grid image size*  
+  - gallery now includes reference model images  
+  - reference models now include indicator if they are *ready* or *need download*
+- **Offloading**
+  - **balanced**
+    - enable offload during pre-forward by default  
+    - improve offloading of models with multiple dits  
+    - improve offloading of models with impliciy vae processing  
+    - improve offloading of models with controlnet  
+    - more aggressive offloading of controlnets with lowvram flag  
+  - **group**
+    - new offloading method, using *type=leaf* works on a similar level as sequential offloading  
+      and can present siginificant savings on low-vram gpus, but comes at the higher performace cost  
+- **Quantization**
+  - option to specify models types not to quantize: *settings -> quantization*  
+    allows for having quantization enabled, but skipping specific model types that do not need it  
+    *example*: `sd, sdxl`  
+  - **sdnq**
+    - add quantized matmul support for all quantization types and group sizes  
+    - improve the performance of low bit quants  
+  - **nunchaku**: update to `nunchaku==1.0.0`  
+    *note*: nunchaku updated the repo which will trigger re-download of nunchaku models when first used  
+    nunchaku is currently available for: *Flux.1 Dev/Schnell/Kontext/Krea/Depth/Fill*, *Qwen-Image/Qwen-Lightning*, *SANA-1.6B*  
+  - **tensorrt**: new quantization engine from nvidia  
+    *experimental*: requires new pydantic package which *may* break other things, to enable start sdnext with `--new` flag  
+    *note*: this is model quantization only, no support for tensorRT inference yet  
+- **Other**
+  - refactor reuse-seed and add functionality to all tabs  
+  - refactor modernui js codebase  
+  - move zluda flash attenion to *Triton Flash attention* option  
+  - remove samplers filtering  
+  - allow both flow-matching and discrete samplers for sdxl models  
+  - cleanup command line parameters  
+  - add `--new` command line flag to enable testing of new packages without breaking existing installs  
+  - downgrade rocm to `torch==2.7.1`  
+  - set the minimum supported rocm version on linux to `rocm==6.0`  
+  - disallow `zluda` and `directml` on non-windows platforms  
+  - update openvino to `openvino==2025.3.0`  
+  - add deprecation warning for `python==3.9`  
+  - allow setting denoise strength to 0 in control/img2img  
+    this allows to run workflows which only refine or detail existing image without changing it   
+  - **Detailer** allow manually setting processing resolution  
+    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
+- **Fixes**
+  - normalize path hanlding when deleting images  
+  - unified compile upscalers  
+  - fix OpenVINO with ControlNet  
+  - fix hidden model tags in networks display  
+  - fix networks reference models display on windows  
+  - fix handling of pre-quantized `flux` models  
+  - fix `wan` use correct pipeline for i2v models  
+  - fix `qwen-image` with hires  
+  - fix `omnigen-2` failure  
+  - fix `auraflow` quantization  
+  - fix `kandinsky-3` noise  
+  - fix `infiniteyou` pipeline offloading  
+  - fix `skyreels-v2` image-to-video  
+  - fix `flex2` img2img denoising strength  
+  - fix `flex2` contronet vs inpaint image selection, thanks @alerikaisattera  
+  - fix some use cases with access via reverse-proxy  
+  - fix segfault on startup with `rocm==6.4.3` and `torch==2.8`  
+  - fix wildcards folders traversal, thanks @dymil  
+  - fix zluda flash attention with enable_gqa  
+  - fix `wan a14b` quantization  
+  - fix reprocess workflow for control with hires  
+  - fix samplers set timesteps vs sigmas  
+  - fix `detailer` missing metadata  
+  - fix `infiniteyou` lora load with  
+
 ## Update for 2025-08-20
 
 A quick service release with several important hotfixes, improved localization support and adding new **Qwen** model variants...
@@ -14,14 +138,14 @@ A quick service release with several important hotfixes, improved localization s
     *note*: release version of `nunchaku==0.3.2` does NOT include support, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source  
 - [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html)  
   - updated with new models  
-- **Features**
+- **Features**  
   - new *setting -> huggingface -> download method*  
     default is `rust` as new `xet` is known to cause issues  
   - support for `flux.1-kontext` lora  
   - support for `qwen-image` lora  
   - new *setting -> quantization -> modules dtype dict*  
     used to manually override quant types per module  
-- **UI**
+- **UI**  
   - new artwork for reference models in networks  
     thanks @liutyi  
   - updated [localization](https://vladmandic.github.io/sdnext-docs/Locale/) for all 8 languages  
@@ -30,10 +154,10 @@ A quick service release with several important hotfixes, improved localization s
     double-click on locale resets locale to `en`  
   - exclude ModernUI from list of extensions  
     ModernUI is enabled in settings, not by manually enabling extension  
-- **Docs**
+- **Docs**  
   - Models and Video pages updated with links to original model repos, model licenses and original release dates  
     thanks @alerikaisattera  
-- **Fixes**
+- **Fixes**  
   - nunchaku use new download links and default to `0.3.2`  
     nunchaku wheels: <https://huggingface.co/nunchaku-tech/nunchaku/tree/main>  
   - fix OpenVINO with offloading  
@@ -1140,6 +1264,7 @@ Models...And support for new models: **CogView-4**, **SANA 1.5**,
   - fix paste incorrect float to int cast  
   - fix server restart from ui  
   - fix style apply params  
+  - fix `wan22-i2v`  
   - do not allow edit of built-in styles  
   - improve lora compatibility with balanced offload  
 

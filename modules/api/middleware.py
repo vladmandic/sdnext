@@ -15,7 +15,13 @@ import modules.errors as errors
 
 
 errors.install()
-ignore_endpoints = ['/sdapi/v1/log', '/sdapi/v1/browser', '/sdapi/v1/gpu', '/sdapi/v1/network/thumb']
+ignore_endpoints = [
+    '/sdapi/v1/log',
+    '/sdapi/v1/browser',
+    '/sdapi/v1/gpu',
+    '/sdapi/v1/network/thumb',
+    '/sdapi/v1/progress',
+]
 
 
 def setup_middleware(app: FastAPI, cmd_opts):

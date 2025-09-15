@@ -89,6 +89,7 @@ def run_ltx(task_id,
             sampler_index=sampler_index,
             seed=seed,
         )
+        p.ops.append('video')
 
         conditions = get_conditions(
             width,

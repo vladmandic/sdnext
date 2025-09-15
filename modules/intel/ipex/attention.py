@@ -1,3 +1,5 @@
+from typing import Tuple, Optional
+
 import os
 import torch
 from functools import cache, wraps
@@ -6,12 +8,12 @@ from functools import cache, wraps
 
 # ARC GPUs can't allocate more than 4GB to a single block so we slice the attention layers
 
-sdpa_slice_trigger_rate = float(os.environ.get('IPEX_SDPA_SLICE_TRIGGER_RATE', 1))
-attention_slice_rate = float(os.environ.get('IPEX_ATTENTION_SLICE_RATE', 0.5))
+dynamic_attention_slice_rate = float(os.environ.get('IPEX_SDPA_SLICE_TRIGGER_RATE', 1))
+dynamic_attention_trigger_rate = float(os.environ.get('IPEX_ATTENTION_SLICE_RATE', 0.5))
 
 # Find something divisible with the input_tokens
 @cache
-def find_split_size(original_size, slice_block_size, slice_rate=2):
+def find_split_size(original_size: int, slice_block_size: int, slice_rate: int = 2) -> int:
     split_size = original_size
     while True:
         if (split_size * slice_block_size) <= slice_rate and original_size % split_size == 0:
@@ -24,7 +26,7 @@ def find_split_size(original_size, slice_block_size, slice_rate=2):
 
 # Find slice sizes for SDPA
 @cache
-def find_sdpa_slice_sizes(query_shape, key_shape, query_element_size, slice_rate=2, trigger_rate=3):
+def find_sdpa_slice_sizes(query_shape: Tuple[int], key_shape: Tuple[int], query_element_size: int, slice_rate: int = 2, trigger_rate: int = 3) -> Tuple[bool, int]:
     batch_size, attn_heads, query_len, _ = query_shape
     _, _, key_len, _ = key_shape
 
@@ -55,13 +57,13 @@ def find_sdpa_slice_sizes(query_shape, key_shape, query_element_size, slice_rate
     return do_batch_split, do_head_split, do_query_split, split_batch_size, split_head_size, split_query_size
 
 
-original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
+sdpa_pre_dyanmic_atten = torch.nn.functional.scaled_dot_product_attention
 @wraps(torch.nn.functional.scaled_dot_product_attention)
-def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False, **kwargs):
+def dynamic_scaled_dot_product_attention(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.FloatTensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
     if query.device.type != "xpu":
         if enable_gqa:
             kwargs["enable_gqa"] = enable_gqa
-        return original_scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
+        return sdpa_pre_dyanmic_atten(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
     is_unsqueezed = False
     if query.dim() == 3:
         query = query.unsqueeze(0)
@@ -73,7 +75,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
     if enable_gqa:
         key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
         value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
-    do_batch_split, do_head_split, do_query_split, split_batch_size, split_head_size, split_query_size = find_sdpa_slice_sizes(query.shape, key.shape, query.element_size(), slice_rate=attention_slice_rate, trigger_rate=sdpa_slice_trigger_rate)
+    do_batch_split, do_head_split, do_query_split, split_batch_size, split_head_size, split_query_size = find_sdpa_slice_sizes(query.shape, key.shape, query.element_size(), slice_rate=dynamic_attention_slice_rate, trigger_rate=dynamic_attention_trigger_rate)
 
     # Slice SDPA
     if do_batch_split:
@@ -93,7 +95,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                         for iq in range(query_len // split_query_size): # pylint: disable=invalid-name
                             start_idx_q = iq * split_query_size
                             end_idx_q = (iq + 1) * split_query_size
-                            hidden_states[start_idx:end_idx, start_idx_h:end_idx_h, start_idx_q:end_idx_q, :] = original_scaled_dot_product_attention(
+                            hidden_states[start_idx:end_idx, start_idx_h:end_idx_h, start_idx_q:end_idx_q, :] = sdpa_pre_dyanmic_atten(
                                 query[start_idx:end_idx, start_idx_h:end_idx_h, start_idx_q:end_idx_q, :],
                                 key[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                                 value[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
@@ -101,7 +103,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                                 dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs
                             )
                     else:
-                        hidden_states[start_idx:end_idx, start_idx_h:end_idx_h, :, :] = original_scaled_dot_product_attention(
+                        hidden_states[start_idx:end_idx, start_idx_h:end_idx_h, :, :] = sdpa_pre_dyanmic_atten(
                             query[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                             key[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
                             value[start_idx:end_idx, start_idx_h:end_idx_h, :, :],
@@ -109,7 +111,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                             dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs
                         )
             else:
-                hidden_states[start_idx:end_idx, :, :, :] = original_scaled_dot_product_attention(
+                hidden_states[start_idx:end_idx, :, :, :] = sdpa_pre_dyanmic_atten(
                     query[start_idx:end_idx, :, :, :],
                     key[start_idx:end_idx, :, :, :],
                     value[start_idx:end_idx, :, :, :],
@@ -118,7 +120,7 @@ def dynamic_scaled_dot_product_attention(query, key, value, attn_mask=None, drop
                 )
         torch.xpu.synchronize(query.device)
     else:
-        hidden_states = original_scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
+        hidden_states = sdpa_pre_dyanmic_atten(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
     if is_unsqueezed:
         hidden_states = hidden_states.squeeze(0)
     return hidden_states

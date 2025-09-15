@@ -57,6 +57,7 @@ class StableDiffusionProcessing:
                  detailer_negative: str = '',
                  detailer_steps: int = 10,
                  detailer_strength: float = 0.3,
+                 detailer_resolution: int = 1024,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -204,6 +205,7 @@ class StableDiffusionProcessing:
         self.detailer_negative = detailer_negative
         self.detailer_steps = detailer_steps
         self.detailer_strength = detailer_strength
+        self.detailer_resolution = detailer_resolution
         self.restore_faces = restore_faces
         self.init_images = init_images
         self.resize_mode = resize_mode
@@ -368,8 +370,8 @@ class StableDiffusionProcessing:
                 shared.opts.sd_model_checkpoint = sd_model_checkpoint
                 sd_models.reload_model_weights()
 
-    def __str__(self):
-        return f'{self.__class__.__name__}: {self.__dict__}'
+    def __repr__(self):
+        return f'{self.__class__.__name__}({", ".join([f"{k}={v}" for k, v in self.__dict__.items() if k not in ["scripts_value", "script_args_value"]])})'
 
     @property
     def sd_model(self):
@@ -557,15 +559,17 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init_hr(self, scale = None, upscaler = None, force = False):
-        scale = scale or self.scale_by
-        upscaler = upscaler or self.resize_name
+    def init_hr(self, scale:float=None, upscaler:str=None, force:bool=False):
+        scale = scale or self.scale_by or self.scale_by_before
+        upscaler = upscaler or self.hr_upscaler or self.resize_name or self.resize_name_before
+        if upscaler is None:
+            upscaler = 'None'
+        # self.hr_upscaler = upscaler or 'None'
         use_scale = self.hr_resize_x == 0 or self.hr_resize_y == 0
         if upscaler == 'None' or (use_scale and scale == 1.0):
             return
         self.is_hr_pass = True
         self.hr_force = force
-        self.hr_upscaler = upscaler
         if use_scale:
             vae_scale_factor = sd_vae.get_vae_scale_factor()
             self.hr_upscale_to_x, self.hr_upscale_to_y = vae_scale_factor * int(self.width * scale / vae_scale_factor), vae_scale_factor * int(self.height * scale / vae_scale_factor)

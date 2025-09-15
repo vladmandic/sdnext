@@ -1,8 +1,10 @@
 {
+  "sd-v21-512-ema": "models/Reference/stabilityai--stable-diffusion-2-1-base.jpg",
+  "stabilityai--stable-diffusion-xl-base-1.0": "models/Reference/sd_xl_base_1.0.jpg",
   "stabilityai--stable-diffusion-3-medium-diffusers": "models/Reference/stabilityai--stable-diffusion-3.jpg",
-  "stabilityai--stable-diffusion-3.5-medium": "models/Reference/stabilityai--stable-diffusion-3_5.jpg",
-  "stabilityai--stable-diffusion-3.5-large": "models/Reference/stabilityai--stable-diffusion-3_5.jpg",
-  "stabilityai--stable-diffusion-3.5-large-turbo": "models/Reference/stabilityai--stable-diffusion-3_5.jpg",
+  "stabilityai--stable-diffusion-3.5-medium": "models/Reference/stabilityai--stable-diffusion-3_5-medium.jpg",
+  "stabilityai--stable-diffusion-3.5-large": "models/Reference/stabilityai--stable-diffusion-3_5-large.jpg",
+  "stabilityai--stable-diffusion-3.5-large-turbo": "models/Reference/stabilityai--stable-diffusion-3_5-large-turbo.jpg",
   "Disty0--FLUX.1-dev-qint8": "models/Reference/black-forest-labs--FLUX.1-dev.jpg",
   "Disty0--FLUX.1-dev-qint4": "models/Reference/black-forest-labs--FLUX.1-dev.jpg",
   "sayakpaul--flux.1-dev-nf4": "models/Reference/black-forest-labs--FLUX.1-dev.jpg",
@@ -15,7 +17,13 @@
   "Efficient-Large-Model--Sana_600M_1024px_diffusers": "models/Reference/Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
   "stabilityai--stable-video-diffusion-img2vid-xt-1-1": "models/Reference/stabilityai--stable-video-diffusion-img2vid-xt.jpg",
   "shuttleai--shuttle-3-diffusion": "models/Reference/shuttleai--shuttle-3-diffusion.jpg",
-  "HiDream-ai/HiDream-I1-Full": "models/Reference/HiDream-I1 Full",
-  "vladmandic/chroma-unlocked-v50": "models/Reference/lodestones Chroma Unlocked HD",
-  "vladmandic/chroma-unlocked-v50-annealed": "models/Reference/lodestones Chroma Unlocked HD"
+  "HiDream-I1-Full": "models/Reference/HiDream-I1 Full",
+  "lodestones--Chroma1-Base": "models/Reference/lodestones--Chroma-Base.jpg",
+  "lodestones--Chroma1-HD": "models/Reference/lodestones--Chroma-HD.jpg",
+  "chroma-unlocked-v50": "models/Reference/lodestones Chroma Unlocked HD",
+  "chroma-unlocked-v50-annealed": "models/Reference/lodestones Chroma Unlocked HD",
+  "vladmandic--Qwen-Lightning": "models/Reference/Qwen-Lightning.jpg",
+  "vladmandic--Qwen-Lightning-Edit": "models/Reference/Qwen-Lightning.jpg",
+  "Wan-AI--Wan2.2-T2V-A14B-Diffusers": "models/Reference/Wan2.2-T2V-A14B.jpg",
+  "Wan-AI--Wan2.1-T2V-14B-Diffusers": "models/Reference/Wan-AI--Wan2.1.jpg"
 }

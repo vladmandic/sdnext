@@ -7,15 +7,20 @@ let lastTab = 'control';
 
 const getENActiveTab = () => {
   let tabName = '';
-  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility()) tabName = 'txt2img';
-  else if (gradioApp().getElementById('img2img_prompt')?.checkVisibility()) tabName = 'img2img';
-  else if (gradioApp().getElementById('control_prompt')?.checkVisibility()) tabName = 'control';
-  else if (gradioApp().getElementById('video_prompt')?.checkVisibility()) tabName = 'video';
+  if (gradioApp().getElementById('txt2img_prompt')?.checkVisibility() || gradioApp().getElementById('txt2img_generate')?.checkVisibility()) tabName = 'txt2img';
+  else if (gradioApp().getElementById('img2img_prompt')?.checkVisibility() || gradioApp().getElementById('img2img_generate')?.checkVisibility()) tabName = 'img2img';
+  else if (gradioApp().getElementById('control_prompt')?.checkVisibility() || gradioApp().getElementById('control_generate')?.checkVisibility()) tabName = 'control';
+  else if (gradioApp().getElementById('video_prompt')?.checkVisibility() || gradioApp().getElementById('video_generate')?.checkVisibility()) tabName = 'video';
   else if (gradioApp().getElementById('extras_image')?.checkVisibility()) tabName = 'process';
   else if (gradioApp().getElementById('interrogate_image')?.checkVisibility()) tabName = 'caption';
   else if (gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) tabName = 'gallery';
-  if (tabName in ['process', 'caption', 'gallery']) tabName = lastTab;
-  else lastTab = tabName;
+
+  if (['process', 'caption', 'gallery'].includes(tabName)) {
+    tabName = lastTab;
+  } else if (tabName !== '') {
+    lastTab = tabName;
+  }
+
   if (tabName !== '') return tabName;
   // legacy method
   if (gradioApp().getElementById('tab_txt2img')?.style.display === 'block') tabName = 'txt2img';
@@ -173,7 +178,7 @@ async function filterExtraNetworksForTab(searchTerm) {
     found += cards.filter((elem) => elem.style.display === '').length;
   }
   const t1 = performance.now();
-  log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(1000 * (t1 - t0)) / 1000000}`);
+  log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(t1 - t0)}`);
 }
 
 function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
@@ -209,6 +214,7 @@ function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
 }
 
 function sortExtraNetworks(fixed = 'no') {
+  const t0 = performance.now();
   const sortDesc = ['Default', 'Name [A-Z]', 'Name [Z-A]', 'Date [Newest]', 'Date [Oldest]', 'Size [Largest]', 'Size [Smallest]'];
   const pagename = getENActivePage();
   if (!pagename) return 'sort error: unknown page';
@@ -236,7 +242,8 @@ function sortExtraNetworks(fixed = 'no') {
     for (const card of cards) pg.appendChild(card);
   }
   const desc = sortDesc[sortVal];
-  log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num });
+  const t1 = performance.now();
+  log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num, time: Math.round(t1 - t0) });
   return desc;
 }
 
@@ -277,8 +284,30 @@ function extraNetworksSearchButton(event) {
   const tabName = getENActiveTab();
   const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const button = event.target;
-  searchTextarea.value = `${button.textContent.trim()}/`;
-  updateInput(searchTextarea);
+  if (searchTextarea) {
+    searchTextarea.value = `${button.textContent.trim()}/`;
+    updateInput(searchTextarea);
+  } else {
+    console.error(`Could not find the search textarea for the tab: ${tabName}`);
+  }
+}
+
+function extraNetworksFilterVersion(event) {
+  // log('extraNetworksFilterVersion', event);
+  const version = event.target.textContent.trim();
+  const activeTab = getENActiveTab();
+  const cardContainer = gradioApp().querySelector(`#${activeTab}_model_cards`);
+  if (!cardContainer) return;
+  if (cardContainer.dataset.activeVersion === version) {
+    cardContainer.dataset.activeVersion = '';
+    cardContainer.querySelectorAll('.card').forEach((card) => card.style.display = '');
+  } else {
+    cardContainer.dataset.activeVersion = version;
+    cardContainer.querySelectorAll('.card').forEach((card) => {
+      if (card.dataset.version === version) card.style.display = '';
+      else card.style.display = 'none';
+    });
+  }
 }
 
 let desiredStyle = '';

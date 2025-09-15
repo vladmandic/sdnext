@@ -105,7 +105,7 @@ class CheckpointInfo:
         return self.shorthash
 
     def __str__(self):
-        return f'checkpoint: type={self.type} title="{self.title}" path="{self.path}"'
+        return f"CheckpointInfo(name={self.name} filename={self.filename} hash={self.shorthash} type={self.type}"
 
 
 def setup_model():

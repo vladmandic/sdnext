@@ -932,7 +932,7 @@ svg.feather.feather-image,
 .extra-network-cards .card .version {
   position: absolute;
   top: 0;
-  left: 0;
+  right: 0;
   padding: 2px;
   font-weight: bolder;
   text-shadow: 1px 1px black;
@@ -953,7 +953,7 @@ svg.feather.feather-image,
 }
 
 /* No Preview Card Styles */
-.extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
+.extra-network-cards .card:has(>img[src*="missing.png"])::before {
   content: '';
   position: absolute;
   width: 100%;
@@ -1007,11 +1007,11 @@ svg.feather.feather-image,
 }
 
 .splash-img {
-  margin: 0;
+  margin: 10% auto 0 auto;
   width: 512px;
   height: 512px;
   background-repeat: no-repeat;
-  animation: color 8s infinite alternate, move 3s infinite alternate;
+  animation: hue 5s infinite alternate;
 }
 
 .loading {

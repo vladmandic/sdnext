@@ -31,9 +31,33 @@ ReqControl = models.create_model_from_signature(
         {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
         {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
         {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
-        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+        # {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
 )
+if not hasattr(ReqControl, "__config__"):
+    ReqControl.__config__ = models.DummyConfig
+
+"""
+ReqControl = models.PydanticModelGenerator(
+    "StableDiffusionProcessingControl",
+    StableDiffusionProcessingControl,
+    [
+        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_name", "type": str, "default": "Default"},
+        {"key": "script_name", "type": Optional[str], "default": ""},
+        {"key": "script_args", "type": list, "default": []},
+        {"key": "send_images", "type": bool, "default": True},
+        {"key": "save_images", "type": bool, "default": False},
+        {"key": "alwayson_scripts", "type": dict, "default": {}},
+        {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
+        {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
+        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+    ]
+).generate_model()
+if not hasattr(ReqControl, "__config__"):
+    ReqControl.__config__ = models.DummyConfig
+"""
 
 
 class ResControl(BaseModel):
@@ -155,7 +179,7 @@ class APIControl():
 
         # run
         with self.queue_lock:
-            shared.state.begin('API-CTL', api=True)
+            jobid = shared.state.begin('API-CTL', api=True)
             output_images = []
             output_processed = []
             output_info = ''
@@ -173,7 +197,7 @@ class APIControl():
                     output_info += item
                 else:
                     pass
-            shared.state.end(api=False)
+            shared.state.end(jobid)
 
         # return
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []

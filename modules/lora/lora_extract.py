@@ -135,7 +135,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
     maxrank = int(maxrank)
     rank_ratio = 1 if not auto_rank else rank_ratio
     shared.log.debug(f'LoRA extract: modules={modules} maxrank={maxrank} auto={auto_rank} ratio={rank_ratio} fn="{fn}"')
-    shared.state.begin('LoRA extract')
+    jobid = shared.state.begin('LoRA extract')
 
     with rp.Progress(rp.TextColumn('[cyan]LoRA extract'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console) as progress:
 
@@ -226,7 +226,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             yield msg
             return
 
-    shared.state.end()
+    shared.state.end(jobid)
     meta = make_meta(fn, maxrank, rank_ratio)
     shared.log.debug(f'LoRA metadata: {meta}')
     try:
@@ -253,7 +253,7 @@ def create_ui():
             gr.HTML('<h2>&nbspExtract currently loaded LoRA(s)<br></h2>')
         with gr.Row():
             loaded = gr.Textbox(placeholder="Press refresh to query loaded LoRA", label="Loaded LoRA", interactive=False)
-            create_refresh_button(loaded, lambda: None, lambda: {'value': loaded_lora_str()}, "testid")
+            create_refresh_button(loaded, lambda: None, lambda: {'value': loaded_lora_str()}, "lora_extract_refresh")
         with gr.Group():
             with gr.Row():
                 modules = gr.CheckboxGroup(label="Modules to extract", value=['unet'], choices=['te', 'unet'])

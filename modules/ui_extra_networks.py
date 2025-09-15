@@ -24,7 +24,7 @@ extra_pages = shared.extra_networks
 debug = shared.log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: EN')
 card_full = '''
-    <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' style='--data-color: {color}'>
+    <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' data-version='{version}' style='--data-color: {color}'>
         <div class='overlay'>
             <div class='name {reference}'>{title}</div>
         </div>
@@ -56,7 +56,9 @@ def init_api():
         global allowed_dirs # pylint: disable=global-statement
         if len(allowed_dirs) == 0:
             allowed_dirs = shared.demo.allowed_paths
-        if not os.path.exists(filename):
+        if filename is None or len(filename) == 0:
+            return JSONResponse({ "error": "no filename" }, status_code=400)
+        if not os.path.exists(filename) or not os.path.isfile(filename):
             return JSONResponse({ "error": f"file {filename}: not found" }, status_code=404)
         if filename.startswith('html/') or filename.startswith('models/'):
             return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
@@ -109,14 +111,22 @@ def init_api():
         item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
         if item is None:
             return JSONResponse({ 'item': 'none' })
-        return JSONResponse(item)
-
+        obj = json.dumps(item, cls=DateTimeEncoder)
+        return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, o):
+        from datetime import datetime
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return super().default(o)
 
 
 class ExtraNetworksPage:
@@ -149,28 +159,35 @@ class ExtraNetworksPage:
         return text.replace('~tabname', tabname)
 
     def create_xyz_grid(self):
-        """
-        xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz_grid.py"][0].module
+        pass
 
-        def add_prompt(p, opt, x):
-            for item in [x for x in self.items if x["name"] == opt]:
-                try:
-                    p.prompt = f'{p.prompt} {eval(item["prompt"])}' # pylint: disable=eval-used
-                except Exception as e:
-                    shared.log.error(f'Cannot evaluate extra network prompt: {item["prompt"]} {e}')
-
-        if not any(self.title in x.label for x in xyz_grid.axis_options):
-            if self.title == 'Model':
-                return
-            opt = xyz_grid.AxisOption(f"[Network] {self.title}", str, add_prompt, choices=lambda: [x["name"] for x in self.items])
-            if opt not in xyz_grid.axis_options:
-                xyz_grid.axis_options.append(opt)
-        """
+    def find_version(self, item, info):
+        all_versions = info.get('modelVersions', [])
+        if len(all_versions) == 0:
+            return {}
+        try:
+            if item is None:
+                return all_versions[0]
+            elif hasattr(item, 'hash') and item.hash is not None:
+                current_hash = item.hash[:8].upper()
+            elif hasattr(item, 'shorthash') and item.shorthash is not None:
+                current_hash = item.shorthash[:8].upper()
+            elif hasattr(item, 'sha256') and item.sha256 is not None:
+                current_hash = item.sha256[:8].upper()
+            else:
+                return all_versions[0]
+            for v in info.get('modelVersions', []):
+                for f in v.get('files', []):
+                    if any(h.startswith(current_hash) for h in f.get('hashes', {}).values()):
+                        return v
+        except Exception as e:
+            errors.display(e, 'Network version')
+        return all_versions[0]
 
     def link_preview(self, filename):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
-        preview = f"/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
+        preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
     def create_thumb(self):
@@ -225,7 +242,6 @@ class ExtraNetworksPage:
         debug(f'EN create-items: page={self.name} items={len(self.items)} time={t1-t0:.2f}')
         self.list_time += t1-t0
 
-
     def create_page(self, tabname, skip = False):
         debug(f'EN create-page: {self.name}')
         if self.page_time > refresh_time and len(self.html) > 0: # cached page
@@ -276,9 +292,20 @@ class ExtraNetworksPage:
             if len(subdir) == 0:
                 continue
             style = 'color: var(--color-accent)' if subdir in ['All', 'Local', 'Diffusers', 'Reference'] else ''
-            subdirs_html += f'<button class="lg secondary gradio-button custom-button" onclick="extraNetworksSearchButton(event)" style="{style}">{html.escape(subdir)}</button><br>'
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference']:
+                style = 'network-reference'
+            else:
+                style = 'network-folder'
+            subdirs_html += f'<button class="lg secondary gradio-button custom-button {style}" onclick="extraNetworksSearchButton(event)">{html.escape(subdir)}</button><br>'
         self.html = ''
         self.create_items(tabname)
+        versions = sorted({item.get("version", "") for item in self.items if item.get("version")})
+        for v in ['ref', 'reference', 'ready', 'download']:
+            if v in versions:
+                versions.remove(v)
+        versions_html = ''
+        for ver in versions:
+            versions_html += f'<button class="lg secondary gradio-button custom-button network-model" onclick="extraNetworksFilterVersion(event)">{html.escape(ver)}</button><br>'
         self.create_xyz_grid()
         htmls = []
 
@@ -302,7 +329,7 @@ class ExtraNetworksPage:
             htmls.append(self.create_html(item, tabname))
         self.html += ''.join(htmls)
         self.page_time = time.time()
-        self.html = f"<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"
+        self.html = f"""<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}{versions_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"""
         shared.log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
         if len(self.missing_thumbs) > 0:
             threading.Thread(target=self.create_thumb).start()
@@ -331,7 +358,7 @@ class ExtraNetworksPage:
                 "filename": item.get('filename', ''),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
-                "preview": html.escape(item.get('preview', None) or self.link_preview('html/card-no-preview.png')),
+                "preview": html.escape(item.get('preview', None) or self.link_preview('html/missing.png')),
                 "width": 'var(--card-size)',
                 "height": 'var(--card-size)' if shared.opts.extra_networks_card_square else 'auto',
                 "fit": shared.opts.extra_networks_card_fit,
@@ -357,7 +384,7 @@ class ExtraNetworksPage:
 
     def find_preview_file(self, path):
         if path is None:
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         if os.path.join('models', 'Reference') in path:
             return path
         exts = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl"]
@@ -374,7 +401,7 @@ class ExtraNetworksPage:
                 if '.thumb.' not in file:
                     self.missing_thumbs.append(file)
                 return file
-        return 'html/card-no-preview.png'
+        return 'html/missing.png'
 
     def find_preview(self, filename):
         t0 = time.time()
@@ -424,7 +451,7 @@ class ExtraNetworksPage:
                     item['preview'] = self.link_preview(found)
                     debug(f'EN mapped-preview: {item["name"]}={found}')
             if item.get('preview', None) is None:
-                item['preview'] = self.link_preview('html/card-no-preview.png')
+                item['preview'] = self.link_preview('html/missing.png')
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
@@ -462,14 +489,17 @@ class ExtraNetworksPage:
         if shared.cmd_opts.no_metadata:
             return data
         if path is not None:
+            t0 = time.time()
             fn = os.path.splitext(path)[0] + '.json'
-            if os.path.exists(fn):
-                t0 = time.time()
+            if not data and os.path.exists(fn):
                 data = shared.readfile(fn, silent=True)
-                if type(data) is list:
-                    data = data[0]
-                t1 = time.time()
-                self.info_time += t1-t0
+            fn = os.path.join(path, 'model_index.json')
+            if not data and os.path.exists(fn):
+                data = shared.readfile(fn, silent=True)
+            if type(data) is list:
+                data = data[0]
+            t1 = time.time()
+            self.info_time += t1-t0
         return data
 
 
@@ -692,19 +722,19 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def fn_save_img(image):
         if ui.last_item is None or ui.last_item.local_preview is None:
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         images = []
         if ui.gallery is not None:
             images = list(ui.gallery.temp_files) # gallery cannot be used as input component so looking at most recently registered temp files
         if len(images) < 1:
             shared.log.warning(f'Network no image: item="{ui.last_item.name}"')
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         try:
             images.sort(key=lambda f: os.path.getmtime(f), reverse=True)
             image = Image.open(images[0])
         except Exception as e:
             shared.log.error(f'Network error opening image: item="{ui.last_item.name}" {e}')
-            return 'html/card-no-preview.png'
+            return 'html/missing.png'
         fn_delete_img(image)
         if image.width > 512 or image.height > 512:
             image = image.convert('RGB')
@@ -723,7 +753,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if os.path.exists(file):
                 os.remove(file)
                 shared.log.debug(f'Network delete image: item="{ui.last_item.name}" filename="{file}"')
-        return 'html/card-no-preview.png'
+        return 'html/missing.png'
 
     def fn_save_desc(desc):
         if hasattr(ui.last_item, 'type') and ui.last_item.type == 'Style':

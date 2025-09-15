@@ -56,7 +56,7 @@ class Script(scripts_manager.Script):
             change = (final_denoising_strength - initial_denoising_strength) * strength
             return initial_denoising_strength + change
 
-        for n in range(initial_batch_count):
+        for _n in range(initial_batch_count):
             p.init_images = initial_init_images
             p.denoising_strength = initial_denoising_strength
             last_image = None
@@ -67,7 +67,6 @@ class Script(scripts_manager.Script):
                 p.do_not_save_grid = True
                 if opts.img2img_color_correction:
                     p.color_corrections = initial_color_corrections
-                state.job = f"loopback iteration {i+1}/{loops} batch {n+1}/{initial_batch_count}"
                 processed = processing.process_images(p)
                 if processed is None:
                     log.error("Loopback: processing output is none")

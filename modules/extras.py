@@ -30,12 +30,12 @@ def to_half(tensor, enable):
 
 
 def run_modelmerger(id_task, **kwargs):  # pylint: disable=unused-argument
-    shared.state.begin('Merge')
+    jobid = shared.state.begin('Merge')
     t0 = time.time()
 
     def fail(message):
         shared.state.textinfo = message
-        shared.state.end()
+        shared.state.end(jobid)
         return [*[gr.update() for _ in range(4)], message]
 
     kwargs["models"] = {
@@ -177,7 +177,7 @@ def run_modelmerger(id_task, **kwargs):  # pylint: disable=unused-argument
     if created_model:
         created_model.calculate_shorthash()
     devices.torch_gc(force=True, reason='merge')
-    shared.state.end()
+    shared.state.end(jobid)
     return [*[gr.Dropdown.update(choices=sd_models.checkpoint_titles()) for _ in range(4)], f"Model saved to {output_modelname}"]
 
 
@@ -209,7 +209,7 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
         yield msg("input model not found", err=True)
         return
     fn = checkpoint_info.filename
-    shared.state.begin('Merge')
+    jobid = shared.state.begin('Merge')
     yield msg("modules merge starting")
     yield msg("unload current model")
     sd_models.unload_model_weights(op='model')
@@ -257,4 +257,4 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
         sd_models.set_diffuser_options(shared.sd_model, offload=False)
         sd_models.set_diffuser_offload(shared.sd_model)
         yield msg("pipeline loaded")
-    shared.state.end()
+    shared.state.end(jobid)

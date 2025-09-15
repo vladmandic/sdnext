@@ -1,7 +1,7 @@
 import os
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 
 
 def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer'):
@@ -24,6 +24,7 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
             fn,
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
+            **quant_args,
         )
     else:
         shared.log.debug(f'Load model: type=WanAI {subfolder}="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -60,13 +61,13 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     sd_models.hf_auth_check(checkpoint_info)
 
     if 'a14b' in repo_id.lower():
-        if shared.opts.model_wan_stage == 'high noise':
+        if shared.opts.model_wan_stage == 'high noise' or shared.opts.model_wan_stage == 'first':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = None
-        elif shared.opts.model_wan_stage == 'low noise':
+        elif shared.opts.model_wan_stage == 'low noise' or shared.opts.model_wan_stage == 'second':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
             transformer_2 = None
-        elif shared.opts.model_wan_stage == 'combined':
+        elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
         else:
@@ -80,9 +81,14 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     boundary_ratio = shared.opts.model_wan_boundary if transformer_2 is not None else None
-    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage={shared.opts.model_wan_stage} boundary={boundary_ratio}')
 
-    cls = diffusers.WanPipeline
+    if 'Wan2.2-I2V' in repo_id:
+        cls = diffusers.WanImageToVideoPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanImageToVideoPipeline
+    else:
+        cls = diffusers.WanPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
+    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
     pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,
@@ -102,9 +108,7 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     del transformer_2
 
     sd_hijack_te.init_hijack(pipe)
-    from modules.video_models import video_vae
-    pipe.vae.orig_decode = pipe.vae.decode
-    pipe.vae.decode = video_vae.hijack_vae_decode
+    sd_hijack_vae.init_hijack(pipe)
 
     devices.torch_gc()
     return pipe

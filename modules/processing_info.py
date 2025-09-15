@@ -143,6 +143,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Detailer"] = ', '.join(shared.opts.detailer_models) if len(shared.opts.detailer_args) == 0 else shared.opts.detailer_args
         args["Detailer steps"] = p.detailer_steps
         args["Detailer strength"] = p.detailer_strength
+        args["Detailer resolution"] = p.detailer_resolution if p.detailer_resolution != 1024 else None
         args["Detailer prompt"] = p.detailer_prompt if len(p.detailer_prompt) > 0 else None
         args["Detailer negative"] = p.detailer_negative if len(p.detailer_negative) > 0 else None
     if 'color' in p.ops:

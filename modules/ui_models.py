@@ -169,11 +169,11 @@ def create_ui():
                             merge_mode_docs = gr.HTML(value=getattr(merge_methods, "weighted_sum", "").__doc__.replace("\n", "<br>"))
                         with gr.Row():
                             primary_model_name = gr.Dropdown(sd_model_choices(), label="Primary model", value="None")
-                            create_refresh_button(primary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "refresh_checkpoint_A")
+                            create_refresh_button(primary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "checkpoint_A_refresh")
                             secondary_model_name = gr.Dropdown(sd_model_choices(), label="Secondary model", value="None")
-                            create_refresh_button(secondary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "refresh_checkpoint_B")
+                            create_refresh_button(secondary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "checkpoint_B_refresh")
                             tertiary_model_name = gr.Dropdown(sd_model_choices(), label="Tertiary model", value="None", visible=False)
-                            tertiary_refresh = create_refresh_button(tertiary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "refresh_checkpoint_C", visible=False)
+                            tertiary_refresh = create_refresh_button(tertiary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "checkpoint_C_refresh", visible=False)
                         with gr.Row():
                             with gr.Tabs() as tabs:
                                 with gr.TabItem(label="Simple Merge", id=0):
@@ -229,7 +229,7 @@ def create_ui():
                             bake_in_vae = gr.Dropdown(choices=["None"] + list(sd_vae.vae_dict), value="None", interactive=True, label="Replace VAE")
                             create_refresh_button(bake_in_vae, sd_vae.refresh_vae_list,
                                                   lambda: {"choices": ["None"] + list(sd_vae.vae_dict)},
-                                                  "modelmerger_refresh_bake_in_vae")
+                                                  "modelmerger_bake_in_vae_refresh")
                         with gr.Row():
                             modelmerger_merge = gr.Button(value="Merge", variant='primary')
 
@@ -403,7 +403,7 @@ def create_ui():
                     with gr.Column(scale=5):
                         with gr.Row():
                             model_name = gr.Dropdown(sd_models.checkpoint_titles(), label="Input model")
-                            create_refresh_button(model_name, sd_models.list_models, lambda: {"choices": sd_models.checkpoint_titles()}, "refresh_checkpoint_Z")
+                            create_refresh_button(model_name, sd_models.list_models, lambda: {"choices": sd_models.checkpoint_titles()}, "checkpoint_Z_refresh")
                     with gr.Column(scale=5):
                         custom_name = gr.Textbox(label="Output model", placeholder="Output model path")
                 with gr.Row():
@@ -492,7 +492,7 @@ def create_ui():
                 with gr.Row(elem_id='civitai_search_row'):
                     civit_search_text = gr.Textbox(label='', placeholder='keyword', elem_id="civit_search_text")
                     civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_text")
-                    civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True)
+                    civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True, elem_id="civit_text_search")
                 with gr.Accordion(label='Advanced', open=False, elem_id="civitai_search_options"):
                     civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
                     with gr.Row():
@@ -530,7 +530,7 @@ def create_ui():
                         gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
                     with gr.Row():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
-                        hf_search_btn = ToolButton(value=ui_symbols.search)
+                        hf_search_btn = ToolButton(value=ui_symbols.search, interactive=True, elem_id="hf_text_search")
                     with gr.Row():
                         hf_selected = gr.Textbox('', label='Select model', placeholder='select model from search results or enter model name manually')
                     with gr.Accordion(label='Advanced', open=False, elem_id="hf_search_options"):

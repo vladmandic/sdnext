@@ -84,6 +84,7 @@ def worker(
         prompts = list(reversed(prompts))
 
     def text_encode(prompt, i:int=None):
+        jobid = shared.state.begin('TE Encode')
         pbar.update(task, description=f'text encode section={i}')
         t0 = time.time()
         torch.manual_seed(seed)
@@ -102,9 +103,11 @@ def worker(
         llama_vec_n, llama_attention_mask_n = utils.crop_or_pad_yield_mask(llama_vec_n, length=512)
         sd_models.apply_balanced_offload(shared.sd_model)
         timer.process.add('prompt', time.time()-t0)
+        shared.state.end(jobid)
         return llama_vec, llama_vec_n, llama_attention_mask, llama_attention_mask_n, clip_l_pooler, clip_l_pooler_n
 
     def latents_encode(input_image, end_image):
+        jobid = shared.state.begin('VAE Encode')
         pbar.update(task, description='image encode')
         # shared.log.debug(f'FramePack: image encode init={input_image.shape} end={end_image.shape if end_image is not None else None}')
         t0 = time.time()
@@ -126,6 +129,7 @@ def worker(
             end_latent = None
         sd_models.apply_balanced_offload(shared.sd_model)
         timer.process.add('encode', time.time()-t0)
+        shared.state.end(jobid)
         return start_latent, end_latent
 
     def vision_encode(input_image, end_image):

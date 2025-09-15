@@ -180,11 +180,10 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if load_method == 'diffusers':
             has_changed = False # diffusers handles its own loading
             if len(exclude) == 0:
-                job = shared.state.job
-                shared.state.job = 'LoRA'
+                jobid = shared.state.begin('LoRA')
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
-                shared.state.job = job
+                shared.state.end(jobid)
         elif load_method == 'nunchaku':
             from modules.lora import lora_nunchaku
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
@@ -192,16 +191,15 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)
             if has_changed:
-                job = shared.state.job
-                shared.state.job = 'LoRA'
+                jobid = shared.state.begin('LoRA')
                 if len(l.previously_loaded_networks) > 0:
                     shared.log.info(f'Network unload: type=LoRA apply={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
                 if len(exclude) > 0: # only update on last activation
                     l.previously_loaded_networks = l.loaded_networks.copy()
-                shared.state.job = job
                 debug_log(f'Network load: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]} changed')
+                shared.state.end(jobid)
 
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)

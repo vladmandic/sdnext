@@ -2,10 +2,19 @@ import os
 import html
 import json
 import concurrent
-from modules import shared, ui_extra_networks, sd_models, modelstats
+from modules import shared, ui_extra_networks, sd_models, modelstats, paths
 
 
-reference_dir = os.path.join('models', 'Reference')
+version_map = {
+    "QwenEdit": "Qwen",
+    "Flux.1 D": "Flux",
+    "Flux.1 S": "Flux",
+    "FluxKontext": "Flux",
+    "SDXL 1.0": "SD XL",
+    "SDXL Hyper": "SD XL",
+    "StableDiffusion3": "SD 3",
+    "StableDiffusionXL": "SD XL",
+}
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
     def __init__(self):
@@ -15,6 +24,12 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         shared.refresh_checkpoints()
 
     def list_reference(self): # pylint: disable=inconsistent-return-statements
+        existing = [model.filename if model.type == 'safetensors' else model.name for model in sd_models.checkpoints_list.values()]
+
+        def reference_downloaded(url):
+            url = url.split('@')[0] if '@' in url else 'Diffusers/' + url
+            return any(model.endswith(url) for model in existing)
+
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
             return []
         for k, v in shared.reference_models.items():
@@ -26,14 +41,15 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 else:
                     continue
             preview = v.get('preview', v['path'])
-            preview_file = self.find_preview_file(os.path.join(reference_dir, preview))
+            preview_file = self.find_preview_file(os.path.join(paths.reference_path, preview))
             _size, mtime = modelstats.stat(preview_file)
+            name = os.path.normpath(os.path.join(paths.reference_path, k)).replace('\\', '/')
             yield {
                 "type": 'Model',
-                "name": os.path.join(reference_dir, k),
-                "title": os.path.join(reference_dir, k),
+                "name": name,
+                "title": name,
                 "filename": url,
-                "preview": self.find_preview(os.path.join(reference_dir, preview)),
+                "preview": self.find_preview(os.path.join(paths.reference_path, preview)),
                 "local_preview": preview_file,
                 "onclick": '"' + html.escape(f"selectReference({json.dumps(url)})") + '"',
                 "hash": None,
@@ -42,6 +58,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
+                "version": "ready" if reference_downloaded(url) else "download",
             }
 
     def create_item(self, name):
@@ -60,8 +77,17 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "mtime": mtime,
                 "size": size,
             }
-            record["info"] = self.find_info(checkpoint.filename)
-            record["description"] = self.find_description(checkpoint.filename, record["info"])
+            record['info'] = self.find_info(checkpoint.filename)
+            record['description'] = self.find_description(checkpoint.filename, record['info'])
+            version = self.find_version(checkpoint, record['info'])
+            if 'baseModel' in version:
+                record['version'] = version.get("baseModel", "")
+            elif '_class_name' in record['info']:
+                record['version'] = record['info'].get('_class_name', '').replace('Pipeline', '').replace('Image', '')
+            else:
+                record['version'] = ''
+            record['version'] = version_map.get(record['version'], record['version'])
+
         except Exception as e:
             shared.log.debug(f'Networks error: type=model file="{name}" {e}')
         return record
@@ -80,4 +106,4 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         return items
 
     def allowed_directories_for_previews(self):
-        return [v for v in [shared.opts.ckpt_dir, reference_dir, sd_models.model_path] if v is not None]
+        return [v for v in [shared.opts.ckpt_dir, paths.reference_path, sd_models.model_path] if v is not None]

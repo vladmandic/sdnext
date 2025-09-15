@@ -18,6 +18,9 @@ vae_scale_override = {
 
 
 def get_vae_scale_factor(model=None):
+    if not shared.sd_loaded:
+        vae_scale_factor = 8
+        return vae_scale_factor
     patch_size = 1
     if model is None:
         model = shared.sd_model

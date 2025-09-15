@@ -20,6 +20,7 @@ exclude = [
 
     "pipelines/meissonic",
     "pipelines/omnigen2",
+    "pipelines/hdm",
     "pipelines/segmoe",
 
     "scripts/lbm",
@@ -84,6 +85,7 @@ ignore = [
   "RUF013", # PEP 484 prohibits implicit `Optional`
   "RUF015", # Prefer `next(...)` over single element slice
   "RUF046", # Value being cast to `int` is already an integer
+  "RUF059", # Unpacked variables are not used
   "RUF051", # Prefer pop over del
 ]
 fixable = ["ALL"]

@@ -28,7 +28,6 @@ def load_model(engine: str, model: str):
 def load_upsample(upsample_pipe, upsample_repo_id):
     if upsample_pipe is None:
         t0 = time.time()
-        shared.state.begin('Load')
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
         shared.log.info(f'Video load: cls={LTXLatentUpsamplePipeline.__class__.__name__} repo="{upsample_repo_id}"')
         upsample_pipe = LTXLatentUpsamplePipeline.from_pretrained(
@@ -37,7 +36,6 @@ def load_upsample(upsample_pipe, upsample_repo_id):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
-        shared.state.end()
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe

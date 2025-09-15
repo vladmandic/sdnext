@@ -20,7 +20,8 @@ def get_sd_models():
     from modules import sd_checkpoint
     checkpoints = []
     for v in sd_checkpoint.checkpoints_list.values():
-        checkpoints.append({"title": v.title, "model_name": v.name, "filename": v.filename, "type": v.type, "hash": v.shorthash, "sha256": v.sha256})
+        model = models.ItemModel(title=v.title, model_name=v.name, filename=v.filename, type=v.type, hash=v.shorthash, sha256=v.sha256, config=None)
+        checkpoints.append(model)
     return checkpoints
 
 def get_controlnets(model_type: Optional[str] = None):

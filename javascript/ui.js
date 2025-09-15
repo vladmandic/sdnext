@@ -296,7 +296,6 @@ function submit_video_wrapper(...args) {
   log('submitVideoWrapper', id);
   const btn = gradioApp().getElementById(`${id}_generate_btn`);
   if (btn) btn.click();
-  else console.log('submit_video_wrapper: no button found', id);
 }
 
 function submit_postprocessing(...args) {

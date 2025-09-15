@@ -42,7 +42,7 @@ def create_ui():
                     with gr.Row():
                         vlm_prompt = gr.Textbox(label="Prompt", placeholder="optionally enter custom prompt", lines=2, elem_id='vlm_prompt')
                     with gr.Row(elem_id='interrogate_buttons_query'):
-                        vlm_model = gr.Dropdown(list(vqa.vlm_models), value=list(vqa.vlm_models)[0], label='VLM Model', elem_id='vlm_model')
+                        vlm_model = gr.Dropdown(list(vqa.vlm_models), value=vqa.vlm_default, label='VLM Model', elem_id='vlm_model')
                     with gr.Accordion(label='Advanced options', open=False, visible=True):
                         with gr.Row():
                             vlm_max_tokens = gr.Slider(label='VLM max tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
@@ -77,7 +77,7 @@ def create_ui():
                 with gr.Tab("CLiP Interrogate", elem_id='tab_clip_interrogate'):
                     with gr.Row():
                         clip_model = gr.Dropdown([], value=shared.opts.interrogate_clip_model, label='CLiP model', elem_id='clip_clip_model')
-                        ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_refresh_models')
+                        ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
                         blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.interrogate_blip_model, label='Caption model', elem_id='btN_clip_blip_model')
                         clip_mode = gr.Dropdown(openclip.caption_types, label='Mode', value='fast', elem_id='clip_clip_mode')
                     with gr.Accordion(label='Advanced options', open=False, visible=True):

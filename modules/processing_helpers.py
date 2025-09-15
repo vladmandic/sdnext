@@ -205,8 +205,6 @@ def decode_first_stage(model, x):
         shared.log.debug(f'Decode VAE: skipped={shared.state.skipped} interrupted={shared.state.interrupted}')
         x_sample = torch.zeros((len(x), 3, x.shape[2] * 8, x.shape[3] * 8), dtype=devices.dtype_vae, device=devices.device)
         return x_sample
-    prev_job = shared.state.job
-    shared.state.job = 'VAE'
     with devices.autocast(disable = x.dtype==devices.dtype_vae):
         try:
             if hasattr(model, 'decode_first_stage'):
@@ -220,7 +218,6 @@ def decode_first_stage(model, x):
         except Exception as e:
             x_sample = x
             shared.log.error(f'Decode VAE: {e}')
-    shared.state.job = prev_job
     return x_sample
 
 
@@ -301,25 +298,35 @@ def resize_init_images(p):
 
 
 def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler else latent
-    if not torch.is_tensor(latents):
-        shared.log.warning('Hires: input is not tensor')
-        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-        return decoded
-
     if (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0) and hasattr(p, 'init_hr'):
         shared.log.error('Hires: missing upscaling dimensions')
-        return decoded
+        return latents
+
+    jobid = shared.state.begin('Resize')
 
     if p.hr_upscaler.lower().startswith('latent'):
+        if isinstance(latents, list):
+            try:
+                for i in range(len(latents)):
+                    if not torch.is_tensor(latents[i]):
+                        shared.log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
+                        latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
+                    latents = torch.cat(latents, dim=0)
+            except Exception as e:
+                shared.log.error(f'Hires: prepare latents: {e}')
+                resized = latents
+        elif not torch.is_tensor(latents):
+            shared.log.warning(f'Hires: input={type(latents)} not tensor')
         resized = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        return resized
+    else:
+        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
+        resized = []
+        for image in decoded:
+            resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
+            resized.append(resize)
 
-    decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
-    resized = []
-    for image in decoded:
-        resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
-        resized.append(resize)
     devices.torch_gc()
+    shared.state.end(jobid)
     return resized
 
 

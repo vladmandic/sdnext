@@ -12,8 +12,8 @@ def create_ui():
     with gr.Blocks(analytics_enabled=False) as _txt2img_interface:
         txt2img_prompt, txt2img_prompt_styles, txt2img_negative_prompt, txt2img_submit, txt2img_reprocess, txt2img_paste, txt2img_extra_networks_button, txt2img_token_counter, txt2img_token_button, txt2img_negative_token_counter, txt2img_negative_token_button = ui_sections.create_toprow(is_img2img=False, id_part="txt2img")
 
-        txt_prompt_img = gr.File(label="", elem_id="txt2img_prompt_image", file_count="single", type="binary", visible=False)
-        txt_prompt_img.change(fn=images.image_data, inputs=[txt_prompt_img], outputs=[txt2img_prompt, txt_prompt_img])
+        txt2img_prompt_img = gr.File(label="", elem_id="txt2img_prompt_image", file_count="single", type="binary", visible=False)
+        txt2img_prompt_img.change(fn=images.image_data, inputs=[txt2img_prompt_img], outputs=[txt2img_prompt, txt2img_prompt_img])
 
         with gr.Row(variant='compact', elem_id="txt2img_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
             from modules import ui_extra_networks
@@ -37,7 +37,7 @@ def create_ui():
                     vae_type, tiling, hidiffusion, _cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, _cfg_end = ui_sections.create_advanced_inputs('txt2img', base=False)
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
                     enable_hr, hr_sampler_index, denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
-                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength  = shared.yolo.ui('txt2img')
+                    detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution  = shared.yolo.ui('txt2img')
                     override_settings = ui_common.create_override_inputs('txt2img')
                     state = gr.Textbox(value='', visible=False)
 
@@ -45,8 +45,8 @@ def create_ui():
                     txt2img_script_inputs = modules.scripts_manager.scripts_txt2img.setup_ui(parent='txt2img', accordion=True)
 
             txt2img_gallery, txt2img_generation_info, txt2img_html_info, _txt2img_html_info_formatted, txt2img_html_log = ui_common.create_output_panel("txt2img", preview=True, prompt=txt2img_prompt)
-            ui_common.connect_reuse_seed(seed, reuse_seed, txt2img_generation_info, is_subseed=False)
-            ui_common.connect_reuse_seed(subseed, reuse_subseed, txt2img_generation_info, is_subseed=True, subseed_strength=subseed_strength)
+            ui_common.reuse_seed(seed, reuse_seed, subseed=False)
+            ui_common.reuse_seed(subseed, reuse_subseed, subseed=True)
 
             dummy_component = gr.Textbox(visible=False, value='dummy')
 
@@ -55,7 +55,7 @@ def create_ui():
                 txt2img_prompt, txt2img_negative_prompt, txt2img_prompt_styles,
                 steps, sampler_index, hr_sampler_index,
                 vae_type, tiling, hidiffusion,
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
                 cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
                 clip_skip,
@@ -123,6 +123,7 @@ def create_ui():
                 (detailer_negative, "Detailer negative"),
                 (detailer_steps, "Detailer steps"),
                 (detailer_strength, "Detailer strength"),
+                (detailer_resolution, "Detailer resolution"),
                 # second pass
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),

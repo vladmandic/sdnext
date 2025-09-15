@@ -44,7 +44,6 @@ async function updateGPU() {
     }
     const gpuTbody = gpuTable.querySelector('tbody');
     for (const gpu of data) {
-      console.log(gpu);
       let rows = `<tr><td>GPU</td><td>${gpu.name}</td></tr>`;
       for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
       gpuTbody.innerHTML = rows;

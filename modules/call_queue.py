@@ -50,7 +50,7 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             task_id = args[0]
         else:
             task_id = 0
-        shared.state.begin(job_name, task_id=task_id)
+        jobid = shared.state.begin(job_name, task_id=task_id)
         try:
             if shared.cmd_opts.profile:
                 pr = cProfile.Profile()
@@ -70,7 +70,7 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             if extra_outputs_array is None:
                 extra_outputs_array = [None, '']
             res = extra_outputs_array + [f"<div class='error'>{html.escape(type(e).__name__+': '+str(e))}</div>"]
-        shared.state.end()
+        shared.state.end(jobid)
         if not add_stats:
             return tuple(res)
         elapsed = time.perf_counter() - t

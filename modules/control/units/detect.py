@@ -20,3 +20,11 @@ def is_f1(model):
 
 def is_sd3(model):
     return is_compatible(model, pattern='StableDiffusion3Pipeline')
+
+
+def is_qwen(model):
+    return is_compatible(model, pattern='Qwen')
+
+
+def is_hunyuandit(model):
+    return is_compatible(model, pattern='HunyuanDiT')

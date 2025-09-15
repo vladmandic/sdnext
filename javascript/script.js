@@ -14,7 +14,7 @@ function logFn(func) {
     const t0 = performance.now();
     const returnValue = func(...arguments);
     const t1 = performance.now();
-    log(func.name, Math.round(t1 - t0) / 1000);
+    log(func.name, `time=${Math.round(t1 - t0)}`);
     return returnValue;
   };
 }

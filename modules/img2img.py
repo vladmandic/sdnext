@@ -159,7 +159,7 @@ def img2img(id_task: str, state: str, mode: int,
             sampler_index,
             mask_blur, mask_alpha,
             vae_type, tiling, hidiffusion,
-            detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength,
+            detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
             n_iter, batch_size,
             cfg_scale, image_cfg_scale,
             diffusers_guidance_rescale,
@@ -268,6 +268,7 @@ def img2img(id_task: str, state: str, mode: int,
         detailer_negative=detailer_negative,
         detailer_steps=detailer_steps,
         detailer_strength=detailer_strength,
+        detailer_resolution=detailer_resolution,
         init_images=[image],
         mask=mask,
         mask_blur=mask_blur,
@@ -317,7 +318,7 @@ def img2img(id_task: str, state: str, mode: int,
     p.is_batch = mode == 5
     if p.is_batch:
         process_batch(p, img2img_batch_files, img2img_batch_input_dir, img2img_batch_output_dir, img2img_batch_inpaint_mask_dir, args)
-        processed = processing.Processed(p, [], p.seed, "")
+        processed = processing.get_processed(p, [], p.seed, "")
     else:
         processed = scripts_manager.scripts_img2img.run(p, *args)
         if processed is None:

@@ -12,6 +12,7 @@ from installer import installed, install, log, setup_logging
 ao = None
 bnb = None
 optimum_quanto = None
+trt = None
 quant_last_model_name = None
 quant_last_model_device = None
 debug = os.environ.get('SD_QUANT_DEBUG', None) is not None
@@ -39,7 +40,17 @@ def get_quant(name):
     return 'none'
 
 
-def create_bnb_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = []):
+def dont_quant():
+    from modules import shared
+    models_list = re.split(r'[ ,]+', shared.opts.models_not_to_quant)
+    models_list = [m.lower().strip() for m in models_list]
+    if shared.sd_model_type.lower() in models_list:
+        shared.log.debug(f'Quantization: model={shared.sd_model_type} skip')
+        return True
+    return False
+
+
+def create_bnb_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None):
     from modules import shared, devices
     if allow and (module == 'any' or module in shared.opts.bnb_quantization):
         load_bnb()
@@ -62,7 +73,7 @@ def create_bnb_config(kwargs = None, allow: bool = True, module: str = 'Model', 
     return kwargs
 
 
-def create_ao_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = []):
+def create_ao_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None):
     from modules import shared
     if allow and (shared.opts.torchao_quantization_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.torchao_quantization):
         torchao = load_torchao()
@@ -81,7 +92,7 @@ def create_ao_config(kwargs = None, allow: bool = True, module: str = 'Model', m
     return kwargs
 
 
-def create_quanto_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = []):
+def create_quanto_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None):
     from modules import shared
     if allow and (module == 'any' or module in shared.opts.quanto_quantization):
         load_quanto(silent=True)
@@ -103,7 +114,35 @@ def create_quanto_config(kwargs = None, allow: bool = True, module: str = 'Model
     return kwargs
 
 
-def get_sdnq_devices():
+def create_trt_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None):
+    from modules import shared
+    if allow and (module == 'any' or module in shared.opts.trt_quantization):
+        load_trt()
+        if trt is None:
+            return kwargs
+        trt_config_data = {
+            "int8": {"quant_type": "INT8", "quant_method": "modelopt", "modules_to_not_convert": []},
+            "int4": {"quant_type": "INT4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv", "patch_embed"]},
+            "fp8": {"quant_type": "FP8", "quant_method": "modelopt", "modules_to_not_convert": []},
+            "nf4": {"quant_type": "NF4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "scale_block_quantize": 8, "scale_channel_quantize": -1, "modules_to_not_convert": ["conv"]},
+            "nvfp4": {"quant_type": "NVFP4", "quant_method": "modelopt", "block_quantize": 128, "channel_quantize": -1, "modules_to_not_convert": ["conv"]},
+        }
+        trt_quant_config = trt_config_data[shared.opts.trt_quantization_type].copy()
+        if modules_to_not_convert is not None:
+            for m in modules_to_not_convert:
+                if m not in trt_quant_config['modules_to_not_convert']:
+                    trt_quant_config['modules_to_not_convert'].append(m)
+        trt_config = diffusers.quantizers.quantization_config.NVIDIAModelOptConfig(**trt_quant_config)
+        log.debug(f'Quantization: module={module} type=tensorrt dtype={shared.opts.trt_quantization_type}')
+        if kwargs is None:
+            return trt_config
+        else:
+            kwargs['quantization_config'] = trt_config
+            return kwargs
+    return kwargs
+
+
+def get_sdnq_devices(mode="pre"):
     from modules import devices, shared
     if shared.opts.device_map == "gpu":
         quantization_device = devices.device
@@ -111,7 +150,7 @@ def get_sdnq_devices():
     elif shared.opts.device_map == "cpu":
         quantization_device = devices.cpu
         return_device = devices.cpu
-    elif shared.opts.diffusers_offload_mode in {"none", "model"}:
+    elif shared.opts.diffusers_offload_mode in {"none", "model"} or (mode == "post" and shared.opts.sdnq_quantize_shuffle_weights):
         quantization_device = devices.device if shared.opts.sdnq_quantize_with_gpu else devices.cpu
         return_device = devices.device
     elif shared.opts.sdnq_quantize_with_gpu:
@@ -122,14 +161,11 @@ def get_sdnq_devices():
         return_device = None
     return quantization_device, return_device
 
-def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
+
+def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model', weights_dtype: str = None, modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
     from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
-        from modules.sdnq import SDNQQuantizer, SDNQConfig
-        diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
-        transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
-        diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
-        transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
+        from modules.sdnq import SDNQConfig
 
         if weights_dtype is None:
             if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
@@ -138,6 +174,11 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
                 weights_dtype = shared.opts.sdnq_quantize_weights_mode
         if weights_dtype is None or weights_dtype == 'none':
             return kwargs
+
+        if modules_to_not_convert is None:
+            modules_to_not_convert = []
+        if modules_dtype_dict is None:
+            modules_dtype_dict = {}
 
         sdnq_modules_to_not_convert = [m.strip() for m in re.split(';|,| ', shared.opts.sdnq_modules_to_not_convert) if len(m.strip()) > 1]
         if len(sdnq_modules_to_not_convert) > 0:
@@ -159,7 +200,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         except Exception as e:
             log.warning(f'Quantization: SDNQ failed to parse sdnq_modules_dtype_dict: {e}')
 
-        quantization_device, return_device = get_sdnq_devices()
+        quantization_device, return_device = get_sdnq_devices(mode="pre")
 
         sdnq_config = SDNQConfig(
             weights_dtype=weights_dtype,
@@ -201,7 +242,9 @@ def check_nunchaku(module: str = ''):
     return True
 
 
-def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
+def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
+    if dont_quant():
+        return kwargs
     if kwargs is None:
         kwargs = {}
     kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
@@ -223,6 +266,11 @@ def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modu
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:
             log.trace(f'Quantization: type=torchao config={kwargs.get("quantization_config", None)}')
+        return kwargs
+    kwargs = create_trt_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert)
+    if kwargs is not None and 'quantization_config' in kwargs:
+        if debug:
+            log.trace(f'Quantization: type=tensorrt config={kwargs.get("quantization_config", None)}')
         return kwargs
     return kwargs
 
@@ -260,7 +308,7 @@ def load_bnb(msg='', silent=False):
     if not installed('bitsandbytes'):
         if devices.backend == 'cuda':
             # forcing a version will uninstall the multi-backend-refactor branch of bnb
-            install('bitsandbytes==0.46.1', quiet=True)
+            install('bitsandbytes==0.47.0', quiet=True)
             log.warning('Quantization: bitsandbytes installed please restart')
     try:
         import bitsandbytes
@@ -304,6 +352,30 @@ def load_quanto(msg='', silent=False):
         if len(msg) > 0:
             log.error(f"{msg} failed to import optimum.quanto: {e}")
         optimum_quanto = None
+        if not silent:
+            raise
+    return None
+
+
+def load_trt(msg='', silent=False):
+    global trt # pylint: disable=global-statement
+    if trt is not None:
+        return trt
+    try:
+        install('nvidia-modelopt')
+        import pydantic
+        if pydantic.__version__.startswith('1'):
+            log.error('Quantization: type=tensorrt pydantic==2 required')
+            return None
+        import modelopt
+        trt = modelopt
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        log.debug(f'Quantization: type=tensorrt version={trt.__version__} fn={fn}') # pylint: disable=protected-access
+        return trt
+    except Exception as e:
+        if len(msg) > 0:
+            log.error(f"{msg} failed to import tensorrt: {e}")
+        trt = None
         if not silent:
             raise
     return None
@@ -402,7 +474,7 @@ def apply_layerwise(sd_model, quiet:bool=False):
                 log.error(f'Quantization: type=layerwise {e}')
 
 
-def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
+def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared, timer
     from modules.sdnq import apply_sdnq_to_module
@@ -416,7 +488,12 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     if weights_dtype is None or weights_dtype == 'none':
         return model
 
-    quantization_device, return_device = get_sdnq_devices()
+    quantization_device, return_device = get_sdnq_devices(mode="post")
+
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
 
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
@@ -659,9 +736,9 @@ def torchao_quantization(sd_model):
     return sd_model
 
 
-def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, allow_quant:bool=True, modules_to_not_convert: list = [], modules_dtype_dict: dict = {}):
+def get_dit_args(load_config:dict=None, module:str=None, device_map:bool=False, allow_quant:bool=True, modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
     from modules import shared, devices
-    config = load_config.copy()
+    config = {} if load_config is None else load_config.copy()
     if 'torch_dtype' not in config:
         config['torch_dtype'] = devices.dtype
     if 'low_cpu_mem_usage' in config:
@@ -690,6 +767,8 @@ def get_dit_args(load_config:dict={}, module:str=None, device_map:bool=False, al
 
 def do_post_load_quant(sd_model, allow=True):
     from modules import shared
+    if dont_quant():
+        return sd_model
     if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
         shared.log.debug('Load model: post_quant=sdnq')
         sd_model = sdnq_quantize_weights(sd_model)

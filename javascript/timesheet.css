@@ -1,0 +1,79 @@
+.timesheet {
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+.timesheet {
+    background-color: var(--sd-main-background-color);
+    position: relative;
+}
+.timesheet .scale {
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    float: left;
+}
+.timesheet .scale section {
+    float: left;
+    text-align: center;
+    color: rgba(250, 250, 250, 0.8);
+    font-size: 13px;
+    line-height: 24px;
+    font-weight: lighter;
+    border-left: 1px dashed rgba(250, 250, 250, 0.2);
+    height: 100%;
+}
+.timesheet .data {
+    margin: 10px 0 10px 0;
+    padding: 0;
+    text-align: left;
+    list-style-type: none;
+    color: rgba(250, 250, 250, 0.8);
+    font-size: 13px;
+    overflow: hidden;
+}
+.timesheet .data li {
+    margin: 0 0 3px 0;
+    line-height: 22px;
+    height: 21px;
+    display: block;
+    clear: both;
+    position: relative;
+    white-space: nowrap;
+}
+.timesheet .data li:hover .bubble {
+    opacity: 1;
+}
+.timesheet .data li .date {
+    color: #b5b5b5;
+    font-size: 14px;
+}
+.timesheet .data li .label {
+    font-weight: lighter;
+    font-size: 14px;
+    padding-left: 5px;
+    line-height: 21px;
+    color: #979796;
+    white-space: nowrap;
+}
+.timesheet .data li .bubble {
+    width: 24px;
+    height: 7px;
+    display: block;
+    float: left;
+    position: relative;
+    top: 7px;
+    border-radius: 2px;
+    margin: 0 10px 0 0;
+    opacity: 0.7;
+}
+.bubble-default {
+    background: var(--sd-main-accent-color);
+}
+.bubble-inference {
+    background-color: violet;
+}
+.bubble-io {
+    background-color: rgb(75, 75, 150);
+}

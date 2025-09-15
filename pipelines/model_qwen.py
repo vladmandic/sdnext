@@ -1,6 +1,6 @@
 import transformers
 import diffusers
-from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from pipelines import generic
 
 
@@ -29,10 +29,18 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         # if transformer is not None:
         #     cls_name = nunchaku.pipeline.pipeline_qwenimage.NunchakuQwenImagePipeline # we dont need this
 
-    if transformer is None:
-        transformer = generic.load_transformer(repo_id, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config, modules_dtype_dict={"minimum_6bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "transformer_blocks.0.img_mod.1.weight"]})
+    if 'Qwen-Image-Distill-Full' in repo_id:
+        repo_transformer = repo_id
+        transformer_subfolder = None
+        repo_id = 'Qwen/Qwen-Image'
+    else:
+        repo_transformer = repo_id
+        transformer_subfolder = "transformer"
 
-    repo_te = 'Qwen/Qwen-Image' # if 'Qwen-Lightning' in repo_id or 'Qwen-Image-Edit' in repo_id else repo_id
+    if transformer is None:
+        transformer = generic.load_transformer(repo_transformer, subfolder=transformer_subfolder, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config, modules_dtype_dict={"minimum_6bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "transformer_blocks.0.img_mod.1.weight"]})
+
+    repo_te = 'Qwen/Qwen-Image'
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
     # NunchakuQwenImagePipeline
@@ -49,11 +57,8 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
 
     del text_encoder
     del transformer
-
     sd_hijack_te.init_hijack(pipe)
-    from modules.video_models import video_vae
-    pipe.vae.orig_decode = pipe.vae.decode
-    pipe.vae.decode = video_vae.hijack_vae_decode
+    sd_hijack_vae.init_hijack(pipe)
 
     devices.torch_gc()
     return pipe

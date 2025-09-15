@@ -96,13 +96,14 @@ class ScriptPostprocessingRunner:
 
     def run(self, pp: PostprocessedImage, args):
         for script in self.scripts_in_preferred_order():
-            shared.state.job = script.name
+            jobid = shared.state.begin(script.name)
             script_args = args[script.args_from:script.args_to]
             process_args = {}
             for (name, _component), value in zip(script.controls.items(), script_args):
                 process_args[name] = value
             shared.log.debug(f'Process: script={script.name} args={process_args}')
             script.process(pp, **process_args)
+            shared.state.end(jobid)
 
     def create_args_for_run(self, scripts_args):
         if not self.ui_created:
@@ -125,10 +126,11 @@ class ScriptPostprocessingRunner:
         for script in self.scripts_in_preferred_order():
             if not hasattr(script, 'postprocess'):
                 continue
-            shared.state.job = script.name
+            jobid = shared.state.begin(script.name)
             script_args = args[script.args_from:script.args_to]
             process_args = {}
             for (name, _component), value in zip(script.controls.items(), script_args):
                 process_args[name] = value
             shared.log.debug(f'Postprocess: script={script.name} args={process_args}')
             script.postprocess(filenames, **process_args)
+            shared.state.end(jobid)

@@ -40,17 +40,17 @@ class Script(scripts_manager.Script):
                     x_type = gr.Dropdown(label="X type", container=True, choices=[x.label for x in self.current_axis_options], value=self.current_axis_options[0].label, type="index", elem_id=self.elem_id("x_type"))
                     x_values = gr.Textbox(label="X values", container=True, lines=1, elem_id=self.elem_id("x_values"))
                     x_values_dropdown = gr.Dropdown(label="X values", container=True, visible=False, multiselect=True, interactive=True)
-                    fill_x_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_fill_x_tool_button", visible=False)
+                    fill_x_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_x_list", visible=False)
                 with gr.Row(variant='compact'):
                     y_type = gr.Dropdown(label="Y type", container=True, choices=[x.label for x in self.current_axis_options], value=self.current_axis_options[0].label, type="index", elem_id=self.elem_id("y_type"))
                     y_values = gr.Textbox(label="Y values", container=True, lines=1, elem_id=self.elem_id("y_values"))
                     y_values_dropdown = gr.Dropdown(label="Y values", container=True, visible=False, multiselect=True, interactive=True)
-                    fill_y_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_fill_y_tool_button", visible=False)
+                    fill_y_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_y_list", visible=False)
                 with gr.Row(variant='compact'):
                     z_type = gr.Dropdown(label="Z type", container=True, choices=[x.label for x in self.current_axis_options], value=self.current_axis_options[0].label, type="index", elem_id=self.elem_id("z_type"))
                     z_values = gr.Textbox(label="Z values", container=True, lines=1, elem_id=self.elem_id("z_values"))
                     z_values_dropdown = gr.Dropdown(label="Z values", container=True, visible=False, multiselect=True, interactive=True)
-                    fill_z_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_fill_z_tool_button", visible=False)
+                    fill_z_button = ToolButton(value=symbols.fill, elem_id="xyz_grid_z_list", visible=False)
 
         with gr.Row():
             with gr.Column():
@@ -167,6 +167,7 @@ class Script(scripts_manager.Script):
             include_time, include_text, margin_size,
             create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
            ): # pylint: disable=W0221
+        jobid = shared.state.begin('XYZ Grid')
         if not no_fixed_seeds:
             processing.fix_seed(p)
         if not shared.opts.return_grid:
@@ -348,7 +349,7 @@ class Script(scripts_manager.Script):
             return processed, t1-t0
 
         with SharedSettingsStackHelper():
-            processed = draw_xyz_grid(
+            processed: processing.Processed = draw_xyz_grid(
                 p,
                 xs=xs,
                 ys=ys,
@@ -404,4 +405,5 @@ class Script(scripts_manager.Script):
         if create_video and video_type != 'None' and not shared.state.interrupted:
             images.save_video(p, filename=None, images=have_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
 
+        shared.state.end(jobid)
         return processed

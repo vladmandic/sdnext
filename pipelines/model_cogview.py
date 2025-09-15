@@ -48,5 +48,6 @@ def load_cogview4(checkpoint_info, diffusers_load_config={}):
     sd_hijack_te.init_hijack(pipe)
     del transformer
     del text_encoder
+
     devices.torch_gc()
     return pipe

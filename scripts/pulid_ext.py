@@ -28,12 +28,11 @@ class Script(scripts_manager.Script):
         return True
 
     def dependencies(self):
-        from installer import install, installed, reload
+        from installer import install, installed, install_pydantic
         if not installed('insightface==0.7.3', reload=False, quiet=True):
             install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
             install('albumentations==1.4.3', ignore=False, reinstall=True)
-            install('pydantic==1.10.21', ignore=False, reinstall=True, force=True)
-            reload('pydantic')
+            install_pydantic()
 
     def register(self): # register xyz grid elements
         global registered # pylint: disable=global-statement
@@ -253,7 +252,7 @@ class Script(scripts_manager.Script):
 
         p.seed = processing_helpers.get_fixed_seed(p.seed)
         if direct: # run pipeline directly
-            shared.state.begin('PuLID')
+            jobid = shared.state.begin('PuLID')
             processing.fix_seed(p)
             p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
             p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
@@ -273,8 +272,8 @@ class Script(scripts_manager.Script):
                     id_scale=strength,
                     )[0]
             info = processing.create_infotext(p)
-            processed = processing.Processed(p, [output], info=info)
-            shared.state.end()
+            processed = processing.get_processed(p, [output], info=info)
+            shared.state.end(jobid)
         else: # let processing run the pipeline
             p.task_args['id_embedding'] = id_embedding
             p.task_args['uncond_id_embedding'] = uncond_id_embedding

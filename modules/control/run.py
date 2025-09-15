@@ -17,6 +17,7 @@ from modules import devices, shared, errors, processing, images, sd_models, sd_v
 from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
+from modules.generation_parameters_copypaste import create_override_settings_dict
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -256,7 +257,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
-                detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3,
+                detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
@@ -266,9 +267,12 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 enable_hr: bool = False, hr_sampler_index: int = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
+                extra: dict = {},
                 *input_script_args,
         ):
     global pipe, original_pipeline # pylint: disable=global-statement
+    if 'refine' in state:
+        enable_hr = True
 
     unit.current = units
     debug_log(f'Control: type={unit_type} input={inputs} init={inits} type={input_type}')
@@ -285,6 +289,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         sampler_index = 0
     if hr_sampler_index is None:
         hr_sampler_index = sampler_index
+    if isinstance(extra, list):
+        extra = create_override_settings_dict(extra)
 
     p = StableDiffusionProcessingControl(
         prompt = prompt,
@@ -358,6 +364,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_negative = detailer_negative,
         detailer_steps = detailer_steps,
         detailer_strength = detailer_strength,
+        detailer_resolution = detailer_resolution,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
@@ -367,6 +374,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         # path
         outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_control_samples,
         outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_control_grids,
+        # overrides
+        override_settings=extra
+
     )
     p.state = state
     p.is_tile = False
@@ -587,12 +597,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
-                            if is_generator:
+                            if is_generator and frame is not None and video is not None:
                                 image_txt = f'{output_image.width}x{output_image.height}' if output_image is not None else 'None'
-                                if video is not None:
-                                    msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
-                                else:
-                                    msg = f'Control output | {index} of {len(inputs)} | Image {image_txt}'
+                                msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 yield (output_image, blended_image, msg) # result is control_output, proces_output
 
                 if video is not None and frame is not None:
@@ -618,7 +625,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         image_txt = ''
         p.init_images = output_images # may be used for hires
 
-    if video_type != 'None' and isinstance(output_images, list):
+    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops:
         p.do_not_save_grid = True # pylint: disable=attribute-defined-outside-init
         output_filename = images.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
         if shared.opts.gradio_skip_video:
@@ -633,5 +640,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
+        jobid = shared.state.begin('UI')
         yield (output_images, blended_image, html_txt, output_filename)
+        shared.state.end(jobid)
     return (output_images, blended_image, html_txt, output_filename)

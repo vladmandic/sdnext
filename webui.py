@@ -138,7 +138,7 @@ def initialize():
 
     # make the program just exit at ctrl+c without waiting for anything
     def sigint_handler(_sig, _frame):
-        log.trace(f'State history: uptime={round(time.time() - shared.state.server_start)} jobs={len(shared.state.job_history)} tasks={len(shared.state.task_history)} latents={shared.state.latent_history} images={shared.state.image_history}')
+        log.trace(f'State history: uptime={round(time.time() - shared.state.server_start)} jobs={shared.state.job_history} tasks={shared.state.task_history} latents={shared.state.latent_history} images={shared.state.image_history}')
         log.info('Exiting')
         try:
             for f in glob.glob("*.lock"):
@@ -155,14 +155,14 @@ def load_model():
     if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
         log.info('Model: autoload=False')
     else:
-        shared.state.begin('Load')
+        jobid = shared.state.begin('Load model')
         thread_model = Thread(target=lambda: shared.sd_model)
         thread_model.start()
         thread_refiner = Thread(target=lambda: shared.sd_refiner)
         thread_refiner.start()
         thread_model.join()
         thread_refiner.join()
-        shared.state.end()
+        shared.state.end(jobid)
     timer.startup.record("checkpoint")
     shared.opts.onchange("sd_model_checkpoint", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)

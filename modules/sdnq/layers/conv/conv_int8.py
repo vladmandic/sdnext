@@ -16,8 +16,8 @@ def conv_int8_matmul(
     weight: torch.CharTensor,
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
-    result_shape: torch.Size,
     quantized_weight_shape: torch.Size,
+    result_shape: torch.Size,
     weights_dtype: str,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
@@ -57,11 +57,17 @@ def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
         return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
+    if self.sdnq_dequantizer.re_quantize_for_matmul:
+        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight)
+        quantized_weight_shape = None
+    else:
+        weight = self.weight
+        scale = self.sdnq_dequantizer.scale
+        quantized_weight_shape = getattr(self.sdnq_dequantizer, "quantized_weight_shape", None)
     return conv_int8_matmul(
-        input, self.weight, self.bias,
-        self.sdnq_dequantizer.scale,
+        input, weight, self.bias,
+        scale, quantized_weight_shape,
         self.sdnq_dequantizer.result_shape,
-        getattr(self.sdnq_dequantizer, "quantized_weight_shape", None),
         self.sdnq_dequantizer.weights_dtype,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,

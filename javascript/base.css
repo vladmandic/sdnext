@@ -98,7 +98,7 @@ table.settings-value-table td { padding: 0.4em; border: 1px solid #ccc; max-widt
 .extra-network-cards .card:hover .overlay { background: rgba(0, 0, 0, 0.40); }
 .extra-network-cards .card:hover .preview { box-shadow: none; filter: grayscale(100%); }
 .extra-network-cards .card:hover .overlay { background: rgba(0, 0, 0, 0.40); }
-.extra-network-cards .card .tags { margin: 4px; display: none; overflow-wrap: break-word; }
+.extra-network-cards .card .tags { margin: 4px; display: none; overflow-wrap: anywhere; }
 .extra-network-cards .card .tag { padding: 2px; margin: 2px; background: var(--neutral-700); cursor: pointer; display: inline-block; }
 .extra-network-cards .card .actions > span { padding: 4px; }
 .extra-network-cards .card:hover .actions { display: block; }
@@ -128,8 +128,8 @@ div:has(>#tab-browser-folders) { flex-grow: 0 !important; background-color: var(
 
 /* loader */
 .splash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000; display: block; text-align: center; }
-.motd { margin-top: 2em; color: var(--body-text-color-subdued); font-family: monospace; font-variant: all-petite-caps; }
-.splash-img { margin: 10% auto 0 auto; width: 512px; background-repeat: no-repeat; height: 512px; animation: color 10s infinite alternate; max-width: 80vw; background-size: contain; }
+.motd { margin-top: 2em; color: var(--body-text-color-subdued); font-family: monospace; font-variant: all-petite-caps; font-size: 1.2em; }
+.splash-img {   margin: 10% auto 0 auto; width: 512px; background-repeat: no-repeat; height: 512px; animation: hue 5s infinite alternate; max-width: 80vw; background-size: contain; }
 .loading { color: white; position: absolute; top: 20%; left: 50%; transform: translateX(-50%); }
 .loader { width: 300px; height: 300px; border: var(--spacing-md) solid transparent; border-radius: 50%; border-top: var(--spacing-md) solid var(--primary-600); animation: spin 4s linear infinite; position: relative; }
 .loader::before, .loader::after { content: ""; position: absolute; top: 6px; bottom: 6px; left: 6px; right: 6px; border-radius: 50%; border: var(--spacing-md) solid transparent; }
@@ -137,4 +137,4 @@ div:has(>#tab-browser-folders) { flex-grow: 0 !important; background-color: var(
 .loader::after { border-top-color: var(--primary-300); animation: spin 1.5s linear infinite; }
 @keyframes move { from { background-position-x: 0, -40px; } to { background-position-x: 0, 40px; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes color { from { filter: hue-rotate(0deg) } to { filter: hue-rotate(360deg) } }
+@keyframes hue { from { filter: hue-rotate(0deg) } to { filter: hue-rotate(360deg) } }

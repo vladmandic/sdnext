@@ -135,7 +135,7 @@ def interrogate(image, mode, caption=None):
 
 
 def interrogate_image(image, clip_model, blip_model, mode):
-    shared.state.begin('Interrogate')
+    jobid = shared.state.begin('Interrogate CLiP')
     try:
         if shared.sd_loaded:
             from modules.sd_models import apply_balanced_offload # prevent circular import
@@ -148,7 +148,7 @@ def interrogate_image(image, clip_model, blip_model, mode):
         prompt = f"Exception {type(e)}"
         shared.log.error(f'Interrogate: {e}')
         errors.display(e, 'Interrogate')
-    shared.state.end()
+    shared.state.end(jobid)
     return prompt
 
 
@@ -164,7 +164,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
     if len(files) == 0:
         shared.log.warning('Interrogate batch: type=clip no images')
         return ''
-    shared.state.begin('Interrogate batch')
+    jobid = shared.state.begin('Interrogate batch')
     prompts = []
 
     load_interrogator(clip_model, blip_model)
@@ -191,7 +191,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
         writer.close()
     ci.config.quiet = False
     unload_clip_model()
-    shared.state.end()
+    shared.state.end(jobid)
     return '\n\n'.join(prompts)
 
 

@@ -48,11 +48,6 @@ def find_sampler_config(name):
     return config
 
 
-def visible_sampler_names():
-    visible_samplers = [x for x in all_samplers if x.name in shared.opts.show_samplers] if len(shared.opts.show_samplers) > 0 else all_samplers
-    return visible_samplers
-
-
 def restore_default(model):
     if model is None:
         return None
@@ -82,6 +77,9 @@ def create_sampler(name, model):
     else:
         requires_flow = False
 
+    # sdxl allows both flow and discrete samplers
+    is_flexible = (model is not None) and ('XL' in model.__class__.__name__)
+
     # restore default scheduler
     if name == 'Default' and hasattr(model, 'scheduler'):
         return restore_default(model)
@@ -96,10 +94,12 @@ def create_sampler(name, model):
     is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (getattr(sampler.sampler.config, 'prediction_type', None) == 'flow_prediction')
 
     # validate sampler prediction type
-    if (model is not None) and (is_flow and not requires_flow):
+    if (model is not None) and is_flexible:
+        pass
+    elif (model is not None) and (is_flow and not requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with discrete prediction')
         return restore_default(model)
-    if (model is not None) and (not is_flow and requires_flow):
+    elif (model is not None) and (not is_flow and requires_flow):
         shared.log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with flow prediction')
         return restore_default(model)
 
@@ -131,7 +131,7 @@ def create_sampler(name, model):
 def set_samplers():
     global samplers # pylint: disable=global-statement
     global samplers_for_img2img # pylint: disable=global-statement
-    samplers = visible_sampler_names()
+    samplers = all_samplers
     # samplers_for_img2img = [x for x in samplers if x.name != "PLMS"]
     samplers_for_img2img = samplers
     samplers_map.clear()

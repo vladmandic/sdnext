@@ -188,6 +188,7 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
 
     # load image encoder used by ip adapter
     if pipe.image_encoder is None or clip_loaded != f'{clip_repo}/{clip_subfolder}':
+        jobid = shared.state.begin('Load encoder')
         try:
             if shared.sd_model_type == 'sd3':
                 image_encoder = transformers.SiglipVisionModel.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
@@ -209,6 +210,7 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
             shared.log.error(f'IP adapter load: encoder="{clip_repo}/{clip_subfolder}" {e}')
             errors.display(e, 'IP adapter: type=encoder')
             return False
+        shared.state.end(jobid)
     sd_models.move_model(pipe.image_encoder, devices.device)
     return True
 
@@ -217,6 +219,7 @@ def load_feature_extractor(pipe):
     # load feature extractor used by ip adapter
     if pipe.feature_extractor is None:
         try:
+            jobid = shared.state.begin('Load extractor')
             if shared.sd_model_type == 'sd3':
                 feature_extractor = transformers.SiglipImageProcessor.from_pretrained(SIGLIP_ID, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
             else:
@@ -231,6 +234,7 @@ def load_feature_extractor(pipe):
             shared.log.error(f'IP adapter load: extractor {e}')
             errors.display(e, 'IP adapter: type=extractor')
             return False
+        shared.state.end(jobid)
     return True
 
 

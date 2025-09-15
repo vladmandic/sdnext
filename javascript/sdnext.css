@@ -17,6 +17,67 @@
   --sd-image-fit: contain;
 }
 
+:root {
+  --sd-primary-h: 180deg;
+  --color-blue: paleturquoise;
+  --color-debug: #7F7F7F;
+  --color-error: #9E2020;
+  --color-green: palegreen;
+  --color-info: #D4D4D4;
+  --color-red: palevioletred;
+  --color-trace: #666666;
+  --color-warning: #FF9900;
+  --sd-border-radius: 5px;
+  --sd-border-size: 2px;
+  --sd-button-hover-color: var(--sd-button-selected-color);
+  --sd-button-hover-text-color: var(--sd-button-selected-text-color);
+  --sd-button-normal-color: var(--sd-input-background-color);
+  --sd-button-normal-text-color: var(--sd-input-text-color);
+  --sd-button-selected-color: var(--sd-main-accent-color);
+  --sd-button-selected-text-color: var(--sd-input-hover-text-color);
+  --sd-gap-size: max(var(--sd-gap-size-val), var(--sd-border-size));
+  --sd-gap-size-val: 5px;
+  --sd-group-background-color: hsl(0deg 0% 16%);
+  --sd-group-border-color: hsl(0deg 0% 16%);
+  --sd-group-border-radius: 7px;
+  --sd-group-border-size: 2px;
+  --sd-button-height: 2.4em;
+  --sd-group-gap: 6px;
+  --sd-group-padding: 2px;
+  --sd-input-background-color: rgba(0, 0, 0, 0.25);
+  --sd-input-border-color: rgba(0, 0, 0, 0.1);
+  --sd-input-border-size: 2px;
+  --sd-input-font-size: var(--font-size);
+  --sd-input-height: 35px;
+  --sd-input-hover-text-color: var(--sd-input-text-color);
+  --sd-input-icon-height: calc(var(--sd-input-height) - var(--sd-input-border-size) * 2);
+  --sd-input-line-height: 23px;
+  --sd-input-padding: 5px;
+  --sd-input-placeholder-text-color: rgba(255, 255, 255, 0.35);
+  --sd-input-secondary-text-color: var(--sd-input-text-color);
+  --sd-input-slider-height: 0.6;
+  --sd-input-text-color: rgba(255, 255, 255, 0.75);
+  --sd-label-color: rgba(255, 255, 255, 0.75);
+  --sd-muted-color: rgba(255, 255, 255, 0.50);
+  --sd-main-accent-color: #7950ab;
+  --sd-main-background-color: rgb(32 32 32);
+  --sd-outline-color: var(--sd-button-hover-color);
+  --sd-outline-size: calc(var(--sd-border-size) * 0.8);
+  --sd-outside-gap-size: 8px;
+  --sd-extra-gap: 0;
+  --sd-panel-background-color: rgba(64, 64, 64, 0.5);
+  --sd-panel-border-color: rgba(64, 64, 64, 0.75);
+  --sd-panel-padding: 5px;
+  --sd-scrollbar-color: var(--sd-panel-border-color);
+  --sd-tooltip-text-color: var(--sd-input-background-color);
+  --sd-body-font: 'IBM Plex Mono', monospace;
+  --sd-text-font: 'IBM Plex Mono', monospace;
+  --sd-button-font: 'NotoSans', sans-serif;
+  --sd-image-fit: scale-down;
+  --sd-panel-min-width: 30em;
+  --sd-grid-image-size: 150px;
+}
+
 a {
   cursor: pointer;
   font-weight: bold;
@@ -411,6 +472,15 @@ color: var(--primary-500) !important
 
 #txt2img_gallery, #img2img_gallery {
   height: 50vh;
+}
+
+#history_table {
+  font-size: 0.9em;
+  text-align: left;
+  cursor: pointer;
+  max-height: 50vh;
+  overflow: auto;
+  background-color: var(--sd-main-background-color);
 }
 
 #control-result {
@@ -1197,7 +1267,7 @@ table.settings-value-table td {
 }
 
 .extra-networks .search textarea {
-  width: calc(120px / 1.1);
+  width: calc(140px / 1.1);
   resize: none;
   margin-right: 2px;
 }
@@ -1233,7 +1303,7 @@ table.settings-value-table td {
   padding: 3px 3px 3px 12px;
   text-align: left;
   text-indent: -6px;
-  width: 120px;
+  width: 140px;
   width: 100%;
 }
 
@@ -1249,7 +1319,7 @@ table.settings-value-table td {
 .extra-network-subdirs {
   background: var(--input-background-fill);
   border-radius: 4px;
-  min-width: max(15%, 120px);
+  min-width: max(15%, 140px);
   overflow-x: hidden;
   overflow-y: auto;
   padding-top: 0.5em;
@@ -1357,7 +1427,7 @@ table.settings-value-table td {
 .extra-network-cards .card .version {
   background: gray;
   font-weight: bolder;
-  left: 0;
+  right: 0;
   line-height: 0.9rem;
   margin: 4px;
   opacity: 75%;
@@ -1376,7 +1446,17 @@ table.settings-value-table td {
   display: block;
 }
 
-.extra-network-cards .card:has(>img[src*="card-no-preview.png"])::before {
+.extra-network-cards .card:hover {
+  z-index: 100;
+  position: relative;
+}
+
+.extra-network-cards .card:hover .tags {
+  display: block;
+  z-index: 101;  /* Optional: ensure tags are above everything */
+}
+
+.extra-network-cards .card:has(>img[src*="missing.png"])::before {
   background-color: var(--data-color);
   content: '';
   height: 100%;
@@ -1461,7 +1541,6 @@ table.settings-value-table td {
   overflow-y: auto;
 }
 
-
 .extra-details td:first-child {
   font-weight: bold;
   vertical-align: top;
@@ -1469,6 +1548,29 @@ table.settings-value-table td {
 
 .extra-details .gradio-image {
   max-height: 50vh;
+}
+
+.network-folder::before {
+  content: "󰉖 ";
+  margin-right: 0.8em;
+}
+
+.network-reference {
+  filter: contrast(0.9);
+}
+
+.network-reference::before {
+  content: "󰴊 ";
+  margin-right: 0.8em;
+}
+
+.network-model {
+  opacity: 0.6;
+}
+
+.network-model::before {
+  content: "󰴉 ";
+  margin-right: 0.8em;
 }
 
 .input-accordion-checkbox {
@@ -1716,6 +1818,13 @@ background: var(--background-color)
   width: max-content;
 }
 
+#tab-gallery-files gallery-file {
+  /* Add a vertical gutter between items (left/right), matching existing small row spacing */
+  display: inline-block;
+  margin-right: 0.2em;
+  vertical-align: top; /* keep rows aligned on the top edge */
+}
+
 #tab-gallery-files {
   display: block;
   height: 75vh;
@@ -1813,6 +1922,24 @@ div:has(>#tab-gallery-folders) {
   object-fit: contain;
 }
 
+/* Gallery video preview matches image preview sizing and layout */
+#tab-gallery-video {
+  height: 63vh;
+}
+
+/* Ensure the <video> element fills the preview column and preserves aspect */
+#tab-gallery-video video {
+  width: 100%;
+  height: 100% !important;
+  object-fit: contain;
+  background: none;
+}
+
+/* Gradio container around the video should not add extra spacing */
+#tab-gallery-video .wrap {
+  height: 100%;
+}
+
 .gallery-sort {
   background: var(--input-background-fill) !important;
   margin: 0 !important;
@@ -1867,70 +1994,73 @@ div:has(>#tab-gallery-folders) {
 }
 
 .splash {
-  display: block;
-  height: 100vh;
-  left: 0;
   position: fixed;
-  text-align: center;
   top: 0;
+  left: 0;
   width: 100vw;
+  height: 100vh;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .motd {
+  margin-top: 1em;
   color: var(--body-text-color-subdued);
   font-family: monospace;
   font-variant: all-petite-caps;
-  margin-top: 2em;
+  font-size: 1.2em;
 }
 
 .splash-img {
-  animation: color 10s infinite alternate;
-  background-repeat: no-repeat;
-  background-size: contain;
-  height: 512px;
   margin: 10% auto 0 auto;
-  max-width: 80vw;
   width: 512px;
+  height: 512px;
+  background-repeat: no-repeat;
+  animation: hue 5s infinite alternate;
 }
 
 .loading {
   color: white;
-  left: 50%;
-  position: absolute;
-  top: 20%;
-  transform: translateX(-50%);
+  position: border-box;
+  top: 85%;
+  font-size: 1.5em;
 }
 
 .loader {
-  animation: spin 4s linear infinite;
+  width: 100px;
+  height: 100px;
   border: var(--spacing-md) solid transparent;
   border-radius: 50%;
   border-top: var(--spacing-md) solid var(--primary-600);
-  height: 300px;
-  position: relative;
-  width: 300px;
+  animation: spin 2s linear infinite, hue 5s infinite alternate;
+  position: border-box;
 }
 
-.loader::before, .loader::after {
-  border: var(--spacing-md) solid transparent;
-  border-radius: 50%;
-  bottom: 6px;
+.loader::before,
+.loader::after {
   content: "";
-  left: 6px;
   position: absolute;
-  right: 6px;
   top: 6px;
+  bottom: 6px;
+  left: 6px;
+  right: 6px;
+  border-radius: 50%;
+  border: var(--spacing-md) solid transparent;
+  animation: hue 5s infinite alternate;
 }
 
 .loader::before {
-  animation: 3s spin linear infinite;
   border-top-color: var(--primary-900);
+  animation: spin 3s linear infinite;
 }
 
 .loader::after {
-  animation: spin 1.5s linear infinite;
   border-top-color: var(--primary-300);
+  animation: spin 1.5s linear infinite;
 }
 
 .docs-search textarea {
@@ -2087,35 +2217,21 @@ div:has(>#tab-gallery-folders) {
   filter: blur(0);
 }
 
-@keyframes move {
-  from {
-    background-position-x: 0, -40px;
-  }
-
-  to {
-    background-position-x: 0, 40px;
-  }
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
-
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes color {
-  from {
-
-    filter: hue-rotate(0deg)
+@keyframes hue {
+  0% {
+    filter: hue-rotate(0deg);
   }
-
-  to {
-
-    filter: hue-rotate(360deg)
+  100% {
+    filter: hue-rotate(360deg);
   }
 }
 

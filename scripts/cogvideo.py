@@ -184,7 +184,6 @@ class Script(scripts_manager.Script):
 
     # auto-executed by the script-callback
     def run(self, p: processing.StableDiffusionProcessing, model, sampler, frames, guidance, offload, override, video_type, duration, loop, pad, interpolate, image, video): # pylint: disable=arguments-differ, unused-argument
-        shared.state.begin('CogVideoX')
         processing.fix_seed(p)
         p.extra_generation_params['CogVideoX'] = model
         p.do_not_save_grid = True
@@ -205,8 +204,7 @@ class Script(scripts_manager.Script):
         self.offload(offload)
         frames = self.generate(p, model)
         devices.torch_gc()
-        processed = processing.Processed(p, images_list=frames)
-        shared.state.end()
+        processed = processing.get_processed(p, images_list=frames)
         return processed
 
     # auto-executed by the script-callback

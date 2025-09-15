@@ -11,7 +11,7 @@ from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, quantized_matmul_dtypes, allowed_types, conv_types, conv_transpose_types
+from .common import dtype_dict, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types
 from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
@@ -50,6 +50,7 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
 def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
+        num_of_groups = 1
         is_conv_type = False
         is_conv_transpose_type = False
         is_linear_type = False
@@ -69,12 +70,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             group_channel_size = channel_size // layer.groups
             use_quantized_matmul = False
             if use_quantized_matmul_conv:
-                use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and group_channel_size >= 32 and output_channel_size >= 32
+                use_quantized_matmul = group_channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and group_channel_size % 16 == 0
-                if use_quantized_matmul:
-                    result_shape = layer.weight.shape
-                    layer.weight.data = layer.weight.reshape(output_channel_size, -1)
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
@@ -90,9 +88,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             try:
                 output_channel_size, channel_size = layer.weight.shape
             except Exception as e:
-                raise ValueError(f"SDNQ: layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
+                raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} layer_weight_shape={layer.weight.shape} weights_dtype={weights_dtype} unsupported") from e
             if use_quantized_matmul:
-                use_quantized_matmul = weights_dtype in quantized_matmul_dtypes and channel_size >= 32 and output_channel_size >= 32
+                use_quantized_matmul = channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul:
                     if dtype_dict[weights_dtype]["is_integer"]:
                         use_quantized_matmul = output_channel_size % 8 == 0 and channel_size % 8 == 0
@@ -100,14 +98,18 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                         use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
 
         if group_size == 0:
-            if is_linear_type:
+            if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6:
+                group_size = -1
+            elif is_linear_type:
                 group_size = 2 ** (2 + dtype_dict[weights_dtype]["num_bits"])
             else:
                 group_size = 2 ** (1 + dtype_dict[weights_dtype]["num_bits"])
+        elif use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
+            group_size = -1 # override user value, re-quantizing 8bit into 8bit is pointless
         elif group_size != -1 and not is_linear_type:
             group_size = max(group_size // 2, 1)
 
-        if not use_quantized_matmul and group_size > 0:
+        if group_size > 0:
             if group_size >= channel_size:
                 group_size = channel_size
                 num_of_groups = 1
@@ -159,12 +161,16 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             if zero_point is not None:
                 zero_point = zero_point.to(torch_dtype)
 
-        if use_quantized_matmul:
+        re_quantize_for_matmul = (num_of_groups > 1 or zero_point is not None)
+        if use_quantized_matmul and not re_quantize_for_matmul:
+            if is_conv_type:
+                result_shape = layer.weight.shape
+                layer.weight.data = layer.weight.reshape(output_channel_size, -1)
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
             if not dtype_dict[weights_dtype]["is_integer"]:
-                stride = layer.weight.stride()
-                if stride[0] > stride[1] and stride[1] == 1:
+                weight_stride = layer.weight.stride()
+                if not (weight_stride[0] == 1 and weight_stride[1] > 1):
                     layer.weight.data = layer.weight.t().contiguous().t()
                 if not use_tensorwise_fp8_matmul:
                     scale = scale.to(torch.float32)
@@ -178,6 +184,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             original_shape=original_shape,
             weights_dtype=weights_dtype,
             use_quantized_matmul=use_quantized_matmul,
+            re_quantize_for_matmul=re_quantize_for_matmul,
         )
         layer.weight.data = layer.sdnq_dequantizer.pack_weight(layer.weight).to(return_device, non_blocking=non_blocking)
         layer.sdnq_dequantizer = layer.sdnq_dequantizer.to(return_device, non_blocking=non_blocking)
@@ -187,10 +194,14 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = [], modules_dtype_dict: Dict[str, List[str]] = {}, op=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, op=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
     for param_name, module in model.named_children():
         if param_name in modules_to_not_convert:
             continue
@@ -373,7 +384,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         self,
         model,
         device_map, # pylint: disable=unused-argument
-        keep_in_fp32_modules: List[str] = [],
+        keep_in_fp32_modules: List[str] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
         if keep_in_fp32_modules is not None:
@@ -392,8 +403,14 @@ class SDNQQuantizer(DiffusersQuantizer):
         devices.torch_gc(force=True, reason='sdnq')
         return model
 
-    def get_cuda_warm_up_factor(self):
+    def get_accelerator_warm_up_factor(self):
         return 32 // dtype_dict[self.quantization_config.weights_dtype]["num_bits"]
+
+    def get_cuda_warm_up_factor(self):
+        """
+        needed for transformers compatibilty, returns self.get_accelerator_warm_up_factor
+        """
+        return self.get_accelerator_warm_up_factor()
 
     def update_tp_plan(self, config):
         """
@@ -424,6 +441,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         needed for transformers compatibilty, no-op function
         """
         return param_name
+
+    def update_dtype(self, dtype: torch.dtype) -> torch.dtype:
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return dtype
 
     @property
     def is_trainable(self):
@@ -516,3 +539,12 @@ class SDNQConfig(QuantizationConfigMixin):
 
         if self.modules_dtype_dict is None:
             self.modules_dtype_dict = {}
+
+
+import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
+diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
+diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
+
+import transformers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
+transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
+transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
