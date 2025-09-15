@@ -4,12 +4,14 @@
 
 ### Highlights for 2025-09-15
 
-*What's new*? Big one is that we're (*finally*) switching the default UI to **ModernUI**!  
+*What's new*? Big one is that we're (*finally*) switching the default UI to **ModernUI**, for both desktop and mobile use!  
 **StandardUI** is still available and can be selected in settings, but ModernUI is now the default for new installs  
 
 *What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
 Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
 And check out new **history** tab in the right panel, it now shows visualization of entire processing timeline!  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
