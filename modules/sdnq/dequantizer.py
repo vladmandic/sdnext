@@ -42,6 +42,12 @@ def quantize_int8(input: torch.FloatTensor, dim: int = -1) -> Tuple[torch.CharTe
     return input, scale
 
 
+def quantize_fp8(input: torch.FloatTensor, dim: int = -1) -> Tuple[torch.Tensor, torch.FloatTensor]:
+    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(448)
+    input = torch.div(input, scale).nan_to_num_().clamp_(-448, 448).to(dtype=torch.float8_e4m3fn)
+    return input, scale
+
+
 def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     result = dequantize_asymmetric(weight, scale, zero_point, scale.dtype, result_shape)
     if result.ndim > 2: # convs

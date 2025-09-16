@@ -915,12 +915,8 @@ def check_torch():
     if sys.platform != 'win32':
         if args.use_zluda:
             log.error('ZLUDA is only supported on Windows')
-            if not args.ignore:
-                sys.exit(1)
         if args.use_directml:
             log.error('DirectML is only supported on Windows')
-            if not args.ignore:
-                sys.exit(1)
 
     if torch_command != '':
         pass
