@@ -1256,12 +1256,16 @@ def install_gradio():
 
 
 def install_pydantic():
-    if args.new:
-        install('pydantic==2.11.7', ignore=True, quiet=True)
-        reload('pydantic', '2.11.7')
-    else:
-        install('pydantic==1.10.21', ignore=True, quiet=True)
-        reload('pydantic', '1.10.21')
+    install('pydantic==2.11.7', ignore=True, quiet=True)
+    reload('pydantic', '2.11.7')
+
+
+def install_insightface():
+    install('git+https://github.com/deepinsight/insightface@29b6cd65aa0e9ae3b6602de3c52e9d8949c8ee86#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
+    # install('albumentations==1.4.3', ignore=True, quiet=True)
+    uninstall('albumentations')
+    install('albumentationsx')
+    install_pydantic()
 
 
 def install_optional():
@@ -1277,8 +1281,6 @@ def install_optional():
     install('nvidia-ml-py', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     install('Cython', ignore=True, quiet=True)
-    install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
-    install('albumentations==1.4.3', ignore=True, quiet=True)
     install('av', ignore=True, quiet=True)
     install('gguf', ignore=True)
     try:

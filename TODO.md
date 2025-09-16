@@ -13,11 +13,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Video Core: API  
 - Video LTX: TeaCache and others, API, Conditioning preprocess Video: LTX API  
 
-### Blocked items
-
-- Upgrade: `albumentations`  
-  - blocked by `insightface`  
-
 ### Under Consideration
 
 - [X-Omni](https://github.com/X-Omni-Team/X-Omni/blob/main/README.md)
