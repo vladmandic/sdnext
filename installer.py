@@ -626,7 +626,7 @@ def check_transformers():
     t_start = time.time()
     if args.skip_all or args.skip_git or args.experimental:
         return
-    pkg_transofmers = pkg_resources.working_set.by_key.get('transformers', None)
+    pkg_transformers = pkg_resources.working_set.by_key.get('transformers', None)
     pkg_tokenizers = pkg_resources.working_set.by_key.get('tokenizers', None)
     if args.use_directml:
         target_transformers = '4.52.4'
@@ -634,11 +634,11 @@ def check_transformers():
     else:
         target_transformers = '4.56.1'
         target_tokenizers = '0.22.0'
-    if (pkg_transofmers is None) or ((pkg_transofmers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
-        if pkg_transofmers is None:
+    if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
+        if pkg_transformers is None:
             log.info(f'Transformers install: version={target_transformers}')
         else:
-            log.info(f'Transformers update: current={pkg_transofmers.version} target={target_transformers}')
+            log.info(f'Transformers update: current={pkg_transformers.version} target={target_transformers}')
         pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
         pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
         pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
