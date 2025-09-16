@@ -75,6 +75,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 use_quantized_matmul = group_channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and group_channel_size % 16 == 0
+            if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
+                result_shape = layer.weight.shape
+                layer.weight.data = layer.weight.flatten(1,-1)
+                reduction_axes = -1
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
@@ -128,7 +132,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             num_of_groups = int(num_of_groups)
 
             if num_of_groups > 1:
-                result_shape = layer.weight.shape
+                if result_shape is None:
+                    result_shape = layer.weight.shape
                 new_shape = list(result_shape)
                 if is_conv_type:
                     # output_channel_size, channel_size, X, X
@@ -165,9 +170,6 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         re_quantize_for_matmul = (num_of_groups > 1 or zero_point is not None)
         if use_quantized_matmul and not re_quantize_for_matmul:
-            if is_conv_type:
-                result_shape = layer.weight.shape
-                layer.weight.data = layer.weight.reshape(output_channel_size, -1)
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
             if not dtype_dict[weights_dtype]["is_integer"]:
