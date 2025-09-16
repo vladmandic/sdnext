@@ -18,6 +18,7 @@ sd_metadata_file = os.path.join(paths.data_path, "metadata.json")
 sd_metadata = None
 sd_metadata_pending = 0
 sd_metadata_timer = 0
+warn_once = False
 
 
 class CheckpointInfo:
@@ -279,9 +280,12 @@ def select_checkpoint(op='model', sd_model_checkpoint=None):
         return checkpoint_info
     if len(checkpoints_list) == 0:
         shared.log.error("No models found")
-        shared.log.info("Set system paths to use existing folders")
-        shared.log.info("  or use --models-dir <path-to-folder> to specify base folder with all models")
-        shared.log.info("  or use --ckpt <path-to-checkpoint> to force using specific model")
+        global warn_once # pylint: disable=global-statement
+        if not warn_once:
+            warn_once = True
+            shared.log.info("Set system paths to use existing folders")
+            shared.log.info("  or use --models-dir <path-to-folder> to specify base folder with all models")
+            shared.log.info("  or use --ckpt <path-to-checkpoint> to force using specific model")
         return None
     if model_checkpoint is not None:
         if model_checkpoint != 'model.safetensors' and model_checkpoint != 'stabilityai/stable-diffusion-xl-base-1.0':
