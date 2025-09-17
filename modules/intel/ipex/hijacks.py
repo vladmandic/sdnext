@@ -3,7 +3,7 @@ from functools import wraps
 from contextlib import nullcontext
 import torch
 import numpy as np
-from modules import devices, errors
+from modules import devices
 
 
 torch_version = torch.__version__[:4]
@@ -15,10 +15,6 @@ torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1]
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
-
-
-def return_null_context(*args, **kwargs): # pylint: disable=unused-argument
-    return nullcontext()
 
 
 @property
@@ -351,7 +347,6 @@ def ipex_hijacks():
     torch.Generator = torch_Generator
     torch._C.Generator = torch_Generator
 
-    torch.backends.cuda.sdp_kernel = return_null_context
     torch.UntypedStorage.is_cuda = is_cuda
     torch.amp.autocast_mode.autocast.__init__ = autocast_init
 
