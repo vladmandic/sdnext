@@ -257,17 +257,15 @@ def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
 torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
+    global device_supports_fp64
     if check_cuda(device):
-        if not device_supports_fp64 and kwargs.get("dtype", None) == torch.float64:
+        device = return_xpu(device)
+    if not device_supports_fp64:
+        if kwargs.get("dtype", None) == torch.float64 and ((device is None and self.device.type == "xpu") or (device is not None and torch.device(device).type == "xpu")):
             kwargs["dtype"] = torch.float32
-        return self.original_Tensor_to(return_xpu(device), *args, **kwargs)
-    else:
-        if not device_supports_fp64:
-            if kwargs.get("dtype", None) == torch.float64 and ((device is None and self.device.type == "xpu") or (device is not None and torch.device(device).type == "xpu")):
-                kwargs["dtype"] = torch.float32
-            elif device == torch.float64 and self.device.type == "xpu":
-                device = torch.float32
-        return self.original_Tensor_to(device, *args, **kwargs)
+        elif device == torch.float64 and self.device.type == "xpu":
+            device = torch.float32
+    return self.original_Tensor_to(device, *args, **kwargs)
 
 original_Tensor_cuda = torch.Tensor.cuda
 @wraps(torch.Tensor.cuda)
