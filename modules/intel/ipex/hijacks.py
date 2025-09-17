@@ -1,5 +1,3 @@
-from typing import Optional
-
 import os
 from functools import wraps
 from contextlib import nullcontext
@@ -18,18 +16,15 @@ device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp6
 
 # pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
 
-class DummyDataParallel(torch.nn.Module): # pylint: disable=missing-class-docstring, unused-argument, too-few-public-methods
-    def __new__(cls, module, device_ids=None, output_device=None, dim=0): # pylint: disable=unused-argument
-        if isinstance(device_ids, list) and len(device_ids) > 1:
-            errors.log.error("IPEX backend doesn't support DataParallel on multiple XPU devices")
-        return module.to(devices.device)
 
 def return_null_context(*args, **kwargs): # pylint: disable=unused-argument
     return nullcontext()
 
+
 @property
 def is_cuda(self):
     return self.device.type == "xpu" or self.device.type == "cuda"
+
 
 def check_device_type(device, device_type: str) -> bool:
     if device is None or type(device) not in {str, int, torch.device}:
@@ -37,8 +32,10 @@ def check_device_type(device, device_type: str) -> bool:
     else:
         return bool(torch.device(device).type == device_type)
 
+
 def check_cuda(device) -> bool:
     return bool(isinstance(device, int) or check_device_type(device, "cuda"))
+
 
 def return_xpu(device): # keep the device instance type, aka return string if the input is string
     return devices.device if device is None else f"xpu:{device.split(':')[-1]}" if isinstance(device, str) and ":" in device else f"xpu:{device}" if isinstance(device, int) else torch.device(f"xpu:{device.index}" if device.index is not None else "xpu") if isinstance(device, torch.device) else "xpu"
@@ -107,12 +104,14 @@ def functional_pad(input, pad, mode='constant', value=None):
     else:
         return original_functional_pad(input, pad, mode=mode, value=value)
 
+
 # Diffusers FreeU
 original_fft_fftn = torch.fft.fftn
 @wraps(torch.fft.fftn)
 def fft_fftn(input, s=None, dim=None, norm=None, *, out=None):
     return_dtype = input.dtype
     return original_fft_fftn(input.to(dtype=torch.float32), s=s, dim=dim, norm=norm, out=out).to(dtype=return_dtype)
+
 
 # Diffusers FreeU
 original_fft_ifftn = torch.fft.ifftn
@@ -130,6 +129,7 @@ def from_numpy(ndarray):
         return original_from_numpy(ndarray.astype("float32"))
     else:
         return original_from_numpy(ndarray)
+
 
 original_as_tensor = torch.as_tensor
 @wraps(torch.as_tensor)
@@ -156,6 +156,7 @@ def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
                 dtype = torch.float32
     return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
 
+
 torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
@@ -169,6 +170,7 @@ def Tensor_to(self, device=None, *args, **kwargs):
             device = torch.float32
     return self.original_Tensor_to(device, *args, **kwargs)
 
+
 original_Tensor_cuda = torch.Tensor.cuda
 @wraps(torch.Tensor.cuda)
 def Tensor_cuda(self, device=None, *args, **kwargs):
@@ -176,6 +178,7 @@ def Tensor_cuda(self, device=None, *args, **kwargs):
         return self.to(return_xpu(device), *args, **kwargs)
     else:
         return original_Tensor_cuda(self, device, *args, **kwargs)
+
 
 original_Tensor_pin_memory = torch.Tensor.pin_memory
 @wraps(torch.Tensor.pin_memory)
@@ -185,6 +188,7 @@ def Tensor_pin_memory(self, device=None, *args, **kwargs):
     else:
         return original_Tensor_pin_memory(self, device, *args, **kwargs)
 
+
 original_UntypedStorage_init = torch.UntypedStorage.__init__
 @wraps(torch.UntypedStorage.__init__)
 def UntypedStorage_init(*args, device=None, **kwargs):
@@ -192,6 +196,7 @@ def UntypedStorage_init(*args, device=None, **kwargs):
         return original_UntypedStorage_init(*args, device=return_xpu(device), **kwargs)
     else:
         return original_UntypedStorage_init(*args, device=device, **kwargs)
+
 
 if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 4):
     original_UntypedStorage_to = torch.UntypedStorage.to
@@ -210,6 +215,7 @@ if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 4):
         else:
             return original_UntypedStorage_cuda(self, device=device, non_blocking=non_blocking, **kwargs)
 
+
 original_torch_empty = torch.empty
 @wraps(torch.empty)
 def torch_empty(*args, device=None, **kwargs):
@@ -217,6 +223,7 @@ def torch_empty(*args, device=None, **kwargs):
         return original_torch_empty(*args, device=return_xpu(device), **kwargs)
     else:
         return original_torch_empty(*args, device=device, **kwargs)
+
 
 original_torch_randn = torch.randn
 @wraps(torch.randn)
@@ -228,6 +235,7 @@ def torch_randn(*args, device=None, dtype=None, **kwargs):
     else:
         return original_torch_randn(*args, device=device, dtype=dtype, **kwargs)
 
+
 original_torch_ones = torch.ones
 @wraps(torch.ones)
 def torch_ones(*args, device=None, **kwargs):
@@ -235,6 +243,7 @@ def torch_ones(*args, device=None, **kwargs):
         return original_torch_ones(*args, device=return_xpu(device), **kwargs)
     else:
         return original_torch_ones(*args, device=device, **kwargs)
+
 
 original_torch_zeros = torch.zeros
 @wraps(torch.zeros)
@@ -244,6 +253,7 @@ def torch_zeros(*args, device=None, **kwargs):
     else:
         return original_torch_zeros(*args, device=device, **kwargs)
 
+
 original_torch_full = torch.full
 @wraps(torch.full)
 def torch_full(*args, device=None, **kwargs):
@@ -251,6 +261,7 @@ def torch_full(*args, device=None, **kwargs):
         return original_torch_full(*args, device=return_xpu(device), **kwargs)
     else:
         return original_torch_full(*args, device=device, **kwargs)
+
 
 original_torch_linspace = torch.linspace
 @wraps(torch.linspace)
@@ -260,6 +271,7 @@ def torch_linspace(*args, device=None, **kwargs):
     else:
         return original_torch_linspace(*args, device=device, **kwargs)
 
+
 original_torch_eye = torch.eye
 @wraps(torch.eye)
 def torch_eye(*args, device=None, **kwargs):
@@ -267,6 +279,7 @@ def torch_eye(*args, device=None, **kwargs):
         return original_torch_eye(*args, device=return_xpu(device), **kwargs)
     else:
         return original_torch_eye(*args, device=device, **kwargs)
+
 
 original_torch_load = torch.load
 @wraps(torch.load)
@@ -276,12 +289,14 @@ def torch_load(f, map_location=None, *args, **kwargs):
     else:
         return original_torch_load(f, *args, map_location=map_location, **kwargs)
 
+
 @wraps(torch.cuda.synchronize)
 def torch_cuda_synchronize(device=None):
     if check_cuda(device):
         return torch.xpu.synchronize(return_xpu(device))
     else:
         return torch.xpu.synchronize(device)
+
 
 @wraps(torch.cuda.device)
 def torch_cuda_device(device):
@@ -290,12 +305,14 @@ def torch_cuda_device(device):
     else:
         return torch.xpu.device(device)
 
+
 @wraps(torch.cuda.set_device)
 def torch_cuda_set_device(device):
     if check_cuda(device):
         torch.xpu.set_device(return_xpu(device))
     else:
         torch.xpu.set_device(device)
+
 
 # torch.Generator has to be a class for isinstance checks
 original_torch_Generator = torch.Generator
@@ -335,7 +352,6 @@ def ipex_hijacks():
     torch._C.Generator = torch_Generator
 
     torch.backends.cuda.sdp_kernel = return_null_context
-    torch.nn.DataParallel = DummyDataParallel
     torch.UntypedStorage.is_cuda = is_cuda
     torch.amp.autocast_mode.autocast.__init__ = autocast_init
 
