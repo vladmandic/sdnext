@@ -128,6 +128,8 @@ def task_specific_kwargs(p, model):
         }
     if model.__class__.__name__ == 'WanImageToVideoPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
         task_args['image'] = p.init_images[0]
+    if model.__class__.__name__ == 'WanVACEPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+        task_args['reference_images'] = p.init_images
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
@@ -307,6 +309,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
             args['height'] = p.height
+    if 'WanVACEPipeline' in model.__class__.__name__:
+        if isinstance(args['prompt'], list):
+            args['prompt'] = args['prompt'][0] if len(args['prompt']) > 0 else ''
+        if isinstance(args.get('negative_prompt', None), list):
+            args['negative_prompt'] = args['negative_prompt'][0] if len(args['negative_prompt']) > 0 else ''
+        if isinstance(args['generator'], list) and len(args['generator']) > 0:
+            args['generator'] = args['generator'][0]
+
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1

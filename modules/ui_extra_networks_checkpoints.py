@@ -14,6 +14,8 @@ version_map = {
     "SDXL Hyper": "SD XL",
     "StableDiffusion3": "SD 3",
     "StableDiffusionXL": "SD XL",
+    "WanToVideo": "Wan",
+    "WanVACE": "Wan",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):

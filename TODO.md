@@ -15,6 +15,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### Under Consideration
 
+- [Inf-DiT](https://github.com/zai-org/Inf-DiT)
 - [X-Omni](https://github.com/X-Omni-Team/X-Omni/blob/main/README.md)
 - [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
@@ -36,13 +37,14 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 ### New models
 
 - [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
+- [Phantom HuMo](https://github.com/Phantom-video/Phantom)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
-- [Wan2.2 Fun](https://huggingface.co/collections/alibaba-pai/wan22-fun-68958eabec343b948f1225c5) (includes VACE, Control, etc)
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
 - [Ming](https://github.com/inclusionAI/Ming)  
 - [Liquid](https://github.com/FoundationVision/Liquid)  
 - [Step1X](https://github.com/stepfun-ai/Step1X-Edit)  
+- [LucyEdit](https://github.com/huggingface/diffusers/pull/12340)
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit)  
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 - [SelfForcing](https://github.com/guandeh17/Self-Forcing)  

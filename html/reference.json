@@ -139,6 +139,42 @@
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
 
+  "Qwen-Image": {
+    "path": "Qwen/Qwen-Image",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": " Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
+    "skip": true,
+    "extras": ""
+  },
+  "Qwen-Image-Edit": {
+    "path": "Qwen/Qwen-Image-Edit",
+    "preview": "Qwen--Qwen-Image-Edit.jpg",
+    "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
+    "skip": true,
+    "extras": ""
+  },
+  "Qwen-Image-Lightning": {
+    "path": "vladmandic/Qwen-Lightning",
+    "preview": "vladmandic--Qwen-Lightning.jpg",
+    "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
+    "skip": true,
+    "extras": "steps: 8"
+  },
+  "Qwen-Image-Distill": {
+    "path": "SahilCarterr/Qwen-Image-Distill-Full",
+    "preview": "SahilCarterr--Qwen-Image-Distill-Full.jpg",
+    "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
+    "skip": true,
+    "extras": "steps: 15"
+  },
+  "Qwen-Image-Lightning-Edit": {
+    "path": "vladmandic/Qwen-Lightning-Edit",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
+    "skip": true,
+    "extras": "steps: 8"
+  },
+
   "lodestones Chroma1 HD": {
     "path": "lodestones/Chroma1-HD",
     "preview": "lodestones--Chroma-HD.jpg",
@@ -180,42 +216,6 @@
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning but with some detail calibration.",
     "skip": true,
     "extras": ""
-  },
-
-  "Qwen-Image": {
-    "path": "Qwen/Qwen-Image",
-    "preview": "Qwen--Qwen-Image.jpg",
-    "desc": " Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
-    "skip": true,
-    "extras": ""
-  },
-  "Qwen-Image-Edit": {
-    "path": "Qwen/Qwen-Image-Edit",
-    "preview": "Qwen--Qwen-Image-Edit.jpg",
-    "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
-    "skip": true,
-    "extras": ""
-  },
-  "Qwen-Image-Lightning": {
-    "path": "vladmandic/Qwen-Lightning",
-    "preview": "vladmandic--Qwen-Lightning.jpg",
-    "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
-    "skip": true,
-    "extras": "steps: 8"
-  },
-  "Qwen-Image-Distill": {
-    "path": "SahilCarterr/Qwen-Image-Distill-Full",
-    "preview": "SahilCarterr--Qwen-Image-Distill-Full.jpg",
-    "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
-    "skip": true,
-    "extras": "steps: 15"
-  },
-  "Qwen-Image-Lightning-Edit": {
-    "path": "vladmandic/Qwen-Lightning-Edit",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
-    "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
-    "skip": true,
-    "extras": "steps: 8"
   },
 
   "Ostris Flex.2 Preview": {
@@ -263,6 +263,13 @@
   },
   "Wan-AI Wan2.2 A14B I2I": {
     "path": "Wan-AI/Wan2.2-I2V-A14B-Diffusers",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
+    "skip": true,
+    "extras": "sampler: Default"
+  },
+  "Wan-AI Wan2.2 14B VACE": {
+    "path": "linoyts/Wan2.2-VACE-Fun-14B-diffusers",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,

@@ -1,5 +1,19 @@
 # Change Log for SD.Next
 
+## Update for 2025-09-17
+
+- **Models**
+  - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
+    available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+- **Offloading**
+  - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
+  - add timers to measure onload/offload times during generate  
+  - experimental offloading using `torch.streams`  
+    enable in settings -> model offloading  
+- **Other**
+  - **logging** enable `debug`, `docs` and `api-docs` by default  
+  - refactor to use new libraries  
+
 ## Update for 2025-09-15
 
 ### Highlights for 2025-09-15
