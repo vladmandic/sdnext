@@ -16,14 +16,6 @@ torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1]
 
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
-if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
-    if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 7):
-        use_dynamic_attention = False # torch 2.7 has flash atten support
-    else:
-        use_dynamic_attention = True
-else:
-    use_dynamic_attention = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '1')
-
 # pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
 
 class DummyDataParallel(torch.nn.Module): # pylint: disable=missing-class-docstring, unused-argument, too-few-public-methods
@@ -106,6 +98,30 @@ def interpolate(tensor, size=None, scale_factor=None, mode='nearest', align_corn
         align_corners=align_corners, recompute_scale_factor=recompute_scale_factor, antialias=antialias)
 
 
+# SwinIR BF16:
+original_functional_pad = torch.nn.functional.pad
+@wraps(torch.nn.functional.pad)
+def functional_pad(input, pad, mode='constant', value=None):
+    if mode == 'reflect' and input.dtype == torch.bfloat16:
+        return original_functional_pad(input.to(torch.float32), pad, mode=mode, value=value).to(dtype=torch.bfloat16)
+    else:
+        return original_functional_pad(input, pad, mode=mode, value=value)
+
+# Diffusers FreeU
+original_fft_fftn = torch.fft.fftn
+@wraps(torch.fft.fftn)
+def fft_fftn(input, s=None, dim=None, norm=None, *, out=None):
+    return_dtype = input.dtype
+    return original_fft_fftn(input.to(dtype=torch.float32), s=s, dim=dim, norm=norm, out=out).to(dtype=return_dtype)
+
+# Diffusers FreeU
+original_fft_ifftn = torch.fft.ifftn
+@wraps(torch.fft.ifftn)
+def fft_ifftn(input, s=None, dim=None, norm=None, *, out=None):
+    return_dtype = input.dtype
+    return original_fft_ifftn(input.to(dtype=torch.float32), s=s, dim=dim, norm=norm, out=out).to(dtype=return_dtype)
+
+
 # Diffusers Float64 (Alchemist GPUs doesn't support 64 bit):
 original_from_numpy = torch.from_numpy
 @wraps(torch.from_numpy)
@@ -124,120 +140,6 @@ def as_tensor(data, dtype=None, device=None):
         return original_as_tensor(data, dtype=torch.float32, device=device)
     else:
         return original_as_tensor(data, dtype=dtype, device=device)
-
-
-if not use_dynamic_attention:
-    original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
-else:
-    # 32 bit attention workarounds for Alchemist:
-    try:
-        from .attention import dynamic_scaled_dot_product_attention as original_scaled_dot_product_attention
-    except ImportError:
-        original_scaled_dot_product_attention = torch.nn.functional.scaled_dot_product_attention
-
-@wraps(torch.nn.functional.scaled_dot_product_attention)
-def scaled_dot_product_attention(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.FloatTensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-    if query.dtype != key.dtype:
-        key = key.to(dtype=query.dtype)
-    if query.dtype != value.dtype:
-        value = value.to(dtype=query.dtype)
-    if attn_mask is not None and query.dtype != attn_mask.dtype:
-        attn_mask = attn_mask.to(dtype=query.dtype)
-    if enable_gqa:
-        kwargs["enable_gqa"] = enable_gqa
-    result = original_scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
-    if result.dtype != query.dtype:
-        result = result.to(dtype=query.dtype)
-    return result
-
-# Data Type Errors:
-original_torch_bmm = torch.bmm
-@wraps(torch.bmm)
-def torch_bmm(input, mat2, *, out=None):
-    if input.dtype != mat2.dtype:
-        mat2 = mat2.to(dtype=input.dtype)
-    return original_torch_bmm(input, mat2, out=out)
-
-# Diffusers FreeU
-original_fft_fftn = torch.fft.fftn
-@wraps(torch.fft.fftn)
-def fft_fftn(input, s=None, dim=None, norm=None, *, out=None):
-    return_dtype = input.dtype
-    return original_fft_fftn(input.to(dtype=torch.float32), s=s, dim=dim, norm=norm, out=out).to(dtype=return_dtype)
-
-# Diffusers FreeU
-original_fft_ifftn = torch.fft.ifftn
-@wraps(torch.fft.ifftn)
-def fft_ifftn(input, s=None, dim=None, norm=None, *, out=None):
-    return_dtype = input.dtype
-    return original_fft_ifftn(input.to(dtype=torch.float32), s=s, dim=dim, norm=norm, out=out).to(dtype=return_dtype)
-
-# A1111 FP16
-original_functional_group_norm = torch.nn.functional.group_norm
-@wraps(torch.nn.functional.group_norm)
-def functional_group_norm(input, num_groups, weight=None, bias=None, eps=1e-05):
-    if weight is not None and input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and weight is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_group_norm(input, num_groups, weight=weight, bias=bias, eps=eps)
-
-# A1111 BF16
-original_functional_layer_norm = torch.nn.functional.layer_norm
-@wraps(torch.nn.functional.layer_norm)
-def functional_layer_norm(input, normalized_shape, weight=None, bias=None, eps=1e-05):
-    if weight is not None and input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and weight is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_layer_norm(input, normalized_shape, weight=weight, bias=bias, eps=eps)
-
-# Training
-original_functional_linear = torch.nn.functional.linear
-@wraps(torch.nn.functional.linear)
-def functional_linear(input, weight, bias=None):
-    if input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_linear(input, weight, bias=bias)
-
-original_functional_conv1d = torch.nn.functional.conv1d
-@wraps(torch.nn.functional.conv1d)
-def functional_conv1d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
-    if input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_conv1d(input, weight, bias=bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
-
-original_functional_conv2d = torch.nn.functional.conv2d
-@wraps(torch.nn.functional.conv2d)
-def functional_conv2d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
-    if input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_conv2d(input, weight, bias=bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
-
-# LTX Video
-original_functional_conv3d = torch.nn.functional.conv3d
-@wraps(torch.nn.functional.conv3d)
-def functional_conv3d(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
-    if input.dtype != weight.data.dtype:
-        input = input.to(dtype=weight.data.dtype)
-    if bias is not None and bias.data.dtype != weight.data.dtype:
-        bias.data = bias.data.to(dtype=weight.data.dtype)
-    return original_functional_conv3d(input, weight, bias=bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
-
-# SwinIR BF16:
-original_functional_pad = torch.nn.functional.pad
-@wraps(torch.nn.functional.pad)
-def functional_pad(input, pad, mode='constant', value=None):
-    if mode == 'reflect' and input.dtype == torch.bfloat16:
-        return original_functional_pad(input.to(torch.float32), pad, mode=mode, value=value).to(dtype=torch.bfloat16)
-    else:
-        return original_functional_pad(input, pad, mode=mode, value=value)
 
 
 original_torch_tensor = torch.tensor
@@ -438,18 +340,10 @@ def ipex_hijacks():
     torch.amp.autocast_mode.autocast.__init__ = autocast_init
 
     torch.nn.functional.interpolate = interpolate
-    torch.nn.functional.scaled_dot_product_attention = scaled_dot_product_attention
-    torch.nn.functional.group_norm = functional_group_norm
-    torch.nn.functional.layer_norm = functional_layer_norm
-    torch.nn.functional.linear = functional_linear
-    torch.nn.functional.conv1d = functional_conv1d
-    torch.nn.functional.conv2d = functional_conv2d
-    torch.nn.functional.conv3d = functional_conv3d
     torch.nn.functional.pad = functional_pad
-
-    torch.bmm = torch_bmm
     torch.fft.fftn = fft_fftn
     torch.fft.ifftn = fft_ifftn
+
     if not device_supports_fp64:
         torch.from_numpy = from_numpy
         torch.as_tensor = as_tensor
@@ -459,6 +353,18 @@ def ipex_hijacks():
         torchvision.transforms._functional_tensor.interpolate = interpolate
     except Exception:
         pass
+
+    if os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '0':
+        if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 7):
+            use_dynamic_attention = False # torch 2.7 has flash atten support
+        else:
+            use_dynamic_attention = True
+    else:
+        use_dynamic_attention = bool(os.environ.get('IPEX_FORCE_ATTENTION_SLICE', '0') == '1')
+
+    if use_dynamic_attention:
+        from .attention import dynamic_scaled_dot_product_attention
+        torch.nn.functional.scaled_dot_product_attention = dynamic_scaled_dot_product_attention
 
     # AMP:
     torch.amp.grad_scaler.GradScaler.__init__ = GradScaler_init
