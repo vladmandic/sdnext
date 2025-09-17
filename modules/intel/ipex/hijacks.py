@@ -322,9 +322,9 @@ def torch_randn(*args, device=None, dtype=None, **kwargs):
     if dtype is bytes:
         dtype = None
     if check_cuda(device):
-        return original_torch_randn(*args, device=return_xpu(device), **kwargs)
+        return original_torch_randn(*args, device=return_xpu(device), dtype=dtype, **kwargs)
     else:
-        return original_torch_randn(*args, device=device, **kwargs)
+        return original_torch_randn(*args, device=device, dtype=dtype, **kwargs)
 
 original_torch_ones = torch.ones
 @wraps(torch.ones)
