@@ -50,4 +50,5 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
         p.frames = 4 * (max(p.frames // 4, 1)) + 1
     # WAN VACE
     if 'WanVACEPipeline' in cls:
-        p.task_args['reference_images'] = 1
+        if (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
+            p.task_args['reference_images'] = p.init_images

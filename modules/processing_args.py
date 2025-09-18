@@ -126,9 +126,9 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-    if model.__class__.__name__ == 'WanImageToVideoPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if (model.__class__.__name__ == 'WanImageToVideoPipeline') and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
         task_args['image'] = p.init_images[0]
-    if model.__class__.__name__ == 'WanVACEPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if (model.__class__.__name__ == 'WanVACEPipeline') and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
 
     if debug_enabled:
