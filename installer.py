@@ -1256,8 +1256,12 @@ def install_gradio():
 
 
 def install_pydantic():
-    install('pydantic==2.11.7', ignore=True, quiet=True)
-    reload('pydantic', '2.11.7')
+    if args.new:
+        install('pydantic==2.11.7', ignore=True, quiet=True)
+        reload('pydantic', '2.11.7')
+    else:
+        install('pydantic==1.10.21', ignore=True, quiet=True)
+        reload('pydantic', '1.10.21')
 
 
 def install_insightface():
