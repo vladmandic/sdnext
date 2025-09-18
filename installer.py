@@ -56,6 +56,7 @@ args = Dot({
 })
 git_commit = "unknown"
 diffusers_commit = "unknown"
+restart_required = False
 extensions_commit = { # force specific commit for extensions
     'sd-webui-controlnet': 'ecd33eb',
     'adetailer': 'a89c01d'
@@ -345,6 +346,8 @@ def installed(package, friendly: str = None, reload = False, quiet = False): # p
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} allowing experimental')
                         else:
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} version mismatch')
+                            global restart_required # pylint: disable=global-statement
+                            restart_required = True
                     ok = ok and (exact or args.experimental)
             else:
                 if not quiet:

@@ -297,6 +297,9 @@ def main():
     installer.log.info(f'Installer time: {init_summary()}')
     get_custom_args()
 
+    if installer.restart_required:
+        installer.log.warning('Restart is recommended due to packages updates...')
+
     uv, instance = start_server(immediate=True, server=None)
     t_server = time.time()
     t_monitor = time.time()

@@ -15,6 +15,7 @@
     it also does not work with control and video tabs which are the core of sdnext nowadays  
     so it has been removed from built-in extensions: manual installation is still possible  
 - **Other**
+  - server will note when restart is recommended due to package updates  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
