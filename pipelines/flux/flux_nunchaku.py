@@ -6,7 +6,9 @@ def load_flux_nunchaku(repo_id):
     nunchaku_precision = nunchaku.utils.get_precision()
     nunchaku_repo = None
     transformer = None
-    if 'flux.1-dev' in repo_id.lower():
+    if 'srpo' in repo_id.lower():
+        pass
+    elif 'flux.1-dev' in repo_id.lower():
         nunchaku_repo = f"nunchaku-tech/nunchaku-flux.1-dev/svdq-{nunchaku_precision}_r32-flux.1-dev.safetensors"
     elif 'flux.1-schnell' in repo_id.lower():
         nunchaku_repo = f"nunchaku-tech/nunchaku-flux.1-schnell/svdq-{nunchaku_precision}_r32-flux.1-schnell.safetensors"

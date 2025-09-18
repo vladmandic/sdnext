@@ -5,6 +5,8 @@
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+  - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
+    SRPO is trained by with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  

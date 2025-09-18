@@ -138,6 +138,13 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
+  "Tencent FLUX.1 Dev SRPO": {
+    "path": "vladmandic/flux.1-dev-SRPO",
+    "preview": "vladmandic--flux.1-dev-SRPO.jpg",
+    "desc": "FLUX.1 Dev SRPO is Tencent trained with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.5"
+  },
 
   "Qwen-Image": {
     "path": "Qwen/Qwen-Image",
