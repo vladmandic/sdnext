@@ -1,10 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-17
+## Update for 2025-09-18
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+- **Extensions**
+  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
+    it also does not work with control and video tabs which are the core of sdnext nowadays  
+    so it has been removed from built-in extensions: manual installation is still possible  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  
