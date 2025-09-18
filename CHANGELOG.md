@@ -5,18 +5,22 @@
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
-- **Extensions**
-  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
-    it also does not work with control and video tabs which are the core of sdnext nowadays  
-    so it has been removed from built-in extensions: manual installation is still possible  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  
   - experimental offloading using `torch.streams`  
     enable in settings -> model offloading  
+- **Extensions**
+  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
+    it also does not work with control and video tabs which are the core of sdnext nowadays  
+    so it has been removed from built-in extensions: manual installation is still possible  
 - **Other**
   - **logging** enable `debug`, `docs` and `api-docs` by default  
+  - **ipex** simplify internal implementation  
   - refactor to use new libraries  
+- **Fixes**
+  - add explicit hf-login before framepack load  
+  - remove forced sampler from system info benchmark  
 
 ## Update for 2025-09-15
 
