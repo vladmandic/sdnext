@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from ...common import use_torch_compile # noqa: TID252
+from ...common import compile_func # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import quantize_int8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 
@@ -50,5 +50,4 @@ def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torc
     return int8_matmul(input, weight, self.bias, scale, quantized_weight_shape, self.sdnq_dequantizer.weights_dtype)
 
 
-if use_torch_compile:
-    int8_matmul = torch.compile(int8_matmul, fullgraph=True, dynamic=False)
+int8_matmul = compile_func(int8_matmul)

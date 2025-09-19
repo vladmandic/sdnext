@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from ...common import use_torch_compile # noqa: TID252
+from ...common import compile_func # noqa: TID252
 from ...dequantizer import quantize_fp8 # noqa: TID252
 
 
@@ -34,5 +34,4 @@ def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch
     return fp8_matmul(input, self.weight, self.bias, self.sdnq_dequantizer.scale)
 
 
-if use_torch_compile:
-    fp8_matmul = torch.compile(fp8_matmul, fullgraph=True, dynamic=False)
+fp8_matmul = compile_func(fp8_matmul)
