@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-18
+## Update for 2025-09-19
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -22,8 +22,9 @@
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
 - **Fixes**
-  - add explicit hf-login before framepack load  
-  - remove forced sampler from system info benchmark  
+  - framepack: add explicit hf-login before framepack load  
+  - benchmark: remove forced sampler from system info benchmark  
+  - xyz-grid: fix xyz grid with random seeds  
 
 ## Update for 2025-09-15
 
