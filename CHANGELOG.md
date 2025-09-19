@@ -12,6 +12,8 @@
   - add timers to measure onload/offload times during generate  
   - experimental offloading using `torch.streams`  
     enable in settings -> model offloading  
+  - new feature to specify which models types not to offload  
+    in *settings -> model offloading -> model types not to offload*  
 - **Extensions**
   - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
     it also does not work with control and video tabs which are the core of sdnext nowadays  

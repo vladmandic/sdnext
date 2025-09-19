@@ -207,6 +207,8 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         if hasattr(module, 'nets') and any(hasattr(n, "offload_never") for n in module.nets):
             return False
+        if shared.sd_model_type.lower() in [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload)]:
+            return False
         return True
 
     def pre_forward(self, module, *args, **kwargs):

@@ -5,7 +5,7 @@ from modules.ui_components import ToolButton # pylint: disable=unused-import
 
 
 def create_ui():
-    shared.log.debug('UI initialize: txt2img')
+    shared.log.debug('UI initialize: tab=txt2img')
     import modules.txt2img # pylint: disable=redefined-outer-name
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_txt2img
     modules.scripts_manager.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)

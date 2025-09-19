@@ -28,6 +28,7 @@ def update_clip_params(*args):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=caption')
     with gr.Row(equal_height=False, variant='compact', elem_classes="caption", elem_id="caption_tab"):
         with gr.Column(variant='compact', elem_id='interrogate_input'):
             with gr.Row():

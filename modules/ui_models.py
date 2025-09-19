@@ -12,6 +12,7 @@ extra_ui = []
 
 
 def create_ui():
+    log.debug('UI initialize: tab=models')
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):

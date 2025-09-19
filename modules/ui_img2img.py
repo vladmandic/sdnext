@@ -33,7 +33,7 @@ def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_s
 
 
 def create_ui():
-    shared.log.debug('UI initialize: img2img')
+    shared.log.debug('UI initialize: tab=img2img')
     import modules.img2img # pylint: disable=redefined-outer-name
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_img2img
     modules.scripts_manager.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)

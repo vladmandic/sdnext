@@ -174,6 +174,7 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
     "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Offload low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
+    "models_not_to_offload": OptionInfo("", "Model types not to offload"),
     "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
     "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
     "offload_group_sep": OptionInfo("<h2>Group Offload</h2>", "", gr.HTML),
@@ -184,7 +185,7 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
 }))
 
 options_templates.update(options_section(("quantization", "Model Quantization"), {
-    "models_not_to_quant": OptionInfo("", "List of model types not to quantize"),
+    "models_not_to_quant": OptionInfo("", "Model types not to quantize"),
 
     "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "LLM", "Control", "VAE"]}),

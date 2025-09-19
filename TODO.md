@@ -39,6 +39,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
 - [Phantom HuMo](https://github.com/Phantom-video/Phantom)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
+- [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
 - [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
 - [Ming](https://github.com/inclusionAI/Ming)  

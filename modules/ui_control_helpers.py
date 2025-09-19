@@ -24,7 +24,7 @@ def initialize():
     from modules.control.units import xs # vislearn ControlNet-XS
     from modules.control.units import lite # vislearn ControlNet-XS
     from modules.control.units import t2iadapter # TencentARC T2I-Adapter
-    shared.log.debug(f'UI initialize: control models="{shared.opts.control_dir}"')
+    shared.log.debug(f'UI initialize: tab=control models="{shared.opts.control_dir}"')
     controlnet.cache_dir = os.path.join(shared.opts.control_dir, 'controlnet')
     xs.cache_dir = os.path.join(shared.opts.control_dir, 'xs')
     lite.cache_dir = os.path.join(shared.opts.control_dir, 'lite')
