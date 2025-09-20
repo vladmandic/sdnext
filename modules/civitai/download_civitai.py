@@ -103,10 +103,11 @@ def download_civit_model_thread(model_name: str, model_url: str, model_path: str
     if os.path.isfile(temp_file):
         starting_pos = os.path.getsize(temp_file)
         headers['Range'] = f'bytes={starting_pos}-'
-    if token is None or len(token) == 0:
-        token = shared.opts.civitai_token
-    if token is not None and len(token) > 0:
-        headers['Authorization'] = f'Bearer {token}'
+    if ('civit' in model_url.lower()):
+        if token is None or len(token) == 0:
+            token = shared.opts.civitai_token
+        if (token is not None) and (len(token) > 0):
+            headers['Authorization'] = f'Bearer {token}'
 
     r = shared.req(model_url, headers=headers, stream=True)
     total_size = int(r.headers.get('content-length', 0))
