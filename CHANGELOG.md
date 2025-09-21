@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-20
+## Update for 2025-09-21
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -12,6 +12,8 @@
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
     *note*: sdxl support for nunchaku is not in released version of `nunchaku==1.0.0`, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source
+  - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
+    automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  

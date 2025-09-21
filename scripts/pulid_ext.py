@@ -200,14 +200,12 @@ class Script(scripts_manager.Script):
                 errors.display(e, 'PuLID')
                 return None
         elif shared.sd_model_type == 'f1':
-            # TODO nunchaku: pulid-f1
-            shared.log.error('PuLID: f1 not supported')
-            return None
+            shared.sd_model = self.pulid.apply_flux(shared.sd_model)
 
         if shared.sd_model_type == 'sdxl':
             processed = self.run_sdxl(p, images, strength, zero, sampler, ortho, restore, offload, version)
         elif shared.sd_model_type == 'f1':
-            processed = None
+            processed = self.run_flux(p, images, strength)
         else:
             shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             processed = None
@@ -227,6 +225,12 @@ class Script(scripts_manager.Script):
                 shared.sd_model = shared.sd_model.pipe
                 devices.torch_gc(force=True, reason='pulid')
             shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
+        if shared.sd_model_type == "f1":
+            restore = getattr(p, 'pulid_restore', restore)
+            if restore:
+                shared.sd_model = self.pulid.unapply_flux(shared.sd_model)
+                devices.torch_gc(force=True, reason='pulid')
+            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} pipe={"restore" if restore else "cache"}')
         return processed
 
     def run_sdxl(self, p: processing.StableDiffusionProcessing, images: list, strength: float, zero: int, sampler: str, ortho: str, restore: bool, offload: bool, version: str):
@@ -284,4 +288,14 @@ class Script(scripts_manager.Script):
 
         # interim = [Image.fromarray(img) for img in shared.sd_model.debug_img_list]
         # shared.log.debug(f'PuLID: time={t1-t0:.2f}')
+        return processed
+
+    def run_flux(self, p: processing.StableDiffusionProcessing, images: list, strength: float):
+        image = Image.fromarray(images[0]) # takes single pil image
+        p.task_args['id_image'] = image
+        p.task_args['id_weight'] = strength
+        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} strength={strength} image={image}')
+        p.extra_generation_params["PuLID"] = f'Strength={strength}'
+
+        processed: processing.Processed = processing.process_images(p) # runs processing using main loop
         return processed
