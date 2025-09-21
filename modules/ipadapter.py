@@ -354,6 +354,18 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=[], adapt
                     adapter_scales[i] = 0.00
             pipe.set_ip_adapter_scale(adapter_scales if len(adapter_scales) > 1 else adapter_scales[0])
             ip_str =  [f'{os.path.splitext(adapter)[0]}:{scale}:{start}:{end}:{crop}' for adapter, scale, start, end, crop in zip(adapter_names, adapter_scales, adapter_starts, adapter_ends, adapter_crops)]
+        if hasattr(pipe, 'transformer') and 'Nunchaku' in pipe.transformer.__class__.__name__:
+            if isinstance(repos, str):
+                sd_models.clear_caches(full=True)
+                import accelerate
+                accelerate.hooks.remove_hook_from_module(pipe.transformer, recurse=True)
+                pipe.transformer = pipe.transformer.to(devices.device)
+                from nunchaku.models.ip_adapter.diffusers_adapters import apply_IPA_on_pipe
+                apply_IPA_on_pipe(pipe, ip_adapter_scale=adapter_scales[0], repo_id=repos)
+                pipe = sd_models.apply_balanced_offload(pipe)
+                shared.log.debug(f'IP adapter load: engine=nunchaku scale={adapter_scales[0]} repo="{repos}"')
+            else:
+                shared.log.error('IP adapter: Nunchaku only supports single adapter')
         p.task_args['ip_adapter_image'] = crop_images(adapter_images, adapter_crops)
         if len(adapter_masks) > 0:
             p.cross_attention_kwargs = { 'ip_adapter_masks': adapter_masks }
