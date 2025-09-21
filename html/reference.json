@@ -14,13 +14,13 @@
 
   "Juggernaut XL XI": {
     "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
-    "preview": "juggernautXL_v9Rundiffusionphoto2.jpg",
+    "preview": "juggernautXL_juggXIByRundiffusion.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
   "Juggernaut XL XI Lightning": {
     "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
-    "preview": "juggernautXL_v9Rdphoto2Lightning.jpg",
+    "preview": "juggernautXL_juggXILightningByRD.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
   },
@@ -287,7 +287,7 @@
   },
   "Wan-AI Wan2.2 14B VACE": {
     "path": "linoyts/Wan2.2-VACE-Fun-14B-diffusers",
-    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "preview": "linoyts--Wan2.2-VACE-Fun-14B-diffusers.jpg",
     "desc": "Wan2.2, offering more powerful capabilities, better performance, and superior visual quality. With Wan2.2, we have focused on incorporating the following technical innovations: MoE Architecture, Data Scalling, Cinematic Aesthetics, Efficient High-Definition Hybrid",
     "skip": true,
     "extras": "sampler: Default"
