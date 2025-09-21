@@ -6,7 +6,7 @@
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
-    SRPO is trained by with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
+    SRPO is trained by Tencent with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
