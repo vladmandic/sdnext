@@ -30,6 +30,7 @@
   - **logging** enable `debug`, `docs` and `api-docs` by default  
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
+  - styles and wildcards now use same seed as main generate for reproducible results  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
