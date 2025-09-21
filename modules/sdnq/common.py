@@ -1,8 +1,8 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
 import os
-import torch
 from functools import partial
+import torch
 
 from modules import shared
 
@@ -46,5 +46,5 @@ if use_torch_compile:
     torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
     compile_func = partial(torch.compile, fullgraph=True, dynamic=False)
 else:
-    def compile_func(fn, **kwargs):
+    def compile_func(fn, **kwargs): # pylint: disable=unused-argument
         return fn

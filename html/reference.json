@@ -55,11 +55,21 @@
     "desc": "This stable-diffusion-2 model is resumed from stable-diffusion-2-base (512-base-ema.ckpt) and trained for 150k steps using a v-objective on the same dataset. Resumed for another 140k steps on 768x768 images",
     "extras": "width: 768, height: 768, sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
-  "StabilityAI StableDiffusion XL 1.0 Base": {
-    "path": "sd_xl_base_1.0.safetensors@https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
+  "StabilityAI StableDiffusion XL": {
+    "path": "stabilityai/stable-diffusion-xl-base-1.0",
     "preview": "sd_xl_base_1.0.jpg",
     "desc": "Stable Diffusion XL (SDXL) is the latest AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces, legible text within the images, and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
-    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
+    "skip": true,
+    "variant": "fp16",
+    "extras": ""
+  },
+  "StabilityAI StableDiffusion XL Turbo": {
+    "path": "stabilityai/sdxl-turbo",
+    "preview": "sd_xl_base_1.0.jpg",
+    "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a single network evaluation.",
+    "skip": true,
+    "variant": "fp16",
+    "extras": ""
   },
   "StabilityAI Stable Cascade": {
     "path": "huggingface/stabilityai/stable-cascade",

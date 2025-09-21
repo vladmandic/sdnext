@@ -293,7 +293,7 @@ def get_module_names(pipe=None, exclude=[]):
         modules_names = get_signature(pipe).keys()
     modules_names = [m for m in modules_names if m not in exclude and not m.startswith('_')]
     modules_names = [m for m in modules_names if isinstance(getattr(pipe, m, None), torch.nn.Module)]
-    modules_names = list(sorted(set(modules_names)))
+    modules_names = sorted(set(modules_names))
     return modules_names
 
 

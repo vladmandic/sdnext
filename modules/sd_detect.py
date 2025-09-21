@@ -115,6 +115,8 @@ def guess_by_name(fn, current_guess):
         return 'Kandinsky 3.0'
     elif 'hunyuanimage' in fn.lower():
         return 'HunyuanImage'
+    elif 'sdxl-turbo' in fn.lower() or 'stable-diffusion-xl' in fn.lower():
+        return 'Stable Diffusion XL'
     return current_guess
 
 

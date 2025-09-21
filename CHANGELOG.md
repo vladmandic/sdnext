@@ -7,6 +7,11 @@
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
+  - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
+    impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
+    note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
+    *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
+    *note*: sdxl support for nunchaku is not in released version of `nunchaku==1.0.0`, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  

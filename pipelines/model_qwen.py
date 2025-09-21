@@ -26,8 +26,6 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     if model_quant.check_nunchaku('Model'):
         from pipelines.qwen.qwen_nunchaku import load_qwen_nunchaku
         transformer = load_qwen_nunchaku(repo_id)
-        # if transformer is not None:
-        #     cls_name = nunchaku.pipeline.pipeline_qwenimage.NunchakuQwenImagePipeline # we dont need this
 
     if 'Qwen-Image-Distill-Full' in repo_id:
         repo_transformer = repo_id

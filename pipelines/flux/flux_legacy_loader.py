@@ -130,7 +130,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
                 shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
             if nunchaku_repo is not None:
                 shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} offload={shared.opts.nunchaku_offload} attention={shared.opts.nunchaku_attention}')
-                kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, offload=shared.opts.nunchaku_offload, torch_dtype=devices.dtype)
+                kwargs['transformer'] = nunchaku.NunchakuFluxTransformer2dModel.from_pretrained(nunchaku_repo, offload=shared.opts.nunchaku_offload, torch_dtype=devices.dtype, cache_dir=cache_dir)
                 kwargs['transformer'].quantization_method = 'SVDQuant'
                 if shared.opts.nunchaku_attention:
                     kwargs['transformer'].set_attention_impl("nunchaku-fp16")
@@ -142,7 +142,7 @@ def load_quants(kwargs, repo_id, cache_dir, allow_quant): # pylint: disable=unus
             nunchaku_precision = nunchaku.utils.get_precision()
             nunchaku_repo = 'mit-han-lab/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
             shared.log.debug(f'Load module: quant=Nunchaku module=t5 repo="{nunchaku_repo}" precision={nunchaku_precision}')
-            kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+            kwargs['text_encoder_2'] = nunchaku.NunchakuT5EncoderModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir)
             kwargs['text_encoder_2'].quantization_method = 'SVDQuant'
         if 'text_encoder_2' not in kwargs and model_quant.check_quant('TE'):
             load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)

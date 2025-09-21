@@ -10,9 +10,8 @@ def load_quants(kwargs, repo_id, cache_dir):
         import nunchaku
         nunchaku_precision = nunchaku.utils.get_precision()
         nunchaku_repo = "nunchaku-tech/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
-        # https://huggingface.co/nunchaku-tech/nunchaku-sana/blob/main/svdq-int4_r32-sana1.6b.safetensors
         shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
-        kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype)
+        kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir)
     elif model_quant.check_quant('Model'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Model')
         kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)

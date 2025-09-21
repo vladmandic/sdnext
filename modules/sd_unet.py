@@ -1,5 +1,5 @@
 import os
-from modules import shared, devices, files_cache, sd_models
+from modules import shared, devices, files_cache, sd_models, model_quant
 
 
 unet_dict = {}
@@ -8,22 +8,55 @@ failed_unet = []
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan']
+dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan', 'Qwen']
 
 
-def load_unet(model):
+def load_unet_sdxl_nunchaku(repo_id):
+    try:
+        from nunchaku.models.unets.unet_sdxl import NunchakuSDXLUNet2DConditionModel
+    except Exception:
+        shared.log.error(f'Load module: quant=Nunchaku module=unet repo="{repo_id}" low nunchaku version')
+        return None
+    if 'turbo' in repo_id.lower():
+        nunchaku_repo = 'nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors'
+    else:
+        nunchaku_repo = 'nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors'
+
+    shared.log.debug(f'Load module: quant=Nunchaku module=unet repo="{nunchaku_repo}" offload={shared.opts.nunchaku_offload}')
+    unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
+        nunchaku_repo,
+        offload=shared.opts.nunchaku_offload,
+        torch_dtype=devices.dtype,
+        cache_dir=shared.opts.hfcache_dir,
+    )
+    unet.quantization_method = 'SVDQuant'
+    return unet
+
+
+def load_unet(model, repo_id:str=None):
     global loaded_unet # pylint: disable=global-statement
+
+    if ("StableDiffusionXLPipeline" in model.__class__.__name__) and (('stable-diffusion-xl-base' in repo_id) or ('sdxl-turbo' in repo_id)):
+        if model_quant.check_nunchaku('Model'):
+            unet = load_unet_sdxl_nunchaku(repo_id)
+            if unet is not None:
+                model.unet = unet
+                return
+
     if shared.opts.sd_unet == 'Default' or shared.opts.sd_unet == 'None':
         return
+
     if shared.opts.sd_unet not in list(unet_dict):
         shared.log.error(f'Load module: type=UNet not found: {shared.opts.sd_unet}')
         return
+
     config_file = os.path.splitext(unet_dict[shared.opts.sd_unet])[0] + '.json'
     if os.path.exists(config_file):
         config = shared.readfile(config_file)
     else:
         config = None
         config_file = 'default'
+
     try:
         if shared.opts.sd_unet == loaded_unet or shared.opts.sd_unet in failed_unet:
             pass
