@@ -40,31 +40,24 @@ def load_model(selected: models_def.Model):
 
     # transformer
     try:
+        if selected.dit_folder is None:
+            selected.dit_folder = ['transformer']
         if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
-            # wan a14b has transformer and transformer_2
-            for dit_folder in selected.dit_folder:
-                # get a new quant arg on every loop to prevent the quant config classes getting entangled
-                load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
-                kwargs[dit_folder] = selected.dit_cls.from_pretrained(
-                    pretrained_model_name_or_path=selected.dit or selected.repo,
-                    subfolder=dit_folder,
-                    revision=selected.dit_revision or selected.repo_revision,
-                    cache_dir=shared.opts.hfcache_dir,
-                    **load_args,
-                    **quant_args
-                )
-        else:
-            load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-            shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" folder="{selected.dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
-            kwargs["transformer"] = selected.dit_cls.from_pretrained(
-                pretrained_model_name_or_path=selected.dit or selected.repo,
-                subfolder=selected.dit_folder,
-                revision=selected.dit_revision or selected.repo_revision,
-                cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-                **quant_args
-            )
+            for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
+                if dit_folder is not None and dit_folder not in kwargs:
+                    # get a new quant arg on every loop to prevent the quant config classes getting entangled
+                    load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
+                    shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+                    kwargs[dit_folder] = selected.dit_cls.from_pretrained(
+                        pretrained_model_name_or_path=selected.dit or selected.repo,
+                        subfolder=dit_folder,
+                        revision=selected.dit_revision or selected.repo_revision,
+                        cache_dir=shared.opts.hfcache_dir,
+                        **load_args,
+                        **quant_args
+                    )
+                else:
+                    shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} skip')
     except Exception as e:
         shared.log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
         errors.display(e, 'video')

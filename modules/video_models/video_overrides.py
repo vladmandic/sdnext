@@ -19,6 +19,15 @@ def load_override(selected: Model):
     # WAN
     if 'WAN 2.1 14B' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
+    if 'A14B' in selected.name or '14B VACE' in selected.name:
+        if shared.opts.model_wan_stage == 'combined':
+            kwargs['boundary_ratio'] = shared.opts.model_wan_boundary
+        elif shared.opts.model_wan_stage == 'high noise':
+            kwargs['transformer_2'] = None
+            kwargs['boundary_ratio'] = 0.0
+        elif shared.opts.model_wan_stage == 'low noise':
+            kwargs['boundary_ratio'] = 1.0
+            kwargs['transformer'] = None
     debug(f'Video overrides: model="{selected.name}" kwargs={list(kwargs)}')
     return kwargs
 

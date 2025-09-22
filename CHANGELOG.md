@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-21
+## Update for 2025-09-22
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -33,6 +33,8 @@
   - styles and wildcards now use same seed as main generate for reproducible results  
   - **api** new endpoint POST `/sdapi/v1/civitai` to trigger civitai models metadata update  
     accepts optional `page` parameter to search specific networks page  
+  - **reference models** additional example images, thanks @liutyi  
+  - **video** support for configurable multi-stage models such as WAN-2.2-14B  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
