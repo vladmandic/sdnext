@@ -31,6 +31,8 @@
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
   - styles and wildcards now use same seed as main generate for reproducible results  
+  - **api** new endpoint POST `/sdapi/v1/civitai` to trigger civitai models metadata update  
+    accepts optional `page` parameter to search specific networks page  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
