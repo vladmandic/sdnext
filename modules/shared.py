@@ -356,6 +356,10 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "pab_spacial_skip_start": OptionInfo(100, "PAB spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
     "pab_spacial_skip_end": OptionInfo(800, "PAB spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
 
+    "cache_dit_sep": OptionInfo("<h2>Cache-DiT</h2>", "", gr.HTML),
+    "cache_dit_enabled": OptionInfo(False, "Cache-DiT enabled"),
+    "cache_dit_calibrator": OptionInfo("None", "Cache-DiT calibrator", gr.Radio, {"choices": ["None", "TaylorSeer", "FoCa"]}),
+
     "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
     "faster_cache_enabled": OptionInfo(False, "FasterCache cache enabled"),
     "fc_spacial_skip_range": OptionInfo(2, "FasterCache spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),

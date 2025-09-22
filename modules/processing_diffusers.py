@@ -67,7 +67,7 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 
 def process_pre(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion
+    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
     shared.log.info('Processing modifiers: apply')
 
     try:
@@ -86,6 +86,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
         transformer_cache.set_cache()
         para_attention.apply_first_block_cache()
         teacache.apply_teacache(p)
+        cachedit.apply_cache_dit(shared.sd_model)
     except Exception as e:
         shared.log.error(f'Processing apply: {e}')
         errors.display(e, 'apply')
@@ -99,7 +100,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
 
 
 def process_post(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion
+    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
     shared.log.info('Processing modifiers: unapply')
 
     try:
@@ -111,6 +112,7 @@ def process_post(p: processing.StableDiffusionProcessing):
         pag.unapply()
         cfgzero.unapply()
         linfusion.unapply(shared.sd_model)
+        cachedit.unapply_cache_dir(shared.sd_model)
     except Exception as e:
         shared.log.error(f'Processing unapply: {e}')
         errors.display(e, 'unapply')

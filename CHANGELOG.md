@@ -35,6 +35,8 @@
     accepts optional `page` parameter to search specific networks page  
   - **reference models** additional example images, thanks @liutyi  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
+  - [cache-dit](https://github.com/vipshop/cache-dit)  
+    *experimental support*, enable in *settings -> pipeline modifers -> cache-dit*  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  

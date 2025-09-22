@@ -130,7 +130,7 @@ def get_processed(*args, **kwargs):
 
 def process_images(p: StableDiffusionProcessing) -> Processed:
     timer.process.reset()
-    debug(f'Process images: {vars(p)}')
+    debug(f'Process images: class={p.__class__.__name__} {vars(p)}')
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
         shared.log.error('Processing: incomplete model')
         return None
