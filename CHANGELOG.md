@@ -6,9 +6,9 @@
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
   - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)  
-    improved version of Qwen Image Edit with improved image consistency  
+    updated version of Qwen Image Edit with improved image consistency  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
-    SRPO is trained by Tencent with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
+    SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
@@ -21,6 +21,10 @@
     enable in *settings -> pipeline modifers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
+- **Extensions**
+  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
+    it also does not work with control and video tabs which are the core of sdnext nowadays  
+    so it has been removed from built-in extensions: manual installation is still possible  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  
@@ -28,10 +32,6 @@
     enable in settings -> model offloading  
   - new feature to specify which models types not to offload  
     in *settings -> model offloading -> model types not to offload*  
-- **Extensions**
-  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
-    it also does not work with control and video tabs which are the core of sdnext nowadays  
-    so it has been removed from built-in extensions: manual installation is still possible  
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
