@@ -103,9 +103,9 @@ def task_specific_kwargs(p, model):
         }
 
     # model specific args
-    if model_cls == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
+    if 'QwenImageEdit' in model_cls and len(getattr(p, 'init_images', [])) == 0:
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
-    if model_cls == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if 'LatentConsistencyModelPipeline' in model_cls and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
@@ -116,7 +116,7 @@ def task_specific_kwargs(p, model):
             'width': p.width if hasattr(p, 'width') else None,
             'height': p.height if hasattr(p, 'height') else None,
         }
-    if model_cls == 'BlipDiffusionPipeline':
+    if 'BlipDiffusionPipeline' in model_cls:
         if len(getattr(p, 'init_images', [])) == 0:
             shared.log.error('BLiP diffusion requires init image')
             return task_args
@@ -126,9 +126,9 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-    if (model.__class__.__name__ == 'WanImageToVideoPipeline') and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
+    if ('WanImageToVideoPipeline' in model_cls) and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
         task_args['image'] = p.init_images[0]
-    if (model.__class__.__name__ == 'WanVACEPipeline') and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
+    if ('WanVACEPipeline' in model_cls) and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
 
     if debug_enabled:

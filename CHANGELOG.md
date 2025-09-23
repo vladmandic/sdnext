@@ -1,10 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-22
+## Update for 2025-09-23
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)  
+    improved version of Qwen Image Edit with improved image consistency  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by Tencent with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  

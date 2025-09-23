@@ -5,7 +5,7 @@ from modules import shared
 def apply_cache_dit(pipe):
     if not shared.opts.cache_dit_enabled:
         return
-    install('cache_dit')
+    install('git+https://github.com/vipshop/cache-dit', 'cache_dit')
     try:
         import cache_dit
     except Exception as e:
@@ -20,7 +20,9 @@ def apply_cache_dit(pipe):
     if getattr(pipe, 'has_cache_dit', False):
         unapply_cache_dir(pipe)
 
-    cache_config = cache_dit.BasicCacheConfig()
+    config_args = {}
+
+    cache_config = cache_dit.BasicCacheConfig(**config_args)
     if shared.opts.cache_dit_calibrator == "TaylorSeer":
         calibrator_config = cache_dit.TaylorSeerCalibratorConfig(taylorseer_order=1)
     elif shared.opts.cache_dit_calibrator == "FoCa":
@@ -52,6 +54,8 @@ def unapply_cache_dir(pipe):
         return
     try:
         import cache_dit
+        stats = cache_dit.summary(pipe)
+        shared.log.critical(f'Unapply Cache-DiT: {stats}')
         cache_dit.disable_cache(pipe)
         pipe.has_cache_dit = False
     except Exception:

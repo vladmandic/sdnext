@@ -608,7 +608,7 @@ def check_diffusers():
     if args.skip_git:
         install('diffusers')
         return
-    sha = 'efb7a299af46d739dec6a57a5d2814165fba24b5' # diffusers commit hash
+    sha = '1448b035859dd57bbb565239dcdd79a025a85422' # diffusers commit hash
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
@@ -635,8 +635,8 @@ def check_transformers():
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
-        target_transformers = '4.56.1'
-        target_tokenizers = '0.22.0'
+        target_transformers = '4.56.2'
+        target_tokenizers = '0.22.1'
     if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
         if pkg_transformers is None:
             log.info(f'Transformers install: version={target_transformers}')
@@ -1273,8 +1273,8 @@ def install_insightface():
         uninstall('albumentations')
         install('albumentationsx')
     else:
-       uninstall('albumentationsx')
-       install('albumentations==1.4.3', ignore=True, quiet=True)
+        uninstall('albumentationsx')
+        install('albumentations==1.4.3', ignore=True, quiet=True)
     install_pydantic()
 
 

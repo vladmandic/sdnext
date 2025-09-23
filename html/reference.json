@@ -170,6 +170,13 @@
     "skip": true,
     "extras": ""
   },
+  "Qwen-Image-Edit-2509": {
+    "path": "Qwen/Qwen-Image-Edit-2509",
+    "preview": "Qwen--Qwen-Image-Edit.jpg",
+    "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
+    "skip": true,
+    "extras": ""
+  },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "vladmandic--Qwen-Lightning.jpg",
