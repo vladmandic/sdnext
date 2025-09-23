@@ -147,4 +147,6 @@ class Script(scripts_manager.Script):
             all_negative += proc.all_negative_prompts
             images += proc.images
             infotexts += proc.infotexts
+            if state.interrupted:
+                break
         return get_processed(p, images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)
