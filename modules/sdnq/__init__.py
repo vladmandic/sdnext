@@ -422,6 +422,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return config
 
+    def update_ep_plan(self, config):
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return config
+
     def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
