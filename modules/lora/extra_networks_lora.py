@@ -2,7 +2,7 @@ from typing import List
 import os
 import re
 import numpy as np
-from modules.lora import networks, lora_overrides, lora_load
+from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
 from modules import extra_networks, shared, sd_models
 
@@ -88,16 +88,21 @@ def parse(p, params_list, step=0):
     te_multipliers = []
     unet_multipliers = []
     dyn_dims = []
+    lora_modules = []
     for params in params_list:
-        assert params.items
         names.append(params.positional[0])
-        te_multiplier = params.named.get("te", params.positional[1] if len(params.positional) > 1 else shared.opts.extra_networks_default_multiplier)
+
+        default_multiplier = params.positional[1] if len(params.positional) > 1 else shared.opts.extra_networks_default_multiplier
+        if isinstance(default_multiplier, str) and "@" not in default_multiplier:
+            default_multiplier = shared.opts.extra_networks_default_multiplier
+
+        te_multiplier = params.named.get("te", default_multiplier)
         if isinstance(te_multiplier, str) and "@" in te_multiplier:
             te_multiplier = get_stepwise(te_multiplier, step, p.steps)
         else:
             te_multiplier = float(te_multiplier)
-        unet_multiplier = [params.positional[2] if len(params.positional) > 2 else te_multiplier] * 3
-        unet_multiplier = [params.named.get("unet", unet_multiplier[0])] * 3
+
+        unet_multiplier = 3 * [params.named.get("unet", te_multiplier)] # fill all 3 with same value
         unet_multiplier[0] = params.named.get("in", unet_multiplier[0])
         unet_multiplier[1] = params.named.get("mid", unet_multiplier[1])
         unet_multiplier[2] = params.named.get("out", unet_multiplier[2])
@@ -106,12 +111,22 @@ def parse(p, params_list, step=0):
                 unet_multiplier[i] = get_stepwise(unet_multiplier[i], step, p.steps)
             else:
                 unet_multiplier[i] = float(unet_multiplier[i])
-        dyn_dim = int(params.positional[3]) if len(params.positional) > 3 else None
-        dyn_dim = int(params.named["dyn"]) if "dyn" in params.named else dyn_dim
+
+        dyn_dim = int(params.named["dyn"]) if "dyn" in params.named else None
         te_multipliers.append(te_multiplier)
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
-    return names, te_multipliers, unet_multipliers, dyn_dims
+
+        lora_module = []
+        if 'high' in params.positional or 'HIGH 14B' in params.positional[0]:
+            lora_module.append('transformer')
+        if 'low' in params.positional or 'LOW 14B' in params.positional[0]:
+            lora_module.append('transformer_2')
+        if params.named.get('module', None) is not None:
+            lora_module.append(params.named['module'].lower())
+        lora_modules.append(lora_module)
+
+    return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules
 
 
 def unload_diffusers():
@@ -168,7 +183,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if len(params_list) > 0 and not self.active: # activate patches once
             self.active = True
             self.model = shared.opts.sd_model_checkpoint
-        names, te_multipliers, unet_multipliers, dyn_dims = parse(p, params_list, step)
+        names, te_multipliers, unet_multipliers, dyn_dims, lora_modules = parse(p, params_list, step)
         requested = self.signature(names, te_multipliers, unet_multipliers)
 
         load_method = lora_overrides.get_method()
@@ -181,7 +196,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = False # diffusers handles its own loading
             if len(exclude) == 0:
                 jobid = shared.state.begin('LoRA')
-                lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load only on first call
+                lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load only on first call
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.end(jobid)
         elif load_method == 'nunchaku':
@@ -208,7 +223,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p):
-        if len(lora_load.diffuser_loaded) > 0:
+        if len(lora_diffusers.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 unload_diffusers()
         if self.active and l.debug:

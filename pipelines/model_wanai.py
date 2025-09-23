@@ -65,16 +65,20 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
+    boundary_ratio = None
     if 'a14b' in repo_id.lower() or 'fun-14b' in repo_id.lower():
         if shared.opts.model_wan_stage == 'high noise' or shared.opts.model_wan_stage == 'first':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = None
+            boundary_ratio = 0.0
         elif shared.opts.model_wan_stage == 'low noise' or shared.opts.model_wan_stage == 'second':
-            transformer = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
-            transformer_2 = None
+            transformer = None
+            transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+            boundary_ratio = 1.0
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+            boundary_ratio = shared.opts.model_wan_boundary
         else:
             shared.log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
             return None
@@ -85,7 +89,6 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     text_encoder = load_text_encoder(repo_id, diffusers_load_config)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    boundary_ratio = shared.opts.model_wan_boundary if transformer_2 is not None else None
 
     if 'Wan2.2-I2V' in repo_id:
         pipe_cls = diffusers.WanImageToVideoPipeline

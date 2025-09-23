@@ -130,6 +130,13 @@ And check out new **history** tab in the right panel, it now shows visualization
     *experimental*: requires new pydantic package which *may* break other things, to enable start sdnext with `--new` flag  
     *note*: this is model quantization only, no support for tensorRT inference yet  
 - **Other**
+  - **LoRA** allow specifying module to apply lora on  
+    *example*: `<lora:mylora:1.0:module=unet>` would apply lora *only* on unet regardless of lora content  
+    this is particularly useful when you have multiple loras and you want to apply them on different parts of the model  
+    *example*: `<lora:firstlora:1.0:high>` and `<lora:secondlora:1.0:low>`  
+    *note*: `low` is shorthand for `module=transformer_2` and `high` is shortcut for `module=transformer`  
+  - **Detailer** allow manually setting processing resolution  
+    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
   - move zluda flash attenion to *Triton Flash attention* option  
@@ -144,8 +151,6 @@ And check out new **history** tab in the right panel, it now shows visualization
   - add deprecation warning for `python==3.9`  
   - allow setting denoise strength to 0 in control/img2img  
     this allows to run workflows which only refine or detail existing image without changing it   
-  - **Detailer** allow manually setting processing resolution  
-    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

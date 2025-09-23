@@ -39,12 +39,16 @@ def apply_cache_dit(pipe):
     else:
         calibrator_config = None
     shared.log.info(f'Apply Cache-DiT: config="{cache_config.strify()}" calibrator="{calibrator_config.strify() if calibrator_config else "None"}"')
-    cache_dit.enable_cache(
-        pipe,
-        cache_config=cache_config,
-        calibrator_config=calibrator_config,
-    )
-    shared.sd_model.has_cache_dit = True
+    try:
+        cache_dit.enable_cache(
+            pipe,
+            cache_config=cache_config,
+            calibrator_config=calibrator_config,
+        )
+        shared.sd_model.has_cache_dit = True
+    except Exception as e:
+        shared.log.error(f'Cache-DiT: {e}')
+        return
 
 
 def unapply_cache_dir(pipe):
