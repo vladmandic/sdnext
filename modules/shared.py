@@ -359,6 +359,10 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "cache_dit_sep": OptionInfo("<h2>Cache-DiT</h2>", "", gr.HTML),
     "cache_dit_enabled": OptionInfo(False, "Cache-DiT enabled"),
     "cache_dit_calibrator": OptionInfo("None", "Cache-DiT calibrator", gr.Radio, {"choices": ["None", "TaylorSeer", "FoCa"]}),
+    "cache_dit_fcompute": OptionInfo(-1, "Cache-DiT F-compute blocks", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
+    "cache_dit_bcompute": OptionInfo(-1, "Cache-DiT B-compute blocks", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
+    "cache_dit_threshold": OptionInfo(-1, "Cache-DiT residual diff threshold", gr.Slider, {"minimum": -1.0, "maximum": 1.0, "step": 0.01}),
+    "cache_dit_warmup": OptionInfo(-1, "Cache-DiT warmup steps", gr.Slider, {"minimum": -1, "maximum": 50, "step": 1}),
 
     "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
     "faster_cache_enabled": OptionInfo(False, "FasterCache cache enabled"),

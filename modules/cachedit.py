@@ -1,3 +1,4 @@
+import os
 from installer import install
 from modules import shared
 
@@ -6,6 +7,7 @@ def apply_cache_dit(pipe):
     if not shared.opts.cache_dit_enabled:
         return
     install('git+https://github.com/vipshop/cache-dit', 'cache_dit')
+    os.environ.setdefault("CACHE_DIT_LOG_LEVEL", "error")
     try:
         import cache_dit
     except Exception as e:
@@ -21,7 +23,14 @@ def apply_cache_dit(pipe):
         unapply_cache_dir(pipe)
 
     config_args = {}
-
+    if shared.opts.cache_dit_fcompute >= 0:
+        config_args['Fn_compute_blocks'] = int(shared.opts.cache_dit_fcompute)
+    if shared.opts.cache_dit_bcompute >= 0:
+        config_args['Bn_compute_blocks'] = int(shared.opts.cache_dit_bcompute)
+    if shared.opts.cache_dit_threshold >= 0:
+        config_args['residual_diff_threshold'] = float(shared.opts.cache_dit_threshold)
+    if shared.opts.cache_dit_warmup >= 0:
+        config_args['max_warmup_steps'] = int(shared.opts.cache_dit_warmup)
     cache_config = cache_dit.BasicCacheConfig(**config_args)
     if shared.opts.cache_dit_calibrator == "TaylorSeer":
         calibrator_config = cache_dit.TaylorSeerCalibratorConfig(taylorseer_order=1)
@@ -29,17 +38,6 @@ def apply_cache_dit(pipe):
         calibrator_config = cache_dit.FoCaCalibratorConfig()
     else:
         calibrator_config = None
-    """
-        Fn_compute_blocks=shared.opts.cache_dit_Fn_compute_blocks, # 8
-        Bn_compute_blocks=shared.opts.cache_dit_Bn_compute_blocks, # 0
-        residual_diff_threshold=shared.opts.cache_dit_residual_diff_threshold, # 0.08
-        max_warmup_steps=shared.opts.cache_dit_max_warmup_steps, # 8
-        max_cached_steps=shared.opts.cache_dit_max_cached_steps, # -1
-        max_continuous_cached_steps=shared.opts.cache_dit_max_continuous_cached_steps, # -1
-        enable_separate_cfg=shared.opts.cache_dit_enable_separate_cfg, # False
-        cfg_compute_first=shared.opts.cache_dit_cfg_compute_first, # False
-    )
-    """
     shared.log.info(f'Apply Cache-DiT: config="{cache_config.strify()}" calibrator="{calibrator_config.strify() if calibrator_config else "None"}"')
     cache_dit.enable_cache(
         pipe,
@@ -54,8 +52,8 @@ def unapply_cache_dir(pipe):
         return
     try:
         import cache_dit
-        stats = cache_dit.summary(pipe)
-        shared.log.critical(f'Unapply Cache-DiT: {stats}')
+        # stats = cache_dit.summary(pipe)
+        # shared.log.critical(f'Unapply Cache-DiT: {stats}')
         cache_dit.disable_cache(pipe)
         pipe.has_cache_dit = False
     except Exception:

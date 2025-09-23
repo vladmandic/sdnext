@@ -14,6 +14,11 @@
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
     *note*: sdxl support for nunchaku is not in released version of `nunchaku==1.0.0`, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source
+- **Features**
+  - [Cache-DiT](https://github.com/vipshop/cache-dit)  
+    cache-dit is a unified, flexible and training-free cache acceleration framework  
+    compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
+    enable in *settings -> pipeline modifers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
 - **Offloading**
@@ -37,8 +42,6 @@
     accepts optional `page` parameter to search specific networks page  
   - **reference models** additional example images, thanks @liutyi  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
-  - [cache-dit](https://github.com/vipshop/cache-dit)  
-    *experimental support*, enable in *settings -> pipeline modifers -> cache-dit*  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
