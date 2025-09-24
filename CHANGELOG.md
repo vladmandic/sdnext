@@ -32,6 +32,9 @@
     enable in settings -> model offloading  
   - new feature to specify which models types not to offload  
     in *settings -> model offloading -> model types not to offload*  
+- **UI**
+  - separate guidance and detail sections  
+  - networks ability to filter lora by base model version  
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **logging** enable `debug`, `docs` and `api-docs` by default  

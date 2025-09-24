@@ -7,6 +7,7 @@ from modules import shared, ui_extra_networks, sd_models, modelstats, paths
 
 version_map = {
     "QwenEdit": "Qwen",
+    "QwenEditPlus": "Qwen",
     "Flux.1 D": "Flux",
     "Flux.1 S": "Flux",
     "FluxKontext": "Flux",
