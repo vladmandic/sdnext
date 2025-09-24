@@ -14,7 +14,12 @@ modular_map= {
 
 
 def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
-    return diffusion_pipeline.__class__.__name__ in modular_map
+    if not shared.opts.model_modular_enable:
+        return False
+    compatible = diffusion_pipeline.__class__.__name__ in modular_map
+    if not compatible:
+        shared.log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
+    return compatible
 
 
 def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffusers.ModularPipeline:
@@ -33,8 +38,7 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
         modular_pipe.update_components(**components_dct, **diffusion_pipeline.parameters)
         modular_pipe.original_pipe = diffusion_pipeline
         t1 = time.time()
-        shared.log.debug(f'Modular: from={diffusion_pipeline.__class__.__name__} to={modular_pipe.__class__.__name__} time={t1 - t0:.2f}')
-
+        shared.log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__} time={t1 - t0:.2f}')
         """
         for expected_input_param in modular_pipe.blocks.inputs:
             name = expected_input_param.name
@@ -51,5 +55,5 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
 
 def restore_standard(modular_pipe):
     if hasattr(modular_pipe, 'original_pipe'):
-        shared.log.debug(f'Modular: from={modular_pipe.__class__.__name__} to={modular_pipe.original_pipe.__class__.__name__}')
+        shared.log.debug(f'Modular: source={modular_pipe.__class__.__name__} target={modular_pipe.original_pipe.__class__.__name__}')
         return modular_pipe.original_pipe
