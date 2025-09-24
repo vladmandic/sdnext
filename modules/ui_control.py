@@ -163,7 +163,8 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 mask_controls = masking.create_segment_ui()
 
-                vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('control')
+                cfg_scale, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_guidance_inputs('control')
+                vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('control')
 
                 with gr.Accordion(open=False, label="Video", elem_id="control_video", elem_classes=["small-accordion"]):

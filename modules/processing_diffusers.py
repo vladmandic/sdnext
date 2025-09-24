@@ -238,8 +238,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 p.hr_upscaler = p.resize_name
                 p.hr_resize_mode = p.resize_mode
                 p.hr_resize_context = p.resize_context
-            p.hr_upscale_to_x = p.width * p.hr_scale if p.hr_resize_x == 0 else p.hr_resize_x
-            p.hr_upscale_to_y = p.height * p.hr_scale if p.hr_resize_y == 0 else p.hr_resize_y
+            p.hr_upscale_to_x = int(p.width * p.hr_scale) if p.hr_resize_x == 0 else p.hr_resize_x
+            p.hr_upscale_to_y = int(p.height * p.hr_scale) if p.hr_resize_y == 0 else p.hr_resize_y
 
         # hires runs on original pipeline
         if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
