@@ -43,6 +43,7 @@
   - **reference models** additional example images, thanks @liutyi  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
   - **video** new LTX model selection  
+  - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  

@@ -877,6 +877,7 @@ def install_torch_addons():
         install('pillow-jxl-plugin==1.3.4', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
+        uninstall('pynvml', quiet=True)
     ts('addons', t_start)
 
 
