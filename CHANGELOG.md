@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-23
+## Update for 2025-09-24
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -42,6 +42,7 @@
     accepts optional `page` parameter to search specific networks page  
   - **reference models** additional example images, thanks @liutyi  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
+  - **video** new LTX model selection  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
