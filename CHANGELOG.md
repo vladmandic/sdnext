@@ -5,7 +5,7 @@
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
-  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)  
+  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
     updated version of Qwen Image Edit with improved image consistency  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
