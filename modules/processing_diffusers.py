@@ -96,6 +96,13 @@ def process_pre(p: processing.StableDiffusionProcessing):
     #     sd_models.move_model(shared.sd_model.unet, devices.device)
     # if hasattr(shared.sd_model, 'transformer'):
     #     sd_models.move_model(shared.sd_model.transformer, devices.device)
+
+    from modules import modular
+    if modular.is_compatible(shared.sd_model):
+        modular_pipe = modular.convert_to_modular(shared.sd_model)
+        if modular_pipe is not None:
+            shared.sd_model = modular_pipe
+
     timer.process.record('pre')
 
 

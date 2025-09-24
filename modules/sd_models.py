@@ -743,6 +743,7 @@ class DiffusersTaskType(Enum):
     IMAGE_2_IMAGE = 2
     INPAINTING = 3
     INSTRUCT = 4
+    MODULAR = 5
 
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
@@ -753,6 +754,8 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif 'Instruct' in cls:
         return DiffusersTaskType.INSTRUCT
+    elif 'Modular' in cls:
+        return DiffusersTaskType.MODULAR
     elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
@@ -948,6 +951,9 @@ def set_diffuser_pipe(pipe, new_pipe_type):
         del pipe.no_task_switch
         return pipe
     if get_diffusers_task(pipe) == new_pipe_type:
+        return pipe
+
+    if get_diffusers_task(pipe) == DiffusersTaskType.MODULAR:
         return pipe
 
     # skip specific pipelines
