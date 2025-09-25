@@ -1,4 +1,4 @@
-from typing import List, Generic, TypeVar, Callable, Union, Any
+from typing import List, Generic, TypeVar
 import functools
 import itertools
 
@@ -23,7 +23,7 @@ class ObjectHooker(Generic[ModuleType]):
     def __init__(self, module: ModuleType):
         self.module: ModuleType = module
         self.hooked = False
-        self.old_state = dict()
+        self.old_state = {}
 
     def __enter__(self):
         self.hook()
@@ -36,7 +36,7 @@ class ObjectHooker(Generic[ModuleType]):
         if self.hooked:
             raise RuntimeError('Already hooked module')
 
-        self.old_state = dict()
+        self.old_state = {}
         self.hooked = True
         self._hook_impl()
 

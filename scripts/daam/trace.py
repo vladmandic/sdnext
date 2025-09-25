@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Type, Any, Dict, Tuple, Union
+from typing import List, Type, Any, Dict, Union
 import math
 
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline

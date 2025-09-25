@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import spacy
 import torch
-import torch.nn.functional as F
 
 
 __all__ = ['set_seed', 'compute_token_merge_indices', 'plot_mask_heat_map', 'cached_nlp', 'cache_dir', 'auto_device', 'auto_autocast']
@@ -102,7 +101,6 @@ def cached_nlp(prompt: str, type='en_core_web_md'):
         try:
             nlp = spacy.load(type)
         except OSError:
-            import os
             os.system(f'python -m spacy download {type}')
             nlp = spacy.load(type)
 

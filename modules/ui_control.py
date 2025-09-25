@@ -211,7 +211,7 @@ def create_ui(_blocks: gr.Blocks=None):
                     gr.HTML('<span id="control-output-button">Output</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-output') as output_tabs:
                         with gr.Tab('Gallery', id='out-gallery'):
-                            output_gallery, output_gen_info, _output_html_info, _output_html_info_formatted, output_html_log = ui_common.create_output_panel("control", preview=False, prompt=prompt, height=gr_height, result_info=result_txt)
+                            output_gallery, _output_gen_info, _output_html_info, _output_html_info_formatted, output_html_log = ui_common.create_output_panel("control", preview=False, prompt=prompt, height=gr_height, result_info=result_txt)
                         with gr.Tab('Image', id='out-image'):
                             output_image = gr.Image(label="Output", show_label=False, type="pil", interactive=False, tool="editor", height=gr_height, elem_id='control_output_image', elem_classes=['control-image'])
                         with gr.Tab('Video', id='out-video'):
