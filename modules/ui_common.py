@@ -22,7 +22,7 @@ def update_generation_info(generation_info, html_info, img_index):
         if len(generation_info) == 0 and processing.processed is not None:
             generation_info = processing.processed.js() or {}
         generation_json = json.loads(generation_info)
-        if len(generation_json["infotexts"]) == 0:
+        if len(generation_json.get("infotexts", [])) == 0:
             return html_info, 'no infotexts found'
         if img_index == -1:
             img_index = 0
@@ -32,7 +32,7 @@ def update_generation_info(generation_info, html_info, img_index):
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
     except Exception as e:
-        shared.log.warning(f'Update info: info="{generation_info}" {e}')
+        shared.log.trace(f'Update info: info="{generation_info}" {e}')
     return html_info, html_info
 
 
