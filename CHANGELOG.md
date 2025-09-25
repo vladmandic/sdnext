@@ -1,11 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-23
+## Update for 2025-09-24
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
-  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)  
+  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
     updated version of Qwen Image Edit with improved image consistency  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
@@ -21,10 +21,14 @@
     enable in *settings -> pipeline modifers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
-- **Extensions**
-  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
+- **Extensions**  
+  - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
+    was a high-value built-in extension, but it has not been maintained for 1.5 years  
     it also does not work with control and video tabs which are the core of sdnext nowadays  
     so it has been removed from built-in extensions: manual installation is still possible  
+  - [DAAM: Diffusion Attentive Attribution Maps](https://github.com/castorini/daam)  
+    create heatmap visualizations of which parts of the prompt influenced which parts of the image  
+    available in scripts for sdxl text-to-image workflows  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  
@@ -32,6 +36,9 @@
     enable in settings -> model offloading  
   - new feature to specify which models types not to offload  
     in *settings -> model offloading -> model types not to offload*  
+- **UI**
+  - separate guidance and detail sections  
+  - networks ability to filter lora by base model version  
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
@@ -42,6 +49,8 @@
     accepts optional `page` parameter to search specific networks page  
   - **reference models** additional example images, thanks @liutyi  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
+  - **video** new LTX model selection  
+  - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
 - **Fixes**
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  

@@ -80,13 +80,13 @@ def process_pre(p: processing.StableDiffusionProcessing):
         pag.apply(p)
         cfgzero.apply(p)
         linfusion.apply(shared.sd_model)
+        cachedit.apply_cache_dit(shared.sd_model)
 
         # apply-only
         sd_hijack_freeu.apply_freeu(p)
         transformer_cache.set_cache()
         para_attention.apply_first_block_cache()
         teacache.apply_teacache(p)
-        cachedit.apply_cache_dit(shared.sd_model)
     except Exception as e:
         shared.log.error(f'Processing apply: {e}')
         errors.display(e, 'apply')
@@ -96,6 +96,13 @@ def process_pre(p: processing.StableDiffusionProcessing):
     #     sd_models.move_model(shared.sd_model.unet, devices.device)
     # if hasattr(shared.sd_model, 'transformer'):
     #     sd_models.move_model(shared.sd_model.transformer, devices.device)
+
+    from modules import modular
+    if modular.is_compatible(shared.sd_model):
+        modular_pipe = modular.convert_to_modular(shared.sd_model)
+        if modular_pipe is not None:
+            shared.sd_model = modular_pipe
+
     timer.process.record('pre')
 
 
@@ -231,8 +238,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 p.hr_upscaler = p.resize_name
                 p.hr_resize_mode = p.resize_mode
                 p.hr_resize_context = p.resize_context
-            p.hr_upscale_to_x = p.width * p.hr_scale if p.hr_resize_x == 0 else p.hr_resize_x
-            p.hr_upscale_to_y = p.height * p.hr_scale if p.hr_resize_y == 0 else p.hr_resize_y
+            p.hr_upscale_to_x = int(p.width * p.hr_scale) if p.hr_resize_x == 0 else p.hr_resize_x
+            p.hr_upscale_to_y = int(p.height * p.hr_scale) if p.hr_resize_y == 0 else p.hr_resize_y
 
         # hires runs on original pipeline
         if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):

@@ -440,6 +440,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return missing_keys
 
+    def update_state_dict_with_metadata(self, state_dict: dict, metadata: dict) -> dict:
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return state_dict
+
     def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function

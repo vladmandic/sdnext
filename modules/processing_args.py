@@ -18,6 +18,26 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
+def task_modular_kwargs(p, model): # pylint: disable=unused-argument
+    # model_cls = model.__class__.__name__
+    task_args = {}
+    p.ops.append('modular')
+
+    processing_helpers.resize_init_images(p)
+    task_args['width'] = p.width
+    task_args['height'] = p.height
+    if len(getattr(p, 'init_images', [])) > 0:
+        task_args['image'] = p.init_images
+        task_args['strength'] = p.denoising_strength
+    mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+    if mask_image is not None:
+        task_args['mask_image'] = mask_image
+
+    if debug_enabled:
+        debug_log(f'Process task specific args: {task_args}')
+    return task_args
+
+
 def task_specific_kwargs(p, model):
     model_cls = model.__class__.__name__
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
@@ -136,6 +156,16 @@ def task_specific_kwargs(p, model):
     return task_args
 
 
+def get_params(model):
+    if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'): # modular pipeline
+        possible = [input_param.name for input_param in model.blocks.inputs]
+        return possible
+    else:
+        signature = inspect.signature(type(model).__call__, follow_wrapped=True)
+        possible = list(signature.parameters)
+        return possible
+
+
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:typing.Optional[list]=None, negative_prompts_2:typing.Optional[list]=None, prompt_attention:typing.Optional[str]=None, desc:typing.Optional[str]='', **kwargs):
     t0 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -151,8 +181,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
         else:
             model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
-    signature = inspect.signature(type(model).__call__, follow_wrapped=True)
-    possible = list(signature.parameters)
+
+    possible = get_params(model)
 
     if debug_enabled:
         debug_log(f'Process pipeline possible: {possible}')
@@ -357,7 +387,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args[arg] = kwargs[arg]
 
     # handle task specific args
-    task_kwargs = task_specific_kwargs(p, model)
+    if sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.MODULAR:
+        task_kwargs = task_modular_kwargs(p, model)
+    else:
+        task_kwargs = task_specific_kwargs(p, model)
+
     pipe_args = getattr(p, 'task_args', {})
     model_args = getattr(model, 'task_args', {})
     task_kwargs.update(pipe_args or {})
@@ -407,8 +441,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
 
     # handle implicit controlnet
     if 'control_image' in possible and 'control_image' not in args and 'image' in args:
-        debug_log('Process: set control image')
-        args['control_image'] = args['image']
+        if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.MODULAR:
+            debug_log('Process: set control image')
+            args['control_image'] = args['image']
 
     sd_hijack_hypertile.hypertile_set(p, hr=len(getattr(p, 'init_images', [])) > 0)
 

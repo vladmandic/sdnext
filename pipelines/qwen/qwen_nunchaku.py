@@ -15,6 +15,8 @@ def load_qwen_nunchaku(repo_id):
         nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image.safetensors" # r32 vs r128
     elif repo_id.lower().endswith('qwen-lightning'):
         nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image-lightningv1.1-8steps.safetensors" # 8-step variant
+    elif repo_id.lower().endswith('qwen-image-edit-2509'):
+        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{nunchaku_precision}_r128-qwen-image-edit-2509.safetensors" # 8-step variant
     elif repo_id.lower().endswith('qwen-image-edit'):
         nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{nunchaku_precision}_r128-qwen-image-edit.safetensors" # 8-step variant
     elif repo_id.lower().endswith('qwen-lightning-edit'):

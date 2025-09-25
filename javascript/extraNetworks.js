@@ -293,10 +293,11 @@ function extraNetworksSearchButton(event) {
 }
 
 function extraNetworksFilterVersion(event) {
-  // log('extraNetworksFilterVersion', event);
+  log('extraNetworksFilterVersion', event);
   const version = event.target.textContent.trim();
   const activeTab = getENActiveTab();
-  const cardContainer = gradioApp().querySelector(`#${activeTab}_model_cards`);
+  const activePage = getENActivePage().toLowerCase();
+  const cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';

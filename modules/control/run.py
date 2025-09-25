@@ -396,9 +396,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     # hires/refine defined outside of main init
     vae_scale_factor = sd_vae.get_vae_scale_factor()
     if p.enable_hr and (p.hr_resize_x == 0 or p.hr_resize_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor), vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = int(vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor)), int(vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor))
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), vae_scale_factor * int(p.hr_resize_y / vae_scale_factor)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), int(vae_scale_factor * int(p.hr_resize_y / vae_scale_factor))
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():
