@@ -57,19 +57,19 @@
   },
   "StabilityAI StableDiffusion XL": {
     "path": "stabilityai/stable-diffusion-xl-base-1.0",
-    "preview": "sd_xl_base_1.0.jpg",
-    "desc": "Stable Diffusion XL (SDXL) is the latest AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces, legible text within the images, and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
+    "preview": "stabilityai--stable-diffusion-xl-base-1.0.jpg",
+    "desc": "Stable Diffusion XL (SDXL) is AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
     "skip": true,
     "variant": "fp16",
     "extras": ""
   },
   "StabilityAI StableDiffusion XL Turbo": {
     "path": "stabilityai/sdxl-turbo",
-    "preview": "sd_xl_base_1.0.jpg",
-    "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a single network evaluation.",
+    "preview": "stabilityai--sdxl-turbo.jpg",
+    "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a 1-4 steps.",
     "skip": true,
     "variant": "fp16",
-    "extras": ""
+    "extras": "steps: 4, cfg_scale: 0.0"
   },
   "StabilityAI Stable Cascade": {
     "path": "huggingface/stabilityai/stable-cascade",
@@ -172,7 +172,7 @@
   },
   "Qwen-Image-Edit-2509": {
     "path": "Qwen/Qwen-Image-Edit-2509",
-    "preview": "Qwen--Qwen-Image-Edit.jpg",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
     "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
     "skip": true,
     "extras": ""
@@ -609,7 +609,7 @@
   "Playground v2.5": {
     "path": "playgroundai/playground-v2.5-1024px-aesthetic",
     "desc": "Playground v2.5 is a diffusion-based text-to-image generative model, and a successor to Playground v2. Playground v2.5 is the state-of-the-art open-source model in aesthetic quality.",
-    "preview": "playgroundai--playground-v2_5-1024px-aesthetic.jpg",
+    "preview": "playgroundai--playground-v2.5-1024px-aesthetic.jpg",
     "variant": "fp16",
     "extras": "sampler: DPM++ 2M EDM"
   },

@@ -1,6 +1,6 @@
 {
   "sd-v21-512-ema": "models/Reference/stabilityai--stable-diffusion-2-1-base.jpg",
-  "stabilityai--stable-diffusion-xl-base-1.0": "models/Reference/sd_xl_base_1.0.jpg",
+  "stabilityai--stable-diffusion-xl-base-1.0": "models/Reference/stabilityai--stable-diffusion-xl-base-1.0.jpg",
   "stabilityai--stable-diffusion-3-medium-diffusers": "models/Reference/stabilityai--stable-diffusion-3.jpg",
   "stabilityai--stable-diffusion-3.5-medium": "models/Reference/stabilityai--stable-diffusion-3_5-medium.jpg",
   "stabilityai--stable-diffusion-3.5-large": "models/Reference/stabilityai--stable-diffusion-3_5-large.jpg",
