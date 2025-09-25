@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-24
+## Update for 2025-09-25
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -52,6 +52,7 @@
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
 - **Fixes**
+  - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  
   - benchmark: remove forced sampler from system info benchmark  
   - xyz-grid: fix xyz grid with random seeds  
