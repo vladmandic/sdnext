@@ -57,3 +57,4 @@ def restore_standard(modular_pipe):
     if hasattr(modular_pipe, 'original_pipe'):
         shared.log.debug(f'Modular: source={modular_pipe.__class__.__name__} target={modular_pipe.original_pipe.__class__.__name__}')
         return modular_pipe.original_pipe
+    return modular_pipe

@@ -21,10 +21,14 @@
     enable in *settings -> pipeline modifers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
-- **Extensions**
-  - **agent-scheduler** was a high-value built-in extension, but it has not been maintained for 1.5 years  
+- **Extensions**  
+  - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
+    was a high-value built-in extension, but it has not been maintained for 1.5 years  
     it also does not work with control and video tabs which are the core of sdnext nowadays  
     so it has been removed from built-in extensions: manual installation is still possible  
+  - [DAAM: Diffusion Attentive Attribution Maps](https://github.com/castorini/daam)  
+    create heatmap visualizations of which parts of the prompt influenced which parts of the image  
+    available in scripts for sdxl text-to-image workflows  
 - **Offloading**
   - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
   - add timers to measure onload/offload times during generate  

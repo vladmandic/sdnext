@@ -18,8 +18,8 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
-def task_modular_kwargs(p, model):
-    model_cls = model.__class__.__name__ # pylint: disable=unused-variable
+def task_modular_kwargs(p, model): # pylint: disable=unused-argument
+    # model_cls = model.__class__.__name__
     task_args = {}
     p.ops.append('modular')
 
