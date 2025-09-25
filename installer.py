@@ -717,36 +717,39 @@ def install_rocm_zluda():
         msg += f', using agent {device.name}'
     log.info(msg)
 
-    if sys.platform == "win32": # TODO install: enable ROCm for windows when available
+    if sys.platform == "win32":
         #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
 
-        if args.device_id is not None:
-            if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
-                log.warning('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
-            os.environ['HIP_VISIBLE_DEVICES'] = args.device_id
-            del args.device_id
+        if args.use_rocm and args.experimental and (sys.version_info.major, sys.version_info.minor) == (3, 12): # TODO install: switch to pytorch source when it becomes available
+            torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
+        else:
+            if args.device_id is not None:
+                if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
+                    log.warning('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
+                os.environ['HIP_VISIBLE_DEVICES'] = args.device_id
+                del args.device_id
 
-        error = None
-        from modules import zluda_installer
-        try:
-            if args.reinstall or zluda_installer.is_reinstall_needed():
-                zluda_installer.uninstall()
-            zluda_installer.install()
-            zluda_installer.set_default_agent(device)
-        except Exception as e:
-            error = e
-            log.warning(f'Failed to install ZLUDA: {e}')
-
-        if error is None:
+            error = None
+            from modules import zluda_installer
             try:
-                zluda_installer.load()
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
+                if args.reinstall or zluda_installer.is_reinstall_needed():
+                    zluda_installer.uninstall()
+                zluda_installer.install()
+                zluda_installer.set_default_agent(device)
             except Exception as e:
                 error = e
-                log.warning(f'Failed to load ZLUDA: {e}')
-        if error is not None:
-            log.info('Using CPU-only torch')
-            torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
+                log.warning(f'Failed to install ZLUDA: {e}')
+
+            if error is None:
+                try:
+                    zluda_installer.load()
+                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
+                except Exception as e:
+                    error = e
+                    log.warning(f'Failed to load ZLUDA: {e}')
+            if error is not None:
+                log.info('Using CPU-only torch')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     else:
         #check_python(supported_minors=[10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.10 and 3.13')
 
