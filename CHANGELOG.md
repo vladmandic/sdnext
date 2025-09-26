@@ -54,10 +54,11 @@
 - **Fixes**
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  
+  - framepack: patch solver for unsupported gpus  
   - benchmark: remove forced sampler from system info benchmark  
   - xyz-grid: fix xyz grid with random seeds  
-  - fix download for sd15/sdxl reference models  
-
+  - reference: fix download for sd15/sdxl reference models  
+  
 ## Update for 2025-09-15
 
 ### Highlights for 2025-09-15
