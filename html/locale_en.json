@@ -32,7 +32,6 @@
   {"id":"","label":"","localized":"","reload":"","hint":"Sort by time, descending"}
 ],
 "main": [
-  {"id":"","label":"SD.Next","localized":"","reload":"","hint":"SD.Next<br>All-in-one WebUI for AI generative image and video creation"},
   {"id":"","label":"Prompt","localized":"","reload":"","hint":"Describe image you want to generate"},
   {"id":"","label":"Start","localized":"","reload":"","hint":"Start"},
   {"id":"","label":"End","localized":"","reload":"","hint":"End"},

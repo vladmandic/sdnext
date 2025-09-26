@@ -601,4 +601,5 @@ async function reconnectUI() {
   const sd_model_observer = new MutationObserver(sd_model_callback);
   sd_model_observer.observe(sd_model, { attributes: true, childList: true, subtree: true });
   log('reconnectUI');
+  monitorConnection();
 }
