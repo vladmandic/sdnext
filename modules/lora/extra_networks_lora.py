@@ -83,6 +83,13 @@ def infotext(p):
             p.extra_generation_params["LoRA hashes"] = ", ".join(network_hashes)
 
 
+def to_float(value):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return value
+
+
 def parse(p, params_list, step=0):
     names = []
     te_multipliers = []
@@ -93,6 +100,7 @@ def parse(p, params_list, step=0):
         names.append(params.positional[0])
 
         default_multiplier = params.positional[1] if len(params.positional) > 1 else shared.opts.extra_networks_default_multiplier
+        default_multiplier = to_float(default_multiplier)
         if isinstance(default_multiplier, str) and "@" not in default_multiplier:
             default_multiplier = shared.opts.extra_networks_default_multiplier
 
@@ -100,7 +108,7 @@ def parse(p, params_list, step=0):
         if isinstance(te_multiplier, str) and "@" in te_multiplier:
             te_multiplier = get_stepwise(te_multiplier, step, p.steps)
         else:
-            te_multiplier = float(te_multiplier)
+            te_multiplier = to_float(te_multiplier)
 
         unet_multiplier = 3 * [params.named.get("unet", te_multiplier)] # fill all 3 with same value
         unet_multiplier[0] = params.named.get("in", unet_multiplier[0])
@@ -110,7 +118,7 @@ def parse(p, params_list, step=0):
             if isinstance(unet_multiplier[i], str) and "@" in unet_multiplier[i]:
                 unet_multiplier[i] = get_stepwise(unet_multiplier[i], step, p.steps)
             else:
-                unet_multiplier[i] = float(unet_multiplier[i])
+                unet_multiplier[i] = to_float(unet_multiplier[i])
 
         dyn_dim = int(params.named["dyn"]) if "dyn" in params.named else None
         te_multipliers.append(te_multiplier)

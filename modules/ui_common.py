@@ -21,6 +21,8 @@ def update_generation_info(generation_info, html_info, img_index):
     try:
         if len(generation_info) == 0 and processing.processed is not None:
             generation_info = processing.processed.js() or {}
+        if len(generation_info) == 0:
+            return html_info, html_info
         generation_json = json.loads(generation_info)
         if len(generation_json.get("infotexts", [])) == 0:
             return html_info, 'no infotexts found'
