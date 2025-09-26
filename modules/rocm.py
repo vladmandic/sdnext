@@ -149,7 +149,10 @@ if sys.platform == "win32":
         return os.path.join(hip_path, str(latest))
 
     def get_version() -> str:
-        return spawn("hipconfig --version", cwd=os.path.join(path, 'Scripts'))
+        try:
+            return spawn("hipconfig --version", cwd=os.path.join(path, 'Scripts'))
+        except:
+            return os.path.basename(path) or os.path.basename(os.path.dirname(path))
 
     def get_agents() -> List[Agent]:
         return [Agent(x.split(' ')[-1].strip()) for x in spawn("hipinfo", cwd=os.path.join(path, 'Scripts')).split("\n") if x.startswith('gcnArchName:')]
