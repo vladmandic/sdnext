@@ -37,6 +37,8 @@
   - new feature to specify which models types not to offload  
     in *settings -> model offloading -> model types not to offload*  
 - **UI**
+  - **connection monitor**  
+    main logo in top-left corner now indicates server connection status and hovering over it shows connection details  
   - separate guidance and detail sections  
   - networks ability to filter lora by base model version  
 - **Other**
