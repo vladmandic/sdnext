@@ -720,7 +720,7 @@ def install_rocm_zluda():
     if sys.platform == "win32":
         #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
 
-        if args.use_rocm and args.experimental and (sys.version_info.major, sys.version_info.minor) == (3, 12): # TODO install: switch to pytorch source when it becomes available
+        if args.use_rocm and args.experimental and sys.version_info.major == 3 and sys.version_info.minor >= 12: # TODO install: switch to pytorch source when it becomes available
             torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
         else:
             if args.device_id is not None:
