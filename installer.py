@@ -678,32 +678,42 @@ def install_rocm_zluda():
         return torch_command
     from modules import rocm
 
-    log.info('ROCm: AMD toolkit detected')
+    amd_gpus = []
+    try:
+        if sys.platform == "win32" and not rocm.is_installed:
+            amd_gpus = rocm.driver_get_agents()
+        else:
+            amd_gpus = rocm.get_agents()
+            log.info('ROCm: AMD toolkit detected')
+    except Exception as e:
+        log.warning(f'ROCm agent enumerator failed: {e}')
+
     #os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow')
 
     device = None
-    try:
-        amd_gpus = rocm.get_agents()
-        if len(amd_gpus) == 0:
-            log.warning('ROCm: no agent was found')
+    if len(amd_gpus) == 0:
+        log.warning('ROCm: no agent was found')
+    else:
+        log.info(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
+        if args.device_id is None:
+            index = 0
+            for idx, gpu in enumerate(amd_gpus):
+                index = idx
+                if not gpu.is_apu:
+                    # although apu was found, there can be a dedicated card. do not break loop.
+                    # if no dedicated card was found, apu will be used.
+                    break
+            os.environ.setdefault('HIP_VISIBLE_DEVICES', str(index))
+            device = amd_gpus[index]
         else:
-            log.info(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
-            if args.device_id is None:
-                index = 0
-                for idx, gpu in enumerate(amd_gpus):
-                    index = idx
-                    if not gpu.is_apu:
-                        # although apu was found, there can be a dedicated card. do not break loop.
-                        # if no dedicated card was found, apu will be used.
-                        break
-                os.environ.setdefault('HIP_VISIBLE_DEVICES', str(index))
-                device = amd_gpus[index]
-            else:
-                device_id = int(args.device_id)
-                if device_id < len(amd_gpus):
-                    device = amd_gpus[device_id]
-    except Exception as e:
-        log.warning(f'ROCm agent enumerator failed: {e}')
+            device_id = int(args.device_id)
+            if device_id < len(amd_gpus):
+                device = amd_gpus[device_id]
+
+    if sys.platform == "win32" and args.use_rocm and not rocm.is_installed:
+        check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+        install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
+        rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
     if device is not None:
@@ -714,7 +724,7 @@ def install_rocm_zluda():
         if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
             if device is not None and isinstance(rocm.environment, rocm.PythonPackageEnvironment): # TheRock
                 check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{rocm.get_distribution(device)}')
+                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
             else:
                 check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')

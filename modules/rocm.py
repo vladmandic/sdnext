@@ -105,6 +105,20 @@ class Agent:
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
+    @property
+    def therock(self) -> str:
+        if (self.gfx_version & 0xFFF0) == 0x1100:
+            return "gfx110X-dgpu"
+        if self.gfx_version == 0x1151:
+            return "gfx1151"
+        if (self.gfx_version & 0xFFF0) == 0x1200:
+            return "gfx120X-all"
+        if (self.gfx_version & 0xFFF0) == 0x940:
+            return "gfx94X-dcgpu"
+        if self.gfx_version == 0x950:
+            return "gfx950-dcgpu"
+        raise Exception(f"Unsupported GPU architecture: {self.name}")
+
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
@@ -204,28 +218,28 @@ def get_flash_attention_command(agent: Agent) -> str:
     return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
 
-def get_distribution(agent: Agent) -> str:
-    if (agent.gfx_version & 0xFFF0) == 0x1100:
-        return "gfx110X-dgpu"
-    if agent.gfx_version == 0x1151:
-        return "gfx1151"
-    if (agent.gfx_version & 0xFFF0) == 0x1200:
-        return "gfx120X-all"
-    if (agent.gfx_version & 0xFFF0) == 0x940:
-        return "gfx94X-dcgpu"
-    if agent.gfx_version == 0x950:
-        return "gfx950-dcgpu"
-    raise Exception(f"Unsupported GPU architecture: {agent.name}")
-
-
 if sys.platform == "win32":
     def get_agents() -> List[Agent]:
         if isinstance(environment, ROCmEnvironment):
             out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
         else:
+            # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
             out = spawn("amdgpu-arch")
         out = out.strip()
         return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+
+    def driver_get_agents() -> List[Agent]:
+        # unsafe and experimental feature
+        from modules import windows_hip_ffi
+        hip = windows_hip_ffi.HIP()
+        count = hip.get_device_count()
+        agents = [None] * count
+        for i in range(count):
+            prop = hip.get_device_properties(i)
+            name = prop.gcnArchName.decode('utf-8').strip('\x00')
+            agents[i] = Agent(name)
+        del hip
+        return agents
 
     is_wsl: bool = False
 else:
@@ -250,16 +264,16 @@ else:
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 environment = None
-err = None
-try:
-    environment = find()
-except Exception as e:
-    err = e
 blaslt_tensile_libpath = ""
 is_installed = False
 version = None
-if environment is not None:
-    if isinstance(environment, ROCmEnvironment):
-        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
-    is_installed = True
-    version = get_version()
+
+def refresh():
+    global environment, blaslt_tensile_libpath, is_installed, version
+    environment = find()
+    if environment is not None:
+        if isinstance(environment, ROCmEnvironment):
+            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+        is_installed = True
+        version = get_version()
+refresh()
