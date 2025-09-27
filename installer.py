@@ -1015,11 +1015,8 @@ def check_torch():
     if rocm.is_installed:
         if sys.platform == "win32": # CPU, DirectML, ZLUDA
             rocm.conceal()
-        elif rocm.is_wsl: # WSL ROCm
-            try:
-                rocm.load_hsa_runtime()
-            except OSError:
-                log.error("ROCm: failed to preload HSA runtime")
+        else: # ROCm
+            rocm.load_libraries()
     if args.version:
         return
     if not args.skip_all:

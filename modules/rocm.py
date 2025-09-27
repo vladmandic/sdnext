@@ -73,7 +73,11 @@ class ROCmEnvironment(Environment):
 class PythonPackageEnvironment(Environment):
     def __init__(self):
         import _rocm_sdk_core
-        super().__init__(os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll"))
+        if sys.platform == "win32":
+            path = os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll")
+        else:
+            raise NotImplementedError
+        super().__init__(path)
 
 
 class MicroArchitecture(Enum):
@@ -216,13 +220,13 @@ if sys.platform == "win32":
         return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
 
     def get_distribution(agent: Agent) -> str:
-        if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1110:
+        if (agent.gfx_version & 0xFFF0) == 0x1100:
             return "gfx110X-dgpu"
         if agent.gfx_version == 0x1151:
             return "gfx1151"
-        if agent.gfx_version >= 0x1200 and agent.gfx_version < 0x1210:
+        if (agent.gfx_version & 0xFFF0) == 0x1200:
             return "gfx120X-all"
-        if agent.gfx_version >= 0x940 and agent.gfx_version < 0x950:
+        if (agent.gfx_version & 0xFFF0) == 0x940:
             return "gfx94X-dcgpu"
         if agent.gfx_version == 0x950:
             return "gfx950-dcgpu"
@@ -240,16 +244,17 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def load_hsa_runtime() -> None:
+    def load_libraries() -> None:
         try:
-            # Preload stdc++ library. This will ignore Anaconda stdc++ library.
+            # Preload stdc++ library. This will bypass Anaconda stdc++ library.
             load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
             # Use tcmalloc if possible.
             load_library_global("/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4")
+            if is_wsl:
+                # Preload rocr4wsl.
+                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
         except OSError:
             pass
-        # Preload HSA Runtime library.
-        load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
 
     def set_blaslt_enabled(enabled: bool) -> None:
         if enabled:
