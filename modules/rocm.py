@@ -6,6 +6,7 @@ import subprocess
 import importlib.metadata
 from typing import Union, List
 from enum import Enum
+from installer import installed
 
 
 def resolve_link(path_: str) -> str:
@@ -38,6 +39,33 @@ def conceal():
         if "rocm" not in path_.lower():
             paths_no_rocm.append(path_)
     os.environ["PATH"] = ";".join(paths_no_rocm)
+
+
+class Environment:
+    hip: ctypes.CDLL
+
+    def __init__(self, path: str):
+        self.hip = ctypes.CDLL(path)
+
+
+# rocm is installed system-wide
+class ROCmEnvironment(Environment):
+    path: str
+
+    def __init__(self, path: str):
+        for v in (6, 7):
+            lib = os.path.join(path, "bin", f"amdhip64_{v}.dll")
+            if os.path.exists(lib):
+                super().__init__(lib)
+                break
+        self.path = path
+
+
+# rocm-sdk package is installed
+class PythonPackageEnvironment(Environment):
+    def __init__(self):
+        import _rocm_sdk_core
+        super().__init__(os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll"))
 
 
 class MicroArchitecture(Enum):
@@ -81,7 +109,7 @@ class Agent:
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
     def get_gfx_version(self) -> Union[str, None]:
-        if self.gfx_version >= 0x1101 and self.gfx_version < 0x1200:
+        if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
         elif self.gfx_version != 0x1030 and self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
             # gfx1010 users had to override gfx version to 10.3.0 in Linux
@@ -101,15 +129,23 @@ def get_version_torch() -> Union[str, None]:
     return version_.split("+rocm")[1]
 
 
-if sys.platform == "win32":
-    def find() -> Union[str, None]:
-        hip_path = shutil.which("hipconfig")
-        if hip_path is not None:
-            return dirname(resolve_link(hip_path), 2)
+def find() -> Union[Environment, None]:
+    hip_path = shutil.which("hipconfig")
+    if hip_path is not None:
+        py_path = os.path.dirname(sys.executable)
+        if hip_path.startswith(py_path):
+            try:
+                import _rocm_sdk_core # pylint: disable=unused-import
+                return PythonPackageEnvironment()
+            except ImportError:
+                pass
+        else:
+            return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
 
+    if sys.platform == "win32":
         hip_path = os.environ.get("HIP_PATH", None)
         if hip_path is not None:
-            return hip_path
+            return ROCmEnvironment(hip_path)
 
         program_files = os.environ.get('ProgramFiles', r'C:\Program Files')
         hip_path = rf'{program_files}\AMD\ROCm'
@@ -146,29 +182,47 @@ if sys.platform == "win32":
         if latest is None:
             return None
 
-        return os.path.join(hip_path, str(latest))
+        return ROCmEnvironment(os.path.join(hip_path, str(latest)))
+    else:
+        if not os.path.exists("/opt/rocm"):
+            return None
+        return ROCmEnvironment(resolve_link("/opt/rocm"))
 
-    def get_version() -> str: # cannot just run hipconfig as it requires Perl installed on Windows.
-        return os.path.basename(path) or os.path.basename(os.path.dirname(path))
 
+def get_version() -> str:
+    version = ctypes.c_int()
+    environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
+    major = version.value // 10000000
+    minor = (version.value // 100000) % 100
+    patch = version.value % 100000
+    return f"{major}.{minor}.{patch}"
+
+
+if sys.platform == "win32":
     def get_agents() -> List[Agent]:
-        return [Agent(x.split(' ')[-1].strip()) for x in spawn("hipinfo", cwd=os.path.join(path, 'bin')).split("\n") if x.startswith('gcnArchName:')]
+        if isinstance(environment, ROCmEnvironment):
+            out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
+        else:
+            out = spawn("amdgpu-arch")
+        out = out.strip()
+        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+
+    def get_distribution(agent: Agent) -> str:
+        if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1110:
+            return "gfx110X-dgpu"
+        if agent.gfx_version == 0x1151:
+            return "gfx1151"
+        if agent.gfx_version >= 0x1200 and agent.gfx_version < 0x1210:
+            return "gfx120X-all"
+        if agent.gfx_version >= 0x940 and agent.gfx_version < 0x950:
+            return "gfx94X-dcgpu"
+        if agent.gfx_version == 0x950:
+            return "gfx950-dcgpu"
+        raise Exception(f"Unsupported GPU architecture: {agent.name}")
 
     is_wsl: bool = False
     version_torch = None
 else:
-    def find() -> Union[str, None]:
-        rocm_path = shutil.which("hipconfig")
-        if rocm_path is not None:
-            return dirname(resolve_link(rocm_path), 2)
-        if not os.path.exists("/opt/rocm"):
-            return None
-        return resolve_link("/opt/rocm")
-
-    def get_version() -> str:
-        arr = spawn("hipconfig --version", cwd=os.path.join(path, 'bin')).split(".")
-        return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
-
     def get_agents() -> List[Agent]:
         try:
             agents = spawn("rocm_agent_enumerator").split("\n")
@@ -208,11 +262,17 @@ else:
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
     version_torch = get_version_torch()
-path = find()
+environment = None
+err = None
+try:
+    environment = find()
+except Exception as e:
+    err = e
 blaslt_tensile_libpath = ""
 is_installed = False
 version = None
-if path is not None:
-    blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+if environment is not None:
+    if isinstance(environment, ROCmEnvironment):
+        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
     is_installed = True
     version = get_version()
