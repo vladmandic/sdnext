@@ -53,11 +53,14 @@ class ROCmEnvironment(Environment):
     path: str
 
     def __init__(self, path: str):
-        for v in (6, 7):
-            lib = os.path.join(path, "bin", f"amdhip64_{v}.dll")
-            if os.path.exists(lib):
-                super().__init__(lib)
-                break
+        if sys.platform == "win32":
+            for v in (6, 7):
+                lib = os.path.join(path, "bin", f"amdhip64_{v}.dll")
+                if os.path.exists(lib):
+                    super().__init__(lib)
+                    break
+        else:
+            super().__init__(os.path.join(path, "lib", "libamdhip64.so"))
         self.path = path
 
 
@@ -194,8 +197,8 @@ def get_version() -> str:
     environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
     major = version.value // 10000000
     minor = (version.value // 100000) % 100
-    patch = version.value % 100000
-    return f"{major}.{minor}.{patch}"
+    #patch = version.value % 100000
+    return f"{major}.{minor}"
 
 
 if sys.platform == "win32":
