@@ -996,8 +996,8 @@ def check_torch():
     if rocm.is_installed:
         if sys.platform == "win32": # CPU, DirectML, ZLUDA
             rocm.conceal()
-        else: # ROCm
-            rocm.load_libraries()
+        elif rocm.is_wsl: # ROCm WSL
+            rocm.preload_hsa_runtime()
     if args.version:
         return
     if not args.skip_all:

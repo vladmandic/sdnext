@@ -3,7 +3,6 @@ import sys
 import ctypes
 import shutil
 import subprocess
-import importlib.metadata
 from typing import Union, List
 from enum import Enum
 
@@ -178,6 +177,7 @@ def find() -> Union[Environment, None]:
 
 def get_version() -> str:
     if isinstance(environment, ROCmEnvironment):
+        # We don't load the hip library that will not be used by PyTorch.
         if sys.platform == "win32":
             # ROCm is system-wide installed. Assume the version is the folder name. (e.g. C:\Program Files\AMD\ROCm\6.4)
             # hipconfig requires Perl
@@ -186,6 +186,7 @@ def get_version() -> str:
             arr = spawn("hipconfig --version", cwd=os.path.join(environment.path, 'bin')).split(".")
             return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
     else:
+        # If rocm-sdk package is installed, the hip library may be used by PyTorch.
         version = ctypes.c_int()
         environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
         major = version.value // 10000000
@@ -194,7 +195,7 @@ def get_version() -> str:
         return f"{major}.{minor}"
 
 
-def get_flash_attention_command(agent: Agent):
+def get_flash_attention_command(agent: Agent) -> str:
     default = "git+https://github.com/ROCm/flash-attention"
     if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
         # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
@@ -237,15 +238,15 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def load_libraries() -> None:
-        if is_wsl:
-            try:
+    def preload_hsa_runtime():
+        try:
+            if shutil.which("conda") is not None:
                 # Preload stdc++ library. This will bypass Anaconda stdc++ library.
                 load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-                # Preload rocr4wsl.
-                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
-            except OSError:
-                pass
+            # Preload rocr4wsl. The user don't have to replace the library file.
+            load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+        except OSError:
+            pass
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 environment = None
