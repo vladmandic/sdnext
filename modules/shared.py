@@ -70,9 +70,8 @@ state = shared_state.State()
 
 # early select backend
 backend = Backend.DIFFUSERS
-if not hasattr(cmd_opts, "use_openvino"):
-    cmd_opts.use_openvino = False
 if cmd_opts.use_openvino: # override for openvino
+    os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     from modules.intel.openvino import get_device_list as get_openvino_device_list # pylint: disable=ungrouped-imports
 elif cmd_opts.use_ipex or devices.has_xpu():
     from modules.intel.ipex import ipex_init

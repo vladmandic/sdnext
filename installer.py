@@ -754,9 +754,6 @@ def install_rocm_zluda():
     else:
         #check_python(supported_minors=[10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.10 and 3.13')
 
-        if os.environ.get("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", None) is None:
-            os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
-
         if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
@@ -800,27 +797,6 @@ def install_ipex():
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
-    if os.environ.get("NEOReadDebugKeys", None) is None:
-        os.environ.setdefault('NEOReadDebugKeys', '1')
-
-    if os.environ.get("ClDeviceGlobalMemSizeAvailablePercent", None) is None:
-        os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
-
-    if os.environ.get("SYCL_CACHE_PERSISTENT", None) is None:
-        os.environ.setdefault('SYCL_CACHE_PERSISTENT', '1') # Jit cache
-
-    if os.environ.get("PYTORCH_ENABLE_XPU_FALLBACK", None) is None:
-        os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1') # CPU fallback for unsupported ops
-
-    if os.environ.get("UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS", None) is None:
-        os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1') # Work around the 4G alloc limit on Alchemist
-
-    # FP64 emulation causes random UR Errors
-    #if os.environ.get("OverrideDefaultFP64Settings", None) is None:
-    #    os.environ.setdefault('OverrideDefaultFP64Settings', '1')
-    #if os.environ.get("IGC_EnableDPEmulation", None) is None:
-    #    os.environ.setdefault('IGC_EnableDPEmulation', '1') # FP64 Emulation
-
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
@@ -834,20 +810,17 @@ def install_ipex():
 def install_openvino():
     t_start = time.time()
     log.info('OpenVINO: selected')
-    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
+    os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
 
+    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu')
 
-    install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
-    install(os.environ.get('NNCF_COMMAND', 'nncf==2.18.0'), 'nncf')
-    os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
-    if os.environ.get("NEOReadDebugKeys", None) is None:
-        os.environ.setdefault('NEOReadDebugKeys', '1')
-    if os.environ.get("ClDeviceGlobalMemSizeAvailablePercent", None) is None:
-        os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
+    if not (args.skip_all or args.skip_requirements):
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
+        install(os.environ.get('NNCF_COMMAND', 'nncf==2.18.0'), 'nncf')
     ts('openvino', t_start)
     return torch_command
 
@@ -969,12 +942,12 @@ def check_torch():
         try:
             import torch
             log.info(f'Torch {torch.__version__}')
-            if args.use_ipex and allow_ipex:
-                try:
-                    import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
-                    log.info(f'Torch backend: Intel IPEX {ipex.__version__}')
-                except Exception:
-                    log.warning('IPEX: not found')
+            try:
+                import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
+                log.info(f'Torch backend: Intel IPEX {ipex.__version__}')
+            except Exception:
+                pass
+            if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
                 if shutil.which('icpx') is not None:
                     log.info(f'{os.popen("icpx --version").read().rstrip()}')
                 for device in range(torch.xpu.device_count()):
@@ -1370,8 +1343,13 @@ def set_environment():
     os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', allocator)
     os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', allocator)
     log.debug(f'Torch allocator: "{allocator}"')
-    if sys.platform == 'darwin':
-        os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
+    os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
+    os.environ.setdefault('NEOReadDebugKeys', '1')
+    os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
+    os.environ.setdefault('SYCL_CACHE_PERSISTENT', '1')
+    os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
+    os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1')
+    os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
 
 
 def check_extensions():
