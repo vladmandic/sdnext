@@ -41,10 +41,7 @@ def conceal():
 
 
 class Environment:
-    hip: ctypes.CDLL
-
-    def __init__(self, path: str):
-        self.hip = ctypes.CDLL(path)
+    pass
 
 
 # rocm is installed system-wide
@@ -52,32 +49,21 @@ class ROCmEnvironment(Environment):
     path: str
 
     def __init__(self, path: str):
-        if sys.platform == "win32":
-            for v in (6, 7):
-                lib = os.path.join(path, "bin", f"amdhip64_{v}.dll")
-                if os.path.exists(lib):
-                    super().__init__(lib)
-                    break
-        else:
-            # Check 64bit path first, then fall back if it doesn't exist
-            # FIXME: This may be brittle on Debian-based distributions
-            joined_path = os.path.join(path, "lib64", "libamdhip64.so")
-            if not os.path.exists(joined_path):
-                joined_path = os.path.join(path, "lib", "libamdhip64.so")
-
-            super().__init__(joined_path)
         self.path = path
 
 
 # rocm-sdk package is installed
 class PythonPackageEnvironment(Environment):
+    hip: ctypes.CDLL
+
     def __init__(self):
         import _rocm_sdk_core
         if sys.platform == "win32":
             path = os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll")
         else:
             raise NotImplementedError
-        super().__init__(path)
+        # This library will be loaded/used by PyTorch. So it won't make conflicts.
+        self.hip = ctypes.CDLL(path)
 
 
 class MicroArchitecture(Enum):
@@ -202,12 +188,21 @@ def find() -> Union[Environment, None]:
 
 
 def get_version() -> str:
-    version = ctypes.c_int()
-    environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
-    major = version.value // 10000000
-    minor = (version.value // 100000) % 100
-    #patch = version.value % 100000
-    return f"{major}.{minor}"
+    if isinstance(environment, ROCmEnvironment):
+        if sys.platform == "win32":
+            # ROCm is system-wide installed. Assume the version is the folder name. (e.g. C:\Program Files\AMD\ROCm\6.4)
+            # hipconfig requires Perl
+            return os.path.basename(environment.path) or os.path.basename(os.path.dirname(environment.path))
+        else:
+            arr = spawn("hipconfig --version", cwd=os.path.join(environment.path, 'bin')).split(".")
+            return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
+    else:
+        version = ctypes.c_int()
+        environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
+        major = version.value // 10000000
+        minor = (version.value // 100000) % 100
+        #patch = version.value % 100000
+        return f"{major}.{minor}"
 
 
 if sys.platform == "win32":
