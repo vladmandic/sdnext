@@ -725,7 +725,11 @@ def install_rocm_zluda():
         #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
 
         if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
-            torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{rocm.get_distribution(device)}')
+            if isinstance(rocm.environment, rocm.PythonPackageEnvironment): # TheRock
+                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{rocm.get_distribution(device)}')
+            else:
+                check_python(supported_minors=[12], reason='AMD Windows preview requires a Python version 3.12')
+                torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
         else:
             if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
