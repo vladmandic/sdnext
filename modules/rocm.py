@@ -116,17 +116,6 @@ class Agent:
         return None
 
 
-def get_version_torch() -> Union[str, None]:
-    version_ = None
-    try:
-        version_ = importlib.metadata.version("torch")
-    except importlib.metadata.PackageNotFoundError:
-        return None
-    if "+rocm" not in version_: # unofficial build, non-rocm torch.
-        return None
-    return version_.split("+rocm")[1]
-
-
 def find() -> Union[Environment, None]:
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
@@ -205,6 +194,29 @@ def get_version() -> str:
         return f"{major}.{minor}"
 
 
+def get_flash_attention_command(agent: Agent):
+    default = "git+https://github.com/ROCm/flash-attention"
+    if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
+        # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
+        # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
+        default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
+    return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+
+
+def get_distribution(agent: Agent) -> str:
+    if (agent.gfx_version & 0xFFF0) == 0x1100:
+        return "gfx110X-dgpu"
+    if agent.gfx_version == 0x1151:
+        return "gfx1151"
+    if (agent.gfx_version & 0xFFF0) == 0x1200:
+        return "gfx120X-all"
+    if (agent.gfx_version & 0xFFF0) == 0x940:
+        return "gfx94X-dcgpu"
+    if agent.gfx_version == 0x950:
+        return "gfx950-dcgpu"
+    raise Exception(f"Unsupported GPU architecture: {agent.name}")
+
+
 if sys.platform == "win32":
     def get_agents() -> List[Agent]:
         if isinstance(environment, ROCmEnvironment):
@@ -214,21 +226,7 @@ if sys.platform == "win32":
         out = out.strip()
         return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
 
-    def get_distribution(agent: Agent) -> str:
-        if (agent.gfx_version & 0xFFF0) == 0x1100:
-            return "gfx110X-dgpu"
-        if agent.gfx_version == 0x1151:
-            return "gfx1151"
-        if (agent.gfx_version & 0xFFF0) == 0x1200:
-            return "gfx120X-all"
-        if (agent.gfx_version & 0xFFF0) == 0x940:
-            return "gfx94X-dcgpu"
-        if agent.gfx_version == 0x950:
-            return "gfx950-dcgpu"
-        raise Exception(f"Unsupported GPU architecture: {agent.name}")
-
     is_wsl: bool = False
-    version_torch = None
 else:
     def get_agents() -> List[Agent]:
         try:
@@ -240,36 +238,16 @@ else:
         return [Agent(x) for x in agents]
 
     def load_libraries() -> None:
-        try:
-            # Preload stdc++ library. This will bypass Anaconda stdc++ library.
-            load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-            # Use tcmalloc if possible.
-            load_library_global("/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4")
-            if is_wsl:
+        if is_wsl:
+            try:
+                # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
                 # Preload rocr4wsl.
                 load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
-        except OSError:
-            pass
-
-    def set_blaslt_enabled(enabled: bool) -> None:
-        if enabled:
-            os.environ["HIPBLASLT_TENSILE_LIBPATH"] = blaslt_tensile_libpath
-        else:
-            os.environ["TORCH_BLAS_PREFER_HIPBLASLT"] = "0"
-
-    def get_blaslt_enabled() -> bool:
-        return version == version_torch and bool(int(os.environ.get("TORCH_BLAS_PREFER_HIPBLASLT", "1")))
-
-    def get_flash_attention_command(agent: Agent):
-        default = "git+https://github.com/ROCm/flash-attention"
-        if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
-            # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
-            # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
-            default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
-        return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+            except OSError:
+                pass
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
-    version_torch = get_version_torch()
 environment = None
 err = None
 try:
