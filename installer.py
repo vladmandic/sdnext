@@ -677,18 +677,9 @@ def install_rocm_zluda():
     if args.skip_all or args.skip_requirements:
         return torch_command
     from modules import rocm
-    if rocm.err is not None:
-        log.warning(f'ROCm: error checking ROCm toolkit: {rocm.err}')
-        log.info('Using CPU-only torch')
-        return os.environ.get('TORCH_COMMAND', 'torch torchvision')
-    if not rocm.is_installed:
-        log.warning('ROCm: could not find ROCm toolkit installed')
-        log.info('Using CPU-only torch')
-        return os.environ.get('TORCH_COMMAND', 'torch torchvision')
 
     log.info('ROCm: AMD toolkit detected')
-    # if not is_windows:
-    #    os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow-rocm')
+    #os.environ.setdefault('TENSORFLOW_PACKAGE', 'tensorflow')
 
     device = None
     try:
@@ -701,8 +692,6 @@ def install_rocm_zluda():
                 index = 0
                 for idx, gpu in enumerate(amd_gpus):
                     index = idx
-                    # if gpu.name.startswith('gfx11') and os.environ.get('TENSORFLOW_PACKAGE') == 'tensorflow-rocm': # do not use tensorflow-rocm for navi 3x
-                    #    os.environ['TENSORFLOW_PACKAGE'] = 'tensorflow==2.13.0'
                     if not gpu.is_apu:
                         # although apu was found, there can be a dedicated card. do not break loop.
                         # if no dedicated card was found, apu will be used.
@@ -722,22 +711,23 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32":
-        #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
-
         if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment): # TheRock
+            if device is not None and isinstance(rocm.environment, rocm.PythonPackageEnvironment): # TheRock
+                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{rocm.get_distribution(device)}')
             else:
-                check_python(supported_minors=[12], reason='AMD Windows preview requires a Python version 3.12')
+                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
         else:
+            #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
+            torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
+
             if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
                     log.warning('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
                 os.environ['HIP_VISIBLE_DEVICES'] = args.device_id
                 del args.device_id
 
-            error = None
             from modules import zluda_installer
             try:
                 if args.reinstall or zluda_installer.is_reinstall_needed():
@@ -745,19 +735,12 @@ def install_rocm_zluda():
                 zluda_installer.install()
                 zluda_installer.set_default_agent(device)
             except Exception as e:
-                error = e
                 log.warning(f'Failed to install ZLUDA: {e}')
 
-            if error is None:
-                try:
-                    zluda_installer.load()
-                    torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
-                except Exception as e:
-                    error = e
-                    log.warning(f'Failed to load ZLUDA: {e}')
-            if error is not None:
-                log.info('Using CPU-only torch')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
+            try:
+                zluda_installer.load()
+            except Exception as e:
+                log.warning(f'Failed to load ZLUDA: {e}')
     else:
         #check_python(supported_minors=[10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.10 and 3.13')
 
@@ -793,7 +776,7 @@ def install_rocm_zluda():
         log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
-        if gfx_ver is not None:
+        if gfx_ver is not None and device.name.removeprefix("gfx") != gfx_ver.replace(".", ""):
             os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
             log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device.name} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
@@ -936,8 +919,8 @@ def check_torch():
     if torch_command != '':
         pass
     else:
-        is_cuda_available = allow_cuda and (shutil.which('nvidia-smi') is not None or args.use_xformers or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
-        is_rocm_available = allow_rocm and rocm.is_installed
+        is_cuda_available = allow_cuda and (args.use_cuda or shutil.which('nvidia-smi') is not None or args.use_xformers or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
+        is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed)
         is_ipex_available = allow_ipex and (args.use_ipex or shutil.which('sycl-ls') is not None or shutil.which('sycl-ls.exe') is not None or os.environ.get('ONEAPI_ROOT') is not None or os.path.exists('/opt/intel/oneapi') or os.path.exists("C:/Program Files (x86)/Intel/oneAPI") or os.path.exists("C:/oneAPI"))
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
@@ -965,8 +948,6 @@ def check_torch():
                     install(torch_command, 'torch torchvision')
                 install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
             else:
-                if args.use_zluda:
-                    log.warning("ZLUDA failed to initialize: no HIP SDK found")
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
     if 'torch' in torch_command and not args.version:

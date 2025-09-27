@@ -404,7 +404,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
             model = model.to(devices.cpu)
-        devices.torch_gc(force=True, reason='sdnq')
+        devices.torch_gc(force=True, reason="sdnq")
         return model
 
     def get_accelerator_warm_up_factor(self):
@@ -440,7 +440,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return missing_keys
 
-    def update_state_dict_with_metadata(self, state_dict: dict, metadata: dict) -> dict: # pylint: disable=unused-argument
+    def update_state_dict_with_metadata(self, state_dict: dict, metadata: dict) -> dict:
         """
         needed for transformers compatibilty, no-op function
         """

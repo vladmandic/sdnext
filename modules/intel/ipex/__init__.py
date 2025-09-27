@@ -165,7 +165,7 @@ def ipex_init(): # pylint: disable=too-many-statements
                         pass
 
             # Memory:
-            if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():
+            if "linux" in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
