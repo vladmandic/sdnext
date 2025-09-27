@@ -6,7 +6,6 @@ import subprocess
 import importlib.metadata
 from typing import Union, List
 from enum import Enum
-from installer import installed
 
 
 def resolve_link(path_: str) -> str:
