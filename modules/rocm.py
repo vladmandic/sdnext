@@ -59,7 +59,13 @@ class ROCmEnvironment(Environment):
                     super().__init__(lib)
                     break
         else:
-            super().__init__(os.path.join(path, "lib", "libamdhip64.so"))
+            # Check 64bit path first, then fall back if it doesn't exist
+            # FIXME: This may be brittle on Debian-based distributions
+            joined_path = os.path.join(path, "lib64", "libamdhip64.so")
+            if not os.path.exists(joined_path):
+                joined_path = os.path.join(path, "lib", "libamdhip64.so")
+
+            super().__init__(joined_path)
         self.path = path
 
 
