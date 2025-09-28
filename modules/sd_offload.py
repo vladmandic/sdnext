@@ -245,7 +245,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                     if isinstance(device_map[v], int):
                         device_map[v] = f"{devices.device.type}:{device_map[v]}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
             if device_map is not None:
-                module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
+                module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir, offload_buffers=True)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory
