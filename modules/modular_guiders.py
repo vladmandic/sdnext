@@ -27,7 +27,7 @@ base_args = {
 def set_guider(p: processing.StableDiffusionProcessing):
     guidance_name = p.guidance_name or 'Default'
     if guidance_name not in guiders:
-        return None
+        return
 
     if guidance_name == 'Default':
         if hasattr(shared.sd_model, 'default_guider'):

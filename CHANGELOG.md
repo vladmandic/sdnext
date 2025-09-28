@@ -56,7 +56,15 @@
   - update **loopback** script with radon seed option, thanks @rabanti  
   - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise  
   - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
+    enable in *settings -> compute settings*  
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
+- **Experimental**
+  - `new` command line flag enables new `pydantic` and `albumentations` packages  
+  - **modular pipelines**: enable in *settings -> model options*  
+    only compatible with some pipelines, invalidates preview generation  
+  - **modular guiders**: automatically used for compatible pipelines when *modular pipelines* is enabled  
+    allows for using many different guidance methods:  
+    *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
 - **Fixes**
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  

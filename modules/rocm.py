@@ -107,7 +107,7 @@ class Agent:
             return "gfx94X-dcgpu"
         if self.gfx_version == 0x950:
             return "gfx950-dcgpu"
-        raise Exception(f"Unsupported GPU architecture: {self.name}")
+        raise RuntimeError(f"Unsupported GPU architecture: {self.name}")
 
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
@@ -190,10 +190,10 @@ def get_version() -> str:
             return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
     else:
         # If rocm-sdk package is installed, the hip library may be used by PyTorch.
-        version = ctypes.c_int()
-        environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
-        major = version.value // 10000000
-        minor = (version.value // 100000) % 100
+        ver = ctypes.c_int()
+        environment.hip.hipRuntimeGetVersion(ctypes.byref(ver))
+        major = ver.value // 10000000
+        minor = (ver.value // 100000) % 100
         #patch = version.value % 100000
         return f"{major}.{minor}"
 
@@ -306,7 +306,7 @@ is_installed = False
 version = None
 
 def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version
+    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
     environment = find()
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):
