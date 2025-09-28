@@ -245,7 +245,7 @@ if sys.platform == "win32":
 
         cholesky_ex_gpu = torch.linalg.cholesky_ex
         @wraps(cholesky_ex_gpu)
-        def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.Tensor:
+        def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
             if A.device.type != 'cpu':
                 return cholesky_ex_gpu(A, upper=upper, check_errors=check_errors, out=out)
 
@@ -268,6 +268,15 @@ if sys.platform == "win32":
                         L[i, j] = (A[i, j] - s) / L[j, j]
             return torch.return_types.linalg_cholesky_ex((L, torch.tensor(0, dtype=torch.int32, device='cpu')), {})
         torch.linalg.cholesky_ex = cholesky_ex
+
+        cholesky_gpu = torch.linalg.cholesky
+        @wraps(cholesky_gpu)
+        def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
+            if A.device.type != 'cpu':
+                return cholesky_gpu(A, upper=upper, out=out)
+            L, _ = torch.linalg.cholesky_ex(A, upper=upper, out=out)
+            return L
+        torch.linalg.cholesky = cholesky
 
     is_wsl: bool = False
 else:
