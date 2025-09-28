@@ -7,6 +7,8 @@
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
   - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
     updated version of Qwen Image Edit with improved image consistency  
+  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
+    updated version of E1 image editing model  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
@@ -21,6 +23,12 @@
     enable in *settings -> pipeline modifers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
+- **Compute**
+  - **ROCm** for Windows  
+    support for both official torch preview release of `torch-rocm` for windows and **TheRock** unoffical `torch-rocm` builds for windows  
+    note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
+  - **DirectML** warn as end-of-life  
+    `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
 - **Extensions**  
   - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
     was a high-value built-in extension, but it has not been maintained for 1.5 years  

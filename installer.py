@@ -967,7 +967,8 @@ def check_torch():
                     if args.use_directml and allow_directml:
                         import torch_directml # pylint: disable=import-error
                         dml_ver = pkg_resources.get_distribution("torch-directml")
-                        log.info(f'Torch backend: DirectML ({dml_ver})')
+                        log.warning(f'Torch backend: DirectML ({dml_ver})')
+                        log.warning('DirectML: end-of-life')
                         for i in range(0, torch_directml.device_count()):
                             log.info(f'Torch detected GPU: {torch_directml.device_name(i)}')
                 except Exception:
