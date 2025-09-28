@@ -6,8 +6,12 @@ from modules import shared
 modular_map= {
     'StableDiffusionXLPipeline': 'StableDiffusionXLAutoBlocks',
     'StableDiffusionXLImg2ImgPipeline': 'StableDiffusionXLAutoBlocks',
+    'StableDiffusionXLInpaintPipeline': 'StableDiffusionXLAutoBlocks',
     'FluxPipeline': 'FluxAutoBlocks',
+    'FluxImg2ImgPipeline': 'FluxAutoBlocks',
+    'FluxInpaintPipeline': 'FluxAutoBlocks',
     'WanPipeline': 'WanAutoBlocks',
+    'WanImageToVideoPipeline': 'WanAutoBlocks',
     'QwenImagePipeline': 'QwenImageAutoBlocks',
     'QwenImageEditPipeline': 'QwenImageEditAutoBlocks',
 }
