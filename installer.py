@@ -977,8 +977,10 @@ def check_torch():
             if not args.ignore:
                 sys.exit(1)
     if rocm.is_installed:
-        if sys.platform == "win32": # CPU, DirectML, ZLUDA
-            rocm.conceal()
+        if sys.platform == "win32":
+            import torch
+            if torch.version.hip is None: # CPU, DirectML, ZLUDA
+                rocm.conceal()
         elif rocm.is_wsl: # ROCm WSL
             rocm.preload_hsa_runtime()
     if args.version:
