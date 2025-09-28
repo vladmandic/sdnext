@@ -130,17 +130,16 @@ class Agent:
 
 
 def find() -> Union[Environment, None]:
+    try: # TheRock
+        import _rocm_sdk_core # pylint: disable=unused-import
+        return PythonPackageEnvironment()
+    except ImportError:
+        pass
+
+    # system-wide installation
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
-        py_path = os.path.dirname(sys.executable)
-        if hip_path.startswith(py_path):
-            try:
-                import _rocm_sdk_core # pylint: disable=unused-import
-                return PythonPackageEnvironment()
-            except ImportError:
-                pass
-        else:
-            return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
+        return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
 
     if sys.platform == "win32":
         hip_path = os.environ.get("HIP_PATH", None)
