@@ -261,10 +261,12 @@ if sys.platform == "win32":
                     s = torch.dot(L[i, :j], L[j, :j].conj())
                     if i == j:
                         val = A[i, i] - s
+                        if val.real <= 0 or (A.dtype.is_complex and val.imag != 0):
+                            return torch.return_types.linalg_cholesky_ex((L, torch.tensor(i + 1, dtype=torch.int32, device='cpu')), {})
                         L[i, j] = torch.sqrt(val.real)
                     else:
                         L[i, j] = (A[i, j] - s) / L[j, j]
-            return L, torch.tensor(0, dtype=torch.int32, device=A.device)
+            return torch.return_types.linalg_cholesky_ex((L, torch.tensor(0, dtype=torch.int32, device='cpu')), {})
         torch.linalg.cholesky_ex = cholesky_ex
 
     is_wsl: bool = False
