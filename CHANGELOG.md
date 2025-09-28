@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-25
+## Update for 2025-09-28
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -53,6 +53,7 @@
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
+  - update **loopback** script with radon seed option, thanks @rabanti  
 - **Fixes**
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  

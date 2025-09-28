@@ -82,11 +82,11 @@ class Script(scripts_manager.Script):
                 if randomize_seed:
                     p.seed = random.randrange(4294967294)
                     p.all_seeds = [p.seed]
-                    log.info(f'Setting random seed {p.seed} for loopback iteration {i}')
                 p.seed = processed.seed + 1 # why?
                 p.denoising_strength = calculate_denoising_strength(i + 1)
                 last_image = processed.images[0]
                 p.init_images = [last_image]
+                log.info(f'Loopback: iteration={i} seed={p.seed} curve={denoising_curve} strength={p.denoising_strength}:{final_denoising_strength}')
                 if initial_batch_count == 1:
                     history.append(last_image)
                     all_images.append(last_image)
