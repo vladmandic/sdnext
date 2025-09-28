@@ -243,40 +243,39 @@ if sys.platform == "win32":
             os.environ["PATH"] = ";".join(paths_no_rocm)
             return
 
-        cholesky_ex_gpu = torch.linalg.cholesky_ex
-        @wraps(cholesky_ex_gpu)
-        def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
-            if A.device.type != 'cpu':
-                return cholesky_ex_gpu(A, upper=upper, check_errors=check_errors, out=out)
+    def rocm_init():
+        try:
+            import torch
+            import numpy as np
 
-            assert not upper
-            assert not check_errors
-            assert out is None
+            cholesky_ex_gpu = torch.linalg.cholesky_ex
+            @wraps(cholesky_ex_gpu)
+            def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
+                if A.device.type != 'cpu':
+                    return cholesky_ex_gpu(A, upper=upper, check_errors=check_errors, out=out)
 
-            n = A.size(0)
-            L = torch.zeros_like(A)
+                assert not check_errors
+                L = torch.from_numpy(np.linalg.cholesky(A.numpy(), upper=upper))
+                info = torch.tensor(0, dtype=torch.int32, device='cpu')
+                if out is not None:
+                    out[0].copy_(L)
+                    out[1].copy_(info)
+                return torch.return_types.linalg_cholesky_ex((L, info), {})
+            torch.linalg.cholesky_ex = cholesky_ex
 
-            for i in range(n):
-                for j in range(i + 1):
-                    s = torch.dot(L[i, :j], L[j, :j].conj())
-                    if i == j:
-                        val = A[i, i] - s
-                        if val.real <= 0 or (A.dtype.is_complex and val.imag != 0):
-                            return torch.return_types.linalg_cholesky_ex((L, torch.tensor(i + 1, dtype=torch.int32, device='cpu')), {})
-                        L[i, j] = torch.sqrt(val.real)
-                    else:
-                        L[i, j] = (A[i, j] - s) / L[j, j]
-            return torch.return_types.linalg_cholesky_ex((L, torch.tensor(0, dtype=torch.int32, device='cpu')), {})
-        torch.linalg.cholesky_ex = cholesky_ex
-
-        cholesky_gpu = torch.linalg.cholesky
-        @wraps(cholesky_gpu)
-        def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
-            if A.device.type != 'cpu':
-                return cholesky_gpu(A, upper=upper, out=out)
-            L, _ = torch.linalg.cholesky_ex(A, upper=upper, out=out)
-            return L
-        torch.linalg.cholesky = cholesky
+            cholesky_gpu = torch.linalg.cholesky
+            @wraps(cholesky_gpu)
+            def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
+                if A.device.type != 'cpu':
+                    return cholesky_gpu(A, upper=upper, out=out)
+                L = torch.from_numpy(np.linalg.cholesky(A.numpy(), upper=upper))
+                if out is not None:
+                    out.copy_(L)
+                return L
+            torch.linalg.cholesky = cholesky
+        except Exception as e:
+            return False, e
+        return True, None
 
     is_wsl: bool = False
 else:
@@ -290,16 +289,18 @@ else:
         return [Agent(x) for x in agents]
 
     def postinstall():
-        if not is_wsl:
-            return
-        try:
-            if shutil.which("conda") is not None:
-                # Preload stdc++ library. This will bypass Anaconda stdc++ library.
-                load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-            # Preload rocr4wsl. The user don't have to replace the library file.
-            load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
-        except OSError:
-            pass
+        if is_wsl:
+            try:
+                if shutil.which("conda") is not None:
+                    # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
+                # Preload rocr4wsl. The user don't have to replace the library file.
+                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+            except OSError:
+                pass
+
+    def rocm_init():
+        return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 environment = None
