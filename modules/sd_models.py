@@ -1070,16 +1070,18 @@ def set_diffusers_attention(pipe, quiet:bool=False):
             pipe.enable_xformers_memory_efficient_attention()
         else:
             shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
-    elif shared.opts.cross_attention_optimization == "Split attention":
-        if hasattr(pipe, "enable_attention_slicing"):
-            pipe.enable_attention_slicing()
-        else:
-            shared.log.warning(f"Attention: Split attention is not compatible with {pipe.__class__.__name__}")
     elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
         set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
     elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
         from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
         set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
+
+    if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
+        if shared.opts.attention_slicing:
+            pipe.enable_attention_slicing()
+        else:
+            pipe.disable_attention_slicing()
+        shared.log.debug(f"Attention: slicing={shared.opts.attention_slicing}")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
 

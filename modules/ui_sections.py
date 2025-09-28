@@ -146,21 +146,6 @@ def create_video_inputs(tab:str, show_always:bool=False):
     return video_type, video_duration, video_loop, video_pad, video_interpolate
 
 
-def create_guidance_inputs(tab):
-    with gr.Accordion(open=False, label="Guidance", elem_id=f"{tab}_guidance", elem_classes=["small-accordion"]):
-        with gr.Group():
-            with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox']):
-                cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Guidance scale', value=6.0, elem_id=f"{tab}_cfg_scale")
-                cfg_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance end', value=1.0, elem_id=f"{tab}_cfg_end")
-            with gr.Row():
-                image_cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Refine guidance', value=6.0, elem_id=f"{tab}_image_cfg_scale")
-                diffusers_guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Rescale guidance', value=0.0, elem_id=f"{tab}_image_cfg_rescale")
-            with gr.Row():
-                diffusers_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='Attention guidance', value=0.0, elem_id=f"{tab}_pag_scale")
-                diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive")
-    return cfg_scale, image_cfg_scale, diffusers_guidance_rescale, diffusers_pag_scale, diffusers_pag_adaptive, cfg_end
-
-
 def create_advanced_inputs(tab):
     with gr.Accordion(open=False, label="Advanced", elem_id=f"{tab}_advanced", elem_classes=["small-accordion"]):
         with gr.Group():

@@ -2,7 +2,8 @@ import os
 import time
 import gradio as gr
 from modules.control import unit
-from modules import errors, shared, progress, ui_common, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
+from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
+from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
 
 
@@ -156,7 +157,7 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 mask_controls = masking.create_segment_ui()
 
-                cfg_scale, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_guidance_inputs('control')
+                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('control')
                 vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('control')
 
@@ -274,7 +275,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 prompt, negative, styles,
                 steps, sampler_index,
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
-                cfg_scale, clip_skip, image_cfg_scale, guidance_rescale, pag_scale, pag_adaptive, cfg_end, vae_type, tiling, hidiffusion,
+                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
+                cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end, vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
                 resize_mode_before, resize_name_before, resize_context_before, width_before, height_before, scale_by_before, selected_scale_tab_before,
@@ -354,14 +356,19 @@ def create_ui(_blocks: gr.Blocks=None):
                 (mask_controls[4], "Mask erode"),
                 (mask_controls[5], "Mask dilate"),
                 (mask_controls[6], "Mask auto"),
+                # guidance
+                (guidance_name, "Guidance"),
+                (guidance_scale, "Guidance scale"),
+                (guidance_rescale, "Guidance rescale"),
+                (guidance_start, "Guidance start"),
+                (guidance_stop, "Guidance stop"),
                 # advanced
-                (cfg_scale, "Guidance scale"),
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
                 (clip_skip, "Clip skip"),
                 (image_cfg_scale, "Image CFG scale"),
                 (image_cfg_scale, "Hires CFG scale"),
-                (guidance_rescale, "CFG rescale"),
+                (diffusers_guidance_rescale, "CFG rescale"),
                 (vae_type, "VAE type"),
                 (tiling, "Tiling"),
                 (hidiffusion, "HiDiffusion"),

@@ -54,7 +54,9 @@
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
   - update **loopback** script with radon seed option, thanks @rabanti  
-  - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise    
+  - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise  
+  - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
+    can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
 - **Fixes**
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  
