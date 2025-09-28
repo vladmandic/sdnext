@@ -102,6 +102,8 @@ def process_pre(p: processing.StableDiffusionProcessing):
         modular_pipe = modular.convert_to_modular(shared.sd_model)
         if modular_pipe is not None:
             shared.sd_model = modular_pipe
+            from modules import modular_guiders
+            modular_guiders.set_guider(p)
 
     timer.process.record('pre')
 

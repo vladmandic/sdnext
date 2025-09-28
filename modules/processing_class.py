@@ -36,7 +36,13 @@ class StableDiffusionProcessing:
                  sampler_name: str = None,
                  hr_sampler_name: str = None,
                  eta: float = None,
-                 # guidance
+                 # modular guidance
+                 guidance_name: str = 'Default',
+                 guidance_scale: float = 6.0,
+                 guidance_rescale: float = 0.0,
+                 guidance_start: float = 0.0,
+                 guidance_stop: float = 1.0,
+                 # legacy guidance
                  cfg_scale: float = 6.0,
                  cfg_end: float = 1,
                  diffusers_guidance_rescale: float = 0.0,
@@ -247,6 +253,11 @@ class StableDiffusionProcessing:
         self.do_not_save_grid = do_not_save_grid
         self.override_settings_restore_afterwards = override_settings_restore_afterwards
         self.eta = eta
+        self.guidance_name = guidance_name
+        self.guidance_scale = guidance_scale
+        self.guidance_rescale = guidance_rescale
+        self.guidance_start = guidance_start
+        self.guidance_stop = guidance_stop
         self.cfg_scale = cfg_scale
         self.cfg_end = cfg_end
         self.diffusers_guidance_rescale = diffusers_guidance_rescale

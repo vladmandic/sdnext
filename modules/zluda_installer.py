@@ -163,7 +163,7 @@ def load():
         ctypes.windll.LoadLibrary(os.path.join(rocm.environment.path, 'bin', 'MIOpen.dll'))
         ctypes.windll.LoadLibrary(os.path.join(path, 'cudnn64_9.dll'))
 
-    def conceal():
+    def postinstall():
         import torch
         torch.version.hip = rocm.version
         platform = sys.platform
@@ -176,4 +176,4 @@ def load():
         def _join_rocm_home(*paths) -> str:
             return os.path.join(cpp_extension.ROCM_HOME, *paths)
         cpp_extension._join_rocm_home = _join_rocm_home # pylint: disable=protected-access
-    rocm.conceal = conceal
+    rocm.postinstall = postinstall

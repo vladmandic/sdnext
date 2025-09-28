@@ -83,6 +83,11 @@ elif cmd_opts.use_directml:
     ok, e = directml_init()
     if not ok:
         log.error(f'DirectML initialization failed: {e}')
+elif cmd_opts.use_rocm or devices.has_rocm():
+    from modules.rocm import rocm_init
+    ok, e = rocm_init()
+    if not ok:
+        log.error(f'ROCm initialization failed: {e}')
 devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
@@ -251,8 +256,8 @@ options_templates.update(options_section(('vae_encoder', "Variational Auto Encod
     "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
     "diffusers_vae_upcast": OptionInfo("default", "VAE upcasting", gr.Radio, {"choices": ['default', 'true', 'false']}),
     "no_half_vae": OptionInfo(False if not cmd_opts.use_openvino else True, "Full precision (--no-half-vae)"),
-    "diffusers_vae_slicing": OptionInfo(True, "VAE slicing", gr.Checkbox),
-    "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram or cmd_opts.medvram, "VAE tiling", gr.Checkbox),
+    "diffusers_vae_slicing": OptionInfo(cmd_opts.lowvram or cmd_opts.medvram, "VAE slicing", gr.Checkbox),
+    "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram, "VAE tiling", gr.Checkbox),
     "diffusers_vae_tile_size": OptionInfo(0, "VAE tile size", gr.Slider, {"minimum": 0, "maximum": 4096, "step": 8 }),
     "diffusers_vae_tile_overlap": OptionInfo(0.25, "VAE tile overlap", gr.Slider, {"minimum": 0, "maximum": 0.95, "step": 0.05 }),
     "remote_vae_type": OptionInfo('raw', "Remote VAE image type", gr.Dropdown, {"choices": ['raw', 'jpg', 'png']}),
@@ -285,6 +290,8 @@ options_templates.update(options_section(('cuda', "Compute Settings"), {
 
     "cross_attention_sep": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
     "cross_attention_optimization": OptionInfo(startup_cross_attention, "Attention optimization method", gr.Radio, lambda: {"choices": shared_items.list_crossattention()}),
+    "attention_": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
+    "attention_slicing": OptionInfo('Default', "Attention slicing", gr.CheckboxGroup, {"choices": ['Default', 'Enabled', 'Disabled']}),
     "sdp_options": OptionInfo(startup_sdp_options, "SDP options", gr.CheckboxGroup, {"choices": startup_sdp_choices}),
     "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
     "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate in GB", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),

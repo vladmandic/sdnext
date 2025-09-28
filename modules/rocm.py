@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from typing import Union, List
 from enum import Enum
+from functools import wraps
 
 
 def resolve_link(path_: str) -> str:
@@ -26,17 +27,6 @@ def spawn(command: str, cwd: os.PathLike = '.') -> str:
 
 def load_library_global(path_: str):
     ctypes.CDLL(path_, mode=ctypes.RTLD_GLOBAL)
-
-
-def conceal():
-    os.environ.pop("ROCM_HOME", None)
-    os.environ.pop("ROCM_PATH", None)
-    paths = os.environ["PATH"].split(";")
-    paths_no_rocm = []
-    for path_ in paths:
-        if "rocm" not in path_.lower():
-            paths_no_rocm.append(path_)
-    os.environ["PATH"] = ";".join(paths_no_rocm)
 
 
 class Environment:
@@ -117,7 +107,7 @@ class Agent:
             return "gfx94X-dcgpu"
         if self.gfx_version == 0x950:
             return "gfx950-dcgpu"
-        raise Exception(f"Unsupported GPU architecture: {self.name}")
+        raise RuntimeError(f"Unsupported GPU architecture: {self.name}")
 
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
@@ -200,10 +190,10 @@ def get_version() -> str:
             return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
     else:
         # If rocm-sdk package is installed, the hip library may be used by PyTorch.
-        version = ctypes.c_int()
-        environment.hip.hipRuntimeGetVersion(ctypes.byref(version))
-        major = version.value // 10000000
-        minor = (version.value // 100000) % 100
+        ver = ctypes.c_int()
+        environment.hip.hipRuntimeGetVersion(ctypes.byref(ver))
+        major = ver.value // 10000000
+        minor = (ver.value // 100000) % 100
         #patch = version.value % 100000
         return f"{major}.{minor}"
 
@@ -240,6 +230,50 @@ if sys.platform == "win32":
         del hip
         return agents
 
+    def postinstall():
+        import torch
+        if torch.version.hip is None:
+            os.environ.pop("ROCM_HOME", None)
+            os.environ.pop("ROCM_PATH", None)
+            paths = os.environ["PATH"].split(";")
+            paths_no_rocm = []
+            for path_ in paths:
+                if "rocm" not in path_.lower():
+                    paths_no_rocm.append(path_)
+            os.environ["PATH"] = ";".join(paths_no_rocm)
+            return
+
+    def rocm_init():
+        try:
+            import torch
+            import numpy as np
+
+            cholesky_ex_gpu = torch.linalg.cholesky_ex
+            @wraps(cholesky_ex_gpu)
+            def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
+                assert not check_errors
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                info = torch.tensor(0, dtype=torch.int32, device=return_device)
+                if out is not None:
+                    out[0].copy_(L)
+                    out[1].copy_(info)
+                return torch.return_types.linalg_cholesky_ex((L, info), {})
+            torch.linalg.cholesky_ex = cholesky_ex
+
+            cholesky_gpu = torch.linalg.cholesky
+            @wraps(cholesky_gpu)
+            def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                if out is not None:
+                    out.copy_(L)
+                return L
+            torch.linalg.cholesky = cholesky
+        except Exception as e:
+            return False, e
+        return True, None
+
     is_wsl: bool = False
 else:
     def get_agents() -> List[Agent]:
@@ -251,15 +285,19 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def preload_hsa_runtime():
-        try:
-            if shutil.which("conda") is not None:
-                # Preload stdc++ library. This will bypass Anaconda stdc++ library.
-                load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-            # Preload rocr4wsl. The user don't have to replace the library file.
-            load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
-        except OSError:
-            pass
+    def postinstall():
+        if is_wsl:
+            try:
+                if shutil.which("conda") is not None:
+                    # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
+                # Preload rocr4wsl. The user don't have to replace the library file.
+                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+            except OSError:
+                pass
+
+    def rocm_init():
+        return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 environment = None
@@ -268,7 +306,7 @@ is_installed = False
 version = None
 
 def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version
+    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
     environment = find()
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):

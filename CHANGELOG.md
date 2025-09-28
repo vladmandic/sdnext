@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-25
+## Update for 2025-09-28
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -53,6 +53,18 @@
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
+  - update **loopback** script with radon seed option, thanks @rabanti  
+  - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise  
+  - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
+    enable in *settings -> compute settings*  
+    can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
+- **Experimental**
+  - `new` command line flag enables new `pydantic` and `albumentations` packages  
+  - **modular pipelines**: enable in *settings -> model options*  
+    only compatible with some pipelines, invalidates preview generation  
+  - **modular guiders**: automatically used for compatible pipelines when *modular pipelines* is enabled  
+    allows for using many different guidance methods:  
+    *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
 - **Fixes**
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  

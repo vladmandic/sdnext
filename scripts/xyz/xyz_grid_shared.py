@@ -254,6 +254,13 @@ def apply_te(p, x, xs):
     shared.log.debug(f'XYZ grid apply text-encoder: "{x}"')
 
 
+def apply_guidance(p, x, xs):
+    from modules.modular_guiders import guiders
+    guiders = list(guiders.keys())
+    p.guidance_name = [g for g in guiders if g.lower().startswith(x.lower())][0]
+    shared.log.debug(f'XYZ grid apply guidance: "{p.guidance_name}"')
+
+
 def apply_styles(p: processing.StableDiffusionProcessingTxt2Img, x: str, _):
     p.styles.extend(x.split(','))
     shared.log.debug(f'XYZ grid apply style: "{x}"')

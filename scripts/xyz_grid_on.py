@@ -324,6 +324,7 @@ class Script(scripts_manager.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
+                shared.log.warning('XYZ grid: Interrupted')
                 return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
