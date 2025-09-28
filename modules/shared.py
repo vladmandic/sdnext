@@ -83,6 +83,11 @@ elif cmd_opts.use_directml:
     ok, e = directml_init()
     if not ok:
         log.error(f'DirectML initialization failed: {e}')
+elif cmd_opts.use_rocm or devices.has_rocm():
+    from modules.rocm import rocm_init
+    ok, e = rocm_init()
+    if not ok:
+        log.error(f'ROCm initialization failed: {e}')
 devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()

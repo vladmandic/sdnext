@@ -1,6 +1,7 @@
 import sys
 
 if sys.platform == "win32":
+    import os
     import ctypes
     import ctypes.wintypes
 
@@ -15,8 +16,11 @@ if sys.platform == "win32":
         def __init__(self):
             ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
             ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
-            # amdhip64.dll is a part of AMDGPU drivers
-            self.handle = ctypes.windll.kernel32.LoadLibraryA(b"amdhip64.dll")
+            path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_6.dll"
+            if not os.path.isfile(path):
+                path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_7.dll"
+            assert os.path.isfile(path)
+            self.handle = ctypes.windll.kernel32.LoadLibraryA(path.encode('utf-8'))
             ctypes.windll.kernel32.GetLastError.restype = ctypes.wintypes.DWORD
             ctypes.windll.kernel32.GetLastError.argtypes = []
             assert ctypes.windll.kernel32.GetLastError() == 0
@@ -28,10 +32,9 @@ if sys.platform == "win32":
                 ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceProperties"))
 
         def __del__(self):
-            #ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
-            #ctypes.windll.kernel32.FreeLibrary(self.handle)
-            # Hopefully it does not make conflicts with amdhip64_7.dll
-            pass
+            # Hopefully this will prevent conflicts with amdhip64_7.dll from ROCm Python packages or HIP SDK
+            ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
+            ctypes.windll.kernel32.FreeLibrary(self.handle)
 
         def get_device_count(self):
             count = ctypes.c_int()

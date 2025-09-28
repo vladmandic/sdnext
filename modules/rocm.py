@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from typing import Union, List
 from enum import Enum
+from functools import wraps
 
 
 def resolve_link(path_: str) -> str:
@@ -26,17 +27,6 @@ def spawn(command: str, cwd: os.PathLike = '.') -> str:
 
 def load_library_global(path_: str):
     ctypes.CDLL(path_, mode=ctypes.RTLD_GLOBAL)
-
-
-def conceal():
-    os.environ.pop("ROCM_HOME", None)
-    os.environ.pop("ROCM_PATH", None)
-    paths = os.environ["PATH"].split(";")
-    paths_no_rocm = []
-    for path_ in paths:
-        if "rocm" not in path_.lower():
-            paths_no_rocm.append(path_)
-    os.environ["PATH"] = ";".join(paths_no_rocm)
 
 
 class Environment:
@@ -130,17 +120,16 @@ class Agent:
 
 
 def find() -> Union[Environment, None]:
+    try: # TheRock
+        import _rocm_sdk_core # pylint: disable=unused-import
+        return PythonPackageEnvironment()
+    except ImportError:
+        pass
+
+    # system-wide installation
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
-        py_path = os.path.dirname(sys.executable)
-        if hip_path.startswith(py_path):
-            try:
-                import _rocm_sdk_core # pylint: disable=unused-import
-                return PythonPackageEnvironment()
-            except ImportError:
-                pass
-        else:
-            return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
+        return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
 
     if sys.platform == "win32":
         hip_path = os.environ.get("HIP_PATH", None)
@@ -241,6 +230,50 @@ if sys.platform == "win32":
         del hip
         return agents
 
+    def postinstall():
+        import torch
+        if torch.version.hip is None:
+            os.environ.pop("ROCM_HOME", None)
+            os.environ.pop("ROCM_PATH", None)
+            paths = os.environ["PATH"].split(";")
+            paths_no_rocm = []
+            for path_ in paths:
+                if "rocm" not in path_.lower():
+                    paths_no_rocm.append(path_)
+            os.environ["PATH"] = ";".join(paths_no_rocm)
+            return
+
+    def rocm_init():
+        try:
+            import torch
+            import numpy as np
+
+            cholesky_ex_gpu = torch.linalg.cholesky_ex
+            @wraps(cholesky_ex_gpu)
+            def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
+                assert not check_errors
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                info = torch.tensor(0, dtype=torch.int32, device=return_device)
+                if out is not None:
+                    out[0].copy_(L)
+                    out[1].copy_(info)
+                return torch.return_types.linalg_cholesky_ex((L, info), {})
+            torch.linalg.cholesky_ex = cholesky_ex
+
+            cholesky_gpu = torch.linalg.cholesky
+            @wraps(cholesky_gpu)
+            def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                if out is not None:
+                    out.copy_(L)
+                return L
+            torch.linalg.cholesky = cholesky
+        except Exception as e:
+            return False, e
+        return True, None
+
     is_wsl: bool = False
 else:
     def get_agents() -> List[Agent]:
@@ -252,15 +285,19 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def preload_hsa_runtime():
-        try:
-            if shutil.which("conda") is not None:
-                # Preload stdc++ library. This will bypass Anaconda stdc++ library.
-                load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-            # Preload rocr4wsl. The user don't have to replace the library file.
-            load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
-        except OSError:
-            pass
+    def postinstall():
+        if is_wsl:
+            try:
+                if shutil.which("conda") is not None:
+                    # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
+                # Preload rocr4wsl. The user don't have to replace the library file.
+                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+            except OSError:
+                pass
+
+    def rocm_init():
+        return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 environment = None
