@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from typing import Union, List
 from enum import Enum
+from functools import wraps
 
 
 def resolve_link(path_: str) -> str:
@@ -26,17 +27,6 @@ def spawn(command: str, cwd: os.PathLike = '.') -> str:
 
 def load_library_global(path_: str):
     ctypes.CDLL(path_, mode=ctypes.RTLD_GLOBAL)
-
-
-def conceal():
-    os.environ.pop("ROCM_HOME", None)
-    os.environ.pop("ROCM_PATH", None)
-    paths = os.environ["PATH"].split(";")
-    paths_no_rocm = []
-    for path_ in paths:
-        if "rocm" not in path_.lower():
-            paths_no_rocm.append(path_)
-    os.environ["PATH"] = ";".join(paths_no_rocm)
 
 
 class Environment:
@@ -240,6 +230,43 @@ if sys.platform == "win32":
         del hip
         return agents
 
+    def postinstall():
+        import torch
+        if torch.version.hip is None:
+            os.environ.pop("ROCM_HOME", None)
+            os.environ.pop("ROCM_PATH", None)
+            paths = os.environ["PATH"].split(";")
+            paths_no_rocm = []
+            for path_ in paths:
+                if "rocm" not in path_.lower():
+                    paths_no_rocm.append(path_)
+            os.environ["PATH"] = ";".join(paths_no_rocm)
+            return
+
+        cholesky_ex_gpu = torch.linalg.cholesky_ex
+        @wraps(cholesky_ex_gpu)
+        def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.Tensor:
+            if A.device.type != 'cpu':
+                return cholesky_ex_gpu(A, upper=upper, check_errors=check_errors, out=out)
+
+            assert not upper
+            assert not check_errors
+            assert out is None
+
+            n = A.size(0)
+            L = torch.zeros_like(A)
+
+            for i in range(n):
+                for j in range(i + 1):
+                    s = torch.dot(L[i, :j], L[j, :j].conj())
+                    if i == j:
+                        val = A[i, i] - s
+                        L[i, j] = torch.sqrt(val.real)
+                    else:
+                        L[i, j] = (A[i, j] - s) / L[j, j]
+            return L, torch.tensor(0, dtype=torch.int32, device=A.device)
+        torch.linalg.cholesky_ex = cholesky_ex
+
     is_wsl: bool = False
 else:
     def get_agents() -> List[Agent]:
@@ -251,7 +278,9 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def preload_hsa_runtime():
+    def postinstall():
+        if not is_wsl:
+            return
         try:
             if shutil.which("conda") is not None:
                 # Preload stdc++ library. This will bypass Anaconda stdc++ library.
