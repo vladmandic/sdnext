@@ -37,7 +37,9 @@
     "path": "v1-5-pruned-fp16-emaonly.safetensors@https://huggingface.co/Aptronym/SDNext/resolve/main/Reference/v1-5-pruned-fp16-emaonly.safetensors?download=true",
     "preview": "v1-5-pruned-fp16-emaonly.jpg",
     "desc": "Stable Diffusion 1.5 is the base model all other 1.5 checkpoint were trained from. It's a latent text-to-image diffusion model capable of generating photo-realistic images given any text input. The Stable-Diffusion-v1-5 checkpoint was initialized with the weights of the Stable-Diffusion-v1-2 checkpoint and subsequently fine-tuned on 595k steps at resolution 512x512.",
-    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
+    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0",
+    "size": 2.28,
+    "date": "2022 October"
   },
   "StabilityAI StableDiffusion 2.1": {
     "path": "huggingface/stabilityai/stable-diffusion-2-1-base",
@@ -45,7 +47,9 @@
     "skip": true,
     "variant": "fp16",
     "desc": "This stable-diffusion-2-1-base model fine-tunes stable-diffusion-2-base (512-base-ema.ckpt) with 220k extra steps taken",
-    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
+    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0",
+    "size": 2.58,
+    "date": "2022 December"
   },
   "StabilityAI StableDiffusion 2.1 V": {
     "path": "huggingface/stabilityai/stable-diffusion-2-1",
@@ -61,7 +65,9 @@
     "desc": "Stable Diffusion XL (SDXL) is AI image generation model that is tailored towards more photorealistic outputs with more detailed imagery and composition compared to previous SD models, including SD 2.1. It can make realistic faces and better image composition, all while using shorter and simpler prompts at a greatly increased base resolution of 1024x1024. Just like its predecessors, SDXL has the ability to generate image variations using image-to-image prompting, inpainting (reimagining of the selected parts of an image), and outpainting (creating new parts that lie outside the image borders).",
     "skip": true,
     "variant": "fp16",
-    "extras": ""
+    "extras": "",
+    "size": 6.94,
+    "date": "2023 July"
   },
   "StabilityAI StableDiffusion XL Turbo": {
     "path": "stabilityai/sdxl-turbo",
@@ -77,7 +83,9 @@
     "variant": "bf16",
     "desc": "Stable Cascade is a diffusion model built upon the Würstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space. Why is this important? The smaller the latent space, the faster you can run inference and the cheaper the training becomes. How small is the latent space? Stable Diffusion uses a compression factor of 8, resulting in a 1024x1024 image being encoded to 128x128. Stable Cascade achieves a compression factor of 42, meaning that it is possible to encode a 1024x1024 image to 24x24, while maintaining crisp reconstructions. The text-conditional model is then trained in the highly compressed latent space. Previous versions of this architecture, achieved a 16x cost reduction over Stable Diffusion 1.5",
     "preview": "stabilityai--stable-cascade.jpg",
-    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0"
+    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
+    "size": 11.82,
+    "date": "2024 February"
   },
   "StabilityAI Stable Cascade Lite": {
     "path": "huggingface/stabilityai/stable-cascade-lite",
@@ -85,7 +93,9 @@
     "variant": "bf16",
     "desc": "Stable Cascade is a diffusion model built upon the Würstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space. Why is this important? The smaller the latent space, the faster you can run inference and the cheaper the training becomes. How small is the latent space? Stable Diffusion uses a compression factor of 8, resulting in a 1024x1024 image being encoded to 128x128. Stable Cascade achieves a compression factor of 42, meaning that it is possible to encode a 1024x1024 image to 24x24, while maintaining crisp reconstructions. The text-conditional model is then trained in the highly compressed latent space. Previous versions of this architecture, achieved a 16x cost reduction over Stable Diffusion 1.5",
     "preview": "stabilityai--stable-cascade-lite.jpg",
-    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0"
+    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
+    "size": 4.97,
+    "date": "2024 February"
   },
   "StabilityAI Stable Diffusion 3 Medium": {
     "path": "stabilityai/stable-diffusion-3-medium-diffusers",
@@ -93,7 +103,9 @@
     "variant": "fp16",
     "desc": "Stable Diffusion 3 Medium is a Multimodal Diffusion Transformer (MMDiT) text-to-image model that features greatly improved performance in image quality, typography, complex prompt understanding, and resource-efficiency",
     "preview": "stabilityai--stable-diffusion-3.jpg",
-    "extras": "sampler: Default, cfg_scale: 7.0"
+    "extras": "sampler: Default, cfg_scale: 7.0",
+    "size": 15.14,
+    "date": "2024 June"
   },
   "StabilityAI Stable Diffusion 3.5 Medium": {
     "path": "stabilityai/stable-diffusion-3.5-medium",
@@ -101,7 +113,9 @@
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Medium is a Multimodal Diffusion Transformer with improvements (MMDiT-X) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
     "preview": "stabilityai--stable-diffusion-3_5-medium.jpg",
-    "extras": "sampler: Default, cfg_scale: 7.0"
+    "extras": "sampler: Default, cfg_scale: 7.0",
+    "size": 15.89,
+    "date": "2024 October"
   },
   "StabilityAI Stable Diffusion 3.5 Large": {
     "path": "stabilityai/stable-diffusion-3.5-large",
@@ -109,7 +123,9 @@
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Large is a Multimodal Diffusion Transformer (MMDiT) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
     "preview": "stabilityai--stable-diffusion-3_5-large.jpg",
-    "extras": "sampler: Default, cfg_scale: 7.0"
+    "extras": "sampler: Default, cfg_scale: 7.0",
+    "size": 26.98,
+    "date": "2024 October"
   },
   "StabilityAI Stable Diffusion 3.5 Turbo": {
     "path": "stabilityai/stable-diffusion-3.5-large-turbo",
@@ -125,28 +141,36 @@
     "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 32.93,
+    "date": "2024 August"
   },
   "Black Forest Labs FLUX.1 Schnell": {
     "path": "black-forest-labs/FLUX.1-schnell",
     "preview": "black-forest-labs--FLUX.1-schnell.jpg",
     "desc": "FLUX.1 models are based on a hybrid architecture of multimodal and parallel diffusion transformer blocks, scaled to 12B parameters and builing on flow matching. Trained using latent adversarial diffusion distillation, FLUX.1 [schnell] can generate high-quality images in only 1 to 4 steps",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 32.93,
+    "date": "2024 August"
   },
   "Black Forest Labs FLUX.1 Kontext Dev": {
     "path": "black-forest-labs/FLUX.1-Kontext-dev",
     "preview": "black-forest-labs--FLUX.1-Kontext-dev.jpg",
     "desc": "FLUX.1 Kontext [dev] is a 12 billion parameter rectified flow transformer capable of editing images based on text instructions.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 32.93,
+    "date": "2025 June"
   },
   "Black Forest Labs FLUX.1 Krea Dev": {
     "path": "black-forest-labs/FLUX.1-Krea-dev",
     "preview": "black-forest-labs--FLUX.1-Krea-dev.jpg",
     "desc": "FLUX.1 Krea [dev] is a 12 billion parameter rectified flow transformer capable of generating images from text descriptions.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 4.5"
+    "extras": "sampler: Default, cfg_scale: 4.5",
+    "size": 32.93,
+    "date": "2025 July"
   },
   "Tencent FLUX.1 Dev SRPO": {
     "path": "vladmandic/flux.1-dev-SRPO",
@@ -161,42 +185,54 @@
     "preview": "Qwen--Qwen-Image.jpg",
     "desc": " Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 56.1,
+    "date": "2025 August"
   },
   "Qwen-Image-Edit": {
     "path": "Qwen/Qwen-Image-Edit",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
     "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 56.1,
+    "date": "2025 August"
   },
   "Qwen-Image-Edit-2509": {
     "path": "Qwen/Qwen-Image-Edit-2509",
     "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
     "desc": "Qwen-Image-Edit, the image editing version of Qwen-Image. Built upon our 20B Qwen-Image model, Qwen-Image-Edit successfully extends Qwen-Image’s unique text rendering capabilities to image editing tasks, enabling precise text editing.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 56.1,
+    "date": "2025 September"
   },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "vladmandic--Qwen-Lightning.jpg",
     "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
     "skip": true,
-    "extras": "steps: 8"
+    "extras": "steps: 8",
+    "size": 56.1,
+    "date": "2025 August"
   },
   "Qwen-Image-Distill": {
     "path": "SahilCarterr/Qwen-Image-Distill-Full",
     "preview": "SahilCarterr--Qwen-Image-Distill-Full.jpg",
     "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
     "skip": true,
-    "extras": "steps: 15"
+    "extras": "steps: 15",
+    "size": 56.1,
+    "date": "2025 August"
   },
   "Qwen-Image-Lightning-Edit": {
     "path": "vladmandic/Qwen-Lightning-Edit",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
     "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
     "skip": true,
-    "extras": "steps: 8"
+    "extras": "steps: 8",
+    "size": 56.1,
+    "date": "2025 August"
   },
 
   "lodestones Chroma1 HD": {
@@ -204,42 +240,54 @@
     "preview": "lodestones--Chroma-HD.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the high-res fine-tune of the Chroma1-Base at a 1024x1024 resolution.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
   "lodestones Chroma1 Base": {
     "path": "lodestones/Chroma1-Base",
     "preview": "lodestones--Chroma-Base.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the core 512x512 model. It's a solid, all-around foundation for pretty much any creative project.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
   "lodestones Chroma1 Flash": {
     "path": "lodestones/Chroma1-Flash",
     "preview": "lodestones--Chroma-flash.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. A fine-tuned version of the Chroma1-Base made to find the best way to make these flow matching models faster.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
   "lodestones Chroma1 v50 Preview Annealed": {
     "path": "vladmandic/chroma-unlocked-v50-annealed",
     "preview": "lodestones--Chroma-annealed.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Re-tweaked variant with extra noise added.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
   "lodestones Chroma1 v48 Preview": {
     "path": "vladmandic/chroma-unlocked-v48",
     "preview": "lodestones--Chroma.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
   "lodestones Chroma1 v48 Preview Calibrated": {
     "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
     "preview": "lodestones--Chroma-detail.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning but with some detail calibration.",
     "skip": true,
-    "extras": ""
+    "extras": "",
+    "size": 26.84,
+    "date": "2025 July"
   },
 
   "Ostris Flex.2 Preview": {
@@ -247,14 +295,18 @@
     "preview": "ostris--Flex.2-preview.jpg",
     "desc": "Open Source 8B parameter Text to Image Diffusion Model with universal control and inpainting support built in. Early access preview release. The next version of Flex.1-alpha",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 25.65,
+    "date": "2025 April"
   },
   "Ostris Flex.1 Alpha": {
     "path": "ostris/Flex.1-alpha",
     "preview": "ostris--Flex.1-alpha.jpg",
     "desc": "Flex.1 alpha is a pre-trained base 8 billion parameter rectified flow transformer capable of generating images from text descriptions. It has a similar architecture to FLUX.1-dev, but with fewer double transformer blocks (8 vs 19)",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 25.65,
+    "date": "2025 January"
   },
 
   "Wan-AI Wan2.1 1.3B": {
@@ -262,14 +314,18 @@
     "preview": "Wan-AI--Wan2.1-T2V-1.3B-Diffusers.jpg",
     "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 27.72,
+    "date": "2025 February"
   },
   "Wan-AI Wan2.1 14B": {
     "path": "Wan-AI/Wan2.1-T2V-14B-Diffusers",
     "preview": "Wan-AI--Wan2.1-T2V-14B-Diffusers.jpg",
     "desc": "Wan is an advanced and powerful visual generation model developed by Tongyi Lab of Alibaba Group. It can generate videos based on text, images, and other control signals. The Wan2.1 series models are now fully open-source.",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 78.52,
+    "date": "2025 February"
   },
   "Wan-AI Wan2.2 5B": {
     "path": "Wan-AI/Wan2.2-TI2V-5B-Diffusers",
@@ -305,21 +361,27 @@
     "preview": "Freepik--F-Lite.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 19.81,
+    "date": "2025 May"
   },
   "Freepik F-Lite Texture": {
     "path": "Freepik/F-Lite-Texture",
     "preview": "Freepik--F-Lite-Texture.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 19.81,
+    "date": "2025 May"
   },
   "Freepik F-Lite 7B": {
     "path": "Freepik/F-Lite-7B",
     "preview": "Freepik--F-Lite-7B.jpg",
     "desc": "F Lite is a 10B parameter diffusion model created by Freepik and Fal, trained exclusively on copyright-safe and SFW content. The model was trained on Freepik's internal dataset comprising approximately 80 million copyright-safe images, making it the first publicly available model of this scale trained exclusively on legally compliant and SFW content.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 3.5"
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 13.89,
+    "date": "2025 May"
   },
 
   "SDXS DreamShaper 512": {
@@ -340,13 +402,17 @@
     "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
     "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
     "preview": "Efficient-Large-Model--SANA1.5_1.6B_1024px_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 9.49,
+    "date": "2025 March"
   },
   "NVLabs Sana 1.5 4.8B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_4.8B_1024px_diffusers",
     "desc": "Sana is an efficient model with scaling of training-time and inference time techniques. SANA-1.5 delivers: efficient model growth from 1.6B Sana-1.0 model to 4.8B, achieving similar or better performance than training from scratch and saving 60% training cost; efficient model depth pruning, slimming any model size as you want; powerful VLM selection based inference scaling, smaller model+inference scaling > larger model.",
     "preview": "Efficient-Large-Model--SANA1.5_4.8B_1024px_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 15.58,
+    "date": "2025 March"
   },
   "NVLabs Sana 1.5 1.6B 1k Sprint": {
     "path": "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
@@ -358,63 +424,83 @@
     "path": "Efficient-Large-Model/Sana_1600M_4Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_4Kpx_BF16_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 12.63,
+    "date": "2024 November"
   },
   "NVLabs Sana 1.0 1.6B 2k": {
     "path": "Efficient-Large-Model/Sana_1600M_2Kpx_BF16_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_2Kpx_BF16_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 12.63,
+    "date": "2024 November"
   },
   "NVLabs Sana 1.0 1.6B 1k": {
     "path": "Efficient-Large-Model/Sana_1600M_1024px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 12.63,
+    "date": "2024 November"
   },
   "NVLabs Sana 1.0 0.6B 0.5k": {
     "path": "Efficient-Large-Model/Sana_600M_512px_diffusers",
     "desc": "Sana is a text-to-image framework that can efficiently generate images up to 4096 × 4096 resolution. Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, deployable on laptop GPU.",
     "preview": "Efficient-Large-Model--Sana_600M_512px_diffusers.jpg",
-    "skip": true
+    "skip": true,
+    "size": 7.51,
+    "date": "2024 November"
   },
   "nVidia Cosmos-Predict2 T2I 2B": {
     "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
     "preview": "nvidia--Cosmos-Predict2-2B-Text2Image.jpg",
-    "skip": true
+    "skip": true,
+    "size": 13.32,
+    "date": "2025 June"
   },
   "nVidia Cosmos-Predict2 T2I 14B": {
     "path": "nvidia/Cosmos-Predict2-14B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
     "preview": "nvidia--Cosmos-Predict2-14B-Text2Image.jpg",
-    "skip": true
+    "skip": true,
+    "size": 37.36,
+    "date": "2025 June"
   },
 
   "VectorSpaceLab OmniGen v1": {
     "path": "Shitao/OmniGen-v1-diffusers",
     "desc": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It is designed to be simple, flexible and easy to use.",
     "preview": "Shitao--OmniGen-v1.jpg",
-    "skip": true
+    "skip": true,
+    "size": 15.47,
+    "date": "2024 October"
   },
   "VectorSpaceLab OmniGen v2": {
     "path": "OmniGen2/OmniGen2",
     "desc": "OmniGen2 is a powerful and efficient unified multimodal model. Unlike OmniGen v1, OmniGen2 features two distinct decoding pathways for text and image modalities, utilizing unshared parameters and a decoupled image tokenizer.",
     "preview": "OmniGen2--OmniGen2.jpg",
-    "skip": true
+    "skip": true,
+    "size": 30.5,
+    "date": "2025 June"
   },
 
   "AuraFlow 0.3": {
     "path": "fal/AuraFlow-v0.3",
     "desc": "AuraFlow v0.3 is the fully open-sourced flow-based text-to-image generation model. The model was trained with more compute compared to the previous version, AuraFlow-v0.2. Compared to AuraFlow-v0.2, the model is fine-tuned on more aesthetic datasets and now supports various aspect ratio, (now width and height up to 1536 pixels).",
     "preview": "fal--AuraFlow-v0.3.jpg",
-    "skip": true
+    "skip": true,
+    "size": 31.9,
+    "date": "2024 August"
   },
   "AuraFlow 0.2": {
     "path": "fal/AuraFlow-v0.2",
     "desc": "AuraFlow v0.2 is the fully open-sourced largest flow-based text-to-image generation model. The model was trained with more compute compared to the previous version, AuraFlow-v0.1",
     "preview": "fal--AuraFlow-v0.2.jpg",
-    "skip": true
+    "skip": true,
+    "size": 31.9,
+    "date": "2024 July"
   },
 
   "Segmind Vega": {
@@ -423,7 +509,9 @@
     "desc": "The Segmind-Vega Model is a distilled version of the Stable Diffusion XL (SDXL), offering a remarkable 70% reduction in size and an impressive 100% speedup while retaining high-quality text-to-image generation capabilities. Trained on diverse datasets, including Grit and Midjourney scrape data, it excels at creating a wide range of visual content based on textual prompts. Employing a knowledge distillation strategy, Segmind-Vega leverages the teachings of several expert models, including SDXL, ZavyChromaXL, and JuggernautXL, to combine their strengths and produce compelling visual outputs.",
     "variant": "fp16",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 9.0"
+    "extras": "sampler: Default, cfg_scale: 9.0",
+    "size": 6.43,
+    "date": "2023 November"
   },
   "Segmind SSD-1B": {
     "path": "huggingface/segmind/SSD-1B",
@@ -431,13 +519,17 @@
     "desc": "The Segmind Stable Diffusion Model (SSD-1B) offers a compact, efficient, and distilled version of the SDXL model. At 50% smaller and 60% faster than Stable Diffusion XL (SDXL), it provides quick and seamless performance without sacrificing image quality.",
     "variant": "fp16",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 9.0"
+    "extras": "sampler: Default, cfg_scale: 9.0",
+    "size": 8.72,
+    "date": "2023 October"
   },
   "Segmind Tiny": {
     "path": "segmind/tiny-sd",
     "preview": "segmind--tiny-sd.jpg",
     "desc": "Segmind's Tiny-SD offers a compact, efficient, and distilled version of Realistic Vision 4.0 and is up to 80% faster than SD1.5",
-    "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 9.0"
+    "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 9.0",
+    "size": 1.03,
+    "date": "2023 July"
   },
   "Segmind SegMoE SD 4x2": {
     "path": "segmind/SegMoE-SD-4x2-v0",
@@ -461,7 +553,9 @@
     "path": "PixArt-alpha/PixArt-XL-2-1024-MS",
     "desc": "PixArt-α is a Transformer-based T2I diffusion model whose image generation quality is competitive with state-of-the-art image generators (e.g., Imagen, SDXL, and even Midjourney), and the training speed markedly surpasses existing large-scale T2I models. Extensive experiments demonstrate that PIXART-α excels in image quality, artistry, and semantic control. It can directly generate 1024px images from text prompts within a single sampling process.",
     "preview": "PixArt-alpha--PixArt-XL-2-1024-MS.jpg",
-    "extras": "sampler: Default, cfg_scale: 2.0"
+    "extras": "sampler: Default, cfg_scale: 2.0",
+    "size": 21.3,
+    "date": "2023 November"
   },
   "Pixart-Σ Small": {
     "path": "huggingface/PixArt-alpha/PixArt-Sigma-XL-2-512-MS",
@@ -482,14 +576,18 @@
     "desc": "PixArt-Σ, a Diffusion Transformer model (DiT) capable of directly generating images at 4K resolution. PixArt-Σ represents a significant advancement over its predecessor, PixArt-α, offering images of markedly higher fidelity and improved alignment with text prompts.",
     "preview": "PixArt-alpha--PixArt-Sigma-XL-2-2K-MS.jpg",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 2.0"
+    "extras": "sampler: Default, cfg_scale: 2.0",
+    "size": 21.3,
+    "date": "2024 April"
   },
 
   "Tencent HunyuanDiT 1.2": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers.jpg",
-    "extras": "sampler: Default, cfg_scale: 2.0"
+    "extras": "sampler: Default, cfg_scale: 2.0",
+    "size": 14.09,
+    "date": "2024 May"
   },
   "Tencent HunyuanDiT 1.2 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
@@ -515,14 +613,18 @@
     "desc": "The Lumina-Next-SFT is a Next-DiT model containing 2B parameters and utilizes Gemma-2B as the text encoder, enhanced through high-quality supervised fine-tuning (SFT).",
     "preview": "Alpha-VLLM--Lumina-Next-SFT-diffusers.jpg",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 8.67,
+    "date": "2024 June"
   },
   "AlphaVLLM Lumina 2": {
     "path": "Alpha-VLLM/Lumina-Image-2.0",
     "desc": "A Unified and Efficient Image Generative Model. Lumina-Image-2.0 is a 2 billion parameter flow-based diffusion transformer capable of generating images from text descriptions.",
     "preview": "Alpha-VLLM--Lumina-Image-2.0.jpg",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 20.75,
+    "date": "2025 January"
   },
 
   "HiDream-I1 Fast": {
@@ -530,21 +632,27 @@
     "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
     "preview": "HiDream-ai--HiDream-I1-Fast.jpg",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 58.4,
+    "date": "2025 April"
   },
   "HiDream-I1 Dev": {
     "path": "HiDream-ai/HiDream-I1-Dev",
     "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
     "preview": "HiDream-ai--HiDream-I1-Dev.jpg",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 58.4,
+    "date": "2025 April"
   },
   "HiDream-I1 Full": {
     "path": "HiDream-ai/HiDream-I1-Full",
     "desc": "HiDream-I1 is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
     "preview": "HiDream-ai--HiDream-I1-Full.jpg",
     "skip": true,
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 58.4,
+    "date": "2025 April"
   },
   "HiDream-E1 Full": {
     "path": "HiDream-ai/HiDream-E1-Full",
@@ -559,34 +667,44 @@
     "desc": "Kolors is a large-scale text-to-image generation model based on latent diffusion, developed by the Kuaishou Kolors team. Trained on billions of text-image pairs, Kolors exhibits significant advantages over both open-source and proprietary models in visual quality, complex semantic accuracy, and text rendering for both Chinese and English characters. Furthermore, Kolors supports both Chinese and English inputs",
     "preview": "Kwai-Kolors--Kolors-diffusers.jpg",
     "skip": true,
-    "extras": "width: 1024, height: 1024"
+    "extras": "width: 1024, height: 1024",
+    "size": 17.40,
+    "date": "2024 July"
   },
 
   "Kandinsky 2.1": {
     "path": "kandinsky-community/kandinsky-2-1",
     "desc": "Kandinsky 2.1 is a text-conditional diffusion model based on unCLIP and latent diffusion, composed of a transformer-based image prior model, a unet diffusion model, and a decoder. Kandinsky 2.1 inherits best practices from Dall-E 2 and Latent diffusion while introducing some new ideas. It uses the CLIP model as a text and image encoder, and diffusion image prior (mapping) between latent spaces of CLIP modalities. This approach increases the visual performance of the model and unveils new horizons in blending images and text-guided image manipulation.",
     "preview": "kandinsky-community--kandinsky-2-1.jpg",
-    "extras": "width: 768, height: 768, sampler: Default"
+    "extras": "width: 768, height: 768, sampler: Default",
+    "size": 5.15,
+    "date": "2023 April"
   },
   "Kandinsky 2.2": {
     "path": "kandinsky-community/kandinsky-2-2-decoder",
     "desc": "Kandinsky 2.2 is a text-conditional diffusion model (+0.1!) based on unCLIP and latent diffusion, composed of a transformer-based image prior model, a unet diffusion model, and a decoder. Kandinsky 2.2 inherits best practices from Dall-E 2 and Latent diffusion while introducing some new ideas. It uses the CLIP model as a text and image encoder, and diffusion image prior (mapping) between latent spaces of CLIP modalities. This approach increases the visual performance of the model and unveils new horizons in blending images and text-guided image manipulation.",
     "preview": "kandinsky-community--kandinsky-2-2-decoder.jpg",
-    "extras": "width: 768, height: 768, sampler: Default"
+    "extras": "width: 768, height: 768, sampler: Default",
+    "size": 5.15,
+    "date": "2023 July"
   },
   "Kandinsky 3": {
     "path": "kandinsky-community/kandinsky-3",
     "desc": "Kandinsky 3.0 is an open-source text-to-image diffusion model built upon the Kandinsky2-x model family. In comparison to its predecessors, Kandinsky 3.0 incorporates more data and specifically related to Russian culture, which allows to generate pictures related to Russin culture. Furthermore, enhancements have been made to the text understanding and visual quality of the model, achieved by increasing the size of the text encoder and Diffusion U-Net models, respectively.",
     "preview": "kandinsky-community--kandinsky-3.jpg",
     "variant": "fp16",
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 27.72,
+    "date": "2023 November"
   },
 
   "Playground v1": {
     "path": "playgroundai/playground-v1",
     "desc": "Playground v1 is a latent diffusion model that improves the overall HDR quality to get more stunning images.",
     "preview": "playgroundai--playground-v1.jpg",
-    "extras": "width: 512, height: 512, sampler: Default"
+    "extras": "width: 512, height: 512, sampler: Default",
+    "size": 4.95,
+    "date": "2023 December"
   },
   "Playground v2 Small": {
     "path": "playgroundai/playground-v2-256px-base",
@@ -611,20 +729,26 @@
     "desc": "Playground v2.5 is a diffusion-based text-to-image generative model, and a successor to Playground v2. Playground v2.5 is the state-of-the-art open-source model in aesthetic quality.",
     "preview": "playgroundai--playground-v2.5-1024px-aesthetic.jpg",
     "variant": "fp16",
-    "extras": "sampler: DPM++ 2M EDM"
+    "extras": "sampler: DPM++ 2M EDM",
+    "size": 13.35,
+    "date": "2023 December"
   },
 
   "CogView 4": {
     "path": "zai-org/CogView4-6B",
     "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
     "preview": "THUDM--CogView4-6B.jpg",
-    "skip": true
+    "skip": true,
+    "size": 30.39,
+    "date": "2025 March"
   },
   "CogView 3 Plus": {
     "path": "zai-org/CogView3-Plus-3B",
     "desc": "An innovative cascaded framework that enhances the performance of text-to-image diffusion. CogView is the first model implementing relay diffusion in the realm of text-to-image generation, executing the task by first creating low-resolution images and subsequently applying relay-based super-resolution.",
     "preview": "THUDM--CogView3-Plus-3B.jpg",
-    "skip": true
+    "skip": true,
+    "size": 24.96,
+    "date": "2024 October"
   },
 
   "ShuttleAI Shuttle 3.0 Diffusion": {
@@ -650,14 +774,18 @@
     "path": "briaai/BRIA-3.2",
     "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
     "preview": "briaai--BRIA-3.2.jpg",
-    "skip": true
+    "skip": true,
+    "size": 18.66,
+    "date": "2025 June"
   },
 
   "Meissonic": {
     "path": "MeissonFlow/Meissonic",
     "desc": "Meissonic is a non-autoregressive mask image modeling text-to-image synthesis model that can generate high-resolution images. It is designed to run on consumer graphics cards.",
     "preview": "MeissonFlow--Meissonic.jpg",
-    "skip": true
+    "skip": true,
+    "size": 3.64,
+    "date": "2024 October"
   },
 
   "aMUSEd 256": {
@@ -678,7 +806,9 @@
     "path": "warp-ai/wuerstchen",
     "desc": "Würstchen is a diffusion model whose text-conditional model works in a highly compressed latent space of images. Why is this important? Compressing data can reduce computational costs for both training and inference by magnitudes. Training on 1024x1024 images, is way more expensive than training at 32x32. Usually, other works make use of a relatively small compression, in the range of 4x - 8x spatial compression. Würstchen takes this to an extreme. Through its novel design, we achieve a 42x spatial compression. Würstchen employs a two-stage compression, what we call Stage A and Stage B. Stage A is a VQGAN, and Stage B is a Diffusion Autoencoder (more details can be found in the paper). A third model, Stage C, is learned in that highly compressed latent space. This training requires fractions of the compute used for current top-performing models, allowing also cheaper and faster inference.",
     "preview": "warp-ai--wuerstchen.jpg",
-    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 0.0"
+    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 0.0",
+    "size": 12.16,
+    "date": "2023 August"
   },
 
   "KOALA 700M": {
@@ -687,7 +817,9 @@
     "skip": true,
     "desc": "Fast text-to-image model, called KOALA, by compressing SDXL's U-Net and distilling knowledge from SDXL into our model. KOALA-700M can generate a 1024x1024 image in less than 1.5 seconds on an NVIDIA 4090 GPU, which is more than 2x faster than SDXL.",
     "preview": "etri-vilab--koala-700m-llava-cap.jpg",
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 6.58,
+    "date": "2024 January"
   },
 
   "HDM-XUT 340M Anime": {
@@ -702,13 +834,17 @@
     "path": "thu-ml/unidiffuser-v1",
     "desc": "UniDiffuser is a unified diffusion framework to fit all distributions relevant to a set of multi-modal data in one transformer. UniDiffuser is able to perform image, text, text-to-image, image-to-text, and image-text pair generation by setting proper timesteps without additional overhead.\nSpecifically, UniDiffuser employs a variation of transformer, called U-ViT, which parameterizes the joint noise prediction network. Other components perform as encoders and decoders of different modalities, including a pretrained image autoencoder from Stable Diffusion, a pretrained image ViT-B/32 CLIP encoder, a pretrained text ViT-L CLIP encoder, and a GPT-2 text decoder finetuned by ourselves.",
     "preview": "thu-ml--unidiffuser-v1.jpg",
-    "extras": "width: 512, height: 512, sampler: Default"
+    "extras": "width: 512, height: 512, sampler: Default",
+    "size": 5.37,
+    "date": "2023 May"
   },
 
   "SalesForce BLIP-Diffusion": {
     "path": "salesforce/blipdiffusion",
     "desc": "BLIP-Diffusion, a new subject-driven image generation model that supports multimodal control which consumes inputs of subject images and text prompts. Unlike other subject-driven generation models, BLIP-Diffusion introduces a new multimodal encoder which is pre-trained to provide subject representation.",
-    "preview": "salesforce--blipdiffusion.jpg"
+    "preview": "salesforce--blipdiffusion.jpg",
+    "size": 7.23,
+    "date": "2023 July"
   },
 
   "InstaFlow 0.9B": {
@@ -721,13 +857,17 @@
     "path": "DeepFloyd/IF-I-M-v1.0",
     "desc": "DeepFloyd-IF is a pixel-based text-to-image triple-cascaded diffusion model, that can generate pictures with new state-of-the-art for photorealism and language understanding. The result is a highly efficient model that outperforms current state-of-the-art models, achieving a zero-shot FID-30K score of 6.66 on the COCO dataset. It is modular and composed of frozen text mode and three pixel cascaded diffusion modules, each designed to generate images of increasing resolution: 64x64, 256x256, and 1024x1024.",
     "preview": "DeepFloyd--IF-I-M-v1.0.jpg",
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 12.79,
+    "date": "2023 April"
   },
   "DeepFloyd IF Large": {
     "path": "DeepFloyd/IF-I-L-v1.0",
     "desc": "DeepFloyd-IF is a pixel-based text-to-image triple-cascaded diffusion model, that can generate pictures with new state-of-the-art for photorealism and language understanding. The result is a highly efficient model that outperforms current state-of-the-art models, achieving a zero-shot FID-30K score of 6.66 on the COCO dataset. It is modular and composed of frozen text mode and three pixel cascaded diffusion modules, each designed to generate images of increasing resolution: 64x64, 256x256, and 1024x1024.",
     "preview": "DeepFloyd--IF-I-L-v1.0.jpg",
-    "extras": "sampler: Default"
+    "extras": "sampler: Default",
+    "size": 15.48,
+    "date": "2023 April"
   }
 
 }
