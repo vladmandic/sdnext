@@ -251,12 +251,10 @@ if sys.platform == "win32":
             cholesky_ex_gpu = torch.linalg.cholesky_ex
             @wraps(cholesky_ex_gpu)
             def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
-                if A.device.type != 'cpu':
-                    return cholesky_ex_gpu(A, upper=upper, check_errors=check_errors, out=out)
-
                 assert not check_errors
-                L = torch.from_numpy(np.linalg.cholesky(A.numpy(), upper=upper))
-                info = torch.tensor(0, dtype=torch.int32, device='cpu')
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                info = torch.tensor(0, dtype=torch.int32, device=return_device)
                 if out is not None:
                     out[0].copy_(L)
                     out[1].copy_(info)
@@ -266,9 +264,8 @@ if sys.platform == "win32":
             cholesky_gpu = torch.linalg.cholesky
             @wraps(cholesky_gpu)
             def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
-                if A.device.type != 'cpu':
-                    return cholesky_gpu(A, upper=upper, out=out)
-                L = torch.from_numpy(np.linalg.cholesky(A.numpy(), upper=upper))
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
                 if out is not None:
                     out.copy_(L)
                 return L
