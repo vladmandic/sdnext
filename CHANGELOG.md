@@ -60,6 +60,7 @@
   - **api** new endpoint POST `/sdapi/v1/civitai` to trigger civitai models metadata update  
     accepts optional `page` parameter to search specific networks page  
   - **reference models** additional example images, thanks @liutyi  
+  - **reference models** add model size and release date, thanks @alerikaisattera  
   - **video** support for configurable multi-stage models such as WAN-2.2-14B  
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
