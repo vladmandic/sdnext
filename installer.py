@@ -1348,6 +1348,7 @@ def set_environment():
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1')
     os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
+    os.environ.setdefault('TOKENIZERS_PARALLELISM', '0')
 
 
 def check_extensions():
