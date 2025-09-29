@@ -6,6 +6,7 @@ import torch
 
 from ...common import compile_func # noqa: TID252
 from ..linear.linear_fp8 import quantize_fp8_matmul_input # noqa: TID252
+from ..linear.forward import check_mats # noqa: TID252
 from .forward import get_conv_args, process_conv_input
 
 
@@ -23,6 +24,7 @@ def conv_fp8_matmul(
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     input, input_scale = quantize_fp8_matmul_input(input)
+    input, weight = check_mats(input, weight)
 
     if groups == 1:
         if bias is not None and bias.dtype != torch.bfloat16:

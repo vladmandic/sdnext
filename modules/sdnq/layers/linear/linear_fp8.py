@@ -6,6 +6,7 @@ import torch
 
 from ...common import compile_func # noqa: TID252
 from ...dequantizer import quantize_fp8 # noqa: TID252
+from .forward import check_mats
 
 
 def quantize_fp8_matmul_input(input: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
@@ -23,6 +24,7 @@ def fp8_matmul(
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
     input, input_scale = quantize_fp8_matmul_input(input)
+    input, weight = check_mats(input, weight)
     if bias is not None and bias.dtype != torch.bfloat16:
         bias = bias.to(dtype=torch.bfloat16)
     return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(output_shape).to(return_dtype)

@@ -172,12 +172,14 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul and not re_quantize_for_matmul:
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
-            if not dtype_dict[weights_dtype]["is_integer"]:
-                weight_stride = layer.weight.stride()
-                if not (weight_stride[0] == 1 and weight_stride[1] > 1):
-                    layer.weight.data = layer.weight.t().contiguous().t()
-                if not use_tensorwise_fp8_matmul:
-                    scale = scale.to(torch.float32)
+            weight_stride = layer.weight.stride()
+            if not (weight_stride[0] == 1 and weight_stride[1] > 1):
+                if devices.backend != "ipex":
+                    layer.weight.data = layer.weight.t_().contiguous().t_()
+            elif devices.backend == "ipex":
+                layer.weight.data = layer.weight.t_().contiguous().t_()
+            if not use_tensorwise_fp8_matmul and not dtype_dict[weights_dtype]["is_integer"]:
+                scale = scale.to(torch.float32)
 
         layer.sdnq_dequantizer = dequantizer_dict[weights_dtype](
             scale=scale,

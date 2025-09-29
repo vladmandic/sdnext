@@ -8,6 +8,7 @@ from ...common import compile_func # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 from ..linear.linear_int8 import quantize_int8_matmul_input # noqa: TID252
+from ..linear.forward import check_mats # noqa: TID252
 from .forward import get_conv_args, process_conv_input
 
 
@@ -29,6 +30,7 @@ def conv_int8_matmul(
     input, scale = quantize_int8_matmul_input(input, scale)
     if quantized_weight_shape is not None:
         weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8)
+    input, weight = check_mats(input, weight)
 
     if groups == 1:
         result = torch._int_mm(input, weight)

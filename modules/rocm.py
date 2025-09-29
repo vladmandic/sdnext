@@ -248,8 +248,8 @@ if sys.platform == "win32":
             import torch
             import numpy as np
 
-            cholesky_ex_gpu = torch.linalg.cholesky_ex
-            @wraps(cholesky_ex_gpu)
+            original_cholesky_ex = torch.linalg.cholesky_ex
+            @wraps(original_cholesky_ex)
             def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
                 assert not check_errors
                 return_device = A.device
@@ -261,8 +261,8 @@ if sys.platform == "win32":
                 return torch.return_types.linalg_cholesky_ex((L, info), {})
             torch.linalg.cholesky_ex = cholesky_ex
 
-            cholesky_gpu = torch.linalg.cholesky
-            @wraps(cholesky_gpu)
+            original_cholesky = torch.linalg.cholesky
+            @wraps(original_cholesky)
             def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
                 return_device = A.device
                 L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)

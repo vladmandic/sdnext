@@ -7,6 +7,7 @@ import torch
 from ...common import compile_func # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import quantize_int8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from .forward import check_mats
 
 
 def quantize_int8_matmul_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
@@ -31,6 +32,7 @@ def int8_matmul(
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
     input, scale = quantize_int8_matmul_input(input, scale)
+    input, weight = check_mats(input, weight)
     if bias is not None:
         return dequantize_symmetric_with_bias(torch._int_mm(input, weight), scale, bias, return_dtype, output_shape)
     else:

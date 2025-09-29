@@ -7,6 +7,7 @@ import torch
 from ...common import compile_func # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 from ..linear.linear_fp8_tensorwise import quantize_fp8_matmul_input_tensorwise # noqa: TID252
+from ..linear.forward import check_mats # noqa: TID252
 from .forward import get_conv_args, process_conv_input
 
 
@@ -24,6 +25,7 @@ def conv_fp8_matmul_tensorwise(
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
+    input, weight = check_mats(input, weight)
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 
     if groups == 1:

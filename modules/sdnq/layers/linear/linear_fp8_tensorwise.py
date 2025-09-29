@@ -6,6 +6,7 @@ import torch
 
 from ...common import compile_func # noqa: TID252
 from ...dequantizer import quantize_fp8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from .forward import check_mats
 
 
 def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
@@ -27,6 +28,7 @@ def fp8_matmul_tensorwise(
     output_shape = (*input.shape[:-1], weight.shape[-1])
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
+    input, weight = check_mats(input, weight)
     if bias is not None:
         return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, bias, return_dtype, output_shape)
     else:
