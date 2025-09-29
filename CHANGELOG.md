@@ -53,6 +53,8 @@
   - networks ability to filter lora by base model version  
 - **Other**
   - server will note when restart is recommended due to package updates  
+  - **interrrupt** will now show last known preview image  
+    *keep incomplete* setting is now *save interrupted*  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
