@@ -44,7 +44,7 @@ tqdm==4.67.1
 accelerate==1.10.1
 opencv-contrib-python-headless==4.11.0.86
 einops==0.8.1
-huggingface_hub==0.35.0
+huggingface_hub==0.35.3
 numexpr==2.11.0
 numpy==2.1.2
 pandas==2.3.1
@@ -69,7 +69,3 @@ seam-carving
 ruff
 pylint
 pre-commit
-
-# block
-torch!=2.5.0
-torchvision!=0.20.0

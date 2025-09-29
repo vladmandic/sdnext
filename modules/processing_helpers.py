@@ -280,13 +280,38 @@ def validate_sample(tensor):
     return cast
 
 
+def decode_images(image):
+    if isinstance(image, list):
+        decoded = []
+        for i, img in enumerate(image):
+            if isinstance(img, str):
+                try:
+                    decoded.append(helpers.decode_base64_to_image(img, quiet=True))
+                except Exception as e:
+                    shared.log.error(f'Decode image[{i}]: {e}')
+            elif isinstance(img, Image.Image):
+                decoded.append(img)
+            else:
+                shared.log.error(f'Decode image[{i}]: {type(img)} unknown type')
+        return decoded
+    elif isinstance(image, str):
+        try:
+            return helpers.decode_base64_to_image(image, quiet=True)
+        except Exception as e:
+            shared.log.error(f'Decode image: {e}')
+    elif isinstance(image, Image.Image):
+        return image
+    else:
+        shared.log.error(f'Decode image: {type(image)} unknown type')
+    return None
+
+
 def resize_init_images(p):
     if getattr(p, 'image', None) is not None and getattr(p, 'init_images', None) is None:
         p.init_images = [p.image]
 
     if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
-        if isinstance(p.init_images[0], str):
-            p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
+        p.init_images = decode_images(p.init_images)
         vae_scale_factor = sd_vae.get_vae_scale_factor()
         tgt_width, tgt_height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
         if p.init_images[0].size != (tgt_width, tgt_height):
@@ -296,16 +321,13 @@ def resize_init_images(p):
             p.width = tgt_width
             sd_hijack_hypertile.hypertile_set(p)
         if getattr(p, 'mask', None) is not None and p.mask is not None and p.mask.size != (tgt_width, tgt_height):
-            if isinstance(p.mask[0], str):
-                p.mask = [helpers.decode_base64_to_image(i, quiet=True) for i in p.mask]
+            p.mask = decode_images(p.mask)
             p.mask = images.resize_image(1, p.mask, tgt_width, tgt_height, upscaler_name=None)
         if getattr(p, 'init_mask', None) is not None and p.init_mask is not None and p.init_mask.size != (tgt_width, tgt_height):
-            if isinstance(p.init_mask[0], str):
-                p.init_mask = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_mask]
+            p.init_mask = decode_images(p.init_mask)
             p.init_mask = images.resize_image(1, p.init_mask, tgt_width, tgt_height, upscaler_name=None)
         if getattr(p, 'mask_for_overlay', None) is not None and p.mask_for_overlay is not None and p.mask_for_overlay.size != (tgt_width, tgt_height):
-            if isinstance(p.mask_for_overlay, str):
-                p.mask_for_overlay = helpers.decode_base64_to_image(p.mask_for_overlay, quiet=True)
+            p.mask_for_overlay = decode_images(p.mask_for_overlay)
             p.mask_for_overlay = images.resize_image(1, p.mask_for_overlay, tgt_width, tgt_height, upscaler_name=None)
         return tgt_width, tgt_height
     return p.width, p.height

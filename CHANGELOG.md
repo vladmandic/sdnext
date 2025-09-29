@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-28
+## Update for 2025-09-29
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -83,6 +83,7 @@
   - benchmark: remove forced sampler from system info benchmark  
   - xyz-grid: fix xyz grid with random seeds  
   - reference: fix download for sd15/sdxl reference models  
+  - fix checks in init/mask image decode  
   
 ## Update for 2025-09-15
 
