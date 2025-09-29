@@ -29,6 +29,8 @@
     note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
   - **DirectML** warn as end-of-life  
     `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
+  - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
+    previously sdnext was performing a fallback to `torch-cpu` which is not desired  
 - **Extensions**  
   - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
     was a high-value built-in extension, but it has not been maintained for 1.5 years  

@@ -8,15 +8,15 @@ previously_loaded = [] # we maintain private state here
 
 def load_nunchaku(names, strengths):
     global previously_loaded # pylint: disable=global-statement
-    if not hasattr(shared.sd_model, 'transformer') or not hasattr(shared.sd_model.transformer, 'update_lora_params'):
-        shared.log.error(f'Network load: type=LoRA method=nunchaku model={shared.sd_model.__class__.__name__} unsupported')
-        return False
     strengths = [s[0] if isinstance(s, list) else s for s in strengths]
     networks = lora_load.gather_networks(names)
     networks = [(network, strength) for network, strength in zip(networks, strengths) if network is not None and strength > 0]
     loras = [(network.filename, strength) for network, strength in networks]
     is_changed = loras != previously_loaded
     if not is_changed:
+        return False
+    if not hasattr(shared.sd_model, 'transformer') or not hasattr(shared.sd_model.transformer, 'update_lora_params'):
+        shared.log.error(f'Network load: type=LoRA method=nunchaku model={shared.sd_model.__class__.__name__} unsupported')
         return False
 
     previously_loaded = loras

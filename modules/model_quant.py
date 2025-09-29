@@ -501,11 +501,6 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
     if model.__class__.__name__ == "ChromaTransformer2DModel":
         modules_to_not_convert.append("distilled_guidance_layer")
-    if model.__class__.__name__ == "QwenImageTransformer2DModel":
-        if "minimum_6bit" not in modules_dtype_dict.keys():
-            modules_dtype_dict["minimum_6bit"] = ["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"]
-        else:
-            modules_dtype_dict["minimum_6bit"].extend(["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"])
 
     sdnq_modules_to_not_convert = [m.strip() for m in re.split(';|,| ', shared.opts.sdnq_modules_to_not_convert) if len(m.strip()) > 1]
     if len(sdnq_modules_to_not_convert) > 0:
