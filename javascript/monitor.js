@@ -2,11 +2,13 @@ async function updateIndicator(online, data, msg) {
   const el = document.getElementById('logo_nav');
   if (!el || !data) return;
   const status = online ? '<b style="color:lime">online</b>' : '<b style="color:darkred">offline</b>';
+  const date = new Date();
   const template = `
     Version: <b>${data.updated}</b><br>
     Commit: <b>${data.hash}</b><br>
     Branch: <b>${data.branch}</b><br>
     Status: ${status}<br>
+    Since: ${date.toLocaleString()}<br>
   `;
   if (online) {
     el.dataset.hint = template;
