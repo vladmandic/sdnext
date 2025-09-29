@@ -46,7 +46,7 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
             subfolder=transformer_subfolder,
             cls_name=diffusers.QwenImageTransformer2DModel,
             load_config=diffusers_load_config,
-            modules_dtype_dict={"minimum_6bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "img_mod", "transformer_blocks.0.img_mod.1.weight"]},
+            modules_dtype_dict={"minimum_8bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "img_mod", "transformer_blocks.0.img_mod.1.weight"]},
         )
 
     repo_te = 'Qwen/Qwen-Image'
