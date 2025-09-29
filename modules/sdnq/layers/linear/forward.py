@@ -14,7 +14,7 @@ def check_mats(input: torch.Tensor, weight: torch.Tensor) -> Tuple[torch.Tensor,
         if weight.device.type != "xpu":
             weight = weight.t().contiguous().t()
     elif weight.device.type == "xpu":
-        weight = weight.t().contiguous().t()
+        weight = weight.contiguous()
     return input, weight
 
 
