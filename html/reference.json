@@ -1,13 +1,13 @@
 {
   "Tempest-by-Vlad XL": {
     "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
-    "preview": "tempest-by-vlad-base.jpg",
+    "preview": "tempestByVlad_baseV01.jpg",
     "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
     "extras": ""
   },
   "Tempest-by-Vlad XL Hyper": {
     "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
-    "preview": "tempest-by-vlad-hyper.jpg",
+    "preview": "tempestByVlad_hyperV01.jpg",
     "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
     "extras": ""
   },
