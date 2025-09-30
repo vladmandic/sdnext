@@ -172,8 +172,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul and not re_quantize_for_matmul:
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
-            weight_stride = layer.weight.stride()
-            if not (weight_stride[0] == 1 and weight_stride[1] > 1):
+            if layer.weight.is_contiguous():
                 if devices.backend != "ipex":
                     layer.weight.data = layer.weight.t_().contiguous().t_()
             elif devices.backend == "ipex":
