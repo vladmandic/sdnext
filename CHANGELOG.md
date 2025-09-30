@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-29
+## Update for 2025-09-30
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -56,6 +56,8 @@
   - **interrrupt** will now show last known preview image  
     *keep incomplete* setting is now *save interrupted*  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
+  - **logging** add detailed ram/vram utilization info to log  
+    logging frequency can be specified using `--monitor x` command line param, where x is number of seconds  
   - **ipex** simplify internal implementation  
   - refactor to use new libraries  
   - styles and wildcards now use same seed as main generate for reproducible results  

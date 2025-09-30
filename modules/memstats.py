@@ -65,13 +65,17 @@ def ram_stats():
             fail_once = True
     try:
         vmem = psutil.virtual_memory()
-        ram['used'] = gb(vmem.used)
-        ram['free'] = gb(vmem.free)
-        ram['avail'] = gb(vmem.available)
+        ram['used'] = gb(vmem.used) if hasattr(vmem, 'used') else 0
+        ram['free'] = gb(vmem.free) if hasattr(vmem, 'free') else 0
+        ram['avail'] = gb(vmem.available) if hasattr(vmem, 'available') else 0
+        ram['buffers'] = gb(vmem.buffers) if hasattr(vmem, 'buffers') else 0
+        ram['cached'] = gb(vmem.cached) if hasattr(vmem, 'cached') else 0
     except Exception as e:
         ram['used'] = 0
         ram['free'] = 0
         ram['avail'] = 0
+        ram['buffers'] = 0
+        ram['cached'] = 0
         ram['error'] = str(e)
         if not fail_once:
             shared.log.error(f'RAM stats: {e}')
