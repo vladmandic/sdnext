@@ -54,11 +54,24 @@ def ram_stats():
             ram_total = 100 * res.rss / process.memory_percent()
             ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
             ram['total'] = gb(ram_total)
-        ram['used'] = gb(res.rss)
-        ram['free'] = round(ram['total'] - ram['used'])
+        ram['rss'] = gb(res.rss)
     except Exception as e:
         ram['total'] = 0
+        ram['rss'] = 0
+        ram['error'] = str(e)
+        if not fail_once:
+            shared.log.error(f'RAM stats: {e}')
+            errors.display(e, 'RAM stats')
+            fail_once = True
+    try:
+        vmem = psutil.virtual_memory()
+        ram['used'] = gb(vmem.used)
+        ram['free'] = gb(vmem.free)
+        ram['avail'] = gb(vmem.available)
+    except Exception as e:
         ram['used'] = 0
+        ram['free'] = 0
+        ram['avail'] = 0
         ram['error'] = str(e)
         if not fail_once:
             shared.log.error(f'RAM stats: {e}')
