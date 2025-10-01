@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-09-30
+## Update for 2025-10-01
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -84,6 +84,7 @@
 - **Fixes**
   - **Microsoft Florence 2** both base and large variants  
     *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  
+  - **MiaoshouAI PromptGen** 1.5/2.0 in both base and large variants  
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  
   - framepack: patch solver for unsupported gpus  
