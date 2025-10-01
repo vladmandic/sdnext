@@ -13,7 +13,7 @@ from modules import shared, devices, errors, model_quant, sd_models, sd_models_c
 processor = None
 model = None
 loaded: str = None
-quant_args = {}
+quant_args = None
 vlm_default = "Alibaba Qwen 2.5 VL 4B"
 vlm_models = {
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
@@ -90,14 +90,19 @@ def b64(image):
 
 def clean(response, question):
     strip = ['---', '\r', '\t', '**', '"', '“', '”', 'Assistant:', 'Caption:', '<|im_end|>', '<pad>']
-    if isinstance(response, dict):
-        if 'task' in response:
-            response = response['task']
+    if isinstance(response, str):
+        response = response.strip()
+    elif isinstance(response, dict):
         if 'answer' in response:
             response = response['answer']
-        response = json.dumps(response)
-    if isinstance(response, list):
+        elif 'task' in response:
+            response = response['task']
+        else:
+            response = json.dumps(response)
+    elif isinstance(response, list):
         response = response[0]
+    else:
+        response = str(response)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
     if question in response:
         response = response.split(question, 1)[1]
@@ -525,11 +530,13 @@ def moondream(question: str, image: Image.Image, repo: str = None):
 def florence(question: str, image: Image.Image, repo: str = None, revision: str = None):
     global processor, model, loaded # pylint: disable=global-statement
     _get_imports = transformers.dynamic_module_utils.get_imports
+
     def get_imports(f):
         R = _get_imports(f)
         if "flash_attn" in R:
             R.remove("flash_attn") # flash_attn is optional
         return R
+
     revision = None
     if '@' in repo:
         repo, revision = repo.split('@')
@@ -618,7 +625,8 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     global quant_args # pylint: disable=global-statement
     jobid = shared.state.begin('Interrogate LLM')
     t0 = time.time()
-    quant_args = model_quant.create_config(module='LLM')
+    if quant_args is None:
+        quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
@@ -634,9 +642,12 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         question = prompt
     if len(question) < 2:
         question = "Describe the image."
+
+    """
     if shared.sd_loaded:
         from modules.sd_models import apply_balanced_offload # prevent circular import
         apply_balanced_offload(shared.sd_model)
+    """
 
     from modules import modelloader
     modelloader.hf_login()
