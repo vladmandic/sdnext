@@ -27,8 +27,10 @@ vlm_models = {
     "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
     "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
     "Apple FastVLM 7B": "apple/FastVLM-7B",
-    "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
-    "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
+    # "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
+    # "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
+    "Microsoft Florence 2 Base": "florence-community/Florence-2-base-ft", # 0.5GB
+    "Microsoft Florence 2 Large": "florence-community/Florence-2-large-ft", # 1.5GB
     "MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
     "MiaoshouAI PromptGen 1.5 Large": "MiaoshouAI/Florence-2-large-PromptGen-v1.5@28a42440e39c9c32b83f7ae74ec2b3d1540404f0", # 3.3GB
     "MiaoshouAI PromptGen 2.0 Base": "MiaoshouAI/Florence-2-base-PromptGen-v2.0", # 1.1GB
@@ -354,7 +356,6 @@ def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str
             repo,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
-            _attn_implementation="eager",
             **quant_args,
             )
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -536,9 +537,19 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
         shared.log.debug(f'Interrogate load: vlm="{repo}" path="{shared.opts.hfcache_dir}"')
         transformers.dynamic_module_utils.get_imports = get_imports
         model = None
+        """
         model = transformers.AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
+            revision=revision,
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
+        )
+        """
+        model = transformers.Florence2ForConditionalGeneration.from_pretrained(
+            repo,
+            dtype=torch.bfloat16,
             revision=revision,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,

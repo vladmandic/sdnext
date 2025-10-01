@@ -81,6 +81,8 @@
     allows for using many different guidance methods:  
     *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
 - **Fixes**
+  - **Microsoft Florence 2** both base and large variants  
+    *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  
   - ui: fix image metadata display when switching selected image in control tab  
   - framepack: add explicit hf-login before framepack load  
   - framepack: patch solver for unsupported gpus  
