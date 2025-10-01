@@ -6,6 +6,8 @@ import base64
 import torch
 import transformers
 import transformers.dynamic_module_utils
+from transformers.generation import GenerationMixin
+from transformers import GenerationConfig
 from PIL import Image
 from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
 
@@ -521,6 +523,95 @@ def moondream(question: str, image: Image.Image, repo: str = None):
     return response
 
 
+def safe_past_key_values_length(past_key_values):
+    """Safely get past_key_values_length with proper None checks"""
+    if past_key_values is not None and past_key_values and len(past_key_values) > 0 and past_key_values[0] and len(past_key_values[0]) > 0 and past_key_values[0][0] is not None:
+        return past_key_values[0][0].shape[2]
+    return 0
+
+
+def patch_florence_prepare_inputs(language_model):
+    """Patch prepare_inputs_for_generation"""
+    def patched_prepare_inputs_for_generation(
+        decoder_input_ids,
+        past_key_values=None,
+        attention_mask=None,
+        decoder_attention_mask=None,
+        head_mask=None,
+        decoder_head_mask=None,
+        cross_attn_head_mask=None,
+        use_cache=None,
+        encoder_outputs=None,
+        **kwargs,
+    ):
+        # None check for past_key_values structure
+        past_length = safe_past_key_values_length(past_key_values)
+        if past_length > 0:
+            if decoder_input_ids.shape[1] > past_length:
+                remove_prefix_length = past_length
+            else:
+                remove_prefix_length = decoder_input_ids.shape[1] - 1
+            decoder_input_ids = decoder_input_ids[:, remove_prefix_length:]
+
+        return {
+            "input_ids": None,  # encoder_outputs is defined. input_ids not needed
+            "encoder_outputs": encoder_outputs,
+            "past_key_values": past_key_values,
+            "decoder_input_ids": decoder_input_ids,
+            "attention_mask": attention_mask,
+            "decoder_attention_mask": decoder_attention_mask,
+            "head_mask": head_mask,
+            "decoder_head_mask": decoder_head_mask,
+            "cross_attn_head_mask": cross_attn_head_mask,
+            "use_cache": use_cache,
+        }
+    return patched_prepare_inputs_for_generation
+
+
+def patch_florence_decoder_forward(decoder):
+    """Patch decoder forward to fix past_key_values[0][0] AttributeError"""
+    original_forward = decoder.forward
+    def patched_forward(
+        input_ids=None,
+        attention_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        head_mask=None,
+        cross_attn_head_mask=None,
+        past_key_values=None,
+        inputs_embeds=None,
+        use_cache=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        # Sanitize past_key_values to prevent AttributeError
+        # Convert empty/invalid structures to None
+        if past_key_values is not None:
+            if not past_key_values or len(past_key_values) == 0:
+                past_key_values = None
+            elif past_key_values[0] is None or (hasattr(past_key_values[0], '__len__') and len(past_key_values[0]) == 0):
+                past_key_values = None
+            elif past_key_values[0] and len(past_key_values[0]) > 0 and past_key_values[0][0] is None:
+                past_key_values = None
+
+        return original_forward(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+            head_mask=head_mask,
+            cross_attn_head_mask=cross_attn_head_mask,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+    return patched_forward
+
+
 def florence(question: str, image: Image.Image, repo: str = None, revision: str = None):
     global processor, model, loaded # pylint: disable=global-statement
     _get_imports = transformers.dynamic_module_utils.get_imports
@@ -542,12 +633,34 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
             revision=revision,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
+            attn_implementation="eager",
             **quant_args,
         )
         processor = transformers.AutoProcessor.from_pretrained(repo, trust_remote_code=True, revision=revision, cache_dir=shared.opts.hfcache_dir)
         transformers.dynamic_module_utils.get_imports = _get_imports
         loaded = repo
         model.eval()
+
+        # 1. Inject GenerationMixin if missing
+        if not isinstance(model.language_model, GenerationMixin):
+            model.language_model.__class__ = type(
+                model.language_model.__class__.__name__,
+                (GenerationMixin, model.language_model.__class__),
+                {}
+            )
+
+        # 2. Initialize generation_config if missing
+        if not hasattr(model.language_model, 'generation_config') or model.language_model.generation_config is None:
+            model.language_model.generation_config = GenerationConfig.from_model_config(model.language_model.config)
+
+        # 3. Patch prepare_inputs_for_generation methods to fix past_key_values bugs
+        model.language_model.prepare_inputs_for_generation = patch_florence_prepare_inputs(model.language_model)
+        model.prepare_inputs_for_generation = patch_florence_prepare_inputs(model)
+
+        # 4. Patch decoder forward method
+        if hasattr(model.language_model, 'model') and hasattr(model.language_model.model, 'decoder'):
+            model.language_model.model.decoder.forward = patch_florence_decoder_forward(model.language_model.model.decoder)
+
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     if question.startswith('<'):
