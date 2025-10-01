@@ -3,53 +3,16 @@ import os
 import time
 import concurrent
 from modules import shared, errors, sd_models, sd_models_compile, files_cache
-from modules.lora import network, lora_overrides, lora_convert
+from modules.lora import network, lora_overrides, lora_convert, lora_diffusers
 from modules.lora import lora_common as l
 
 
-diffuser_loaded = []
-diffuser_scales = []
 lora_cache = {}
 available_networks = {}
 available_network_aliases = {}
 forbidden_network_aliases = {}
 available_network_hash_lookup = {}
 dump_lora_keys = os.environ.get('SD_LORA_DUMP', None) is not None
-
-
-def load_diffusers(name, network_on_disk, lora_scale=shared.opts.extra_networks_default_multiplier) -> Union[network.Network, None]:
-    t0 = time.time()
-    name = name.replace(".", "_")
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
-    shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_diffusers}')
-    if not hasattr(sd_model, 'load_lora_weights'):
-        shared.log.error(f'Network load: type=LoRA class={sd_model.__class__} does not implement load lora')
-        return None
-    try:
-        sd_model.load_lora_weights(network_on_disk.filename, adapter_name=name)
-    except Exception as e:
-        if 'already in use' in str(e):
-            pass
-        else:
-            if 'The following keys have not been correctly renamed' in str(e):
-                shared.log.error(f'Network load: type=LoRA name="{name}" diffusers unsupported format')
-            else:
-                shared.log.error(f'Network load: type=LoRA name="{name}" {e}')
-            if l.debug:
-                errors.display(e, "LoRA")
-            return None
-    if name not in diffuser_loaded:
-        list_adapters = sd_model.get_list_adapters()
-        list_adapters = [adapter for adapters in list_adapters.values() for adapter in adapters]
-        if name not in list_adapters:
-            shared.log.error(f'Network load: type=LoRA name="{name}" adapters={list_adapters} not loaded')
-        else:
-            diffuser_loaded.append(name)
-            diffuser_scales.append(lora_scale)
-    net = network.Network(name, network_on_disk)
-    net.mtime = os.path.getmtime(network_on_disk.filename)
-    l.timer.activate += time.time() - t0
-    return net
 
 
 def lora_dump(lora, dct):
@@ -73,7 +36,7 @@ def lora_dump(lora, dct):
             f.write(line + "\n")
 
 
-def load_safetensors(name, network_on_disk) -> Union[network.Network, None]:
+def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[network.Network, None]:
     if not shared.sd_loaded:
         return None
 
@@ -261,15 +224,15 @@ def gather_networks(names):
     return networks_on_disk
 
 
-def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None):
+def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None, lora_modules=None):
     networks_on_disk = gather_networks(names)
     failed_to_load_networks = []
     recompile_model, skip_lora_load = maybe_recompile_model(names, te_multipliers)
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
 
     l.loaded_networks.clear()
-    diffuser_loaded.clear()
-    diffuser_scales.clear()
+    lora_diffusers.diffuser_loaded.clear()
+    lora_diffusers.diffuser_scales.clear()
     t0 = time.time()
 
     for i, (network_on_disk, name) in enumerate(zip(networks_on_disk, names)):
@@ -279,11 +242,13 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             if l.debug:
                 shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
             try:
+                lora_scale = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
+                lora_module = lora_modules[i] if lora_modules and len(lora_modules) > i else None
                 if recompile_model:
-                    shared.compiled_model_state.lora_model.append(f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}")
+                    shared.compiled_model_state.lora_model.append(f"{name}:{lora_scale}")
                 lora_method = lora_overrides.get_method(shorthash)
                 if lora_method == 'diffusers':
-                    net = load_diffusers(name, network_on_disk, lora_scale=te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier)
+                    net = lora_diffusers.load_diffusers(name, network_on_disk, lora_scale, lora_module)
                 elif lora_method == 'nunchaku':
                     pass # handled directly from extra_networks_lora.load_nunchaku
                 else:
@@ -311,21 +276,21 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         name = next(iter(lora_cache))
         lora_cache.pop(name, None)
 
-    if not skip_lora_load and len(diffuser_loaded) > 0:
-        shared.log.debug(f'Network load: type=LoRA loaded={diffuser_loaded} available={sd_model.get_list_adapters()} active={sd_model.get_active_adapters()} scales={diffuser_scales}')
+    if not skip_lora_load and len(lora_diffusers.diffuser_loaded) > 0:
+        shared.log.debug(f'Network load: type=LoRA loaded={lora_diffusers.diffuser_loaded} available={sd_model.get_list_adapters()} active={sd_model.get_active_adapters()} scales={lora_diffusers.diffuser_scales}')
         try:
             t1 = time.time()
             if l.debug:
                 shared.log.trace(f'Network load: type=LoRA list={sd_model.get_list_adapters()}')
                 shared.log.trace(f'Network load: type=LoRA active={sd_model.get_active_adapters()}')
-            sd_model.set_adapters(adapter_names=diffuser_loaded, adapter_weights=diffuser_scales)
+            sd_model.set_adapters(adapter_names=lora_diffusers.diffuser_loaded, adapter_weights=lora_diffusers.diffuser_scales)
         except Exception as e:
             shared.log.error(f'Network load: type=LoRA action=set {e}')
             if l.debug:
                 errors.display(e, 'LoRA')
         try:
             if shared.opts.lora_fuse_diffusers and not lora_overrides.disable_fuse():
-                sd_model.fuse_lora(adapter_names=diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
+                sd_model.fuse_lora(adapter_names=lora_diffusers.diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
                 sd_model.unload_lora_weights()
             l.timer.activate += time.time() - t1
         except Exception as e:

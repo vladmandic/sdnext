@@ -173,7 +173,7 @@ def full_vae_decode(latents, model):
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
-    shared.log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device}:{latents.dtype} time={t1-t0:.3f}')
+    shared.log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 
@@ -221,7 +221,7 @@ def taesd_vae_decode(latents):
     else:
         decoded = sd_vae_taesd.decode(latents)
     t1 = time.time()
-    shared.log.debug(f'Decode: vae="taesd" latents={latents.shape}:{latents.dtype}:{latents.device} time={t1-t0:.3f}')
+    shared.log.debug(f'Decode: vae="taesd" latents={latents.shape}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 

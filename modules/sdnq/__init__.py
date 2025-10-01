@@ -75,6 +75,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 use_quantized_matmul = group_channel_size >= 32 and output_channel_size >= 32
                 if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                     use_quantized_matmul = output_channel_size % 16 == 0 and group_channel_size % 16 == 0
+            if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
+                result_shape = layer.weight.shape
+                layer.weight.data = layer.weight.flatten(1,-1)
+                reduction_axes = -1
         elif layer_class_name in conv_transpose_types:
             if not quant_conv:
                 return layer
@@ -128,7 +132,8 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             num_of_groups = int(num_of_groups)
 
             if num_of_groups > 1:
-                result_shape = layer.weight.shape
+                if result_shape is None:
+                    result_shape = layer.weight.shape
                 new_shape = list(result_shape)
                 if is_conv_type:
                     # output_channel_size, channel_size, X, X
@@ -165,17 +170,15 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
 
         re_quantize_for_matmul = (num_of_groups > 1 or zero_point is not None)
         if use_quantized_matmul and not re_quantize_for_matmul:
-            if is_conv_type:
-                result_shape = layer.weight.shape
-                layer.weight.data = layer.weight.reshape(output_channel_size, -1)
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
-            if not dtype_dict[weights_dtype]["is_integer"]:
-                weight_stride = layer.weight.stride()
-                if not (weight_stride[0] == 1 and weight_stride[1] > 1):
-                    layer.weight.data = layer.weight.t().contiguous().t()
-                if not use_tensorwise_fp8_matmul:
-                    scale = scale.to(torch.float32)
+            if layer.weight.is_contiguous():
+                if devices.backend != "ipex":
+                    layer.weight.data = layer.weight.t_().contiguous().t_()
+            elif devices.backend == "ipex":
+                layer.weight.data = layer.weight.contiguous()
+            if not use_tensorwise_fp8_matmul and not dtype_dict[weights_dtype]["is_integer"]:
+                scale = scale.to(torch.float32)
 
         layer.sdnq_dequantizer = dequantizer_dict[weights_dtype](
             scale=scale,
@@ -402,7 +405,7 @@ class SDNQQuantizer(DiffusersQuantizer):
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
             model = model.to(devices.cpu)
-        devices.torch_gc(force=True, reason='sdnq')
+        devices.torch_gc(force=True, reason="sdnq")
         return model
 
     def get_accelerator_warm_up_factor(self):
@@ -420,6 +423,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return config
 
+    def update_ep_plan(self, config):
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return config
+
     def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
@@ -431,6 +440,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         needed for transformers compatibilty, no-op function
         """
         return missing_keys
+
+    def update_state_dict_with_metadata(self, state_dict: dict, metadata: dict) -> dict: # pylint: disable=unused-argument
+        """
+        needed for transformers compatibilty, no-op function
+        """
+        return state_dict
 
     def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
         """

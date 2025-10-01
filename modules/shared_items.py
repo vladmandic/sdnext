@@ -120,7 +120,6 @@ def list_crossattention():
         "Scaled-Dot-Product",
         "xFormers",
         "Batch matrix-matrix",
-        "Split attention",
         "Dynamic Attention BMM"
     ]
 

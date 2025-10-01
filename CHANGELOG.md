@@ -1,5 +1,98 @@
 # Change Log for SD.Next
 
+## Update for 2025-10-01
+
+- **Models**
+  - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
+    available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
+    updated version of Qwen Image Edit with improved image consistency  
+  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
+    updated version of E1 image editing model  
+  - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
+    SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
+  - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
+    impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
+    note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
+    *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
+    *note*: sdxl support for nunchaku is not in released version of `nunchaku==1.0.0`, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source
+- **Features**
+  - [Cache-DiT](https://github.com/vipshop/cache-dit)  
+    cache-dit is a unified, flexible and training-free cache acceleration framework  
+    compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
+    enable in *settings -> pipeline modifers -> cache-dit*  
+  - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
+    automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
+- **Compute**
+  - **ROCm** for Windows  
+    support for both official torch preview release of `torch-rocm` for windows and **TheRock** unoffical `torch-rocm` builds for windows  
+    note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
+  - **DirectML** warn as end-of-life  
+    `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
+  - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
+    previously sdnext was performing a fallback to `torch-cpu` which is not desired  
+  - **installer**: warn if cuda or rocm are available and `torch-cpu` is installed  
+- **Extensions**  
+  - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
+    was a high-value built-in extension, but it has not been maintained for 1.5 years  
+    it also does not work with control and video tabs which are the core of sdnext nowadays  
+    so it has been removed from built-in extensions: manual installation is still possible  
+  - [DAAM: Diffusion Attentive Attribution Maps](https://github.com/castorini/daam)  
+    create heatmap visualizations of which parts of the prompt influenced which parts of the image  
+    available in scripts for sdxl text-to-image workflows  
+- **Offloading**
+  - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
+  - add timers to measure onload/offload times during generate  
+  - experimental offloading using `torch.streams`  
+    enable in settings -> model offloading  
+  - new feature to specify which models types not to offload  
+    in *settings -> model offloading -> model types not to offload*  
+- **UI**
+  - **connection monitor**  
+    main logo in top-left corner now indicates server connection status and hovering over it shows connection details  
+  - separate guidance and detail sections  
+  - networks ability to filter lora by base model version  
+- **Other**
+  - server will note when restart is recommended due to package updates  
+  - **interrrupt** will now show last known preview image  
+    *keep incomplete* setting is now *save interrupted*  
+  - **logging** enable `debug`, `docs` and `api-docs` by default  
+  - **logging** add detailed ram/vram utilization info to log  
+    logging frequency can be specified using `--monitor x` command line param, where x is number of seconds  
+  - **ipex** simplify internal implementation  
+  - refactor to use new libraries  
+  - styles and wildcards now use same seed as main generate for reproducible results  
+  - **api** new endpoint POST `/sdapi/v1/civitai` to trigger civitai models metadata update  
+    accepts optional `page` parameter to search specific networks page  
+  - **reference models** additional example images, thanks @liutyi  
+  - **reference models** add model size and release date, thanks @alerikaisattera  
+  - **video** support for configurable multi-stage models such as WAN-2.2-14B  
+  - **video** new LTX model selection  
+  - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
+  - update **loopback** script with radon seed option, thanks @rabanti  
+  - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise  
+  - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
+    enable in *settings -> compute settings*  
+    can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
+- **Experimental**
+  - `new` command line flag enables new `pydantic` and `albumentations` packages  
+  - **modular pipelines**: enable in *settings -> model options*  
+    only compatible with some pipelines, invalidates preview generation  
+  - **modular guiders**: automatically used for compatible pipelines when *modular pipelines* is enabled  
+    allows for using many different guidance methods:  
+    *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
+- **Fixes**
+  - **Microsoft Florence 2** both base and large variants  
+    *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  
+  - **MiaoshouAI PromptGen** 1.5/2.0 in both base and large variants  
+  - ui: fix image metadata display when switching selected image in control tab  
+  - framepack: add explicit hf-login before framepack load  
+  - framepack: patch solver for unsupported gpus  
+  - benchmark: remove forced sampler from system info benchmark  
+  - xyz-grid: fix xyz grid with random seeds  
+  - reference: fix download for sd15/sdxl reference models  
+  - fix checks in init/mask image decode  
+  
 ## Update for 2025-09-15
 
 ### Highlights for 2025-09-15
@@ -82,6 +175,13 @@ And check out new **history** tab in the right panel, it now shows visualization
     *experimental*: requires new pydantic package which *may* break other things, to enable start sdnext with `--new` flag  
     *note*: this is model quantization only, no support for tensorRT inference yet  
 - **Other**
+  - **LoRA** allow specifying module to apply lora on  
+    *example*: `<lora:mylora:1.0:module=unet>` would apply lora *only* on unet regardless of lora content  
+    this is particularly useful when you have multiple loras and you want to apply them on different parts of the model  
+    *example*: `<lora:firstlora:1.0:high>` and `<lora:secondlora:1.0:low>`  
+    *note*: `low` is shorthand for `module=transformer_2` and `high` is shortcut for `module=transformer`  
+  - **Detailer** allow manually setting processing resolution  
+    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
   - move zluda flash attenion to *Triton Flash attention* option  
@@ -96,8 +196,6 @@ And check out new **history** tab in the right panel, it now shows visualization
   - add deprecation warning for `python==3.9`  
   - allow setting denoise strength to 0 in control/img2img  
     this allows to run workflows which only refine or detail existing image without changing it   
-  - **Detailer** allow manually setting processing resolution  
-    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

@@ -130,7 +130,7 @@ def get_processed(*args, **kwargs):
 
 def process_images(p: StableDiffusionProcessing) -> Processed:
     timer.process.reset()
-    debug(f'Process images: {vars(p)}')
+    debug(f'Process images: class={p.__class__.__name__} {vars(p)}')
     if not hasattr(p.sd_model, 'sd_checkpoint_info'):
         shared.log.error('Processing: incomplete model')
         return None
@@ -427,13 +427,20 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     for script_image, script_infotext in zip(results.images, results.infotexts):
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
+
             if samples is None:
                 from modules.processing_diffusers import process_diffusers
                 samples = process_diffusers(p)
             timer.process.record('process')
 
-            if not shared.opts.keep_incomplete and shared.state.interrupted:
-                samples = []
+            if shared.state.interrupted:
+                shared.log.debug(f'Process: batch={n+1}/{p.n_iter} interrupted')
+                p.do_not_save_samples = not shared.opts.keep_incomplete
+                if shared.state.current_image is not None and isinstance(shared.state.current_image, Image.Image):
+                    samples = [shared.state.current_image]
+                    infotexts = [create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0)]
+                else:
+                    samples = []
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)

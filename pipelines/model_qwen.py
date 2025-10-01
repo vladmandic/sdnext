@@ -12,7 +12,12 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    if 'Edit' in repo_id:
+    if '2509' in repo_id :
+        cls_name = diffusers.QwenImageEditPlusPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline
+    elif 'Edit' in repo_id:
         cls_name = diffusers.QwenImageEditPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPipeline
@@ -26,8 +31,6 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     if model_quant.check_nunchaku('Model'):
         from pipelines.qwen.qwen_nunchaku import load_qwen_nunchaku
         transformer = load_qwen_nunchaku(repo_id)
-        # if transformer is not None:
-        #     cls_name = nunchaku.pipeline.pipeline_qwenimage.NunchakuQwenImagePipeline # we dont need this
 
     if 'Qwen-Image-Distill-Full' in repo_id:
         repo_transformer = repo_id
@@ -38,7 +41,13 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         transformer_subfolder = "transformer"
 
     if transformer is None:
-        transformer = generic.load_transformer(repo_transformer, subfolder=transformer_subfolder, cls_name=diffusers.QwenImageTransformer2DModel, load_config=diffusers_load_config, modules_dtype_dict={"minimum_6bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "transformer_blocks.0.img_mod.1.weight"]})
+        transformer = generic.load_transformer(
+            repo_transformer,
+            subfolder=transformer_subfolder,
+            cls_name=diffusers.QwenImageTransformer2DModel,
+            load_config=diffusers_load_config,
+            modules_dtype_dict={"minimum_8bit": ["pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out", "img_mod", "transformer_blocks.0.img_mod.1.weight"]},
+        )
 
     repo_te = 'Qwen/Qwen-Image'
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)

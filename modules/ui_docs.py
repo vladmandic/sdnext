@@ -275,6 +275,7 @@ def create_ui_docs():
 
 
 def create_ui():
+    log.debug('UI initialize: tab=info')
     with gr.Tabs(elem_id="tabs_info"):
         with gr.TabItem("Docs", id="docs", elem_id="system_tab_docs"):
             create_ui_docs()

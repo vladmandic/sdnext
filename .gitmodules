@@ -14,10 +14,6 @@
   path = extensions-builtin/stable-diffusion-webui-rembg
   url = https://github.com/vladmandic/sd-extension-rembg
   ignore = dirty
-[submodule "extensions-builtin/sd-webui-agent-scheduler"]
-  path = extensions-builtin/sd-webui-agent-scheduler
-  url = https://github.com/ArtVentureX/sd-webui-agent-scheduler
-  ignore = dirty
 [submodule "extensions-builtin/sdnext-modernui"]
   path = extensions-builtin/sdnext-modernui
   url = https://github.com/BinaryQuantumSoul/sdnext-modernui

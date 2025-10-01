@@ -152,7 +152,7 @@ def ipex_init(): # pylint: disable=too-many-statements
                 # torch._int_mm directly uses onednn quantized matmul
                 # onednn qlinear is a wrapper around onednn quantized matmul
                 if hasattr(torch.ops, "onednn") and hasattr(torch.ops.onednn, "qlinear_pointwise"):
-                    def onednn_mm(x: torch.Tensor, y: torch.Tensor):
+                    def onednn_mm(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
                         # supports int8, fp32, fp16, and bf16 matmul with accumulation using a different dtype
                         # int8 matmul with onednn is slower than 16 bit with dim_size < 4096
                         return torch.ops.onednn.qlinear_pointwise.default(x, 1.0, 0, y, torch.ones(1, device=y.device), torch.zeros(1, device=y.device), None, 1.0, 0, torch.float32, "none", [], "none")
@@ -165,7 +165,7 @@ def ipex_init(): # pylint: disable=too-many-statements
                         pass
 
             # Memory:
-            if 'linux' in sys.platform and "WSL2" in os.popen("uname -a").read():
+            if "linux" in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 

@@ -5,12 +5,42 @@
 
 
 import torch
-
+import numpy as np
 from tqdm.auto import trange
 
 
 def expand_dims(v, dims):
     return v[(...,) + (None,) * (dims - 1)]
+
+
+torch_linalg_solve = None
+
+
+def test_solver():
+    from modules import devices, shared
+    try:
+        a = torch.randn(50, 50).to(device=devices.device, dtype=torch.float32)
+        b = torch.randn(50, 2).to(device=devices.device, dtype=torch.float32)
+        _x = torch.linalg.solve(a, b)
+        return True
+    except Exception as e:
+        shared.log.debug(f'FramePack: solver=cpu {e}')
+        return False
+
+
+def linalg_solve(A, B, device):
+    global torch_linalg_solve # pylint: disable=global-statement
+    if torch_linalg_solve is None:
+        torch_linalg_solve = test_solver()
+    if torch_linalg_solve:
+        X = torch.linalg.solve(A, B)
+        return X
+    else:
+        A_np = A.float().cpu().numpy()
+        B_np = B.float().cpu().numpy()
+        X_np = np.linalg.solve(A_np, B_np)
+        X = torch.from_numpy(X_np).to(device=device, dtype=A.dtype)
+        return X
 
 
 class FlowMatchUniPC:
@@ -78,7 +108,7 @@ class FlowMatchUniPC:
             if order == 2:
                 rhos_p = torch.tensor([0.5], device=b.device)
             else:
-                rhos_p = torch.linalg.solve(R[:-1, :-1], b[:-1])
+                rhos_p = linalg_solve(R[:-1, :-1], b[:-1], x.device)
         else:
             D1s = None
             rhos_p = None
@@ -86,7 +116,7 @@ class FlowMatchUniPC:
         if order == 1:
             rhos_c = torch.tensor([0.5], device=b.device)
         else:
-            rhos_c = torch.linalg.solve(R, b)
+            rhos_c = linalg_solve(R, b, x.device)
 
         x_t_ = expand_dims(t / t_prev_0, dims) * x - expand_dims(h_phi_1, dims) * model_prev_0
 

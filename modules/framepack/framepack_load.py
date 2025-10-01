@@ -124,6 +124,10 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         sd_models.unload_model_weights()
         t0 = time.time()
 
+        sd_models.hf_auth_check(model["transformer"]["repo"])
+        sd_models.hf_auth_check(model["text_encoder"]["repo"])
+        sd_models.hf_auth_check(model["text_encoder_2"]["repo"])
+
         shared.log.debug(f'FramePack load: module=llm {model["text_encoder"]}')
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
         text_encoder = LlamaModel.from_pretrained(model["text_encoder"]["repo"], subfolder=model["text_encoder"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args)

@@ -123,7 +123,7 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
     if replaced and not silent:
         shared.log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
     if (len(replaced_file) > 0 or len(not_found) > 0) and not silent:
-        shared.log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file time={t2-t2:.2f} ')
+        shared.log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t2:.2f}')
     if old_state is not None:
         random.setstate(old_state)
     return prompt
@@ -168,6 +168,7 @@ def apply_styles_to_extra(p, style: Style):
     params = []
     settings = []
     skipped = []
+
     for k, v in extra.items():
         k = k.lower().replace(' ', '_')
         if k in name_map: # rename some fields
@@ -322,16 +323,24 @@ class StyleDatabase:
         jobid = shared.state.begin('Styles')
         parsed_positive = []
         parsed_negative = []
+        random_state = random.getstate()
+
         for i in range(len(prompts)):
+            if seeds[i]> 0:
+                random.seed(seeds[i])
             prompt = prompts[i]
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_positive.append(prompt)
         for i in range(len(negatives)):
+            if seeds[i]> 0:
+                random.seed(seeds[i])
             prompt = negatives[i]
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_negative.append(prompt)
+
+        random.setstate(random_state)
         shared.state.end(jobid)
         return parsed_positive, parsed_negative
 

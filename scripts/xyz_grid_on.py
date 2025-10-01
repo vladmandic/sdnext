@@ -324,11 +324,17 @@ class Script(scripts_manager.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
+                shared.log.warning('XYZ grid: Interrupted')
                 return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
             pc.override_settings_restore_afterwards = False
             pc.styles = pc.styles[:]
+            if no_fixed_seeds:
+                pc.seed = -1
+                processing.fix_seed(pc)
+                pc.all_seeds = None
+                pc.all_subseeds = None
             x_opt.apply(pc, x, xs)
             y_opt.apply(pc, y, ys)
             z_opt.apply(pc, z, zs)

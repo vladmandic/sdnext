@@ -24,6 +24,7 @@ exclude = [
     "pipelines/segmoe",
 
     "scripts/lbm",
+    "scripts/daam",
     "scripts/xadapter",
     "scripts/pulid",
     "scripts/instantir",

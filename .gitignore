@@ -46,14 +46,6 @@ tunableop_results*.csv
 !package.json
 !requirements.txt
 
-# pyinstaller
-*.spec
-build/
-dist/
-
-# dynamically generated
-/repositories/deepseek-vl2/
-
 # all dynamic stuff
 /extensions/**/*
 /outputs/**/*

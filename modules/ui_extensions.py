@@ -430,6 +430,7 @@ def create_html(search_text, sort_column):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=extensions')
     extensions_disable_all = gr.Radio(label="Disable all extensions", choices=["none", "user", "all"], value=shared.opts.disable_all_extensions, elem_id="extensions_disable_all", visible=False)
     extensions_disabled_list = gr.Textbox(elem_id="extensions_disabled_list", visible=False, container=False)
     extensions_update_list = gr.Textbox(elem_id="extensions_update_list", visible=False, container=False)

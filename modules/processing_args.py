@@ -18,6 +18,26 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 disable_pbar = os.environ.get('SD_DISABLE_PBAR', None) is not None
 
 
+def task_modular_kwargs(p, model): # pylint: disable=unused-argument
+    # model_cls = model.__class__.__name__
+    task_args = {}
+    p.ops.append('modular')
+
+    processing_helpers.resize_init_images(p)
+    task_args['width'] = p.width
+    task_args['height'] = p.height
+    if len(getattr(p, 'init_images', [])) > 0:
+        task_args['image'] = p.init_images
+        task_args['strength'] = p.denoising_strength
+    mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
+    if mask_image is not None:
+        task_args['mask_image'] = mask_image
+
+    if debug_enabled:
+        debug_log(f'Process task specific args: {task_args}')
+    return task_args
+
+
 def task_specific_kwargs(p, model):
     model_cls = model.__class__.__name__
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
@@ -103,9 +123,9 @@ def task_specific_kwargs(p, model):
         }
 
     # model specific args
-    if model_cls == 'QwenImageEditPipeline' and len(getattr(p, 'init_images', [])) == 0:
+    if 'QwenImageEdit' in model_cls and len(getattr(p, 'init_images', [])) == 0:
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
-    if model_cls == 'LatentConsistencyModelPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if 'LatentConsistencyModelPipeline' in model_cls and hasattr(p, 'init_images') and len(p.init_images) > 0:
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
@@ -116,7 +136,7 @@ def task_specific_kwargs(p, model):
             'width': p.width if hasattr(p, 'width') else None,
             'height': p.height if hasattr(p, 'height') else None,
         }
-    if model_cls == 'BlipDiffusionPipeline':
+    if 'BlipDiffusionPipeline' in model_cls:
         if len(getattr(p, 'init_images', [])) == 0:
             shared.log.error('BLiP diffusion requires init image')
             return task_args
@@ -126,12 +146,24 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-    if model.__class__.__name__ == 'WanImageToVideoPipeline' and hasattr(p, 'init_images') and len(p.init_images) > 0:
+    if ('WanImageToVideoPipeline' in model_cls) and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
         task_args['image'] = p.init_images[0]
+    if ('WanVACEPipeline' in model_cls) and (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
+        task_args['reference_images'] = p.init_images
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')
     return task_args
+
+
+def get_params(model):
+    if hasattr(model, 'blocks') and hasattr(model.blocks, 'inputs'): # modular pipeline
+        possible = [input_param.name for input_param in model.blocks.inputs]
+        return possible
+    else:
+        signature = inspect.signature(type(model).__call__, follow_wrapped=True)
+        possible = list(signature.parameters)
+        return possible
 
 
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:typing.Optional[list]=None, negative_prompts_2:typing.Optional[list]=None, prompt_attention:typing.Optional[str]=None, desc:typing.Optional[str]='', **kwargs):
@@ -149,8 +181,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba', disable=disable_pbar)
         else:
             model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + desc, ncols=80, colour='#327fba')
-    signature = inspect.signature(type(model).__call__, follow_wrapped=True)
-    possible = list(signature.parameters)
+
+    possible = get_params(model)
 
     if debug_enabled:
         debug_log(f'Process pipeline possible: {possible}')
@@ -307,6 +339,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args['control_strength'] = p.denoising_strength
             args['width'] = p.width
             args['height'] = p.height
+    if 'WanVACEPipeline' in model.__class__.__name__:
+        if isinstance(args['prompt'], list):
+            args['prompt'] = args['prompt'][0] if len(args['prompt']) > 0 else ''
+        if isinstance(args.get('negative_prompt', None), list):
+            args['negative_prompt'] = args['negative_prompt'][0] if len(args['negative_prompt']) > 0 else ''
+        if isinstance(args['generator'], list) and len(args['generator']) > 0:
+            args['generator'] = args['generator'][0]
+
     # set callbacks
     if 'prior_callback_steps' in possible:  # Wuerstchen / Cascade
         args['prior_callback_steps'] = 1
@@ -347,7 +387,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             args[arg] = kwargs[arg]
 
     # handle task specific args
-    task_kwargs = task_specific_kwargs(p, model)
+    if sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.MODULAR:
+        task_kwargs = task_modular_kwargs(p, model)
+    else:
+        task_kwargs = task_specific_kwargs(p, model)
+
     pipe_args = getattr(p, 'task_args', {})
     model_args = getattr(model, 'task_args', {})
     task_kwargs.update(pipe_args or {})
@@ -397,8 +441,9 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
 
     # handle implicit controlnet
     if 'control_image' in possible and 'control_image' not in args and 'image' in args:
-        debug_log('Process: set control image')
-        args['control_image'] = args['image']
+        if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.MODULAR:
+            debug_log('Process: set control image')
+            args['control_image'] = args['image']
 
     sd_hijack_hypertile.hypertile_set(p, hr=len(getattr(p, 'init_images', [])) > 0)
 

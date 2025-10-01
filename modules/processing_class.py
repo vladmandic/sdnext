@@ -36,7 +36,13 @@ class StableDiffusionProcessing:
                  sampler_name: str = None,
                  hr_sampler_name: str = None,
                  eta: float = None,
-                 # guidance
+                 # modular guidance
+                 guidance_name: str = 'Default',
+                 guidance_scale: float = 6.0,
+                 guidance_rescale: float = 0.0,
+                 guidance_start: float = 0.0,
+                 guidance_stop: float = 1.0,
+                 # legacy guidance
                  cfg_scale: float = 6.0,
                  cfg_end: float = 1,
                  diffusers_guidance_rescale: float = 0.0,
@@ -247,6 +253,11 @@ class StableDiffusionProcessing:
         self.do_not_save_grid = do_not_save_grid
         self.override_settings_restore_afterwards = override_settings_restore_afterwards
         self.eta = eta
+        self.guidance_name = guidance_name
+        self.guidance_scale = guidance_scale
+        self.guidance_rescale = guidance_rescale
+        self.guidance_start = guidance_start
+        self.guidance_stop = guidance_stop
         self.cfg_scale = cfg_scale
         self.cfg_end = cfg_end
         self.diffusers_guidance_rescale = diffusers_guidance_rescale
@@ -445,14 +456,14 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
             self.hr_upscale_to_y = int(self.height * scale)
         else:
             if self.hr_resize_y == 0:
-                self.hr_upscale_to_x = self.hr_resize_x
-                self.hr_upscale_to_y = self.hr_resize_x * self.height // self.width
+                self.hr_upscale_to_x = int(self.hr_resize_x)
+                self.hr_upscale_to_y = int(self.hr_resize_x * self.height // self.width)
             elif self.hr_resize_x == 0:
-                self.hr_upscale_to_x = self.hr_resize_y * self.width // self.height
-                self.hr_upscale_to_y = self.hr_resize_y
+                self.hr_upscale_to_x = int(self.hr_resize_y * self.width // self.height)
+                self.hr_upscale_to_y = int(self.hr_resize_y)
             elif self.hr_resize_x > 0 and self.hr_resize_y > 0:
-                self.hr_upscale_to_x = self.hr_resize_x
-                self.hr_upscale_to_y = self.hr_resize_y
+                self.hr_upscale_to_x = int(self.hr_resize_x)
+                self.hr_upscale_to_y = int(self.hr_resize_y)
         shared.log.debug(f'Init hires: upscaler="{self.hr_upscaler}" sampler="{self.hr_sampler_name}" resize={self.hr_resize_x}x{self.hr_resize_y} upscale={self.hr_upscale_to_x}x{self.hr_upscale_to_y}')
 
 
@@ -572,9 +583,9 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
         self.hr_force = force
         if use_scale:
             vae_scale_factor = sd_vae.get_vae_scale_factor()
-            self.hr_upscale_to_x, self.hr_upscale_to_y = vae_scale_factor * int(self.width * scale / vae_scale_factor), vae_scale_factor * int(self.height * scale / vae_scale_factor)
+            self.hr_upscale_to_x, self.hr_upscale_to_y = int(vae_scale_factor * int(self.width * scale / vae_scale_factor)), int(vae_scale_factor * int(self.height * scale / vae_scale_factor))
         else:
-            self.hr_upscale_to_x, self.hr_upscale_to_y = self.hr_resize_x, self.hr_resize_y
+            self.hr_upscale_to_x, self.hr_upscale_to_y = int(self.hr_resize_x), int(self.hr_resize_y)
 
 
 def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None):

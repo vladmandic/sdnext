@@ -13,7 +13,7 @@ from modules import shared, devices, errors, model_quant, sd_models, sd_models_c
 processor = None
 model = None
 loaded: str = None
-quant_args = {}
+quant_args = None
 vlm_default = "Alibaba Qwen 2.5 VL 4B"
 vlm_models = {
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
@@ -27,12 +27,18 @@ vlm_models = {
     "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
     "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
     "Apple FastVLM 7B": "apple/FastVLM-7B",
-    "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
-    "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
-    "MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
-    "MiaoshouAI PromptGen 1.5 Large": "MiaoshouAI/Florence-2-large-PromptGen-v1.5@28a42440e39c9c32b83f7ae74ec2b3d1540404f0", # 3.3GB
-    "MiaoshouAI PromptGen 2.0 Base": "MiaoshouAI/Florence-2-base-PromptGen-v2.0", # 1.1GB
-    "MiaoshouAI PromptGen 2.0 Large": "MiaoshouAI/Florence-2-large-PromptGen-v2.0", # 3.3GB
+    # "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
+    # "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
+    "Microsoft Florence 2 Base": "florence-community/Florence-2-base-ft", # 0.5GB
+    "Microsoft Florence 2 Large": "florence-community/Florence-2-large-ft", # 1.5GB
+    #"MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
+    #"MiaoshouAI PromptGen 1.5 Large": "MiaoshouAI/Florence-2-large-PromptGen-v1.5@28a42440e39c9c32b83f7ae74ec2b3d1540404f0", # 3.3GB
+    #"MiaoshouAI PromptGen 2.0 Base": "MiaoshouAI/Florence-2-base-PromptGen-v2.0", # 1.1GB
+    #"MiaoshouAI PromptGen 2.0 Large": "MiaoshouAI/Florence-2-large-PromptGen-v2.0", # 3.3GB
+    "MiaoshouAI PromptGen 1.5 Base": "Disty0/Florence-2-base-PromptGen-v1.5", # 0.5GB
+    "MiaoshouAI PromptGen 1.5 Large": "Disty0/Florence-2-large-PromptGen-v1.5", # 1.5GB
+    "MiaoshouAI PromptGen 2.0 Base": "Disty0/Florence-2-base-PromptGen-v2.0", # 0.5GB
+    "MiaoshouAI PromptGen 2.0 Large": "Disty0/Florence-2-large-PromptGen-v2.0", # 1.5GB
     "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
     "Moondream 2": "vikhyatk/moondream2", # 3.7GB
@@ -88,14 +94,19 @@ def b64(image):
 
 def clean(response, question):
     strip = ['---', '\r', '\t', '**', '"', '“', '”', 'Assistant:', 'Caption:', '<|im_end|>', '<pad>']
-    if isinstance(response, dict):
-        if 'task' in response:
-            response = response['task']
+    if isinstance(response, str):
+        response = response.strip()
+    elif isinstance(response, dict):
         if 'answer' in response:
             response = response['answer']
-        response = json.dumps(response)
-    if isinstance(response, list):
+        elif 'task' in response:
+            response = response['task']
+        else:
+            response = json.dumps(response)
+    elif isinstance(response, list):
         response = response[0]
+    else:
+        response = str(response)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
     if question in response:
         response = response.split(question, 1)[1]
@@ -354,7 +365,6 @@ def smol(question: str, image: Image.Image, repo: str = None, system_prompt: str
             repo,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
-            _attn_implementation="eager",
             **quant_args,
             )
         processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -524,11 +534,13 @@ def moondream(question: str, image: Image.Image, repo: str = None):
 def florence(question: str, image: Image.Image, repo: str = None, revision: str = None):
     global processor, model, loaded # pylint: disable=global-statement
     _get_imports = transformers.dynamic_module_utils.get_imports
+
     def get_imports(f):
         R = _get_imports(f)
         if "flash_attn" in R:
             R.remove("flash_attn") # flash_attn is optional
         return R
+
     revision = None
     if '@' in repo:
         repo, revision = repo.split('@')
@@ -536,9 +548,19 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
         shared.log.debug(f'Interrogate load: vlm="{repo}" path="{shared.opts.hfcache_dir}"')
         transformers.dynamic_module_utils.get_imports = get_imports
         model = None
+        """
         model = transformers.AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
+            revision=revision,
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
+            **quant_args,
+        )
+        """
+        model = transformers.Florence2ForConditionalGeneration.from_pretrained(
+            repo,
+            dtype=torch.bfloat16,
             revision=revision,
             torch_dtype=devices.dtype,
             cache_dir=shared.opts.hfcache_dir,
@@ -607,7 +629,8 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     global quant_args # pylint: disable=global-statement
     jobid = shared.state.begin('Interrogate LLM')
     t0 = time.time()
-    quant_args = model_quant.create_config(module='LLM')
+    if quant_args is None:
+        quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
@@ -623,9 +646,12 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         question = prompt
     if len(question) < 2:
         question = "Describe the image."
+
+    """
     if shared.sd_loaded:
         from modules.sd_models import apply_balanced_offload # prevent circular import
         apply_balanced_offload(shared.sd_model)
+    """
 
     from modules import modelloader
     modelloader.hf_login()

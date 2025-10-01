@@ -1,11 +1,11 @@
-import os
-from PIL import Image
 import gradio as gr
-from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call
-from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing_vae
+from modules import timer, shared, call_queue, generation_parameters_copypaste, processing_vae
+from modules import ui_common, ui_sections, ui_guidance
 
 
 def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singles):
+    import os
+    from PIL import Image
     from modules.interrogate.interrogate import interrogate
     mode = int(mode)
     if mode in {0, 1, 3, 4}:
@@ -33,7 +33,7 @@ def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_s
 
 
 def create_ui():
-    shared.log.debug('UI initialize: img2img')
+    shared.log.debug('UI initialize: tab=img2img')
     import modules.img2img # pylint: disable=redefined-outer-name
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_img2img
     modules.scripts_manager.scripts_img2img.initialize_scripts(is_img2img=True, is_control=False)
@@ -132,9 +132,10 @@ def create_ui():
                             denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="img2img_denoising_strength")
                             refiner_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Denoise start', value=0.0, elem_id="img2img_refiner_start")
 
-                    vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_sections.create_advanced_inputs('img2img')
+                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('img2img')
+                    vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('img2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('img2img')
-                    enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
+                    enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, hr_refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('img2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.yolo.ui('img2img')
 
                     # with gr.Group(elem_id="inpaint_controls", visible=False) as inpaint_controls:
@@ -176,8 +177,8 @@ def create_ui():
                 vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
-                cfg_scale, image_cfg_scale,
-                diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
+                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
+                cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
                 refiner_start,
                 clip_skip,
                 denoising_strength,
@@ -193,7 +194,7 @@ def create_ui():
                 override_settings,
             ]
             img2img_dict = dict(
-                fn=wrap_gradio_gpu_call(modules.img2img.img2img, extra_outputs=[None, '', ''], name='Image'),
+                fn=call_queue.wrap_gradio_gpu_call(modules.img2img.img2img, extra_outputs=[None, '', ''], name='Image'),
                 _js="submit_img2img",
                 inputs= img2img_args + img2img_script_inputs,
                 outputs=[
@@ -228,8 +229,8 @@ def create_ui():
             )
             interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
 
-            img2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = False)
-            img2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = False)
+            img2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = False)
+            img2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui_img2img, img2img_gallery)
             img2img_paste_fields = [
@@ -253,8 +254,13 @@ def create_ui():
                 (seed, "Seed"),
                 (subseed, "Variation seed"),
                 (subseed_strength, "Variation strength"),
+                # guidance
+                (guidance_name, "Guidance"),
+                (guidance_scale, "Guidance scale"),
+                (guidance_rescale, "Guidance rescale"),
+                (guidance_start, "Guidance start"),
+                (guidance_stop, "Guidance stop"),
                 # advanced
-                (cfg_scale, "Guidance scale"),
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
                 (image_cfg_scale, "Image CFG scale"),

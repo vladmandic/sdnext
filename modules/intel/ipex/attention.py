@@ -8,8 +8,8 @@ from functools import cache, wraps
 
 # ARC GPUs can't allocate more than 4GB to a single block so we slice the attention layers
 
-dynamic_attention_slice_rate = float(os.environ.get('IPEX_SDPA_SLICE_TRIGGER_RATE', 1))
-dynamic_attention_trigger_rate = float(os.environ.get('IPEX_ATTENTION_SLICE_RATE', 0.5))
+dynamic_attention_slice_rate = float(os.environ.get("IPEX_SDPA_SLICE_TRIGGER_RATE", "1"))
+dynamic_attention_trigger_rate = float(os.environ.get("IPEX_ATTENTION_SLICE_RATE", "0.5"))
 
 # Find something divisible with the input_tokens
 @cache

@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from .common import dtype_dict, use_torch_compile
+from .common import dtype_dict, compile_func
 from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetric, unpack_int_asymetric
 
 
@@ -226,21 +226,11 @@ dequantizer_dict = {
 }
 
 
-if use_torch_compile:
-    dequantize_asymmetric_compiled = torch.compile(dequantize_asymmetric, fullgraph=True, dynamic=False)
-    dequantize_symmetric_compiled = torch.compile(dequantize_symmetric, fullgraph=True, dynamic=False)
-    dequantize_packed_int_asymmetric_compiled = torch.compile(dequantize_packed_int_asymmetric, fullgraph=True, dynamic=False)
-    dequantize_packed_int_symmetric_compiled = torch.compile(dequantize_packed_int_symmetric, fullgraph=True, dynamic=False)
-    re_quantize_matmul_asymmetric_compiled = torch.compile(re_quantize_matmul_asymmetric, fullgraph=True, dynamic=False)
-    re_quantize_matmul_symmetric_compiled = torch.compile(re_quantize_matmul_symmetric, fullgraph=True, dynamic=False)
-    re_quantize_matmul_packed_int_asymmetric_compiled = torch.compile(re_quantize_matmul_packed_int_asymmetric, fullgraph=True, dynamic=False)
-    re_quantize_matmul_packed_int_symmetric_compiled = torch.compile(re_quantize_matmul_packed_int_symmetric, fullgraph=True, dynamic=False)
-else:
-    dequantize_asymmetric_compiled = dequantize_asymmetric
-    dequantize_symmetric_compiled = dequantize_symmetric
-    dequantize_packed_int_asymmetric_compiled = dequantize_packed_int_asymmetric
-    dequantize_packed_int_symmetric_compiled = dequantize_packed_int_symmetric
-    re_quantize_matmul_asymmetric_compiled = re_quantize_matmul_asymmetric
-    re_quantize_matmul_symmetric_compiled = re_quantize_matmul_symmetric
-    re_quantize_matmul_packed_int_asymmetric_compiled = re_quantize_matmul_packed_int_asymmetric
-    re_quantize_matmul_packed_int_symmetric_compiled = re_quantize_matmul_packed_int_symmetric
+dequantize_asymmetric_compiled = compile_func(dequantize_asymmetric)
+dequantize_symmetric_compiled = compile_func(dequantize_symmetric)
+dequantize_packed_int_asymmetric_compiled = compile_func(dequantize_packed_int_asymmetric)
+dequantize_packed_int_symmetric_compiled = compile_func(dequantize_packed_int_symmetric)
+re_quantize_matmul_asymmetric_compiled = compile_func(re_quantize_matmul_asymmetric)
+re_quantize_matmul_symmetric_compiled = compile_func(re_quantize_matmul_symmetric)
+re_quantize_matmul_packed_int_asymmetric_compiled = compile_func(re_quantize_matmul_packed_int_asymmetric)
+re_quantize_matmul_packed_int_symmetric_compiled = compile_func(re_quantize_matmul_packed_int_symmetric)

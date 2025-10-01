@@ -172,6 +172,7 @@ def run_settings_single(value, key, progress=False):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=settings')
     global text_settings # pylint: disable=global-statement
     text_settings = gr.Textbox(elem_id="settings_json", elem_classes=["settings_json"], value=lambda: shared.opts.dumpjson(), visible=False)
     with gr.Row(elem_id="system_row"):

@@ -146,26 +146,9 @@ def create_video_inputs(tab:str, show_always:bool=False):
     return video_type, video_duration, video_loop, video_pad, video_interpolate
 
 
-def create_cfg_inputs(tab):
-    with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox']):
-        cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Guidance scale', value=6.0, elem_id=f"{tab}_cfg_scale")
-        cfg_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance end', value=1.0, elem_id=f"{tab}_cfg_end")
-    return cfg_scale, cfg_end
-
-
-def create_advanced_inputs(tab, base=True):
+def create_advanced_inputs(tab):
     with gr.Accordion(open=False, label="Advanced", elem_id=f"{tab}_advanced", elem_classes=["small-accordion"]):
         with gr.Group():
-            if base:
-                cfg_scale, cfg_end = create_cfg_inputs(tab)
-            else:
-                cfg_scale, cfg_end = None, None
-            with gr.Row():
-                image_cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Refine guidance', value=6.0, elem_id=f"{tab}_image_cfg_scale")
-                diffusers_guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Rescale guidance', value=0.0, elem_id=f"{tab}_image_cfg_rescale")
-            with gr.Row():
-                diffusers_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='Attention guidance', value=0.0, elem_id=f"{tab}_pag_scale")
-                diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive")
             with gr.Row():
                 clip_skip = gr.Slider(label='CLiP skip', value=1, minimum=0, maximum=12, step=0.1, elem_id=f"{tab}_clip_skip", interactive=shared.opts.clip_skip_enabled)
             with gr.Row(elem_id=f"{tab}_vae_options"):
@@ -173,7 +156,7 @@ def create_advanced_inputs(tab, base=True):
             with gr.Row(elem_id=f"{tab}_advanced_options"):
                 tiling = gr.Checkbox(label='Texture tiling', value=False, elem_id=f"{tab}_tiling")
                 hidiffusion = gr.Checkbox(label='HiDiffusion', value=False, elem_id=f"{tab}_hidiffusion")
-    return vae_type, tiling, hidiffusion, cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, diffusers_pag_scale, diffusers_pag_adaptive, cfg_end
+    return vae_type, tiling, hidiffusion, clip_skip
 
 
 def create_correction_inputs(tab):

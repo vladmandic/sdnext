@@ -61,7 +61,9 @@ def get_method(shorthash=''):
         use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in maybe_diffusers)
     if shared.opts.lora_force_diffusers and len(shorthash) > 4:
         use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in force_diffusers)
-    use_nunchaku = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
+    nunchaku_dit = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
+    nunchaku_unet = hasattr(shared.sd_model, 'unet') and 'Nunchaku' in shared.sd_model.unet.__class__.__name__
+    use_nunchaku = nunchaku_dit or nunchaku_unet
     if use_nunchaku:
         return 'nunchaku'
     elif use_diffusers:

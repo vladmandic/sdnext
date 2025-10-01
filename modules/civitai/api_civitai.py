@@ -54,6 +54,15 @@ def get_civitai(
     return JSONResponse(content=[], status_code=200)
 
 
+def post_civitai(page:str=None):
+    from modules.civitai import metadata_civitai
+    result = []
+    for r in metadata_civitai.civit_search_metadata(title=page, raw=True):
+        result = r # get the last yielded result
+    return result
+
+
 def register_api():
     from modules.shared import api
     api.add_api_route("/sdapi/v1/civitai", get_civitai, methods=["GET"], response_model=list)
+    api.add_api_route("/sdapi/v1/civitai", post_civitai, methods=["POST"], response_model=list)

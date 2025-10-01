@@ -2,11 +2,13 @@ import os
 import html
 import json
 import concurrent
+from datetime import datetime
 from modules import shared, ui_extra_networks, sd_models, modelstats, paths
 
 
 version_map = {
     "QwenEdit": "Qwen",
+    "QwenEditPlus": "Qwen",
     "Flux.1 D": "Flux",
     "Flux.1 S": "Flux",
     "FluxKontext": "Flux",
@@ -14,6 +16,8 @@ version_map = {
     "SDXL Hyper": "SD XL",
     "StableDiffusion3": "SD 3",
     "StableDiffusionXL": "SD XL",
+    "WanToVideo": "Wan",
+    "WanVACE": "Wan",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
@@ -42,8 +46,16 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                     continue
             preview = v.get('preview', v['path'])
             preview_file = self.find_preview_file(os.path.join(paths.reference_path, preview))
-            _size, mtime = modelstats.stat(preview_file)
             name = os.path.normpath(os.path.join(paths.reference_path, k)).replace('\\', '/')
+            size = int(float(v.get('size', 0)) * 1024 * 1024 * 1024)
+            mtime = v.get('date', None)
+            if mtime is None:
+                _size, mtime = modelstats.stat(preview_file)
+            else:
+                try:
+                    mtime = datetime.strptime(mtime, '%Y %B') # 2025 January
+                except Exception:
+                    _size, mtime = modelstats.stat(preview_file)
             yield {
                 "type": 'Model',
                 "name": name,
@@ -54,7 +66,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "onclick": '"' + html.escape(f"selectReference({json.dumps(url)})") + '"',
                 "hash": None,
                 "mtime": mtime,
-                "size": 0,
+                "size": size,
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),

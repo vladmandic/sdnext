@@ -54,7 +54,7 @@ def worker(
 
     from modules.framepack.pipeline import hunyuan
     from modules.framepack.pipeline import utils
-    from modules.framepack.pipeline.k_diffusion_hunyuan import sample_hunyuan
+    from modules.framepack.pipeline import k_diffusion_hunyuan
 
     is_f1 = variant == 'forward-only'
     total_generated_frames = 0
@@ -244,7 +244,7 @@ def worker(
                 transformer.initialize_teacache(enable_teacache=use_teacache, num_steps=steps, rel_l1_thresh=shared.opts.teacache_thresh)
 
                 t_sample = time.time()
-                generated_latents = sample_hunyuan(
+                generated_latents = k_diffusion_hunyuan.sample_hunyuan(
                     transformer=transformer,
                     sampler='unipc',
                     width=width,

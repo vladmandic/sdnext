@@ -15,6 +15,9 @@ def load_nunchaku(names, strengths):
     is_changed = loras != previously_loaded
     if not is_changed:
         return False
+    if not hasattr(shared.sd_model, 'transformer') or not hasattr(shared.sd_model.transformer, 'update_lora_params'):
+        shared.log.error(f'Network load: type=LoRA method=nunchaku model={shared.sd_model.__class__.__name__} unsupported')
+        return False
 
     previously_loaded = loras
     try:
@@ -27,7 +30,7 @@ def load_nunchaku(names, strengths):
         lora_common.timer.load = t1 - t0
         shared.log.debug(f"Network load: type=LoRA method=nunchaku loras={names} strength={strengths} time={t1-t0:.3f}")
     except Exception as e:
-        shared.log.errors(f'Network load: type=LoRA method=nunchaku {e}')
+        shared.log.error(f'Network load: type=LoRA method=nunchaku {e}')
         if lora_common.debug:
             errors.display(e, 'LoRA')
     return is_changed

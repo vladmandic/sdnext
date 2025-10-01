@@ -26,7 +26,7 @@ class CivitModel:
         self.status = 'Not found'
 
 
-def civit_update_metadata():
+def civit_update_metadata(raw:bool=False):
     def create_update_metadata_table(rows: list[CivitModel]):
         html = """
             <table class="simple-table">
@@ -102,8 +102,8 @@ def civit_update_metadata():
                             model.status = 'Update available'
                         break
         results.append(model)
-        yield create_update_metadata_table(results)
-    return create_update_metadata_table(results)
+        yield results if raw else create_update_metadata_table(results)
+    yield results if raw else create_update_metadata_table(results)
 
 
 def civit_search_model(name, tag, model_type):
@@ -224,7 +224,7 @@ def atomic_civit_search_metadata(item, results):
             results.append(result)
 
 
-def civit_search_metadata(title: str = None):
+def civit_search_metadata(title: str = None, raw: bool = False):
     def create_search_metadata_table(rows):
         html = """
             <table class="simple-table">
@@ -258,7 +258,7 @@ def civit_search_metadata(title: str = None):
     re_skip = [r.strip() for r in opts.extra_networks_scan_skip.split(',') if len(r.strip()) > 0]
     for page in get_pages():
         if type(title) == str:
-            if page.title != title:
+            if page.title.lower() != title.lower():
                 continue
         if page.name == 'style' or page.name == 'wildcards':
             continue
@@ -278,8 +278,8 @@ def civit_search_metadata(title: str = None):
             future_items[executor.submit(atomic_civit_search_metadata, fn, results)] = fn
         for future in concurrent.futures.as_completed(future_items):
             future.result()
-            yield create_search_metadata_table(results)
+            yield results if raw else create_search_metadata_table(results)
 
     t1 = time.time()
     log.debug(f'CivitAI search metadata: scanned={scanned} skipped={skipped} time={t1-t0:.2f}')
-    yield create_search_metadata_table(results)
+    yield results if raw else create_search_metadata_table(results)

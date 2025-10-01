@@ -54,9 +54,9 @@ class Script(scripts_manager.Script):
 
         with gr.Row():
             with gr.Column():
-                csv_mode = gr.Checkbox(label='Text inputs', value=False, elem_id=self.elem_id("csv_mode"), container=False)
-                draw_legend = gr.Checkbox(label='Legend', value=True, elem_id=self.elem_id("draw_legend"), container=False)
-                no_fixed_seeds = gr.Checkbox(label='Random seeds', value=False, elem_id=self.elem_id("no_fixed_seeds"), container=False)
+                draw_legend = gr.Checkbox(label='Draw legend', value=True, elem_id=self.elem_id("draw_legend"), container=False)
+                csv_mode = gr.Checkbox(label='Use text inputs', value=False, elem_id=self.elem_id("csv_mode"), container=False)
+                no_fixed_seeds = gr.Checkbox(label='Use random seeds', value=False, elem_id=self.elem_id("no_fixed_seeds"), container=False)
                 include_time = gr.Checkbox(label='Add time info', value=False, elem_id=self.elem_id("include_time"), container=False)
                 include_text = gr.Checkbox(label='Add text info', value=False, elem_id=self.elem_id("include_text"), container=False)
             with gr.Column():
@@ -168,8 +168,6 @@ class Script(scripts_manager.Script):
             create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
            ): # pylint: disable=W0221
         jobid = shared.state.begin('XYZ Grid')
-        if not no_fixed_seeds:
-            processing.fix_seed(p)
         if not shared.opts.return_grid:
             p.batch_size = 1
 
@@ -251,6 +249,8 @@ class Script(scripts_manager.Script):
             xs = fix_axis_seeds(x_opt, xs)
             ys = fix_axis_seeds(y_opt, ys)
             zs = fix_axis_seeds(z_opt, zs)
+        else:
+            processing.fix_seed(p)
 
         total_jobs = len(xs) * len(ys) * len(zs)
         if x_opt.label == 'Steps':

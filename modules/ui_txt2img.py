@@ -1,11 +1,10 @@
 import gradio as gr
-from modules.call_queue import wrap_gradio_gpu_call, wrap_queued_call
-from modules import timer, shared, ui_common, ui_sections, generation_parameters_copypaste, processing_vae, images
-from modules.ui_components import ToolButton # pylint: disable=unused-import
+from modules import timer, shared, call_queue, generation_parameters_copypaste, processing_vae, images
+from modules import ui_common, ui_sections, ui_guidance
 
 
 def create_ui():
-    shared.log.debug('UI initialize: txt2img')
+    shared.log.debug('UI initialize: tab=txt2img')
     import modules.txt2img # pylint: disable=redefined-outer-name
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_txt2img
     modules.scripts_manager.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)
@@ -27,14 +26,14 @@ def create_ui():
                     width, height = ui_sections.create_resolution_inputs('txt2img')
 
                 batch_count, batch_size = ui_sections.create_batch_inputs('txt2img', accordion=False)
-                cfg_scale, cfg_end = ui_sections.create_cfg_inputs('txt2img')
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "txt2img")
 
                 with gr.Group(elem_classes="settings-accordion"):
                     with gr.Accordion(open=False, label="Samplers", elem_classes=["small-accordion"], elem_id="txt2img_sampler_group"):
                         ui_sections.create_sampler_options('txt2img')
                     seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('txt2img')
-                    vae_type, tiling, hidiffusion, _cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, _cfg_end = ui_sections.create_advanced_inputs('txt2img', base=False)
+                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('txt2img')
+                    vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('txt2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
                     enable_hr, hr_sampler_index, denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution  = shared.yolo.ui('txt2img')
@@ -57,6 +56,7 @@ def create_ui():
                 vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
+                guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
                 cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
                 clip_skip,
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
@@ -68,7 +68,7 @@ def create_ui():
                 override_settings,
             ]
             txt2img_dict = dict(
-                fn=wrap_gradio_gpu_call(modules.txt2img.txt2img, extra_outputs=[None, '', ''], name='Text'),
+                fn=call_queue.wrap_gradio_gpu_call(modules.txt2img.txt2img, extra_outputs=[None, '', ''], name='Text'),
                 _js="submit_txt2img",
                 inputs=txt2img_args + txt2img_script_inputs,
                 outputs=[
@@ -106,8 +106,13 @@ def create_ui():
                 (seed, "Seed"),
                 (subseed, "Variation seed"),
                 (subseed_strength, "Variation strength"),
+                # guidance
+                (guidance_name, "Guidance"),
+                (guidance_scale, "Guidance scale"),
+                (guidance_rescale, "Guidance rescale"),
+                (guidance_start, "Guidance start"),
+                (guidance_stop, "Guidance stop"),
                 # advanced
-                (cfg_scale, "Guidance scale"),
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
                 (clip_skip, "Clip skip"),
@@ -156,7 +161,7 @@ def create_ui():
             txt2img_bindings = generation_parameters_copypaste.ParamBinding(paste_button=txt2img_paste, tabname="txt2img", source_text_component=txt2img_prompt, source_image_component=None)
             generation_parameters_copypaste.register_paste_params_button(txt2img_bindings)
 
-            txt2img_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = False)
-            txt2img_negative_token_button.click(fn=wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = False)
+            txt2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = False)
+            txt2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = False)
 
             ui_extra_networks.setup_ui(extra_networks_ui, txt2img_gallery)

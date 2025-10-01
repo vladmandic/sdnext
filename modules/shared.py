@@ -70,9 +70,8 @@ state = shared_state.State()
 
 # early select backend
 backend = Backend.DIFFUSERS
-if not hasattr(cmd_opts, "use_openvino"):
-    cmd_opts.use_openvino = False
 if cmd_opts.use_openvino: # override for openvino
+    os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     from modules.intel.openvino import get_device_list as get_openvino_device_list # pylint: disable=ungrouped-imports
 elif cmd_opts.use_ipex or devices.has_xpu():
     from modules.intel.ipex import ipex_init
@@ -84,6 +83,11 @@ elif cmd_opts.use_directml:
     ok, e = directml_init()
     if not ok:
         log.error(f'DirectML initialization failed: {e}')
+elif cmd_opts.use_rocm or devices.has_rocm():
+    from modules.rocm import rocm_init
+    ok, e = rocm_init()
+    if not ok:
+        log.error(f'ROCm initialization failed: {e}')
 devices.backend = devices.get_backend(cmd_opts)
 devices.device = devices.get_optimal_device()
 mem_stat = memory_stats()
@@ -155,6 +159,8 @@ options_templates.update(options_section(('sd', "Model Loading"), {
 }))
 
 options_templates.update(options_section(('model_options', "Model Options"), {
+    "model_modular_sep": OptionInfo("<h2>Modular Pipelines</h2>", "", gr.HTML),
+    "model_modular_enable": OptionInfo(False, "Enable modular pipelines (experimental)"),
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
@@ -170,9 +176,11 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
     "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
     "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
     "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
+    "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
     "diffusers_offload_min_gpu_memory": OptionInfo(startup_offload_min_gpu, "Offload low watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_gpu_memory": OptionInfo(startup_offload_max_gpu, "Offload GPU high watermark", gr.Slider, {"minimum": 0.1, "maximum": 1, "step": 0.01 }),
     "diffusers_offload_max_cpu_memory": OptionInfo(0.90, "Offload CPU high watermark", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False }),
+    "models_not_to_offload": OptionInfo("", "Model types not to offload"),
     "diffusers_offload_always": OptionInfo(startup_offload_always, "Modules to always offload"),
     "diffusers_offload_never": OptionInfo(startup_offload_never, "Modules to never offload"),
     "offload_group_sep": OptionInfo("<h2>Group Offload</h2>", "", gr.HTML),
@@ -183,7 +191,7 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
 }))
 
 options_templates.update(options_section(("quantization", "Model Quantization"), {
-    "models_not_to_quant": OptionInfo("", "List of model types not to quantize"),
+    "models_not_to_quant": OptionInfo("", "Model types not to quantize"),
 
     "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "LLM", "Control", "VAE"]}),
@@ -248,8 +256,8 @@ options_templates.update(options_section(('vae_encoder', "Variational Auto Encod
     "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
     "diffusers_vae_upcast": OptionInfo("default", "VAE upcasting", gr.Radio, {"choices": ['default', 'true', 'false']}),
     "no_half_vae": OptionInfo(False if not cmd_opts.use_openvino else True, "Full precision (--no-half-vae)"),
-    "diffusers_vae_slicing": OptionInfo(True, "VAE slicing", gr.Checkbox),
-    "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram or cmd_opts.medvram, "VAE tiling", gr.Checkbox),
+    "diffusers_vae_slicing": OptionInfo(cmd_opts.lowvram or cmd_opts.medvram, "VAE slicing", gr.Checkbox),
+    "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram, "VAE tiling", gr.Checkbox),
     "diffusers_vae_tile_size": OptionInfo(0, "VAE tile size", gr.Slider, {"minimum": 0, "maximum": 4096, "step": 8 }),
     "diffusers_vae_tile_overlap": OptionInfo(0.25, "VAE tile overlap", gr.Slider, {"minimum": 0, "maximum": 0.95, "step": 0.05 }),
     "remote_vae_type": OptionInfo('raw', "Remote VAE image type", gr.Dropdown, {"choices": ['raw', 'jpg', 'png']}),
@@ -282,6 +290,8 @@ options_templates.update(options_section(('cuda', "Compute Settings"), {
 
     "cross_attention_sep": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
     "cross_attention_optimization": OptionInfo(startup_cross_attention, "Attention optimization method", gr.Radio, lambda: {"choices": shared_items.list_crossattention()}),
+    "attention_": OptionInfo("<h2>Cross Attention</h2>", "", gr.HTML),
+    "attention_slicing": OptionInfo('Default', "Attention slicing", gr.Radio, {"choices": ['Default', 'Enabled', 'Disabled']}),
     "sdp_options": OptionInfo(startup_sdp_options, "SDP options", gr.CheckboxGroup, {"choices": startup_sdp_choices}),
     "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
     "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate in GB", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
@@ -353,6 +363,14 @@ options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
     "pab_spacial_skip_range": OptionInfo(2, "PAB spacial skip range", gr.Slider, {"minimum": 1, "maximum": 4, "step": 1}),
     "pab_spacial_skip_start": OptionInfo(100, "PAB spacial skip start", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
     "pab_spacial_skip_end": OptionInfo(800, "PAB spacial skip end", gr.Slider, {"minimum": 0, "maximum": 1000, "step": 1}),
+
+    "cache_dit_sep": OptionInfo("<h2>Cache-DiT</h2>", "", gr.HTML),
+    "cache_dit_enabled": OptionInfo(False, "Cache-DiT enabled"),
+    "cache_dit_calibrator": OptionInfo("None", "Cache-DiT calibrator", gr.Radio, {"choices": ["None", "TaylorSeer", "FoCa"]}),
+    "cache_dit_fcompute": OptionInfo(-1, "Cache-DiT F-compute blocks", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
+    "cache_dit_bcompute": OptionInfo(-1, "Cache-DiT B-compute blocks", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
+    "cache_dit_threshold": OptionInfo(-1, "Cache-DiT residual diff threshold", gr.Slider, {"minimum": -1.0, "maximum": 1.0, "step": 0.01}),
+    "cache_dit_warmup": OptionInfo(-1, "Cache-DiT warmup steps", gr.Slider, {"minimum": -1, "maximum": 50, "step": 1}),
 
     "faster_cache__sep": OptionInfo("<h2>Faster Cache</h2>", "", gr.HTML),
     "faster_cache_enabled": OptionInfo(False, "FasterCache cache enabled"),
@@ -453,7 +471,7 @@ options_templates.update(options_section(('system-paths', "System Paths"), {
 
 options_templates.update(options_section(('saving-images', "Image Options"), {
     "samples_save": OptionInfo(True, "Save all generated images"),
-    "keep_incomplete": OptionInfo(True, "Keep incomplete images"),
+    "keep_incomplete": OptionInfo(True, "Save interrupted images"),
     "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
     "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
     "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 100, "maximum": 2000, "step": 1}),
