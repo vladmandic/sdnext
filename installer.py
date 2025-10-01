@@ -935,54 +935,59 @@ def check_torch():
             else:
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
-    if 'torch' in torch_command and not args.version:
+    if args.version:
+        return
+
+    if 'torch' in torch_command:
         if not installed('torch'):
             log.info(f'Torch: download and install in progress... cmd="{torch_command}"')
             install('--upgrade pip', 'pip', reinstall=True) # pytorch rocm is too large for older pip
         install(torch_command, 'torch torchvision', quiet=True)
-    else:
+
+    try:
+        import torch
         try:
-            import torch
-            log.info(f'Torch {torch.__version__}')
-            try:
-                import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
-                log.info(f'Torch backend: Intel IPEX {ipex.__version__}')
-            except Exception:
-                pass
-            if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
-                if shutil.which('icpx') is not None:
-                    log.info(f'{os.popen("icpx --version").read().rstrip()}')
-                for device in range(torch.xpu.device_count()):
-                    log.info(f'Torch detected GPU: {torch.xpu.get_device_name(device)} VRAM {round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024)} Compute Units {torch.xpu.get_device_properties(device).max_compute_units}')
-            elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
-                # log.debug(f'Torch allocator: {torch.cuda.get_allocator_backend()}')
-                if torch.version.cuda and allow_cuda:
-                    log.info(f'Torch backend: nVidia CUDA {torch.version.cuda} cuDNN {torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else "N/A"}')
-                elif torch.version.hip and allow_rocm:
-                    log.info(f'Torch backend: AMD ROCm HIP {torch.version.hip}')
-                else:
-                    log.warning('Unknown Torch backend')
-                for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
-                    log.info(f'Torch detected GPU: {torch.cuda.get_device_name(device)} VRAM {round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024)} Arch {torch.cuda.get_device_capability(device)} Cores {torch.cuda.get_device_properties(device).multi_processor_count}')
+            import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
+            log.info(f'Torch backend: type=IPEX version={ipex.__version__}')
+        except Exception:
+            pass
+        if 'cpu' in torch.__version__:
+            if is_cuda_available:
+                log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
+            elif is_rocm_available:
+                log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+        if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
+            if shutil.which('icpx') is not None:
+                log.info(f'{os.popen("icpx --version").read().rstrip()}')
+            for device in range(torch.xpu.device_count()):
+                log.info(f'Torch detected: gpu="{torch.xpu.get_device_name(device)}" vram={round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024)} units={torch.xpu.get_device_properties(device).max_compute_units}')
+        elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
+            if torch.version.cuda and allow_cuda:
+                log.info(f'Torch backend: version="{torch.__version__}" type=CUDA CUDA={torch.version.cuda} cuDNN={torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else "N/A"}')
+            elif torch.version.hip and allow_rocm:
+                log.info(f'Torch backend: version="{torch.__version__}" type=ROCm HIP={torch.version.hip}')
             else:
-                try:
-                    if args.use_directml and allow_directml:
-                        import torch_directml # pylint: disable=import-error
-                        dml_ver = pkg_resources.get_distribution("torch-directml")
-                        log.warning(f'Torch backend: DirectML ({dml_ver})')
-                        log.warning('DirectML: end-of-life')
-                        for i in range(0, torch_directml.device_count()):
-                            log.info(f'Torch detected GPU: {torch_directml.device_name(i)}')
-                except Exception:
-                    log.warning("Torch reports CUDA not available")
-        except Exception as e:
-            log.error(f'Torch cannot load: {e}')
-            if not args.ignore:
-                sys.exit(1)
+                log.warning('Unknown Torch backend')
+            for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
+                log.info(f'Torch detected: gpu="{torch.cuda.get_device_name(device)}" vram={round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024)} arch={torch.cuda.get_device_capability(device)} cores={torch.cuda.get_device_properties(device).multi_processor_count}')
+        else:
+            try:
+                if args.use_directml and allow_directml:
+                    import torch_directml # pylint: disable=import-error
+                    dml_ver = pkg_resources.get_distribution("torch-directml")
+                    log.warning(f'Torch backend: DirectML ({dml_ver})')
+                    log.warning('DirectML: end-of-life')
+                    for i in range(0, torch_directml.device_count()):
+                        log.info(f'Torch detected GPU: {torch_directml.device_name(i)}')
+            except Exception:
+                log.warning("Torch reports CUDA not available")
+    except Exception as e:
+        log.error(f'Torch cannot load: {e}')
+        if not args.ignore:
+            sys.exit(1)
+
     if rocm.is_installed:
         rocm.postinstall()
-    if args.version:
-        return
     if not args.skip_all:
         install_torch_addons()
     check_cudnn()

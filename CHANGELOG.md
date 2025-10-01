@@ -31,6 +31,7 @@
     `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
   - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
     previously sdnext was performing a fallback to `torch-cpu` which is not desired  
+  - **installer**: warn if cuda or rocm are available and `torch-cpu` is installed  
 - **Extensions**  
   - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
     was a high-value built-in extension, but it has not been maintained for 1.5 years  
