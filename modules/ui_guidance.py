@@ -1,6 +1,9 @@
 import gradio as gr
-from modules import shared, modular_guiders
+from modules import shared
 from modules import ui_symbols, ui_components
+
+
+guiders = ['Default', 'CFG', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']
 
 
 def create_guidance_inputs(tab):
@@ -8,7 +11,7 @@ def create_guidance_inputs(tab):
         with gr.Group():
 
             with gr.Row(elem_id=f"{tab}_guider_row", elem_classes=['flexbox'], visible=shared.opts.model_modular_enable):
-                guidance_name = gr.Dropdown(choices=list(modular_guiders.guiders.keys()), value='Default', label='Guider', elem_id=f"{tab}_guider")
+                guidance_name = gr.Dropdown(choices=guiders, value='Default', label='Guider', elem_id=f"{tab}_guider")
                 guidance_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_guider_docs")
                 guidance_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_name], outputs=[])
             with gr.Row(visible=shared.opts.model_modular_enable):
