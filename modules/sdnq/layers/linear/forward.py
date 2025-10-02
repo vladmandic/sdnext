@@ -7,11 +7,10 @@ import torch
 
 def check_mats(input: torch.Tensor, weight: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     input = input.contiguous()
-    if weight.is_contiguous():
-        if weight.device.type != "xpu":
-            weight = weight.t().contiguous().t()
-    elif weight.device.type == "xpu":
+    if weight.device.type == "xpu":
         weight = weight.contiguous()
+    elif weight.is_contiguous():
+        weight = weight.t().contiguous().t()
     return input, weight
 
 

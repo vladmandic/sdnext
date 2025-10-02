@@ -172,11 +172,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul and not re_quantize_for_matmul:
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
-            if layer.weight.is_contiguous():
-                if devices.backend != "ipex":
-                    layer.weight.data = layer.weight.t_().contiguous().t_()
-            elif devices.backend == "ipex":
+            if devices.backend == "ipex":
                 layer.weight.data = layer.weight.contiguous()
+            elif layer.weight.is_contiguous():
+                layer.weight.data = layer.weight.t_().contiguous().t_()
             if not use_tensorwise_fp8_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                 scale = scale.to(torch.float32)
 
