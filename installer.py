@@ -609,8 +609,8 @@ def check_diffusers():
         install('diffusers')
         return
     sha = 'b4297967a04cca6ac4493202c02d81c30d0f9ee8' # diffusers commit hash
-    # if args.use_rocm or args.use_zluda or args.use_directml:
-    #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
+    if args.use_rocm or args.use_zluda or args.use_directml:
+        sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     cur = opts.get('diffusers_version', '') if minor > -1 else ''
