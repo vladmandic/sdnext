@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-01
+## Update for 2025-10-02
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -92,7 +92,8 @@
   - xyz-grid: fix xyz grid with random seeds  
   - reference: fix download for sd15/sdxl reference models  
   - fix checks in init/mask image decode  
-  
+  - fix hf token with extra chars  
+
 ## Update for 2025-09-15
 
 ### Highlights for 2025-09-15
