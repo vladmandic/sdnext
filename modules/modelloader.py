@@ -22,6 +22,7 @@ pbar = None
 def hf_login(token=None):
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
+    token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
     install('hf_xet', quiet=True)
     if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
