@@ -47,6 +47,11 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                     self.network_weights_backup = weight.clone().to(devices.cpu)
                     if hasattr(self, "sdnq_dequantizer"):
                         self.sdnq_dequantizer_backup = self.sdnq_dequantizer.to(devices.cpu)
+                        self.sdnq_scale_backup = self.scale.clone().to(devices.cpu)
+                        if self.zero_point is not None:
+                            self.sdnq_zero_point_backup = self.zero_point.clone().to(devices.cpu)
+                        else:
+                            self.sdnq_zero_point_backup = None
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -80,9 +85,9 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
         try:
             t0 = time.time()
             if hasattr(self, "sdnq_dequantizer_backup"):
-                weight = self.sdnq_dequantizer_backup.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
+                weight = self.sdnq_dequantizer_backup.to(devices.device)(self.weight.to(devices.device), self.sdnq_scale_backup.to(devices.device), self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None, skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
             elif hasattr(self, "sdnq_dequantizer"):
-                weight = self.sdnq_dequantizer.to(devices.device)(self.weight.to(devices.device), skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
+                weight = self.sdnq_dequantizer.to(devices.device)(self.weight.to(devices.device), self.scale.to(devices.device), self.zero_point.to(devices.device) if self.zero_point is not None else None, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
             else:
                 weight = self.weight.to(devices.device) # must perform calc on gpu due to performance
             updown, ex_bias = module.calc_updown(weight)
@@ -142,16 +147,18 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
         try:
             from modules.sdnq import sdnq_quantize_layer
             if hasattr(self, "sdnq_dequantizer_backup"):
-                sdnq_dequantizer = self.sdnq_dequantizer_backup.to(devices.device)
-            else:
-                sdnq_dequantizer = self.sdnq_dequantizer.to(devices.device)
-            dequant_weight = sdnq_dequantizer(model_weights.to(devices.device), skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul)
+                weights_dtype = self.sdnq_dequantizer_backup.weights_dtype
+                dequant_weight = self.sdnq_dequantizer_backup.to(devices.device)(model_weights.to(devices.device), self.sdnq_scale_backup.to(devices.device), self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None, skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul)
+            elif hasattr(self, "sdnq_dequantizer"):
+                weights_dtype = self.sdnq_dequantizer.weights_dtype
+                dequant_weight = self.sdnq_dequantizer.to(devices.device)(model_weights.to(devices.device), self.scale.to(devices.device), self.zero_point.to(devices.device) if self.zero_point is not None else None, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul)
+
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            self.sdnq_dequantizer = None
+            del self.sdnq_dequantizer, self.scale, self.zero_point
             self = sdnq_quantize_layer(
                 self,
-                sdnq_dequantizer.weights_dtype,
+                weights_dtype=weights_dtype,
                 torch_dtype=devices.dtype,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
@@ -231,7 +238,12 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
             self.weight = torch.nn.Parameter(weights_backup.to(device), requires_grad=False)
             if hasattr(self, "sdnq_dequantizer_backup"):
                 self.sdnq_dequantizer = self.sdnq_dequantizer_backup.to(device)
-                del self.sdnq_dequantizer_backup
+                self.scale = torch.nn.Parameter(self.sdnq_scale_backup.to(device), requires_grad=False)
+                if self.sdnq_zero_point_backup is not None:
+                    self.zero_point = torch.nn.Parameter(self.sdnq_zero_point_backup.to(device), requires_grad=False)
+                else:
+                    self.zero_point = None
+                del self.sdnq_dequantizer_backup, self.sdnq_scale_backup, self.sdnq_zero_point_backup
 
     if bias_backup is not None:
         self.bias = None

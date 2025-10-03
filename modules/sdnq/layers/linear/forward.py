@@ -15,4 +15,4 @@ def check_mats(input: torch.Tensor, weight: torch.Tensor) -> Tuple[torch.Tensor,
 
 
 def quantized_linear_forward(self, input: torch.FloatTensor) -> torch.FloatTensor:
-    return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight), self.bias)
+    return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point), self.bias)

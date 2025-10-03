@@ -57,14 +57,14 @@ def conv_int8_matmul(
 
 def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     if self.sdnq_dequantizer.re_quantize_for_matmul:
-        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight)
+        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point)
         quantized_weight_shape = None
     else:
         weight = self.weight
-        scale = self.sdnq_dequantizer.scale
+        scale = self.scale
         quantized_weight_shape = getattr(self.sdnq_dequantizer, "quantized_weight_shape", None)
     return conv_int8_matmul(
         input, weight, self.bias,
