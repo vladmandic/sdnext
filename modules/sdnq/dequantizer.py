@@ -48,18 +48,25 @@ def quantize_fp8(input: torch.FloatTensor, dim: int = -1) -> Tuple[torch.Tensor,
     return input, scale
 
 
+def re_quantize_int8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
+    if weight.ndim > 2: # convs
+        weight = weight.flatten(1,-1)
+    if weight.device.type == "xpu":
+        # return contiguous
+        weight, scale = quantize_int8(weight.t(), dim=0)
+    else:
+        # return non-contiguous
+        weight, scale = quantize_int8(weight, dim=-1)
+        weight, scale = weight.t_(), scale.t_()
+    return weight, scale
+
+
 def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
-    result = dequantize_asymmetric(weight, scale, zero_point, scale.dtype, result_shape)
-    if result.ndim > 2: # convs
-        result = result.flatten(1,-1)
-    return quantize_int8(result.t_(), dim=0)
+    return re_quantize_int8(dequantize_asymmetric(weight, scale, zero_point, scale.dtype, result_shape))
 
 
 def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, result_shape: torch.Size) -> Tuple[torch.CharTensor, torch.FloatTensor]:
-    result = dequantize_symmetric(weight, scale, scale.dtype, result_shape)
-    if result.ndim > 2: # convs
-        result = result.flatten(1,-1)
-    return quantize_int8(result.t_(), dim=0)
+    return re_quantize_int8(dequantize_symmetric(weight, scale, scale.dtype, result_shape))
 
 
 def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
