@@ -48,7 +48,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
                 **quant_args,
             )
         else:
-            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             if subfolder is not None:

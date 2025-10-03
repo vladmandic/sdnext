@@ -27,6 +27,7 @@ class CheckpointInfo:
         self.hash = sha
         self.filename = filename
         self.type = ''
+        self.subfolder = None
         relname = filename
         app_path = os.path.abspath(paths.script_path)
 
@@ -106,7 +107,7 @@ class CheckpointInfo:
         return self.shorthash
 
     def __str__(self):
-        return f"CheckpointInfo(name={self.name} filename={self.filename} hash={self.shorthash} type={self.type}"
+        return f'CheckpointInfo(name="{self.name}" filename="{self.filename}" hash={self.shorthash} type={self.type} title="{self.title}" path="{self.path}" subfolder="{self.subfolder}")'
 
 
 def setup_model():
@@ -231,7 +232,12 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         return checkpoint_info
 
     # huggingface search
-    if shared.opts.sd_checkpoint_autodownload and s.count('/') == 1:
+    if shared.opts.sd_checkpoint_autodownload and (s.count('/') == 1 or s.count('/') == 2):
+        if s.count('/') == 2:
+            subfolder = '/'.join(s.split('/')[2:]) # subfolder
+            s = '/'.join(s.split('/')[:2]) # only user/model
+        else:
+            subfolder = None
         modelloader.hf_login()
         found = modelloader.find_diffuser(s, full=True)
         if found is None:
@@ -241,6 +247,7 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         if found is not None and len(found) == 1:
             checkpoint_info = CheckpointInfo(s)
             checkpoint_info.type = 'huggingface'
+            checkpoint_info.subfolder = subfolder
             return checkpoint_info
 
     # civitai search
@@ -289,7 +296,7 @@ def select_checkpoint(op='model', sd_model_checkpoint=None):
         return None
     if model_checkpoint is not None:
         if model_checkpoint != 'model.safetensors' and model_checkpoint != 'stabilityai/stable-diffusion-xl-base-1.0':
-            shared.log.info(f'Load {op}: search="{model_checkpoint}" not found')
+            shared.log.error(f'Load {op}: search="{model_checkpoint}" not found')
         else:
             shared.log.info("Selecting first available checkpoint")
     else:

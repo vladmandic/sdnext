@@ -1,11 +1,12 @@
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
-from pipelines import generic
 
 
 def load_qwen(checkpoint_info, diffusers_load_config={}):
+    from pipelines import generic, qwen
     repo_id = sd_models.path_to_repo(checkpoint_info)
+    repo_subfolder = checkpoint_info.subfolder
     sd_models.hf_auth_check(checkpoint_info)
     transformer = None
 
@@ -29,8 +30,7 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageInpaintPipeline
 
     if model_quant.check_nunchaku('Model'):
-        from pipelines.qwen.qwen_nunchaku import load_qwen_nunchaku
-        transformer = load_qwen_nunchaku(repo_id)
+        transformer = qwen.load_qwen_nunchaku(repo_id)
 
     if 'Qwen-Image-Distill-Full' in repo_id:
         repo_transformer = repo_id
@@ -38,7 +38,10 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
         repo_id = 'Qwen/Qwen-Image'
     else:
         repo_transformer = repo_id
-        transformer_subfolder = "transformer"
+        if repo_subfolder is not None:
+            transformer_subfolder = repo_subfolder + '/transformer'
+        else:
+            transformer_subfolder = "transformer"
 
     if transformer is None:
         transformer = generic.load_transformer(
@@ -52,11 +55,12 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     repo_te = 'Qwen/Qwen-Image'
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
-    # NunchakuQwenImagePipeline
+    repo_id = qwen.check_qwen_pruning(repo_id)
     pipe = cls_name.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder=text_encoder,
+        subfolder=repo_subfolder,
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )

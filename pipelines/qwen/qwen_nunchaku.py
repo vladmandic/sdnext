@@ -11,7 +11,9 @@ def load_qwen_nunchaku(repo_id):
     except Exception:
         shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" low nunchaku version')
         return None
-    if repo_id.lower().endswith('qwen-image'):
+    if 'pruning' in repo_id.lower() or 'distill' in repo_id.lower():
+        return None
+    elif repo_id.lower().endswith('qwen-image'):
         nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image.safetensors" # r32 vs r128
     elif repo_id.lower().endswith('qwen-lightning'):
         nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image-lightningv1.1-8steps.safetensors" # 8-step variant

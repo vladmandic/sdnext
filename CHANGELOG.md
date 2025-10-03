@@ -1,12 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-02
+## Update for 2025-10-03
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
   - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
     updated version of Qwen Image Edit with improved image consistency  
+  - [Qwen Image Pruning](https://huggingface.co/OPPOer/Qwen-Image-Pruning) and [Qwen Image Edit Pruning](https://huggingface.co/OPPOer/Qwen-Image-Edit-Pruning)  
+    pruned versions of Qwen with 13B params instead of 20B, with some quality tradeoff  
   - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
     updated version of E1 image editing model  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
@@ -15,7 +17,6 @@
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
-    *note*: sdxl support for nunchaku is not in released version of `nunchaku==1.0.0`, so you need to build [nunchaku](https://nunchaku.tech/docs/nunchaku/installation/installation.html) from source
 - **Features**
   - [Cache-DiT](https://github.com/vipshop/cache-dit)  
     cache-dit is a unified, flexible and training-free cache acceleration framework  
@@ -74,6 +75,7 @@
   - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
     enable in *settings -> compute settings*  
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
+  - **nunchaku** update to `1.0.1`  
 - **Experimental**
   - `new` command line flag enables new `pydantic` and `albumentations` packages  
   - **modular pipelines**: enable in *settings -> model options*  

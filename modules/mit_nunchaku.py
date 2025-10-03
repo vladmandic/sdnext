@@ -4,7 +4,7 @@ from installer import log, pip
 from modules import devices
 
 
-ver = '1.0.0'
+ver = '1.0.1'
 ok = False
 
 

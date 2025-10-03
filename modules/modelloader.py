@@ -180,6 +180,13 @@ def find_diffuser(name: str, full=False):
     if len(repo) > 0:
         return [repo[0]['name']]
     hf_api = hf.HfApi()
+    suffix = ''
+    if len(name) > 3 and name.count('/') > 1:
+        parts = name.split('/')
+        name = '/'.join(parts[:2]) # only user/model
+        suffix = '/'.join(parts[2:]) # subfolder
+        if len(suffix) > 0:
+            suffix = '/' + suffix
     models = list(hf_api.list_models(model_name=name, library=['diffusers'], full=True, limit=20, sort="downloads", direction=-1))
     if len(models) == 0:
         models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads", direction=-1)) # widen search
@@ -187,9 +194,9 @@ def find_diffuser(name: str, full=False):
     shared.log.debug(f'Search model: repo="{name}" {len(models) > 0}')
     if len(models) > 0:
         if not full:
-            return models[0].id
+            return models[0].id + suffix
         else:
-            return [m.id for m in models]
+            return [m.id + suffix for m in models]
     return None
 
 

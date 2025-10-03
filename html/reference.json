@@ -183,7 +183,7 @@
   "Qwen-Image": {
     "path": "Qwen/Qwen-Image",
     "preview": "Qwen--Qwen-Image.jpg",
-    "desc": " Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
+    "desc": "Qwen-Image, an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
     "skip": true,
     "extras": "",
     "size": 56.1,
@@ -228,11 +228,38 @@
   "Qwen-Image-Lightning-Edit": {
     "path": "vladmandic/Qwen-Lightning-Edit",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
-    "desc": " Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
+    "desc": "Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8",
     "size": 56.1,
     "date": "2025 August"
+  },
+  "Qwen-Image-Pruning": {
+    "path": "OPPOer/Qwen-Image-Pruning-13B",
+    "subfolder": "Qwen-Image-13B",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
+    "skip": true,
+    "size": 56.1,
+    "date": "2025 Ocotober"
+  },
+  "Qwen-Image-Edit-Pruning": {
+    "path": "OPPOer/Qwen-Image-Edit-Pruning-13B",
+    "subfolder": "Qwen-Image-Edit-13B",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
+    "skip": true,
+    "size": 56.1,
+    "date": "2025 Ocotober"
+  },
+  "Qwen-Image-Edit-2509-Pruning": {
+    "path": "OPPOer/Qwen-Image-Edit-Pruning-14B",
+    "subfolder": "Qwen-Image-Edit-2509-14B",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
+    "skip": true,
+    "size": 56.1,
+    "date": "2025 Ocotober"
   },
 
   "lodestones Chroma1 HD": {
