@@ -15,7 +15,11 @@ def check():
     try:
         import nunchaku
         import nunchaku.utils
-        log.info(f'Nunchaku: path={nunchaku.__path__} precision={nunchaku.utils.get_precision()}')
+        from nunchaku import __version__
+        log.info(f'Nunchaku: path={nunchaku.__path__} version={__version__.__version__} precision={nunchaku.utils.get_precision()}')
+        if __version__.__version__ != ver:
+            ok = False
+            return False
         ok = True
         return True
     except Exception as e:
