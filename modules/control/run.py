@@ -388,6 +388,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     )
     p.state = state
     p.is_tile = False
+    p.init_control = inits or []
     p.orig_init_images = inputs
 
     # TODO modernui: monkey-patch for missing tabs.select event

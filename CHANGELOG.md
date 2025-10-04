@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-03
+## Update for 2025-10-04
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -18,6 +18,11 @@
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
 - **Features**
+  - [Qwen Image-Edit] multi-image editing
+    requires qwen-image-edit-2509 or its variant as multi-image edits are not available in original qwen-image  
+    in ui control tab: inputs -> separate init image  
+    add image for *input media* and *control media*  
+    can be 
   - [Cache-DiT](https://github.com/vipshop/cache-dit)  
     cache-dit is a unified, flexible and training-free cache acceleration framework  
     compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
@@ -87,6 +92,8 @@
   - **modular guiders**: automatically used for compatible pipelines when *modular pipelines* is enabled  
     allows for using many different guidance methods:  
     *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
+- **Wiki**
+  - updates to *AMD-ROCm, ZLUDA, LoRA, DirectML, SDNQ* pages
 - **Fixes**
   - **Microsoft Florence 2** both base and large variants  
     *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  

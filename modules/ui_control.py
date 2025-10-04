@@ -183,14 +183,14 @@ def create_ui(_blocks: gr.Blocks=None):
                 with gr.Column(scale=9, elem_id='control-input-column', visible=True) as column_input:
                     gr.HTML('<span id="control-input-button">Input</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-input'):
+                        input_mode = gr.Label(value='select', visible=False)
                         with gr.Tab('Image', id='in-image') as tab_image:
-                            input_mode = gr.Label(value='select', visible=False)
-                            input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, visible=True, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
-                            input_resize = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="select", height=gr_height, visible=False, image_mode='RGB', elem_id='control_input_resize', elem_classes=['control-image'])
-                            input_inpaint = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="sketch", height=gr_height, visible=False, image_mode='RGB', elem_id='control_input_inpaint', brush_radius=32, mask_opacity=0.6, elem_classes=['control-image'])
+                            input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
-                            with gr.Row():
-                                input_buttons = [gr.Button('Select', visible=True, interactive=False), gr.Button('Inpaint', visible=True, interactive=True), gr.Button('Outpaint', visible=True, interactive=True)]
+                        with gr.Tab('Inpaint', id='in-inpaint') as _tab_inpaint:
+                            input_inpaint = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="sketch", height=gr_height, image_mode='RGB', elem_id='control_input_inpaint', brush_radius=32, mask_opacity=0.6, elem_classes=['control-image'])
+                        with gr.Tab('Outpaint', id='in-outpaint') as _tab_outpaint:
+                            input_resize = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="select", height=gr_height, image_mode='RGB', elem_id='control_input_resize', elem_classes=['control-image'])
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
                         with gr.Tab('Batch', id='in-batch') as tab_batch:
@@ -231,9 +231,9 @@ def create_ui(_blocks: gr.Blocks=None):
                 input_script_args = scripts_manager.scripts_current.setup_ui(parent='control', accordion=True)
 
             # handlers
-            for btn in input_buttons:
-                btn.click(fn=helpers.copy_input, inputs=[input_mode, btn, input_image, input_resize, input_inpaint], outputs=[input_image, input_resize, input_inpaint], _js='controlInputMode')
-                btn.click(fn=helpers.transfer_input, inputs=[btn], outputs=[input_image, input_resize, input_inpaint] + input_buttons)
+            # for btn in input_buttons:
+            #     btn.click(fn=helpers.copy_input, inputs=[input_mode, btn, input_image, input_resize, input_inpaint], outputs=[input_image, input_resize, input_inpaint], _js='controlInputMode')
+            #     btn.click(fn=helpers.transfer_input, inputs=[btn], outputs=[input_image, input_resize, input_inpaint] + input_buttons)
 
             # hidden button to update gradio control values
             for u in units:

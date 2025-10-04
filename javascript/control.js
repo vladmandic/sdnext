@@ -2,13 +2,9 @@ function controlInputMode(inputMode, ...args) {
   const updateEl = gradioApp().getElementById('control_update');
   if (updateEl) updateEl.click();
   const tab = gradioApp().querySelector('#control-tab-input button.selected');
-  if (!tab) return ['Select', ...args];
+  if (!tab) return ['Image', ...args];
   inputMode = tab.innerText;
-  if (inputMode === 'Image') {
-    if (!gradioApp().getElementById('control_input_select').classList.contains('hidden')) inputMode = 'Select';
-    else if (!gradioApp().getElementById('control_input_resize').classList.contains('hidden')) inputMode = 'Outpaint';
-    else if (!gradioApp().getElementById('control_input_inpaint').classList.contains('hidden')) inputMode = 'Inpaint';
-  }
+  console.log('HERE0', tab, inputMode);
   return [inputMode, ...args];
 }
 

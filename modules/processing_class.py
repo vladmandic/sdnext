@@ -78,7 +78,8 @@ class StableDiffusionProcessing:
                  hdr_color_picker: str = None,
                  hdr_tint_ratio: float = 0,
                  # img2img
-                 init_images: list = None,
+                 init_images: list = [],
+                 init_control: list = [],
                  denoising_strength: float = 0.3,
                  image_cfg_scale: float = None,
                  initial_noise_multiplier: float = None, # pylint: disable=unused-argument # a1111 compatibility
@@ -214,6 +215,7 @@ class StableDiffusionProcessing:
         self.detailer_resolution = detailer_resolution
         self.restore_faces = restore_faces
         self.init_images = init_images
+        self.init_control = init_control
         self.resize_mode = resize_mode
         self.resize_name = resize_name
         self.resize_context = resize_context
