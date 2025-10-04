@@ -52,7 +52,7 @@ else:
     use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2 or devices.backend in {"cuda", "zluda"})
+    use_triton_mm = bool(is_rdna2 or devices.backend == "zluda")
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
