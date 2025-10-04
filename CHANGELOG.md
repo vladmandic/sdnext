@@ -53,6 +53,10 @@
     main logo in top-left corner now indicates server connection status and hovering over it shows connection details  
   - separate guidance and detail sections  
   - networks ability to filter lora by base model version  
+- **SDNQ**
+    - make sdnq scales compatible with balanced offload  
+    - add int8 matmul support for rdna2 gpus via triton  
+    - improve int8 mamtul performance on intel gpus   
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **interrrupt** will now show last known preview image  
