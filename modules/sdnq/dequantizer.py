@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from .common import dtype_dict, compile_func, use_contiguous_mm
+from .common import dtype_dict, compile_func
 from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetric, unpack_int_asymetric
 
 
@@ -51,11 +51,7 @@ def quantize_fp8(input: torch.FloatTensor, dim: int = -1) -> Tuple[torch.Tensor,
 def re_quantize_int8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    if use_contiguous_mm:
-        weight, scale = quantize_int8(weight.t(), dim=0)
-    else:
-        weight, scale = quantize_int8(weight, dim=-1)
-        weight, scale = weight.t_(), scale.t_()
+    weight, scale = quantize_int8(weight.t(), dim=0)
     return weight, scale
 
 
