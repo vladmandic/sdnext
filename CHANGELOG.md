@@ -84,7 +84,8 @@
   - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
     enable in *settings -> compute settings*  
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
-  - **nunchaku** update to `1.0.1` and enhance installer    
+  - **nunchaku** update to `1.0.1` and enhance installer  
+  - **xyz-grid** add guidance section  
 - **Experimental**
   - `new` command line flag enables new `pydantic` and `albumentations` packages  
   - **modular pipelines**: enable in *settings -> model options*  
