@@ -11,7 +11,7 @@ from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types
+from .common import dtype_dict, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
 from .dequantizer import dequantizer_dict
 from .forward import get_forward_func
 
@@ -172,7 +172,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul and not re_quantize_for_matmul:
             scale.transpose_(0,1)
             layer.weight.transpose_(0,1)
-            if devices.backend == "ipex":
+            if use_contiguous_mm:
                 layer.weight.data = layer.weight.contiguous()
             elif layer.weight.is_contiguous():
                 layer.weight.data = layer.weight.t_().contiguous().t_()

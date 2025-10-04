@@ -4,7 +4,7 @@ from typing import List
 
 import torch
 
-from ...common import compile_func # noqa: TID252
+from ...common import compile_func, int_mm_func # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 from ..linear.linear_int8 import quantize_int8_matmul_input # noqa: TID252
@@ -33,13 +33,13 @@ def conv_int8_matmul(
     input, weight = check_mats(input, weight)
 
     if groups == 1:
-        result = torch._int_mm(input, weight)
+        result = int_mm_func(input, weight)
     else:
         weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
         input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
-            result.append(torch._int_mm(input[:, i], weight[:, i]))
+            result.append(int_mm_func(input[:, i], weight[:, i]))
         result = torch.cat(result, dim=-1)
     if bias is not None:
         result = dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)

@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch
 
-from ...common import compile_func # noqa: TID252
+from ...common import compile_func, int_mm_func # noqa: TID252
 from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import quantize_int8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 from .forward import check_mats
@@ -34,9 +34,9 @@ def int8_matmul(
     input, scale = quantize_int8_matmul_input(input, scale)
     input, weight = check_mats(input, weight)
     if bias is not None:
-        return dequantize_symmetric_with_bias(torch._int_mm(input, weight), scale, bias, return_dtype, output_shape)
+        return dequantize_symmetric_with_bias(int_mm_func(input, weight), scale, bias, return_dtype, output_shape)
     else:
-        return dequantize_symmetric(torch._int_mm(input, weight), scale, return_dtype, output_shape)
+        return dequantize_symmetric(int_mm_func(input, weight), scale, return_dtype, output_shape)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
