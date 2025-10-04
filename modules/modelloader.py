@@ -227,6 +227,8 @@ def get_reference_opts(name: str, quiet=False):
 
 
 def load_reference(name: str, variant: str = None, revision: str = None, mirror: str = None, custom_pipeline: str = None):
+    if '+' in name:
+        name = name.split('+')[0]
     found = [r for r in diffuser_repos if name == r['name'] or name == r['friendly'] or name == r['path']]
     if len(found) > 0: # already downloaded
         model_opts = get_reference_opts(found[0]['name'])
@@ -258,7 +260,7 @@ def load_reference(name: str, variant: str = None, revision: str = None, mirror:
 def load_civitai(model: str, url: str):
     from modules import sd_models
     name, _ext = os.path.splitext(model)
-    info = sd_models.get_closet_checkpoint_match(name)
+    info = sd_models.get_closest_checkpoint_match(name)
     if info is not None:
         _model_opts = get_reference_opts(info.model_name)
         return name # already downloaded
@@ -268,7 +270,7 @@ def load_civitai(model: str, url: str):
         download_civit_model_thread(model_name=model, model_url=url, model_path='', model_type='safetensors', token=shared.opts.civitai_token)
         shared.log.debug(f'Reference download complete: model="{name}"')
         sd_models.list_models()
-        info = sd_models.get_closet_checkpoint_match(name)
+        info = sd_models.get_closest_checkpoint_match(name)
         if info is not None:
             shared.log.debug(f'Reference: model="{name}"')
             return name # already downloaded

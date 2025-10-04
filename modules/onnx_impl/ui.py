@@ -15,7 +15,7 @@ def create_ui():
     from modules.ui_common import create_refresh_button
     from modules.ui_components import DropdownMulti
     from modules.shared import log, opts, cmd_opts, refresh_checkpoints
-    from modules.sd_models import checkpoint_titles, get_closet_checkpoint_match
+    from modules.sd_models import checkpoint_titles, get_closest_checkpoint_match
     from modules.paths import sd_configs_path
     from .execution_providers import ExecutionProvider, install_execution_provider
     from .utils import check_diffusers_cache
@@ -74,7 +74,7 @@ def create_ui():
                         cache_remove_optimized.click(fn=remove_cache_optimized, inputs=[cache_state_dirname, cache_optimized_selected,])
 
                     def cache_update_menus(query: str):
-                        checkpoint_info = get_closet_checkpoint_match(query)
+                        checkpoint_info = get_closest_checkpoint_match(query)
                         if checkpoint_info is None:
                             log.error(f"Could not find checkpoint object for '{query}'.")
                             return

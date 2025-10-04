@@ -53,7 +53,7 @@ class Script(scripts_manager.Script):
         # load/download model on-demand
         model_path = models[model]
         model_name = os.path.basename(model_path)
-        has_checkpoint = sd_models.get_closet_checkpoint_match(model_path)
+        has_checkpoint = sd_models.get_closest_checkpoint_match(model_path)
         if has_checkpoint is None:
             shared.log.error(f'SVD: no checkpoint for {model_name}')
             modelloader.load_reference(model_path, variant='fp16')

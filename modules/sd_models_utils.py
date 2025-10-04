@@ -8,7 +8,7 @@ import torch
 import safetensors.torch
 
 from modules import paths, shared, errors
-from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
+from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 
 
@@ -46,6 +46,8 @@ def path_to_repo(checkpoint_info):
     repo_id = repo_id.replace('--', '/')
     if repo_id.count('/') != 1:
         shared.log.warning(f'Model: repo="{repo_id}" repository not recognized')
+    if '+' in repo_id:
+        repo_id = repo_id.split('+')[0]
     return repo_id
 
 

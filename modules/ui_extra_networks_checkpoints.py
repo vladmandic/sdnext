@@ -32,6 +32,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
 
         def reference_downloaded(url):
             url = url.split('@')[0] if '@' in url else 'Diffusers/' + url
+            url = url.split('+')[0] if '+' in url else url
             return any(model.endswith(url) for model in existing)
 
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
@@ -56,6 +57,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                     mtime = datetime.strptime(mtime, '%Y %B') # 2025 January
                 except Exception:
                     _size, mtime = modelstats.stat(preview_file)
+            path = f'{v.get("path", "")}+{v.get("subfolder", "")}'
             yield {
                 "type": 'Model',
                 "name": name,
@@ -63,7 +65,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "filename": url,
                 "preview": self.find_preview(os.path.join(paths.reference_path, preview)),
                 "local_preview": preview_file,
-                "onclick": '"' + html.escape(f"selectReference({json.dumps(url)})") + '"',
+                "onclick": '"' + html.escape(f"selectReference({json.dumps(path)})") + '"',
                 "hash": None,
                 "mtime": mtime,
                 "size": size,

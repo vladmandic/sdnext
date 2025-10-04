@@ -22,12 +22,12 @@ warn_once = False
 
 
 class CheckpointInfo:
-    def __init__(self, filename, sha=None):
+    def __init__(self, filename, sha=None, subfolder=None):
         self.name = None
         self.hash = sha
         self.filename = filename
         self.type = ''
-        self.subfolder = None
+        self.subfolder = subfolder
         relname = filename
         app_path = os.path.abspath(paths.script_path)
 
@@ -197,13 +197,13 @@ def remove_hash(s):
     return re.sub(r'\s*\[.*?\]', '', s)
 
 
-def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
+def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
+    # direct hf url
     if s.startswith('https://huggingface.co/'):
         model_name = s.replace('https://huggingface.co/', '')
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
         checkpoint_info.type = 'huggingface'
         return checkpoint_info
-
     if s.startswith('huggingface/'):
         model_name = s.replace('huggingface/', '')
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
@@ -229,6 +229,16 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
     # absolute path
     if s.endswith('.safetensors') and os.path.isfile(s):
         checkpoint_info = CheckpointInfo(s)
+        checkpoint_info.type = 'safetensors'
+        return checkpoint_info
+
+    # reference search
+    ref = [(k, v) for k, v in shared.reference_models.items() if f"{v.get('path', '')}+{v.get('subfolder', '')}" == s]
+    if ref and len(ref) > 0:
+        _name, info = ref[0]
+        checkpoint_info = CheckpointInfo(s)
+        checkpoint_info.subfolder = info.get('subfolder', None)
+        checkpoint_info.type = 'reference'
         return checkpoint_info
 
     # huggingface search
@@ -247,7 +257,8 @@ def get_closet_checkpoint_match(s: str) -> CheckpointInfo:
         if found is not None and len(found) == 1:
             checkpoint_info = CheckpointInfo(s)
             checkpoint_info.type = 'huggingface'
-            checkpoint_info.subfolder = subfolder
+            if subfolder is not None and len(subfolder) > 0:
+                checkpoint_info.subfolder = subfolder
             return checkpoint_info
 
     # civitai search
@@ -281,7 +292,7 @@ def select_checkpoint(op='model', sd_model_checkpoint=None):
     model_checkpoint = sd_model_checkpoint or (shared.opts.data.get('sd_model_refiner', None) if op == 'refiner' else shared.opts.data.get('sd_model_checkpoint', None))
     if model_checkpoint is None or model_checkpoint == 'None' or len(model_checkpoint) < 3:
         return None
-    checkpoint_info = get_closet_checkpoint_match(model_checkpoint)
+    checkpoint_info = get_closest_checkpoint_match(model_checkpoint)
     if checkpoint_info is not None:
         shared.log.info(f'Load {op}: select="{checkpoint_info.title if checkpoint_info is not None else None}"')
         return checkpoint_info

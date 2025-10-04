@@ -55,7 +55,7 @@ def load_qwen(checkpoint_info, diffusers_load_config={}):
     repo_te = 'Qwen/Qwen-Image'
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
-    repo_id = qwen.check_qwen_pruning(repo_id)
+    repo_id, repo_subfolder = qwen.check_qwen_pruning(repo_id, repo_subfolder)
     pipe = cls_name.from_pretrained(
         repo_id,
         transformer=transformer,
