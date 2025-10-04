@@ -28,6 +28,7 @@ debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
+get_closet_checkpoint_match = get_closest_checkpoint_match # legacy compatibility
 checkpoint_tiles = checkpoint_titles # legacy compatibility
 allow_post_quant = None
 pipe_switch_task_exclude = [

@@ -36,6 +36,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### New models
 
+- [Ovi](https://github.com/character-ai/Ovi)
 - [Kandinsky 5](https://github.com/ai-forever/Kandinsky-5)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
 - [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
