@@ -1,6 +1,6 @@
 import os
 import gradio as gr
-from modules import shared, sd_models, ui_common, ui_sections, ui_symbols, call_queue
+from modules import shared, sd_models, ui_common, ui_sections, ui_symbols, ui_video_vlm, call_queue
 from modules.ui_components import ToolButton
 from modules.video_models import models_def, video_utils
 from modules.video_models import video_run
@@ -112,6 +112,7 @@ def create_ui(prompt, negative, styles, overrides):
                 init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
                 gr.HTML("<br>&nbsp Last image")
                 last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
+            vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
             with gr.Accordion(open=False, label="Output", elem_id='video_output_accordion'):
                 with gr.Row():
                     save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")

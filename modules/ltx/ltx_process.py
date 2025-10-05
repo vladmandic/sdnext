@@ -13,7 +13,7 @@ from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsamp
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
-engine, model = 'LTX Video', 'LTXVideo 0.9.7 13B'
+# engine, model = 'LTX Video', 'LTXVideo 0.9.7 13B'
 upsample_repo_id = "a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers"
 upsample_pipe = None
 queue_lock = threading.Lock()
@@ -21,6 +21,7 @@ queue_lock = threading.Lock()
 
 def run_ltx(task_id,
             _ui_state,
+            model:str,
             prompt:str,
             negative:str,
             styles:list[str],
@@ -73,6 +74,7 @@ def run_ltx(task_id,
         memstats.reset_stats()
         timer.process.reset()
         yield None, 'LTX: Loading...'
+        engine = 'LTX Video'
         load_model(engine, model)
 
         shared.state.begin('Video', task_id=task_id)
