@@ -89,10 +89,11 @@
   - **xyz-grid** add guidance section  
 - **Video**
   - use shared T5 text encoder for video models when possible  
-  - **FramePack** add job state tracking  
-  - **LTXVideo** fix model selection in ltx tab
-  - **LTXVideo** fix run with offloading  
-  - **WAN** fix run with offloading  
+  - unified video save code across all video models  
+    also avoids creation of temporary files for each frame unless user wants to save them  
+  - add job state tracking for video generation  
+  - improve offloading for **ltx** and **wan**
+  - fix model selection in ltx tab
 - **Experimental**
   - `new` command line flag enables new `pydantic` and `albumentations` packages  
   - **modular pipelines**: enable in *settings -> model options*  

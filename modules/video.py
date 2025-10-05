@@ -29,7 +29,7 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
     except Exception as e:
         shared.log.error(f'Save video: cv2: {e}')
         return
-    jobid = shared.state.begin('Save video')
+    savejob = shared.state.begin('Save video')
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     if video_type.lower() in ['gif', 'png']:
         append = images.copy()
@@ -57,7 +57,7 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
             video_writer.write(img)
         size = os.path.getsize(filename)
         shared.log.info(f'Save video: file="{filename}" frames={len(frames)} duration={duration} fourcc={fourcc} size={size}')
-    shared.state.end(jobid)
+    shared.state.end(savejob)
 
 
 def save_video(p, images, filename = None, video_type: str = 'none', duration: float = 2.0, loop: bool = False, interpolate: int = 0, scale: float = 1.0, pad: int = 1, change: float = 0.3, sync: bool = False):

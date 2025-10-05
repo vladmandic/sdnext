@@ -2,6 +2,7 @@ import os
 import time
 import datetime
 import cv2
+import numpy as np
 import torch
 import einops
 from modules import shared, errors ,timer, rife
@@ -13,6 +14,18 @@ def get_video_filename(frames:int, codec:str):
     return output_filename
 
 
+def images_to_tensor(images):
+    if images is None or len(images) == 0:
+        return None
+    array = [torch.from_numpy(np.array(image)) for image in images]
+    tensor = torch.stack(array, dim=0) # n h w c
+    tensor = tensor.unsqueeze(0) # 1, n, h, w, c
+    tensor = tensor.permute(0, 4, 1, 2, 3).contiguous() # 1, c, n, h, w
+    tensor = (tensor.float() / 127.5) - 1.0 # from [0,255] to [-1,1]
+    # shared.log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
+    return tensor
+
+
 def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='libx264', pix_fmt:str='yuv420p', options:str='', metadata:dict={}, pbar=None):
     try:
         import av
@@ -21,6 +34,7 @@ def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='li
         shared.log.error(f'Video: {e}')
         return
 
+    savejob = shared.state.begin('Save video')
     frames, height, width, _channels = tensor.shape
     rate = round(fps)
     options_str = options
@@ -54,6 +68,7 @@ def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='li
         for packet in stream.encode(): # flush
             container.mux(packet)
     shared.state.outputs(filename)
+    shared.state.end(savejob)
 
 
 def save_video(
@@ -73,13 +88,16 @@ def save_video(
     output_video = None
     if pixels is None:
         return 0, output_video
+    if not torch.is_tensor(pixels):
+        shared.log.error(f'Video: type={type(pixels)} not a tensor')
+        return 0, output_video
     t_save = time.time()
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
     shared.log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
     shared.log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
-    jobid = shared.state.begin('Save video')
     try:
+        preparejob = shared.state.begin('Prepare video')
         if stream is not None:
             stream.output_queue.push(('progress', (None, 'Saving video...')))
         if mp4_interpolate > 0:
@@ -111,6 +129,8 @@ def save_video(
                 shared.state.outputs(fn)
                 cv2.imwrite(fn, image)
 
+        shared.state.end(preparejob)
+
         if mp4_video and (mp4_codec != 'none'):
             output_video = f'{output_filename}.{mp4_ext}'
             atomic_save_video(output_video, tensor=x, fps=mp4_fps, codec=mp4_codec, options=mp4_opt, metadata=metadata, pbar=pbar)
@@ -125,5 +145,4 @@ def save_video(
         shared.log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
-    shared.state.end(jobid)
     return t, output_video

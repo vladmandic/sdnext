@@ -45,7 +45,7 @@ function refreshHistory() {
           if (inferenceTypes.some((type) => entry.job.toLowerCase().startsWith(type))) entry.type = 'inference';
           else if (ioTypes.some((type) => entry.job.toLowerCase().startsWith(type))) entry.type = 'io';
           else entry.type = 'default';
-          ts.push({ start, end: end.timestamp, label: entry.job, type: entry.type });
+          if (start && end.timestamp) ts.push({ start, end: end.timestamp, label: entry.job, type: entry.type });
         }
       }
       if (!ts.length) return;

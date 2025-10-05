@@ -4,7 +4,6 @@ function controlInputMode(inputMode, ...args) {
   const tab = gradioApp().querySelector('#control-tab-input button.selected');
   if (!tab) return ['Image', ...args];
   inputMode = tab.innerText;
-  console.log('HERE0', tab, inputMode);
   return [inputMode, ...args];
 }
 

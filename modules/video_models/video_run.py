@@ -1,16 +1,17 @@
 import os
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
-from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides
+from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def generate(*args, **kwargs):
-    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, save_frames, video_type, video_duration, video_loop, video_pad, video_interpolate, override_settings = args
+    task_id, ui_state, engine, model, prompt, negative, styles, width, height, frames, steps, sampler_index, sampler_shift, dynamic_shift, seed, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, override_settings = args
     if engine is None or model is None or engine == 'None' or model == 'None':
         return video_utils.queue_err('model not selected')
+    # videojob = shared.state.begin('Video')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
     if not shared.sd_loaded:
@@ -51,7 +52,7 @@ def generate(*args, **kwargs):
     p.script_args = None
     p.state = ui_state
     p.do_not_save_grid = True
-    p.do_not_save_samples = not save_frames
+    p.do_not_save_samples = not mp4_frames
     p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_video
     if 'T2V' in model:
         if init_image is not None:
@@ -119,6 +120,24 @@ def generate(*args, **kwargs):
     if processed is None or len(processed.images) == 0:
         return video_utils.queue_err('processing failed')
     shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
-    video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
+
+    # video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate) # legacy video save from list of images
+    pixels = video_save.images_to_tensor(processed.images)
+    _num_frames, video_file = video_save.save_video(
+        pixels=pixels,
+        mp4_fps=mp4_fps,
+        mp4_codec=mp4_codec,
+        mp4_opt=mp4_opt,
+        mp4_ext=mp4_ext,
+        mp4_sf=mp4_sf,
+        mp4_video=mp4_video,
+        mp4_frames=mp4_frames,
+        mp4_interpolate=mp4_interpolate,
+        metadata={},
+    )
+    if not mp4_frames:
+        processed.images = []
+
     generation_info_js = processed.js() if processed is not None else ''
+    # shared.state.end(videojob)
     return processed.images, video_file, generation_info_js, processed.info, ui_common.plaintext_to_html(processed.comments)

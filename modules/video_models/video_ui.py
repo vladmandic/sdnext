@@ -112,20 +112,31 @@ def create_ui(prompt, negative, styles, overrides):
                 init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
                 gr.HTML("<br>&nbsp Last image")
                 last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
+
             vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
-            with gr.Accordion(open=False, label="Output", elem_id='video_output_accordion'):
+
+            with gr.Accordion(label="Video", open=False, elem_id='video_output_accordion'):
                 with gr.Row():
-                    save_frames = gr.Checkbox(label='Save image frames', value=False, elem_id="video_save_frames")
+                    mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
+                    mp4_interpolate = gr.Slider(label="Video interpolation", minimum=0, maximum=10, value=0, step=1)
                 with gr.Row():
-                    video_type, video_duration, video_loop, video_pad, video_interpolate = ui_sections.create_video_inputs(tab='video', show_always=True)
+                    mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
+                    ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="framepack_mp4_codec_refresh")
+                    mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="framepack_mp4_ext")
+                    mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="framepack_mp4_ext")
+                with gr.Row():
+                    mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="framepack_mp4_video")
+                    mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="framepack_mp4_frames")
+                    mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="framepack_mp4_sf")
+
 
         # output panel with gallery and video tabs
         with gr.Column(elem_id='video-output-column', scale=2) as _column_output:
             with gr.Tabs(elem_classes=['video-output-tabs'], elem_id='video-output-tabs'):
-                with gr.Tab('Frames', id='out-gallery'):
-                    gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
                 with gr.Tab('Video', id='out-video'):
                     video = gr.Video(label="Output", show_label=False, elem_id='control_output_video', elem_classes=['control-image'], height=512, autoplay=False)
+                with gr.Tab('Frames', id='out-gallery'):
+                    gallery, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("video", prompt=prompt, preview=False, transfer=False, scale=2)
 
     # connect reuse seed button
     ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
@@ -151,8 +162,7 @@ def create_ui(prompt, negative, styles, overrides):
         guidance_scale, guidance_true,
         init_image, init_strength, last_image,
         vae_type, vae_tile_frames,
-        save_frames,
-        video_type, video_duration, video_loop, video_pad, video_interpolate,
+        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
         overrides,
     ]
     video_outputs = [
