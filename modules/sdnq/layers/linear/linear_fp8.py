@@ -20,20 +20,27 @@ def fp8_matmul(
     weight: torch.Tensor,
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
+    svd_up: torch.FloatTensor,
+    svd_down: torch.FloatTensor,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
+    if svd_up is not None:
+        svd_bias = torch.mm(torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
     input, input_scale = quantize_fp8_matmul_input(input)
     input, weight = check_mats(input, weight)
     if bias is not None and bias.dtype != torch.bfloat16:
         bias = bias.to(dtype=torch.bfloat16)
-    return torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(output_shape).to(return_dtype)
+    result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(output_shape).to(return_dtype)
+    if svd_up is not None:
+        result.add_(svd_bias)
+    return result
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
-        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, skip_quantized_matmul=True), self.bias)
-    return fp8_matmul(input, self.weight, self.bias, self.scale)
+        return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
+    return fp8_matmul(input, self.weight, self.bias, self.scale, self.svd_up, self.svd_down)
 
 
 fp8_matmul = compile_func(fp8_matmul)

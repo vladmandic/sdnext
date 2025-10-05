@@ -59,9 +59,10 @@
   - separate guidance and detail sections  
   - networks ability to filter lora by base model version  
 - **SDNQ**
+    - add `SVDQuant` quantization method support  
     - make sdnq scales compatible with balanced offload  
-    - add int8 matmul support for rdna2 gpus via triton  
-    - improve int8 mamtul performance on intel gpus   
+    - add int8 matmul support for RDNA2 GPUs via triton  
+    - improve int8 mamtul performance on Intel GPUs  
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **interrrupt** will now show last known preview image  

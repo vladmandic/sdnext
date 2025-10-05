@@ -16,6 +16,8 @@ def conv_fp8_matmul_tensorwise(
     weight: torch.Tensor,
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
+    svd_up: torch.FloatTensor,
+    svd_down: torch.FloatTensor,
     result_shape: torch.Size,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
@@ -24,6 +26,12 @@ def conv_fp8_matmul_tensorwise(
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
+    if svd_up is not None:
+        if bias is not None:
+            bias = torch.addmm(bias, torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+        else:
+            bias = torch.mm(torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     input, weight = check_mats(input, weight)
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
@@ -53,10 +61,11 @@ def conv_fp8_matmul_tensorwise(
 
 def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul_tensorwise(
-        input, self.weight, self.bias, self.scale,
+        input, self.weight, self.bias,
+        self.scale, self.svd_up, self.svd_down,
         self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
