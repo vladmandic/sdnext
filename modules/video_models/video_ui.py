@@ -163,6 +163,7 @@ def create_ui(prompt, negative, styles, overrides):
         init_image, init_strength, last_image,
         vae_type, vae_tile_frames,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
+        vlm_enhance, vlm_model, vlm_system_prompt,
         overrides,
     ]
     video_outputs = [

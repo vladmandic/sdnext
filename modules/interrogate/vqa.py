@@ -636,12 +636,11 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         image = image[0] if len(image) > 0 else None
     if isinstance(image, dict) and 'name' in image:
         image = Image.open(image['name'])
-    if image is None:
-        return ''
-    if image.width > 768 or image.height > 768:
-        image.thumbnail((768, 768), Image.Resampling.LANCZOS)
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
+    if isinstance(image, Image.Image):
+        if image.width > 768 or image.height > 768:
+            image.thumbnail((768, 768), Image.Resampling.LANCZOS)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
     if prompt is not None and len(prompt) > 0:
         question = prompt
     if len(question) < 2:
@@ -664,9 +663,9 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         if vqa_model is None:
             shared.log.error(f'Interrogate: type=vlm model="{model_name}" unknown')
             return ''
-        if image is None:
-            shared.log.error(f'Interrogate: type=vlm model="{model_name}" no input image')
-            return ''
+        # if image is None:
+        #     shared.log.error(f'Interrogate: type=vlm model="{model_name}" no input image')
+        #     return ''
 
         if 'git' in vqa_model.lower():
             answer = git(question, image, vqa_model)

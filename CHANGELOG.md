@@ -91,6 +91,7 @@
   - use shared T5 text encoder for video models when possible  
   - unified video save code across all video models  
     also avoids creation of temporary files for each frame unless user wants to save them  
+  - unified prompt enhance code across all video models  
   - add job state tracking for video generation  
   - improve offloading for **ltx** and **wan**
   - fix model selection in ltx tab
