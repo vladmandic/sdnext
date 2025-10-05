@@ -1,6 +1,6 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
-from typing import Any, Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -286,8 +286,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         model,
         param_value: "torch.Tensor",
         param_name: str,
-        state_dict: Dict[str, Any], # pylint: disable=unused-argument
-        **kwargs, # pylint: disable=unused-argument
+        *args, **kwargs, # pylint: disable=unused-argument
     ):
         if param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
@@ -303,8 +302,9 @@ class SDNQQuantizer(DiffusersQuantizer):
                             return True
                     else:
                         return True
-        with devices.inference_context():
-            param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
+        if param_value is not None:
+            with devices.inference_context():
+                param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -313,6 +313,12 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return self.check_if_quantized_param(*args, **kwargs)
 
+    def param_needs_quantization(self, model, param_name: str, *args, **kwargs) -> bool:
+        """
+        needed for transformers compatibilty, returns self.check_if_quantized_param
+        """
+        return self.check_if_quantized_param(model, None, param_name, *args, **kwargs)
+
     @devices.inference_context()
     def create_quantized_param( # pylint: disable=arguments-differ
         self,
@@ -320,9 +326,7 @@ class SDNQQuantizer(DiffusersQuantizer):
         param_value: torch.FloatTensor,
         param_name: str,
         target_device: torch.device,
-        state_dict: Dict[str, Any], # pylint: disable=unused-argument
-        unexpected_keys: List[str], # pylint: disable=unused-argument
-        **kwargs, # pylint: disable=unused-argument
+        *args, **kwargs, # pylint: disable=unused-argument
     ):
         weights_dtype = self.quantization_config.weights_dtype
         if len(self.quantization_config.modules_dtype_dict.keys()) > 0:
@@ -422,49 +426,49 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return self.get_accelerator_warm_up_factor()
 
-    def update_tp_plan(self, config):
+    def update_tp_plan(self, config, *args, **kwargs): # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return config
 
-    def update_ep_plan(self, config):
+    def update_ep_plan(self, config, *args, **kwargs): # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return config
 
-    def update_unexpected_keys(self, model, unexpected_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
+    def update_unexpected_keys(self, model, unexpected_keys: List[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return unexpected_keys
 
-    def update_missing_keys_after_loading(self, model, missing_keys: List[str], prefix: str) -> List[str]: # pylint: disable=unused-argument
+    def update_missing_keys_after_loading(self, model, missing_keys: List[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return missing_keys
 
-    def update_state_dict_with_metadata(self, state_dict: dict, metadata: dict) -> dict: # pylint: disable=unused-argument
+    def update_state_dict_with_metadata(self, state_dict: dict, *args, **kwargs) -> dict: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return state_dict
 
-    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: List[str]) -> List[str]: # pylint: disable=unused-argument
+    def update_expected_keys(self, model, expected_keys: List[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return expected_keys
 
-    def update_param_name(self, param_name: str) -> str:
+    def update_param_name(self, param_name: str, *args, **kwargs) -> str: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
         return param_name
 
-    def update_dtype(self, dtype: torch.dtype) -> torch.dtype:
+    def update_dtype(self, dtype: torch.dtype, *args, **kwargs) -> torch.dtype: # pylint: disable=unused-argument
         """
         needed for transformers compatibilty, no-op function
         """
