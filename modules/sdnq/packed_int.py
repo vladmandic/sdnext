@@ -219,79 +219,64 @@ def unpack_uint4(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.By
 
 
 def unpack_uint3(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
-    result = torch.cat(
-        (
-            torch.bitwise_and(
-                torch.cat(
-                    (
-                        packed_tensor[:, :3],
-                        torch.bitwise_right_shift(packed_tensor[:, :3], 3)
-                    ),
-                    dim=-1
-                ),
-                7
-            ),
-            torch.bitwise_or(
-                torch.bitwise_right_shift(packed_tensor[:, :2], 6),
-                torch.bitwise_and(
-                    torch.stack(
-                        (
-                            torch.bitwise_right_shift(packed_tensor[:, 2], 4),
-                            torch.bitwise_right_shift(packed_tensor[:, 2], 5),
+    result = torch.bitwise_and(
+        torch.cat(
+            (
+                packed_tensor[:, :3],
+                torch.bitwise_right_shift(packed_tensor[:, :3], 3),
+                torch.bitwise_or(
+                    torch.bitwise_right_shift(packed_tensor[:, :2], 6),
+                    torch.bitwise_and(
+                        torch.stack(
+                            (
+                                torch.bitwise_right_shift(packed_tensor[:, 2], 4),
+                                torch.bitwise_right_shift(packed_tensor[:, 2], 5),
+                            ),
+                            dim=-1
                         ),
-                        dim=-1
+                        4
                     ),
-                    4
                 ),
             ),
+            dim=-1
         ),
-        dim=-1
+        7
     ).view(shape)
     return result
 
 
 def unpack_uint2(packed_tensor: torch.ByteTensor, shape: torch.Size) -> torch.ByteTensor:
-    result = torch.cat(
-        (
-            torch.bitwise_and(
-                torch.stack(
-                    (
-                        packed_tensor,
-                        torch.bitwise_right_shift(packed_tensor, 2),
-                        torch.bitwise_right_shift(packed_tensor, 4)
-                    ),
-                    dim=-1
-                ),
-                3
+    result = torch.bitwise_and(
+        torch.stack(
+            (
+                packed_tensor,
+                torch.bitwise_right_shift(packed_tensor, 2),
+                torch.bitwise_right_shift(packed_tensor, 4),
+                torch.bitwise_right_shift(packed_tensor, 6),
             ),
-            torch.bitwise_right_shift(packed_tensor, 6).unsqueeze(-1),
+            dim=-1
         ),
-        dim=-1
+        3
     ).view(shape)
     return result
 
 
 def unpack_uint1(packed_tensor: torch.Tensor, shape: torch.Size) -> torch.Tensor:
-    result = torch.cat(
-        (
-            torch.bitwise_and(
-                torch.stack(
-                    (
-                        packed_tensor,
-                        torch.bitwise_right_shift(packed_tensor, 1),
-                        torch.bitwise_right_shift(packed_tensor, 2),
-                        torch.bitwise_right_shift(packed_tensor, 3),
-                        torch.bitwise_right_shift(packed_tensor, 4),
-                        torch.bitwise_right_shift(packed_tensor, 5),
-                        torch.bitwise_right_shift(packed_tensor, 6),
-                    ),
-                    dim=-1
-                ),
-                1
+    result = torch.bitwise_and(
+        torch.stack(
+            (
+                packed_tensor,
+                torch.bitwise_right_shift(packed_tensor, 1),
+                torch.bitwise_right_shift(packed_tensor, 2),
+                torch.bitwise_right_shift(packed_tensor, 3),
+                torch.bitwise_right_shift(packed_tensor, 4),
+                torch.bitwise_right_shift(packed_tensor, 5),
+                torch.bitwise_right_shift(packed_tensor, 6),
+                torch.bitwise_right_shift(packed_tensor, 7),
             ),
-            torch.bitwise_right_shift(packed_tensor, 7).unsqueeze(-1),
+            dim=-1
         ),
-        dim=-1
+        1
     ).view(shape)
     return result
 
