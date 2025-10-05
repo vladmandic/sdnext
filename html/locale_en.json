@@ -126,7 +126,7 @@
   {"id":"","label":"➠ Sketch","localized":"","reload":"","hint":"Transfer image to sketch interface"},
   {"id":"","label":"➠ Composite","localized":"","reload":"","hint":"Transfer image to inpaint sketch interface"},
   {"id":"","label":"➠ Process","localized":"","reload":"","hint":"Transfer image to process interface"},
-  {"id":"","label":"➠ Control","localized":"","reload":"","hint":"Transfrer image to control interface"},
+  {"id":"","label":"➠ Control","localized":"","reload":"","hint":"Transfer image to control interface"},
   {"id":"","label":"➠ Caption","localized":"","reload":"","hint":"Transfer image to caption interface"}
 ],
 "generate": [
