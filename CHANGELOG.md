@@ -58,6 +58,7 @@
     main logo in top-left corner now indicates server connection status and hovering over it shows connection details  
   - separate guidance and detail sections  
   - networks ability to filter lora by base model version  
+  - add interrogate button to input images  
 - **SDNQ**
     - add `SVDQuant` quantization method support  
     - make sdnq scales compatible with balanced offload  
