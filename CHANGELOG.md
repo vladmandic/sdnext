@@ -87,6 +87,12 @@
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
   - **nunchaku** update to `1.0.1` and enhance installer  
   - **xyz-grid** add guidance section  
+- **Video**
+  - use shared T5 text encoder for video models when possible  
+  - **FramePack** add job state tracking  
+  - **LTXVideo** fix model selection in ltx tab
+  - **LTXVideo** fix run with offloading  
+  - **WAN** fix run with offloading  
 - **Experimental**
   - `new` command line flag enables new `pydantic` and `albumentations` packages  
   - **modular pipelines**: enable in *settings -> model options*  
@@ -108,10 +114,6 @@
   - reference: fix download for sd15/sdxl reference models  
   - fix checks in init/mask image decode  
   - fix hf token with extra chars  
-  - **FramePack** add job state tracking  
-  - **LTXVideo** fix model selection in ltx tab
-  - **LTXVideo** fix run with offloading  
-  - **WAN** fix run with offloading  
 
 ## Update for 2025-09-15
 

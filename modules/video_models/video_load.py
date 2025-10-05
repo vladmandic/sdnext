@@ -25,6 +25,10 @@ def load_model(selected: models_def.Model):
     # text encoder
     try:
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
+        if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_t5:
+            selected.te = 'Disty0/t5-xxl'
+            selected.te_folder = ''
+            selected.te_revision = None
         shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         kwargs["text_encoder"] = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
@@ -84,17 +88,23 @@ def load_model(selected: models_def.Model):
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model, offload=False)
 
+    decode, text, image, slicing, tiling = False, False, False, False, False
     if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
         sd_hijack_vae.init_hijack(shared.sd_model)
+        decode = True
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):
         sd_hijack_te.init_hijack(shared.sd_model)
+        text = True
     if selected.image_hijack and hasattr(shared.sd_model, 'encode_image'):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image
         shared.sd_model.encode_image = video_utils.hijack_encode_image
-    if hasattr(shared.sd_model.vae, 'enable_slicing'):
+        image = True
+    if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'enable_slicing'):
         shared.sd_model.vae.enable_slicing()
-    if hasattr(shared.sd_model.vae, 'enable_tiling'):
+        slicing = True
+    if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'enable_tiling'):
         shared.sd_model.vae.enable_tiling()
+        tiling = True
     if hasattr(shared.sd_model, "set_progress_bar_config"):
         shared.sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m', ncols=80, colour='#327fba')
 
@@ -104,5 +114,6 @@ def load_model(selected: models_def.Model):
     loaded_model = selected.name
     msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     shared.log.info(msg)
+    shared.log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling}')
     shared.state.end(jobid)
     return msg
