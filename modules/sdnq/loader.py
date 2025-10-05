@@ -14,7 +14,7 @@ def save_sdnq_model(model: ModelMixin, sdnq_config: SDNQConfig, model_path: str)
     sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
 
 
-def load_sdnq_model(model_cls: ModelMixin, model_path: str, use_quantized_matmul: bool = False) -> ModelMixin:
+def load_sdnq_model(model_cls: ModelMixin, model_path: str, file_name: str = "diffusion_pytorch_model.safetensors", use_quantized_matmul: bool = False) -> ModelMixin:
     with torch.device("meta"):
         with open(os.path.join(model_path, "quantization_config.json"), "r") as f:
             quantization_config = json.load(f)
@@ -28,7 +28,7 @@ def load_sdnq_model(model_cls: ModelMixin, model_path: str, use_quantized_matmul
         model = apply_sdnq_to_module(model, **quantization_config)
 
     state_dict = {}
-    with safe_open(os.path.join(model_path, "diffusion_pytorch_model.safetensors"), framework="pt") as f:
+    with safe_open(os.path.join(model_path, file_name), framework="pt") as f:
         for k in f.keys():
             state_dict[k] = f.get_tensor(k)
     model.load_state_dict(state_dict, assign=True)
