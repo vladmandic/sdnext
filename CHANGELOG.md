@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-04
+## Update for 2025-10-05
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
