@@ -9,8 +9,8 @@ from .common import use_contiguous_mm, use_tensorwise_fp8_matmul
 from .dequantizer import dequantize_symmetric_compiled, quantize_fp8
 
 
-def save_sdnq_model(model: ModelMixin, sdnq_config: SDNQConfig, model_path: str) -> None:
-    model.save_pretrained(model_path)
+def save_sdnq_model(model: ModelMixin, sdnq_config: SDNQConfig, model_path: str, max_shard_size: str = "10GB") -> None:
+    model.save_pretrained(model_path, max_shard_size=max_shard_size)
     sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
 
 

@@ -48,7 +48,7 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
     return quantized_weight, scale, zero_point
 
 
-def apply_svdquant(weight: torch.FloatTensor, rank: int = 128) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+def apply_svdquant(weight: torch.FloatTensor, rank: int = 32) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
     U, S, svd_down = torch.svd_lowrank(weight, q=rank)
     svd_up = torch.mul(U, S.unsqueeze(0))
     svd_down = svd_down.t_()
@@ -56,7 +56,7 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 128) -> Tuple[torch.Fl
 
 
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=128, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         num_of_groups = 1
@@ -230,7 +230,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=128, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name="", op=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name="", op=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -550,7 +550,7 @@ class SDNQConfig(QuantizationConfigMixin):
         group_size (`int`, *optional*, defaults to `0`):
             Used to decide how many elements of a tensor will share the same quantization group.
             group_size = 0 will automatically select a group size based on weights_dtype.
-        svd_rank (`int`, *optional*, defaults to `128`):
+        svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
         use_svd (`bool`, *optional*, defaults to `False`):
             Enabling this option will use SVDQuant algorithm.
@@ -579,7 +579,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self,
         weights_dtype: str = "int8",
         group_size: int = 0,
-        svd_rank: int = 128,
+        svd_rank: int = 32,
         use_svd: bool = False,
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
