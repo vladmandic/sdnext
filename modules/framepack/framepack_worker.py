@@ -65,14 +65,13 @@ def worker(
     metadata['title'] = 'sdnext framepack'
     metadata['description'] = f'variant:{variant} seed:{seed} steps:{steps} scale:{cfg_scale} distilled:{cfg_distilled} rescale:{cfg_rescale} shift:{shift} start:{start_weight} end:{end_weight} vision:{vision_weight}'
 
-    shared.state.begin('Video')
+    videojob = shared.state.begin('Video')
     shared.state.job_count = 1
 
     text_encoder = shared.sd_model.text_encoder
     text_encoder_2 = shared.sd_model.text_encoder_2
     tokenizer = shared.sd_model.tokenizer
     tokenizer_2 = shared.sd_model.tokenizer_2
-    vae = shared.sd_model.vae
     feature_extractor = shared.sd_model.feature_extractor
     image_encoder = shared.sd_model.image_processor
     transformer = shared.sd_model.transformer
@@ -196,7 +195,6 @@ def worker(
             image_encoder_last_hidden_state = vision_encode(input_image, end_image)
 
             # Sample loop
-            shared.state.textinfo = 'Sample'
             stream.output_queue.push(('progress', (None, 'Start sampling...')))
             generator = torch.Generator("cpu").manual_seed(seed)
             if is_f1:
@@ -213,6 +211,7 @@ def worker(
                     llama_vec, llama_vec_n, llama_attention_mask, llama_attention_mask_n, clip_l_pooler, clip_l_pooler_n = text_encode(current_prompt, i=lattent_padding_loop+1)
                     last_prompt = current_prompt
 
+                sammplejob = shared.state.begin('Sample')
                 lattent_padding_loop += 1
                 # shared.log.trace(f'FramePack: op=sample section={lattent_padding_loop}/{len(latent_paddings)} frames={total_generated_frames}/{num_frames*len(latent_paddings)} window={latent_window_size} size={num_frames}')
                 if is_f1:
@@ -274,7 +273,6 @@ def worker(
                     dtype=devices.dtype,
                     callback=step_callback,
                 )
-                timer.process.add('sample', time.time()-t_sample)
 
                 if is_last_section:
                     generated_latents = torch.cat([start_latent.to(generated_latents), generated_latents], dim=2)
@@ -287,15 +285,18 @@ def worker(
                     history_latents = torch.cat([generated_latents.to(history_latents), history_latents], dim=2)
                     real_history_latents = history_latents[:, :, :total_generated_latent_frames, :, :]
 
-                t_vae = time.time()
                 sd_models.apply_balanced_offload(shared.sd_model)
+                timer.process.add('sample', time.time()-t_sample)
+                shared.state.end(sammplejob)
+
+                t_vae = time.time()
                 if history_pixels is None:
                     history_pixels = framepack_vae.vae_decode(real_history_latents, vae_type=vae_type).cpu()
                 else:
                     overlapped_frames = latent_window_size * 4 - 3
                     if is_f1:
                         section_latent_frames = latent_window_size * 2
-                        current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, -section_latent_frames:], vae).cpu()
+                        current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, -section_latent_frames:], vae_type=vae_type).cpu()
                         history_pixels = utils.soft_append_bcthw(history_pixels, current_pixels, overlapped_frames)
                     else:
                         section_latent_frames = (latent_window_size * 2 + 1) if is_last_section else (latent_window_size * 2)
@@ -321,4 +322,4 @@ def worker(
     stream.output_queue.push(('end', None))
     t1 = time.time()
     shared.log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
-    shared.state.end()
+    shared.state.end(videojob)

@@ -85,7 +85,10 @@ def vae_decode(latents, vae_type):
     elif vae_type == 'Remote':
         return vae_decode_remote(latents)
     else: # vae_type == 'Full'
-        return vae_decode_full(latents)
+        jobid = shared.state.begin('VAE Decode')
+        result = vae_decode_full(latents)
+        shared.state.end(jobid)
+        return result
 
 
 def vae_encode(image):

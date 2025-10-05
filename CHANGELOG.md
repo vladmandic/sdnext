@@ -107,6 +107,9 @@
   - reference: fix download for sd15/sdxl reference models  
   - fix checks in init/mask image decode  
   - fix hf token with extra chars  
+  - **FramePack** job state tracking  
+  - **LTXVideo** with offloading  
+  - **WAN** with offloading  
 
 ## Update for 2025-09-15
 
