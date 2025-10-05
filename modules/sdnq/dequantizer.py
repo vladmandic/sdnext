@@ -4,7 +4,7 @@ from typing import Tuple, Optional
 
 import torch
 
-from .common import dtype_dict, compile_func
+from .common import dtype_dict, compile_func, use_tensorwise_fp8_matmul
 from .packed_int import pack_int_symetric, unpack_int_symetric, pack_int_asymetric, unpack_int_asymetric
 
 
@@ -64,6 +64,15 @@ def re_quantize_int8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
     weight, scale = quantize_int8(weight.t(), dim=0)
+    return weight, scale
+
+
+def re_quantize_fp8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
+    if weight.ndim > 2: # convs
+        weight = weight.flatten(1,-1)
+    weight, scale = quantize_fp8(weight.t(), dim=0)
+    if not use_tensorwise_fp8_matmul:
+        scale = scale.to(dtype=torch.float32)
     return weight, scale
 
 
