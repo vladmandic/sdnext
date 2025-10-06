@@ -120,6 +120,7 @@
   - reference: fix download for sd15/sdxl reference models  
   - fix checks in init/mask image decode  
   - fix hf token with extra chars  
+  - image viewer refocus on gallery after returning from full screen mode  
 
 ## Update for 2025-09-15
 
