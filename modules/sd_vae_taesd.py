@@ -79,6 +79,7 @@ def get_model(model_type = 'decoder', variant = None):
                 uri += '/tae' + model_cls + '_' + model_type + '.pth'
             try:
                 torch.hub.download_url_to_file(uri, fn)
+                shared.log.print() # new line
                 shared.log.info(f'Decode: type="taesd" variant="{variant}": uri="{uri}" fn="{fn}" download')
             except Exception as e:
                 warn_once(f'download uri={uri} {e}', variant=variant)
@@ -86,7 +87,8 @@ def get_model(model_type = 'decoder', variant = None):
             prev_cls = model_cls
             prev_type = model_type
             prev_model = variant
-            shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" load')
+            shared.log.print() # new line
+            shared.log.debug(f'Decode: type="taesd" variant="{variant}" fn="{fn}" layers={shared.opts.taesd_layers} load')
             vae = None
             if 'TAE HunyuanVideo' in variant:
                 from modules.taesd.taehv import TAEHV

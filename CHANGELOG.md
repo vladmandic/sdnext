@@ -62,10 +62,10 @@
   - networks ability to filter lora by base model version  
   - add interrogate button to input images  
 - **SDNQ**
-    - add `SVDQuant` quantization method support  
-    - make sdnq scales compatible with balanced offload  
-    - add int8 matmul support for RDNA2 GPUs via triton  
-    - improve int8 mamtul performance on Intel GPUs  
+  - add `SVDQuant` quantization method support  
+  - make sdnq scales compatible with balanced offload  
+  - add int8 matmul support for RDNA2 GPUs via triton  
+  - improve int8 mamtul performance on Intel GPUs  
 - **Other**
   - server will note when restart is recommended due to package updates  
   - **interrrupt** will now show last known preview image  
@@ -90,6 +90,7 @@
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
   - **nunchaku** update to `1.0.1` and enhance installer  
   - **xyz-grid** add guidance section  
+  - **preview** implement configurable layers for WAN, Qwen, HV  
 - **Video**
   - use shared T5 text encoder for video models when possible  
   - unified video save code across all video models  
