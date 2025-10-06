@@ -14,7 +14,7 @@ def save_sdnq_model(model: ModelMixin, sdnq_config: SDNQConfig, model_path: str,
     sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
 
 
-def load_sdnq_model(model_cls: ModelMixin, model_path: str, file_name: str = "diffusion_pytorch_model.safetensors", dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = False) -> ModelMixin:
+def load_sdnq_model(model_cls: ModelMixin, model_path: str, file_name: str = "diffusion_pytorch_model.safetensors", dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None) -> ModelMixin:
     with torch.device("meta"):
         with open(os.path.join(model_path, "quantization_config.json"), "r", encoding="utf-8") as f:
             quantization_config = json.load(f)
@@ -33,11 +33,12 @@ def load_sdnq_model(model_cls: ModelMixin, model_path: str, file_name: str = "di
             state_dict[k] = f.get_tensor(k)
     model.load_state_dict(state_dict, assign=True)
     del state_dict
-    model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
+    if dtype is not None or dequantize_fp32 is not None or use_quantized_matmul is not None:
+        model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
 
 
-def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = False):
+def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
     has_children = list(model.children())
     if not has_children:
         return model
@@ -48,7 +49,7 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
 
             current_scale_dtype = module.svd_up.dtype if module.svd_up is not None else module.scale.dtype
             scale_dtype = torch.float32 if dequantize_fp32 is None and current_scale_dtype == torch.float32 else torch.float32 if dequantize_fp32 else module.sdnq_dequantizer.result_dtype
-            upcast_scale = bool(use_quantized_matmul and use_tensorwise_fp8_matmul and module.sdnq_dequantizer.weights_dtype in {"float8_e4m3fn", "float8_e5m2"})
+            upcast_scale = bool(use_tensorwise_fp8_matmul and module.sdnq_dequantizer.weights_dtype in {"float8_e4m3fn", "float8_e5m2"} and (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul)))
 
             if upcast_scale:
                 module.scale.data = module.scale.to(dtype=torch.float32)
@@ -60,7 +61,7 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                 module.svd_up.data = module.svd_up.to(dtype=scale_dtype)
                 module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
-            if use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
+            if use_quantized_matmul is not None and use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
                 if module.sdnq_dequantizer.weights_dtype in {"int8", "float8_e4m3fn", "float8_e5m2"}:
                     if use_quantized_matmul and module.sdnq_dequantizer.re_quantize_for_matmul:
                         scale_dtype = module.scale.dtype
