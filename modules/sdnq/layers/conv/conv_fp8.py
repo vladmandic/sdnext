@@ -34,7 +34,7 @@ def conv_fp8_matmul(
     if groups == 1:
         if bias is not None and bias.dtype != torch.bfloat16:
             bias = bias.to(dtype=torch.bfloat16)
-        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(mm_output_shape).to(return_dtype)
+        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16)
     else:
         scale = scale.view(groups, 1, scale.shape[1] // groups)
         input_scale = input_scale.view(groups, input_scale.shape[0] // groups, 1)
@@ -50,9 +50,10 @@ def conv_fp8_matmul(
         else:
             for i in range(groups):
                 result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=torch.bfloat16))
-        result = torch.cat(result, dim=-1).view(mm_output_shape).to(return_dtype)
+        result = torch.cat(result, dim=-1)
     if svd_up is not None:
         result.add_(svd_bias)
+    result = result.view(mm_output_shape).to(return_dtype)
 
     if conv_type == 1:
         result = result.transpose_(1,2)

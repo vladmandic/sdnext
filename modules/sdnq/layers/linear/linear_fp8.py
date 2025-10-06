@@ -31,9 +31,10 @@ def fp8_matmul(
     input, weight = check_mats(input, weight)
     if bias is not None and bias.dtype != torch.bfloat16:
         bias = bias.to(dtype=torch.bfloat16)
-    result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(output_shape).to(return_dtype)
+    result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16)
     if svd_up is not None:
         result.add_(svd_bias)
+    result = result.view(output_shape).to(return_dtype)
     return result
 
 

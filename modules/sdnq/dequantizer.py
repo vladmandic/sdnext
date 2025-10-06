@@ -15,7 +15,10 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up, svd_down = svd_up.t(), svd_down.t()
-        result = torch.addmm(result, svd_up, svd_down)
+        if result.ndim > 2 and weight.ndim > 2: # convs
+            result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
+        else:
+            result = result.addmm_(svd_up, svd_down)
     if dtype is not None:
         result = result.to(dtype=dtype)
     return result
@@ -30,7 +33,10 @@ def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, dty
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up, svd_down = svd_up.t(), svd_down.t()
-        result = torch.addmm(result, svd_up, svd_down)
+        if result.ndim > 2 and weight.ndim > 2: # convs
+            result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
+        else:
+            result = result.addmm_(svd_up, svd_down)
     if dtype is not None:
         result = result.to(dtype=dtype)
     return result
