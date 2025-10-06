@@ -47,6 +47,7 @@ pipe_switch_task_exclude = [
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
     'StableDiffusionReferencePipeline',
     'StableDiffusionXLInstantIDPipeline',
+    'XOmniPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion',
@@ -398,6 +399,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['HunyuanImage']:
             from pipelines.model_hyimage import load_hyimage
             sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
+        elif model_type in ['X-Omni']:
+            from pipelines.model_xomni import load_xomni
+            sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')

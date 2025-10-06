@@ -9,14 +9,16 @@
     updated version of Qwen Image Edit with improved image consistency  
   - [Qwen Image Pruning](https://huggingface.co/OPPOer/Qwen-Image-Pruning) and [Qwen Image Edit Pruning](https://huggingface.co/OPPOer/Qwen-Image-Edit-Pruning)  
     pruned versions of Qwen with 13B params instead of 20B, with some quality tradeoff  
-  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
-    updated version of E1 image editing model  
   - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
     SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
+  - [X-Omni SFT](https://x-omni-team.github.io/)  
+    *experimental*: X-omni is a transformer-only discrete autoregressive image generative model trained with reinforcement learning  
+  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
+    *experimental*: updated version of E1 image editing model  
 - **Features**
   - [Qwen Image-Edit] multi-image editing
     requires qwen-image-edit-2509 or its variant as multi-image edits are not available in original qwen-image  
@@ -94,8 +96,9 @@
     also avoids creation of temporary files for each frame unless user wants to save them  
   - unified prompt enhance code across all video models  
   - add job state tracking for video generation  
-  - improve offloading for **ltx** and **wan**
-  - fix model selection in ltx tab
+  - fix quantization not being applied on load for some models  
+  - improve offloading for **ltx** and **wan**  
+  - fix model selection in **ltx** tab  
 - **Experimental**
   - `new` command line flag enables new `pydantic` and `albumentations` packages  
   - **modular pipelines**: enable in *settings -> model options*  

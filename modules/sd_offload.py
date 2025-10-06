@@ -13,7 +13,7 @@ from modules.timer import process as process_timer
 
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma']
+offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
@@ -224,7 +224,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
-                        if (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
+                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
                 self.last_cls = module.__class__.__name__
                 process_timer.add('offload', time.time() - t0)

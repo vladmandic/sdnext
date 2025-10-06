@@ -501,6 +501,16 @@
     "date": "2025 June"
   },
 
+  "X-Omni SFT": {
+    "path": "X-Omni/X-Omni-SFT",
+    "desc": "X-Omni: Reinforcement learning makes discrete autoregressive image generative models great again",
+    "preview": "X-Omni--X-Omni-SFT.jpg",
+    "skip": true,
+    "size": 0,
+    "date": "2024 September",
+    "experimental": true
+  },
+
   "VectorSpaceLab OmniGen v1": {
     "path": "Shitao/OmniGen-v1-diffusers",
     "desc": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It is designed to be simple, flexible and easy to use.",

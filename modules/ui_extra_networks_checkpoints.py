@@ -57,7 +57,10 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                     mtime = datetime.strptime(mtime, '%Y %B') # 2025 January
                 except Exception:
                     _size, mtime = modelstats.stat(preview_file)
-            path = f'{v.get("path", "")}+{v.get("subfolder", "")}'
+            if len(v.get("subfolder", "")) > 0:
+                path = f'{v.get("path", "")}+{v.get("subfolder", "")}'
+            else:
+                path = f'{v.get("path", "")}'
             yield {
                 "type": 'Model',
                 "name": name,

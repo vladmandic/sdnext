@@ -16,7 +16,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 ### Under Consideration
 
 - [Inf-DiT](https://github.com/zai-org/Inf-DiT)
-- [X-Omni](https://github.com/X-Omni-Team/X-Omni/blob/main/README.md)
 - [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  

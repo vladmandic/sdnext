@@ -234,6 +234,8 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
 
     # reference search
     ref = [(k, v) for k, v in shared.reference_models.items() if f"{v.get('path', '')}+{v.get('subfolder', '')}" == s]
+    if len(ref) == 0:
+        ref = [(k, v) for k, v in shared.reference_models.items() if v.get('path', '') == s]
     if ref and len(ref) > 0:
         _name, info = ref[0]
         checkpoint_info = CheckpointInfo(s)
