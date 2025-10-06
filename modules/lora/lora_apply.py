@@ -176,7 +176,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                     self.sdnq_svd_down_backup.to(devices.device) if self.sdnq_svd_down_backup is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul
                 )
-            elif hasattr(self, "sdnq_dequantizer"):
+            else:
                 weights_dtype = self.sdnq_dequantizer.weights_dtype
                 dequant_weight = self.sdnq_dequantizer.to(devices.device)(
                     model_weights.to(devices.device),
@@ -186,8 +186,6 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                     self.svd_down.to(devices.device) if self.svd_down is not None else None,
                     skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul
                 )
-            else:
-                weights_dtype = devices.dtype
 
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)

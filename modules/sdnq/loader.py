@@ -4,7 +4,7 @@ import torch
 from safetensors import safe_open
 from diffusers.models.modeling_utils import ModelMixin
 
-from .common import use_contiguous_mm
+from .common import use_tensorwise_fp8_matmul, use_contiguous_mm
 from .quantizer import SDNQConfig, apply_sdnq_to_module
 from .dequantizer import dequantize_symmetric_compiled, re_quantize_int8, re_quantize_fp8
 
@@ -47,10 +47,14 @@ def enable_quantized_mamtul(model):
             if not module.sdnq_dequantizer.use_quantized_matmul:
                 if module.sdnq_dequantizer.weights_dtype in {"int8", "float8_e4m3fn"}:
                     if module.sdnq_dequantizer.re_quantize_for_matmul:
+                        return_dtype = module.scale.dtype
                         if module.sdnq_dequantizer.weights_dtype == "int8":
                             module.weight.data, module.scale.data = re_quantize_int8(dequantize_symmetric_compiled(module.weight, module.scale, torch.float32, module.sdnq_dequantizer.result_shape))
+                            module.scale.data = module.scale.to(dtype=return_dtype)
                         else:
                             module.weight.data, module.scale.data = re_quantize_fp8(dequantize_symmetric_compiled(module.weight, module.scale, torch.float32, module.sdnq_dequantizer.result_shape))
+                            if use_tensorwise_fp8_matmul:
+                                module.scale.data = module.scale.to(dtype=return_dtype)
                     else:
                         module.weight.data, module.scale.data = module.weight.t_(), module.scale.t_()
                     if use_contiguous_mm:
