@@ -49,7 +49,7 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
 
             current_scale_dtype = module.svd_up.dtype if module.svd_up is not None else module.scale.dtype
             scale_dtype = torch.float32 if dequantize_fp32 is None and current_scale_dtype == torch.float32 else torch.float32 if dequantize_fp32 else module.sdnq_dequantizer.result_dtype
-            upcast_scale = bool(use_tensorwise_fp8_matmul and module.sdnq_dequantizer.weights_dtype in {"float8_e4m3fn", "float8_e5m2"} and (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul)))
+            upcast_scale = bool(not use_tensorwise_fp8_matmul and module.sdnq_dequantizer.weights_dtype in {"float8_e4m3fn", "float8_e5m2"} and (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul)))
 
             if upcast_scale:
                 module.scale.data = module.scale.to(dtype=torch.float32)
