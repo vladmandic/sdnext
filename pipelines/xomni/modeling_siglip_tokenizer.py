@@ -13,12 +13,12 @@ from .modeling_vit import create_siglip_vit
 
 
 def create_anyres_preprocess(
-    short_size=384, 
-    long_size=1152, 
-    patch_size=16, 
-    random_ratio=None, 
-    min_short_size=128, 
-    max_aspect_ratio=3., 
+    short_size=384,
+    long_size=1152,
+    patch_size=16,
+    random_ratio=None,
+    min_short_size=128,
+    max_aspect_ratio=3.,
     filtering=True
 ):
 
@@ -35,21 +35,21 @@ def create_anyres_preprocess(
             sqrt_ratio = torch.exp(0.5 * torch.empty(1).uniform_(log_ratio[0], log_ratio[1])).item()
             target_width = int(round(target_width * sqrt_ratio))
             target_height = int(round(target_height / sqrt_ratio))
-        
+
         ss = min(target_width, target_height)
         if ss < short_size:
             target_width = target_width * (short_size / ss)
             target_height = target_height * (short_size / ss)
-        
+
         ls = max(target_width, target_height)
         if ls > long_size:
             target_width = target_width * (long_size / ls)
             target_height = target_height * (long_size / ls)
-        
+
         target_width = int(round(target_width / patch_size)) * patch_size
         target_height = int(round(target_height / patch_size)) * patch_size
         pil_image = pil_image.resize((target_width, target_height), resample=Image.BICUBIC)
-        
+
         to_tensor = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -75,7 +75,7 @@ class IBQ(nn.Module):
         self.embedding.weight.data.uniform_(-1.0 / self.n_e, 1.0 / self.n_e)
         if self.l2_norm:
             self.embedding.weight.data = F.normalize(self.embedding.weight.data, p=2, dim=-1)
-    
+
     def forward(self, z, temp=None, rescale_logits=False, return_logits=False, **kwargs):
         assert temp is None or temp == 1.0, "Only for interface compatible with Gumbel"
         assert rescale_logits == False, "Only for interface compatible with Gumbel"
@@ -96,7 +96,7 @@ class IBQ(nn.Module):
         d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
             torch.sum(embedding**2, dim=1) - 2 * \
             torch.einsum('bd,dn->bn', z_flattened, torch.einsum('n d -> d n', embedding))
-        
+
         if self.training:
             logits = -d / self.quantization_temp
             soft_one_hot = F.softmax(logits, dim=1)
@@ -114,13 +114,13 @@ class IBQ(nn.Module):
             min_encoding_indices = torch.argmin(d, dim=1)
             z_q = embedding[min_encoding_indices].view(z.shape)
             commit_loss = None
-        
+
         if self.training and self.skip_quantization_prob > 0.0:
             z_q = torch.where(
                 torch.rand_like(z_q[:, 0:1, 0:1, 0:1]).expand_as(z_q) <= self.skip_quantization_prob,
                 z, z_q,
             )
-        
+
         # reshape back to match original input shape
         z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
 
@@ -150,7 +150,7 @@ class ResidualBlock(nn.Module):
         self.activate = nn.GELU()
         self.conv2 = nn.Conv2d(channels, channels, 3, padding='same')
         self.norm2 = nn.GroupNorm(num_groups=num_groups, num_channels=channels)
-    
+
     def forward(self, x):
         res = x
         x = self.norm1(x)
@@ -164,10 +164,10 @@ class ResidualBlock(nn.Module):
 
 class VQConvProjector(nn.Module):
     def __init__(
-        self, 
-        z_channels=1536, 
-        codebook_size=16384, 
-        codebook_dim=2048, 
+        self,
+        z_channels=1536,
+        codebook_size=16384,
+        codebook_dim=2048,
         conv_layers=2,
         with_norm=True,
         skip_quant_prob=0.1,
@@ -178,7 +178,7 @@ class VQConvProjector(nn.Module):
         self.post_quant_conv = nn.Conv2d(codebook_dim, z_channels, 1)
         block = ResidualBlock
         self.post_conv = nn.Sequential(*[block(z_channels) for _ in range(conv_layers)])
-    
+
     def forward(self, x, h, w):
         x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
         z = self.quant_conv(x)
@@ -187,37 +187,37 @@ class VQConvProjector(nn.Module):
         z = self.post_conv(z)
         z = rearrange(z, 'b c h w -> b (h w) c')
         return z, codebook_loss
-    
+
     def encode(self, x, h, w):
         x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
         z = self.quant_conv(x)
         (_, _, tokens), _ = self.quantize(z)
         return tokens
-    
+
     def decode(self, tokens, bhwc):
         z_q = self.quantize.get_codebook_entry(tokens, bhwc)
         z = self.post_quant_conv(z_q)
-        z = self.post_conv(z)        
+        z = self.post_conv(z)
         return z
 
 
 class SiglipTokenizer(nn.Module):
     def __init__(
-        self, 
-        siglip_name, 
-        siglip_path, 
-        projector_path, 
-        z_channels=1536, 
-        codebook_size=16384, 
-        codebook_dim=2048, 
+        self,
+        siglip_name,
+        siglip_path,
+        projector_path,
+        z_channels=1536,
+        codebook_size=16384,
+        codebook_dim=2048,
         with_norm=True
     ):
         super().__init__()
         self.vit = create_siglip_vit(model_name=siglip_name, path=siglip_path)
         self.vqproj = VQConvProjector(
-            z_channels=z_channels, 
-            codebook_size=codebook_size, 
-            codebook_dim=codebook_dim, 
+            z_channels=z_channels,
+            codebook_size=codebook_size,
+            codebook_dim=codebook_dim,
             with_norm=with_norm
         )
         self.vqproj.load_state_dict(torch.load(projector_path, map_location='cpu'), strict=True)
@@ -226,6 +226,6 @@ class SiglipTokenizer(nn.Module):
         features, (h, w), _ = self.vit(x)
         tokens = self.vqproj.encode(features, h, w)
         return tokens
-    
+
     def decode(self, tokens, bhwc):
         return self.vqproj.decode(tokens, bhwc)

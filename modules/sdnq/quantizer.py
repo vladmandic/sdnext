@@ -252,13 +252,12 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in modules_to_not_convert)
             ):
                 continue
-            else:
-                layer_class_name = module.__class__.__name__
-                if layer_class_name in allowed_types:
-                    if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
-                        continue
-                else:
+            layer_class_name = module.__class__.__name__
+            if layer_class_name in allowed_types:
+                if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
+            else:
+                continue
             if len(modules_dtype_dict.keys()) > 0:
                 for key, value in modules_dtype_dict.items():
                     if param_name in value:

@@ -497,7 +497,7 @@ def teacache_forward(
 
 
 class FluxPipelineWithSigLIP(FluxPipeline):
-   
+
     @torch.no_grad()
     def __call__(
             self,

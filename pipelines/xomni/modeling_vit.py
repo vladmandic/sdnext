@@ -541,7 +541,7 @@ class VisionTransformer(nn.Module):
         for x in x_list:
             bs, _, h, w = x.shape
 
-            # fix patch size=14 in datasets 
+            # fix patch size=14 in datasets
             pad_h = (self.patch_embed.patch_size[0] - h % self.patch_embed.patch_size[0]) % self.patch_embed.patch_size[0]
             pad_w = (self.patch_embed.patch_size[1] - w % self.patch_embed.patch_size[1]) % self.patch_embed.patch_size[1]
             x = F.pad(x, (0, pad_w, 0, pad_h))
@@ -578,7 +578,7 @@ class VisionTransformer(nn.Module):
         bs, _, h, w = x.shape
         h = h // self.patch_embed.patch_size[0]
         w = w // self.patch_embed.patch_size[1]
-        
+
         x = self.patch_embed(x)
         # x = self._pos_embed(x)
         x = x + self.rescale_positional_embedding(out_size=(h, w))
@@ -658,7 +658,7 @@ def resize_evaclip_pos_embed(model: VisionTransformer, interpolation: str = 'bic
         pos_tokens, size=(new_size, new_size), mode=interpolation, align_corners=False)
     pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
     model.pos_embed = nn.Parameter(pos_tokens, requires_grad=True)
-    return model 
+    return model
 
 
 def create_siglip_vit(

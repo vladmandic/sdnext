@@ -32,7 +32,7 @@ class XOmniDecoderLayer(Qwen2DecoderLayer):
             output_hidden_states, *others = super().forward(hidden_states, **kwargs)
             output_hidden_states = torch.cat([output_hidden_states, multimodal_mask], dim=-1)
             return output_hidden_states, *others
-        
+
         # mm_hidden_states = torch.where(multimodal_mask.bool(), hidden_states, torch.zeros_like(hidden_states))
         output_hidden_states, *others = super().forward(hidden_states, **kwargs)
         output_hidden_states = torch.where(multimodal_mask.bool(), output_hidden_states, hidden_states)
@@ -48,7 +48,7 @@ class XOmniModel(Qwen2Model, Qwen2PreTrainedModel):
         Qwen2PreTrainedModel.__init__(self, config)
         self.padding_idx = -1
         self.vocab_size = config.vocab_size
-        
+
         self.lm_embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
         self.mm_embed_tokens = nn.Embedding(config.mm_vocab_size, config.hidden_size, self.padding_idx)
 
@@ -94,7 +94,7 @@ class XOmniModel(Qwen2Model, Qwen2PreTrainedModel):
 class XOmniForCausalLM(Qwen2ForCausalLM):
     model_type = "x-omni"
     config_class = XOmniConfig
-    
+
     _keys_to_ignore_on_load_missing = r'image_tokenizer\.*'
 
     def __init__(self, config):
@@ -102,7 +102,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         self.model = XOmniModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.mm_head = nn.Linear(config.hidden_size, config.mm_vocab_size, bias=False)
-        
+
         self.generation_mode = 'text'
         # Initialize weights and apply final processing
         self.post_init()
@@ -110,7 +110,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
     @property
     def device(self):
         return next(iter(self.parameters())).device
-    
+
     def init_vision(self, flux_pipe_path, **kwargs):
         self.som_token = self.config.mm_special_tokens[0]
         self.eom_token = self.config.mm_special_tokens[1]
@@ -125,7 +125,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         self.vision_dtype = dtype_map[self.vision_config.dtype]
 
         self.image_transform = create_anyres_preprocess(**self.vision_config.transform)
-        
+
         self.encoder_config.siglip_path = os.path.join(self.name_or_path, self.encoder_config.siglip_path) if os.path.isdir(self.name_or_path) else hf_hub_download(repo_id=self.name_or_path, filename=self.encoder_config.siglip_path)
         self.encoder_config.projector_path = os.path.join(self.name_or_path, self.encoder_config.projector_path) if os.path.isdir(self.name_or_path) else hf_hub_download(repo_id=self.name_or_path, filename=self.encoder_config.projector_path)
 
@@ -133,15 +133,15 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         self.image_tokenizer.to(self.device, self.vision_dtype)
 
         transformer = FluxTransformer2DModelWithSigLIP.from_pretrained(
-            self.name_or_path, 
-            siglip_channels=self.encoder_config.z_channels, 
+            self.name_or_path,
+            siglip_channels=self.encoder_config.z_channels,
             torch_dtype=self.vision_dtype,
             subfolder=self.decoder_config.model_path,
             **kwargs,
         )
 
         self.decoder_pipe = FluxPipelineWithSigLIP.from_pretrained(
-            flux_pipe_path, 
+            flux_pipe_path,
             transformer=transformer,
             torch_dtype=self.vision_dtype,
         )
@@ -161,7 +161,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
             if len(images) > 0:
                 doc += self.tokenize_image(images.pop(0))
         return tokenizer.encode(doc, **kwargs)
-    
+
     def mmdecode(self, tokenizer, token_ids, force_text=None, **kwargs):
         force_text = force_text or []
         if isinstance(token_ids, torch.Tensor):
@@ -174,7 +174,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
                 assert len(token_ids) == 1
                 token_ids = token_ids[0]
             assert isinstance(token_ids[0], int)
-        
+
         doc = tokenizer.decode(token_ids, **kwargs)
         doc = doc.replace(tokenizer.pad_token, '')
         doc = doc.replace('<SEP>', '')
@@ -197,7 +197,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
                     image = self.detokenize_image(texts, images, token_ids, (H, W))
                 images.append(image)
         return texts, images
-    
+
     @torch.no_grad()
     def tokenize_image(self, image):
         assert hasattr(self, 'image_tokenizer'), 'Please call "init_vision" before that.'
@@ -213,7 +213,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         token_str = ''.join(map(lambda x: '<MM-Token-{token_id}>'.format(token_id=x), tokens))
         image_str = f'{self.som_token}{H} {W}{self.img_token}{token_str}{self.eom_token}'
         return image_str
-    
+
     @torch.no_grad()
     def detokenize_image(self, texts, images, token_ids, shape):
         assert hasattr(self, 'image_tokenizer'), 'Please call "init_vision" before that.'
@@ -228,7 +228,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
             [texts[0]],
             negative_prompt=[''],
             height=H * upscale_factor, width=W * upscale_factor,
-            num_inference_steps=self.decoder_config.num_inference_steps, 
+            num_inference_steps=self.decoder_config.num_inference_steps,
             guidance_scale=1.0,
             true_cfg_scale=self.decoder_config.cfg_scale,
             true_cfg_scale_2=self.decoder_config.cfg_scale_2,
@@ -236,7 +236,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
 
 
         return image
-    
+
     def forward(
         self,
         input_ids: torch.LongTensor = None,
@@ -275,14 +275,14 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         hidden_states = outputs[0]
         hidden_states = hidden_states[:, -num_logits_to_keep:, :]
         logits = hidden_states.new_full(
-            (*hidden_states.shape[:-1], self.config.vocab_size + self.config.mm_vocab_size), 
+            (*hidden_states.shape[:-1], self.config.vocab_size + self.config.mm_vocab_size),
             torch.finfo(hidden_states.dtype).min
         )
         if self.generation_mode == 'text':
             logits[:, :, :self.config.vocab_size] = self.lm_head(hidden_states)
         else:
             logits[:, :, self.config.vocab_size:self.config.vocab_size + self.config.image_vocab_size] = self.mm_head(hidden_states)[:, :, :self.config.image_vocab_size]
-        
+
         logits = logits.float()
 
         loss = None
