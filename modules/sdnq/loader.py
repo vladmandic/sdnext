@@ -9,9 +9,24 @@ from .quantizer import SDNQConfig, apply_sdnq_to_module
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 
 
-def save_sdnq_model(model: ModelMixin, sdnq_config: SDNQConfig, model_path: str, max_shard_size: str = "10GB") -> None:
-    model.save_pretrained(model_path, max_shard_size=max_shard_size)
-    sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
+def get_module_names(model: ModelMixin) -> list:
+    modules_names = model._internal_dict.keys() # pylint: disable=protected-access
+    modules_names = [m for m in modules_names if not m.startswith('_')]
+    modules_names = [m for m in modules_names if isinstance(getattr(model, m, None), torch.nn.Module)]
+    modules_names = sorted(set(modules_names))
+    return modules_names
+
+
+def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", sdnq_config: SDNQConfig = None) -> None:
+    model.save_pretrained(model_path, max_shard_size=max_shard_size) # actual save
+
+    if sdnq_config is not None: # if provided, save global config
+        sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
+
+    for module_name in get_module_names(model): # save per-module config if available
+        module = getattr(model, module_name, None)
+        if (module is not None) and hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
+            module.quantization_config.to_json_file(os.path.join(model_path, f"{module_name}_quantization_config.json"))
 
 
 def load_sdnq_model(model_cls: ModelMixin, model_path: str, file_name: str = "diffusion_pytorch_model.safetensors", dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None) -> ModelMixin:

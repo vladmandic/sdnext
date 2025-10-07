@@ -6,6 +6,7 @@ from enum import Enum
 
 import re
 import torch
+from transformers.quantizers import HfQuantizer
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
@@ -59,7 +60,7 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32) -> Tuple[torch.Flo
     svd_down = svd_down.t_()
     weight = weight.sub_(torch.mm(svd_up, svd_down))
     if reshape_weight:
-        weight = weight.unflatten(-1, (*weight_shape[1:],))
+        weight = weight.unflatten(-1, (*weight_shape[1:],)) # pylint: disable=possibly-used-before-assignment
     return weight, svd_up, svd_down
 
 
@@ -320,7 +321,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-class SDNQQuantizer(DiffusersQuantizer):
+class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     r"""
     Diffusers Quantizer for SDNQ
     """
@@ -530,13 +531,15 @@ class SDNQQuantizer(DiffusersQuantizer):
         """
         return dtype
 
+    def is_serializable(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument, invalid-overridden-method
+        """
+        needed for transformers compatibilty, returns True
+        """
+        return True
+
     @property
     def is_trainable(self):
         return False
-
-    @property
-    def is_serializable(self):
-        return True
 
     @property
     def is_compileable(self):
@@ -630,6 +633,12 @@ class SDNQConfig(QuantizationConfigMixin):
 
         if self.modules_dtype_dict is None:
             self.modules_dtype_dict = {}
+
+    def to_dict(self):
+        dct = self.__dict__.copy() # make serializable
+        dct["quantization_device"] = str(dct["quantization_device"]) if dct["quantization_device"] is not None else None
+        dct["return_device"] = str(dct["return_device"]) if dct["return_device"] is not None else None
+        return dct
 
 
 import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
