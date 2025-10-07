@@ -953,9 +953,19 @@ def check_torch():
             pass
         if 'cpu' in torch.__version__:
             if is_cuda_available:
-                log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
+                if args.use_cuda:
+                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
+                    uninstall(['torch', 'torchvision'], quiet=True)
+                    install(torch_command, 'torch torchvision', quiet=True) # foce reinstall
+                else:
+                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
             elif is_rocm_available:
-                log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+                if args.use_rocm:
+                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
+                    uninstall(['torch', 'torchvision'], quiet=True)
+                    install(torch_command, 'torch torchvision', quiet=True) # foce reinstall
+                else:
+                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
             if shutil.which('icpx') is not None:
                 log.info(f'{os.popen("icpx --version").read().rstrip()}')
