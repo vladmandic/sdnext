@@ -5,7 +5,7 @@ from safetensors import safe_open
 from diffusers.models.modeling_utils import ModelMixin
 
 from .common import use_tensorwise_fp8_matmul, use_contiguous_mm
-from .quantizer import SDNQConfig, apply_sdnq_to_module
+from .quantizer import SDNQConfig, sdnq_post_load_quant
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 
 
@@ -66,7 +66,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             model = model_cls._from_config(config) # pylint: disable=protected-access
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
-        model = apply_sdnq_to_module(model, **quantization_config)
+        model = sdnq_post_load_quant(model, **quantization_config)
 
     state_dict = {}
     if file_name:
@@ -81,7 +81,6 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         for k in f.keys():
             state_dict[k] = f.get_tensor(k)
     model.load_state_dict(state_dict, assign=True)
-    model.quantization_method = "sdnq"
     del state_dict
     if dtype is not None or dequantize_fp32 is not None or use_quantized_matmul is not None:
         model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)

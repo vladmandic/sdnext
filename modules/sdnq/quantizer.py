@@ -75,7 +75,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         result_shape = None
         original_shape = layer.weight.shape
         if torch_dtype is None:
-            torch_dtype = devices.dtype
+            torch_dtype = layer.weight.dtype
 
         if layer_class_name in conv_types:
             if not quant_conv:
@@ -321,6 +321,66 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
+def sdnq_post_load_quant(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, op=None): # pylint: disable=unused-argument
+    model.eval()
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
+
+    if getattr(model, "_keep_in_fp32_modules", None) is not None:
+        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+    if model.__class__.__name__ == "ChromaTransformer2DModel":
+        modules_to_not_convert.append("distilled_guidance_layer")
+    elif model.__class__.__name__ == "QwenImageTransformer2DModel":
+        modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
+        if "minimum_6bit" not in modules_dtype_dict.keys():
+            modules_dtype_dict["minimum_6bit"] = ["img_mod"]
+        else:
+            modules_dtype_dict["minimum_6bit"].append("img_mod")
+
+    model = apply_sdnq_to_module(
+        model,
+        weights_dtype=weights_dtype,
+        torch_dtype=torch_dtype,
+        group_size=group_size,
+        svd_rank=svd_rank,
+        use_svd=use_svd,
+        quant_conv=quant_conv,
+        use_quantized_matmul=use_quantized_matmul,
+        use_quantized_matmul_conv=use_quantized_matmul_conv,
+        dequantize_fp32=dequantize_fp32,
+        non_blocking=non_blocking,
+        quantization_device=quantization_device,
+        return_device=return_device,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict.copy(),
+        op=op,
+    )
+
+    model.quantization_config = SDNQConfig(
+        weights_dtype=weights_dtype,
+        group_size=group_size,
+        svd_rank=svd_rank,
+        use_svd=use_svd,
+        quant_conv=quant_conv,
+        use_quantized_matmul=use_quantized_matmul,
+        use_quantized_matmul_conv=use_quantized_matmul_conv,
+        dequantize_fp32=dequantize_fp32,
+        non_blocking=non_blocking,
+        quantization_device=quantization_device,
+        return_device=return_device,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict.copy(),
+    )
+
+    model.quantization_method = QuantizationMethod.SDNQ
+
+    return model
+
+
 class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     r"""
     Diffusers Quantizer for SDNQ
@@ -384,6 +444,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         *args, **kwargs, # pylint: disable=unused-argument
     ):
         weights_dtype = self.quantization_config.weights_dtype
+        torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
+
         if len(self.quantization_config.modules_dtype_dict.keys()) > 0:
             split_param_name = param_name.split(".")
             for key, value in self.quantization_config.modules_dtype_dict.items():
@@ -424,7 +486,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=weights_dtype,
-            torch_dtype=self.torch_dtype,
+            torch_dtype=torch_dtype,
             group_size=self.quantization_config.group_size,
             svd_rank=self.quantization_config.svd_rank,
             use_svd=self.quantization_config.use_svd,
@@ -446,8 +508,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
 
     def update_torch_dtype(self, torch_dtype: torch.dtype = None) -> torch.dtype:
-        if torch_dtype is None:
-            torch_dtype = devices.dtype
         self.torch_dtype = torch_dtype
         return torch_dtype
 
