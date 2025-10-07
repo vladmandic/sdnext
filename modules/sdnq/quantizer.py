@@ -322,6 +322,10 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
 
 
 def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None):
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
     if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
@@ -356,11 +360,6 @@ def sdnq_post_load_quant(
     modules_dtype_dict: Dict[str, List[str]] = None,
     op=None,
 ):
-    if modules_to_not_convert is None:
-        modules_to_not_convert = []
-    if modules_dtype_dict is None:
-        modules_dtype_dict = {}
-
     if add_skip_keys:
         model, modules_to_not_convert, modules_dtype_dict = add_module_skip_keys(model, modules_to_not_convert, modules_dtype_dict)
 
