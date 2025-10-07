@@ -92,6 +92,7 @@
   - **nunchaku** update to `1.0.1` and enhance installer  
   - **xyz-grid** add guidance section  
   - **preview** implement configurable layers for WAN, Qwen, HV  
+  - update swagger `/docs` endpoint style  
 - **Video**
   - use shared **T5** text encoder for video models when possible  
   - use shared **LLama** text encoder for video models when possible  
