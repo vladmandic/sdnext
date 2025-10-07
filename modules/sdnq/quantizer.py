@@ -321,26 +321,27 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-def sdnq_post_load_quant(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, op=None): # pylint: disable=unused-argument
-    model.eval()
+def sdnq_post_load_quant(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, add_skip_keys=True, op=None): # pylint: disable=unused-argument
     if modules_to_not_convert is None:
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
 
-    if getattr(model, "_keep_in_fp32_modules", None) is not None:
-        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
-    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
-    if model.__class__.__name__ == "ChromaTransformer2DModel":
-        modules_to_not_convert.append("distilled_guidance_layer")
-    elif model.__class__.__name__ == "QwenImageTransformer2DModel":
-        modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
-        if "minimum_6bit" not in modules_dtype_dict.keys():
-            modules_dtype_dict["minimum_6bit"] = ["img_mod"]
-        else:
-            modules_dtype_dict["minimum_6bit"].append("img_mod")
+    if add_skip_keys:
+        if getattr(model, "_keep_in_fp32_modules", None) is not None:
+            modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+            modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+        if model.__class__.__name__ == "ChromaTransformer2DModel":
+            modules_to_not_convert.append("distilled_guidance_layer")
+        elif model.__class__.__name__ == "QwenImageTransformer2DModel":
+            modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
+            if "minimum_6bit" not in modules_dtype_dict.keys():
+                modules_dtype_dict["minimum_6bit"] = ["img_mod"]
+            else:
+                modules_dtype_dict["minimum_6bit"].append("img_mod")
 
+    model.eval()
     model = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,

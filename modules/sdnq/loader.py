@@ -66,7 +66,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             model = model_cls._from_config(config) # pylint: disable=protected-access
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
-        model = sdnq_post_load_quant(model, **quantization_config)
+        model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
     state_dict = {}
     if file_name:
