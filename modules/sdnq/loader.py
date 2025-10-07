@@ -58,6 +58,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         quantization_config.pop("quantization_device", None)
         quantization_config.pop("return_device", None)
         quantization_config.pop("non_blocking", None)
+        quantization_config.pop("add_skip_keys", None)
         if hasattr(model_cls, "load_config"):
             config = model_cls.load_config(model_path)
             model = model_cls.from_config(config)

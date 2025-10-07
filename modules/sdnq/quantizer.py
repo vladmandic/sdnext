@@ -321,25 +321,48 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-def sdnq_post_load_quant(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, add_skip_keys=True, op=None): # pylint: disable=unused-argument
+def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]]):
+    if getattr(model, "_keep_in_fp32_modules", None) is not None:
+        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+    if model.__class__.__name__ == "ChromaTransformer2DModel":
+        modules_to_not_convert.append("distilled_guidance_layer")
+    elif model.__class__.__name__ == "QwenImageTransformer2DModel":
+        modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
+        if "minimum_6bit" not in modules_dtype_dict.keys():
+            modules_dtype_dict["minimum_6bit"] = ["img_mod"]
+        else:
+            modules_dtype_dict["minimum_6bit"].append("img_mod")
+    return model, modules_to_not_convert, modules_dtype_dict
+
+
+def sdnq_post_load_quant(
+    model,
+    weights_dtype="int8",
+    torch_dtype: torch.dtype = None,
+    group_size: int = 0,
+    svd_rank: int = 32,
+    use_svd: bool = False,
+    quant_conv: bool = False,
+    use_quantized_matmul: bool = False,
+    use_quantized_matmul_conv: bool = False,
+    dequantize_fp32: bool = False,
+    non_blocking: bool = False,
+    add_skip_keys:bool = True,
+    quantization_device: torch.device = None,
+    return_device: torch.device = None,
+    modules_to_not_convert: List[str] = None,
+    modules_dtype_dict: Dict[str, List[str]] = None,
+    op=None,
+):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
 
     if add_skip_keys:
-        if getattr(model, "_keep_in_fp32_modules", None) is not None:
-            modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
-        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-            modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
-        if model.__class__.__name__ == "ChromaTransformer2DModel":
-            modules_to_not_convert.append("distilled_guidance_layer")
-        elif model.__class__.__name__ == "QwenImageTransformer2DModel":
-            modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
-            if "minimum_6bit" not in modules_dtype_dict.keys():
-                modules_dtype_dict["minimum_6bit"] = ["img_mod"]
-            else:
-                modules_dtype_dict["minimum_6bit"].append("img_mod")
+        model, modules_to_not_convert, modules_dtype_dict = add_module_skip_keys(model, modules_to_not_convert, modules_dtype_dict)
 
     model.eval()
     model = apply_sdnq_to_module(
@@ -377,6 +400,8 @@ def sdnq_post_load_quant(model, weights_dtype="int8", torch_dtype=None, group_si
         modules_dtype_dict=modules_dtype_dict.copy(),
     )
 
+    if hasattr(model, "config"):
+        model.config.quantization_config = model.quantization_config
     model.quantization_method = QuantizationMethod.SDNQ
 
     return model
@@ -519,15 +544,17 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         keep_in_fp32_modules: List[str] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
-        if keep_in_fp32_modules is not None:
-            self.modules_to_not_convert.extend(keep_in_fp32_modules)
-        elif getattr(model, "_keep_in_fp32_modules", None) is not None:
-            self.modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
-        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-            self.modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+        self.quantization_config.add_skip_keys:
+            if keep_in_fp32_modules is not None:
+                self.modules_to_not_convert.extend(keep_in_fp32_modules)
+            model, self.modules_to_not_convert, self.quantization_config.modules_dtype_dict = add_module_skip_keys(
+                model, self.modules_to_not_convert, self.quantization_config.modules_dtype_dict
+            )
         self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
         self.quantization_config.modules_to_not_convert = self.modules_to_not_convert
-        model.config.quantization_config = self.quantization_config
+        if hasattr(model, "config"):
+            model.config.quantization_config = self.quantization_config
+        model.quantization_config = self.quantization_config
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
@@ -634,6 +661,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Enabling this option will use FP32 on the dequantization step.
         non_blocking (`bool`, *optional*, defaults to `False`):
             Enabling this option will use non blocking ops when moving layers between the quantization device and the return device.
+        add_skip_keys (`bool`, *optional*, defaults to `True`):
+            Disabling this option won't add model specific modules_to_not_convert and modules_dtype_dict keys.
         quantization_device (`torch.device`, *optional*, defaults to `None`):
             Used to set which device will be used for the quantization calculation on model load.
         return_device (`torch.device`, *optional*, defaults to `None`):
@@ -656,6 +685,7 @@ class SDNQConfig(QuantizationConfigMixin):
         use_quantized_matmul_conv: bool = False,
         dequantize_fp32: bool = False,
         non_blocking: bool = False,
+        add_skip_keys: bool = True,
         quantization_device: Optional[torch.device] = None,
         return_device: Optional[torch.device] = None,
         modules_to_not_convert: Optional[List[str]] = None,
@@ -672,6 +702,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
         self.dequantize_fp32 = dequantize_fp32
         self.non_blocking = non_blocking
+        self.add_skip_keys = add_skip_keys
         self.quantization_device = quantization_device
         self.return_device = return_device
         self.modules_to_not_convert = modules_to_not_convert
