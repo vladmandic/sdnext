@@ -530,6 +530,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         backup_embeddings = copy.deepcopy(model.get_input_embeddings())
 
     t0 = time.time()
+
     model = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,
@@ -548,6 +549,24 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         modules_dtype_dict=modules_dtype_dict.copy(),
         op=op,
     )
+
+    from modules.sdnq import SDNQConfig
+    model.quantization_config = SDNQConfig(
+        weights_dtype=weights_dtype,
+        group_size=shared.opts.sdnq_quantize_weights_group_size,
+        svd_rank=shared.opts.sdnq_svd_rank,
+        use_svd=shared.opts.sdnq_use_svd,
+        quant_conv=shared.opts.sdnq_quantize_conv_layers,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        non_blocking=shared.opts.diffusers_offload_nonblocking,
+        quantization_device=quantization_device,
+        return_device=return_device,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict.copy(),
+    )
+
     t1 = time.time()
     timer.load.add('sdnq', t1 - t0)
     model.quantization_method = 'SDNQ'
