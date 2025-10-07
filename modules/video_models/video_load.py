@@ -25,10 +25,17 @@ def load_model(selected: models_def.Model):
     # text encoder
     try:
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
+
+        # loader deduplication of text-encoder models
         if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_t5:
             selected.te = 'Disty0/t5-xxl'
             selected.te_folder = ''
             selected.te_revision = None
+        if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
+            selected.te = 'hunyuanvideo-community/HunyuanVideo'
+            selected.te_folder = 'text_encoder'
+            selected.te_revision = None
+
         shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         kwargs["text_encoder"] = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,

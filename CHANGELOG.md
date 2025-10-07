@@ -93,7 +93,8 @@
   - **xyz-grid** add guidance section  
   - **preview** implement configurable layers for WAN, Qwen, HV  
 - **Video**
-  - use shared T5 text encoder for video models when possible  
+  - use shared **T5** text encoder for video models when possible  
+  - use shared **LLama** text encoder for video models when possible  
   - unified video save code across all video models  
     also avoids creation of temporary files for each frame unless user wants to save them  
   - unified prompt enhance code across all video models  
