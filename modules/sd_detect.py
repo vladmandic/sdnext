@@ -124,6 +124,8 @@ def guess_by_name(fn, current_guess):
 
 def guess_by_diffusers(fn, current_guess):
     exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
+    if not os.path.isdir(fn):
+        return current_guess, None
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
         index = shared.readfile(index, silent=True)
@@ -136,9 +138,12 @@ def guess_by_diffusers(fn, current_guess):
             if pipeline is None:
                 pipeline = cls
         if callable(pipeline):
+            is_quant = any(f for f in os.listdir(fn) if f.endswith('quantization_config.json'))
             pipelines = shared_items.get_pipelines()
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:
+                    if is_quant:
+                        k = f'{k} SDNQ'
                     return k, v
     return current_guess, None
 

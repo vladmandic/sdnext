@@ -541,6 +541,11 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
     return sd_model
 
 
+def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
+    shared.log.error(f'Load {op}: model="{checkpoint_info.name}" cls={pipeline.__name__} args={diffusers_load_config} SDNQ pre-quant not supported')
+    return None
+
+
 def set_overrides(sd_model, checkpoint_info):
     checkpoint_info_name = checkpoint_info.name.lower()
     if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
@@ -656,6 +661,12 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             if sd_model is not None and not sd_model:
                 shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
                 return
+
+        # load sdnq-prequantized model
+        if sd_model is None:
+            if model_type.endswith('SDNQ'):
+                allow_post_quant = False
+                sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
 
         # load from hf folder-style
         if sd_model is None:
