@@ -543,7 +543,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         keep_in_fp32_modules: List[str] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
-        self.quantization_config.add_skip_keys:
+        if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
                 self.modules_to_not_convert.extend(keep_in_fp32_modules)
             model, self.modules_to_not_convert, self.quantization_config.modules_dtype_dict = add_module_skip_keys(
