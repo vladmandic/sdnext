@@ -589,6 +589,9 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         negative_weights.pop(0)
 
     embedding_providers = prepare_embedding_providers(pipe, clip_skip)
+    if len(embedding_providers) == 0:
+        shared.log.error("Prompt encode: cannot find text encoder in model")
+        return None, None, None, None, None, None
     empty_embedding_providers = None
     if 'StableCascade' in pipe.__class__.__name__:
         empty_embedding_providers = [embedding_providers[1]]

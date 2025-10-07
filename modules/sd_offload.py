@@ -434,6 +434,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
             apply_balanced_offload_to_module(module, op='apply')
             report_model_stats(module_name, module)
+
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

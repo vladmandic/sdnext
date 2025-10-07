@@ -542,8 +542,27 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 
 
 def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
-    shared.log.error(f'Load {op}: model="{checkpoint_info.name}" cls={pipeline.__name__} args={diffusers_load_config} SDNQ pre-quant not supported')
-    return None
+    from modules import sdnq
+    modules = {}
+    for f in os.listdir(checkpoint_info.path):
+        if not f.endswith('quantization_config.json'):
+            continue
+        module_name = f.replace('_quantization_config.json', '')
+        quantization_config = shared.readfile(os.path.join(checkpoint_info.path, f), silent=True)
+        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" prequant=sdnq')
+        module_path = os.path.join(checkpoint_info.path, module_name)
+        modules[module_name] = sdnq.load_sdnq_model(
+            model_path=module_path,
+            quantization_config=quantization_config,
+        )
+        modules[module_name] = modules[module_name].to(device=devices.device)
+    sd_model = pipeline.from_pretrained(
+        checkpoint_info.path,
+        cache_dir=shared.opts.diffusers_dir,
+        **modules,
+        **diffusers_load_config,
+    )
+    return sd_model
 
 
 def set_overrides(sd_model, checkpoint_info):
@@ -665,8 +684,9 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         # load sdnq-prequantized model
         if sd_model is None:
             if model_type.endswith('SDNQ'):
-                allow_post_quant = False
                 sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
+                allow_post_quant = False
+                model_type = model_type.replace(' SDNQ', '')
 
         # load from hf folder-style
         if sd_model is None:
@@ -1056,7 +1076,7 @@ def set_diffusers_attention(pipe, quiet:bool=False):
         if attention is None:
             return
         # other models uses their own attention processor
-        if pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet"):
+        if pipe.__class__.__name__.startswith("StableDiffusion") and getattr(pipe, "unet", None) is not None and hasattr(pipe.unet, "set_attn_processor"):
             try:
                 pipe.unet.set_attn_processor(attention)
             except Exception as e:
