@@ -1,9 +1,7 @@
 import os
 import json
 import torch
-from safetensors import safe_open
 from diffusers.models.modeling_utils import ModelMixin
-
 from .common import use_tensorwise_fp8_matmul, use_contiguous_mm
 from .quantizer import SDNQConfig, sdnq_post_load_quant
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
@@ -29,8 +27,10 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
             module.quantization_config.to_json_file(os.path.join(model_path, f"{module_name}_quantization_config.json"))
 
 
-def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
-    with torch.device("cpu"):
+def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = 'cpu', dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
+    from accelerate import init_empty_weights
+    from safetensors.torch import safe_open
+    with init_empty_weights():
         if quantization_config is None:
             try:
                 with open(os.path.join(model_path, "quantization_config.json"), "r", encoding="utf-8") as f:
@@ -64,7 +64,8 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             model = model_cls.from_config(config)
         elif hasattr(model_cls, "_from_config"):
             config = transformers.PretrainedConfig.from_dict(model_config)
-            model = model_cls._from_config(config) # pylint: disable=protected-access
+            # model = model_cls._from_config(config) # pylint: disable=protected-access
+            model = model_cls(config)
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
@@ -78,12 +79,12 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         fn = os.path.join(model_path, "model.safetensors")
     else:
         raise ValueError(f"Cannot find safetensors file in {model_path}, please provide file_name argument")
-    with safe_open(fn, framework="pt") as f:
+    with safe_open(fn, framework="pt", device=str(device)) as f:
         for k in f.keys():
             state_dict[k] = f.get_tensor(k)
     model.load_state_dict(state_dict, assign=True)
     del state_dict
-    if dtype is not None or dequantize_fp32 is not None or use_quantized_matmul is not None:
+    if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):
         model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
 

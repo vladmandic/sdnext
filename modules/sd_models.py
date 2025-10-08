@@ -549,11 +549,12 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
             continue
         module_name = f.replace('_quantization_config.json', '')
         quantization_config = shared.readfile(os.path.join(checkpoint_info.path, f), silent=True)
-        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" prequant=sdnq')
+        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
         module_path = os.path.join(checkpoint_info.path, module_name)
         modules[module_name] = sdnq.load_sdnq_model(
             model_path=module_path,
             quantization_config=quantization_config,
+            device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
         )
         modules[module_name] = modules[module_name].to(device=devices.device)
     sd_model = pipeline.from_pretrained(
