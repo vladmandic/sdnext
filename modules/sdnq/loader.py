@@ -100,7 +100,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             for k in f.keys():
                 state_dict[k] = f.get_tensor(k)
 
-    if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
+    if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"} and "encoder.embed_tokens.weight" not in state_dict.keys():
         state_dict["encoder.embed_tokens.weight"] = state_dict["shared.weight"]
 
     model.load_state_dict(state_dict, assign=True)
