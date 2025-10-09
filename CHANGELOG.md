@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-07
+## Update for 2025-10-09
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -125,6 +125,7 @@
   - fix checks in init/mask image decode  
   - fix hf token with extra chars  
   - image viewer refocus on gallery after returning from full screen mode  
+  - fix attention guidance metadata save/restore  
 
 ## Update for 2025-09-15
 

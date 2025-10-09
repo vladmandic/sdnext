@@ -298,8 +298,8 @@ def create_ui():
                 (refiner_prompt, "refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # pag
-                (pag_scale, "PAG scale"),
-                (pag_adaptive, "PAG adaptive"),
+                (pag_scale, "CFG true"),
+                (pag_adaptive, "CFG adaptive"),
                 # inpaint
                 (mask_blur, "Mask blur"),
                 (mask_alpha, "Mask alpha"),

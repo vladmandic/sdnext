@@ -400,8 +400,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 (refiner_prompt, "Refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # pag
-                (pag_scale, "PAG scale"),
-                (pag_adaptive, "PAG adaptive"),
+                (pag_scale, "CFG true"),
+                (pag_adaptive, "CFG adaptive"),
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),
