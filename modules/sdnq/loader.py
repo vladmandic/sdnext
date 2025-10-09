@@ -15,16 +15,25 @@ def get_module_names(model: ModelMixin) -> list:
     return modules_names
 
 
-def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", sdnq_config: SDNQConfig = None) -> None:
+def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
     model.save_pretrained(model_path, max_shard_size=max_shard_size) # actual save
 
     if sdnq_config is not None: # if provided, save global config
         sdnq_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
 
-    for module_name in get_module_names(model): # save per-module config if available
-        module = getattr(model, module_name, None)
-        if (module is not None) and hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
-            module.quantization_config.to_json_file(os.path.join(model_path, f"{module_name}_quantization_config.json"))
+    if is_pipeline:
+        for module_name in get_module_names(model): # save per-module config if available
+            module = getattr(model, module_name, None)
+            if (module is not None) and hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
+                module.quantization_config.to_json_file(os.path.join(model_path, module_name, "quantization_config.json"))
+    elif sdnq_config is None:
+        quantization_config = None
+        if hasattr(model, "quantization_config"):
+            quantization_config = model.quantization_config
+        elif hasattr(model, "config") and hasattr(model.config, "quantization_config"):
+            quantization_config = model.config.quantization_config
+        if quantization_config is not None:
+            quantization_config.to_json_file(os.path.join(model_path, "quantization_config.json"))
 
 
 def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = 'cpu', dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:

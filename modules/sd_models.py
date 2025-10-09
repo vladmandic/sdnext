@@ -544,20 +544,20 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     from modules import sdnq
     modules = {}
-    for f in os.listdir(checkpoint_info.path):
-        if not f.endswith('quantization_config.json'):
+    for module_name in os.listdir(checkpoint_info.path):
+        quantization_config_path = os.path.join(checkpoint_info.path, module_name, 'quantization_config.json')
+        if not os.path.exists(quantization_config_path):
             continue
-        module_name = f.replace('_quantization_config.json', '')
-        quantization_config = shared.readfile(os.path.join(checkpoint_info.path, f), silent=True)
+        model_path = os.path.join(checkpoint_info.path, module_name)
+        quantization_config = shared.readfile(quantization_config_path, silent=True)
         shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
-        module_path = os.path.join(checkpoint_info.path, module_name)
         try:
             modules[module_name] = sdnq.load_sdnq_model(
-                model_path=module_path,
+                model_path=model_path,
                 quantization_config=quantization_config,
                 device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
+                dtype=devices.dtype,
             )
-            modules[module_name] = modules[module_name].to(device=devices.device)
         except Exception as e:
             shared.log.error(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" {e}')
             errors.display(e, 'Load')
@@ -1291,6 +1291,7 @@ def save_model(name: str, path: str = None, shard: str = None, overwrite: bool =
             model=shared.sd_model,
             model_path=model_name,
             max_shard_size=shard,
+            is_pipeline=True,
         )
         t1 = time.time()
         shared.log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} time={t1 - t0:.2f}')

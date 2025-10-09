@@ -138,7 +138,19 @@ def guess_by_diffusers(fn, current_guess):
             if pipeline is None:
                 pipeline = cls
         if callable(pipeline):
-            is_quant = any(f for f in os.listdir(fn) if f.endswith('quantization_config.json'))
+            is_quant = False
+            for folder in os.listdir(fn):
+                folder = os.path.join(fn, folder)
+                if is_quant:
+                    break
+                if folder.endswith('quantization_config.json'):
+                    is_quant = True
+                    break
+                elif os.path.isdir(folder):
+                    for f in os.listdir(folder):
+                        if f.endswith('quantization_config.json'):
+                            is_quant = True
+                            break
             pipelines = shared_items.get_pipelines()
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:
