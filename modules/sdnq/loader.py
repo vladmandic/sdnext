@@ -30,7 +30,7 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
             module_quantization_config_path = os.path.join(model_path, module_name, "quantization_config.json")
             if hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
                 module.quantization_config.to_json_file(module_quantization_config_path)
-            elif hasattr(module, "config"), hasattr(module.config, "quantization_config") and isinstance(module.config.quantization_config, SDNQConfig):
+            elif hasattr(module, "config") and hasattr(module.config, "quantization_config") and isinstance(module.config.quantization_config, SDNQConfig):
                 module.config.quantization_config.to_json_file(module_quantization_config_path)
     elif sdnq_config is None:
         if hasattr(model, "quantization_config") and isinstance(model.quantization_config, SDNQConfig):
