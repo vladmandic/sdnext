@@ -42,6 +42,7 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
 def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = 'cpu', dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
     from accelerate import init_empty_weights
     from safetensors.torch import safe_open
+
     with init_empty_weights():
         if quantization_config is None:
             try:
@@ -49,12 +50,14 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
                     quantization_config = json.load(f)
             except Exception:
                 quantization_config = {}
+
         if model_config is None:
             try:
                 with open(os.path.join(model_path, 'config.json'), "r", encoding="utf-8") as f:
                     model_config = json.load(f)
             except Exception:
                 model_config = {}
+
         if model_cls is None:
             import transformers
             import diffusers
@@ -65,12 +68,14 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
                 model_cls = getattr(diffusers, class_name, None) or getattr(transformers, class_name, None)
         if model_cls is None:
             raise ValueError(f"Cannot determine model class for {model_path}, please provide model_cls argument")
+
         quantization_config.pop("is_integer", None)
         quantization_config.pop("quant_method", None)
         quantization_config.pop("quantization_device", None)
         quantization_config.pop("return_device", None)
         quantization_config.pop("non_blocking", None)
         quantization_config.pop("add_skip_keys", None)
+
         if hasattr(model_cls, "load_config"):
             config = model_cls.load_config(model_path)
             model = model_cls.from_config(config)
@@ -79,6 +84,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             model = model_cls(config)
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
+
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
     state_dict = {}
@@ -88,12 +94,18 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
     else:
         all_files = os.listdir(model_path)
         files = sorted([os.path.join(model_path, f) for f in all_files if f.endswith(".safetensors")])
+
     for fn in files:
         with safe_open(fn, framework="pt", device=str(device)) as f:
             for k in f.keys():
                 state_dict[k] = f.get_tensor(k)
+
+    if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"}:
+        state_dict["encoder.embed_tokens.weight"] = state_dict["shared.weight"]
+
     model.load_state_dict(state_dict, assign=True)
     del state_dict
+
     if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):
         model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
