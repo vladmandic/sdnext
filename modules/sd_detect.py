@@ -214,6 +214,7 @@ def detect_pipeline(f: str, op: str = 'model'):
 
 
 def get_load_config(model_file, model_type, config_type='yaml'):
+    model_type = model_type.removesuffix(' SDNQ')
     if config_type == 'yaml':
         yaml = os.path.splitext(model_file)[0] + '.yaml'
         if os.path.exists(yaml):
