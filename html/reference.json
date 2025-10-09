@@ -237,7 +237,7 @@
   "Qwen-Image Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Pruning",
     "subfolder": "Qwen-Image-13B",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "preview": "Qwen-Image-13B.jpg",
     "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
@@ -245,7 +245,7 @@
   "Qwen-Image Pruning-12B": {
     "path": "OPPOer/Qwen-Image-Pruning",
     "subfolder": "Qwen-Image-12B-40steps",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "preview": "Qwen-Image-12B.jpg",
     "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
@@ -253,7 +253,7 @@
   "Qwen-Image-Edit Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-Pruning",
     "subfolder": "Qwen-Image-Edit-13B",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "preview": "Qwen-Image-Edit-13B.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
@@ -261,7 +261,7 @@
   "Qwen-Image-Edit-2509 Pruning-14B": {
     "path": "OPPOer/Qwen-Image-Edit-Pruning",
     "subfolder": "Qwen-Image-Edit-2509-14B",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "preview": "Qwen-Image-Edit-2509-14B.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
