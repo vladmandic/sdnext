@@ -51,10 +51,15 @@ if torch.__version__.startswith('2.5.0'):
     errors.log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
     torch.backends.cuda.enable_cudnn_sdp(False)
 try:
-    import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
+    import intel_extension_for_pytorch as ipex # pylint: disable=import-error,unused-import
     errors.log.debug(f'Load IPEX=={ipex.__version__}')
 except Exception:
     pass
+try:
+    import torch.distributed.distributed_c10d as _c10d # pylint: disable=unused-import,ungrouped-imports
+except Exception:
+    errors.log.warning('Loader: torch is not built with distributed support')
+
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")

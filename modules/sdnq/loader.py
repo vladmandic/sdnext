@@ -64,24 +64,22 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             model = model_cls.from_config(config)
         elif hasattr(model_cls, "_from_config"):
             config = transformers.PretrainedConfig.from_dict(model_config)
-            # model = model_cls._from_config(config) # pylint: disable=protected-access
             model = model_cls(config)
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
     state_dict = {}
+    files = []
     if file_name:
-        fn = os.path.join(model_path, file_name)
-    elif os.path.exists(os.path.join(model_path, "diffusion_pytorch_model.safetensors")):
-        fn = os.path.join(model_path, "diffusion_pytorch_model.safetensors")
-    elif os.path.exists(os.path.join(model_path, "model.safetensors")):
-        fn = os.path.join(model_path, "model.safetensors")
+        files.append(os.path.join(model_path, file_name))
     else:
-        raise ValueError(f"Cannot find safetensors file in {model_path}, please provide file_name argument")
-    with safe_open(fn, framework="pt", device=str(device)) as f:
-        for k in f.keys():
-            state_dict[k] = f.get_tensor(k)
+        all_files = os.listdir(model_path)
+        files = sorted([os.path.join(model_path, f) for f in all_files if f.endswith(".safetensors")])
+    for fn in files:
+        with safe_open(fn, framework="pt", device=str(device)) as f:
+            for k in f.keys():
+                state_dict[k] = f.get_tensor(k)
     model.load_state_dict(state_dict, assign=True)
     del state_dict
     if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):

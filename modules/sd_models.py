@@ -551,12 +551,16 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
         quantization_config = shared.readfile(os.path.join(checkpoint_info.path, f), silent=True)
         shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
         module_path = os.path.join(checkpoint_info.path, module_name)
-        modules[module_name] = sdnq.load_sdnq_model(
-            model_path=module_path,
-            quantization_config=quantization_config,
-            device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
-        )
-        modules[module_name] = modules[module_name].to(device=devices.device)
+        try:
+            modules[module_name] = sdnq.load_sdnq_model(
+                model_path=module_path,
+                quantization_config=quantization_config,
+                device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
+            )
+            modules[module_name] = modules[module_name].to(device=devices.device)
+        except Exception as e:
+            shared.log.error(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" {e}')
+            errors.display(e, 'Load')
     sd_model = pipeline.from_pretrained(
         checkpoint_info.path,
         cache_dir=shared.opts.diffusers_dir,
@@ -1265,3 +1269,33 @@ def hf_auth_check(checkpoint_info, force:bool=False):
     except Exception as e:
         shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
         return False
+
+
+def save_model(name: str, path: str = None, shard: str = None, overwrite: bool = False):
+    if (name is None) or len(name.strip()) == 0:
+        shared.log.error('Save model: invalid model name')
+        return 'Invalid model name'
+    if not shared.sd_loaded:
+        shared.log.error('Save model: model not loaded')
+        return 'Model not loaded'
+    from modules.sdnq import save_sdnq_model
+    if path is None:
+        path = shared.opts.diffusers_dir
+    model_name = os.path.join(path.strip(), name.strip())
+    if os.path.exists(model_name) and not overwrite:
+        shared.log.error(f'Save model: path="{model_name}" exists')
+        return f'Path exists: {model_name}'
+    try:
+        t0 = time.time()
+        save_sdnq_model(
+            model=shared.sd_model,
+            model_path=model_name,
+            max_shard_size=shard,
+        )
+        t1 = time.time()
+        shared.log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} time={t1 - t0:.2f}')
+        return f'Saved: {model_name}'
+    except Exception as e:
+        shared.log.error(f'Save model: path="{model_name}" {e}')
+        errors.display(e, 'Save model')
+        return f'Error: {e}'
