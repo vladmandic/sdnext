@@ -1,5 +1,6 @@
 import re
 import os
+import time
 import uuid
 import string
 import hashlib
@@ -33,6 +34,7 @@ class FilenameGenerator:
         'hash': lambda self: self.image_hash(),
         'image_hash': lambda self: self.image_hash(),
         'timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
+        'epoch': lambda self: int(time.time()),
         'job_timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
 
         'model': lambda self: shared.sd_model.sd_checkpoint_info.title if shared.sd_loaded and getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None else '',

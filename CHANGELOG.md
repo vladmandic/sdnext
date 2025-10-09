@@ -62,6 +62,7 @@
   - separate guidance and detail sections  
   - networks ability to filter lora by base model version  
   - add interrogate button to input images  
+  - disable spellchecks on all text inputs  
 - **SDNQ**
   - add `SVDQuant` quantization method support  
   - make sdnq scales compatible with balanced offload  
@@ -93,6 +94,7 @@
   - **xyz-grid** add guidance section  
   - **preview** implement configurable layers for WAN, Qwen, HV  
   - update swagger `/docs` endpoint style  
+  - add `[epoch]` to filename template  
 - **Video**
   - use shared **T5** text encoder for video models when possible  
   - use shared **LLama** text encoder for video models when possible  
