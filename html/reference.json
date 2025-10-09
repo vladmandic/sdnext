@@ -234,34 +234,26 @@
     "size": 56.1,
     "date": "2025 August"
   },
-  "Qwen-Image Pruning-13B": {
-    "path": "OPPOer/Qwen-Image-Pruning",
-    "subfolder": "Qwen-Image-13B",
-    "preview": "Qwen-Image-13B.jpg",
-    "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
-    "skip": true,
-    "date": "2025 Ocotober"
-  },
   "Qwen-Image Pruning-12B": {
     "path": "OPPOer/Qwen-Image-Pruning",
-    "subfolder": "Qwen-Image-12B-40steps",
-    "preview": "Qwen-Image-12B.jpg",
-    "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
+    "subfolder": "Qwen-Image-12B-8steps",
+    "preview": "OPPOer--Qwen-Image-Pruning.jpg",
+    "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 12B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
   },
   "Qwen-Image-Edit Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-Pruning",
-    "subfolder": "Qwen-Image-Edit-13B",
-    "preview": "Qwen-Image-Edit-13B.jpg",
+    "subfolder": "Qwen-Image-Edit-13B-4steps",
+    "preview": "OPPOer--Qwen-Image-Edit-Pruning.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
   },
-  "Qwen-Image-Edit-2509 Pruning-14B": {
-    "path": "OPPOer/Qwen-Image-Edit-Pruning",
-    "subfolder": "Qwen-Image-Edit-2509-14B",
-    "preview": "Qwen-Image-Edit-2509-14B.jpg",
+  "Qwen-Image-Edit-2509 Pruning-13B": {
+    "path": "OPPOer/Qwen-Image-Edit-2509-Pruning",
+    "subfolder": "Qwen-Image-Edit-2509-13B-4steps",
+    "preview": "OPPOer--Qwen-Image-Edit-2509-Pruning.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "date": "2025 Ocotober"
