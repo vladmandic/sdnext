@@ -20,7 +20,14 @@
   - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
     *experimental*: updated version of E1 image editing model  
 - **Features**
-  - [Qwen Image-Edit] multi-image editing
+  - **Model save**: ability to save currently loaded model as a new standalone model  
+    why? SD.Next always prefers to start with full model and quantize on-demand during load  
+    however, when you find your exact preferred quantization settings that work well for you,  
+    saving such model as a new model allows for faster loads and reduced disk space usage  
+    so its best of both worlds: you can experiment and test different quantizations and once you find the one that works for you, save it as a new model  
+    saved models appear in network tab as normal models and can be loaded as such  
+    available in *models* tab  
+  - [Qwen Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) multi-image editing
     requires qwen-image-edit-2509 or its variant as multi-image edits are not available in original qwen-image  
     in ui control tab: inputs -> separate init image  
     add image for *input media* and *control media*  
