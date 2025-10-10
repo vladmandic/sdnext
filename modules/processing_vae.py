@@ -117,8 +117,10 @@ def full_vae_decode(latents, model):
     scaling_factor = model.vae.config.get("scaling_factor", 1.0)
     shift_factor = model.vae.config.get("shift_factor", None)
     if latents_mean and latents_std:
-        latents_mean = (torch.tensor(latents_mean).view(1, -1, 1, 1).to(latents.device, latents.dtype))
-        latents_std = (torch.tensor(latents_std).view(1, -1, 1, 1).to(latents.device, latents.dtype))
+        broadcast_shape = [1 for _ in range(latents.ndim)]
+        broadcast_shape[1] = -1
+        latents_mean = (torch.tensor(latents_mean).view(*broadcast_shape).to(latents.device, latents.dtype))
+        latents_std = (torch.tensor(latents_std).view(*broadcast_shape).to(latents.device, latents.dtype))
         latents = ((latents * latents_std) / scaling_factor) + latents_mean
     else:
         latents = latents / scaling_factor
@@ -237,13 +239,15 @@ def vae_postprocess(tensor, model, output_type='np'):
         if isinstance(tensor, list) and len(tensor) > 0 and torch.is_tensor(tensor[0]):
             tensor = torch.stack(tensor)
         if torch.is_tensor(tensor):
-            if len(tensor.shape) == 3 and tensor.shape[0] == 3:
+            if tensor.ndim == 3 and tensor.shape[0] == 3:
                 tensor = tensor.unsqueeze(0)
             if hasattr(model, 'video_processor'):
-                if len(tensor.shape) == 6 and tensor.shape[1] == 1:
+                if tensor.ndim == 6 and tensor.shape[1] == 1:
                     tensor = tensor.squeeze(0)
                 images = model.video_processor.postprocess_video(tensor, output_type='pil')
             elif hasattr(model, 'image_processor'):
+                if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
+                    tensor = tensor[:, :, 0]
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
             elif hasattr(model, "vqgan"):
                 images = tensor.permute(0, 2, 3, 1).cpu().float().numpy()
@@ -252,6 +256,8 @@ def vae_postprocess(tensor, model, output_type='np'):
             else:
                 from diffusers.image_processor import VaeImageProcessor
                 model.image_processor = VaeImageProcessor()
+                if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
+                    tensor = tensor[:, :, 0]
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
@@ -291,8 +297,9 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latent_num_frames = (frames - 1) // model.vae_temporal_compression_ratio + 1
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access
         latents = model._denormalize_latents(latents, model.vae.latents_mean, model.vae.latents_std, model.vae.config.scaling_factor) # pylint: disable=protected-access
-    if hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None and latents.ndim == 3: # FLUX
+    elif hasattr(model, '_unpack_latents') and hasattr(model, "vae_scale_factor") and width is not None and height is not None and latents.ndim == 3: # FLUX
         latents = model._unpack_latents(latents, height, width, model.vae_scale_factor) # pylint: disable=protected-access
+
     if latents.ndim == 3: # lost a batch dim in hires
         latents = latents.unsqueeze(0)
     if latents.shape[-1] <= 4: # not a latent, likely an image

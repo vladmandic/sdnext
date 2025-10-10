@@ -62,6 +62,8 @@ def apply_model_with_memblocks(model, x, parallel, show_progress_bar):
     if x.ndim == 4:
         x = x.unsqueeze(0)
     assert x.ndim == 5, f"TAEHV operates on NTCHW tensors, but got {x.ndim}-dim tensor"
+    if x.shape[1] == 16 and x.shape[2] != 16:
+        x = x.transpose(1,2) # NCTHW to NTCHW
     N, T, C, H, W = x.shape
     if parallel:
         x = x.reshape(N*T, C, H, W)
