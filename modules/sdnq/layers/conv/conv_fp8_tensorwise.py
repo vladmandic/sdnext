@@ -27,10 +27,11 @@ def conv_fp8_matmul_tensorwise(
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     if svd_up is not None:
+        input = input.flatten(0,-2)
         if bias is not None:
-            bias = torch.addmm(bias, torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+            bias = torch.addmm(bias, torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
-            bias = torch.mm(torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+            bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     input, weight = check_mats(input, weight)

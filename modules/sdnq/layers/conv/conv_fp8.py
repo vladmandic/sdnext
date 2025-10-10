@@ -26,7 +26,8 @@ def conv_fp8_matmul(
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
     if svd_up is not None:
-        svd_bias = torch.mm(torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+        input = input.flatten(0,-2)
+        svd_bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     input, input_scale = quantize_fp8_matmul_input(input)
     input, weight = check_mats(input, weight)

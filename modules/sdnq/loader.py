@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
@@ -80,15 +81,17 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
             config = model_cls.load_config(model_path)
             model = model_cls.from_config(config)
         elif hasattr(model_cls, "_from_config"):
-            config = transformers.PretrainedConfig.from_dict(model_config)
+            config = transformers.AutoConfig.from_pretrained(model_path)
             model = model_cls(config)
         else:
             raise ValueError(f"Dont know how to load model for {model_cls}")
 
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
+    key_mapping = getattr(model, "_checkpoint_conversion_mapping", None)
     state_dict = {}
     files = []
+
     if file_name:
         files.append(os.path.join(model_path, file_name))
     else:
@@ -97,8 +100,14 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
     for fn in files:
         with safe_open(fn, framework="pt", device=str(device)) as f:
-            for k in f.keys():
-                state_dict[k] = f.get_tensor(k)
+            for key in f.keys():
+                new_key = key
+                if key_mapping:
+                    for pattern, replacement in key_mapping.items():
+                        new_key, n_replace = re.subn(pattern, replacement, new_key)
+                        if n_replace > 0:
+                            break
+                state_dict[new_key] = f.get_tensor(key)
 
     if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"} and "encoder.embed_tokens.weight" not in state_dict.keys():
         state_dict["encoder.embed_tokens.weight"] = state_dict["shared.weight"]

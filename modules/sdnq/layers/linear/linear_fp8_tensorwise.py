@@ -28,12 +28,13 @@ def fp8_matmul_tensorwise(
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
-    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     if svd_up is not None:
+        input.flatten(0,-2)
         if bias is not None:
-            bias = torch.addmm(bias, torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+            bias = torch.addmm(bias, torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
-            bias = torch.mm(torch.mm(input.flatten(0,-2).to(dtype=svd_down.dtype), svd_down), svd_up)
+            bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
+    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
     input, weight = check_mats(input, weight)
     if bias is not None:

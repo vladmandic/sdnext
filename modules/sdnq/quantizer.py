@@ -268,7 +268,11 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 continue
             if len(modules_dtype_dict.keys()) > 0:
                 for key, value in modules_dtype_dict.items():
-                    if param_name in value:
+                    if (
+                        param_name in value
+                        or any(param in split_param_name for param in value)
+                        or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in value)
+                    ):
                         key = key.lower()
                         if key in {"8bit", "8bits"}:
                             if dtype_dict[weights_dtype]["num_bits"] != 8:
