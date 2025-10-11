@@ -17,10 +17,39 @@ def get_module_names(model: ModelMixin) -> list:
 
 
 def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
+    if is_pipeline:
+        for module_name in get_module_names(model):
+            module = getattr(model, module_name, None)
+            if hasattr(module, "config") and hasattr(module.config, "quantization_config") and isinstance(module.config.quantization_config, SDNQConfig):
+                module.config.quantization_config.quantization_device = None
+                module.config.quantization_config.return_device = None
+                module.config.quantization_config.non_blocking = False
+                module.config.quantization_config.add_skip_keys = False
+            if hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
+                module.quantization_config.quantization_device = None
+                module.quantization_config.return_device = None
+                module.quantization_config.non_blocking = False
+                module.quantization_config.add_skip_keys = False
+    else:
+        if hasattr(model, "config") and hasattr(model.config, "quantization_config") and isinstance(model.config.quantization_config, SDNQConfig):
+            model.config.quantization_config.quantization_device = None
+            model.config.quantization_config.return_device = None
+            model.config.quantization_config.non_blocking = False
+            model.config.quantization_config.add_skip_keys = False
+        if hasattr(model, "quantization_config") and isinstance(model.quantization_config, SDNQConfig):
+            model.quantization_config.quantization_device = None
+            model.quantization_config.return_device = None
+            model.quantization_config.non_blocking = False
+            model.quantization_config.add_skip_keys = False
+
     model.save_pretrained(model_path, max_shard_size=max_shard_size) # actual save
 
     quantization_config_path = os.path.join(model_path, "quantization_config.json")
     if sdnq_config is not None: # if provided, save global config
+        sdnq_config.quantization_device = None
+        sdnq_config.return_device = None
+        sdnq_config.non_blocking = False
+        sdnq_config.add_skip_keys = False
         sdnq_config.to_json_file(quantization_config_path)
 
     if is_pipeline:
