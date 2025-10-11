@@ -12,7 +12,7 @@ from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
+from .common import dtype_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
 from .dequantizer import dequantizer_dict, dequantize_sdnq_model
 from .forward import get_forward_func
 
@@ -411,7 +411,7 @@ def sdnq_post_load_quant(
 
 class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     r"""
-    Diffusers Quantizer for SDNQ
+    Diffusers and Transformers Quantizer for SDNQ
     """
 
     requires_parameters_quantization = True
@@ -751,7 +751,7 @@ class SDNQConfig(QuantizationConfigMixin):
         svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
         use_svd (`bool`, *optional*, defaults to `False`):
-            Enabling this option will use SVDQuant algorithm.
+            Enabling this option will use SVDQuant algorithm on top of SDNQ quantization.
         quant_conv (`bool`, *optional*, defaults to `False`):
             Enabling this option will quantize the convolutional layers in UNet models too.
         use_quantized_matmul (`bool`, *optional*, defaults to `False`):
@@ -815,17 +815,32 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
-        accepted_weights = ["int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz"]
         if self.weights_dtype not in accepted_weights:
-            raise ValueError(f"Only support weights in {accepted_weights} but found {self.weights_dtype}")
+            raise ValueError(f"SDNQ only support weights in {accepted_weights} but found {self.weights_dtype}")
 
         if self.modules_to_not_convert is None:
             self.modules_to_not_convert = []
-        elif not isinstance(self.modules_to_not_convert, list):
+        elif isinstance(self.modules_to_not_convert, str):
             self.modules_to_not_convert = [self.modules_to_not_convert]
+        elif isinstance(self.modules_to_not_convert, tuple):
+            self.modules_to_not_convert = list(self.modules_to_not_convert)
+        elif not isinstance(self.modules_to_not_convert, list):
+            raise ValueError(f"modules_to_not_convert must be a list but got {type(self.modules_to_not_convert)}")
 
         if self.modules_dtype_dict is None:
             self.modules_dtype_dict = {}
+        elif not isinstance(self.modules_dtype_dict, dict):
+            raise ValueError(f"modules_dtype_dict must be a dict but got {type(self.modules_dtype_dict)}")
+        elif len(self.modules_dtype_dict.keys()) > 0:
+            for key, value in self.modules_dtype_dict.items():
+                if isinstance(value, str):
+                    value = [value]
+                    self.modules_dtype_dict[key] = value
+                elif isinstance(value, tuple):
+                    value = list(value)
+                    self.modules_dtype_dict[key] = value
+                if not isinstance(key, str) or not isinstance(value, list):
+                    raise ValueError(f"modules_dtype_dict must be a dictionary of strings and lists but got {type(key)} and {type(value)}")
 
     def to_dict(self):
         dct = self.__dict__.copy() # make serializable
