@@ -42,12 +42,13 @@
   - **ROCm** for Windows  
     support for both official torch preview release of `torch-rocm` for windows and **TheRock** unoffical `torch-rocm` builds for windows  
     note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
-  - **DirectML** warn as end-of-life  
+  - **DirectML** warn as *end-of-life*  
     `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
   - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
     previously sdnext was performing a fallback to `torch-cpu` which is not desired  
-  - if `--use-cuda` or `--use-rocm` are specified and `torch-cpu` is installed, installer will attempt to reinstall correct torch package  
-  - **installer**: warn if cuda or rocm are available and `torch-cpu` is installed  
+  - **installer** if `--use-cuda` or `--use-rocm` are specified and `torch-cpu` is installed, installer will attempt to reinstall correct torch package  
+  - **installer** warn if *cuda* or *rocm* are available and `torch-cpu` is installed  
+  - support for `torch==2.10-nightly` with `cuda==13.0`  
 - **Extensions**  
   - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
     was a high-value built-in extension, but it has not been maintained for 1.5 years  

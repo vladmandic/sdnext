@@ -79,7 +79,7 @@ class Upscaler:
                 scalers.append(scaler)
                 loaded.append(model_path)
                 # shared.log.debug(f'Upscaler type={self.name} folder="{self.user_path}" model="{model[0]}" path="{model_path}"')
-        if not os.path.exists(self.user_path):
+        if self.user_path is None or not os.path.exists(self.user_path):
             return scalers
         self.find_folder(self.user_path, scalers, loaded)
         return scalers
@@ -148,7 +148,7 @@ class UpscalerData:
     scaler: Upscaler = None
     model: None
 
-    def __init__(self, name: str, path: str, upscaler: Upscaler = None, scale: int = 4, model=None):
+    def __init__(self, name: str, path: str = None, upscaler: Upscaler = None, scale: int = 4, model=None):
         self.name = name
         self.data_path = path
         self.local_data_path = path

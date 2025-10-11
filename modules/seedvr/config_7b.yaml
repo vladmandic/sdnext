@@ -1,0 +1,94 @@
+__object__:
+  path: projects.video_diffusion_sr.train
+  name: VideoDiffusionTrainer
+
+dit:
+  model:
+    __object__:
+      path:
+        - "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.dit.nadit"
+        - "ComfyUI.custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.dit.nadit"
+        - "src.models.dit.nadit"
+      name: "NaDiT"
+      args: "as_params"
+    vid_in_channels: 33
+    vid_out_channels: 16
+    vid_dim: 3072
+    txt_in_dim: 5120
+    txt_dim: ${.vid_dim}
+    emb_dim: ${eval:'6 * ${.vid_dim}'}
+    heads: 24
+    head_dim: 128 # llm-like
+    expand_ratio: 4
+    norm: fusedrms
+    norm_eps: 1e-5
+    ada: single
+    qk_bias: False
+    qk_rope: True
+    qk_norm: fusedrms
+    patch_size: [1, 2, 2]
+    num_layers: 36 # llm-like
+    shared_mlp: False
+    shared_qkv: False
+    mlp_type: normal
+    block_type: ${eval:'${.num_layers} * ["mmdit_sr"]'} # space-full
+    window: ${eval:'${.num_layers} * [(4,3,3)]'} # space-full
+    window_method: ${eval:'${.num_layers} // 2 * ["720pwin_by_size_bysize","720pswin_by_size_bysize"]'} # space-full
+  compile: False
+  gradient_checkpoint: True
+  fsdp:
+    sharding_strategy: _HYBRID_SHARD_ZERO2
+
+ema:
+  decay: 0.9998
+
+vae:
+  model:
+    __object__:
+      path:
+        - "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
+        - "ComfyUI.custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
+        - "src.models.video_vae_v3.modules.attn_video_vae"
+      name: "VideoAutoencoderKLWrapper"
+      args: "as_params"
+    freeze_encoder: False
+    # gradient_checkpoint: True
+  slicing:
+    split_size: 4
+    memory_device: same
+  memory_limit:
+    conv_max_mem: 0.5
+    norm_max_mem: 0.5
+  checkpoint: ema_vae_fp16.safetensors
+  scaling_factor: 0.9152
+  compile: False
+  grouping: False
+  dtype: float16
+
+diffusion:
+  schedule:
+    type: lerp
+    T: 1000.0
+  sampler:
+    type: euler
+    prediction_type: v_lerp
+  timesteps:
+    training:
+      type: logitnormal
+      loc: 0.0
+      scale: 1.0
+    sampling:
+      type: uniform_trailing
+      steps: 50
+    transform: True
+  loss:
+    type: v_lerp
+  cfg:
+    scale: 7.5
+    rescale: 0
+
+condition:
+  i2v: 0.0
+  v2v: 0.0
+  sr: 1.0
+  noise_scale: 0.25

@@ -1353,6 +1353,7 @@ def set_environment():
         allocator += ',backend:cudaMallocAsync'
     if opts.get("torch_expandable_segments", False):
         allocator += ',expandable_segments:True'
+    os.environ.setdefault('PYTORCH_ALLOC_CONF', allocator)
     os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', allocator)
     os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', allocator)
     log.debug(f'Torch allocator: "{allocator}"')

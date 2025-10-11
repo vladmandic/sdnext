@@ -1,0 +1,97 @@
+__object__:
+  path: projects.video_diffusion_sr.train
+  name: VideoDiffusionTrainer
+
+dit:
+  model:
+    __object__:
+      path:
+        - "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.dit_v2.nadit"
+        - "ComfyUI.custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.dit_v2.nadit"
+        - "src.models.dit_v2.nadit"
+      name: "NaDiT"
+      args: "as_params"
+    vid_in_channels: 33
+    vid_out_channels: 16
+    vid_dim: 2560
+    vid_out_norm: fusedrms
+    txt_in_dim: 5120
+    txt_in_norm: fusedln
+    txt_dim: ${.vid_dim}
+    emb_dim: ${eval:'6 * ${.vid_dim}'}
+    heads: 20
+    head_dim: 128 # llm-like
+    expand_ratio: 4
+    norm: fusedrms
+    norm_eps: 1.0e-05
+    ada: single
+    qk_bias: False
+    qk_norm: fusedrms
+    patch_size: [1, 2, 2]
+    num_layers: 32 # llm-like
+    mm_layers: 10
+    mlp_type: swiglu
+    msa_type: None
+    block_type: ${eval:'${.num_layers} * ["mmdit_sr"]'} # space-full
+    window: ${eval:'${.num_layers} * [(4,3,3)]'} # space-full
+    window_method: ${eval:'${.num_layers} // 2 * ["720pwin_by_size_bysize","720pswin_by_size_bysize"]'} # space-full
+    rope_type: mmrope3d
+    rope_dim: 128
+  compile: False
+  gradient_checkpoint: True
+  fsdp:
+    sharding_strategy: _HYBRID_SHARD_ZERO2
+
+ema:
+  decay: 0.9998
+
+vae:
+  model:
+    __object__:
+      path:
+        - "custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
+        - "ComfyUI.custom_nodes.ComfyUI-SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
+        - "src.models.video_vae_v3.modules.attn_video_vae"
+      name: "VideoAutoencoderKLWrapper"
+      args: "as_params"
+    freeze_encoder: False
+    gradient_checkpoint: True # Disabled to prevent VRAM leaks in inference
+  slicing:
+    split_size: 4
+    memory_device: same
+  memory_limit:
+    conv_max_mem: 0.5
+    norm_max_mem: 0.5
+  checkpoint: ema_vae_fp16.safetensors
+  scaling_factor: 0.9152
+  compile: False
+  grouping: False
+  dtype: float16
+
+diffusion:
+  schedule:
+    type: lerp
+    T: 1000.0
+  sampler:
+    type: euler
+    prediction_type: v_lerp
+  timesteps:
+    training:
+      type: logitnormal
+      loc: 0.0
+      scale: 1.0
+    sampling:
+      type: uniform_trailing
+      steps: 50
+    transform: True
+  loss:
+    type: v_lerp
+  cfg:
+    scale: 7.5
+    rescale: 0
+
+condition:
+  i2v: 0.0
+  v2v: 0.0
+  sr: 1.0
+  noise_scale: 0.25
