@@ -12,11 +12,13 @@ from modules.timer import process as process_timer
 
 
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
+verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
 offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
+no_split_module_classes = ["Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
 accelerate_dtype_byte_size = None
 move_stream = None
 
@@ -237,13 +239,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
             max_memory = { device_index: self.gpu, "cpu": self.cpu }
             device_map = getattr(module, "balanced_offload_device_map", None)
             if (device_map is None) or (max_memory != getattr(module, "balanced_offload_max_memory", None)):
-                device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory)
+                device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory, no_split_module_classes=no_split_module_classes, verbose=verbose)
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if devices.backend == "directml":
-                keys = device_map.keys()
-                for v in keys:
-                    if isinstance(device_map[v], int):
-                        device_map[v] = f"{devices.device.type}:{device_map[v]}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
+                for k, v in device_map.items():
+                    if isinstance(v, int):
+                        device_map[k] = f"{devices.device.type}:{v}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
             if device_map is not None:
                 module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
