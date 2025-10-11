@@ -27,4 +27,3 @@ def set_seed(seed: Optional[int], same_across_ranks: bool = False):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-

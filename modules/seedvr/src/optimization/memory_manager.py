@@ -16,7 +16,7 @@ from src.models.dit_v2.rope import RotaryEmbeddingBase
 def preinitialize_rope_cache(runner) -> None:
     """
     🚀 Pre-initialize RoPE cache to avoid OOM at first launch
-    
+
     Args:
         runner: The model runner containing DiT and VAE models
     """
@@ -93,7 +93,7 @@ def preinitialize_rope_cache(runner) -> None:
 def clear_rope_cache(runner) -> None:
     """
     🧹 Clear RoPE cache to free VRAM
-    
+
     Args:
         runner: The model runner containing the cache
     """

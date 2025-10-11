@@ -29,13 +29,13 @@ from .infer import VideoDiffusionInfer
 __all__ = [
     # Model management
     'configure_runner',
-    'load_quantized_state_dict', 
+    'load_quantized_state_dict',
     'configure_dit_model_inference',
     'configure_vae_model_inference',
-    
+
     # Generation logic
     'generation_step',
-    'generation_loop', 
+    'generation_loop',
     'cut_videos',
     'prepare_video_transforms',
     'load_text_embeddings',
@@ -43,5 +43,5 @@ __all__ = [
 
     # Infer
     'VideoDiffusionInfer'
-] 
+]
 '''

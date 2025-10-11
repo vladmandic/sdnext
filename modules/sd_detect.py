@@ -146,7 +146,7 @@ def guess_by_diffusers(fn, current_guess):
                 if folder.endswith('quantization_config.json'):
                     is_quant = True
                     break
-                elif os.path.isdir(folder):
+                if os.path.isdir(folder):
                     for f in os.listdir(folder):
                         if f.endswith('quantization_config.json'):
                             is_quant = True

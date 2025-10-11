@@ -12,16 +12,16 @@ from src.utils.color_fix import wavelet_reconstruction
 def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, device):
     """
     Execute a single generation step with adaptive dtype handling
-    
+
     Args:
         runner: VideoDiffusionInfer instance
         text_embeds_dict (dict): Text embeddings for positive and negative prompts
         cond_latents (list): Conditional latents for generation
         temporal_overlap (int): Number of frames for temporal overlap
-        
+
     Returns:
         tuple: (samples, last_latents) for potential temporal continuation
-        
+
     Features:
         - Adaptive dtype detection (FP8/FP16/BFloat16)
         - Optimal autocast configuration for each model type
@@ -111,7 +111,7 @@ def cut_videos(videos):
 def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_size=90, temporal_overlap=0, progress_callback=None, device:str='cpu'):
     """
     Main generation loop with context-aware temporal processing
-    
+
     Args:
         runner: VideoDiffusionInfer instance
         images (torch.Tensor): Input images for upscaling
@@ -121,10 +121,10 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
         batch_size (int): Batch size for processing
         temporal_overlap (int): Frames for temporal continuity
         progress_callback (callable): Optional callback for progress reporting
-        
+
     Returns:
         torch.Tensor: Generated video frames
-        
+
     Features:
         - Context-aware generation with temporal overlap
         - Adaptive dtype pipeline (FP8/FP16/BFloat16)
@@ -300,13 +300,13 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
 def prepare_video_transforms(res_w):
     """
     Prepare optimized video transformation pipeline
-    
+
     Args:
         res_w (int): Target resolution width
-        
+
     Returns:
         Compose: Configured transformation pipeline
-        
+
     Features:
         - Resolution-aware upscaling (no downsampling)
         - Proper normalization for model compatibility
@@ -328,15 +328,15 @@ def prepare_video_transforms(res_w):
 def calculate_optimal_batch_params(total_frames, batch_size, temporal_overlap):
     """
     Calculate optimal batch processing parameters
-    
+
     Args:
         total_frames (int): Total number of frames
         batch_size (int): Desired batch size
         temporal_overlap (int): Temporal overlap frames
-        
+
     Returns:
         dict: Optimized parameters and recommendations
-        
+
     Features:
         - 4n+1 constraint optimization
         - Padding waste calculation

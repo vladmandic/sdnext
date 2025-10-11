@@ -13,16 +13,16 @@ def optimized_video_rearrange(video_tensors: List[torch.Tensor]) -> List[torch.T
     """
     🚀 OPTIMIZED version of video rearrangement
     Replaces slow loops with vectorized operations
-    
+
     Transforms:
-    - 3D: c h w -> t c h w (with t=1)  
+    - 3D: c h w -> t c h w (with t=1)
     - 4D: c t h w -> t c h w
-    
+
     Expected gains: 5-10x faster than naive loops
-    
+
     Args:
         video_tensors: List of video tensors to rearrange
-        
+
     Returns:
         List of rearranged tensors in t c h w format
     """
@@ -81,16 +81,16 @@ def optimized_single_video_rearrange(video: torch.Tensor) -> torch.Tensor:
     """
     🚀 OPTIMIZED version for single video tensor
     Replaces rearrange() with native PyTorch operations
-    
+
     Transforms:
     - 3D: c h w -> 1 c h w (add temporal dimension)
     - 4D: c t h w -> t c h w (permute dimensions)
-    
+
     Expected gains: 2-5x faster than rearrange()
-    
+
     Args:
         video: Input video tensor
-        
+
     Returns:
         Rearranged tensor with temporal dimension first
     """
@@ -106,16 +106,16 @@ def optimized_sample_to_image_format(sample: torch.Tensor) -> torch.Tensor:
     """
     🚀 OPTIMIZED version to convert sample to image format
     Replaces rearrange() with native PyTorch operations
-    
+
     Transforms:
     - 3D: c h w -> 1 h w c (add temporal dimension + permute to image format)
     - 4D: t c h w -> t h w c (permute to image format)
-    
+
     Expected gains: 2-5x faster than rearrange()
-    
+
     Args:
         sample: Input sample tensor
-        
+
     Returns:
         Tensor in image format (channels last)
     """
@@ -130,12 +130,12 @@ def optimized_sample_to_image_format(sample: torch.Tensor) -> torch.Tensor:
 def temporal_latent_blending(latents1: torch.Tensor, latents2: torch.Tensor, blend_frames: int) -> torch.Tensor:
     """
     🎨 Temporal blending in latent space to avoid discontinuities
-    
+
     Args:
         latents1: Latents from previous batch (end frames)
         latents2: Latents from current batch (start frames)
         blend_frames: Number of frames to blend
-    
+
     Returns:
         Blended latents for smooth transition
     """
@@ -155,6 +155,3 @@ def temporal_latent_blending(latents1: torch.Tensor, latents2: torch.Tensor, ble
     blended_latents = weights1 * latents1 + weights2 * latents2
 
     return blended_latents
-
-
-

@@ -90,4 +90,3 @@ class FlashAttentionVarlen(nn.Module):
             return flash_attn_varlen_func(*args, **kwargs)
         except ImportError:
             return pytorch_varlen_attention(*args, **kwargs)
-

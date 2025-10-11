@@ -71,15 +71,15 @@ def resolve_inheritance(config: Union[DictConfig, ListConfig]) -> Any:
 def import_item(path: Union[str, List[str]], name: str) -> Any:
     """
     Import a python item with fallback support.
-    
+
     Args:
         path: Single path string or list of paths to try (fallback order)
         name: Class/function name to import
-        
+
     Returns:
         Imported object
-        
-    Example: 
+
+    Example:
         import_item("path.to.file", "MyClass") -> MyClass
         import_item(["path1.to.file", "path2.to.file"], "MyClass") -> MyClass (first working path)
     """
