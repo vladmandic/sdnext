@@ -103,6 +103,23 @@ def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: tor
     return re_quantize_matmul_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, result_shape, svd_up=svd_up, svd_down=svd_down)
 
 
+def dequantize_sdnq_model(model):
+    if hasattr(model, "sdnq_dequantizer"):
+        model.weight = torch.nn.Parameter(model.sdnq_dequantizer(model.weight, model.scale, model.zero_point, model.svd_up, model.svd_down))
+        del model.sdnq_dequantizer, model.scale, model.zero_point, model.svd_up, model.svd_down
+        return model
+    has_children = list(model.children())
+    if not has_children:
+        return model
+    for module in model.children():
+        if hasattr(module, "sdnq_dequantizer"):
+            module.weight = torch.nn.Parameter(module.sdnq_dequantizer(module.weight, module.scale, module.zero_point, module.svd_up, module.svd_down))
+            del module.sdnq_dequantizer, module.scale, module.zero_point, module.svd_up, module.svd_down
+        else:
+            module = dequantize_sdnq_model(module)
+    return model
+
+
 class AsymmetricWeightsDequantizer(torch.nn.Module):
     def __init__(
         self,

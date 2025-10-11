@@ -13,7 +13,7 @@ from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
 from .common import dtype_dict, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
-from .dequantizer import dequantizer_dict
+from .dequantizer import dequantizer_dict, dequantize_sdnq_model
 from .forward import get_forward_func
 
 
@@ -712,6 +712,16 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         needed for transformers compatibilty, no-op function
         """
         return dtype
+
+    def _dequantize(self, model):
+        model = dequantize_sdnq_model(model)
+        if hasattr(model, "quantization_method"):
+            del model.quantization_method
+        if hasattr(model, "quantization_config"):
+            del model.quantization_config
+        if hasattr(model, "config") and hasattr(model.config, "quantization_config"):
+            del model.config.quantization_config
+        return model
 
     def is_serializable(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument, invalid-overridden-method
         return True
