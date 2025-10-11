@@ -16,6 +16,7 @@ re_pattern_arg = re.compile(r"(.*)<([^>]*)>$")
 re_attention = re.compile(r'[\(*\[*](\w+)(:\d+(\.\d+))?[\)*\]*]|')
 re_network = re.compile(r'\<\w+:(\w+)(:\d+(\.\d+))?\>|')
 re_brackets = re.compile(r'[\([{})\]]')
+re_leading_seq = re.compile(r'^(0*\d+)(?=[-_.\s]|$)')
 seq = 0
 NOTHING = object()
 
@@ -185,12 +186,24 @@ class FilenameGenerator:
         debug(f'Filename sanitize: input="{filename}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
         return fn
 
+    def safe_int(self, s):
+        try:
+            return int(s)
+        except (ValueError, TypeError):
+            return 0
+
     def sequence(self, fn):
         global seq # pylint: disable=global-statement
         x = fn
         dirname = os.path.dirname(fn)
         if seq == 0:
-            seq = len(os.listdir(dirname)) if os.path.exists(dirname) and os.path.isdir(dirname) else 0
+            files = os.listdir(dirname) if os.path.exists(dirname) and os.path.isdir(dirname) else []
+            files = [f for f in files if os.path.isfile(os.path.join(dirname, f))]
+            seq_files = len(files)
+            seq_nums = [re_leading_seq.match(f) for f in files]
+            seq_nums = [self.safe_int(m.group(1)) for m in seq_nums if m is not None]
+            seq_num = max(seq_nums) if len(seq_nums) > 0 else 0
+            seq = max(seq_files, seq_num)
         if shared.opts.save_images_add_number or '[seq]' in fn:
             if '[seq]' not in fn:
                 fn = os.path.join(os.path.dirname(fn), f"[seq]-{os.path.basename(fn)}")

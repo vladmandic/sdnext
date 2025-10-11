@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-09
+## Update for 2025-10-11
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -102,6 +102,7 @@
   - **preview** implement configurable layers for WAN, Qwen, HV  
   - update swagger `/docs` endpoint style  
   - add `[epoch]` to filename template  
+  - starting `[seq]` for filename template is now higher of largest previous sequence or number of files in folder  
 - **Video**
   - use shared **T5** text encoder for video models when possible  
   - use shared **LLama** text encoder for video models when possible  
