@@ -22,7 +22,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
 - [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
-- [Nunchaku PulID](https://github.com/mit-han-lab/nunchaku/pull/274)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)

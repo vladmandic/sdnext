@@ -15,10 +15,10 @@
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
     note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
+  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
+    updated version of E1 image editing model  
   - [X-Omni SFT](https://x-omni-team.github.io/)  
     *experimental*: X-omni is a transformer-only discrete autoregressive image generative model trained with reinforcement learning  
-  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
-    *experimental*: updated version of E1 image editing model  
 - **Features**
   - **Model save**: ability to save currently loaded model as a new standalone model  
     why? SD.Next always prefers to start with full model and quantize on-demand during load  

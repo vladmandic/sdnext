@@ -700,8 +700,7 @@
     "desc": "HiDream-E1 is an image editing model built on HiDream-I1.",
     "preview": "HiDream-ai--HiDream-E1-Full.jpg",
     "skip": true,
-    "extras": "sampler: Default",
-    "experimental": true
+    "extras": "sampler: Default"
   },
 
   "Kwai Kolors": {

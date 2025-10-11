@@ -37,12 +37,10 @@ pipe_switch_task_exclude = [
     'FluxFillPipeline',
     'InstantIRPipeline',
     'LTXConditionPipeline',
-    'OmniGenPipeline',
-    'OmniGen2Pipeline',
+    'OmniGenPipeline', 'OmniGen2Pipeline',
     'PhotoMakerStableDiffusionXLPipeline',
     'PixelSmithXLPipeline',
     'StableDiffusion3ControlNetPipeline',
-    'StableDiffusionAdapterPipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
     'StableDiffusionReferencePipeline',
@@ -50,10 +48,8 @@ pipe_switch_task_exclude = [
     'XOmniPipeline',
 ]
 i2i_pipes = [
-    'LEditsPPPipelineStableDiffusion',
-    'LEditsPPPipelineStableDiffusionXL',
-    'OmniGenPipeline',
-    'OmniGen2Pipeline',
+    'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
+    'OmniGenPipeline', 'OmniGen2Pipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
 ]
@@ -548,12 +544,12 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
         quantization_config_path = os.path.join(checkpoint_info.path, module_name, 'quantization_config.json')
         if not os.path.exists(quantization_config_path):
             continue
-        model_path = os.path.join(checkpoint_info.path, module_name)
+        model_name = os.path.join(checkpoint_info.path, module_name)
         quantization_config = shared.readfile(quantization_config_path, silent=True)
         shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
         try:
             modules[module_name] = sdnq.load_sdnq_model(
-                model_path=model_path,
+                model_path=model_name,
                 quantization_config=quantization_config,
                 device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
                 dtype=devices.dtype,
