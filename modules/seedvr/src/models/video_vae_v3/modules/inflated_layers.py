@@ -16,14 +16,8 @@ from functools import partial
 from typing import Literal, Optional
 from torch import Tensor
 from torch.nn import Conv3d
+from .inflated_lib import MemoryState, extend_head, inflate_bias, inflate_weight, modify_state_dict
 
-from .inflated_lib import (
-    MemoryState,
-    extend_head,
-    inflate_bias,
-    inflate_weight,
-    modify_state_dict,
-)
 
 _inflation_mode_t = Literal["none", "tail", "replicate"]
 _memory_device_t = Optional[Literal["cpu", "same"]]

@@ -15,7 +15,6 @@ from typing import Literal, Optional, Tuple, Union
 import diffusers
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from diffusers.models.attention_processor import Attention, SpatialNorm
 from diffusers.models.autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from diffusers.models.downsampling import Downsample2D
@@ -28,29 +27,12 @@ from diffusers.utils import is_torch_version
 from diffusers.utils.accelerate_utils import apply_forward_hook
 from einops import rearrange
 from ....common.half_precision_fixes import safe_pad_operation, safe_interpolate_operation
-
-from ....common.distributed.advanced import get_sequence_parallel_world_size
 from ....common.logger import get_logger
-from .causal_inflation_lib import (
-    InflatedCausalConv3d,
-    causal_norm_wrapper,
-    init_causal_conv3d,
-    remove_head,
-)
-from .context_parallel_lib import (
-    causal_conv_gather_outputs,
-    causal_conv_slice_inputs,
-)
+from .causal_inflation_lib import InflatedCausalConv3d, causal_norm_wrapper, init_causal_conv3d, remove_head
+from .context_parallel_lib import causal_conv_gather_outputs, causal_conv_slice_inputs
 from .global_config import set_norm_limit
-from .types import (
-    CausalAutoencoderOutput,
-    CausalDecoderOutput,
-    CausalEncoderOutput,
-    MemoryState,
-    _inflation_mode_t,
-    _memory_device_t,
-    _receptive_field_t,
-)
+from .types import CausalAutoencoderOutput, CausalDecoderOutput, CausalEncoderOutput, MemoryState, _inflation_mode_t, _memory_device_t,  _receptive_field_t
+
 
 logger = get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -1064,7 +1046,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         scaling_factor: float = 0.18215,
         force_upcast: float = True,
         attention: bool = True,
-        temporal_scale_num: int = 2,
+        temporal_scale_num: int = 0,
         slicing_up_num: int = 0,
         gradient_checkpoint: bool = False,
         inflation_mode: _inflation_mode_t = "tail",
@@ -1164,7 +1146,8 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
 
     @apply_forward_hook
     def encode(self, x: torch.FloatTensor, return_dict: bool = True) -> AutoencoderKLOutput:
-        h = self.slicing_encode(x)
+        # h = self.slicing_encode(x)
+        h = self.tiled_encode(x)
         posterior = DiagonalGaussianDistribution(h)
 
         if not return_dict:
@@ -1176,7 +1159,8 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
     def decode(
         self, z: torch.Tensor, return_dict: bool = True
     ) -> Union[DecoderOutput, torch.Tensor]:
-        decoded = self.slicing_decode(z)
+        # decoded = self.slicing_decode(z)
+        decoded = self.tiled_decode(z)
 
         if not return_dict:
             return (decoded,)
@@ -1208,7 +1192,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         return output.to(z.device)
 
     def slicing_encode(self, x: torch.Tensor) -> torch.Tensor:
-        sp_size = get_sequence_parallel_world_size()
+        sp_size = 1
         if self.use_slicing and (x.shape[2] - 1) > self.slicing_sample_min_size * sp_size:
             x_slices = x[:, :, 1:].split(split_size=self.slicing_sample_min_size * sp_size, dim=2)
             encoded_slices = [
@@ -1226,7 +1210,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
             return self._encode(x)
 
     def slicing_decode(self, z: torch.Tensor) -> torch.Tensor:
-        sp_size = get_sequence_parallel_world_size()
+        sp_size = 1
         if self.use_slicing and (z.shape[2] - 1) > self.slicing_latent_min_size * sp_size:
             z_slices = z[:, :, 1:].split(split_size=self.slicing_latent_min_size * sp_size, dim=2)
             decoded_slices = [
@@ -1243,12 +1227,68 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         else:
             return self._decode(z)
 
-    def tiled_encode(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
+    def blend_v(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
+        blend_extent = min(a.shape[3], b.shape[3], blend_extent)
+        for y in range(blend_extent):
+            b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (y / blend_extent)
+        return b
 
-    def tiled_decode(self, z: torch.Tensor, **kwargs) -> torch.Tensor:
-        raise NotImplementedError
+    def blend_h(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
+        blend_extent = min(a.shape[4], b.shape[4], blend_extent)
+        for x in range(blend_extent):
+            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (x / blend_extent)
+        return b
 
+    def tiled_encode(self, x: torch.Tensor) -> torch.Tensor:
+        overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
+        blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
+        row_limit = self.tile_latent_min_size - blend_extent
+        rows = []
+        for i in range(0, x.shape[3], overlap_size):
+            row = []
+            for j in range(0, x.shape[4], overlap_size):
+                tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+                tile = self._encode(tile)
+                row.append(tile)
+            rows.append(row)
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_extent)
+                result_row.append(tile[:, :, :, :row_limit, :row_limit])
+            result_rows.append(torch.cat(result_row, dim=4))
+        enc = torch.cat(result_rows, dim=3)
+        return enc
+
+    def tiled_decode(self, z: torch.Tensor) -> torch.Tensor:
+        overlap_size = int(self.tile_latent_min_size * (1 - self.tile_overlap_factor))
+        blend_extent = int(self.tile_sample_min_size * self.tile_overlap_factor)
+        row_limit = self.tile_sample_min_size - blend_extent
+        rows = []
+        for i in range(0, z.shape[3], overlap_size):
+            row = []
+            for j in range(0, z.shape[4], overlap_size):
+                tile = z[:, :, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
+                decoded = self.decoder(tile)
+                row.append(decoded)
+            rows.append(row)
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_extent)
+                result_row.append(tile[:, :, :, :row_limit, :row_limit])
+            result_rows.append(torch.cat(result_row, dim=4))
+        dec = torch.cat(result_rows, dim=3)
+        return dec
+    
     def forward(
         self, x: torch.FloatTensor, mode: Literal["encode", "decode", "all"] = "all", **kwargs
     ):

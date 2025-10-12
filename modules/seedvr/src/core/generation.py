@@ -1,11 +1,10 @@
 import torch
 from torchvision.transforms import Compose, Lambda, Normalize
-
-from src.optimization.performance import optimized_video_rearrange, optimized_single_video_rearrange, optimized_sample_to_image_format
-from src.common.seed import set_seed
-from src.data.image.transforms.divisible_crop import DivisibleCrop
-from src.data.image.transforms.na_resize import NaResize
-from src.utils.color_fix import wavelet_reconstruction
+from ..optimization.performance import optimized_video_rearrange, optimized_single_video_rearrange, optimized_sample_to_image_format
+from ..common.seed import set_seed
+from ..data.image.transforms.divisible_crop import DivisibleCrop
+from ..data.image.transforms.na_resize import NaResize
+from ..utils.color_fix import wavelet_reconstruction
 
 
 
@@ -67,8 +66,6 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
         x = runner.schedule.forward(x, aug_noise, t)
         return x
 
-    # Generate conditions with memory optimization
-    runner.dit.to(device=device)
     condition = runner.get_condition(
         noises[0],
         task="sr",
@@ -76,8 +73,8 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
     )
     conditions = [condition]
 
-    # Use adaptive autocast for optimal performance
     with torch.no_grad():
+        # Use adaptive autocast for optimal performance
         video_tensors = runner.inference(
             noises=noises,
             conditions=conditions,
@@ -92,6 +89,7 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
     cond_latents = cond_latents[0].to("cpu")
     conditions = conditions[0].to("cpu")
     condition = condition.to("cpu")
+    del noises, aug_noises, cond_latents, conditions, condition
 
     return samples #, last_latents
 
@@ -133,7 +131,6 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
         - Intelligent VRAM management throughout process
         - Real-time progress reporting
     """
-
     model_dtype = None
     model_dtype = next(runner.dit.parameters()).dtype
     compute_dtype = model_dtype
@@ -230,7 +227,6 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
 
         # Apply color correction if available
         transformed_video = transformed_video.to(device)
-
         input_video = [optimized_single_video_rearrange(transformed_video)]
         del transformed_video
         sample = wavelet_reconstruction(sample, input_video[0][:sample.size(0)])
@@ -244,56 +240,33 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
         batch_samples.append(sample_cpu)
         #del sample
 
-        # Aggressive cleanup after each batch
-        # Progress callback - batch start
         if progress_callback:
             progress_callback(batch_count+1, total_batches, current_frames, "Processing batch...")
 
-    runner.vae.to(device="cpu")
-    runner.dit.to(device="cpu")
-    # OPTIMISATION ULTIME : Pré-allocation et copie directe (évite les torch.cat multiples)
 
     # 1. Calculer la taille totale finale
     total_frames = sum(batch.shape[0] for batch in batch_samples)
     if len(batch_samples) > 0:
         sample_shape = batch_samples[0].shape
         H, W, C = sample_shape[1], sample_shape[2], sample_shape[3]
-
-        # 2. Pré-allouer le tensor final directement sur CPU (évite concatenations)
         final_video_images = torch.empty((total_frames, H, W, C), dtype=torch.float16)
-
-        # 3. Copier par blocs directement dans le tensor final
         block_size = 500
         current_idx = 0
 
         for block_start in range(0, len(batch_samples), block_size):
             block_end = min(block_start + block_size, len(batch_samples))
-
-            # Charger le bloc en VRAM
             current_block = []
             for i in range(block_start, block_end):
                 current_block.append(batch_samples[i].to(device))
-
-            # Concatener en VRAM (rapide)
             block_result = torch.cat(current_block, dim=0)
-
-            # Convertir en Float16 sur GPU
-            #if block_result.dtype != torch.float16:
-            #    block_result = block_result.to(torch.float16)
-
-            # Copier directement dans le tensor final (pas de concatenation!)
             block_frames = block_result.shape[0]
             final_video_images[current_idx:current_idx + block_frames] = block_result.to("cpu")
             current_idx += block_frames
-
-            # Nettoyage immédiat VRAM
             del current_block, block_result
     else:
         print("SeedVR2: No batch_samples to process")
         final_video_images = torch.empty((0, 0, 0, 0), dtype=torch.float16)
 
-    # Cleanup batch_samples
-    #del batch_samples
     return final_video_images
 
 

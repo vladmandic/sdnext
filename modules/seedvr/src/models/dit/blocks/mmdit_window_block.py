@@ -19,13 +19,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.utils import _triple
 from ....common.half_precision_fixes import safe_pad_operation
-from ....common.distributed.ops import (
-    gather_heads,
-    gather_heads_scatter_seq,
-    gather_seq_scatter_heads_qkv,
-    scatter_heads,
-)
-
+from ....common.distributed.ops import gather_heads, gather_heads_scatter_seq, gather_seq_scatter_heads_qkv, scatter_heads
 from ..attention import TorchAttention
 from ..mlp import get_mlp
 from ..mm import MMArg, MMModule

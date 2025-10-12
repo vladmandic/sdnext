@@ -227,7 +227,7 @@ def create_ui():
                                     quicksettings_list.append((key, item))
                                     components.append(dummy_component)
                                 else:
-                                    with gr.Row(elem_id=f"settings_section_row_{section_id}"): # only so we can add dirty indicator at the start of the row
+                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]): # only so we can add dirty indicator at the start of the row
                                         component = create_setting_component(key)
                                         shared.settings_components[key] = component
                                         current_items.append(key)

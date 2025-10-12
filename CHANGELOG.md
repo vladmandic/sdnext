@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-11
+## Update for 2025-10-12
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -17,6 +17,13 @@
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
   - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
     updated version of E1 image editing model  
+  - [SeedVR2](https://iceclear.github.io/projects/seedvr/)  
+    originally designed for video restoration, seedvr works great for image detailing and upscaling!  
+    available in 3B, 7B and 7B-sharp variants  
+    use as any other upscaler!  
+    note: seedvr is a very large model (6.4GB and 16GB respectively) and not designed for lower-end hardware  
+    note: seedvr is highly sensitive to its cfg scale (set in settings -> postprocessing),  
+    lower values will result in smoother output while higher values add details  
   - [X-Omni SFT](https://x-omni-team.github.io/)  
     *experimental*: X-omni is a transformer-only discrete autoregressive image generative model trained with reinforcement learning  
 - **Features**

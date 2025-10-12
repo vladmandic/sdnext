@@ -482,7 +482,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     from modules.sdnq import sdnq_post_load_quant
 
     if weights_dtype is None:
-        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
+        if (op is not None) and ("text_encoder" in op or op in {"TE", "LLM"}) and (shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}):
             weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
         else:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode
@@ -588,6 +588,8 @@ def sdnq_quantize_weights(sd_model):
         log.info(f"Quantization: type=SDNQ time={t1-t0:.2f}")
     except Exception as e:
         log.warning(f"Quantization: type=SDNQ {e}")
+        from modules import errors
+        errors.display(e, 'Quantization')
     return sd_model
 
 

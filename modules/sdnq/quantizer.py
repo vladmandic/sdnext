@@ -385,7 +385,6 @@ def sdnq_post_load_quant(
         modules_dtype_dict=modules_dtype_dict.copy(),
         op=op,
     )
-
     model.quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
         group_size=group_size,
@@ -402,8 +401,10 @@ def sdnq_post_load_quant(
         modules_dtype_dict=modules_dtype_dict.copy(),
     )
 
-    if hasattr(model, "config"):
+    try:
         model.config.quantization_config = model.quantization_config
+    except Exception:
+        pass
     model.quantization_method = QuantizationMethod.SDNQ
 
     return model

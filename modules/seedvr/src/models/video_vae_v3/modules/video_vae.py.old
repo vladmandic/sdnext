@@ -11,37 +11,17 @@
 
 from contextlib import nullcontext
 from typing import Optional, Tuple, Literal, Callable, Union
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 from einops import rearrange
 from ....common.half_precision_fixes import safe_pad_operation
-
-from ....common.distributed.advanced import get_sequence_parallel_world_size
 from ....common.logger import get_logger
-from .causal_inflation_lib import (
-    InflatedCausalConv3d,
-    causal_norm_wrapper,
-    init_causal_conv3d,
-    remove_head,
-)
-from .context_parallel_lib import (
-    causal_conv_gather_outputs,
-    causal_conv_slice_inputs,
-)
+from .causal_inflation_lib import InflatedCausalConv3d, causal_norm_wrapper, init_causal_conv3d, remove_head
+from .context_parallel_lib import causal_conv_gather_outputs, causal_conv_slice_inputs
 from .global_config import set_norm_limit
-from .types import (
-    CausalAutoencoderOutput,
-    CausalDecoderOutput,
-    CausalEncoderOutput,
-    MemoryState,
-    _inflation_mode_t,
-    _memory_device_t,
-    _receptive_field_t,
-    _selective_checkpointing_t,
-)
+from .types import CausalAutoencoderOutput, CausalDecoderOutput, CausalEncoderOutput, MemoryState, _inflation_mode_t, _memory_device_t, _receptive_field_t, _selective_checkpointing_t
+
 
 logger = get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -717,7 +697,7 @@ class VideoAutoencoderKL(nn.Module):
         use_post_quant_conv: bool = True,
         enc_selective_checkpointing: Tuple[_selective_checkpointing_t] = ("none",),
         dec_selective_checkpointing: Tuple[_selective_checkpointing_t] = ("none",),
-        temporal_scale_num: int = 3,
+        temporal_scale_num: int = 0,
         slicing_up_num: int = 0,
         inflation_mode: _inflation_mode_t = "tail",
         time_receptive_field: _receptive_field_t = "half",
@@ -824,7 +804,7 @@ class VideoAutoencoderKL(nn.Module):
         return x
 
     def slicing_encode(self, x: torch.Tensor) -> torch.Tensor:
-        sp_size = get_sequence_parallel_world_size()
+        sp_size = 1
         if self.use_slicing and (x.shape[2] - 1) > self.slicing_sample_min_size * sp_size:
             x_slices = x[:, :, 1:].split(split_size=self.slicing_sample_min_size * sp_size, dim=2)
             encoded_slices = [
@@ -842,7 +822,7 @@ class VideoAutoencoderKL(nn.Module):
             return self._encode(x, memory_state=MemoryState.DISABLED)
 
     def slicing_decode(self, z: torch.Tensor) -> torch.Tensor:
-        sp_size = get_sequence_parallel_world_size()
+        sp_size = 1
         if self.use_slicing and (z.shape[2] - 1) > self.slicing_latent_min_size * sp_size:
             z_slices = z[:, :, 1:].split(split_size=self.slicing_latent_min_size * sp_size, dim=2)
             decoded_slices = [

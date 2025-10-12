@@ -2,12 +2,12 @@ import importlib
 from typing import Any, Callable, List, Union
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+
 try:
     OmegaConf.register_new_resolver("eval", eval)
 except Exception as e:
     if "already registered" not in str(e):
         raise
-
 
 
 def load_config(path: str, argv: List[str] = None) -> Union[DictConfig, ListConfig]:

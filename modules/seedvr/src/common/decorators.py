@@ -2,9 +2,9 @@ import functools
 import threading
 from typing import Callable
 import torch
-
 from .distributed import barrier_if_distributed, get_global_rank, get_local_rank
 from .logger import get_logger
+
 
 logger = get_logger(__name__)
 

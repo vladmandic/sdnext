@@ -26,7 +26,6 @@ from ..cache import Cache
 from .advanced import (
     get_sequence_parallel_group,
     get_sequence_parallel_rank,
-    get_sequence_parallel_world_size,
 )
 
 from .basic import get_device
@@ -48,7 +47,7 @@ def single_all_to_all(
     """
     A function to do all-to-all on a tensor
     """
-    seq_world_size = dist.get_world_size(group)
+    seq_world_size = 1
     prev_scatter_dim = scatter_dim
     if scatter_dim != 0:
         local_input = local_input.transpose(0, scatter_dim)
@@ -80,7 +79,7 @@ def _all_to_all(
     gather_dim: int,
     group: dist.ProcessGroup,
 ):
-    seq_world_size = dist.get_world_size(group)
+    seq_world_size = 1
     input_list = [
         t.contiguous() for t in torch.tensor_split(local_input, seq_world_size, scatter_dim)
     ]
@@ -134,7 +133,7 @@ class Slice(torch.autograd.Function):
     def forward(ctx: Any, group: dist.ProcessGroup, local_input: Tensor, dim: int) -> Tensor:
         ctx.group = group
         ctx.rank = dist.get_rank(group)
-        seq_world_size = dist.get_world_size(group)
+        seq_world_size = 1
         ctx.seq_world_size = seq_world_size
         ctx.dim = dim
         dim_size = local_input.shape[dim]
@@ -163,7 +162,7 @@ class Gather(torch.autograd.Function):
         ctx.rank = dist.get_rank(group)
         ctx.dim = dim
         ctx.grad_scale = grad_scale
-        seq_world_size = dist.get_world_size(group)
+        seq_world_size = 1
         ctx.seq_world_size = seq_world_size
         dim_size = list(local_input.size())
         split_size = dim_size[0]
@@ -204,7 +203,7 @@ def gather_seq_scatter_heads_qkv(
     group = get_sequence_parallel_group()
     if not group:
         return qkv_tensor
-    world = get_sequence_parallel_world_size()
+    world = 1
     orig_shape = qkv_tensor.shape
     scatter_dim = qkv_tensor.dim()
     bef_all2all_shape = list(orig_shape)
@@ -237,7 +236,7 @@ def slice_inputs(x: Tensor, dim: int, padding: bool = True):
     if group is None:
         return x
     sp_rank = get_sequence_parallel_rank()
-    sp_world = get_sequence_parallel_world_size()
+    sp_world = 1
     dim_size = x.shape[dim]
     unit = (dim_size + sp_world - 1) // sp_world
     if padding and dim_size % sp_world:
@@ -255,7 +254,7 @@ def remove_seqeunce_parallel_padding(x: Tensor, dim: int, unpad_dim_size: int):
     group = get_sequence_parallel_group()
     if group is None:
         return x
-    sp_world = get_sequence_parallel_world_size()
+    sp_world = 1
     if unpad_dim_size % sp_world == 0:
         return x
     padding_size = sp_world - (unpad_dim_size % sp_world)
@@ -271,7 +270,7 @@ def gather_heads_scatter_seq(x: Tensor, head_dim: int, seq_dim: int) -> Tensor:
     if not group:
         return x
     dim_size = x.size(seq_dim)
-    sp_world = get_sequence_parallel_world_size()
+    sp_world = 1
     if dim_size % sp_world != 0:
         padding_size = sp_world - (dim_size % sp_world)
         x = _pad_tensor(x, seq_dim, padding_size)
@@ -424,7 +423,7 @@ class SPDistForward:
             yield inputs
         else:
             device = self.device
-            sp_world = get_sequence_parallel_world_size()
+            sp_world = 1
             sp_rank = get_sequence_parallel_rank()
             for local_step in range(sp_world):
                 src_rank = dist.get_global_rank(group, local_step)

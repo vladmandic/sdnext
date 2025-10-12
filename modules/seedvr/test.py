@@ -1,12 +1,10 @@
 import os
-import argparse
 import numpy as np
 import torch
 from PIL import Image
-from huggingface_hub import snapshot_download
 from torchvision.transforms import ToPILImage
-from src.core.generation import generation_loop
-from src.core.model_manager import configure_runner
+from .src.core.generation import generation_loop
+from .src.core.model_manager import configure_runner
 
 
 

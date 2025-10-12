@@ -164,6 +164,8 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.unet = function(sd_model.unet, op="unet", sd_model=sd_model)
         if hasattr(sd_model, 'transformer') and hasattr(sd_model.transformer, 'config'):
             sd_model.transformer = function(sd_model.transformer, op="transformer", sd_model=sd_model)
+        if hasattr(sd_model, 'dit') and hasattr(sd_model.dit, 'config'):
+            sd_model.dit = function(sd_model.dit, op="dit", sd_model=sd_model)
         if hasattr(sd_model, 'transformer_2') and hasattr(sd_model.transformer_2, 'config'):
             sd_model.transformer_2 = function(sd_model.transformer_2, op="transformer_2", sd_model=sd_model)
         if hasattr(sd_model, 'transformer_3') and hasattr(sd_model.transformer_3, 'config'):

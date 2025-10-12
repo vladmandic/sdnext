@@ -19,8 +19,8 @@ Logging utility functions.
 import logging
 import sys
 from typing import Optional
-
 from .distributed import get_global_rank, get_local_rank, get_world_size
+
 
 _default_handler = logging.StreamHandler(sys.stdout)
 _default_handler.setFormatter(

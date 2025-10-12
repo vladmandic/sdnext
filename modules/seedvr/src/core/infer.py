@@ -1,38 +1,12 @@
-# // Copyright (c) 2025 Bytedance Ltd. and/or its affiliates
-# //
-# // Licensed under the Apache License, Version 2.0 (the "License");
-# // you may not use this file except in compliance with the License.
-# // You may obtain a copy of the License at
-# //
-# //     http://www.apache.org/licenses/LICENSE-2.0
-# //
-# // Unless required by applicable law or agreed to in writing, software
-# // distributed under the License is distributed on an "AS IS" BASIS,
-# // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# // See the License for the specific language governing permissions and
-# // limitations under the License.
-
 from typing import List, Optional, Tuple, Union
 import torch
 from einops import rearrange
 from omegaconf import DictConfig, ListConfig
-from torch import Tensor
-from src.common.diffusion import (
-    classifier_free_guidance_dispatcher,
-    create_sampler_from_config,
-    create_sampling_timesteps_from_config,
-    create_schedule_from_config,
-)
-from src.common.distributed import (
-    get_device,
-)
-
-# from common.fs import download
-
-from src.models.dit_v2 import na
+from ..common.diffusion import classifier_free_guidance_dispatcher, create_sampler_from_config, create_sampling_timesteps_from_config, create_schedule_from_config
+from ..models.dit_v2 import na
 
 
-def optimized_channels_to_last(tensor):
+def optimized_channels_to_last(tensor: torch.Tensor) -> torch.Tensor:
     """🚀 Optimized replacement for rearrange(tensor, 'b c ... -> b ... c')
     Moves channels from position 1 to last position using PyTorch native operations.
     """
@@ -74,7 +48,7 @@ class VideoDiffusionInfer():
         self.dit = None
         self.sampler = None
         self.schedule = None
-    def get_condition(self, latent: Tensor, latent_blur: Tensor, task: str) -> Tensor:
+    def get_condition(self, latent: torch.Tensor, latent_blur: torch.Tensor, task: str) -> torch.Tensor:
         t, h, w, c = latent.shape
         cond = torch.zeros([t, h, w, c + 1], device=latent.device, dtype=latent.dtype)
         if task == "t2v" or t == 1:
@@ -118,22 +92,18 @@ class VideoDiffusionInfer():
     # -------------------------------- Helper ------------------------------- #
 
     @torch.no_grad()
-    def vae_encode(self, samples: List[Tensor]) -> List[Tensor]:
-        self.dit.to(device="cpu")
-        self.vae.to(device=self.device)
-
+    def vae_encode(self, samples: List[torch.Tensor]) -> List[torch.Tensor]:
         use_sample = self.config.vae.get("use_sample", True)
         latents = []
         if len(samples) > 0:
-            device = get_device()
             dtype = self.vae.dtype
             scale = self.config.vae.scaling_factor
             shift = self.config.vae.get("shifting_factor", 0.0)
 
             if isinstance(scale, ListConfig):
-                scale = torch.tensor(scale, device=device, dtype=dtype)
+                scale = torch.tensor(scale, device=self.device, dtype=dtype)
             if isinstance(shift, ListConfig):
-                shift = torch.tensor(shift, device=device, dtype=dtype)
+                shift = torch.tensor(shift, device=self.device, dtype=dtype)
 
             # Group samples of the same shape to batches if enabled.
             if self.config.vae.grouping:
@@ -143,7 +113,7 @@ class VideoDiffusionInfer():
 
             # Vae process by each group.
             for sample in batches:
-                sample = sample.to(device, dtype)
+                sample = sample.to(self.device, dtype)
                 if hasattr(self.vae, "preprocess"):
                     sample = self.vae.preprocess(sample)
                 if use_sample:
@@ -162,19 +132,15 @@ class VideoDiffusionInfer():
                 latents = na.unpack(latents, indices)
             else:
                 latents = [latent.squeeze(0) for latent in latents]
-
-        self.vae.to(device="cpu")
         return latents
 
 
     @torch.no_grad()
-    def vae_decode(self, latents: List[Tensor], target_dtype: torch.dtype = None) -> List[Tensor]:
+    def vae_decode(self, latents: List[torch.Tensor], target_dtype: torch.dtype = None) -> List[torch.Tensor]:
         """🚀 VAE decode optimisé - décodage direct sans chunking, compatible avec autocast externe"""
-        self.dit.to(device="cpu")
-        self.vae.to(device=self.device)
         samples = []
         if len(latents) > 0:
-            device = get_device()
+            device = self.device
             dtype = self.vae.dtype
             scale = self.config.vae.scaling_factor
             shift = self.config.vae.get("shifting_factor", 0.0)
@@ -218,10 +184,9 @@ class VideoDiffusionInfer():
                 samples = na.unpack(samples, indices)
             else:
                 samples = [sample.squeeze(0) for sample in samples]
-        self.vae.to(device="cpu")
         return samples
 
-    def timestep_transform(self, timesteps: Tensor, latents_shapes: Tensor):
+    def timestep_transform(self, timesteps: torch.Tensor, latents_shapes: torch.Tensor):
         # Skip if not needed.
         if not self.config.diffusion.timesteps.get("transform", False):
             return timesteps
@@ -256,13 +221,13 @@ class VideoDiffusionInfer():
     @torch.no_grad()
     def inference(
         self,
-        noises: List[Tensor],
-        conditions: List[Tensor],
-        texts_pos: Union[List[str], List[Tensor], List[Tuple[Tensor]]],
-        texts_neg: Union[List[str], List[Tensor], List[Tuple[Tensor]]],
+        noises: List[torch.Tensor],
+        conditions: List[torch.Tensor],
+        texts_pos: Union[List[str], List[torch.Tensor], List[Tuple[torch.Tensor]]],
+        texts_neg: Union[List[str], List[torch.Tensor], List[Tuple[torch.Tensor]]],
         cfg_scale: Optional[float] = None,
         temporal_overlap: int = 0, # pylint: disable=unused-argument
-    ) -> List[Tensor]:
+    ) -> List[torch.Tensor]:
         assert len(noises) == len(conditions) == len(texts_pos) == len(texts_neg)
         batch_size = len(noises)
 
@@ -316,6 +281,7 @@ class VideoDiffusionInfer():
         # Adapter les latents au dtype cible (compatible avec FP8)
         latents = latents.to(target_dtype) if latents.dtype != target_dtype else latents
         latents_cond = latents_cond.to(target_dtype) if latents_cond.dtype != target_dtype else latents_cond
+        self.dit = self.dit.to(device=self.device, dtype=target_dtype)
 
         latents = self.sampler.sample(
             x=latents,

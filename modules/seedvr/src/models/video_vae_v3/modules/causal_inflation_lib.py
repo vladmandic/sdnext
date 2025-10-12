@@ -21,29 +21,10 @@ from diffusers.models.normalization import RMSNorm
 from einops import rearrange
 from torch import Tensor, nn
 from torch.nn import Conv3d
-
 from .context_parallel_lib import cache_send_recv, get_cache_size
 from .global_config import get_norm_limit
 from .types import MemoryState, _inflation_mode_t, _memory_device_t
 from ....common.half_precision_fixes import safe_pad_operation
-
-# Single GPU inference - no distributed processing needed
-
-# Mock distributed functions for single GPU inference
-def get_sequence_parallel_group():
-    return None
-
-def get_sequence_parallel_rank():
-    return 0
-
-def get_sequence_parallel_world_size():
-    return 1
-
-def get_next_sequence_parallel_rank():
-    return 0
-
-def get_prev_sequence_parallel_rank():
-    return 0
 
 
 @contextmanager
@@ -172,7 +153,6 @@ class InflatedCausalConv3d(Conv3d):
         if (
             math.isinf(self.memory_limit)
             and torch.is_tensor(input)
-            and get_sequence_parallel_group() is None
         ):
             return self.basic_forward(input, memory_state)
         return self.slicing_forward(input, memory_state)

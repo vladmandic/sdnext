@@ -274,7 +274,10 @@ class OffloadHook(accelerate.hooks.ModelHook):
 
 def get_pipe_variants(pipe=None):
     if pipe is None:
-        pipe = shared.sd_model
+        if shared.sd_loaded:
+            pipe = shared.sd_model
+        else:
+            return [pipe]
     variants = [pipe]
     if hasattr(pipe, "pipe"):
         variants.append(pipe.pipe)
@@ -287,7 +290,10 @@ def get_pipe_variants(pipe=None):
 
 def get_module_names(pipe=None, exclude=[]):
     if pipe is None:
-        pipe = shared.sd_model
+        if shared.sd_loaded:
+            pipe = shared.sd_model
+        else:
+            return []
     if hasattr(pipe, "_internal_dict"):
         modules_names = pipe._internal_dict.keys() # pylint: disable=protected-access
     else:

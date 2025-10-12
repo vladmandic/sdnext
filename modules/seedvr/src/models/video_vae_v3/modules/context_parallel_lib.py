@@ -14,10 +14,7 @@
 
 from typing import List
 import torch
-import torch.nn.functional as F
 from torch import Tensor
-
-from .types import MemoryState
 
 # Single GPU inference - no distributed processing needed
 

@@ -19,8 +19,8 @@ import torch
 from diffusers.models.normalization import RMSNorm
 from einops import rearrange
 from torch import Tensor, nn
-
 from ....common.logger import get_logger
+
 
 logger = get_logger(__name__)
 
