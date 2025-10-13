@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms import ToPILImage
-from installer import install
 from modules import devices
 from modules.shared import opts, log
 from modules.upscaler import Upscaler, UpscalerData
@@ -33,7 +32,6 @@ class UpscalerSeedVR(Upscaler):
     def load_model(self, path: str):
         model_name = MODELS_MAP.get(path, None)
         if (self.model is None) or (self.model_loaded != model_name):
-            install('rotary_embedding_torch')
             log.debug(f'Upscaler loading: name="{self.name}" model="{model_name}"')
             t0 = time.time()
             from modules.seedvr.src.core.model_manager import configure_runner

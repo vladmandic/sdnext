@@ -16,10 +16,9 @@ from functools import lru_cache
 from typing import Tuple
 import torch
 from einops import rearrange
-from rotary_embedding_torch import RotaryEmbedding, apply_rotary_emb
 from torch import nn
-
 from ...common.cache import Cache
+from ....rotary_embedding import RotaryEmbedding
 
 
 class RotaryEmbeddingBase(nn.Module):
