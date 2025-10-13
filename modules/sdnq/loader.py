@@ -10,10 +10,18 @@ from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 
 def get_module_names(model: ModelMixin) -> list:
     modules_names = model._internal_dict.keys() # pylint: disable=protected-access
-    modules_names = [m for m in modules_names if not m.startswith('_')]
+    modules_names = [m for m in modules_names if not m.startswith("_")]
     modules_names = [m for m in modules_names if isinstance(getattr(model, m, None), torch.nn.Module)]
     modules_names = sorted(set(modules_names))
     return modules_names
+
+
+def unset_config_on_save(config: SDNQConfig) -> SDNQConfig:
+    config.quantization_config.quantization_device = None
+    config.quantization_config.return_device = None
+    config.quantization_config.non_blocking = False
+    config.quantization_config.add_skip_keys = False
+    return config
 
 
 def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
@@ -21,35 +29,20 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
         for module_name in get_module_names(model):
             module = getattr(model, module_name, None)
             if hasattr(module, "config") and hasattr(module.config, "quantization_config") and isinstance(module.config.quantization_config, SDNQConfig):
-                module.config.quantization_config.quantization_device = None
-                module.config.quantization_config.return_device = None
-                module.config.quantization_config.non_blocking = False
-                module.config.quantization_config.add_skip_keys = False
+                module.config.quantization_config = unset_config_on_save(module.config.quantization_config)
             if hasattr(module, "quantization_config") and isinstance(module.quantization_config, SDNQConfig):
-                module.quantization_config.quantization_device = None
-                module.quantization_config.return_device = None
-                module.quantization_config.non_blocking = False
-                module.quantization_config.add_skip_keys = False
+                module.quantization_config = unset_config_on_save(module.quantization_config)
     else:
         if hasattr(model, "config") and hasattr(model.config, "quantization_config") and isinstance(model.config.quantization_config, SDNQConfig):
-            model.config.quantization_config.quantization_device = None
-            model.config.quantization_config.return_device = None
-            model.config.quantization_config.non_blocking = False
-            model.config.quantization_config.add_skip_keys = False
+            model.config.quantization_config = unset_config_on_save(model.config.quantization_config)
         if hasattr(model, "quantization_config") and isinstance(model.quantization_config, SDNQConfig):
-            model.quantization_config.quantization_device = None
-            model.quantization_config.return_device = None
-            model.quantization_config.non_blocking = False
-            model.quantization_config.add_skip_keys = False
+            model.quantization_config = unset_config_on_save(model.quantization_config)
 
     model.save_pretrained(model_path, max_shard_size=max_shard_size) # actual save
 
     quantization_config_path = os.path.join(model_path, "quantization_config.json")
     if sdnq_config is not None: # if provided, save global config
-        sdnq_config.quantization_device = None
-        sdnq_config.return_device = None
-        sdnq_config.non_blocking = False
-        sdnq_config.add_skip_keys = False
+        sdnq_config = unset_config_on_save(sdnq_config)
         sdnq_config.to_json_file(quantization_config_path)
 
     if is_pipeline:
@@ -69,7 +62,7 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
             model.config.quantization_config.to_json_file(quantization_config_path)
 
 
-def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = 'cpu', dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
+def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = "cpu", dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
     from accelerate import init_empty_weights
     from safetensors.torch import safe_open
 
@@ -83,7 +76,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
         if model_config is None:
             try:
-                with open(os.path.join(model_path, 'config.json'), "r", encoding="utf-8") as f:
+                with open(os.path.join(model_path, "config.json"), "r", encoding="utf-8") as f:
                     model_config = json.load(f)
             except Exception:
                 model_config = {}

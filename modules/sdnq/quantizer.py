@@ -12,7 +12,7 @@ from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 from diffusers.utils import get_module_from_name
 from modules import devices, shared
 
-from .common import dtype_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
+from .common import dtype_dict, module_skip_keys_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
 from .dequantizer import dequantizer_dict, dequantize_sdnq_model
 from .forward import get_forward_func
 
@@ -49,13 +49,13 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
     return quantized_weight, scale, zero_point
 
 
-def apply_svdquant(weight: torch.FloatTensor, rank: int = 32) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
+def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
     reshape_weight = False
     if weight.ndim > 2: # convs
         reshape_weight = True
         weight_shape = weight.shape
         weight = weight.flatten(1,-1)
-    U, S, svd_down = torch.svd_lowrank(weight, q=rank)
+    U, S, svd_down = torch.svd_lowrank(weight, q=rank, niter=niter)
     svd_up = torch.mul(U, S.unsqueeze(0))
     svd_down = svd_down.t_()
     weight = weight.sub_(torch.mm(svd_up, svd_down))
@@ -64,8 +64,79 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32) -> Tuple[torch.Flo
     return weight, svd_up, svd_down
 
 
+def check_param_name_in(param_name: str, param_list: List[str]) -> bool:
+    split_param_name = param_name.split(".")
+    for param in param_list:
+        if param.startswith("."):
+            if param_name.startswith(param[1:]):
+                return True
+            else:
+                continue
+        if (
+            param_name == param
+            or param in split_param_name
+            or ("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name))
+        ):
+            return True
+    return False
+
+
+def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: Dict[str, List[str]]):
+    if len(modules_dtype_dict.keys()) > 0:
+        for key, value in modules_dtype_dict.items():
+            if check_param_name_in(param_name, value):
+                key = key.lower()
+                if key in {"8bit", "8bits"}:
+                    if dtype_dict[weights_dtype]["num_bits"] != 8:
+                        return "int8"
+                elif key.startswith("minimum_"):
+                    minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                    if minimum_bits_str.startswith("uint"):
+                        is_unsigned = True
+                        minimum_bits_str = minimum_bits_str.removeprefix("uint")
+                    else:
+                        is_unsigned = False
+                        minimum_bits_str = minimum_bits_str.removeprefix("int")
+                    minimum_bits = int(minimum_bits_str)
+                    if dtype_dict[weights_dtype]["num_bits"] < minimum_bits:
+                        if is_unsigned or minimum_bits <= 4:
+                            return "uint" + minimum_bits_str
+                        else:
+                            return "int" + minimum_bits_str
+                else:
+                    return key
+    return weights_dtype
+
+
+def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None):
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
+    if getattr(model, "_keep_in_fp32_modules", None) is not None:
+        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+
+    skip_key_list = module_skip_keys_dict.get(model.__class__.__name__, None)
+    if skip_key_list is not None:
+        modules_to_not_convert.extend(skip_key_list[0])
+        for key, value in skip_key_list[1].items():
+            if key in modules_dtype_dict.keys():
+                modules_dtype_dict[key].extend(value)
+            else:
+                modules_dtype_dict[key] = value
+    elif getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+
+    # dedupe
+    modules_to_not_convert = list(set(modules_to_not_convert))
+    for key, value in modules_dtype_dict.items():
+        modules_dtype_dict[key] = list(set(value))
+
+    return model, modules_to_not_convert, modules_dtype_dict
+
+
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in allowed_types:
         num_of_groups = 1
@@ -128,7 +199,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             layer.weight.data = layer.weight.to(dtype=torch.float32)
 
         if use_svd:
-            layer.weight.data, svd_up, svd_down = apply_svdquant(layer.weight, rank=svd_rank)
+            layer.weight.data, svd_up, svd_down = apply_svdquant(layer.weight, rank=svd_rank, niter=svd_steps)
             if use_quantized_matmul:
                 svd_up = svd_up.t_()
                 svd_down = svd_down.t_()
@@ -237,7 +308,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
     return layer
 
 
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name="", op=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name="", op=None): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -252,12 +323,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
             param_name = full_param_name + "." + param_name
         if hasattr(module, "weight") and module.weight is not None:
             param_name = param_name + ".weight"
-            split_param_name = param_name.split(".")
-            if (
-                param_name in modules_to_not_convert
-                or any(param in split_param_name for param in modules_to_not_convert)
-                or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in modules_to_not_convert)
-            ):
+            if check_param_name_in(param_name, modules_to_not_convert):
                 continue
             layer_class_name = module.__class__.__name__
             if layer_class_name in allowed_types:
@@ -265,33 +331,15 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                     continue
             else:
                 continue
-            if len(modules_dtype_dict.keys()) > 0:
-                for key, value in modules_dtype_dict.items():
-                    if (
-                        param_name in value
-                        or any(param in split_param_name for param in value)
-                        or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in value)
-                    ):
-                        key = key.lower()
-                        if key in {"8bit", "8bits"}:
-                            if dtype_dict[weights_dtype]["num_bits"] != 8:
-                                weights_dtype = "int8"
-                        elif key.startswith("minimum_"):
-                            minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
-                            minimum_bits = int(minimum_bits_str)
-                            if dtype_dict[weights_dtype]["num_bits"] < minimum_bits:
-                                weights_dtype = "int" + minimum_bits_str
-                                if minimum_bits <= 4:
-                                    weights_dtype = "u" + weights_dtype
-                        else:
-                            weights_dtype = key
 
+            weights_dtype = get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict)
             module = sdnq_quantize_layer(
                 module,
                 weights_dtype=weights_dtype,
                 torch_dtype=torch_dtype,
                 group_size=group_size,
                 svd_rank=svd_rank,
+                svd_steps=svd_steps,
                 use_svd=use_svd,
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
@@ -308,6 +356,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 torch_dtype=torch_dtype,
                 group_size=group_size,
                 svd_rank=svd_rank,
+                svd_steps=svd_steps,
                 use_svd=use_svd,
                 quant_conv=quant_conv,
                 use_quantized_matmul=use_quantized_matmul,
@@ -324,32 +373,13 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
     return model
 
 
-def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None):
-    if modules_to_not_convert is None:
-        modules_to_not_convert = []
-    if modules_dtype_dict is None:
-        modules_dtype_dict = {}
-    if getattr(model, "_keep_in_fp32_modules", None) is not None:
-        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
-    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
-    if model.__class__.__name__ == "ChromaTransformer2DModel":
-        modules_to_not_convert.append("distilled_guidance_layer")
-    elif model.__class__.__name__ == "QwenImageTransformer2DModel":
-        modules_to_not_convert.extend(["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"])
-        if "minimum_6bit" not in modules_dtype_dict.keys():
-            modules_dtype_dict["minimum_6bit"] = ["img_mod"]
-        else:
-            modules_dtype_dict["minimum_6bit"].append("img_mod")
-    return model, modules_to_not_convert, modules_dtype_dict
-
-
 def sdnq_post_load_quant(
     model,
     weights_dtype="int8",
     torch_dtype: torch.dtype = None,
     group_size: int = 0,
     svd_rank: int = 32,
+    svd_steps: int = 8,
     use_svd: bool = False,
     quant_conv: bool = False,
     use_quantized_matmul: bool = False,
@@ -373,6 +403,7 @@ def sdnq_post_load_quant(
         torch_dtype=torch_dtype,
         group_size=group_size,
         svd_rank=svd_rank,
+        svd_steps=svd_steps,
         use_svd=use_svd,
         quant_conv=quant_conv,
         use_quantized_matmul=use_quantized_matmul,
@@ -389,6 +420,7 @@ def sdnq_post_load_quant(
         weights_dtype=weights_dtype,
         group_size=group_size,
         svd_rank=svd_rank,
+        svd_steps=svd_steps,
         use_svd=use_svd,
         quant_conv=quant_conv,
         use_quantized_matmul=use_quantized_matmul,
@@ -433,12 +465,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if hasattr(layer, "sdnq_dequantizer"):
                 return True
         elif param_name.endswith(".weight"):
-            split_param_name = param_name.split(".")
-            if (
-                param_name not in self.quantization_config.modules_to_not_convert
-                and not any(param in split_param_name for param in self.quantization_config.modules_to_not_convert)
-                and not any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in self.quantization_config.modules_to_not_convert)
-            ):
+            if not check_param_name_in(param_name, self.quantization_config.modules_to_not_convert):
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
                     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
@@ -485,28 +512,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             setattr(layer, tensor_name, param_value)
             return
 
-        weights_dtype = self.quantization_config.weights_dtype
-        if len(self.quantization_config.modules_dtype_dict.keys()) > 0:
-            split_param_name = param_name.split(".")
-            for key, value in self.quantization_config.modules_dtype_dict.items():
-                if (
-                    param_name in value
-                    or any(param in split_param_name for param in value)
-                    or any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in value)
-                ):
-                    key = key.lower()
-                    if key in {"8bit", "8bits"}:
-                        if dtype_dict[weights_dtype]["num_bits"] != 8:
-                            weights_dtype = "int8"
-                    elif key.startswith("minimum_"):
-                        minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
-                        minimum_bits = int(minimum_bits_str)
-                        if dtype_dict[weights_dtype]["num_bits"] < minimum_bits:
-                            weights_dtype = "int" + minimum_bits_str
-                            if minimum_bits <= 4:
-                                weights_dtype = "u" + weights_dtype
-                    else:
-                        weights_dtype = key
+        torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
+        weights_dtype = get_minimum_dtype(self.quantization_config.weights_dtype, param_name, self.quantization_config.modules_dtype_dict)
 
         if self.quantization_config.return_device is not None:
             return_device = self.quantization_config.return_device
@@ -516,7 +523,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         if self.quantization_config.quantization_device is not None:
             target_device = self.quantization_config.quantization_device
 
-        torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
         if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
             param_value = param_value.clone()
         else:
@@ -530,6 +536,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             torch_dtype=torch_dtype,
             group_size=self.quantization_config.group_size,
             svd_rank=self.quantization_config.svd_rank,
+            svd_steps=self.quantization_config.svd_steps,
             use_svd=self.quantization_config.use_svd,
             quant_conv=self.quantization_config.quant_conv,
             use_quantized_matmul=self.quantization_config.use_quantized_matmul,
@@ -638,6 +645,8 @@ class SDNQConfig(QuantizationConfigMixin):
             group_size = 0 will automatically select a group size based on weights_dtype.
         svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
+        svd_steps (`int`, *optional*, defaults to `8`):
+            The number of iterations to use in svd lowrank estimation.
         use_svd (`bool`, *optional*, defaults to `False`):
             Enabling this option will use SVDQuant algorithm on top of SDNQ quantization.
         quant_conv (`bool`, *optional*, defaults to `False`):
@@ -668,6 +677,7 @@ class SDNQConfig(QuantizationConfigMixin):
         weights_dtype: str = "int8",
         group_size: int = 0,
         svd_rank: int = 32,
+        svd_steps: int = 8,
         use_svd: bool = False,
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
@@ -685,6 +695,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.quant_method = QuantizationMethod.SDNQ
         self.group_size = group_size
         self.svd_rank = svd_rank
+        self.svd_steps = svd_steps
         self.use_svd = use_svd
         self.quant_conv = quant_conv
         self.use_quantized_matmul = use_quantized_matmul

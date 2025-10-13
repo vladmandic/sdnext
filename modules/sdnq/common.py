@@ -80,3 +80,19 @@ if use_torch_compile:
 else:
     def compile_func(fn, **kwargs): # pylint: disable=unused-argument
         return fn
+
+
+module_skip_keys_dict = {
+    "FluxTransformer2DModel": [
+        ["single_transformer_blocks.0.norm.linear.weight", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "ChromaTransformer2DModel": [
+        ["distilled_guidance_layer", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "QwenImageTransformer2DModel": [
+        ["transformer_blocks.0.img_mod.1.weight", ".time_text_embed", ".txt_in", ".img_in", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+}

@@ -196,6 +196,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                 torch_dtype=devices.dtype,
                 group_size=shared.opts.sdnq_quantize_weights_group_size,
                 svd_rank=shared.opts.sdnq_svd_rank,
+                svd_steps=shared.opts.sdnq_svd_steps,
                 use_svd=shared.opts.sdnq_use_svd,
                 quant_conv=shared.opts.sdnq_quantize_conv_layers,
                 use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
