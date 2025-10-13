@@ -421,11 +421,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     required_packages = None
     torch_dtype = None
 
-    def __init__(self, quantization_config, **kwargs):
-        super().__init__(quantization_config, **kwargs)
-        self.modules_to_not_convert = []
-        self.updated_expected_keys = False
-
     def check_if_quantized_param(
         self,
         model,
@@ -433,14 +428,16 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         param_name: str,
         *args, **kwargs, # pylint: disable=unused-argument
     ):
-        if self.pre_quantized and self.updated_expected_keys and (param_name.endswith(".scale") or param_name.endswith(".zero_point") or param_name.endswith(".svd_up") or param_name.endswith(".svd_down")):
-            return True
-        if param_name.endswith(".weight"):
+        if self.pre_quantized:
+            layer, tensor_name = get_module_from_name(model, param_name)
+            if hasattr(layer, "sdnq_dequantizer"):
+                return True
+        elif param_name.endswith(".weight"):
             split_param_name = param_name.split(".")
             if (
-                param_name not in self.modules_to_not_convert
-                and not any(param in split_param_name for param in self.modules_to_not_convert)
-                and not any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in self.modules_to_not_convert)
+                param_name not in self.quantization_config.modules_to_not_convert
+                and not any(param in split_param_name for param in self.quantization_config.modules_to_not_convert)
+                and not any("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name) for param in self.quantization_config.modules_to_not_convert)
             ):
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
@@ -449,7 +446,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                             return True
                     else:
                         return True
-        if param_value is not None:
+        if param_value is not None and param_value.device.type == "cpu":
             with devices.inference_context():
                 param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         return False
@@ -476,10 +473,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         state_dict: Dict[str, Any],
         *args, **kwargs, # pylint: disable=unused-argument
     ):
-        if self.pre_quantized and self.updated_expected_keys and (param_name.endswith(".scale") or param_name.endswith(".zero_point") or param_name.endswith(".svd_up") or param_name.endswith(".svd_down")):
+        if self.pre_quantized:
             layer, tensor_name = get_module_from_name(model, param_name)
-            return_dtype = torch.float32 if self.quantization_config.dequantize_fp32 else self.torch_dtype if self.torch_dtype is not None else param_value.dtype
             if param_value is not None:
+                return_dtype = param_value.dtype if tensor_name == "weight" else torch.float32 if self.quantization_config.dequantize_fp32 else self.torch_dtype if self.torch_dtype is not None else param_value.dtype
                 if param_value.dtype == return_dtype and devices.same_device(param_value.device, target_device):
                     param_value = param_value.clone()
                 else:
@@ -519,88 +516,30 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         if self.quantization_config.quantization_device is not None:
             target_device = self.quantization_config.quantization_device
 
-        if not self.pre_quantized:
-            torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
-            if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
-                param_value = param_value.clone()
-            else:
-                param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
-
-            layer, _ = get_module_from_name(model, param_name)
-            layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
-            layer = sdnq_quantize_layer(
-                layer,
-                weights_dtype=weights_dtype,
-                torch_dtype=torch_dtype,
-                group_size=self.quantization_config.group_size,
-                svd_rank=self.quantization_config.svd_rank,
-                use_svd=self.quantization_config.use_svd,
-                quant_conv=self.quantization_config.quant_conv,
-                use_quantized_matmul=self.quantization_config.use_quantized_matmul,
-                use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
-                dequantize_fp32=self.quantization_config.dequantize_fp32,
-                non_blocking=self.quantization_config.non_blocking,
-                quantization_device=None,
-                return_device=return_device,
-                param_name=param_name,
-            )
+        torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
+        if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
+            param_value = param_value.clone()
         else:
-            from accelerate import init_empty_weights
-            layer, _ = get_module_from_name(model, param_name)
-            torch_dtype = layer.weight.dtype if self.torch_dtype is None else self.torch_dtype
+            param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
 
-            if self.updated_expected_keys: # prevent overwrite to meta
-                scale, zero_point, svd_up, svd_down = None, None, None, None
-                if hasattr(layer, "scale") and layer.scale.device.type != "meta":
-                    scale = layer.scale
-                    del layer.scale
-                if hasattr(layer, "zero_point") and layer.zero_point.device.type != "meta":
-                    zero_point = layer.zero_point
-                    del layer.zero_point
-                if hasattr(layer, "svd_up") and layer.svd_up.device.type != "meta":
-                    svd_up = layer.svd_up
-                    del layer.svd_up
-                if hasattr(layer, "svd_down") and layer.svd_down.device.type != "meta":
-                    svd_down = layer.svd_down
-                    del layer.svd_down
-
-            with init_empty_weights():
-                # add sdnq_dequantizer
-                layer = sdnq_quantize_layer(
-                    layer,
-                    weights_dtype=weights_dtype,
-                    torch_dtype=torch_dtype,
-                    group_size=self.quantization_config.group_size,
-                    svd_rank=self.quantization_config.svd_rank,
-                    use_svd=self.quantization_config.use_svd,
-                    quant_conv=self.quantization_config.quant_conv,
-                    use_quantized_matmul=self.quantization_config.use_quantized_matmul,
-                    use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
-                    dequantize_fp32=self.quantization_config.dequantize_fp32,
-                    non_blocking=self.quantization_config.non_blocking,
-                    quantization_device="meta",
-                    return_device="meta",
-                    param_name=param_name,
-                )
-
-            layer.weight = torch.nn.Parameter(param_value.clone().to(target_device), requires_grad=False)
-            if self.updated_expected_keys: # Transformers
-                if scale is not None:
-                    layer.scale = torch.nn.Parameter(scale, requires_grad=False)
-                if zero_point is not None:
-                    layer.zero_point = torch.nn.Parameter(zero_point, requires_grad=False)
-                if svd_up is not None:
-                    layer.svd_up = torch.nn.Parameter(svd_up, requires_grad=False)
-                if svd_down is not None:
-                    layer.svd_down = torch.nn.Parameter(svd_down, requires_grad=False)
-            else: # Diffusers doesn't have the API for updating expected keys
-                layer_key = param_name.removesuffix(".weight")
-                layer.scale = torch.nn.Parameter(state_dict[layer_key + ".scale"].clone().to(target_device), requires_grad=False)
-                if layer.zero_point is not None:
-                    layer.zero_point = torch.nn.Parameter(state_dict[layer_key + ".zero_point"].clone().to(target_device), requires_grad=False)
-                if layer.svd_up is not None:
-                    layer.svd_up = torch.nn.Parameter(state_dict[layer_key + ".svd_up"].clone().to(target_device), requires_grad=False)
-                    layer.svd_down = torch.nn.Parameter(state_dict[layer_key + ".svd_down"].clone().to(target_device), requires_grad=False)
+        layer, _ = get_module_from_name(model, param_name)
+        layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
+        layer = sdnq_quantize_layer(
+            layer,
+            weights_dtype=weights_dtype,
+            torch_dtype=torch_dtype,
+            group_size=self.quantization_config.group_size,
+            svd_rank=self.quantization_config.svd_rank,
+            use_svd=self.quantization_config.use_svd,
+            quant_conv=self.quantization_config.quant_conv,
+            use_quantized_matmul=self.quantization_config.use_quantized_matmul,
+            use_quantized_matmul_conv=self.quantization_config.use_quantized_matmul_conv,
+            dequantize_fp32=self.quantization_config.dequantize_fp32,
+            non_blocking=self.quantization_config.non_blocking,
+            quantization_device=None,
+            return_device=return_device,
+            param_name=param_name,
+        )
 
     def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
         max_memory = {key: val * 0.80 for key, val in max_memory.items()}
@@ -620,30 +559,32 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         keep_in_fp32_modules: List[str] = None,
         **kwargs, # pylint: disable=unused-argument
     ):
+        if self.pre_quantized:
+            from accelerate import init_empty_weights
+            self.quantization_config.quantization_device = None
+            self.quantization_config.return_device = None
+            self.quantization_config.non_blocking = False
+            self.quantization_config.add_skip_keys = False
+
+            quantization_config_dict = self.quantization_config.to_dict()
+            quantization_config_dict.pop("is_integer", None)
+            quantization_config_dict.pop("quant_method", None)
+            quantization_config_dict.pop("quantization_device", None)
+            quantization_config_dict.pop("return_device", None)
+            quantization_config_dict.pop("non_blocking", None)
+            quantization_config_dict.pop("add_skip_keys", None)
+            with init_empty_weights():
+                model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config_dict)
+
         if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
-                self.modules_to_not_convert.extend(keep_in_fp32_modules)
-            model, self.modules_to_not_convert, self.quantization_config.modules_dtype_dict = add_module_skip_keys(
-                model, self.modules_to_not_convert, self.quantization_config.modules_dtype_dict
+                self.quantization_config.modules_to_not_convert.extend(keep_in_fp32_modules)
+            model, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict = add_module_skip_keys(
+                model, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict
             )
-        self.modules_to_not_convert.extend(self.quantization_config.modules_to_not_convert)
-        self.quantization_config.modules_to_not_convert = self.modules_to_not_convert
         if hasattr(model, "config"):
             model.config.quantization_config = self.quantization_config
         model.quantization_config = self.quantization_config
-
-        if self.pre_quantized and hasattr(model, "get_parameter_or_buffer"):
-            from functools import wraps
-            @wraps(model.get_parameter_or_buffer)
-            def get_parameter_or_buffer(self, target: str):
-                try:
-                    return self.original_get_parameter_or_buffer(target)
-                except Exception as e:
-                    if target.endswith(".scale") or target.endswith(".zero_point") or target.endswith(".svd_up") or target.endswith(".svd_down"):
-                        return None
-                    raise e
-            model.original_get_parameter_or_buffer = model.get_parameter_or_buffer
-            model.get_parameter_or_buffer = get_parameter_or_buffer.__get__(model, model.__class__)
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
@@ -659,60 +600,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         needed for transformers compatibilty, returns self.get_accelerator_warm_up_factor
         """
         return self.get_accelerator_warm_up_factor()
-
-    def update_unexpected_keys(self, model, unexpected_keys: List[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
-        if not self.pre_quantized:
-            return unexpected_keys
-        new_unexpected_keys = []
-        for key in unexpected_keys:
-            if not (key.endswith(".scale") or key.endswith(".zero_point") or key.endswith(".svd_up") or key.endswith(".svd_down")):
-                new_unexpected_keys.append(key)
-        return new_unexpected_keys
-
-    def update_expected_keys(self, model, expected_keys: List[str], loaded_keys: list[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
-        if not self.pre_quantized:
-            return expected_keys
-        self.updated_expected_keys = True
-        for key in loaded_keys:
-            if key.endswith(".scale") or key.endswith(".zero_point") or key.endswith(".svd_up") or key.endswith(".svd_down"):
-                expected_keys.append(key)
-        return expected_keys
-
-    def update_tp_plan(self, config, *args, **kwargs): # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return config
-
-    def update_ep_plan(self, config, *args, **kwargs): # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return config
-
-    def update_missing_keys_after_loading(self, model, missing_keys: List[str], *args, **kwargs) -> List[str]: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return missing_keys
-
-    def update_state_dict_with_metadata(self, state_dict: dict, *args, **kwargs) -> dict: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return state_dict
-
-    def update_param_name(self, param_name: str, *args, **kwargs) -> str: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return param_name
-
-    def update_dtype(self, dtype: torch.dtype, *args, **kwargs) -> torch.dtype: # pylint: disable=unused-argument
-        """
-        needed for transformers compatibilty, no-op function
-        """
-        return dtype
 
     def _dequantize(self, model):
         model = dequantize_sdnq_model(model)
