@@ -59,12 +59,12 @@ class PromptEmbedder:
         self.steps = steps
         self.clip_skip = clip_skip
         # All embeds are nested lists, outer list batch length, inner schedule length
-        self.prompt_embeds = [[]] * self.batchsize
-        self.positive_pooleds = [[]] * self.batchsize
-        self.negative_prompt_embeds = [[]] * self.batchsize
-        self.negative_pooleds = [[]] * self.batchsize
-        self.prompt_attention_masks = [[]] * self.batchsize
-        self.negative_prompt_attention_masks = [[]] * self.batchsize
+        self.prompt_embeds = [[] for _ in range(self.batchsize)]
+        self.positive_pooleds = [[] for _ in range(self.batchsize)]
+        self.negative_prompt_embeds = [[] for _ in range(self.batchsize)]
+        self.negative_pooleds = [[] for _ in range(self.batchsize)]
+        self.prompt_attention_masks = [[] for _ in range(self.batchsize)]
+        self.negative_prompt_attention_masks = [[] for _ in range(self.batchsize)]
         self.positive_schedule = None
         self.negative_schedule = None
         self.scheduled_prompt = False
@@ -77,13 +77,25 @@ class PromptEmbedder:
         if self.pipe is None:
             shared.log.error("Prompt encode: cannot find text encoder in model")
             return
+        seen_prompts = {}
         # per prompt in batch
         for batchidx, (prompt, negative_prompt) in enumerate(zip(self.prompts, self.negative_prompts)):
             self.prepare_schedule(prompt, negative_prompt)
+            schedule_key = (
+                tuple(self.positive_schedule) if self.positive_schedule is not None else None,
+                tuple(self.negative_schedule) if self.negative_schedule is not None else None,
+                self.scheduled_prompt,
+            )
+            cache_key = (prompt, negative_prompt, schedule_key)
+            cached_idx = seen_prompts.get(cache_key)
+            if cached_idx is not None:
+                self.clone_embeds(batchidx, cached_idx)
+                continue
             if self.scheduled_prompt:
                 self.scheduled_encode(self.pipe, batchidx)
             else:
                 self.encode(self.pipe, prompt, negative_prompt, batchidx)
+            seen_prompts[cache_key] = batchidx
         self.checkcache(p)
         debug(f"Prompt encode: time={(time.time() - t0):.3f}")
 
@@ -207,21 +219,41 @@ class PromptEmbedder:
                 negative_pooled,
                 negative_prompt_attention_mask
             ) = get_weighted_text_embeddings(pipe, positive_prompt, negative_prompt, self.clip_skip)
-        if prompt_embed is not None:
-            self.prompt_embeds[batchidx] = [prompt_embed]
-        if negative_embed is not None:
-            self.negative_prompt_embeds[batchidx] = [negative_embed]
-        if positive_pooled is not None:
-            self.positive_pooleds[batchidx] = [positive_pooled]
-        if negative_pooled is not None:
-            self.negative_pooleds[batchidx] = [negative_pooled]
-        if prompt_attention_mask is not None:
-            self.prompt_attention_masks[batchidx] = [prompt_attention_mask]
-        if negative_prompt_attention_mask is not None:
-            self.negative_prompt_attention_masks[batchidx] = [negative_prompt_attention_mask]
+        def _store(target, value):
+            if value is None:
+                return
+            # scheduled prompts need to keep all slices, unscheduled can overwrite
+            if self.scheduled_prompt and len(target[batchidx]) > 0:
+                target[batchidx].append(value)
+            else:
+                target[batchidx] = [value]
+
+        _store(self.prompt_embeds, prompt_embed)
+        _store(self.negative_prompt_embeds, negative_embed)
+        _store(self.positive_pooleds, positive_pooled)
+        _store(self.negative_pooleds, negative_pooled)
+        _store(self.prompt_attention_masks, prompt_attention_mask)
+        _store(self.negative_prompt_attention_masks, negative_prompt_attention_mask)
         if debug_enabled:
             get_tokens(pipe, 'positive', positive_prompt)
             get_tokens(pipe, 'negative', negative_prompt)
+
+    def clone_embeds(self, batchidx, idx):
+        def _clone(target):
+            if len(target) <= idx:
+                return
+            src = target[idx]
+            if isinstance(src, list):
+                target[batchidx] = [item if not isinstance(item, list) else list(item) for item in src]
+            else:
+                target[batchidx] = src
+
+        _clone(self.prompt_embeds)
+        _clone(self.negative_prompt_embeds)
+        _clone(self.positive_pooleds)
+        _clone(self.negative_pooleds)
+        _clone(self.prompt_attention_masks)
+        _clone(self.negative_prompt_attention_masks)
 
     def __call__(self, key, step=0):
         batch = getattr(self, key)
