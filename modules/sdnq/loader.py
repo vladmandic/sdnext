@@ -16,12 +16,12 @@ def get_module_names(model: ModelMixin) -> list:
     return modules_names
 
 
-def unset_config_on_save(config: SDNQConfig) -> SDNQConfig:
-    config.quantization_config.quantization_device = None
-    config.quantization_config.return_device = None
-    config.quantization_config.non_blocking = False
-    config.quantization_config.add_skip_keys = False
-    return config
+def unset_config_on_save(quantization_config: SDNQConfig) -> SDNQConfig:
+    quantization_config.quantization_device = None
+    quantization_config.return_device = None
+    quantization_config.non_blocking = False
+    quantization_config.add_skip_keys = False
+    return quantization_config
 
 
 def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
