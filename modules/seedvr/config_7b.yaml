@@ -8,7 +8,7 @@ dit:
       path:
         - "SeedVR2_VideoUpscaler.src.models.dit.nadit"
         - "SeedVR2_VideoUpscaler.src.models.dit.nadit"
-        - "src.models.dit.nadit"
+        - "modules.seedvr.src.models.dit.nadit"
       name: "NaDiT"
       args: "as_params"
     vid_in_channels: 33
