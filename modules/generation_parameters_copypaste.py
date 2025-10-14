@@ -229,6 +229,11 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                 res.append(v)
                 applied[key] = v
             else:
+                if isinstance(v, str) and v.strip() == '' and key in {'Prompt', 'Negative prompt'}:
+                    debug(f'Paste skip empty: "{key}"')
+                    res.append(gr.update())
+                    skipped[key] = v
+                    continue
                 if should_skip(key):
                     debug(f'Paste skip: "{key}"="{v}"')
                     res.append(gr.update())
