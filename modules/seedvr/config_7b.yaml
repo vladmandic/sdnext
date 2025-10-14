@@ -48,7 +48,7 @@ vae:
       path:
         - "SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
         - "SeedVR2_VideoUpscaler.src.models.video_vae_v3.modules.attn_video_vae"
-        - "src.models.video_vae_v3.modules.attn_video_vae"
+        - "modules.seedvr.src.models.video_vae_v3.modules.attn_video_vae"
       name: "VideoAutoencoderKLWrapper"
       args: "as_params"
     freeze_encoder: False
