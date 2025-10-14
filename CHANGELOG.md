@@ -2,6 +2,21 @@
 
 ## Update for 2025-10-14
 
+### Highlights for 2025-10-14
+
+It's been a month since the last release and number of changes is yet again massive with over 250 commits!  
+Highlight are:  
+- **Torch**: ROCm on Windows for AMD GPUs  
+  if you have a compatible GPU, performance gains are significant!  
+- **Models**:  
+  new WAN variants, a lot of new stuff with Qwen Image Edit including multi-image edits, expanded Nunchaku support and new SOTA upscaler with SeedVR2  
+  plus improved video support in general, including new methods of video encoding  
+- **Quantization**:  
+  new **SVD**-style quantization using SDNQ ofers almost zero loss even with **4bit** quantization  
+  and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
+
+### Details for 2025-10-14
+
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
     available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
@@ -19,10 +34,9 @@
     updated version of E1 image editing model  
   - [SeedVR2](https://iceclear.github.io/projects/seedvr/)  
     originally designed for video restoration, seedvr works great for image detailing and upscaling!  
-    available in 3B, 7B and 7B-sharp variants  
-    use as any other upscaler!  
-    note: seedvr is a very large model (6.4GB and 16GB respectively) and not designed for lower-end hardware  
-    note: seedvr is highly sensitive to its cfg scale (set in settings -> postprocessing),  
+    available in 3B, 7B and 7B-sharp variants, use as any other upscaler!  
+    note: seedvr is a very large model (6.4GB and 16GB respectively) and not designed for lower-end hardware, quantization is highly recommended  
+    note: seedvr is highly sensitive to its cfg scale, set in *settings -> postprocessing*  
     lower values will result in smoother output while higher values add details  
   - [X-Omni SFT](https://x-omni-team.github.io/)  
     *experimental*: X-omni is a transformer-only discrete autoregressive image generative model trained with reinforcement learning  
@@ -101,7 +115,7 @@
   - **video** new LTX model selection  
   - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
   - update **loopback** script with radon seed option, thanks @rabanti  
-  - **vae** slicing enable for lowvram/medvram, tiling for lowvram, both disabled otherwise  
+  - **vae** slicing enable for *lowvram/medvram*, tiling for *lowvram*, both disabled otherwise  
   - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
     enable in *settings -> compute settings*  
     can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
