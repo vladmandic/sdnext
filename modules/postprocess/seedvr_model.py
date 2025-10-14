@@ -57,9 +57,9 @@ class UpscalerSeedVR(Upscaler):
             self.model.dit.config = self.model.config.dit
             self.model.vae.tile_sample_min_size = 1024
             self.model.vae.tile_latent_min_size = 128
-            # from modules.model_quant import do_post_load_quant
+            from modules.model_quant import do_post_load_quant
+            self.model = do_post_load_quant(self.model, allow=True)
             # from modules.sd_offload import set_diffuser_offload
-            # self.model = do_post_load_quant(self.model, allow=True)
             # set_diffuser_offload(self.model)
             log.info(f'Upscaler loaded: name="{self.name}" model="{model_name}" time={t1 - t0:.2f}')
 
