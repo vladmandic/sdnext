@@ -10,7 +10,7 @@ Highlight are:
   if you have a compatible GPU, performance gains are significant!  
 - **Models**:  
   a lot of new stuff with **Qwen-Image-Edit** including multi-image edits and distilled variants,  
-  new **Flux**, **WAN**, **HiDream** variants, expanded **Nunchaku** support and new SOTA upscaler with **SeedVR2**  
+  new **Flux**, **WAN**, **LTX**, **HiDream** variants, expanded **Nunchaku** support and new SOTA upscaler with **SeedVR2**  
   plus improved video support in general, including new methods of video encoding  
 - **Quantization**:  
   new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
@@ -32,7 +32,9 @@ Highlight are:
     note that nunchaku optimized and pre-quantized unet is replacement for base unet, so its only applicable to base models, not any of fine-tunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
   - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
-    updated version of E1 image editing model  
+    updated version of HiDream-E1 image editing model  
+  - [LTXVideo 0.9.8](https://huggingface.co/Lightricks/LTX-Video-0.9.8-13B-distilled)  
+    updated version of LTXVideo t2v/i2iv model  
   - [SeedVR2](https://iceclear.github.io/projects/seedvr/)  
     originally designed for video restoration, seedvr works great for image detailing and upscaling!  
     available in 3B, 7B and 7B-sharp variants, use as any other upscaler!  
