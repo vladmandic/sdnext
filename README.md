@@ -31,12 +31,12 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
   ▹ **Standard | Modern**  
 - Multiple [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
 - Built-in Control for Text, Image, Batch and Video processing!  
-- Multiplatform!  
+- Multi-platform!  
  ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | Intel Arc / IPEX XPU | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
-- Platform specific autodetection and tuning performed on install  
+- Platform specific auto-detection and tuning performed on install  
 - Optimized processing with latest `torch` developments with built-in support for model compile and quantize  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
-  Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO*  
+  Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO / LayerWise*  
 - **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
 - Built-in queue management  
 - Built in installer with automatic updates and dependency management  
@@ -54,7 +54,7 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 <img src="https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38" alt="screenshot-modernui-mobile" width="35%">
 </div>
 
-For screenshots and informations on other available themes, see [Themes](https://vladmandic.github.io/sdnext-docs/Themes/)
+For screenshots and information on other available themes, see [Themes](https://vladmandic.github.io/sdnext-docs/Themes/)
 
 <br>
 
@@ -75,7 +75,7 @@ SD.Next supports broad range of models: [supported models](https://vladmandic.gi
 - *ONNX/Olive*  
 - *AMD* GPUs on Windows using **ZLUDA** libraries  
 
-Plus Docker container receipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](https://vladmandic.github.io/sdnext-docs/Docker/)
+Plus Docker container recipes for: [CUDA, ROCm, Intel IPEX and OpenVINO](https://vladmandic.github.io/sdnext-docs/Docker/)
 
 ## Getting started
 

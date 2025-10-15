@@ -1,21 +1,22 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-14
+## Update for 2025-10-15
 
-### Highlights for 2025-10-14
+### Highlights for 2025-10-15
 
-It's been a month since the last release and number of changes is yet again massive with over 250 commits!  
+It's been a month since the last release and number of changes is yet again massive with over 300 commits!  
 Highlight are:  
 - **Torch**: ROCm on Windows for AMD GPUs  
   if you have a compatible GPU, performance gains are significant!  
 - **Models**:  
-  new WAN variants, a lot of new stuff with Qwen Image Edit including multi-image edits, expanded Nunchaku support and new SOTA upscaler with SeedVR2  
+  a lot of new stuff with **Qwen-Image-Edit** including multi-image edits and distilled variants,  
+  new **Flux**, **WAN**, **HiDream** variants, expanded **Nunchaku** support and new SOTA upscaler with **SeedVR2**  
   plus improved video support in general, including new methods of video encoding  
 - **Quantization**:  
-  new **SVD**-style quantization using SDNQ ofers almost zero loss even with **4bit** quantization  
+  new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
   and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
 
-### Details for 2025-10-14
+### Details for 2025-10-15
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -28,7 +29,7 @@ Highlight are:
     SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
   - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
     impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
-    note that nunchaku optimized and prequantized unet is replacement for base unet, so its only applicable to base models, not any of finetunes  
+    note that nunchaku optimized and pre-quantized unet is replacement for base unet, so its only applicable to base models, not any of fine-tunes  
     *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
   - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
     updated version of E1 image editing model  
@@ -39,13 +40,13 @@ Highlight are:
     note: seedvr is highly sensitive to its cfg scale, set in *settings -> postprocessing*  
     lower values will result in smoother output while higher values add details  
   - [X-Omni SFT](https://x-omni-team.github.io/)  
-    *experimental*: X-omni is a transformer-only discrete autoregressive image generative model trained with reinforcement learning  
+    *experimental*: X-omni is a transformer-only discrete auto-regressive image generative model trained with reinforcement learning  
 - **Features**
   - **Model save**: ability to save currently loaded model as a new standalone model  
     why? SD.Next always prefers to start with full model and quantize on-demand during load  
     however, when you find your exact preferred quantization settings that work well for you,  
     saving such model as a new model allows for faster loads and reduced disk space usage  
-    so its best of both worlds: you can experiment and test different quantizations and once you find the one that works for you, save it as a new model  
+    so its best of both worlds: you can experiment and test different quantization methods and once you find the one that works for you, save it as a new model  
     saved models appear in network tab as normal models and can be loaded as such  
     available in *models* tab  
   - [Qwen Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) multi-image editing
@@ -56,15 +57,15 @@ Highlight are:
   - [Cache-DiT](https://github.com/vipshop/cache-dit)  
     cache-dit is a unified, flexible and training-free cache acceleration framework  
     compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
-    enable in *settings -> pipeline modifers -> cache-dit*  
+    enable in *settings -> pipeline modifiers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
 - **Compute**
   - **ROCm** for Windows  
-    support for both official torch preview release of `torch-rocm` for windows and **TheRock** unoffical `torch-rocm` builds for windows  
+    support for both official torch preview release of `torch-rocm` for windows and **TheRock** unofficial `torch-rocm` builds for windows  
     note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
   - **DirectML** warn as *end-of-life*  
-    `torch-directml` received no updates in over 1 year and its currently superceded by `rocm` or `zluda`  
+    `torch-directml` received no updates in over 1 year and its currently superseded by `rocm` or `zluda`  
   - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
     previously sdnext was performing a fallback to `torch-cpu` which is not desired  
   - **installer** if `--use-cuda` or `--use-rocm` are specified and `torch-cpu` is installed, installer will attempt to reinstall correct torch package  
@@ -95,11 +96,11 @@ Highlight are:
 - **SDNQ**
   - add `SVDQuant` quantization method support  
   - make sdnq scales compatible with balanced offload  
-  - add int8 matmul support for RDNA2 GPUs via triton  
-  - improve int8 mamtul performance on Intel GPUs  
+  - add int8 `matmul` support for RDNA2 GPUs via triton  
+  - improve int8 `matmul` performance on Intel GPUs  
 - **Other**
   - server will note when restart is recommended due to package updates  
-  - **interrrupt** will now show last known preview image  
+  - **interrupt** will now show last known preview image  
     *keep incomplete* setting is now *save interrupted*  
   - **logging** enable `debug`, `docs` and `api-docs` by default  
   - **logging** add detailed ram/vram utilization info to log  
@@ -143,7 +144,8 @@ Highlight are:
     allows for using many different guidance methods:  
     *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
 - **Wiki**
-  - updates to *AMD-ROCm, ZLUDA, LoRA, DirectML, SDNQ* pages
+  - updates to *AMD-ROCm, ZLUDA, LoRA, DirectML, SDNQ, Quantization, Prompting, LoRA* pages  
+  - new *Stability-Matrix* page  
 - **Fixes**
   - **Microsoft Florence 2** both base and large variants  
     *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  
@@ -168,7 +170,7 @@ Highlight are:
 **StandardUI** is still available and can be selected in settings, but ModernUI is now the default for new installs  
 
 *What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
-Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
+Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overall workflows  
 And check out new **history** tab in the right panel, it now shows visualization of entire processing timeline!  
 
 ![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
@@ -182,13 +184,13 @@ And check out new **history** tab in the right panel, it now shows visualization
   - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
     *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
   - [Qwen-Lightning-Edit](https://huggingface.co/vladmandic/Qwen-Lightning-Edit) and [Qwen-Image-Distill](https://huggingface.co/SahilCarterr/Qwen-Image-Distill-Full) variants  
-  - **Nuchaku** variants of [Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image), [Qwen-Image-Edit](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit), [Nunchaku-Qwen-Image-Edit-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit)
+  - **Nunchaku** variants of [Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image), [Qwen-Image-Edit](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit), [Nunchaku-Qwen-Image-Edit-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit)
   - **Nunchaku** variant of [Flux.1-Krea-Dev](https://huggingface.co/nunchaku-tech/nunchaku-flux.1-krea-dev)  
     if you have a compatible nVidia GPU, Nunchaku is the fastest quantization & inference engine  
   - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
   - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
     highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
-    for pretraining T2I model at home based on super-light architecture  
+    for pre-training T2I model at home based on super-light architecture  
     *requires*: generator=cpu, dtype=float16, offload=none, both positive and negative prompts are required and must be long & detailed  
   - [Apple FastVLM](https://huggingface.co/apple/FastVLM-0.5B) in 0.5B, 1.5B and 7B variants  
     available in captioning tab  
@@ -207,13 +209,13 @@ And check out new **history** tab in the right panel, it now shows visualization
   - additional artwork for reference models in networks, thanks @liutyi  
   - improve ui hints display  
   - restyled all toolbuttons to be modernui native  
-  - reodered system settings  
+  - reordered system settings  
   - dynamic direction of dropdowns  
   - improve process tab layout  
   - improve detection of active tab  
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
-    *example*: if panel width is less than specified value, layout switches to verical  
+    *example*: if panel width is less than specified value, layout switches to vertical  
   - configurable grid images size  
     in *settings -> user interface -> grid image size*  
   - gallery now includes reference model images  
@@ -224,10 +226,10 @@ And check out new **history** tab in the right panel, it now shows visualization
     - improve offloading of models with multiple dits  
     - improve offloading of models with impliciy vae processing  
     - improve offloading of models with controlnet  
-    - more aggressive offloading of controlnets with lowvram flag  
+    - more aggressive offloading of controlnet with lowvram flag  
   - **group**
     - new offloading method, using *type=leaf* works on a similar level as sequential offloading  
-      and can present siginificant savings on low-vram gpus, but comes at the higher performace cost  
+      and can present significant savings on low-vram gpus, but comes at the higher performance cost  
 - **Quantization**
   - option to specify models types not to quantize: *settings -> quantization*  
     allows for having quantization enabled, but skipping specific model types that do not need it  
