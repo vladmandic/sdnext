@@ -528,7 +528,7 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
             diffusers_load_config.pop('local_files_only', None)
             shared.log.debug(f'Setting {op}: pipeline={sd_model.__class__.__name__} config={diffusers_load_config}') # pylint: disable=protected-access
     except Exception as e:
-        shared.log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline}/{sd_model.__class__.__name__} config={diffusers_load_config} {e}')
+        shared.log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline} config={diffusers_load_config} {e}')
         if 'Weights for this component appear to be missing in the checkpoint' in str(e):
             shared.log.error(f'Load {op}: file="{checkpoint_info.path}" is not a complete model')
         else:
