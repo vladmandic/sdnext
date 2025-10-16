@@ -66,7 +66,10 @@ def run_ltx(task_id,
         progress.finish_task(task_id)
         yield None, f'LTX Error: {str(e)}'
 
-    from diffusers import LTXConditionPipeline # pylint: disable=unused-import
+    if model is None or len(model) == 0:
+        yield from abort('Video: no model selected', ok=True)
+        return
+    # from diffusers import LTXConditionPipeline # pylint: disable=unused-import
     check_av()
     progress.add_task_to_queue(task_id)
     with queue_lock:
@@ -76,6 +79,10 @@ def run_ltx(task_id,
         yield None, 'LTX: Loading...'
         engine = 'LTX Video'
         load_model(engine, model)
+        debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init model="{model}"')
+        if not shared.sd_model.__class__.__name__.startswith("LTX"):
+            yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX model', ok=True)
+            return
 
         videojob = shared.state.begin('Video', task_id=task_id)
         shared.state.job_count = 1

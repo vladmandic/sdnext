@@ -35,8 +35,8 @@ rich==14.1.0
 safetensors==0.6.2
 tensordict==0.8.3
 peft==0.17.1
-httpx==0.24.1
-compel==2.1.1
+httpx==0.28.1
+compel==2.2.1
 torchsde==0.2.6
 antlr4-python3-runtime==4.9.3
 requests==2.32.4

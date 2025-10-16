@@ -497,7 +497,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         param_value: torch.FloatTensor,
         param_name: str,
         target_device: torch.device,
-        state_dict: Dict[str, Any],
+        # state_dict: Dict[str, Any], # removed in transformers==4.57
         *args, **kwargs, # pylint: disable=unused-argument
     ):
         if self.pre_quantized:

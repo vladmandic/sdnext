@@ -8,7 +8,7 @@ loaded_model = None
 
 
 def load_model(selected: models_def.Model):
-    if selected is None:
+    if selected is None or selected.te_cls is None or selected.dit_cls is None:
         return ''
     global loaded_model # pylint: disable=global-statement
     if loaded_model == selected.name:

@@ -8,6 +8,8 @@ loaded_model: str = None
 
 
 def get_bucket(size: int):
+    if not hasattr(shared.sd_model, 'vae_temporal_compression_ratio'):
+        return int(size) - (int(size) % 16)
     return int(size) - (int(size) % shared.sd_model.vae_temporal_compression_ratio)
 
 
@@ -18,6 +20,10 @@ def get_frames(frames: int):
 def load_model(engine: str, model: str):
     global loaded_model # pylint: disable=global-statement
     if loaded_model == model:
+        return
+    if model is None or model == '' or model=='None':
+        loaded_model = None
+        shared.sd_model = None
         return
     t0 = time.time()
     from modules.video_models import models_def, video_load
