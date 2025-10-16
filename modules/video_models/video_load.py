@@ -31,6 +31,10 @@ def load_model(selected: models_def.Model):
             selected.te = 'Disty0/t5-xxl'
             selected.te_folder = ''
             selected.te_revision = None
+        if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
+            selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+            selected.te_folder = 'text_encoder'
+            selected.te_revision = None
         if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
             selected.te = 'hunyuanvideo-community/HunyuanVideo'
             selected.te_folder = 'text_encoder'

@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from PIL import Image
+from installer import install
 from modules import shared, sd_models, timer, errors, devices
 
 
@@ -18,8 +19,10 @@ def get_url(url):
 
 
 def check_av():
+    install('av')
     try:
         import av
+        av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member
     except Exception as e:
         shared.log.error(f'av package: {e}')
         return False

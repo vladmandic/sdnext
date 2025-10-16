@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-15
+## Update for 2025-10-16
 
-### Highlights for 2025-10-15
+### Highlights for 2025-10-16
 
 It's been a month since the last release and number of changes is yet again massive with over 300 commits!  
 Highlight are:  
@@ -15,8 +15,9 @@ Highlight are:
 - **Quantization**:  
   new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
   and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
+- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved previews, etc.  
 
-### Details for 2025-10-15
+### Details for 2025-10-16
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
@@ -62,6 +63,9 @@ Highlight are:
     enable in *settings -> pipeline modifiers -> cache-dit*  
   - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
     automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
+  - **Huggingface mirror** in *settings -> huggingface*  
+    if you're working from location with limited access to huggingface, you can now specify a mirror site  
+    for example enter, `https://hf-mirror.com`  
 - **Compute**
   - **ROCm** for Windows  
     support for both official torch preview release of `torch-rocm` for windows and **TheRock** unofficial `torch-rocm` builds for windows  

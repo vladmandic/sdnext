@@ -27,6 +27,8 @@ def hf_login(token=None):
     if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
         return False
+    if len(shared.opts.huggingface_mirror.strip()) > 0 and os.environ.get('HF_ENDPOINT', None) is None:
+        os.environ['HF_ENDPOINT'] = shared.opts.huggingface_mirror.strip()
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
         os.environ.pop('HUGGING_FACE_HUB_TOKEN', None)
         os.unsetenv('HUGGING_FACE_HUB_TOKEN')

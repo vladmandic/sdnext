@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import einops
 from modules import shared, errors ,timer, rife
+from modules.video_models.video_utils import check_av
 
 
 def get_video_filename(frames:int, codec:str):
@@ -27,11 +28,9 @@ def images_to_tensor(images):
 
 
 def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='libx264', pix_fmt:str='yuv420p', options:str='', metadata:dict={}, pbar=None):
-    try:
-        import av
-        av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member
-    except Exception as e:
-        shared.log.error(f'Video: {e}')
+    av = check_av()
+    if av is None or av is False:
+        shared.log.error('Video: ffmpeg/av not available')
         return
 
     savejob = shared.state.begin('Save video')
