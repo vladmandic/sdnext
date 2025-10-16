@@ -433,10 +433,12 @@ def sdnq_post_load_quant(
         modules_dtype_dict=modules_dtype_dict.copy(),
     )
 
-    try:
-        model.config.quantization_config = model.quantization_config
-    except Exception:
-        pass
+    if hasattr(model, "config"):
+        try:
+            model.config.quantization_config = model.quantization_config
+            model.config["quantization_config"] = model.quantization_config.to_dict()
+        except Exception:
+            pass
     model.quantization_method = QuantizationMethod.SDNQ
 
     return model
@@ -589,7 +591,11 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 model, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict
             )
         if hasattr(model, "config"):
-            model.config.quantization_config = self.quantization_config
+            try:
+                model.config.quantization_config = self.quantization_config
+                model.config["quantization_config"] = self.quantization_config.to_dict()
+            except Exception:
+                pass
         model.quantization_config = self.quantization_config
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
