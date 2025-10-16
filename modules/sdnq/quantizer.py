@@ -1,6 +1,6 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
-from typing import Any, Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -463,7 +463,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         *args, **kwargs, # pylint: disable=unused-argument
     ):
         if self.pre_quantized:
-            layer, tensor_name = get_module_from_name(model, param_name)
+            layer, _tensor_name = get_module_from_name(model, param_name)
             if hasattr(layer, "sdnq_dequantizer"):
                 return True
         elif param_name.endswith(".weight"):

@@ -1288,7 +1288,7 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
             result_rows.append(torch.cat(result_row, dim=4))
         dec = torch.cat(result_rows, dim=3)
         return dec
-    
+
     def forward(
         self, x: torch.FloatTensor, mode: Literal["encode", "decode", "all"] = "all", **kwargs
     ):

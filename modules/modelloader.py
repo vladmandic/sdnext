@@ -306,7 +306,7 @@ def download_url_to_file(url: str, dst: str):
             continue
         break
     else:
-        shared.log.error('Error downloading: url={url} no usable temporary filename found')
+        shared.log.error(f'Error downloading: url={url} no usable temporary filename found')
         return
     try:
         with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=shared.console) as progress:
