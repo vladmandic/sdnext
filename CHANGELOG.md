@@ -167,6 +167,7 @@ Highlight are:
   - fix hf token with extra chars  
   - image viewer refocus on gallery after returning from full screen mode  
   - fix attention guidance metadata save/restore  
+  - vae preview add explicity cuda.sync  
 
 ## Update for 2025-09-15
 
