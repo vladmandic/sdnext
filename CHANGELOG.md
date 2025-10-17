@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-16
+## Update for 2025-10-17
 
-### Highlights for 2025-10-16
+### Highlights for 2025-10-17
 
 It's been a month since the last release and number of changes is yet again massive with over 300 commits!  
 Highlight are:  
@@ -17,7 +17,7 @@ Highlight are:
   and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
 - Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved previews, etc.  
 
-### Details for 2025-10-16
+### Details for 2025-10-17
 
 - **Models**
   - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  

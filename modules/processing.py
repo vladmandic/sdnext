@@ -46,7 +46,7 @@ class Processed:
 
         self.sampler_name = p.sampler_name or ''
         self.cfg_scale = p.cfg_scale if p.cfg_scale > 1 else None
-        self.cfg_end = p.cfg_end if p.cfg_end < 0 else None
+        self.cfg_end = p.cfg_end if p.cfg_end < 1 else None
         self.image_cfg_scale = p.image_cfg_scale or 0
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
