@@ -4,6 +4,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- Transformers unified cache handler  
 - Remote TE  
 - [Canvas](https://konvajs.org/)  
 - Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
@@ -23,10 +24,8 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
 - [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
-- [SUPIR upscaler](https://github.com/Fanghua-Yu/SUPIR)  
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
-- Remove: `Agent Scheduler`  
 - Remove: `CodeFormer`
 - Remove: `GFPGAN`  
 - ModernUI: Lite vs Expert mode  
