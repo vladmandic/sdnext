@@ -682,11 +682,8 @@ def install_rocm_zluda():
 
     amd_gpus = []
     try:
-        if sys.platform == "win32" and not rocm.is_installed:
-            amd_gpus = rocm.driver_get_agents()
-        else:
-            amd_gpus = rocm.get_agents()
-            log.info('ROCm: AMD toolkit detected')
+        amd_gpus = rocm.get_agents()
+        log.info('ROCm: AMD toolkit detected')
     except Exception as e:
         log.warning(f'ROCm agent enumerator failed: {e}')
 
@@ -712,10 +709,13 @@ def install_rocm_zluda():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and args.use_rocm and not rocm.is_installed:
+    if sys.platform == "win32" and args.use_rocm and not rocm.is_installed and device is not None:
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-        install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
-        rocm.refresh()
+        if device.therock is None:
+            log.warning('No supported ROCm agent was found. Skipping ROCm package installation.')
+        else:
+            install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
+            rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
     if device is not None:
@@ -724,7 +724,9 @@ def install_rocm_zluda():
 
     if sys.platform == "win32":
         if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
-            if device is not None and isinstance(rocm.environment, rocm.PythonPackageEnvironment): # TheRock
+            if device is None:
+                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
             else:

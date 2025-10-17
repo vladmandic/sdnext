@@ -96,7 +96,7 @@ class Agent:
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
     @property
-    def therock(self) -> str:
+    def therock(self) -> Union[str, None]:
         if (self.gfx_version & 0xFFF0) == 0x1100:
             return "gfx110X-dgpu"
         if self.gfx_version == 0x1151:
@@ -107,7 +107,7 @@ class Agent:
             return "gfx94X-dcgpu"
         if self.gfx_version == 0x950:
             return "gfx950-dcgpu"
-        raise RuntimeError(f"Unsupported GPU architecture: {self.name}")
+        return None
 
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
@@ -209,13 +209,16 @@ def get_flash_attention_command(agent: Agent) -> str:
 
 if sys.platform == "win32":
     def get_agents() -> List[Agent]:
-        if isinstance(environment, ROCmEnvironment):
-            out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
-        else:
-            # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
-            out = spawn("amdgpu-arch")
-        out = out.strip()
-        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+        return agents
+        #if isinstance(environment, ROCmEnvironment):
+        #    out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
+        #else:
+        #    # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
+        #    out = spawn("amdgpu-arch")
+        #out = out.strip()
+        #if out == "":
+        #    return []
+        #return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
 
     def driver_get_agents() -> List[Agent]:
         # unsafe and experimental feature
@@ -242,6 +245,14 @@ if sys.platform == "win32":
                     paths_no_rocm.append(path_)
             os.environ["PATH"] = ";".join(paths_no_rocm)
             return
+
+        build_targets = torch.cuda.get_arch_list()
+        for available in agents:
+            if available.name in build_targets:
+                return
+
+        # use cpu instead of crashing
+        torch.cuda.is_available = lambda: False
 
     def rocm_init():
         try:
@@ -275,6 +286,7 @@ if sys.platform == "win32":
         return True, None
 
     is_wsl: bool = False
+    agents: List[Agent] = [] # temp
 else:
     def get_agents() -> List[Agent]:
         try:
@@ -307,6 +319,9 @@ version = None
 
 def refresh():
     global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    if sys.platform == "win32":
+        global agents
+        agents = driver_get_agents()
     environment = find()
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):
