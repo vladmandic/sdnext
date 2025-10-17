@@ -7,6 +7,7 @@ Post-release fixes:
 - SDNQ-SVD fallback on incompatible layers  
 - Huggingface model download  
 - Remove unused UI settings  
+- Video implement dynamic and manual sampler shift  
 
 ## Update for 2025-10-17
 

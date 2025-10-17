@@ -1,4 +1,5 @@
 import os
+import copy
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
 from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_prompt
@@ -92,10 +93,21 @@ def generate(*args, **kwargs):
     p.task_args['height'] = p.height
     p.task_args['output_type'] = 'latent' if (p.vae_type == 'Remote') else 'pil'
     p.ops.append('video')
+
+    # set scheduler params
     orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
     shared.opts.data['schedulers_shift'] = sampler_shift
+    if hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
+        if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
+            shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
+            shared.sd_model.scheduler.register_to_config(use_dynamic_shifting = dynamic_shift)
+        if hasattr(shared.sd_model.scheduler.config, 'flow_shift'):
+            shared.sd_model.scheduler.config.flow_shift = sampler_shift
+            shared.sd_model.scheduler.register_to_config(flow_shift = sampler_shift)
+        shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler)
+
     video_overrides.set_overrides(p, selected)
     debug(f'Video: task_args={p.task_args}')
 

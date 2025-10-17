@@ -51,7 +51,7 @@ def find_sampler_config(name):
 def restore_default(model):
     if model is None:
         return None
-    if getattr(model, "default_scheduler", None) is not None:
+    if getattr(model, "default_scheduler", None) is not None and getattr(model, "scheduler") is not None:
         model.scheduler = copy.deepcopy(model.default_scheduler)
         if hasattr(model, "prior_pipe") and hasattr(model.prior_pipe, "scheduler"):
             model.prior_pipe.scheduler = copy.deepcopy(model.default_scheduler)
