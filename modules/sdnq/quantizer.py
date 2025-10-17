@@ -199,10 +199,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             layer.weight.data = layer.weight.to(dtype=torch.float32)
 
         if use_svd:
-            layer.weight.data, svd_up, svd_down = apply_svdquant(layer.weight, rank=svd_rank, niter=svd_steps)
-            if use_quantized_matmul:
-                svd_up = svd_up.t_()
-                svd_down = svd_down.t_()
+            try:
+                layer.weight.data, svd_up, svd_down = apply_svdquant(layer.weight, rank=svd_rank, niter=svd_steps)
+                if use_quantized_matmul:
+                    svd_up = svd_up.t_()
+                    svd_down = svd_down.t_()
+            except Exception:
+                svd_up, svd_down = None, None
         else:
             svd_up, svd_down = None, None
 
@@ -210,9 +213,9 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6:
                 group_size = -1
             elif is_linear_type:
-                group_size = 2 ** ((2 if not use_svd else 3) + dtype_dict[weights_dtype]["num_bits"])
+                group_size = 2 ** ((2 if svd_up is None else 3) + dtype_dict[weights_dtype]["num_bits"])
             else:
-                group_size = 2 ** ((1 if not use_svd else 2) + dtype_dict[weights_dtype]["num_bits"])
+                group_size = 2 ** ((1 if svd_up is None else 2) + dtype_dict[weights_dtype]["num_bits"])
         elif use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
             group_size = -1 # override user value, re-quantizing 8bit into 8bit is pointless
         elif group_size != -1 and not is_linear_type:

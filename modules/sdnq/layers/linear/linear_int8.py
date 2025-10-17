@@ -36,7 +36,7 @@ def int8_matmul(
     if svd_up is not None:
         input = input.flatten(0,-2)
         if bias is not None:
-            bias = torch.addmm(bias, torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
+            bias = torch.addmm(bias.to(dtype=svd_down.dtype), torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
     input, scale = quantize_int8_matmul_input(input, scale)
