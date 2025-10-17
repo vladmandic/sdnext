@@ -2,6 +2,10 @@
 
 ## Update for 2025-10-17
 
+- TBD: post-release fixes
+
+## Update for 2025-10-17
+
 ### Highlights for 2025-10-17
 
 It's been a month since the last release and number of changes is yet again massive with over 300 commits!  
@@ -15,7 +19,11 @@ Highlight are:
 - **Quantization**:  
   new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
   and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
-- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved previews, etc.  
+- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved VAE previews, etc.  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
 ### Details for 2025-10-17
 
