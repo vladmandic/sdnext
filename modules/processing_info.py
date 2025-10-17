@@ -31,13 +31,13 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if all_subseeds is None:
         all_subseeds = p.all_subseeds or [p.subseed]
     while len(all_prompts) <= index:
-        all_prompts.append(all_prompts[-1])
+        all_prompts.insert(0, p.prompt)
     while len(all_seeds) <= index:
-        all_seeds.append(all_seeds[-1])
+        all_seeds.insert(0, int(p.seed))
     while len(all_subseeds) <= index:
-        all_subseeds.append(all_subseeds[-1])
+        all_subseeds.insert(0, int(p.subseed))
     while len(all_negative_prompts) <= index:
-        all_negative_prompts.append(all_negative_prompts[-1])
+        all_negative_prompts.insert(0, p.negative_prompt)
     comment = ', '.join(comments) if comments is not None and type(comments) is list else None
     ops = list(set(p.ops))
     args = {
@@ -50,7 +50,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else None,
         "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
-        "CFG true": p.pag_scale if p.pag_scale > 1 else None,
+        "CFG true": p.pag_scale if p.pag_scale > 0 else None,
+        "CFG adaptive": p.pag_adaptive if p.pag_adaptive != 0.5 else None,
         "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
         "Refiner prompt": p.refiner_prompt if len(p.refiner_prompt) > 0 else None,

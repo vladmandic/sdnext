@@ -1,6 +1,5 @@
 import typing
 import os
-import sys
 import time
 import torch
 import numpy as np
@@ -56,7 +55,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
     t0 = time.time()
     if devices.backend == "ipex": # xe driver on linux needs this
         torch.xpu.synchronize(devices.device)
-    elif devices.backend == "zluda" or (devices.backend == "rocm" and sys.platform == "win32"):
+    elif (devices.backend == "zluda") or (devices.backend == "rocm") or (devices.backend == "cuda"):
         torch.cuda.synchronize(devices.device)
     latents = kwargs.get('latents', None)
     if debug:

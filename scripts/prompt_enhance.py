@@ -159,7 +159,7 @@ class Script(scripts_manager.Script):
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
-                _attn_implementation="eager",
+                # _attn_implementation="eager",
                 **gguf_args,
                 **quant_args,
             )

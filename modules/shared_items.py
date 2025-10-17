@@ -56,6 +56,7 @@ pipelines = {
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage': getattr(diffusers, 'DiffusionPipeline', None),
+    'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
@@ -120,7 +121,6 @@ def list_crossattention():
         "Scaled-Dot-Product",
         "xFormers",
         "Batch matrix-matrix",
-        "Split attention",
         "Dynamic Attention BMM"
     ]
 

@@ -52,6 +52,10 @@ def load_hidream(checkpoint_info, diffusers_load_config={}):
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["hidream-e1"] = diffusers.HiDreamImagePipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["hidream-e1"] = HiDreamImageEditingPipeline
         diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["hidream-e1"] = HiDreamImageEditingPipeline
+        if transformer and 'E1-1' in repo_id:
+            transformer.max_seq = 8192
+        elif transformer and 'E1' in repo_id:
+            transformer.max_seq = 4608
     else:
         shared.log.error(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" not recognized')
         return False

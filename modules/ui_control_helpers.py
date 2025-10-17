@@ -24,7 +24,7 @@ def initialize():
     from modules.control.units import xs # vislearn ControlNet-XS
     from modules.control.units import lite # vislearn ControlNet-XS
     from modules.control.units import t2iadapter # TencentARC T2I-Adapter
-    shared.log.debug(f'UI initialize: control models="{shared.opts.control_dir}"')
+    shared.log.debug(f'UI initialize: tab=control models="{shared.opts.control_dir}"')
     controlnet.cache_dir = os.path.join(shared.opts.control_dir, 'controlnet')
     xs.cache_dir = os.path.join(shared.opts.control_dir, 'xs')
     lite.cache_dir = os.path.join(shared.opts.control_dir, 'lite')
@@ -77,7 +77,7 @@ def get_video(filepath: str):
 def select_input(input_mode, input_image, init_image, init_type, input_resize, input_inpaint, input_video, input_batch, input_folder):
     global busy, input_source, input_init, input_mask # pylint: disable=global-statement
     busy = True
-    if input_mode == 'Select':
+    if input_mode == 'Image':
         selected_input = input_image
     elif input_mode == 'Outpaint':
         selected_input = input_resize
@@ -159,16 +159,16 @@ def copy_input(mode_from, mode_to, input_image, input_resize, input_inpaint):
 
     if mode_from == mode_to:
         return [gr.update(), gr.update(), gr.update()]
-    elif mode_to == 'Select':
+    elif mode_to == 'Image':
         return [getimg(input_resize) if mode_from == 'Outpaint' else getimg(input_inpaint), None, None]
     elif mode_to == 'Inpaint':
-        return [None, None, getimg(input_image) if mode_from == 'Select' else getimg(input_resize)]
+        return [None, None, getimg(input_image) if mode_from == 'Image' else getimg(input_resize)]
     elif mode_to == 'Outpaint':
-        return [None, getimg(input_image) if mode_from == 'Select' else getimg(input_inpaint), None]
+        return [None, getimg(input_image) if mode_from == 'Image' else getimg(input_inpaint), None]
     else:
         shared.log.error(f'Control transfer unknown input: from={mode_from} to={mode_to}')
         return [gr.update(), gr.update(), gr.update()]
 
 
 def transfer_input(dst):
-    return [gr.update(visible=dst=='Select'), gr.update(visible=dst=='Outpaint'), gr.update(visible=dst=='Inpaint'), gr.update(interactive=dst!='Select'), gr.update(interactive=dst!='Inpaint'), gr.update(interactive=dst!='Outpaint')]
+    return [gr.update(visible=dst=='Image'), gr.update(visible=dst=='Outpaint'), gr.update(visible=dst=='Inpaint'), gr.update(interactive=dst!='Image'), gr.update(interactive=dst!='Inpaint'), gr.update(interactive=dst!='Outpaint')]

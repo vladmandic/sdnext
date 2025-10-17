@@ -62,7 +62,7 @@ class Script(scripts_manager.Script):
         if model['path'] in shared.opts.sd_model_checkpoint:
             shared.log.debug(f'Text2Video cached: model={shared.opts.sd_model_checkpoint}')
         else:
-            checkpoint = sd_models.get_closet_checkpoint_match(model['path'])
+            checkpoint = sd_models.get_closest_checkpoint_match(model['path'])
             if checkpoint is None:
                 shared.log.debug(f'Text2Video downloading: model={model["path"]}')
                 checkpoint = modelloader.download_diffusers_model(hub_id=model['path'])

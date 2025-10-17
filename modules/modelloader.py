@@ -22,10 +22,13 @@ pbar = None
 def hf_login(token=None):
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
+    token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
     install('hf_xet', quiet=True)
     if token is None or len(token) <= 4:
         log.debug('HF login: no token provided')
         return False
+    if len(shared.opts.huggingface_mirror.strip()) > 0 and os.environ.get('HF_ENDPOINT', None) is None:
+        os.environ['HF_ENDPOINT'] = shared.opts.huggingface_mirror.strip()
     if os.environ.get('HUGGING_FACE_HUB_TOKEN', None) is not None:
         os.environ.pop('HUGGING_FACE_HUB_TOKEN', None)
         os.unsetenv('HUGGING_FACE_HUB_TOKEN')
@@ -179,6 +182,13 @@ def find_diffuser(name: str, full=False):
     if len(repo) > 0:
         return [repo[0]['name']]
     hf_api = hf.HfApi()
+    suffix = ''
+    if len(name) > 3 and name.count('/') > 1:
+        parts = name.split('/')
+        name = '/'.join(parts[:2]) # only user/model
+        suffix = '/'.join(parts[2:]) # subfolder
+        if len(suffix) > 0:
+            suffix = '/' + suffix
     models = list(hf_api.list_models(model_name=name, library=['diffusers'], full=True, limit=20, sort="downloads", direction=-1))
     if len(models) == 0:
         models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads", direction=-1)) # widen search
@@ -186,9 +196,9 @@ def find_diffuser(name: str, full=False):
     shared.log.debug(f'Search model: repo="{name}" {len(models) > 0}')
     if len(models) > 0:
         if not full:
-            return models[0].id
+            return models[0].id + suffix
         else:
-            return [m.id for m in models]
+            return [m.id + suffix for m in models]
     return None
 
 
@@ -219,6 +229,8 @@ def get_reference_opts(name: str, quiet=False):
 
 
 def load_reference(name: str, variant: str = None, revision: str = None, mirror: str = None, custom_pipeline: str = None):
+    if '+' in name:
+        name = name.split('+')[0]
     found = [r for r in diffuser_repos if name == r['name'] or name == r['friendly'] or name == r['path']]
     if len(found) > 0: # already downloaded
         model_opts = get_reference_opts(found[0]['name'])
@@ -250,7 +262,7 @@ def load_reference(name: str, variant: str = None, revision: str = None, mirror:
 def load_civitai(model: str, url: str):
     from modules import sd_models
     name, _ext = os.path.splitext(model)
-    info = sd_models.get_closet_checkpoint_match(name)
+    info = sd_models.get_closest_checkpoint_match(name)
     if info is not None:
         _model_opts = get_reference_opts(info.model_name)
         return name # already downloaded
@@ -260,7 +272,7 @@ def load_civitai(model: str, url: str):
         download_civit_model_thread(model_name=model, model_url=url, model_path='', model_type='safetensors', token=shared.opts.civitai_token)
         shared.log.debug(f'Reference download complete: model="{name}"')
         sd_models.list_models()
-        info = sd_models.get_closet_checkpoint_match(name)
+        info = sd_models.get_closest_checkpoint_match(name)
         if info is not None:
             shared.log.debug(f'Reference: model="{name}"')
             return name # already downloaded
@@ -294,7 +306,7 @@ def download_url_to_file(url: str, dst: str):
             continue
         break
     else:
-        shared.log.error('Error downloading: url={url} no usable temporary filename found')
+        shared.log.error(f'Error downloading: url={url} no usable temporary filename found')
         return
     try:
         with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=shared.console) as progress:

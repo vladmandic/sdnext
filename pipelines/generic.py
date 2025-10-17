@@ -48,7 +48,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
                 **quant_args,
             )
         else:
-            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             if subfolder is not None:
@@ -61,9 +61,13 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
                 **load_args,
                 **quant_args,
             )
+
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
             sd_models.move_model(transformer, devices.cpu)
+
+        if (transformer is not None) and (quant_type is not None) and (quant_args.get('quantization_config', None) is not None): # attach quantization_config
+            transformer.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load:')
@@ -157,6 +161,9 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and text_encoder is not None:
             sd_models.move_model(text_encoder, devices.cpu)
+
+        if (text_encoder is not None) and (quant_type is not None) and (quant_args.get('quantization_config', None) is not None): # attach quantization_config
+            text_encoder.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load:')

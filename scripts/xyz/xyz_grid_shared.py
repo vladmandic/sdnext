@@ -164,7 +164,7 @@ def apply_sdnq_quant_te(p, x, xs):
 def apply_checkpoint(p, x, xs):
     if x == shared.opts.sd_model_checkpoint:
         return
-    info = sd_models.get_closet_checkpoint_match(x)
+    info = sd_models.get_closest_checkpoint_match(x)
     if info is None:
         shared.log.warning(f"XYZ grid: apply checkpoint unknown checkpoint: {x}")
     else:
@@ -178,7 +178,7 @@ def apply_refiner(p, x, xs):
         return
     if x == 'None':
         return
-    info = sd_models.get_closet_checkpoint_match(x)
+    info = sd_models.get_closest_checkpoint_match(x)
     if info is None:
         shared.log.warning(f"XYZ grid: apply refiner unknown checkpoint: {x}")
     else:
@@ -252,6 +252,13 @@ def apply_te(p, x, xs):
     shared.opts.data["sd_text_encoder"] = x
     sd_models.reload_text_encoder()
     shared.log.debug(f'XYZ grid apply text-encoder: "{x}"')
+
+
+def apply_guidance(p, x, xs):
+    from modules.modular_guiders import guiders
+    guiders = list(guiders.keys())
+    p.guidance_name = [g for g in guiders if g.lower().startswith(x.lower())][0]
+    shared.log.debug(f'XYZ grid apply guidance: "{p.guidance_name}"')
 
 
 def apply_styles(p: processing.StableDiffusionProcessingTxt2Img, x: str, _):

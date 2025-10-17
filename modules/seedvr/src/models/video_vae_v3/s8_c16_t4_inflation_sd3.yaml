@@ -1,0 +1,28 @@
+act_fn: silu
+block_out_channels:
+  - 128
+  - 256
+  - 512
+  - 512
+down_block_types:
+  - DownEncoderBlock3D
+  - DownEncoderBlock3D
+  - DownEncoderBlock3D
+  - DownEncoderBlock3D
+in_channels: 3
+latent_channels: 16
+layers_per_block: 2
+norm_num_groups: 32
+out_channels: 3
+slicing_sample_min_size: 4
+temporal_scale_num: 2
+inflation_mode: pad
+up_block_types:
+  - UpDecoderBlock3D
+  - UpDecoderBlock3D
+  - UpDecoderBlock3D
+  - UpDecoderBlock3D
+spatial_downsample_factor: 8
+temporal_downsample_factor: 4
+use_quant_conv: False
+use_post_quant_conv: False

@@ -12,12 +12,15 @@ from modules.timer import process as process_timer
 
 
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
+verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma']
+offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
+no_split_module_classes = ["Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"]
 accelerate_dtype_byte_size = None
+move_stream = None
 
 
 def dtype_byte_size(dtype: torch.dtype):
@@ -176,7 +179,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.last_post = None
         self.last_cls = None
         gpu = f'{(shared.gpu_memory * shared.opts.diffusers_offload_min_gpu_memory):.2f}-{(shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory):.2f}:{shared.gpu_memory:.2f}'
-        shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre}')
+        shared.log.info(f'Offload: type=balanced op=init watermark={self.min_watermark}-{self.max_watermark} gpu={gpu} cpu={shared.cpu_memory:.3f} limit={shared.opts.cuda_mem_fraction:.2f} always={self.offload_always} never={self.offload_never} pre={shared.opts.diffusers_offload_pre} streams={shared.opts.diffusers_offload_streams}')
         self.validate()
         super().__init__()
 
@@ -206,48 +209,56 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         if hasattr(module, 'nets') and any(hasattr(n, "offload_never") for n in module.nets):
             return False
+        if shared.sd_model_type.lower() in [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload)]:
+            return False
         return True
 
     def pre_forward(self, module, *args, **kwargs):
         _id = id(module)
-        if (self.last_pre != _id) and (module.__class__.__name__ != self.last_cls) and self.offload_allowed(module): # offload every other module first time when new module starts pre-forward
+
+        do_offload = (self.last_pre != _id) or (module.__class__.__name__ != self.last_cls)
+
+        if do_offload and self.offload_allowed(module): # offload every other module first time when new module starts pre-forward
             if shared.opts.diffusers_offload_pre:
+                t0 = time.time()
                 debug_move(f'Offload: type=balanced op=pre module={module.__class__.__name__}')
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
                         module_cls = module_instance.__class__.__name__
-                        if (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
+                        if (module_instance is not None) and (_id != id(module_instance)) and (module_cls not in self.offload_never) and (not devices.same_device(module_instance.device, devices.cpu)):
                             apply_balanced_offload_to_module(module_instance, op='pre')
                 self.last_cls = module.__class__.__name__
-        self.last_pre = _id
+                process_timer.add('offload', time.time() - t0)
 
         if not devices.same_device(module.device, devices.device): # move-to-device
+            t0 = time.time()
             device_index = torch.device(devices.device).index
             if device_index is None:
                 device_index = 0
             max_memory = { device_index: self.gpu, "cpu": self.cpu }
             device_map = getattr(module, "balanced_offload_device_map", None)
-            if device_map is None or max_memory != getattr(module, "balanced_offload_max_memory", None):
-                device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory)
+            if (device_map is None) or (max_memory != getattr(module, "balanced_offload_max_memory", None)):
+                device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory, no_split_module_classes=no_split_module_classes, verbose=verbose)
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if devices.backend == "directml":
-                keys = device_map.keys()
-                for v in keys:
-                    if isinstance(device_map[v], int):
-                        device_map[v] = f"{devices.device.type}:{device_map[v]}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
+                for k, v in device_map.items():
+                    if isinstance(v, int):
+                        device_map[k] = f"{devices.device.type}:{v}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
             if device_map is not None:
                 module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory
+            process_timer.add('onload', time.time() - t0)
 
         if debug:
-            for pipe in get_pipe_variants():
+            for _i, pipe in enumerate(get_pipe_variants()):
                 for module_name in get_module_names(pipe):
                     module_instance = getattr(pipe, module_name, None)
-                    shared.log.trace(f'Offload: type=balanced op=pre:status module={module_instance.__class__.__name__} device={module_instance.device} dtype={module_instance.dtype}')
+                    shared.log.trace(f'Offload: type=balanced op=pre:status forward={module.__class__.__name__} module={module_name} class={module_instance.__class__.__name__} pipe={_i} device={module_instance.device} dtype={module_instance.dtype}')
 
+        self.last_pre = _id
         return args, kwargs
 
     def post_forward(self, module, output):
@@ -263,7 +274,10 @@ class OffloadHook(accelerate.hooks.ModelHook):
 
 def get_pipe_variants(pipe=None):
     if pipe is None:
-        pipe = shared.sd_model
+        if shared.sd_loaded:
+            pipe = shared.sd_model
+        else:
+            return [pipe]
     variants = [pipe]
     if hasattr(pipe, "pipe"):
         variants.append(pipe.pipe)
@@ -276,13 +290,17 @@ def get_pipe_variants(pipe=None):
 
 def get_module_names(pipe=None, exclude=[]):
     if pipe is None:
-        pipe = shared.sd_model
+        if shared.sd_loaded:
+            pipe = shared.sd_model
+        else:
+            return []
     if hasattr(pipe, "_internal_dict"):
         modules_names = pipe._internal_dict.keys() # pylint: disable=protected-access
     else:
         modules_names = get_signature(pipe).keys()
     modules_names = [m for m in modules_names if m not in exclude and not m.startswith('_')]
     modules_names = [m for m in modules_names if isinstance(getattr(pipe, m, None), torch.nn.Module)]
+    modules_names = sorted(set(modules_names))
     return modules_names
 
 
@@ -308,6 +326,17 @@ def get_module_sizes(pipe=None, exclude=[]):
 
 
 def move_module_to_cpu(module, op='unk', force:bool=False):
+    def do_move(module):
+        if shared.opts.diffusers_offload_streams:
+            global move_stream # pylint: disable=global-statement
+            if move_stream is None:
+                move_stream = torch.cuda.Stream(device=devices.device)
+            with torch.cuda.stream(move_stream):
+                module = module.to(devices.cpu)
+        else:
+            module = module.to(devices.cpu)
+        return module
+
     try:
         module_name = getattr(module, "module_name", module.__class__.__name__)
         module_size = offload_hook_instance.offload_map.get(module_name, offload_hook_instance.model_size())
@@ -318,17 +347,17 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
         op = f'{op}:skip'
         if force:
             op = f'{op}:force'
-            module = module.to(devices.cpu)
+            module = do_move(module)
             used_gpu -= module_size
         elif module_cls in offload_hook_instance.offload_never:
             op = f'{op}:never'
         elif module_cls in offload_hook_instance.offload_always:
             op = f'{op}:always'
-            module = module.to(devices.cpu)
+            module = do_move(module)
             used_gpu -= module_size
         elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory:
             op = f'{op}:mem'
-            module = module.to(devices.cpu)
+            module = do_move(module)
             used_gpu -= module_size
         if debug:
             quant = getattr(module, "quantization_method", None)
@@ -412,6 +441,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
             apply_balanced_offload_to_module(module, op='apply')
             report_model_stats(module_name, module)
+
     set_accelerate(sd_model)
     t = time.time() - t0
     process_timer.add('offload', t)

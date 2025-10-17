@@ -152,9 +152,9 @@ def initialize():
 
 def load_model():
     modeldata.model_data.locked = False
-    if not shared.opts.sd_checkpoint_autoload and shared.cmd_opts.ckpt is None:
-        log.info('Model: autoload=False')
-    else:
+    autoload = shared.opts.sd_checkpoint_autoload or shared.cmd_opts.ckpt is not None
+    log.info(f'Model: autoload={autoload} selected="{shared.opts.sd_model_checkpoint}"')
+    if autoload:
         jobid = shared.state.begin('Load model')
         thread_model = Thread(target=lambda: shared.sd_model)
         thread_model.start()

@@ -8,6 +8,11 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
     fn = None
 
+    if 'VACE' in repo_id:
+        transformer_cls = diffusers.WanVACETransformer3DModel
+    else:
+        transformer_cls = diffusers.WanTransformer3DModel
+
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
         from modules import sd_unet
         if shared.opts.sd_unet not in list(sd_unet.unet_dict):
@@ -20,7 +25,7 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
         transformer = None
     elif fn is not None and 'safetensors' in fn.lower():
         shared.log.debug(f'Load model: type=WanAI {subfolder}="{fn}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
-        transformer = diffusers.WanTransformer3DModel.from_single_file(
+        transformer = transformer_cls.from_single_file(
             fn,
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
@@ -28,7 +33,7 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
         )
     else:
         shared.log.debug(f'Load model: type=WanAI {subfolder}="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
-        transformer = diffusers.WanTransformer3DModel.from_pretrained(
+        transformer = transformer_cls.from_pretrained(
             repo_id,
             subfolder=subfolder,
             cache_dir=shared.opts.hfcache_dir,
@@ -60,16 +65,20 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
-    if 'a14b' in repo_id.lower():
+    boundary_ratio = None
+    if 'a14b' in repo_id.lower() or 'fun-14b' in repo_id.lower():
         if shared.opts.model_wan_stage == 'high noise' or shared.opts.model_wan_stage == 'first':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = None
+            boundary_ratio = 0.0
         elif shared.opts.model_wan_stage == 'low noise' or shared.opts.model_wan_stage == 'second':
-            transformer = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
-            transformer_2 = None
+            transformer = None
+            transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+            boundary_ratio = 1.0
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
+            boundary_ratio = shared.opts.model_wan_boundary
         else:
             shared.log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
             return None
@@ -80,16 +89,22 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
     text_encoder = load_text_encoder(repo_id, diffusers_load_config)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    boundary_ratio = shared.opts.model_wan_boundary if transformer_2 is not None else None
 
     if 'Wan2.2-I2V' in repo_id:
-        cls = diffusers.WanImageToVideoPipeline
+        pipe_cls = diffusers.WanImageToVideoPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanImageToVideoPipeline
+    elif 'Wan2.2-VACE' in repo_id:
+        pipe_cls = diffusers.WanVACEPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanVACEPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanVACEPipeline
+        diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["wanai"] = diffusers.WanVACEPipeline
     else:
-        cls = diffusers.WanPipeline
+        from pipelines.wan.wan_image import WanImagePipeline
+        pipe_cls = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
-    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
-    pipe = cls.from_pretrained(
+        diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = WanImagePipeline
+    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={pipe_cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
+    pipe = pipe_cls.from_pretrained(
         repo_id,
         transformer=transformer,
         transformer_2=transformer_2,

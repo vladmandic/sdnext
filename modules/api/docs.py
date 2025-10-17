@@ -41,20 +41,18 @@ def get_swagger_ui_html(*,
     if oauth2_redirect_url:
         html += f"oauth2RedirectUrl: window.location.origin + '{oauth2_redirect_url}',"
     html += """
-    presets: [
-        SwaggerUIBundle.presets.apis,
-        SwaggerUIBundle.SwaggerUIStandalonePreset
-        ],
-    })"""
+        presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIBundle.SwaggerUIStandalonePreset
+            ],
+        })"""
     if init_oauth:
-        html += f"""
-        ui.initOAuth({json.dumps(jsonable_encoder(init_oauth))})
-        """
+        html += f"ui.initOAuth({json.dumps(jsonable_encoder(init_oauth))})"
     html += """
-    </script>
-    </body>
-    </html>
-    """
+        </script>
+        </body>
+        </html>
+        """
     return HTMLResponse(html)
 
 
@@ -74,8 +72,9 @@ def create_docs(app: FastAPI):
             title=f'{app.title}: Swagger UI',
             openapi_url=app.openapi_url,
             swagger_favicon_url='/file=html/favicon.svg',
+            swagger_css_url='/file=html/swagger.css',
             swagger_ui_parameters=swagger_ui_parameters,
-            swagger_extra_css_url='file=html/swagger.css',
+            # swagger_extra_css_url='file=html/swagger.css',
         )
         # res = inject_css(html.content, 'html/swagger.css')
         return res

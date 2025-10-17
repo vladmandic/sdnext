@@ -15,11 +15,20 @@ function cycleImageFit() {
   log('cycleImageFit', current, next);
 }
 
+function isInViewport(element) {
+  const rect = element.getBoundingClientRect();
+  return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+}
+
 function closeModal(evt, force = false) {
   if (force) gradioApp().getElementById('lightboxModal').style.display = 'none';
   if (previewDrag) return;
   if (evt?.button !== 0) return;
   gradioApp().getElementById('lightboxModal').style.display = 'none';
+  let thumbnails = Array.from(gradioApp().querySelectorAll('.thumbnails .thumbnail-item'));
+  thumbnails = thumbnails.filter((el) => el.checkVisibility());
+  if (thumbnails.length === 0) return;
+  thumbnails[0].focus();
 }
 
 function modalImageSwitch(offset) {

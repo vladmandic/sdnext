@@ -42,8 +42,8 @@ def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-
     pag_applied_layers_index = pag_applied_layers.split() if len(pag_applied_layers) > 0 else []
     pag_applied_layers_index = [p.strip() for p in pag_applied_layers_index]
     p.task_args['pag_applied_layers_index'] = pag_applied_layers_index if len(pag_applied_layers_index) > 0 else ['m0'] # Available layers: d[0-5], m[0], u[0-8]
-    p.extra_generation_params["PAG scale"] = p.pag_scale
-    p.extra_generation_params["PAG adaptive"] = p.pag_adaptive
+    p.extra_generation_params["CFG true"] = p.pag_scale
+    p.extra_generation_params["CFG adaptive"] = p.pag_adaptive
     # shared.log.debug(f'{c}: args={p.task_args}')
 
 

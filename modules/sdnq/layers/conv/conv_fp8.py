@@ -4,8 +4,9 @@ from typing import List
 
 import torch
 
-from ...common import use_torch_compile # noqa: TID252
+from ...common import compile_func # noqa: TID252
 from ..linear.linear_fp8 import quantize_fp8_matmul_input # noqa: TID252
+from ..linear.forward import check_mats # noqa: TID252
 from .forward import get_conv_args, process_conv_input
 
 
@@ -14,6 +15,8 @@ def conv_fp8_matmul(
     weight: torch.Tensor,
     bias: torch.FloatTensor,
     scale: torch.FloatTensor,
+    svd_up: torch.FloatTensor,
+    svd_down: torch.FloatTensor,
     result_shape: torch.Size,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
@@ -22,12 +25,17 @@ def conv_fp8_matmul(
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
+    if svd_up is not None:
+        input = input.flatten(0,-2)
+        svd_bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
+
     input, input_scale = quantize_fp8_matmul_input(input)
+    input, weight = check_mats(input, weight)
 
     if groups == 1:
         if bias is not None and bias.dtype != torch.bfloat16:
             bias = bias.to(dtype=torch.bfloat16)
-        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16).view(mm_output_shape).to(return_dtype)
+        result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16)
     else:
         scale = scale.view(groups, 1, scale.shape[1] // groups)
         input_scale = input_scale.view(groups, input_scale.shape[0] // groups, 1)
@@ -43,7 +51,10 @@ def conv_fp8_matmul(
         else:
             for i in range(groups):
                 result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=input_scale[i], scale_b=scale[i], bias=None, out_dtype=torch.bfloat16))
-        result = torch.cat(result, dim=-1).view(mm_output_shape).to(return_dtype)
+        result = torch.cat(result, dim=-1)
+    if svd_up is not None:
+        result.add_(svd_bias)
+    result = result.view(mm_output_shape).to(return_dtype)
 
     if conv_type == 1:
         result = result.transpose_(1,2)
@@ -56,11 +67,11 @@ def conv_fp8_matmul(
 
 def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul(
         input, self.weight, self.bias,
-        self.sdnq_dequantizer.scale,
+        self.scale, self.svd_up, self.svd_down,
         self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
@@ -68,5 +79,4 @@ def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
     )
 
 
-if use_torch_compile:
-    conv_fp8_matmul = torch.compile(conv_fp8_matmul, fullgraph=True, dynamic=False)
+conv_fp8_matmul = compile_func(conv_fp8_matmul)

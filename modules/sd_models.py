@@ -13,7 +13,7 @@ from installer import log
 from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
-from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closet_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
+from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, patch_diffuser_config, convert_to_faketensors, read_state_dict, get_state_dict_from_checkpoint, apply_function_to_model # pylint: disable=unused-import
 
@@ -28,6 +28,7 @@ debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 diffusers_version = int(diffusers.__version__.split('.')[1])
+get_closet_checkpoint_match = get_closest_checkpoint_match # legacy compatibility
 checkpoint_tiles = checkpoint_titles # legacy compatibility
 allow_post_quant = None
 pipe_switch_task_exclude = [
@@ -36,22 +37,19 @@ pipe_switch_task_exclude = [
     'FluxFillPipeline',
     'InstantIRPipeline',
     'LTXConditionPipeline',
-    'OmniGenPipeline',
-    'OmniGen2Pipeline',
+    'OmniGenPipeline', 'OmniGen2Pipeline',
     'PhotoMakerStableDiffusionXLPipeline',
     'PixelSmithXLPipeline',
     'StableDiffusion3ControlNetPipeline',
-    'StableDiffusionAdapterPipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
     'StableDiffusionReferencePipeline',
     'StableDiffusionXLInstantIDPipeline',
+    'XOmniPipeline',
 ]
 i2i_pipes = [
-    'LEditsPPPipelineStableDiffusion',
-    'LEditsPPPipelineStableDiffusionXL',
-    'OmniGenPipeline',
-    'OmniGen2Pipeline',
+    'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
+    'OmniGenPipeline', 'OmniGen2Pipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
 ]
@@ -398,6 +396,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_hyimage import load_hyimage
             sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
+        elif model_type in ['X-Omni']:
+            from pipelines.model_xomni import load_xomni
+            sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
@@ -411,65 +413,70 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
     files = shared.walk_files(checkpoint_info.path, ['.safetensors', '.bin', '.ckpt'])
     if 'variant' not in diffusers_load_config and any('diffusion_pytorch_model.fp16' in f for f in files): # deal with diffusers lack of variant fallback when loading
         diffusers_load_config['variant'] = 'fp16'
-    if (model_type is not None) and (pipeline is not None) and ('ONNX' in model_type): # forced pipeline
-        try:
-            sd_model = pipeline.from_pretrained(checkpoint_info.path)
-        except Exception as e:
-            shared.log.error(f'Load {op}: type=ONNX path="{checkpoint_info.path}" {e}')
-            if debug_load:
-                errors.display(e, 'Load')
-            return None
-    else:
-        err1, err2, err3 = None, None, None
-        if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path):
-            if os.path.exists(os.path.join(checkpoint_info.path, 'unet', 'diffusion_pytorch_model.bin')):
-                shared.log.debug(f'Load {op}: type=pickle')
-                diffusers_load_config['use_safetensors'] = False
+
+    err0, err1, err2, err3 = None, None, None, None
+    if os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path):
+        if os.path.exists(os.path.join(checkpoint_info.path, 'unet', 'diffusion_pytorch_model.bin')):
+            shared.log.debug(f'Load {op}: type=pickle')
+            diffusers_load_config['use_safetensors'] = False
+    if debug_load:
+        shared.log.debug(f'Load {op}: args={diffusers_load_config}')
+
+    try: #0 - using detected model type and pipeline
+        if (model_type is not None) and (pipeline is not None):
+            sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            sd_model.model_type = sd_model.__class__.__name__
+    except Exception as e:
+        err0 = e
         if debug_load:
-            shared.log.debug(f'Load {op}: args={diffusers_load_config}')
-        try: # 1 - autopipeline, best choice but not all pipelines are available
-            try:
+            errors.display(e, 'Load Detected')
+
+    try: # 1 - autopipeline, best choice but not all pipelines are available
+        try:
+            if err0 is not None:
                 sd_model = diffusers.AutoPipelineForText2Image.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
                 sd_model.model_type = sd_model.__class__.__name__
-            except ValueError as e:
-                if 'no variant default' in str(e):
-                    shared.log.warning(f'Load {op}: variant={diffusers_load_config["variant"]} model="{checkpoint_info.path}" using default variant')
-                    diffusers_load_config.pop('variant', None)
-                    sd_model = diffusers.AutoPipelineForText2Image.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
-                    sd_model.model_type = sd_model.__class__.__name__
-                elif 'safetensors found in directory' in str(err1):
-                    shared.log.warning(f'Load {op}: type=pickle')
-                    diffusers_load_config['use_safetensors'] = False
-                    sd_model = diffusers.AutoPipelineForText2Image.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
-                    sd_model.model_type = sd_model.__class__.__name__
-                else:
-                    raise ValueError from e # reraise
-        except Exception as e:
-            err1 = e
-            if debug_load:
-                errors.display(e, 'Load AutoPipeline')
-            # shared.log.error(f'AutoPipeline: {e}')
-        try: # 2 - diffusion pipeline, works for most non-linked pipelines
-            if err1 is not None:
-                sd_model = diffusers.DiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+        except ValueError as e:
+            if 'no variant default' in str(e):
+                shared.log.warning(f'Load {op}: variant={diffusers_load_config["variant"]} model="{checkpoint_info.path}" using default variant')
+                diffusers_load_config.pop('variant', None)
+                sd_model = diffusers.AutoPipelineForText2Image.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
                 sd_model.model_type = sd_model.__class__.__name__
-        except Exception as e:
-            err2 = e
-            if debug_load:
-                errors.display(e, "Load DiffusionPipeline")
-            # shared.log.error(f'DiffusionPipeline: {e}')
-        try: # 3 - try basic pipeline just in case
-            if err2 is not None:
-                sd_model = diffusers.StableDiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            elif 'safetensors found in directory' in str(err1):
+                shared.log.warning(f'Load {op}: type=pickle')
+                diffusers_load_config['use_safetensors'] = False
+                sd_model = diffusers.AutoPipelineForText2Image.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
                 sd_model.model_type = sd_model.__class__.__name__
-        except Exception as e:
-            err3 = e  # ignore last error
-            shared.log.error(f"StableDiffusionPipeline: {e}")
-            if debug_load:
-                errors.display(e, "Load StableDiffusionPipeline")
-        if err3 is not None:
-            shared.log.error(f'Load {op}: {checkpoint_info.path} auto={err1} diffusion={err2}')
-            return None
+            else:
+                raise ValueError from e # reraise
+    except Exception as e:
+        err1 = e
+        if debug_load:
+            errors.display(e, 'Load AutoPipeline')
+
+    try: # 2 - diffusion pipeline, works for most non-linked pipelines
+        if err1 is not None:
+            sd_model = diffusers.DiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            sd_model.model_type = sd_model.__class__.__name__
+    except Exception as e:
+        err2 = e
+        if debug_load:
+            errors.display(e, "Load DiffusionPipeline")
+
+    try: # 3 - try basic pipeline just in case
+        if err2 is not None:
+            sd_model = diffusers.StableDiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            sd_model.model_type = sd_model.__class__.__name__
+    except Exception as e:
+        err3 = e  # ignore last error
+        shared.log.error(f"StableDiffusionPipeline: {e}")
+        if debug_load:
+            errors.display(e, "Load StableDiffusionPipeline")
+
+    if err3 is not None:
+        shared.log.error(f'Load {op}: {checkpoint_info.path} detected={err0} auto={err1} diffusion={err2} base={err3}')
+        return None
+
     return sd_model
 
 
@@ -521,12 +528,41 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
             diffusers_load_config.pop('local_files_only', None)
             shared.log.debug(f'Setting {op}: pipeline={sd_model.__class__.__name__} config={diffusers_load_config}') # pylint: disable=protected-access
     except Exception as e:
-        shared.log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline}/{sd_model.__class__.__name__} config={diffusers_load_config} {e}')
+        shared.log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline} config={diffusers_load_config} {e}')
         if 'Weights for this component appear to be missing in the checkpoint' in str(e):
             shared.log.error(f'Load {op}: file="{checkpoint_info.path}" is not a complete model')
         else:
             errors.display(e, 'Load')
         return None
+    return sd_model
+
+
+def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
+    from modules import sdnq
+    modules = {}
+    for module_name in os.listdir(checkpoint_info.path):
+        quantization_config_path = os.path.join(checkpoint_info.path, module_name, 'quantization_config.json')
+        if not os.path.exists(quantization_config_path):
+            continue
+        model_name = os.path.join(checkpoint_info.path, module_name)
+        quantization_config = shared.readfile(quantization_config_path, silent=True)
+        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
+        try:
+            modules[module_name] = sdnq.load_sdnq_model(
+                model_path=model_name,
+                quantization_config=quantization_config,
+                device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
+                dtype=devices.dtype,
+            )
+        except Exception as e:
+            shared.log.error(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" {e}')
+            errors.display(e, 'Load')
+    sd_model = pipeline.from_pretrained(
+        checkpoint_info.path,
+        cache_dir=shared.opts.diffusers_dir,
+        **modules,
+        **diffusers_load_config,
+    )
     return sd_model
 
 
@@ -646,6 +682,13 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
                 shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
                 return
 
+        # load sdnq-prequantized model
+        if sd_model is None:
+            if model_type.endswith('SDNQ'):
+                sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
+                allow_post_quant = False
+                model_type = model_type.replace(' SDNQ', '')
+
         # load from hf folder-style
         if sd_model is None:
             if os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface' or checkpoint_info.type == 'transformer':
@@ -667,7 +710,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             sd_model.scheduler.name = 'DDIM'
 
         if hasattr(sd_model, "unet") and model_type not in ['Stable Cascade']: # others calls load_diffuser again
-            sd_unet.load_unet(sd_model)
+            sd_unet.load_unet(sd_model, checkpoint_info.path)
 
         add_noise_pred_to_diffusers_callback(sd_model)
 
@@ -738,6 +781,7 @@ class DiffusersTaskType(Enum):
     IMAGE_2_IMAGE = 2
     INPAINTING = 3
     INSTRUCT = 4
+    MODULAR = 5
 
 
 def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
@@ -748,6 +792,8 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif 'Instruct' in cls:
         return DiffusersTaskType.INSTRUCT
+    elif 'Modular' in cls:
+        return DiffusersTaskType.MODULAR
     elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING.values():
         return DiffusersTaskType.IMAGE_2_IMAGE
     elif pipe.__class__ in diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values():
@@ -945,6 +991,9 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     if get_diffusers_task(pipe) == new_pipe_type:
         return pipe
 
+    if get_diffusers_task(pipe) == DiffusersTaskType.MODULAR:
+        return pipe
+
     # skip specific pipelines
     cls = pipe.__class__.__name__
     if cls in pipe_switch_task_exclude:
@@ -1028,8 +1077,14 @@ def set_diffusers_attention(pipe, quiet:bool=False):
         if attention is None:
             return
         # other models uses their own attention processor
-        if pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet"):
-            pipe.unet.set_attn_processor(attention)
+        if pipe.__class__.__name__.startswith("StableDiffusion") and getattr(pipe, "unet", None) is not None and hasattr(pipe.unet, "set_attn_processor"):
+            try:
+                pipe.unet.set_attn_processor(attention)
+            except Exception as e:
+                if 'Nunchaku' in pipe.unet.__class__.__name__:
+                    pass
+                else:
+                    shared.log.error(f"Attention: {name if name is not None else attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}")
         elif not quiet:
             shared.log.warning(f"Attention: {name if name is not None else attention.__class__.__name__} is not compatible with {pipe.__class__.__name__}")
 
@@ -1053,16 +1108,18 @@ def set_diffusers_attention(pipe, quiet:bool=False):
             pipe.enable_xformers_memory_efficient_attention()
         else:
             shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
-    elif shared.opts.cross_attention_optimization == "Split attention":
-        if hasattr(pipe, "enable_attention_slicing"):
-            pipe.enable_attention_slicing()
-        else:
-            shared.log.warning(f"Attention: Split attention is not compatible with {pipe.__class__.__name__}")
     elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
         set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
     elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
         from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
         set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
+
+    if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
+        if shared.opts.attention_slicing:
+            pipe.enable_attention_slicing()
+        else:
+            pipe.disable_attention_slicing()
+        shared.log.debug(f"Attention: slicing={shared.opts.attention_slicing}")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
 
@@ -1201,10 +1258,41 @@ def hf_auth_check(checkpoint_info, force:bool=False):
                 return True
         except Exception:
             pass
+    repo_id = path_to_repo(checkpoint_info)
     try:
         login = modelloader.hf_login()
-        repo_id = path_to_repo(checkpoint_info)
         return hf.auth_check(repo_id)
     except Exception as e:
         shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
         return False
+
+
+def save_model(name: str, path: str = None, shard: str = None, overwrite: bool = False):
+    if (name is None) or len(name.strip()) == 0:
+        shared.log.error('Save model: invalid model name')
+        return 'Invalid model name'
+    if not shared.sd_loaded:
+        shared.log.error('Save model: model not loaded')
+        return 'Model not loaded'
+    from modules.sdnq import save_sdnq_model
+    if path is None:
+        path = shared.opts.diffusers_dir
+    model_name = os.path.join(path.strip(), name.strip())
+    if os.path.exists(model_name) and not overwrite:
+        shared.log.error(f'Save model: path="{model_name}" exists')
+        return f'Path exists: {model_name}'
+    try:
+        t0 = time.time()
+        save_sdnq_model(
+            model=shared.sd_model,
+            model_path=model_name,
+            max_shard_size=shard,
+            is_pipeline=True,
+        )
+        t1 = time.time()
+        shared.log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} time={t1 - t0:.2f}')
+        return f'Saved: {model_name}'
+    except Exception as e:
+        shared.log.error(f'Save model: path="{model_name}" {e}')
+        errors.display(e, 'Save model')
+        return f'Error: {e}'

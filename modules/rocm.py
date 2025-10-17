@@ -3,9 +3,9 @@ import sys
 import ctypes
 import shutil
 import subprocess
-import importlib.metadata
 from typing import Union, List
 from enum import Enum
+from functools import wraps
 
 
 def resolve_link(path_: str) -> str:
@@ -29,15 +29,30 @@ def load_library_global(path_: str):
     ctypes.CDLL(path_, mode=ctypes.RTLD_GLOBAL)
 
 
-def conceal():
-    os.environ.pop("ROCM_HOME", None)
-    os.environ.pop("ROCM_PATH", None)
-    paths = os.environ["PATH"].split(";")
-    paths_no_rocm = []
-    for path_ in paths:
-        if "rocm" not in path_.lower():
-            paths_no_rocm.append(path_)
-    os.environ["PATH"] = ";".join(paths_no_rocm)
+class Environment:
+    pass
+
+
+# rocm is installed system-wide
+class ROCmEnvironment(Environment):
+    path: str
+
+    def __init__(self, path: str):
+        self.path = path
+
+
+# rocm-sdk package is installed
+class PythonPackageEnvironment(Environment):
+    hip: ctypes.CDLL
+
+    def __init__(self):
+        import _rocm_sdk_core
+        if sys.platform == "win32":
+            path = os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll")
+        else:
+            raise NotImplementedError
+        # This library will be loaded/used by PyTorch. So it won't make conflicts.
+        self.hip = ctypes.CDLL(path)
 
 
 class MicroArchitecture(Enum):
@@ -80,8 +95,22 @@ class Agent:
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
+    @property
+    def therock(self) -> str:
+        if (self.gfx_version & 0xFFF0) == 0x1100:
+            return "gfx110X-dgpu"
+        if self.gfx_version == 0x1151:
+            return "gfx1151"
+        if (self.gfx_version & 0xFFF0) == 0x1200:
+            return "gfx120X-all"
+        if (self.gfx_version & 0xFFF0) == 0x940:
+            return "gfx94X-dcgpu"
+        if self.gfx_version == 0x950:
+            return "gfx950-dcgpu"
+        raise RuntimeError(f"Unsupported GPU architecture: {self.name}")
+
     def get_gfx_version(self) -> Union[str, None]:
-        if self.gfx_version >= 0x1101 and self.gfx_version < 0x1200:
+        if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
         elif self.gfx_version != 0x1030 and self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
             # gfx1010 users had to override gfx version to 10.3.0 in Linux
@@ -90,26 +119,22 @@ class Agent:
         return None
 
 
-def get_version_torch() -> Union[str, None]:
-    version_ = None
-    try:
-        version_ = importlib.metadata.version("torch")
-    except importlib.metadata.PackageNotFoundError:
-        return None
-    if "+rocm" not in version_: # unofficial build, non-rocm torch.
-        return None
-    return version_.split("+rocm")[1]
+def find() -> Union[Environment, None]:
+    try: # TheRock
+        import _rocm_sdk_core # pylint: disable=unused-import
+        return PythonPackageEnvironment()
+    except ImportError:
+        pass
 
+    # system-wide installation
+    hip_path = shutil.which("hipconfig")
+    if hip_path is not None:
+        return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
 
-if sys.platform == "win32":
-    def find() -> Union[str, None]:
-        hip_path = shutil.which("hipconfig")
-        if hip_path is not None:
-            return dirname(resolve_link(hip_path), 2)
-
+    if sys.platform == "win32":
         hip_path = os.environ.get("HIP_PATH", None)
         if hip_path is not None:
-            return hip_path
+            return ROCmEnvironment(hip_path)
 
         program_files = os.environ.get('ProgramFiles', r'C:\Program Files')
         hip_path = rf'{program_files}\AMD\ROCm'
@@ -146,29 +171,111 @@ if sys.platform == "win32":
         if latest is None:
             return None
 
-        return os.path.join(hip_path, str(latest))
-
-    def get_version() -> str: # cannot just run hipconfig as it requires Perl installed on Windows.
-        return os.path.basename(path) or os.path.basename(os.path.dirname(path))
-
-    def get_agents() -> List[Agent]:
-        return [Agent(x.split(' ')[-1].strip()) for x in spawn("hipinfo", cwd=os.path.join(path, 'bin')).split("\n") if x.startswith('gcnArchName:')]
-
-    is_wsl: bool = False
-    version_torch = None
-else:
-    def find() -> Union[str, None]:
-        rocm_path = shutil.which("hipconfig")
-        if rocm_path is not None:
-            return dirname(resolve_link(rocm_path), 2)
+        return ROCmEnvironment(os.path.join(hip_path, str(latest)))
+    else:
         if not os.path.exists("/opt/rocm"):
             return None
-        return resolve_link("/opt/rocm")
+        return ROCmEnvironment(resolve_link("/opt/rocm"))
 
-    def get_version() -> str:
-        arr = spawn("hipconfig --version", cwd=os.path.join(path, 'bin')).split(".")
-        return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
 
+def get_version() -> str:
+    if isinstance(environment, ROCmEnvironment):
+        # We don't load the hip library that will not be used by PyTorch.
+        if sys.platform == "win32":
+            # ROCm is system-wide installed. Assume the version is the folder name. (e.g. C:\Program Files\AMD\ROCm\6.4)
+            # hipconfig requires Perl
+            return os.path.basename(environment.path) or os.path.basename(os.path.dirname(environment.path))
+        else:
+            arr = spawn("hipconfig --version", cwd=os.path.join(environment.path, 'bin')).split(".")
+            return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
+    else:
+        # If rocm-sdk package is installed, the hip library may be used by PyTorch.
+        ver = ctypes.c_int()
+        environment.hip.hipRuntimeGetVersion(ctypes.byref(ver))
+        major = ver.value // 10000000
+        minor = (ver.value // 100000) % 100
+        #patch = version.value % 100000
+        return f"{major}.{minor}"
+
+
+def get_flash_attention_command(agent: Agent) -> str:
+    default = "git+https://github.com/ROCm/flash-attention"
+    if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
+        # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
+        # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
+        default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
+    return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+
+
+if sys.platform == "win32":
+    def get_agents() -> List[Agent]:
+        if isinstance(environment, ROCmEnvironment):
+            out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
+        else:
+            # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
+            out = spawn("amdgpu-arch")
+        out = out.strip()
+        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+
+    def driver_get_agents() -> List[Agent]:
+        # unsafe and experimental feature
+        from modules import windows_hip_ffi
+        hip = windows_hip_ffi.HIP()
+        count = hip.get_device_count()
+        agents = [None] * count
+        for i in range(count):
+            prop = hip.get_device_properties(i)
+            name = prop.gcnArchName.decode('utf-8').strip('\x00')
+            agents[i] = Agent(name)
+        del hip
+        return agents
+
+    def postinstall():
+        import torch
+        if torch.version.hip is None:
+            os.environ.pop("ROCM_HOME", None)
+            os.environ.pop("ROCM_PATH", None)
+            paths = os.environ["PATH"].split(";")
+            paths_no_rocm = []
+            for path_ in paths:
+                if "rocm" not in path_.lower():
+                    paths_no_rocm.append(path_)
+            os.environ["PATH"] = ";".join(paths_no_rocm)
+            return
+
+    def rocm_init():
+        try:
+            import torch
+            import numpy as np
+
+            original_cholesky_ex = torch.linalg.cholesky_ex
+            @wraps(original_cholesky_ex)
+            def cholesky_ex(A: torch.Tensor, upper=False, check_errors=False, out=None) -> torch.return_types.linalg_cholesky_ex:
+                assert not check_errors
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                info = torch.tensor(0, dtype=torch.int32, device=return_device)
+                if out is not None:
+                    out[0].copy_(L)
+                    out[1].copy_(info)
+                return torch.return_types.linalg_cholesky_ex((L, info), {})
+            torch.linalg.cholesky_ex = cholesky_ex
+
+            original_cholesky = torch.linalg.cholesky
+            @wraps(original_cholesky)
+            def cholesky(A: torch.Tensor, upper=False, out=None) -> torch.Tensor:
+                return_device = A.device
+                L = torch.from_numpy(np.linalg.cholesky(A.to("cpu").numpy(), upper=upper)).to(return_device)
+                if out is not None:
+                    out.copy_(L)
+                return L
+            torch.linalg.cholesky = cholesky
+        except Exception as e:
+            return False, e
+        return True, None
+
+    is_wsl: bool = False
+else:
     def get_agents() -> List[Agent]:
         try:
             agents = spawn("rocm_agent_enumerator").split("\n")
@@ -178,41 +285,32 @@ else:
             agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
         return [Agent(x) for x in agents]
 
-    def load_hsa_runtime() -> None:
-        try:
-            # Preload stdc++ library. This will ignore Anaconda stdc++ library.
-            load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
-            # Use tcmalloc if possible.
-            load_library_global("/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4")
-        except OSError:
-            pass
-        # Preload HSA Runtime library.
-        load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+    def postinstall():
+        if is_wsl:
+            try:
+                if shutil.which("conda") is not None:
+                    # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
+                # Preload rocr4wsl. The user don't have to replace the library file.
+                load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
+            except OSError:
+                pass
 
-    def set_blaslt_enabled(enabled: bool) -> None:
-        if enabled:
-            os.environ["HIPBLASLT_TENSILE_LIBPATH"] = blaslt_tensile_libpath
-        else:
-            os.environ["TORCH_BLAS_PREFER_HIPBLASLT"] = "0"
-
-    def get_blaslt_enabled() -> bool:
-        return version == version_torch and bool(int(os.environ.get("TORCH_BLAS_PREFER_HIPBLASLT", "1")))
-
-    def get_flash_attention_command(agent: Agent):
-        default = "git+https://github.com/ROCm/flash-attention"
-        if agent.gfx_version >= 0x1100 and agent.gfx_version < 0x1200 and os.environ.get("FLASH_ATTENTION_USE_TRITON_ROCM", "false").lower() != "true":
-            # use the navi_rotary_fix fork because the original doesn't support rotary_emb for transformers
-            # original: "git+https://github.com/ROCm/flash-attention@howiejay/navi_support"
-            default = "git+https://github.com/Disty0/flash-attention@navi_rotary_fix"
-        return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
+    def rocm_init():
+        return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
-    version_torch = get_version_torch()
-path = find()
+environment = None
 blaslt_tensile_libpath = ""
 is_installed = False
 version = None
-if path is not None:
-    blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
-    is_installed = True
-    version = get_version()
+
+def refresh():
+    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    environment = find()
+    if environment is not None:
+        if isinstance(environment, ROCmEnvironment):
+            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+        is_installed = True
+        version = get_version()
+refresh()

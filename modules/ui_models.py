@@ -12,6 +12,7 @@ extra_ui = []
 
 
 def create_ui():
+    log.debug('UI initialize: tab=models')
     dummy_component = gr.Label(visible=False)
     with gr.Row(elem_id="models_tab"):
         with gr.Column(elem_id='models_output_container', scale=1):
@@ -64,12 +65,23 @@ def create_ui():
                     return [html, meta]
 
                 with gr.Row():
-                    gr.HTML('<h2>Analyze currently loaded model<br></h2>')
-                with gr.Row():
-                    model_analyze = gr.Button(value="Analyze", variant='primary')
+                    model_analyze = gr.Button(value="Analyze model", variant='primary')
                 with gr.Row():
                     model_desc = gr.HTML(value="", elem_id="model_desc")
-                with gr.Row():
+                with gr.Accordion(label="Save model", open=False):
+                    with gr.Row():
+                        save_name = gr.Textbox(label="Model name", placeholder="Model name to save as")
+                    with gr.Row():
+                        save_path = gr.Textbox(label="Model base path", placeholder="Path to save model to", value=opts.diffusers_dir)
+                    with gr.Row():
+                        save_shard = gr.Textbox(label="Max shard size", placeholder="Maximum shard size", value="10GB")
+                        save_overwrite = gr.Checkbox(label="Overwrite existing", value=False)
+                    with gr.Row():
+                        save_result = gr.HTML(value="", elem_id="model_save_outcome")
+                    with gr.Row():
+                        model_save = gr.Button(value="Save model", variant='primary')
+                        model_save.click(fn=sd_models.save_model, inputs=[save_name, save_path, save_shard, save_overwrite], outputs=[save_result])
+                with gr.Accordion(label="Metadata", open=False):
                     model_meta = gr.JSON(label="Metadata", value={}, elem_id="model_meta")
 
                 model_analyze.click(fn=analyze, inputs=[], outputs=[model_desc, model_meta])

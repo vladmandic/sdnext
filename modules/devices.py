@@ -49,6 +49,10 @@ def has_xpu() -> bool:
     return bool(hasattr(torch, 'xpu') and torch.xpu.is_available())
 
 
+def has_rocm() -> bool:
+    return bool(torch.version.hip is not None and torch.cuda.is_available())
+
+
 def has_zluda() -> bool:
     if not cuda_ok:
         return False

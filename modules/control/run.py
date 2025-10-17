@@ -255,6 +255,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 prompt: str = '', negative_prompt: str = '', styles: List[str] = [],
                 steps: int = 20, sampler_index: int = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
+                guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
                 detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
@@ -306,7 +307,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         seed_resize_from_h = seed_resize_from_h,
         seed_resize_from_w = seed_resize_from_w,
         denoising_strength = denoising_strength,
-        # advanced
+        # modular guidance
+        guidance_name = guidance_name,
+        guidance_scale = guidance_scale,
+        guidance_rescale = guidance_rescale,
+        guidance_start = guidance_start,
+        guidance_stop = guidance_stop,
+        # legacy guidance
         cfg_scale = cfg_scale,
         cfg_end = cfg_end,
         clip_skip = clip_skip,
@@ -314,6 +321,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         diffusers_guidance_rescale = diffusers_guidance_rescale,
         pag_scale = pag_scale,
         pag_adaptive = pag_adaptive,
+        # advanced
         vae_type = vae_type,
         tiling = tiling,
         hidiffusion = hidiffusion,
@@ -380,6 +388,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     )
     p.state = state
     p.is_tile = False
+    p.init_control = inits or []
     p.orig_init_images = inputs
 
     # TODO modernui: monkey-patch for missing tabs.select event
@@ -396,9 +405,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     # hires/refine defined outside of main init
     vae_scale_factor = sd_vae.get_vae_scale_factor()
     if p.enable_hr and (p.hr_resize_x == 0 or p.hr_resize_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor), vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = int(vae_scale_factor * int(p.width_before * p.hr_scale / vae_scale_factor)), int(vae_scale_factor * int(p.height_before * p.hr_scale / vae_scale_factor))
     elif p.enable_hr and (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0):
-        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), vae_scale_factor * int(p.hr_resize_y / vae_scale_factor)
+        p.hr_upscale_to_x, p.hr_upscale_to_y = 8 * int(p.hr_resize_x / vae_scale_factor), int(vae_scale_factor * int(p.hr_resize_y / vae_scale_factor))
 
     global p_extra_args # pylint: disable=global-statement
     for k, v in p_extra_args.items():

@@ -39,24 +39,24 @@ def run_modelmerger(id_task, **kwargs):  # pylint: disable=unused-argument
         return [*[gr.update() for _ in range(4)], message]
 
     kwargs["models"] = {
-        "model_a": sd_models.get_closet_checkpoint_match(kwargs.get("primary_model_name", None)).filename,
-        "model_b": sd_models.get_closet_checkpoint_match(kwargs.get("secondary_model_name", None)).filename,
+        "model_a": sd_models.get_closest_checkpoint_match(kwargs.get("primary_model_name", None)).filename,
+        "model_b": sd_models.get_closest_checkpoint_match(kwargs.get("secondary_model_name", None)).filename,
     }
 
     if kwargs.get("primary_model_name", None) in [None, 'None']:
         return fail("Failed: Merging requires a primary model.")
-    primary_model_info = sd_models.get_closet_checkpoint_match(kwargs.get("primary_model_name", None))
+    primary_model_info = sd_models.get_closest_checkpoint_match(kwargs.get("primary_model_name", None))
     if kwargs.get("secondary_model_name", None) in [None, 'None']:
         return fail("Failed: Merging requires a secondary model.")
-    secondary_model_info = sd_models.get_closet_checkpoint_match(kwargs.get("secondary_model_name", None))
+    secondary_model_info = sd_models.get_closest_checkpoint_match(kwargs.get("secondary_model_name", None))
     if kwargs.get("tertiary_model_name", None) in [None, 'None'] and kwargs.get("merge_mode", None) in merge_utils.TRIPLE_METHODS:
         return fail(f"Failed: Interpolation method ({kwargs.get('merge_mode', None)}) requires a tertiary model.")
-    tertiary_model_info = sd_models.get_closet_checkpoint_match(kwargs.get("tertiary_model_name", None)) if kwargs.get("merge_mode", None) in merge_utils.TRIPLE_METHODS else None
+    tertiary_model_info = sd_models.get_closest_checkpoint_match(kwargs.get("tertiary_model_name", None)) if kwargs.get("merge_mode", None) in merge_utils.TRIPLE_METHODS else None
 
     del kwargs["primary_model_name"]
     del kwargs["secondary_model_name"]
     if kwargs.get("tertiary_model_name", None) is not None:
-        kwargs["models"] |= {"model_c": sd_models.get_closet_checkpoint_match(kwargs.get("tertiary_model_name", None)).filename}
+        kwargs["models"] |= {"model_c": sd_models.get_closest_checkpoint_match(kwargs.get("tertiary_model_name", None)).filename}
         del kwargs["tertiary_model_name"]
 
     if kwargs.get("alpha_base", None) and kwargs.get("alpha_in_blocks", None) and kwargs.get("alpha_mid_block", None) and kwargs.get("alpha_out_blocks", None):
@@ -204,7 +204,7 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
     if len(custom_name) == 0:
         yield msg("output name is required", err=True)
         return
-    checkpoint_info = sd_models.get_closet_checkpoint_match(model_name)
+    checkpoint_info = sd_models.get_closest_checkpoint_match(model_name)
     if checkpoint_info is None:
         yield msg("input model not found", err=True)
         return

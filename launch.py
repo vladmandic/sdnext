@@ -133,7 +133,7 @@ def run_pip(pkg, desc=None): # compatbility function
         desc = pkg
     for f in forbidden:
         if f in pkg:
-            debug_install('Blocked package installation: package={f}')
+            debug_install(f'Blocked package installation: package={f}')
             return True
     index_url_line = f' --index-url {index_url}' if index_url != '' else ''
     return run(f'"{sys.executable}" -m pip {pkg} --prefer-binary{index_url_line}', desc=f"Installing {desc}", errdesc=f"Couldn't install {desc}")
@@ -296,6 +296,9 @@ def main():
     args = installer.parse_args(parser)
     installer.log.info(f'Installer time: {init_summary()}')
     get_custom_args()
+
+    if installer.restart_required:
+        installer.log.warning('Restart is recommended due to packages updates...')
 
     uv, instance = start_server(immediate=True, server=None)
     t_server = time.time()

@@ -46,7 +46,6 @@ def enhance_prompt(enable:bool, model:str=None, image=None, prompt:str='', syste
         system_prompt += system_prompts['nsfw_ok'] if nsfw else system_prompts['nsfw_no']
         system_prompt += f" {system_prompts['suffix']} {system_prompts['example']}"
     shared.log.debug(f'Video prompt enhance: model="{model}" image={image} nsfw={nsfw} prompt="{prompt}"')
-    # shared.log.trace(f'Video prompt enhance: system="{system_prompt}"')
     answer = vqa.interrogate(question='', prompt=prompt, system_prompt=system_prompt, image=image, model_name=model, quiet=False)
     shared.log.debug(f'Video prompt enhance: answer="{answer}"')
     return answer

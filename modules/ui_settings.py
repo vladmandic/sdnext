@@ -24,7 +24,7 @@ def apply_setting(key, value):
     if key in shared.opts.disable_apply_metadata:
         gr.update()
     if key == "sd_model_checkpoint":
-        ckpt_info = sd_models.get_closet_checkpoint_match(value)
+        ckpt_info = sd_models.get_closest_checkpoint_match(value)
         if ckpt_info is not None:
             value = ckpt_info.title
         else:
@@ -172,6 +172,7 @@ def run_settings_single(value, key, progress=False):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=settings')
     global text_settings # pylint: disable=global-statement
     text_settings = gr.Textbox(elem_id="settings_json", elem_classes=["settings_json"], value=lambda: shared.opts.dumpjson(), visible=False)
     with gr.Row(elem_id="system_row"):
@@ -226,7 +227,7 @@ def create_ui():
                                     quicksettings_list.append((key, item))
                                     components.append(dummy_component)
                                 else:
-                                    with gr.Row(elem_id=f"settings_section_row_{section_id}"): # only so we can add dirty indicator at the start of the row
+                                    with gr.Row(elem_id=f"settings_section_row_{section_id}", elem_classes=["settings_section"]): # only so we can add dirty indicator at the start of the row
                                         component = create_setting_component(key)
                                         shared.settings_components[key] = component
                                         current_items.append(key)

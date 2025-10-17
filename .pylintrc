@@ -29,6 +29,7 @@ ignore-paths=/usr/lib/.*$,
              modules/postprocess/aurasr_arch.py,
              modules/prompt_parser_xhinker.py,
              modules/ras,
+             modules/seedvr,
              modules/rife,
              modules/schedulers,
              modules/taesd,
@@ -42,8 +43,10 @@ ignore-paths=/usr/lib/.*$,
              pipelines/meissonic,
              pipelines/omnigen2,
              pipelines/segmoe,
+             pipelines/xomni,
              scripts/consistory,
              scripts/ctrlx,
+             scripts/daam,
              scripts/demofusion,
              scripts/freescale,
              scripts/infiniteyou,
@@ -73,7 +76,6 @@ persistent=yes
 py-version=3.9
 recursive=no
 source-roots=
-suggestion-mode=yes
 unsafe-load-any-extension=no
 
 [BASIC]

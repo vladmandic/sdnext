@@ -54,6 +54,7 @@ def read_media(fn):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=gallery')
     with gr.Blocks() as tab:
         with gr.Row(elem_id='tab-gallery-sort-buttons'):
             sort_buttons = []

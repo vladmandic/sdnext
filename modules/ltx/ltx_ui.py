@@ -3,6 +3,7 @@ import gradio as gr
 from modules import shared, ui_sections, ui_symbols, ui_common
 from modules.ui_components import ToolButton
 from modules.video_models.video_utils import get_codecs
+from modules.video_models.models_def import models
 from modules.ltx import ltx_process
 
 
@@ -14,6 +15,9 @@ def create_ui(prompt, negative, styles, overrides):
         with gr.Column(variant='compact', elem_id="ltx_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="ltx_generate_btn", variant='primary', visible=False)
+            with gr.Row():
+                ltx_models = [m.name for m in models['LTX Video']]
+                model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0])
             with gr.Accordion(open=True, label="LTX size", elem_id='ltx_generate_accordion'):
                 with gr.Row():
                     width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
@@ -73,6 +77,7 @@ def create_ui(prompt, negative, styles, overrides):
     state_inputs = [task_id, ui_state]
 
     video_inputs = [
+        model,
         prompt, negative, styles,
         width, height, frames,
         steps, sampler_index, seed,

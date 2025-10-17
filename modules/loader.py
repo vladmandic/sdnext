@@ -51,10 +51,15 @@ if torch.__version__.startswith('2.5.0'):
     errors.log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
     torch.backends.cuda.enable_cudnn_sdp(False)
 try:
-    import intel_extension_for_pytorch as ipex # pylint: disable=import-error, unused-import
+    import intel_extension_for_pytorch as ipex # pylint: disable=import-error,unused-import
     errors.log.debug(f'Load IPEX=={ipex.__version__}')
 except Exception:
     pass
+try:
+    import torch.distributed.distributed_c10d as _c10d # pylint: disable=unused-import,ungrouped-imports
+except Exception:
+    errors.log.warning('Loader: torch is not built with distributed support')
+
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
@@ -123,15 +128,20 @@ timer.startup.record("pydantic")
 import tqdm as tqdm_lib # pylint: disable=C0411
 from tqdm.rich import tqdm # pylint: disable=W0611,C0411
 
-import diffusers.utils.import_utils # pylint: disable=W0611,C0411
-diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
-diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
+try:
+    import diffusers.utils.import_utils # pylint: disable=W0611,C0411
+    diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
+    diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
 
-import diffusers # pylint: disable=W0611,C0411
-import diffusers.loaders.single_file # pylint: disable=W0611,C0411
-diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
-logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
-timer.startup.record("diffusers")
+    import diffusers # pylint: disable=W0611,C0411
+    import diffusers.loaders.single_file # pylint: disable=W0611,C0411
+    diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
+    logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
+    timer.startup.record("diffusers")
+except Exception as e:
+    errors.log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
+    errors.log.error('Please restart re-run the installer')
+    sys.exit(1)
 
 import huggingface_hub # pylint: disable=W0611,C0411
 timer.startup.record("hfhub")

@@ -35,7 +35,6 @@ class UiLoadsave:
             saved_value = self.ui_settings.get(key, None)
             self.ui_defaults[key] = getattr(obj, field)
             if saved_value is None:
-                # self.ui_settings[key] = getattr(obj, field)
                 pass
             elif condition and not condition(saved_value):
                 pass
@@ -126,15 +125,37 @@ class UiLoadsave:
         writefile(current_ui_settings, self.filename)
 
     def dump_defaults(self):
-        """saves default values to a file unless the file is present and there was an error loading default values at start"""
         if os.path.exists(self.filename):
             return
         self.write_to_file(self.ui_settings)
 
+    def iter_all(self, values):
+        updates = []
+        for i, name in enumerate(self.component_mapping):
+            component = self.component_mapping[name]
+            choices = getattr(component, 'choices', None)
+            if type(choices) is list and len(choices) > 0: # fix gradio radio button choices being tuples
+                if type(choices[0]) is tuple:
+                    choices = [c[0] for c in choices]
+            new_value = values[i]
+            if isinstance(new_value, int) and choices:
+                if new_value >= len(choices):
+                    updates.append(None)
+                new_value = choices[new_value]
+            old_value = self.ui_settings.get(name, None)
+            default_value = self.ui_defaults.get(name, '')
+            if old_value == new_value:
+                updates.append(None)
+            elif old_value is None and (new_value == '' or new_value == []):
+                updates.append(None)
+            elif (new_value == default_value) and (old_value is None):
+                updates.append(None)
+            else:
+                updates.append((name, old_value, new_value, default_value))
+        return updates
+
     def iter_changes(self, values):
         for i, name in enumerate(self.component_mapping):
-            # if '__init__' in name:
-            #    continue
             component = self.component_mapping[name]
             choices = getattr(component, 'choices', None)
             if type(choices) is list and len(choices) > 0: # fix gradio radio button choices being tuples
@@ -201,16 +222,23 @@ class UiLoadsave:
 
     def ui_apply(self, *values):
         num_changed = 0
+        num_unchanged = 0
         current_ui_settings = self.read_from_file()
-        for name, old_value, new_value, default_value in self.iter_changes(values):
-            component = self.component_mapping[name]
-            errors.log.debug(f'Settings: name={name} component={component} old={old_value} default={default_value} new={new_value}')
-            num_changed += 1
-            current_ui_settings[name] = new_value
+        for x in self.iter_all(values):
+            if x is None:
+                num_unchanged += 1
+            else:
+                name, old_value, new_value, default_value = x
+                component = self.component_mapping[name]
+                errors.log.debug(f'Settings: name={name} component={component} old={old_value} default={default_value} new={new_value}')
+                num_changed += 1
+                current_ui_settings[name] = new_value
+                # what = name.split('/')[-1]
+                # setattr(component, what, new_value)
         if num_changed == 0:
             return "No changes"
         self.write_to_file(current_ui_settings)
-        errors.log.info(f'UI defaults saved: {self.filename}')
+        errors.log.info(f'UI defaults saved: {self.filename} changes={num_changed} unchanged={num_unchanged}')
         return f"Wrote {num_changed} changes"
 
     def ui_submenu_apply(self, items):

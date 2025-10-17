@@ -828,6 +828,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
         if is_valid:
             stat_size, stat_mtime = modelstats.stat(item.filename)
+            if hasattr(item, 'size') and item.size > 0:
+                stat_size = item.size
+            if hasattr(item, 'mtime') and item.mtime is not None:
+                stat_mtime = item.mtime
             desc = item.description
             fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
             if 'modelVersions' in fullinfo: # sanitize massive objects

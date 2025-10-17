@@ -5,7 +5,7 @@ import shutil
 import platform
 import subprocess
 import gradio as gr
-from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext
+from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 
 
 folder_symbol = ui_symbols.folder
@@ -19,8 +19,12 @@ def gr_show(visible=True):
 
 def update_generation_info(generation_info, html_info, img_index):
     try:
+        if len(generation_info) == 0 and processing.processed is not None:
+            generation_info = processing.processed.js() or {}
+        if len(generation_info) == 0:
+            return html_info, html_info
         generation_json = json.loads(generation_info)
-        if len(generation_json["infotexts"]) == 0:
+        if len(generation_json.get("infotexts", [])) == 0:
             return html_info, 'no infotexts found'
         if img_index == -1:
             img_index = 0
@@ -29,8 +33,8 @@ def update_generation_info(generation_info, html_info, img_index):
         info = generation_json["infotexts"][img_index]
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
-    except Exception:
-        pass
+    except Exception as e:
+        shared.log.trace(f'Update info: info="{generation_info}" {e}')
     return html_info, html_info
 
 
@@ -238,7 +242,7 @@ def open_folder(result_gallery, gallery_index = 0):
             subprocess.Popen(["xdg-open", path]) # pylint: disable=consider-using-with
 
 
-def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1):
+def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1, result_info=None):
     with gr.Column(variant='panel', elem_id=f"{tabname}_results", scale=scale):
         with gr.Group(elem_id=f"{tabname}_gallery_container"):
             if tabname == "txt2img":
@@ -286,10 +290,11 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 generation_info = gr.Textbox(visible=False, elem_id=f'generation_info_{tabname}')
                 generation_info_button = gr.Button(visible=False, elem_id=f"{tabname}_generation_info_button")
 
+                result_field = result_info or html_info_formatted
                 generation_info_button.click(fn=update_generation_info, show_progress=False,
                     _js="(x, y, z) => [x, y, selected_gallery_index()]", # triggered on gallery change from js
                     inputs=[generation_info, html_info, html_info],
-                    outputs=[html_info, html_info_formatted],
+                    outputs=[html_info, result_field],
                 )
                 save.click(fn=call_queue.wrap_gradio_call(save_files), show_progress=False,
                     _js="(x, y, z, i) => [x, y, z, selected_gallery_index()]",
@@ -354,11 +359,12 @@ def create_override_inputs(tab): # pylint: disable=unused-argument
 def reuse_seed(seed_component: gr.Number, reuse_button: gr.Button, subseed:bool=False):
     def reuse_click(selected_gallery_index):
         selected_gallery_index = int(selected_gallery_index)
-        from modules import processing
         if processing.processed is None:
             seed = -1
-        elif selected_gallery_index >= len(processing.processed.all_seeds):
-            selected_gallery_index -= len(processing.processed.images) - len(processing.processed.all_seeds) # if we have more images than seeds it is likely the grid image
+        elif len(processing.processed.images) > len(processing.processed.all_seeds): # if we have more images than seeds it is likely the grid image
+            selected_gallery_index -= (len(processing.processed.images) - len(processing.processed.all_seeds))
+            seed = processing.processed.all_seeds[selected_gallery_index] if not subseed else processing.processed.all_subseeds[selected_gallery_index]
+        elif selected_gallery_index <= len(processing.processed.all_seeds):
             seed = processing.processed.all_seeds[selected_gallery_index] if not subseed else processing.processed.all_subseeds[selected_gallery_index]
         elif len(processing.processed.all_seeds) > 0:
             seed = processing.processed.all_seeds[0] if not subseed else processing.processed.all_subseeds[0]

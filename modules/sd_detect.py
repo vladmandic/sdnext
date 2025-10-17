@@ -115,11 +115,17 @@ def guess_by_name(fn, current_guess):
         return 'Kandinsky 3.0'
     elif 'hunyuanimage' in fn.lower():
         return 'HunyuanImage'
+    elif 'x-omni' in fn.lower():
+        return 'X-Omni'
+    elif 'sdxl-turbo' in fn.lower() or 'stable-diffusion-xl' in fn.lower():
+        return 'Stable Diffusion XL'
     return current_guess
 
 
 def guess_by_diffusers(fn, current_guess):
     exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
+    if not os.path.isdir(fn):
+        return current_guess, None
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
         index = shared.readfile(index, silent=True)
@@ -132,9 +138,24 @@ def guess_by_diffusers(fn, current_guess):
             if pipeline is None:
                 pipeline = cls
         if callable(pipeline):
+            is_quant = False
+            for folder in os.listdir(fn):
+                folder = os.path.join(fn, folder)
+                if is_quant:
+                    break
+                if folder.endswith('quantization_config.json'):
+                    is_quant = True
+                    break
+                if os.path.isdir(folder):
+                    for f in os.listdir(folder):
+                        if f.endswith('quantization_config.json'):
+                            is_quant = True
+                            break
             pipelines = shared_items.get_pipelines()
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:
+                    if is_quant:
+                        k = f'{k} SDNQ'
                     return k, v
     return current_guess, None
 
@@ -193,6 +214,7 @@ def detect_pipeline(f: str, op: str = 'model'):
 
 
 def get_load_config(model_file, model_type, config_type='yaml'):
+    model_type = model_type.removesuffix(' SDNQ')
     if config_type == 'yaml':
         yaml = os.path.splitext(model_file)[0] + '.yaml'
         if os.path.exists(yaml):

@@ -13,7 +13,7 @@ from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsamp
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
-engine, model = 'LTX Video', 'LTXVideo 0.9.7 13B'
+# engine, model = 'LTX Video', 'LTXVideo 0.9.7 13B'
 upsample_repo_id = "a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers"
 upsample_pipe = None
 queue_lock = threading.Lock()
@@ -21,6 +21,7 @@ queue_lock = threading.Lock()
 
 def run_ltx(task_id,
             _ui_state,
+            model:str,
             prompt:str,
             negative:str,
             styles:list[str],
@@ -65,7 +66,10 @@ def run_ltx(task_id,
         progress.finish_task(task_id)
         yield None, f'LTX Error: {str(e)}'
 
-    from diffusers import LTXConditionPipeline # pylint: disable=unused-import
+    if model is None or len(model) == 0:
+        yield from abort('Video: no model selected', ok=True)
+        return
+    # from diffusers import LTXConditionPipeline # pylint: disable=unused-import
     check_av()
     progress.add_task_to_queue(task_id)
     with queue_lock:
@@ -73,9 +77,14 @@ def run_ltx(task_id,
         memstats.reset_stats()
         timer.process.reset()
         yield None, 'LTX: Loading...'
+        engine = 'LTX Video'
         load_model(engine, model)
+        debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init model="{model}"')
+        if not shared.sd_model.__class__.__name__.startswith("LTX"):
+            yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX model', ok=True)
+            return
 
-        shared.state.begin('Video', task_id=task_id)
+        videojob = shared.state.begin('Video', task_id=task_id)
         shared.state.job_count = 1
 
         p = processing.StableDiffusionProcessingVideo(
@@ -105,7 +114,7 @@ def run_ltx(task_id,
         prompt, negative, networks = get_prompts(prompt, negative, styles)
         sampler_name = processing.get_sampler_name(sampler_index)
         sd_samplers.create_sampler(sampler_name, shared.sd_model)
-        shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init prompt="{prompt}" negative="{negative}" styles={styles} networks={networks} sampler={shared.sd_model.scheduler.__class__.__name__}')
+        shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init styles={styles} networks={networks} sampler={shared.sd_model.scheduler.__class__.__name__}')
         extra_networks.activate(p, networks)
 
         t0 = time.time()
@@ -127,6 +136,7 @@ def run_ltx(task_id,
         if len(conditions) > 0:
             base_args["conditions"] = conditions
         yield None, 'LTX: Generate in progress...'
+        samplejob = shared.state.begin('Sample')
         try:
             latents = shared.sd_model(**base_args).frames[0]
         except AssertionError as e:
@@ -141,10 +151,11 @@ def run_ltx(task_id,
         timer.process.add('offload', t1 - t0)
         timer.process.add('base', t2 - t1)
         timer.process.add('offload', t3 - t2)
+        shared.state.end(samplejob)
 
         if upsample_enable:
             t4 = time.time()
-            shared.state.begin('Upsample')
+            upsamplejob = shared.state.begin('Upsample')
             global upsample_pipe # pylint: disable=global-statement
             upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id)
             upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
@@ -172,11 +183,11 @@ def run_ltx(task_id,
             t6 = time.time()
             timer.process.add('upsample', t5 - t4)
             timer.process.add('offload', t6 - t5)
-            shared.state.end()
+            shared.state.end(upsamplejob)
 
         if refine_enable:
             t7 = time.time()
-            shared.state.begin('Refine')
+            refinejob = shared.state.begin('Refine')
             shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
             refine_args = {
                 "prompt": prompt,
@@ -211,7 +222,7 @@ def run_ltx(task_id,
             t9 = time.time()
             timer.process.add('refine', t8 - t7)
             timer.process.add('offload', t9 - t8)
-            shared.state.end()
+            shared.state.end(refinejob)
 
         extra_networks.deactivate(p)
 
@@ -250,7 +261,7 @@ def run_ltx(task_id,
         fps = f'{num_frames/(t_end-t0):.2f}'
         its = f'{(steps)/(t_end-t0):.2f}'
 
-        shared.state.end()
+        shared.state.end(videojob)
         progress.finish_task(task_id)
 
         shared.log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={t_end-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')

@@ -28,6 +28,7 @@ def update_clip_params(*args):
 
 
 def create_ui():
+    shared.log.debug('UI initialize: tab=caption')
     with gr.Row(equal_height=False, variant='compact', elem_classes="caption", elem_id="caption_tab"):
         with gr.Column(variant='compact', elem_id='interrogate_input'):
             with gr.Row():
@@ -47,7 +48,7 @@ def create_ui():
                         with gr.Row():
                             vlm_max_tokens = gr.Slider(label='VLM max tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
                             vlm_num_beams = gr.Slider(label='VLM num beams', value=shared.opts.interrogate_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams')
-                            vlm_temperature = gr.Slider(label='VLM Temperature', value=shared.opts.interrogate_vlm_temperature, minimum=0.1, maximum=1.0, step=0.01, elem_id='vlm_temperature')
+                            vlm_temperature = gr.Slider(label='VLM Temperature', value=shared.opts.interrogate_vlm_temperature, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_temperature')
                         with gr.Row():
                             vlm_top_k = gr.Slider(label='Top-K', value=shared.opts.interrogate_vlm_top_k, minimum=0, maximum=99, step=1, elem_id='vlm_top_k')
                             vlm_top_p = gr.Slider(label='Top-P', value=shared.opts.interrogate_vlm_top_p, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_top_p')

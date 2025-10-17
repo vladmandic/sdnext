@@ -41,11 +41,11 @@ ENV SD_DOCKER=true
 # tcmalloc is not required but it is highly recommended
 ENV LD_PRELOAD=libtcmalloc.so.4
 # sdnext will run all necessary pip install ops and then exit
-RUN ["python", "/app/launch.py", "--debug", "--uv", "--use-cuda", "--log", "sdnext.log", "--test", "--optional"]
+RUN ["python", "/app/launch.py", "--uv", "--use-cuda", "--log", "sdnext.log", "--test", "--optional"]
 # preinstall additional packages to avoid installation during runtime
 
 # actually run sdnext
-CMD ["python", "launch.py", "--debug", "--skip-all", "--listen", "--quick", "--api-log", "--log", "sdnext.log"]
+CMD ["python", "launch.py", "--listen", "--quick", "--log", "sdnext.log"]
 
 # expose port
 EXPOSE 7860

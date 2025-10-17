@@ -12,6 +12,7 @@ exclude = [
     "modules/pag",
     "modules/schedulers",
     "modules/teacache",
+    "modules/seedvr",
 
     "modules/control/proc",
     "modules/control/units",
@@ -22,8 +23,10 @@ exclude = [
     "pipelines/omnigen2",
     "pipelines/hdm",
     "pipelines/segmoe",
+    "pipelines/xomni",
 
     "scripts/lbm",
+    "scripts/daam",
     "scripts/xadapter",
     "scripts/pulid",
     "scripts/instantir",

@@ -116,7 +116,8 @@
     "idbDel": "readonly",
     "idbAdd": "readonly",
     "initChangelog": "readonly",
-    "sendNotification": "readonly"
+    "sendNotification": "readonly",
+    "monitorConnection": "readonly"
   },
   "ignorePatterns": [
     "node_modules",

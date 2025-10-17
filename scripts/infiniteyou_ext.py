@@ -13,11 +13,9 @@ orig_pipeline, orig_prompt_attention = None, None
 
 
 def verify_insightface():
-    from installer import installed, install, install_pydantic
+    from installer import installed, install_insightface
     if not installed('insightface', reload=False, quiet=True):
-        install('git+https://github.com/deepinsight/insightface@554a05561cb71cfebb4e012dfea48807f845a0c2#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
-        install('albumentations==1.4.3', ignore=False, reinstall=True)
-        install_pydantic()
+        install_insightface()
 
 
 def load_infiniteyou(model: str):

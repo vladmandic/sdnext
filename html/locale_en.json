@@ -32,7 +32,6 @@
   {"id":"","label":"","localized":"","reload":"","hint":"Sort by time, descending"}
 ],
 "main": [
-  {"id":"","label":"SD.Next","localized":"","reload":"","hint":"SD.Next<br>All-in-one WebUI for AI generative image and video creation"},
   {"id":"","label":"Prompt","localized":"","reload":"","hint":"Describe image you want to generate"},
   {"id":"","label":"Start","localized":"","reload":"","hint":"Start"},
   {"id":"","label":"End","localized":"","reload":"","hint":"End"},
@@ -127,7 +126,7 @@
   {"id":"","label":"➠ Sketch","localized":"","reload":"","hint":"Transfer image to sketch interface"},
   {"id":"","label":"➠ Composite","localized":"","reload":"","hint":"Transfer image to inpaint sketch interface"},
   {"id":"","label":"➠ Process","localized":"","reload":"","hint":"Transfer image to process interface"},
-  {"id":"","label":"➠ Control","localized":"","reload":"","hint":"Transfrer image to control interface"},
+  {"id":"","label":"➠ Control","localized":"","reload":"","hint":"Transfer image to control interface"},
   {"id":"","label":"➠ Caption","localized":"","reload":"","hint":"Transfer image to caption interface"}
 ],
 "generate": [

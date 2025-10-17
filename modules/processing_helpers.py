@@ -9,11 +9,16 @@ import cv2
 from PIL import Image
 from blendmodes.blend import blendLayers, BlendType
 from modules import shared, devices, images, sd_models, sd_samplers, sd_vae, sd_hijack_hypertile, processing_vae, timer
+from modules.api import helpers
 
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_steps = shared.log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_steps('Trace: STEPS')
+
+
+def is_modular():
+    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.MODULAR
 
 
 def is_txt2img():
@@ -275,10 +280,38 @@ def validate_sample(tensor):
     return cast
 
 
+def decode_images(image):
+    if isinstance(image, list):
+        decoded = []
+        for i, img in enumerate(image):
+            if isinstance(img, str):
+                try:
+                    decoded.append(helpers.decode_base64_to_image(img, quiet=True))
+                except Exception as e:
+                    shared.log.error(f'Decode image[{i}]: {e}')
+            elif isinstance(img, Image.Image):
+                decoded.append(img)
+            else:
+                shared.log.error(f'Decode image[{i}]: {type(img)} unknown type')
+        return decoded
+    elif isinstance(image, str):
+        try:
+            return helpers.decode_base64_to_image(image, quiet=True)
+        except Exception as e:
+            shared.log.error(f'Decode image: {e}')
+    elif isinstance(image, Image.Image):
+        return image
+    else:
+        shared.log.error(f'Decode image: {type(image)} unknown type')
+    return None
+
+
 def resize_init_images(p):
     if getattr(p, 'image', None) is not None and getattr(p, 'init_images', None) is None:
         p.init_images = [p.image]
+
     if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
+        p.init_images = decode_images(p.init_images)
         vae_scale_factor = sd_vae.get_vae_scale_factor()
         tgt_width, tgt_height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
         if p.init_images[0].size != (tgt_width, tgt_height):
@@ -287,11 +320,14 @@ def resize_init_images(p):
             p.height = tgt_height
             p.width = tgt_width
             sd_hijack_hypertile.hypertile_set(p)
-        if getattr(p, 'mask', None) is not None and p.mask.size != (tgt_width, tgt_height):
+        if getattr(p, 'mask', None) is not None and p.mask is not None and p.mask.size != (tgt_width, tgt_height):
+            p.mask = decode_images(p.mask)
             p.mask = images.resize_image(1, p.mask, tgt_width, tgt_height, upscaler_name=None)
-        if getattr(p, 'init_mask', None) is not None and p.init_mask.size != (tgt_width, tgt_height):
+        if getattr(p, 'init_mask', None) is not None and p.init_mask is not None and p.init_mask.size != (tgt_width, tgt_height):
+            p.init_mask = decode_images(p.init_mask)
             p.init_mask = images.resize_image(1, p.init_mask, tgt_width, tgt_height, upscaler_name=None)
-        if getattr(p, 'mask_for_overlay', None) is not None and p.mask_for_overlay.size != (tgt_width, tgt_height):
+        if getattr(p, 'mask_for_overlay', None) is not None and p.mask_for_overlay is not None and p.mask_for_overlay.size != (tgt_width, tgt_height):
+            p.mask_for_overlay = decode_images(p.mask_for_overlay)
             p.mask_for_overlay = images.resize_image(1, p.mask_for_overlay, tgt_width, tgt_height, upscaler_name=None)
         return tgt_width, tgt_height
     return p.width, p.height
@@ -372,7 +408,9 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls:
+        steps = p.steps
+    elif is_modular():
         steps = p.steps
     elif not is_txt2img():
         if cls in sd_models.i2i_pipes:
@@ -393,7 +431,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
 
 def calculate_hires_steps(p):
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls:
         steps = p.steps
     elif p.hr_second_pass_steps > 0:
         steps = (p.hr_second_pass_steps // p.denoising_strength) + 1
@@ -407,7 +445,7 @@ def calculate_hires_steps(p):
 
 def calculate_refiner_steps(p):
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'HiDreamImageEditingPipeline' in cls or 'Kontext' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls:
         steps = p.steps
     elif "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
         if p.refiner_start > 0 and p.refiner_start < 1:

@@ -2,9 +2,9 @@
 
 import os
 import torch
-from modules import shared
 
-torch_version = float(torch.__version__[:3])
+from modules import shared, devices
+
 
 dtype_dict = {
     "int8": {"min": -128, "max": 127, "num_bits": 8, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True},
@@ -31,14 +31,74 @@ if hasattr(torch, "float8_e4m3fnuz"):
 if hasattr(torch, "float8_e5m2fnuz"):
     dtype_dict["float8_e5m2fnuz"] = {"min": -57344, "max": 57344, "num_bits": 8, "target_dtype": "fp8", "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False}
 
-use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
-use_tensorwise_fp8_matmul = os.environ.get('SDNQ_USE_TENSORWISE_FP8_MATMUL', "1").lower() not in {"0", "false", "no"} # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
+linear_types = {"Linear"}
+conv_types = {"Conv1d", "Conv2d", "Conv3d"}
+conv_transpose_types = {"ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"}
+allowed_types = set.union(linear_types, conv_types, conv_transpose_types)
+accepted_weights = set(dtype_dict.keys())
 
-linear_types = ("Linear",)
-conv_types = ("Conv1d", "Conv2d", "Conv3d")
-conv_transpose_types = ("ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d")
-allowed_types = linear_types + conv_types + conv_transpose_types
+use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
+is_rdna2 = bool(devices.backend == "rocm" and int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100)
+
+
+if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
+    # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
+    use_tensorwise_fp8_matmul = bool(devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0))
+else:
+    use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
+
+if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
+    use_contiguous_mm = bool(is_rdna2 or devices.backend in {"cpu", "ipex", "zluda"})
+else:
+    use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
+
+if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
+    use_triton_mm = bool(is_rdna2 or devices.backend == "zluda")
+else:
+    use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
+
+
+if use_triton_mm:
+    try:
+        from .triton_mm import int_mm
+        int_mm_func = int_mm
+    except ImportError:
+        int_mm_func = torch._int_mm
+else:
+    int_mm_func = torch._int_mm
+
 
 if use_torch_compile:
     torch._dynamo.config.cache_size_limit = max(8192, torch._dynamo.config.cache_size_limit)
     torch._dynamo.config.accumulated_recompile_limit = max(8192, torch._dynamo.config.accumulated_recompile_limit)
+    def compile_func(fn, **kwargs):
+        if kwargs.get("fullgraph", None) is None:
+            kwargs["fullgraph"] = True
+        if kwargs.get("dynamic", None) is None:
+            kwargs["dynamic"] = False
+        return torch.compile(fn, **kwargs)
+else:
+    def compile_func(fn, **kwargs): # pylint: disable=unused-argument
+        return fn
+
+
+module_skip_keys_dict = {
+    "FluxTransformer2DModel": [
+        ["single_transformer_blocks.0.norm.linear.weight", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "ChromaTransformer2DModel": [
+        ["distilled_guidance_layer", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "QwenImageTransformer2DModel": [
+        ["transformer_blocks.0.img_mod.1.weight", ".time_text_embed", ".txt_in", ".img_in", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "NaDiT": [
+        [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
+        {}
+    ],
+}
+
+module_skip_keys_dict["NaDiTUpscaler"] = module_skip_keys_dict["NaDiT"]

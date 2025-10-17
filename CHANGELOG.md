@@ -1,5 +1,174 @@
 # Change Log for SD.Next
 
+## Update for 2025-10-17
+
+### Highlights for 2025-10-17
+
+It's been a month since the last release and number of changes is yet again massive with over 300 commits!  
+Highlight are:  
+- **Torch**: ROCm on Windows for AMD GPUs  
+  if you have a compatible GPU, performance gains are significant!  
+- **Models**:  
+  a lot of new stuff with **Qwen-Image-Edit** including multi-image edits and distilled variants,  
+  new **Flux**, **WAN**, **LTX**, **HiDream** variants, expanded **Nunchaku** support and new SOTA upscaler with **SeedVR2**  
+  plus improved video support in general, including new methods of video encoding  
+- **Quantization**:  
+  new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
+  and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
+- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved previews, etc.  
+
+### Details for 2025-10-17
+
+- **Models**
+  - [WAN 2.2 14B VACE](https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B)  
+    available for *text-to-image* and *text-to-video* and *image-to-video* workflows  
+  - [Qwen Image Edit 2509](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) and [Nunchaku Qwen Image Edit 2509](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit-2509)  
+    updated version of Qwen Image Edit with improved image consistency  
+  - [Qwen Image Pruning](https://huggingface.co/OPPOer/Qwen-Image-Pruning) and [Qwen Image Edit Pruning](https://huggingface.co/OPPOer/Qwen-Image-Edit-Pruning)  
+    pruned versions of Qwen with 13B params instead of 20B, with some quality tradeoff  
+  - [Tencent FLUX.1 Dev SRPO](https://huggingface.co/tencent/SRPO)  
+    SRPO is trained by Tencent with specific technique: directly aligning the full diffusion trajectory with fine-grained human preference  
+  - [Nunchaku SDXL](https://huggingface.co/nunchaku-tech/nunchaku-sdxl) and [Nunchaku SDXL Turbo](https://huggingface.co/nunchaku-tech/nunchaku-sdxl-turbo)  
+    impact of nunchaku engine on unet-based model such as sdxl is much less than on a dit-based models, but its still significantly faster than baseline  
+    note that nunchaku optimized and pre-quantized unet is replacement for base unet, so its only applicable to base models, not any of fine-tunes  
+    *how to use*: enable nunchaku in settings -> quantization and then load either sdxl-base or sdxl-base-turbo reference models  
+  - [HiDream E1.1](https://huggingface.co/HiDream-ai/HiDream-E1-1)  
+    updated version of HiDream-E1 image editing model  
+  - [LTXVideo 0.9.8](https://huggingface.co/Lightricks/LTX-Video-0.9.8-13B-distilled)  
+    updated version of LTXVideo t2v/i2iv model  
+  - [SeedVR2](https://iceclear.github.io/projects/seedvr/)  
+    originally designed for video restoration, seedvr works great for image detailing and upscaling!  
+    available in 3B, 7B and 7B-sharp variants, use as any other upscaler!  
+    note: seedvr is a very large model (6.4GB and 16GB respectively) and not designed for lower-end hardware, quantization is highly recommended  
+    note: seedvr is highly sensitive to its cfg scale, set in *settings -> postprocessing*  
+    lower values will result in smoother output while higher values add details  
+  - [X-Omni SFT](https://x-omni-team.github.io/)  
+    *experimental*: X-omni is a transformer-only discrete auto-regressive image generative model trained with reinforcement learning  
+- **Features**
+  - **Model save**: ability to save currently loaded model as a new standalone model  
+    why? SD.Next always prefers to start with full model and quantize on-demand during load  
+    however, when you find your exact preferred quantization settings that work well for you,  
+    saving such model as a new model allows for faster loads and reduced disk space usage  
+    so its best of both worlds: you can experiment and test different quantization methods and once you find the one that works for you, save it as a new model  
+    saved models appear in network tab as normal models and can be loaded as such  
+    available in *models* tab  
+  - [Qwen Image-Edit](https://huggingface.co/Qwen/Qwen-Image-Edit-2509) multi-image editing
+    requires qwen-image-edit-2509 or its variant as multi-image edits are not available in original qwen-image  
+    in ui control tab: inputs -> separate init image  
+    add image for *input media* and *control media*  
+    can be 
+  - [Cache-DiT](https://github.com/vipshop/cache-dit)  
+    cache-dit is a unified, flexible and training-free cache acceleration framework  
+    compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
+    enable in *settings -> pipeline modifiers -> cache-dit*  
+  - [Nunchaku Flux.1 PulID](https://nunchaku.tech/docs/nunchaku/python_api/nunchaku.pipeline.pipeline_flux_pulid.html)  
+    automatically enabled if loaded model is FLUX.1 with Nunchaku engine enabled and when PulID script is enabled  
+  - **Huggingface mirror** in *settings -> huggingface*  
+    if you're working from location with limited access to huggingface, you can now specify a mirror site  
+    for example enter, `https://hf-mirror.com`  
+- **Compute**
+  - **ROCm** for Windows  
+    support for both official torch preview release of `torch-rocm` for windows and **TheRock** unofficial `torch-rocm` builds for windows  
+    note that rocm for windows is still in preview and has limited gpu support, please check rocm docs for details  
+  - **DirectML** warn as *end-of-life*  
+    `torch-directml` received no updates in over 1 year and its currently superseded by `rocm` or `zluda`  
+  - command line params `--use-zluda` and `--use-rocm` will attempt desired operation or fail if not possible  
+    previously sdnext was performing a fallback to `torch-cpu` which is not desired  
+  - **installer** if `--use-cuda` or `--use-rocm` are specified and `torch-cpu` is installed, installer will attempt to reinstall correct torch package  
+  - **installer** warn if *cuda* or *rocm* are available and `torch-cpu` is installed  
+  - support for `torch==2.10-nightly` with `cuda==13.0`  
+- **Extensions**  
+  - [Agent-Scheduler](https://github.com/SipherAGI/sd-webui-agent-scheduler)  
+    was a high-value built-in extension, but it has not been maintained for 1.5 years  
+    it also does not work with control and video tabs which are the core of sdnext nowadays  
+    so it has been removed from built-in extensions: manual installation is still possible  
+  - [DAAM: Diffusion Attentive Attribution Maps](https://github.com/castorini/daam)  
+    create heatmap visualizations of which parts of the prompt influenced which parts of the image  
+    available in scripts for sdxl text-to-image workflows  
+- **Offloading**
+  - improve offloading for pipelines with multiple stages such as *wan-2.2-14b*  
+  - add timers to measure onload/offload times during generate  
+  - experimental offloading using `torch.streams`  
+    enable in settings -> model offloading  
+  - new feature to specify which models types not to offload  
+    in *settings -> model offloading -> model types not to offload*  
+- **UI**
+  - **connection monitor**  
+    main logo in top-left corner now indicates server connection status and hovering over it shows connection details  
+  - separate guidance and detail sections  
+  - networks ability to filter lora by base model version  
+  - add interrogate button to input images  
+  - disable spellchecks on all text inputs  
+- **SDNQ**
+  - add `SVDQuant` quantization method support  
+  - make sdnq scales compatible with balanced offload  
+  - add int8 `matmul` support for RDNA2 GPUs via triton  
+  - improve int8 `matmul` performance on Intel GPUs  
+- **Other**
+  - server will note when restart is recommended due to package updates  
+  - **interrupt** will now show last known preview image  
+    *keep incomplete* setting is now *save interrupted*  
+  - **logging** enable `debug`, `docs` and `api-docs` by default  
+  - **logging** add detailed ram/vram utilization info to log  
+    logging frequency can be specified using `--monitor x` command line param, where x is number of seconds  
+  - **ipex** simplify internal implementation  
+  - refactor to use new libraries  
+  - styles and wildcards now use same seed as main generate for reproducible results  
+  - **api** new endpoint POST `/sdapi/v1/civitai` to trigger civitai models metadata update  
+    accepts optional `page` parameter to search specific networks page  
+  - **reference models** additional example images, thanks @liutyi  
+  - **reference models** add model size and release date, thanks @alerikaisattera  
+  - **video** support for configurable multi-stage models such as WAN-2.2-14B  
+  - **video** new LTX model selection  
+  - replace `pynvml` with `nvidia-ml-py` for gpu monitoring  
+  - update **loopback** script with radon seed option, thanks @rabanti  
+  - **vae** slicing enable for *lowvram/medvram*, tiling for *lowvram*, both disabled otherwise  
+  - **attention** remove split-attention and add explicitly attention slicing enable/disable option  
+    enable in *settings -> compute settings*  
+    can be combined with sdp, enabling may improve stability when used on iGPU or shared memory systems  
+  - **nunchaku** update to `1.0.1` and enhance installer  
+  - **xyz-grid** add guidance section  
+  - **preview** implement configurable layers for WAN, Qwen, HV  
+  - update swagger `/docs` endpoint style  
+  - add `[epoch]` to filename template  
+  - starting `[seq]` for filename template is now higher of largest previous sequence or number of files in folder  
+- **Video**
+  - use shared **T5** text encoder for video models when possible  
+  - use shared **LLama** text encoder for video models when possible  
+  - unified video save code across all video models  
+    also avoids creation of temporary files for each frame unless user wants to save them  
+  - unified prompt enhance code across all video models  
+  - add job state tracking for video generation  
+  - fix quantization not being applied on load for some models  
+  - improve offloading for **ltx** and **wan**  
+  - fix model selection in **ltx** tab  
+- **Experimental**
+  - `new` command line flag enables new `pydantic` and `albumentations` packages  
+  - **modular pipelines**: enable in *settings -> model options*  
+    only compatible with some pipelines, invalidates preview generation  
+  - **modular guiders**: automatically used for compatible pipelines when *modular pipelines* is enabled  
+    allows for using many different guidance methods:  
+    *CFG, CFGZero, PAG, APG, SLG, SEG, TCFG, FDG*  
+- **Wiki**
+  - updates to *AMD-ROCm, ZLUDA, LoRA, DirectML, SDNQ, Quantization, Prompting, LoRA* pages  
+  - new *Stability-Matrix* page  
+- **Fixes**
+  - **Microsoft Florence 2** both base and large variants  
+    *note* this will trigger download of the new variant of the model, feel free to delete older variant in `huggingface` folder  
+  - **MiaoshouAI PromptGen** 1.5/2.0 in both base and large variants  
+  - fix prompt scheduling, thanks @nolbert82  
+  - ui: fix image metadata display when switching selected image in control tab  
+  - framepack: add explicit hf-login before framepack load  
+  - framepack: patch solver for unsupported gpus  
+  - benchmark: remove forced sampler from system info benchmark  
+  - xyz-grid: fix xyz grid with random seeds  
+  - reference: fix download for sd15/sdxl reference models  
+  - fix checks in init/mask image decode  
+  - fix hf token with extra chars  
+  - image viewer refocus on gallery after returning from full screen mode  
+  - fix attention guidance metadata save/restore  
+  - vae preview add explicity cuda.sync  
+
 ## Update for 2025-09-15
 
 ### Highlights for 2025-09-15
@@ -8,7 +177,7 @@
 **StandardUI** is still available and can be selected in settings, but ModernUI is now the default for new installs  
 
 *What's else*? **Chroma** is in its final form, there are several new **Qwen-Image** variants and **Nunchaku** hit version 1.0!  
-Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overal workflows  
+Also, there are quite a few offloading improvements and many quality-of-life changes to UI and overall workflows  
 And check out new **history** tab in the right panel, it now shows visualization of entire processing timeline!  
 
 ![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
@@ -22,13 +191,13 @@ And check out new **history** tab in the right panel, it now shows visualization
   - **Qwen-Image** [InstantX ControlNet Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) support  
     *note* qwen-image is already a very large model and controlnet adds 3.5GB on top of that so quantization and offloading are highly recommended!  
   - [Qwen-Lightning-Edit](https://huggingface.co/vladmandic/Qwen-Lightning-Edit) and [Qwen-Image-Distill](https://huggingface.co/SahilCarterr/Qwen-Image-Distill-Full) variants  
-  - **Nuchaku** variants of [Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image), [Qwen-Image-Edit](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit), [Nunchaku-Qwen-Image-Edit-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit)
+  - **Nunchaku** variants of [Qwen-Image-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image), [Qwen-Image-Edit](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit), [Nunchaku-Qwen-Image-Edit-Lightning](https://huggingface.co/nunchaku-tech/nunchaku-qwen-image-edit)
   - **Nunchaku** variant of [Flux.1-Krea-Dev](https://huggingface.co/nunchaku-tech/nunchaku-flux.1-krea-dev)  
     if you have a compatible nVidia GPU, Nunchaku is the fastest quantization & inference engine  
   - [HunyuanDiT ControlNet](https://huggingface.co/Tencent-Hunyuan/HYDiT-ControlNet-v1.2) Canny, Depth, Pose  
   - [KBlueLeaf/HDM-xut-340M-anime](https://huggingface.co/KBlueLeaf/HDM-xut-340M-anime)  
     highly experimental: HDM *Home-made-Diffusion-Model* is a project to investigate specialized training recipe/scheme  
-    for pretraining T2I model at home based on super-light architecture  
+    for pre-training T2I model at home based on super-light architecture  
     *requires*: generator=cpu, dtype=float16, offload=none, both positive and negative prompts are required and must be long & detailed  
   - [Apple FastVLM](https://huggingface.co/apple/FastVLM-0.5B) in 0.5B, 1.5B and 7B variants  
     available in captioning tab  
@@ -47,13 +216,13 @@ And check out new **history** tab in the right panel, it now shows visualization
   - additional artwork for reference models in networks, thanks @liutyi  
   - improve ui hints display  
   - restyled all toolbuttons to be modernui native  
-  - reodered system settings  
+  - reordered system settings  
   - dynamic direction of dropdowns  
   - improve process tab layout  
   - improve detection of active tab  
   - configurable horizontal vs vertical panel layout  
     in settings -> user interface -> panel min width  
-    *example*: if panel width is less than specified value, layout switches to verical  
+    *example*: if panel width is less than specified value, layout switches to vertical  
   - configurable grid images size  
     in *settings -> user interface -> grid image size*  
   - gallery now includes reference model images  
@@ -64,10 +233,10 @@ And check out new **history** tab in the right panel, it now shows visualization
     - improve offloading of models with multiple dits  
     - improve offloading of models with impliciy vae processing  
     - improve offloading of models with controlnet  
-    - more aggressive offloading of controlnets with lowvram flag  
+    - more aggressive offloading of controlnet with lowvram flag  
   - **group**
     - new offloading method, using *type=leaf* works on a similar level as sequential offloading  
-      and can present siginificant savings on low-vram gpus, but comes at the higher performace cost  
+      and can present significant savings on low-vram gpus, but comes at the higher performance cost  
 - **Quantization**
   - option to specify models types not to quantize: *settings -> quantization*  
     allows for having quantization enabled, but skipping specific model types that do not need it  
@@ -82,6 +251,13 @@ And check out new **history** tab in the right panel, it now shows visualization
     *experimental*: requires new pydantic package which *may* break other things, to enable start sdnext with `--new` flag  
     *note*: this is model quantization only, no support for tensorRT inference yet  
 - **Other**
+  - **LoRA** allow specifying module to apply lora on  
+    *example*: `<lora:mylora:1.0:module=unet>` would apply lora *only* on unet regardless of lora content  
+    this is particularly useful when you have multiple loras and you want to apply them on different parts of the model  
+    *example*: `<lora:firstlora:1.0:high>` and `<lora:secondlora:1.0:low>`  
+    *note*: `low` is shorthand for `module=transformer_2` and `high` is shortcut for `module=transformer`  
+  - **Detailer** allow manually setting processing resolution  
+    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
   - refactor reuse-seed and add functionality to all tabs  
   - refactor modernui js codebase  
   - move zluda flash attenion to *Triton Flash attention* option  
@@ -96,8 +272,6 @@ And check out new **history** tab in the right panel, it now shows visualization
   - add deprecation warning for `python==3.9`  
   - allow setting denoise strength to 0 in control/img2img  
     this allows to run workflows which only refine or detail existing image without changing it   
-  - **Detailer** allow manually setting processing resolution  
-    *note*: this does not impact the actual image resolution, only the resolution at which detailer internally operates  
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  

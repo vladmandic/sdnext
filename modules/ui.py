@@ -28,6 +28,7 @@ plaintext_to_html = ui_common.plaintext_to_html # compatibility item
 infotext_to_html = ui_common.infotext_to_html # compatibility item
 create_sampler_and_steps_selection = ui_sections.create_sampler_and_steps_selection # compatibility item
 ui_system_tabs = None # required for system-info
+interfaces = []
 
 
 if not shared.cmd_opts.share and not shared.cmd_opts.listen:
@@ -132,7 +133,8 @@ def create_ui(startup_timer = None):
         ui_extensions.create_ui()
         timer.startup.record("ui-extensions")
 
-    interfaces = []
+    global interfaces # pylint: disable=global-statement
+    interfaces.clear()
     interfaces += [(txt2img_interface, "Text", "txt2img")]
     interfaces += [(img2img_interface, "Image", "img2img")]
     if control_interface is not None:

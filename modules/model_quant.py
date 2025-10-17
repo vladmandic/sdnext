@@ -205,6 +205,9 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         sdnq_config = SDNQConfig(
             weights_dtype=weights_dtype,
             group_size=shared.opts.sdnq_quantize_weights_group_size,
+            svd_rank=shared.opts.sdnq_svd_rank,
+            svd_steps=shared.opts.sdnq_svd_steps,
+            use_svd=shared.opts.sdnq_use_svd,
             quant_conv=shared.opts.sdnq_quantize_conv_layers,
             use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
             use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
@@ -215,7 +218,7 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
             modules_to_not_convert=modules_to_not_convert,
             modules_dtype_dict=modules_dtype_dict.copy(),
         )
-        log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
+        log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} svd_rank={shared.opts.sdnq_svd_rank} svd_steps={shared.opts.sdnq_svd_steps} use_svd={shared.opts.sdnq_use_svd} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
         if kwargs is None:
             return sdnq_config
         else:
@@ -477,10 +480,10 @@ def apply_layerwise(sd_model, quiet:bool=False):
 def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared, timer
-    from modules.sdnq import apply_sdnq_to_module
+    from modules.sdnq import sdnq_post_load_quant
 
     if weights_dtype is None:
-        if op is not None and ("text_encoder" in op or op in {"TE", "LLM"}) and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
+        if (op is not None) and ("text_encoder" in op or op in {"TE", "LLM"}) and (shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}):
             weights_dtype = shared.opts.sdnq_quantize_weights_mode_te
         else:
             weights_dtype = shared.opts.sdnq_quantize_weights_mode
@@ -494,18 +497,6 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         modules_to_not_convert = []
     if modules_dtype_dict is None:
         modules_dtype_dict = {}
-
-    if getattr(model, "_keep_in_fp32_modules", None) is not None:
-        modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
-    if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
-    if model.__class__.__name__ == "ChromaTransformer2DModel":
-        modules_to_not_convert.append("distilled_guidance_layer")
-    if model.__class__.__name__ == "QwenImageTransformer2DModel":
-        if "minimum_6bit" not in modules_dtype_dict.keys():
-            modules_dtype_dict["minimum_6bit"] = ["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"]
-        else:
-            modules_dtype_dict["minimum_6bit"].extend(["img_mod", "pos_embed", "time_text_embed", "img_in", "txt_in", "norm_out"])
 
     sdnq_modules_to_not_convert = [m.strip() for m in re.split(';|,| ', shared.opts.sdnq_modules_to_not_convert) if len(m.strip()) > 1]
     if len(sdnq_modules_to_not_convert) > 0:
@@ -527,17 +518,16 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     except Exception as e:
         log.warning(f'Quantization: SDNQ failed to parse sdnq_modules_dtype_dict: {e}')
 
-    model.eval()
-    backup_embeddings = None
-    if hasattr(model, "get_input_embeddings"):
-        backup_embeddings = copy.deepcopy(model.get_input_embeddings())
-
     t0 = time.time()
-    model = apply_sdnq_to_module(
+
+    model = sdnq_post_load_quant(
         model,
         weights_dtype=weights_dtype,
         torch_dtype=devices.dtype,
         group_size=shared.opts.sdnq_quantize_weights_group_size,
+        svd_rank=shared.opts.sdnq_svd_rank,
+        svd_steps=shared.opts.sdnq_svd_steps,
+        use_svd=shared.opts.sdnq_use_svd,
         quant_conv=shared.opts.sdnq_quantize_conv_layers,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
         use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
@@ -549,12 +539,9 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         modules_dtype_dict=modules_dtype_dict.copy(),
         op=op,
     )
+
     t1 = time.time()
     timer.load.add('sdnq', t1 - t0)
-    model.quantization_method = 'SDNQ'
-
-    if hasattr(model, "set_input_embeddings") and backup_embeddings is not None:
-        model.set_input_embeddings(backup_embeddings)
 
     if op is not None and shared.opts.sdnq_quantize_shuffle_weights:
         if quant_last_model_name is not None:
@@ -577,7 +564,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     if do_gc:
         devices.torch_gc(force=True, reason='sdnq')
 
-    log.debug(f'Quantization: module="{op if op is not None else model.__class__}" type=sdnq mode=post dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
+    log.debug(f'Quantization: module="{op if op is not None else model.__class__}" type=sdnq mode=post dtype={weights_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} group_size={shared.opts.sdnq_quantize_weights_group_size} svd_rank={shared.opts.sdnq_svd_rank} svd_steps={shared.opts.sdnq_svd_steps} use_svd={shared.opts.sdnq_use_svd} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} quantization_device={quantization_device} return_device={return_device} device_map={shared.opts.device_map} offload_mode={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_to_not_convert={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
     return model
 
 
@@ -585,7 +572,7 @@ def sdnq_quantize_weights(sd_model):
     try:
         t0 = time.time()
         from modules import shared, devices, sd_models
-        log.debug(f"Quantization: type=SDNQ modules={shared.opts.sdnq_quantize_weights} dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul}  group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} pre_forward={shared.opts.diffusers_offload_pre}")
+        log.debug(f"Quantization: type=SDNQ modules={shared.opts.sdnq_quantize_weights} dtype={shared.opts.sdnq_quantize_weights_mode} dtype_te={shared.opts.sdnq_quantize_weights_mode_te} matmul={shared.opts.sdnq_use_quantized_matmul} svd_rank={shared.opts.sdnq_svd_rank} svd_steps={shared.opts.sdnq_svd_steps} use_svd={shared.opts.sdnq_use_svd} group_size={shared.opts.sdnq_quantize_weights_group_size} quant_conv={shared.opts.sdnq_quantize_conv_layers} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quantize_with_gpu={shared.opts.sdnq_quantize_with_gpu} dequantize_fp32={shared.opts.sdnq_dequantize_fp32} pre_forward={shared.opts.diffusers_offload_pre}")
         global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
 
         sd_model = sd_models.apply_function_to_model(sd_model, sdnq_quantize_model, shared.opts.sdnq_quantize_weights, op="sdnq")
@@ -603,6 +590,8 @@ def sdnq_quantize_weights(sd_model):
         log.info(f"Quantization: type=SDNQ time={t1-t0:.2f}")
     except Exception as e:
         log.warning(f"Quantization: type=SDNQ {e}")
+        from modules import errors
+        errors.display(e, 'Quantization')
     return sd_model
 
 
@@ -610,12 +599,14 @@ def optimum_quanto_model(model, op=None, sd_model=None, weights=None, activation
     from modules import devices, shared
     quanto = load_quanto('Quantize model: type=Optimum Quanto')
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
-    if sd_model is not None and ("Flux" in sd_model.__class__.__name__ or "Chroma" in sd_model.__class__.__name__): # LayerNorm is not supported
+    if model.__class__.__name__ in {"FluxTransformer2DModel", "ChromaTransformer2DModel"}: # LayerNorm is not supported
         exclude_list = ["transformer_blocks.*.norm1.norm", "transformer_blocks.*.norm2", "transformer_blocks.*.norm1_context.norm", "transformer_blocks.*.norm2_context", "single_transformer_blocks.*.norm.norm", "norm_out.norm"]
-        if "Chroma" in sd_model.__class__.__name__:
+        if model.__class__.__name__ == "ChromaTransformer2DModel":
             # we ignore the distilled guidance layer because it degrades quality too much
             # see: https://github.com/huggingface/diffusers/pull/11698#issuecomment-2969717180 for more details
             exclude_list.append("distilled_guidance_layer.*")
+    elif model.__class__.__name__ == "QwenImageTransformer2DModel":
+        exclude_list = ["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "img_in", "txt_in", "proj_out", "norm_out", "pos_embed"]
     else:
         exclude_list = None
     weights = getattr(quanto, weights) if weights is not None else getattr(quanto, shared.opts.optimum_quanto_weights_type)

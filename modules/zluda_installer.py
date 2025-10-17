@@ -119,12 +119,13 @@ def link_or_copy(src: os.PathLike, dst: os.PathLike):
 
 
 def load():
+    assert isinstance(rocm.environment, rocm.ROCmEnvironment)
     global core, ml, hipBLASLt_enabled, MIOpen_enabled # pylint: disable=global-statement
     core = Core(ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll')))
     ml = ZLUDALibrary(ctypes.windll.LoadLibrary(os.path.join(path, 'nvml.dll')))
     is_nightly = core.get_nightly_flag() == 1
-    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.path, "bin", "hipblaslt.dll")) and default_agent is not None
-    MIOpen_enabled = is_nightly and os.path.exists(os.path.join(rocm.path, "bin", "MIOpen.dll"))
+    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.environment.path, "bin", "hipblaslt.dll")) and default_agent is not None
+    MIOpen_enabled = is_nightly and os.path.exists(os.path.join(rocm.environment.path, "bin", "MIOpen.dll"))
 
     if hipBLASLt_enabled:
         if not default_agent.blaslt_supported:
@@ -147,22 +148,22 @@ def load():
     os.environ["ZLUDA_NVRTC_LIB"] = os.path.join([v for v in site.getsitepackages() if v.endswith("site-packages")][0], "torch", "lib", "nvrtc64_112_0.dll")
 
     for v in HIPSDK_TARGETS:
-        ctypes.windll.LoadLibrary(os.path.join(rocm.path, 'bin', v))
+        ctypes.windll.LoadLibrary(os.path.join(rocm.environment.path, 'bin', v))
     for v in DLL_MAPPING.values():
         ctypes.windll.LoadLibrary(os.path.join(path, v))
 
     if hipBLASLt_enabled:
         os.environ.setdefault("DISABLE_ADDMM_CUDA_LT", "0")
-        ctypes.windll.LoadLibrary(os.path.join(rocm.path, 'bin', 'hipblaslt.dll'))
+        ctypes.windll.LoadLibrary(os.path.join(rocm.environment.path, 'bin', 'hipblaslt.dll'))
         ctypes.windll.LoadLibrary(os.path.join(path, 'cublasLt64_11.dll'))
     else:
         os.environ["DISABLE_ADDMM_CUDA_LT"] = "1"
 
     if MIOpen_enabled:
-        ctypes.windll.LoadLibrary(os.path.join(rocm.path, 'bin', 'MIOpen.dll'))
+        ctypes.windll.LoadLibrary(os.path.join(rocm.environment.path, 'bin', 'MIOpen.dll'))
         ctypes.windll.LoadLibrary(os.path.join(path, 'cudnn64_9.dll'))
 
-    def conceal():
+    def postinstall():
         import torch
         torch.version.hip = rocm.version
         platform = sys.platform
@@ -175,4 +176,4 @@ def load():
         def _join_rocm_home(*paths) -> str:
             return os.path.join(cpp_extension.ROCM_HOME, *paths)
         cpp_extension._join_rocm_home = _join_rocm_home # pylint: disable=protected-access
-    rocm.conceal = conceal
+    rocm.postinstall = postinstall

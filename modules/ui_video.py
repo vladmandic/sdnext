@@ -7,7 +7,7 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 
 
 def create_ui():
-    shared.log.debug('UI initialize: video')
+    shared.log.debug('UI initialize: tab=video')
     with gr.Blocks(analytics_enabled=False) as _video_interface:
         prompt, styles, negative, generate_btn, _reprocess, paste, networks_button, _token_counter, _token_button, _token_counter_negative, _token_button_negative = ui_sections.create_toprow(
             is_img2img=False,

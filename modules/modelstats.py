@@ -79,7 +79,7 @@ class Model():
             return
         self.cls = shared.sd_model.__class__.__name__
         self.type = shared.sd_model_type
-        self.info = sd_models.get_closet_checkpoint_match(name)
+        self.info = sd_models.get_closest_checkpoint_match(name)
         if self.info is not None:
             self.name = self.info.name or self.name
             self.hash = self.info.shorthash or ''

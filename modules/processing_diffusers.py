@@ -67,7 +67,7 @@ def restore_state(p: processing.StableDiffusionProcessing):
 
 
 def process_pre(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion
+    from modules import ipadapter, sd_hijack_freeu, para_attention, teacache, hidiffusion, ras, pag, cfgzero, transformer_cache, token_merge, linfusion, cachedit
     shared.log.info('Processing modifiers: apply')
 
     try:
@@ -80,6 +80,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
         pag.apply(p)
         cfgzero.apply(p)
         linfusion.apply(shared.sd_model)
+        cachedit.apply_cache_dit(shared.sd_model)
 
         # apply-only
         sd_hijack_freeu.apply_freeu(p)
@@ -95,11 +96,20 @@ def process_pre(p: processing.StableDiffusionProcessing):
     #     sd_models.move_model(shared.sd_model.unet, devices.device)
     # if hasattr(shared.sd_model, 'transformer'):
     #     sd_models.move_model(shared.sd_model.transformer, devices.device)
+
+    from modules import modular
+    if modular.is_compatible(shared.sd_model):
+        modular_pipe = modular.convert_to_modular(shared.sd_model)
+        if modular_pipe is not None:
+            shared.sd_model = modular_pipe
+            from modules import modular_guiders
+            modular_guiders.set_guider(p)
+
     timer.process.record('pre')
 
 
 def process_post(p: processing.StableDiffusionProcessing):
-    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion
+    from modules import ipadapter, hidiffusion, ras, pag, cfgzero, token_merge, linfusion, cachedit
     shared.log.info('Processing modifiers: unapply')
 
     try:
@@ -111,6 +121,7 @@ def process_post(p: processing.StableDiffusionProcessing):
         pag.unapply()
         cfgzero.unapply()
         linfusion.unapply(shared.sd_model)
+        cachedit.unapply_cache_dir(shared.sd_model)
     except Exception as e:
         shared.log.error(f'Processing unapply: {e}')
         errors.display(e, 'unapply')
@@ -229,8 +240,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 p.hr_upscaler = p.resize_name
                 p.hr_resize_mode = p.resize_mode
                 p.hr_resize_context = p.resize_context
-            p.hr_upscale_to_x = p.width * p.hr_scale if p.hr_resize_x == 0 else p.hr_resize_x
-            p.hr_upscale_to_y = p.height * p.hr_scale if p.hr_resize_y == 0 else p.hr_resize_y
+            p.hr_upscale_to_x = int(p.width * p.hr_scale) if p.hr_resize_x == 0 else p.hr_resize_x
+            p.hr_upscale_to_y = int(p.height * p.hr_scale) if p.hr_resize_y == 0 else p.hr_resize_y
 
         # hires runs on original pipeline
         if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
@@ -487,7 +498,7 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
             if m.repo_cls is not None:
                 models_cls.append(m.repo_cls.__name__)
     is_video_model = shared.sd_model.__class__.__name__ in models_cls
-    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline']
+    override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
     if is_video_model and not is_video_pipeline:
         shared.log.error(f'Mismatch: type={shared.sd_model_type} cls={shared.sd_model.__class__.__name__} request={p.__class__.__name__} video model with non-video pipeline')

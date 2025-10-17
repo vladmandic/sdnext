@@ -21,8 +21,8 @@ def encode(*args):
 class RestrictedUnpickler(pickle.Unpickler):
     extra_handler = None
 
-    def persistent_load(self, saved_id):
-        assert saved_id[0] == 'storage'
+    def persistent_load(self, pid):
+        assert pid[0] == 'storage'
         try:
             return TypedStorage(_internal=True)
         except TypeError:

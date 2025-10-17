@@ -1,4 +1,5 @@
 import math
+import random
 
 import gradio as gr
 from modules import images, processing, scripts_manager
@@ -21,10 +22,12 @@ class Script(scripts_manager.Script):
             final_denoising_strength = gr.Slider(minimum=0, maximum=1, step=0.01, label='Final strength', value=0.5, elem_id=self.elem_id("final_denoising_strength"))
         with gr.Row():
             denoising_curve = gr.Dropdown(label="Strength curve", choices=["Aggressive", "Linear", "Lazy"], value="Linear")
+        with gr.Row():
+            randomize_seed = gr.Checkbox(label="Randomize seed after each loop iteration", value=False)
 
-        return [loops, final_denoising_strength, denoising_curve]
+        return [loops, final_denoising_strength, denoising_curve, randomize_seed]
 
-    def run(self, p, loops, final_denoising_strength, denoising_curve): # pylint: disable=arguments-differ
+    def run(self, p, loops, final_denoising_strength, denoising_curve, randomize_seed): # pylint: disable=arguments-differ
         processing.fix_seed(p)
         initial_batch_count = p.n_iter
         p.extra_generation_params['Loopback'] = final_denoising_strength
@@ -76,10 +79,14 @@ class Script(scripts_manager.Script):
                 if initial_seed is None:
                     initial_seed = processed.seed
                     initial_info = processed.info
+                if randomize_seed:
+                    p.seed = random.randrange(4294967294)
+                    p.all_seeds = [p.seed]
                 p.seed = processed.seed + 1 # why?
                 p.denoising_strength = calculate_denoising_strength(i + 1)
                 last_image = processed.images[0]
                 p.init_images = [last_image]
+                log.info(f'Loopback: iteration={i} seed={p.seed} curve={denoising_curve} strength={p.denoising_strength}:{final_denoising_strength}')
                 if initial_batch_count == 1:
                     history.append(last_image)
                     all_images.append(last_image)
