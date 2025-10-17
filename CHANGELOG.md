@@ -6,6 +6,7 @@ Post-release fixes:
 - ROCm-on-Windows additional checks  
 - SDNQ-SVD fallback on incompatible layers  
 - Huggingface model download  
+- Remove unused UI settings  
 
 ## Update for 2025-10-17
 
