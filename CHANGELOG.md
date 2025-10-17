@@ -2,7 +2,10 @@
 
 ## Update for 2025-10-17
 
-- TBD: post-release fixes
+Post-release fixes:
+- ROCm-on-Windows additional checks  
+- SDNQ-SVD fallback on incompatible layers  
+- Huggingface model download  
 
 ## Update for 2025-10-17
 

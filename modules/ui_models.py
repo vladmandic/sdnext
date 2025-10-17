@@ -561,7 +561,7 @@ def create_ui():
                 with gr.Row():
                     hf_headers = ['Name', 'Pipeline', 'Tags', 'Downloads', 'Updated', 'URL']
                     hf_types = ['str', 'str', 'str', 'number', 'date', 'markdown']
-                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, headers=hf_headers, datatype=hf_types, type='array')
+                    hf_results = gr.DataFrame(None, label='Search results', show_label=True, interactive=False, wrap=True, headers=hf_headers, datatype=hf_types)
 
                 hf_search_text.submit(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])
                 hf_search_btn.click(fn=hf_search, inputs=[hf_search_text], outputs=[hf_results])

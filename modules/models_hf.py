@@ -1,4 +1,6 @@
 import os
+import time
+import gradio as gr
 from installer import log, install
 from modules.shared import opts
 
@@ -37,7 +39,7 @@ def hf_init():
     obfuscated_token = None
     if len(opts.huggingface_token) > 0 and opts.huggingface_token.startswith('hf_'):
         obfuscated_token = 'hf_...' + opts.huggingface_token[-4:]
-    log.info(f'Huggingface init: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}"')
+    log.info(f'Huggingface: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}" init')
 
 
 def hf_check_cache():
@@ -48,22 +50,26 @@ def hf_check_cache():
         if size//1024//1024 > 0:
             log.warning(f'Cache location changed: previous="{prev_default}" size={size//1024//1024} MB')
     size, _mtime = stat(opts.hfcache_dir)
-    log.debug(f'Huggingface cache: path="{opts.hfcache_dir}" size={size//1024//1024} MB')
+    log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={size//1024//1024} MB')
 
 
 def hf_search(keyword):
     import huggingface_hub as hf
+    t0 = time.time()
     hf_api = hf.HfApi()
     models = hf_api.list_models(model_name=keyword, full=True, library="diffusers", limit=50, sort="downloads", direction=-1)
     data = []
     for model in models:
         tags = [t for t in model.tags if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]
         data.append([model.id, model.pipeline_tag, tags, model.downloads, model.lastModified, f'https://huggingface.co/{model.id}'])
+    log.debug(f'Huggingface: search="{keyword}" results={len(data)} time={time.time()-t0:.2f}')
     return data
 
 
-def hf_select(evt, data):
-    return data[evt.index[0]][0]
+def hf_select(evt: gr.SelectData, df):
+    row = list(df.iloc[evt.index[0]])
+    log.debug(f'Huggingface: selected={row} index={evt.index}')
+    return row[0] # repo_id only
 
 
 def hf_download_model(hub_id: str, token, variant, revision, mirror, custom_pipeline):
@@ -71,11 +77,11 @@ def hf_download_model(hub_id: str, token, variant, revision, mirror, custom_pipe
     download_diffusers_model(hub_id, cache_dir=opts.diffusers_dir, token=token, variant=variant, revision=revision, mirror=mirror, custom_pipeline=custom_pipeline)
     from modules.sd_models import list_models  # pylint: disable=W0621
     list_models()
-    log.info(f'Diffuser model downloaded: model="{hub_id}"')
+    log.info(f'Huggingface: model="{hub_id}" downloaded')
     return f'Diffuser model downloaded: model="{hub_id}"'
 
 
 def hf_update_token(token):
-    log.debug('Huggingface update token')
+    log.debug('Huggingface: update token')
     opts.huggingface_token = token
     opts.save()
