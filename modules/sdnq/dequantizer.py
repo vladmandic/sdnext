@@ -14,7 +14,11 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
         result = result.view(result_shape)
     if svd_up is not None:
         if skip_quantized_matmul:
-            svd_up, svd_down = svd_up.t(), svd_down.t()
+            svd_up = svd_up.t().contiguous()
+            if use_contiguous_mm:
+                svd_down = svd_down.t().contiguous()
+            else:
+                svd_down = svd_down.contiguous().t()
         if result.ndim > 2 and weight.ndim > 2: # convs
             result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
         else:
@@ -32,7 +36,11 @@ def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, dty
         result = result.view(result_shape)
     if svd_up is not None:
         if skip_quantized_matmul:
-            svd_up, svd_down = svd_up.t(), svd_down.t()
+            svd_up = svd_up.t().contiguous()
+            if use_contiguous_mm:
+                svd_down = svd_down.t().contiguous()
+            else:
+                svd_down = svd_down.contiguous().t()
         if result.ndim > 2 and weight.ndim > 2: # convs
             result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
         else:
@@ -71,17 +79,20 @@ def quantize_fp8(input: torch.FloatTensor, dim: int = -1, is_e5: bool = False) -
 def re_quantize_int8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    weight = weight.t()
     if use_contiguous_mm:
-        weight = weight.contiguous()
-    weight, scale = quantize_int8(weight, dim=0)
+        weight, scale = quantize_int8(weight.t(), dim=-0)
+        weight, scale = weight.contiguous(), scale.contiguous()
+    else:
+        weight, scale = quantize_int8(weight.contiguous(), dim=-1)
+        weight, scale = weight.t_(), scale.t_()
     return weight, scale
 
 
 def re_quantize_fp8(weight: torch.FloatTensor, is_e5: bool = False) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    weight, scale = quantize_fp8(weight.t(), dim=0, is_e5=is_e5)
+    weight, scale = quantize_int8(weight.contiguous(), dim=-1, is_e5=is_e5)
+    weight, scale = weight.t_(), scale.t_()
     if not use_tensorwise_fp8_matmul:
         scale = scale.to(dtype=torch.float32)
     return weight, scale
@@ -95,11 +106,11 @@ def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTen
     return re_quantize_int8(dequantize_symmetric(weight, scale, scale.dtype, result_shape, svd_up=svd_up, svd_down=svd_down))
 
 
-def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> torch.FloatTensor:
+def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     return re_quantize_matmul_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, result_shape, svd_up=svd_up, svd_down=svd_down)
 
 
-def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> torch.FloatTensor:
+def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, result_shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     return re_quantize_matmul_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, result_shape, svd_up=svd_up, svd_down=svd_down)
 
 

@@ -204,6 +204,20 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if use_quantized_matmul:
                     svd_up = svd_up.t_()
                     svd_down = svd_down.t_()
+                    if use_contiguous_mm:
+                        svd_up = svd_up.contiguous()
+                        svd_down = svd_down.contiguous()
+                    else:
+                        if svd_up.is_contiguous():
+                            svd_up = svd_up.t_().contiguous().t_()
+                        if svd_down.is_contiguous():
+                            svd_down = svd_down.t_().contiguous().t_()
+                else:
+                    svd_up = svd_up.contiguous()
+                    if use_contiguous_mm:
+                        svd_down = svd_down.contiguous()
+                    elif svd_down.is_contiguous():
+                        svd_down = svd_down.t_().contiguous().t_()
             except Exception:
                 svd_up, svd_down = None, None
         else:
