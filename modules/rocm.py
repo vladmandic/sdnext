@@ -207,6 +207,22 @@ def get_flash_attention_command(agent: Agent) -> str:
     return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
 
+def refresh():
+    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    if sys.platform == "win32":
+        global agents
+        try:
+            agents = driver_get_agents()
+        except Exception:
+            agents = []
+    environment = find()
+    if environment is not None:
+        if isinstance(environment, ROCmEnvironment):
+            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+        is_installed = True
+        version = get_version()
+
+
 if sys.platform == "win32":
     def get_agents() -> List[Agent]:
         return agents
@@ -287,7 +303,7 @@ if sys.platform == "win32":
 
     is_wsl: bool = False
     agents: List[Agent] = [] # temp
-else:
+else: # sys.platform != "win32"
     def get_agents() -> List[Agent]:
         try:
             agents = spawn("rocm_agent_enumerator").split("\n")
@@ -312,23 +328,9 @@ else:
         return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
+
 environment = None
 blaslt_tensile_libpath = ""
 is_installed = False
 version = None
-
-def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
-    if sys.platform == "win32":
-        global agents
-        try:
-            agents = driver_get_agents()
-        except Exception:
-            agents = []
-    environment = find()
-    if environment is not None:
-        if isinstance(environment, ROCmEnvironment):
-            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
-        is_installed = True
-        version = get_version()
 refresh()

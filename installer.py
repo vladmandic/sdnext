@@ -887,7 +887,6 @@ def check_torch():
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    from modules import rocm
     allow_cuda = not (args.use_rocm or args.use_directml or args.use_ipex or args.use_openvino)
     allow_rocm = not (args.use_cuda or args.use_directml or args.use_ipex or args.use_openvino)
     allow_ipex = not (args.use_cuda or args.use_rocm or args.use_directml or args.use_openvino)
@@ -904,11 +903,17 @@ def check_torch():
             log.error('DirectML is only supported on Windows')
 
     if torch_command != '':
-        pass
+        is_cuda_available = False
+        is_ipex_available = False
+        is_rocm_available = False
     else:
-        is_cuda_available = allow_cuda and (args.use_cuda or shutil.which('nvidia-smi') is not None or args.use_xformers or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
-        is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed)
+        is_cuda_available = allow_cuda and (args.use_cuda or shutil.which('nvidia-smi') is not None or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
         is_ipex_available = allow_ipex and (args.use_ipex or shutil.which('sycl-ls') is not None or shutil.which('sycl-ls.exe') is not None or os.environ.get('ONEAPI_ROOT') is not None or os.path.exists('/opt/intel/oneapi') or os.path.exists("C:/Program Files (x86)/Intel/oneAPI") or os.path.exists("C:/oneAPI") or os.path.exists("C:/Program Files/Intel/Intel Graphics Software"))
+        is_rocm_available = False
+
+        if not is_cuda_available and not is_ipex_available and allow_rocm:
+            from modules import rocm
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()
@@ -937,6 +942,7 @@ def check_torch():
             else:
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
+
     if args.version:
         return
 
@@ -996,7 +1002,7 @@ def check_torch():
         if not args.ignore:
             sys.exit(1)
 
-    if rocm.is_installed:
+    if is_rocm_available:
         rocm.postinstall()
     if not args.skip_all:
         install_torch_addons()
