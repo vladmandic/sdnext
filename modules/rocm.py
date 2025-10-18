@@ -321,7 +321,10 @@ def refresh():
     global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
     if sys.platform == "win32":
         global agents
-        agents = driver_get_agents()
+        try:
+            agents = driver_get_agents()
+        except Exception:
+            agents = []
     environment = find()
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):

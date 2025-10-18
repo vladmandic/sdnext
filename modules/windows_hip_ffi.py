@@ -16,6 +16,7 @@ if sys.platform == "win32":
         def __init__(self):
             ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
             ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
+            self.handle = None
             path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_6.dll"
             if not os.path.isfile(path):
                 path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_7.dll"
@@ -32,6 +33,8 @@ if sys.platform == "win32":
                 ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceProperties"))
 
         def __del__(self):
+            if self.handle is None:
+                return
             # Hopefully this will prevent conflicts with amdhip64_7.dll from ROCm Python packages or HIP SDK
             ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
             ctypes.windll.kernel32.FreeLibrary(self.handle)
