@@ -210,7 +210,7 @@ def get_flash_attention_command(agent: Agent) -> str:
 def refresh():
     global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
     if sys.platform == "win32":
-        global agents
+        global agents # pylint: disable=global-statement
         try:
             agents = driver_get_agents()
         except Exception:
@@ -241,13 +241,13 @@ if sys.platform == "win32":
         from modules import windows_hip_ffi
         hip = windows_hip_ffi.HIP()
         count = hip.get_device_count()
-        agents = [None] * count
+        _agents = [None] * count
         for i in range(count):
             prop = hip.get_device_properties(i)
             name = prop.gcnArchName.decode('utf-8').strip('\x00')
-            agents[i] = Agent(name)
+            _agents[i] = Agent(name)
         del hip
-        return agents
+        return _agents
 
     def postinstall():
         import torch
@@ -306,12 +306,12 @@ if sys.platform == "win32":
 else: # sys.platform != "win32"
     def get_agents() -> List[Agent]:
         try:
-            agents = spawn("rocm_agent_enumerator").split("\n")
-            agents = [x for x in agents if x and x != 'gfx000']
+            _agents = spawn("rocm_agent_enumerator").split("\n")
+            _agents = [x for x in _agents if x and x != 'gfx000']
         except Exception: # old version of ROCm WSL doesn't have rocm_agent_enumerator
-            agents = spawn("rocminfo").split("\n")
-            agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
-        return [Agent(x) for x in agents]
+            _agents = spawn("rocminfo").split("\n")
+            _agents = [x.strip().split(" ")[-1] for x in _agents if x.startswith('  Name:') and "CPU" not in x]
+        return [Agent(x) for x in _agents]
 
     def postinstall():
         if is_wsl:
