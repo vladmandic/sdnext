@@ -9,6 +9,7 @@ Post-release fixes:
 - Remove unused UI settings  
 - Video implement dynamic and manual sampler shift  
 - Fix interrupt batch processing  
+- Delay import of control processors until used  
 
 ## Update for 2025-10-17
 
