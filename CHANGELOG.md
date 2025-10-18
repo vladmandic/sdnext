@@ -10,6 +10,7 @@ Post-release fixes:
 - Video implement dynamic and manual sampler shift  
 - Fix interrupt batch processing  
 - Delay import of control processors until used  
+- Fix tiny VAE with batched results    
 
 ## Update for 2025-10-17
 
