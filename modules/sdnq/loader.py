@@ -192,16 +192,16 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                             module.svd_up.data = module.svd_up.contiguous()
                             module.svd_down.data = module.svd_down.contiguous()
                         else:
-                            if svd_up.is_contiguous():
+                            if module.svd_up.is_contiguous():
                                 module.svd_up.data = module.svd_up.t_().contiguous().t_()
-                            if svd_up.is_contiguous():
+                            if module.svd_up.is_contiguous():
                                 module.svd_down.data = module.svd_down.t_().contiguous().t_()
                     else:
-                        svd_up = svd_up.contiguous()
+                        module.svd_up.data = module.svd_up.contiguous()
                         if use_contiguous_mm:
-                            svd_down = svd_down.contiguous()
-                        elif svd_down.is_contiguous():
-                            svd_down = svd_down.t_().contiguous().t_()
+                            module.svd_down.data = module.svd_down.contiguous()
+                        elif module.svd_down.is_contiguous():
+                            module.svd_down.data = module.svd_down.t_().contiguous().t_()
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
         module = apply_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
