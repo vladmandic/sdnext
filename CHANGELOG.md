@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-17
+## Update for 2025-10-18
 
 Post-release fixes:
 - ROCm-on-Windows additional checks  
@@ -8,6 +8,7 @@ Post-release fixes:
 - Huggingface model download  
 - Remove unused UI settings  
 - Video implement dynamic and manual sampler shift  
+- Fix interrupt batch processing  
 
 ## Update for 2025-10-17
 

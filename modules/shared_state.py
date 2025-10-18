@@ -194,7 +194,7 @@ class State:
     def begin(self, title="", task_id=0, api=None):
         import modules.devices
         self.clear()
-        self.interrupted = False
+        self.interrupted = self.interrupted if title.startswith('Save') else False
         self.skipped = False
         self.job_history += 1
         self.total_jobs += 1

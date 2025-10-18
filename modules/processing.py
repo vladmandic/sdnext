@@ -397,13 +397,13 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             shared.state.batch_no = n + 1
             debug(f'Processing inner: iteration={n+1}/{p.n_iter}')
             p.iteration = n
+            if shared.state.interrupted:
+                shared.log.debug(f'Process interrupted: {n+1}/{p.n_iter}')
+                break
             if shared.state.skipped:
                 shared.log.debug(f'Process skipped: {n+1}/{p.n_iter}')
                 shared.state.skipped = False
                 continue
-            if shared.state.interrupted:
-                shared.log.debug(f'Process interrupted: {n+1}/{p.n_iter}')
-                break
 
             if not hasattr(p, 'keep_prompts'):
                 p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
@@ -441,6 +441,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                     infotexts = [create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0)]
                 else:
                     samples = []
+                if not shared.opts.keep_incomplete:
+                    break
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
@@ -460,6 +462,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
             timer.process.record('post')
+            if shared.state.interrupted:
+                break
 
         if not p.xyz:
             if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
