@@ -37,6 +37,7 @@ def run_ltx(task_id,
             refine_strength:float,
             condition_strength: float,
             condition_image,
+            condition_last,
             condition_files,
             condition_video,
             condition_video_frames:int,
@@ -100,11 +101,16 @@ def run_ltx(task_id,
         )
         p.ops.append('video')
 
+        condition_images = []
+        if condition_image is not None:
+            condition_images.append(condition_image)
+        if condition_last is not None:
+            condition_images.append(condition_last)
         conditions = get_conditions(
             width,
             height,
             condition_strength,
-            condition_image,
+            condition_images,
             condition_files,
             condition_video,
             condition_video_frames,

@@ -251,7 +251,7 @@ class GenerationExperiment:
             try:
                 path = self.save_heat_map(word, tokenizer, crop=crop)
                 path_map[word] = path
-            except:
+            except Exception:
                 pass
 
         return path_map
@@ -328,7 +328,7 @@ class GenerationExperiment:
                         vocab=vocab,
                         subtype=directory.name
                     ))
-                except:
+                except Exception:
                     pass
 
             return experiments

@@ -53,9 +53,9 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: typing.Union[to
 
 def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}):
     t0 = time.time()
-    if devices.backend == "ipex": # xe driver on linux needs this
+    if devices.backend == "ipex":
         torch.xpu.synchronize(devices.device)
-    elif (devices.backend == "zluda") or (devices.backend == "rocm") or (devices.backend == "cuda"):
+    elif devices.backend in {"cuda", "zluda", "rocm"}:
         torch.cuda.synchronize(devices.device)
     latents = kwargs.get('latents', None)
     if debug:

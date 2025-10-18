@@ -434,7 +434,7 @@ def set_sdpa_params():
             torch.backends.cuda.enable_math_sdp('Math attention' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
-            log.debug(f'Torch attention: type="sdpa" flash={"Flash attention" in opts.sdp_options} memory={"Memory attention" in opts.sdp_options} math={"Math attention" in opts.sdp_options}')
+            log.debug(f'Torch attention: type="sdpa" opts={opts.sdp_options}')
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
 
@@ -447,7 +447,6 @@ def set_sdpa_params():
                 sdpa_pre_dyanmic_atten = torch.nn.functional.scaled_dot_product_attention
                 from modules.sd_hijack_dynamic_atten import dynamic_scaled_dot_product_attention
                 torch.nn.functional.scaled_dot_product_attention = dynamic_scaled_dot_product_attention
-                log.debug('Torch attention: type="dynamic attention"')
             except Exception as err:
                 log.error(f'Torch attention: type="dynamic attention" {err}')
 
@@ -542,6 +541,17 @@ def set_sdpa_params():
                 log.debug('Torch attention: type="sage attention"')
             except Exception as err:
                 log.error(f'Torch attention: type="sage attention" {err}')
+
+        from importlib.metadata import version
+        try:
+            flash = version('flash-attn')
+        except Exception:
+            flash = False
+        try:
+            sage = version('sageattention')
+        except Exception:
+            sage = False
+        log.info(f'Torch attention: flashattn={flash} sageattention={sage}')
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
 

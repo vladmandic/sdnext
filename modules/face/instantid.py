@@ -22,7 +22,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         return None
 
     c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
-    if c != 'StableDiffusionXLPipeline' and c != 'StableDiffusionXLInstantIDPipeline':
+    if c not in ['StableDiffusionXLPipeline', 'StableDiffusionXLInstantIDPipeline']:
         shared.log.warning(f'InstantID invalid base model: current={c} required=StableDiffusionXLPipeline')
         return None
 

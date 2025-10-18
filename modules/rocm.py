@@ -96,7 +96,7 @@ class Agent:
         self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
 
     @property
-    def therock(self) -> str:
+    def therock(self) -> Union[str, None]:
         if (self.gfx_version & 0xFFF0) == 0x1100:
             return "gfx110X-dgpu"
         if self.gfx_version == 0x1151:
@@ -107,7 +107,7 @@ class Agent:
             return "gfx94X-dcgpu"
         if self.gfx_version == 0x950:
             return "gfx950-dcgpu"
-        raise RuntimeError(f"Unsupported GPU architecture: {self.name}")
+        return None
 
     def get_gfx_version(self) -> Union[str, None]:
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
@@ -207,28 +207,47 @@ def get_flash_attention_command(agent: Agent) -> str:
     return "--no-build-isolation " + os.environ.get("FLASH_ATTENTION_PACKAGE", default)
 
 
+def refresh():
+    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    if sys.platform == "win32":
+        global agents # pylint: disable=global-statement
+        try:
+            agents = driver_get_agents()
+        except Exception:
+            agents = []
+    environment = find()
+    if environment is not None:
+        if isinstance(environment, ROCmEnvironment):
+            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+        is_installed = True
+        version = get_version()
+
+
 if sys.platform == "win32":
     def get_agents() -> List[Agent]:
-        if isinstance(environment, ROCmEnvironment):
-            out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
-        else:
-            # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
-            out = spawn("amdgpu-arch")
-        out = out.strip()
-        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+        return agents
+        #if isinstance(environment, ROCmEnvironment):
+        #    out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
+        #else:
+        #    # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
+        #    out = spawn("amdgpu-arch")
+        #out = out.strip()
+        #if out == "":
+        #    return []
+        #return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
 
     def driver_get_agents() -> List[Agent]:
         # unsafe and experimental feature
         from modules import windows_hip_ffi
         hip = windows_hip_ffi.HIP()
         count = hip.get_device_count()
-        agents = [None] * count
+        _agents = [None] * count
         for i in range(count):
             prop = hip.get_device_properties(i)
             name = prop.gcnArchName.decode('utf-8').strip('\x00')
-            agents[i] = Agent(name)
+            _agents[i] = Agent(name)
         del hip
-        return agents
+        return _agents
 
     def postinstall():
         import torch
@@ -242,6 +261,14 @@ if sys.platform == "win32":
                     paths_no_rocm.append(path_)
             os.environ["PATH"] = ";".join(paths_no_rocm)
             return
+
+        build_targets = torch.cuda.get_arch_list()
+        for available in agents:
+            if available.name in build_targets:
+                return
+
+        # use cpu instead of crashing
+        torch.cuda.is_available = lambda: False
 
     def rocm_init():
         try:
@@ -275,15 +302,16 @@ if sys.platform == "win32":
         return True, None
 
     is_wsl: bool = False
-else:
+    agents: List[Agent] = [] # temp
+else: # sys.platform != "win32"
     def get_agents() -> List[Agent]:
         try:
-            agents = spawn("rocm_agent_enumerator").split("\n")
-            agents = [x for x in agents if x and x != 'gfx000']
+            _agents = spawn("rocm_agent_enumerator").split("\n")
+            _agents = [x for x in _agents if x and x != 'gfx000']
         except Exception: # old version of ROCm WSL doesn't have rocm_agent_enumerator
-            agents = spawn("rocminfo").split("\n")
-            agents = [x.strip().split(" ")[-1] for x in agents if x.startswith('  Name:') and "CPU" not in x]
-        return [Agent(x) for x in agents]
+            _agents = spawn("rocminfo").split("\n")
+            _agents = [x.strip().split(" ")[-1] for x in _agents if x.startswith('  Name:') and "CPU" not in x]
+        return [Agent(x) for x in _agents]
 
     def postinstall():
         if is_wsl:
@@ -300,17 +328,9 @@ else:
         return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
+
 environment = None
 blaslt_tensile_libpath = ""
 is_installed = False
 version = None
-
-def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
-    environment = find()
-    if environment is not None:
-        if isinstance(environment, ROCmEnvironment):
-            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
-        is_installed = True
-        version = get_version()
 refresh()

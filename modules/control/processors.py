@@ -6,27 +6,6 @@ from installer import log
 from modules.errors import display
 from modules import devices, images
 
-from modules.control.proc.hed import HEDdetector
-from modules.control.proc.canny import CannyDetector
-from modules.control.proc.edge import EdgeDetector
-from modules.control.proc.lineart import LineartDetector
-from modules.control.proc.lineart_anime import LineartAnimeDetector
-from modules.control.proc.pidi import PidiNetDetector
-from modules.control.proc.mediapipe_face import MediapipeFaceDetector
-from modules.control.proc.shuffle import ContentShuffleDetector
-from modules.control.proc.leres import LeresDetector
-from modules.control.proc.midas import MidasDetector
-from modules.control.proc.mlsd import MLSDdetector
-from modules.control.proc.normalbae import NormalBaeDetector
-from modules.control.proc.openpose import OpenposeDetector
-from modules.control.proc.dwpose import DWposeDetector
-from modules.control.proc.segment_anything import SamDetector
-from modules.control.proc.zoe import ZoeDetector
-from modules.control.proc.marigold import MarigoldDetector
-from modules.control.proc.dpt import DPTDetector
-from modules.control.proc.glpn import GLPNDetector
-from modules.control.proc.depth_anything import DepthAnythingDetector
-
 
 models = {}
 cache_dir = 'models/control/processors'
@@ -36,34 +15,90 @@ config = {
     # placeholder
     'None': {},
     # pose models
-    'OpenPose': {'class': OpenposeDetector, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
-    'DWPose': {'class': DWposeDetector, 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
-    'MediaPipe Face': {'class': MediapipeFaceDetector, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
+    'OpenPose': {'class': None, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
+    'DWPose': {'class': None, 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
+    'MediaPipe Face': {'class': None, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
     # outline models
-    'Canny': {'class': CannyDetector, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
-    'Edge': {'class': EdgeDetector, 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
-    'LineArt Realistic': {'class': LineartDetector, 'checkpoint': True, 'params': {'coarse': False}},
-    'LineArt Anime': {'class': LineartAnimeDetector, 'checkpoint': True, 'params': {}},
-    'HED': {'class': HEDdetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
-    'PidiNet': {'class': PidiNetDetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+    'Canny': {'class': None, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
+    'Edge': {'class': None, 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
+    'LineArt Realistic': {'class': None, 'checkpoint': True, 'params': {'coarse': False}},
+    'LineArt Anime': {'class': None, 'checkpoint': True, 'params': {}},
+    'HED': {'class': None, 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
+    'PidiNet': {'class': None, 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
     # depth models
-    'Midas Depth Hybrid': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
-    'Leres Depth': {'class': LeresDetector, 'checkpoint': True, 'params': {'boost': False, 'thr_a':0, 'thr_b':0}},
-    'Zoe Depth': {'class': ZoeDetector, 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
-    'Marigold Depth': {'class': MarigoldDetector, 'checkpoint': True, 'params': {'denoising_steps': 10, 'ensemble_size': 10, 'processing_res': 512, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'Bingxin/Marigold'}},
-    'Normal Bae': {'class': NormalBaeDetector, 'checkpoint': True, 'params': {}},
+    'Midas Depth Hybrid': {'class': None, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
+    'Leres Depth': {'class': None, 'checkpoint': True, 'params': {'boost': False, 'thr_a':0, 'thr_b':0}},
+    'Zoe Depth': {'class': None, 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
+    'Marigold Depth': {'class': None, 'checkpoint': True, 'params': {'denoising_steps': 10, 'ensemble_size': 10, 'processing_res': 512, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'Bingxin/Marigold'}},
+    'Normal Bae': {'class': None, 'checkpoint': True, 'params': {}},
     # segmentation models
-    'SegmentAnything': {'class': SamDetector, 'checkpoint': True, 'model': 'Base', 'params': {}},
+    'SegmentAnything': {'class': None, 'checkpoint': True, 'model': 'Base', 'params': {}},
     # other models
-    'MLSD': {'class': MLSDdetector, 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
-    'Shuffle': {'class': ContentShuffleDetector, 'checkpoint': False, 'params': {}},
-    'DPT Depth Hybrid': {'class': DPTDetector, 'checkpoint': False, 'params': {}},
-    'GLPN Depth': {'class': GLPNDetector, 'checkpoint': False, 'params': {}},
-    'Depth Anything': {'class': DepthAnythingDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
+    'MLSD': {'class': None, 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
+    'Shuffle': {'class': None, 'checkpoint': False, 'params': {}},
+    'DPT Depth Hybrid': {'class': None, 'checkpoint': False, 'params': {}},
+    'GLPN Depth': {'class': None, 'checkpoint': False, 'params': {}},
+    'Depth Anything': {'class': None, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
     # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
     # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
     # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
 }
+
+
+def delay_load_config():
+    global config # pylint: disable=global-statement
+    from modules.control.proc.hed import HEDdetector
+    from modules.control.proc.canny import CannyDetector
+    from modules.control.proc.edge import EdgeDetector
+    from modules.control.proc.lineart import LineartDetector
+    from modules.control.proc.lineart_anime import LineartAnimeDetector
+    from modules.control.proc.pidi import PidiNetDetector
+    from modules.control.proc.mediapipe_face import MediapipeFaceDetector
+    from modules.control.proc.shuffle import ContentShuffleDetector
+    from modules.control.proc.leres import LeresDetector
+    from modules.control.proc.midas import MidasDetector
+    from modules.control.proc.mlsd import MLSDdetector
+    from modules.control.proc.normalbae import NormalBaeDetector
+    from modules.control.proc.openpose import OpenposeDetector
+    from modules.control.proc.dwpose import DWposeDetector
+    from modules.control.proc.segment_anything import SamDetector
+    from modules.control.proc.zoe import ZoeDetector
+    from modules.control.proc.marigold import MarigoldDetector
+    from modules.control.proc.dpt import DPTDetector
+    from modules.control.proc.glpn import GLPNDetector
+    from modules.control.proc.depth_anything import DepthAnythingDetector
+    config = {
+        # placeholder
+        'None': {},
+        # pose models
+        'OpenPose': {'class': OpenposeDetector, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
+        'DWPose': {'class': DWposeDetector, 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
+        'MediaPipe Face': {'class': MediapipeFaceDetector, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
+        # outline models
+        'Canny': {'class': CannyDetector, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
+        'Edge': {'class': EdgeDetector, 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
+        'LineArt Realistic': {'class': LineartDetector, 'checkpoint': True, 'params': {'coarse': False}},
+        'LineArt Anime': {'class': LineartAnimeDetector, 'checkpoint': True, 'params': {}},
+        'HED': {'class': HEDdetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
+        'PidiNet': {'class': PidiNetDetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+        # depth models
+        'Midas Depth Hybrid': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
+        'Leres Depth': {'class': LeresDetector, 'checkpoint': True, 'params': {'boost': False, 'thr_a':0, 'thr_b':0}},
+        'Zoe Depth': {'class': ZoeDetector, 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
+        'Marigold Depth': {'class': MarigoldDetector, 'checkpoint': True, 'params': {'denoising_steps': 10, 'ensemble_size': 10, 'processing_res': 512, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'Bingxin/Marigold'}},
+        'Normal Bae': {'class': NormalBaeDetector, 'checkpoint': True, 'params': {}},
+        # segmentation models
+        'SegmentAnything': {'class': SamDetector, 'checkpoint': True, 'model': 'Base', 'params': {}},
+        # other models
+        'MLSD': {'class': MLSDdetector, 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
+        'Shuffle': {'class': ContentShuffleDetector, 'checkpoint': False, 'params': {}},
+        'DPT Depth Hybrid': {'class': DPTDetector, 'checkpoint': False, 'params': {}},
+        'GLPN Depth': {'class': GLPNDetector, 'checkpoint': False, 'params': {}},
+        'Depth Anything': {'class': DepthAnythingDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
+        # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
+        # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
+        # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
+    }
 
 
 def list_models(refresh=False):
@@ -178,6 +213,9 @@ class Processor():
                 log.error(f'Control Processor unknown: id="{processor_id}" available={list(config)}')
                 return f'Processor failed to load: {processor_id}'
             cls = config[processor_id]['class']
+            if cls is None:
+                delay_load_config()
+                cls = config[processor_id]['class']
             # log.debug(f'Control Processor loading: id="{processor_id}" class={cls.__name__}')
             debug(f'Control Processor config={self.load_config}')
             jobid = state.begin('Load processor')

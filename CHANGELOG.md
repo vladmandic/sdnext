@@ -1,5 +1,25 @@
 # Change Log for SD.Next
 
+## Update for 2025-10-18
+
+- **Models**
+  [Kandinsky 5 Lite](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
+  first model in Kandinsky5 series is T2V model optimized for 5sec videos and uses Qwen2.5 text encoder  
+- **Fixes**
+  - ROCm-on-Windows additional checks  
+  - SDNQ-SVD fallback on incompatible layers  
+  - Huggingface model download  
+  - Video implement dynamic and manual sampler shift  
+  - Fix interrupt batch processing  
+  - Delay import of control processors until used  
+  - Fix tiny VAE with batched results  
+  - Fix CFG scale not added to metadata and set valid range to >=1.0  
+- **Other**
+  - Optimized Video tab layout  
+  - Video enable VAE slicing and framewise decoding when possible  
+  - Detect and log `flash-attn` and `sageattention` if installed  
+  - Remove unused UI settings  
+
 ## Update for 2025-10-17
 
 ### Highlights for 2025-10-17
@@ -15,7 +35,11 @@ Highlight are:
 - **Quantization**:  
   new **SVD**-style quantization using SDNQ offers almost zero-loss even with **4bit** quantization  
   and now you can also test your favorite quantization on-the-fly and then save/load model for future use  
-- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved previews, etc.  
+- Other: support for **Huggingface** mirrors, changes to installer to prevent unwanted `torch-cpu` operations, improved VAE previews, etc.  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
 ### Details for 2025-10-17
 

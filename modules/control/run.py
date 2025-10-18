@@ -589,7 +589,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         if p.scripts is not None:
                             processed = p.scripts.after(p, processed, *p.script_args)
                         output = None
-                        if processed is not None:
+                        if processed is not None and processed.images is not None:
                             output = processed.images
                             info_txt = [processed.infotext(p, i) for i in range(len(output))]
 

@@ -72,10 +72,55 @@ def run_video(*args):
         return video_run.generate(*args)
     elif selected and 'anisora' in selected.name.lower():
         return video_run.generate(*args)
+    elif selected and 'Kandinsky' in selected.name:
+        return video_run.generate(*args)
     return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
 
 
-def create_ui(prompt, negative, styles, overrides):
+def create_ui_inputs():
+    with gr.Row():
+        with gr.Column(variant='compact', elem_id="video_inputs", elem_classes=['settings-column'], scale=1):
+            init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.8, elem_id="video_denoising_strength")
+            gr.HTML("<br>&nbsp Init image")
+            init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
+            gr.HTML("<br>&nbsp Last image")
+            last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
+    return init_image, init_strength, last_image
+
+
+def create_ui_outputs():
+    with gr.Row():
+        with gr.Column(variant='compact', elem_id="video_outputs", elem_classes=['settings-column'], scale=1):
+            with gr.Row():
+                mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
+                mp4_interpolate = gr.Slider(label="Video interpolation", minimum=0, maximum=10, value=0, step=1)
+            with gr.Row():
+                mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
+                ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="framepack_mp4_codec_refresh")
+                mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="framepack_mp4_ext")
+                mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="framepack_mp4_ext")
+            with gr.Row():
+                mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="framepack_mp4_video")
+                mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="framepack_mp4_frames")
+                mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="framepack_mp4_sf")
+    return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf
+
+
+def create_ui_size():
+    with gr.Row():
+        with gr.Column(variant='compact', elem_id="video_size", elem_classes=['settings-column'], scale=1):
+            with gr.Row():
+                width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
+            with gr.Row():
+                frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=17, elem_id="video_frames")
+                seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
+                random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
+                reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
+                random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
+    return width, height, frames, seed, reuse_seed
+
+
+def create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed, reuse_seed):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -86,14 +131,6 @@ def create_ui(prompt, negative, styles, overrides):
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
             with gr.Row():
                 url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
-            with gr.Accordion(open=True, label="Size", elem_id='video_size_accordion'):
-                with gr.Row():
-                    width, height = ui_sections.create_resolution_inputs('video', default_width=832, default_height=480)
-                with gr.Row():
-                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=17, elem_id="video_frames")
-                    seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
-                    random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
-                    reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
             with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=50)
                 with gr.Row():
@@ -106,29 +143,8 @@ def create_ui(prompt, negative, styles, overrides):
                 with gr.Row():
                     vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
                     vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
-            with gr.Accordion(open=False, label="Init image", elem_id='video_init_accordion'):
-                init_strength = gr.Slider(label='Init strength', minimum=0.0, maximum=1.0, step=0.01, value=0.5, elem_id="video_denoising_strength")
-                gr.HTML("<br>&nbsp Init image")
-                init_image = gr.Image(elem_id="video_image", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
-                gr.HTML("<br>&nbsp Last image")
-                last_image = gr.Image(elem_id="video_last", show_label=False, type="pil", image_mode="RGB", width=256, height=256)
 
             vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
-
-            with gr.Accordion(label="Video", open=False, elem_id='video_output_accordion'):
-                with gr.Row():
-                    mp4_fps = gr.Slider(label="FPS", minimum=1, maximum=60, value=24, step=1)
-                    mp4_interpolate = gr.Slider(label="Video interpolation", minimum=0, maximum=10, value=0, step=1)
-                with gr.Row():
-                    mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
-                    ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="framepack_mp4_codec_refresh")
-                    mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="framepack_mp4_ext")
-                    mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="framepack_mp4_ext")
-                with gr.Row():
-                    mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="framepack_mp4_video")
-                    mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="framepack_mp4_frames")
-                    mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="framepack_mp4_sf")
-
 
         # output panel with gallery and video tabs
         with gr.Column(elem_id='video-output-column', scale=2) as _column_output:
@@ -140,7 +156,6 @@ def create_ui(prompt, negative, styles, overrides):
 
     # connect reuse seed button
     ui_common.connect_reuse_seed(seed, reuse_seed, gen_info, is_subseed=False)
-    random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
     # handle engine and model change
     engine.change(fn=engine_change, inputs=[engine], outputs=[model])
     model.change(fn=model_change, inputs=[engine, model], outputs=[url])
