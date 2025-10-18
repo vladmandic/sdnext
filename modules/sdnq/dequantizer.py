@@ -91,7 +91,7 @@ def re_quantize_int8(weight: torch.FloatTensor) -> Tuple[torch.CharTensor, torch
 def re_quantize_fp8(weight: torch.FloatTensor, is_e5: bool = False) -> Tuple[torch.CharTensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    weight, scale = quantize_int8(weight.contiguous(), dim=-1, is_e5=is_e5)
+    weight, scale = quantize_fp8(weight.contiguous(), dim=-1, is_e5=is_e5)
     weight, scale = weight.t_(), scale.t_()
     if not use_tensorwise_fp8_matmul:
         scale = scale.to(dtype=torch.float32)
