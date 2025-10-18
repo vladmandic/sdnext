@@ -15,6 +15,7 @@
   - Fix tiny VAE with batched results  
   - Fix CFG scale not added to metadata and set valid range to >=1.0  
 - **Other**
+  - Optimized Video tab layout  
   - Video enable VAE slicing and framewise decoding when possible  
   - Detect and log `flash-attn` and `sageattention` if installed  
   - Remove unused UI settings  

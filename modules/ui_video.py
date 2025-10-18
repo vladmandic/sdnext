@@ -27,15 +27,24 @@ def create_ui():
         with gr.Row(elem_id="video_interface", equal_height=False):
             with gr.Tabs(elem_classes=['video-tabs'], elem_id='video-tabs'):
                 overrides = ui_common.create_override_inputs('video')
-                with gr.Tab('Core', id='video-tab') as video_tab:
+                with gr.Tab('Size', id='video-size-tab') as _video_size_tab:
                     from modules.video_models import video_ui
-                    video_ui.create_ui(prompt, negative, styles, overrides)
+                    width, height, frames, seed, reuse_seed, random_seed = video_ui.create_ui_size()
+                with gr.Tab('Inputs', id='video-inputs-tab') as _video_inputs_tab:
+                    from modules.video_models import video_ui
+                    init_image, init_strength, last_image = video_ui.create_ui_inputs()
+                with gr.Tab('Video Output', id='video-outputs-tab') as _video_outputs_tab:
+                    from modules.video_models import video_ui
+                    mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf = video_ui.create_ui_outputs()
+                with gr.Tab('Models', id='video-core-tab') as video_core_tab:
+                    from modules.video_models import video_ui
+                    video_ui.create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed, reuse_seed)
                 with gr.Tab('FramePack', id='framepack-tab') as framepack_tab:
                     from modules.framepack import framepack_ui
-                    framepack_ui.create_ui(prompt, negative, styles, overrides)
+                    framepack_ui.create_ui(prompt, negative, styles, overrides, init_image, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf)
                 with gr.Tab('LTX', id='ltx-tab') as ltx_tab:
                     from modules.ltx import ltx_ui
-                    ltx_ui.create_ui(prompt, negative, styles, overrides)
+                    ltx_ui.create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed)
 
         paste_fields = [
             (prompt, "Prompt"), # cannot add more fields as they are not defined yet
@@ -45,7 +54,7 @@ def create_ui():
         generation_parameters_copypaste.register_paste_params_button(bindings)
 
         current_tab = gr.Textbox(visible=False, value='video')
-        video_tab.select(fn=lambda: 'video', inputs=[], outputs=[current_tab])
+        video_core_tab.select(fn=lambda: 'video', inputs=[], outputs=[current_tab])
         framepack_tab.select(fn=lambda: 'framepack', inputs=[], outputs=[current_tab])
         ltx_tab.select(fn=lambda: 'ltx', inputs=[], outputs=[current_tab])
 

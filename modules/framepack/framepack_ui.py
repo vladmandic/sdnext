@@ -1,6 +1,5 @@
 import gradio as gr
-from modules import ui_sections, ui_common, ui_video_vlm
-from modules.video_models.video_utils import get_codecs
+from modules import ui_sections, ui_video_vlm
 from modules.framepack import framepack_load
 from modules.framepack.framepack_worker import get_latent_paddings
 from modules.framepack.framepack_wrappers import load_model, unload_model
@@ -13,7 +12,7 @@ def change_sections(duration, mp4_fps, mp4_interpolate, latent_ws, variant):
     return gr.update(value=f'Target video: {num_frames} frames in {num_sections} sections'), gr.update(lines=max(2, 2*num_sections//3))
 
 
-def create_ui(prompt, negative, styles, _overrides):
+def create_ui(prompt, negative, styles, _overrides, init_image, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="framepack_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -29,24 +28,11 @@ def create_ui(prompt, negative, styles, _overrides):
                 section_html = gr.HTML(show_label=False, elem_id="framepack_section_html")
             with gr.Accordion(label="Inputs", open=False):
                 with gr.Row():
-                    input_image = gr.Image(sources='upload', type="numpy", label="FP init image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_input_image")
-                    end_image = gr.Image(sources='upload', type="numpy", label="FP end image", width=256, height=256, interactive=True, tool="editor", image_mode='RGB', elem_id="framepack_end_image")
-                with gr.Row():
                     start_weight = gr.Slider(label="FP init strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_start_weight")
                     end_weight = gr.Slider(label="FP end strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_end_weight")
                     vision_weight = gr.Slider(label="FP vision strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_vision_weight")
             with gr.Accordion(label="Sections", open=False):
                 section_prompt = gr.Textbox(label="FP section prompts", elem_id="framepack_section_prompt", lines=2, placeholder="Optional one-line prompt suffix per each video section", interactive=True)
-            with gr.Accordion(label="Video", open=False):
-                with gr.Row():
-                    mp4_codec = gr.Dropdown(label="FP codec", choices=['none', 'libx264'], value='libx264', type='value')
-                    ui_common.create_refresh_button(mp4_codec, get_codecs, elem_id="framepack_mp4_codec_refresh")
-                    mp4_ext = gr.Textbox(label="FP format", value='mp4', elem_id="framepack_mp4_ext")
-                    mp4_opt = gr.Textbox(label="FP options", value='crf:16', elem_id="framepack_mp4_ext")
-                with gr.Row():
-                    mp4_video = gr.Checkbox(label='FP save video', value=True, elem_id="framepack_mp4_video")
-                    mp4_frames = gr.Checkbox(label='FP save frames', value=False, elem_id="framepack_mp4_frames")
-                    mp4_sf = gr.Checkbox(label='FP save safetensors', value=False, elem_id="framepack_mp4_sf")
             with gr.Accordion(label="Advanced", open=False):
                 seed = ui_sections.create_seed_inputs('control', reuse_visible=False, subseed_visible=False, accordion=False)[0]
                 latent_ws = gr.Slider(label="FP latent window size", minimum=1, maximum=33, value=9, step=1)
@@ -58,7 +44,7 @@ def create_ui(prompt, negative, styles, _overrides):
                     cfg_distilled = gr.Slider(label="FP distilled CFG scale", minimum=1.0, maximum=32.0, value=10.0, step=0.01)
                     cfg_rescale = gr.Slider(label="FP CFG re-scale", minimum=0.0, maximum=1.0, value=0.0, step=0.01)
 
-            vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=input_image)
+            vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
 
             with gr.Accordion(label="Model", open=False):
                 with gr.Row():
@@ -108,7 +94,7 @@ def create_ui(prompt, negative, styles, _overrides):
     receipe_reset.click(fn=framepack_load.reset_model, inputs=[], outputs=[receipe])
 
     framepack_inputs=[
-        input_image, end_image,
+        init_image, last_image,
         start_weight, end_weight, vision_weight,
         prompt, system_prompt, optimized_prompt, section_prompt, negative, styles,
         seed,

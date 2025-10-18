@@ -545,11 +545,11 @@ def set_sdpa_params():
         from importlib.metadata import version
         try:
             flash = version('flash-attn')
-        except:
+        except Exception:
             flash = False
         try:
             sage = version('sageattention')
-        except:
+        except Exception:
             sage = False
         log.info(f'Torch attention: flashattn={flash} sageattention={sage}')
     except Exception as e:

@@ -54,19 +54,20 @@ def load_upsample(upsample_pipe, upsample_repo_id):
     return upsample_pipe
 
 
-def get_conditions(width, height, condition_strength, condition_image, condition_files, condition_video, condition_video_frames, condition_video_skip):
+def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip):
     from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
     conditions = []
-    if condition_image is not None:
-        try:
-            if isinstance(condition_image, str):
-                from modules.api.api import decode_base64_to_image
-                condition_image = decode_base64_to_image(condition_image)
-            condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-            conditions.append(LTXVideoCondition(image=condition_image, frame_index=0, strength=condition_strength))
-            shared.log.debug(f'Video condition: image={condition_image.size} strength={condition_strength}')
-        except Exception as e:
-            shared.log.error(f'LTX condition image: {e}')
+    if condition_images is not None:
+        for condition_image in condition_images:
+            try:
+                if isinstance(condition_image, str):
+                    from modules.api.api import decode_base64_to_image
+                    condition_image = decode_base64_to_image(condition_image)
+                condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                conditions.append(LTXVideoCondition(image=condition_image, frame_index=0, strength=condition_strength))
+                shared.log.debug(f'Video condition: image={condition_image.size} strength={condition_strength}')
+            except Exception as e:
+                shared.log.error(f'LTX condition image: {e}')
     if condition_files is not None:
         condition_images = []
         for fn in condition_files:
