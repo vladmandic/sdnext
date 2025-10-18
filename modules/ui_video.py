@@ -29,7 +29,7 @@ def create_ui():
                 overrides = ui_common.create_override_inputs('video')
                 with gr.Tab('Size', id='video-size-tab') as _video_size_tab:
                     from modules.video_models import video_ui
-                    width, height, frames, seed, reuse_seed, random_seed = video_ui.create_ui_size()
+                    width, height, frames, seed, reuse_seed = video_ui.create_ui_size()
                 with gr.Tab('Inputs', id='video-inputs-tab') as _video_inputs_tab:
                     from modules.video_models import video_ui
                     init_image, init_strength, last_image = video_ui.create_ui_inputs()

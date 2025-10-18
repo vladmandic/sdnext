@@ -117,7 +117,7 @@ def create_ui_size():
                 random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
                 reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
                 random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
-    return width, height, frames, seed, reuse_seed, random_seed
+    return width, height, frames, seed, reuse_seed
 
 
 def create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed, reuse_seed):
