@@ -2,15 +2,21 @@
 
 ## Update for 2025-10-18
 
-Post-release fixes:
-- ROCm-on-Windows additional checks  
-- SDNQ-SVD fallback on incompatible layers  
-- Huggingface model download  
-- Remove unused UI settings  
-- Video implement dynamic and manual sampler shift  
-- Fix interrupt batch processing  
-- Delay import of control processors until used  
-- Fix tiny VAE with batched results    
+- **Models**
+  [Kandinsky 5 Lite](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
+  first model in Kandinsky5 series is T2V model optimized for 5sec videos and uses Qwen2.5 text encoder  
+- **Fixes**
+  - ROCm-on-Windows additional checks  
+  - SDNQ-SVD fallback on incompatible layers  
+  - Huggingface model download  
+  - Video implement dynamic and manual sampler shift  
+  - Fix interrupt batch processing  
+  - Delay import of control processors until used  
+  - Fix tiny VAE with batched results  
+- **Other**
+  - Video enable VAE slicing and framewise decoding when possible  
+  - Detect and log `flash-attn` and `sageattention` if installed  
+  - Remove unused UI settings  
 
 ## Update for 2025-10-17
 

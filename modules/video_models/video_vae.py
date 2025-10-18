@@ -9,7 +9,9 @@ vae_type = None
 def set_vae_params(p):
     global vae_type # pylint: disable=global-statement
     vae_type = p.vae_type
-    if p.vae_tile_frames > p.frames:
+    if hasattr(shared.sd_model.vae, 'enable_slicing'):
+        shared.sd_model.vae.enable_slicing()
+    if p.frames > p.vae_tile_frames:
         if hasattr(shared.sd_model.vae, 'tile_sample_min_num_frames'):
             shared.sd_model.vae.tile_sample_min_num_frames = p.vae_tile_frames
         if hasattr(shared.sd_model.vae, 'use_framewise_decoding'):
@@ -30,6 +32,8 @@ def vae_decode_tiny(latents):
         variant = 'TAE MochiVideo'
     elif 'WAN' in shared.sd_model.__class__.__name__:
         variant = 'TAE WanVideo'
+    elif 'Kandinsky' in shared.sd_model.__class__.__name__:
+        variant = 'TAE HunyuanVideo'
     else:
         shared.log.warning(f'Decode: type=Tiny cls={shared.sd_model.__class__.__name__} not supported')
         return None

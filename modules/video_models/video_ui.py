@@ -72,6 +72,8 @@ def run_video(*args):
         return video_run.generate(*args)
     elif selected and 'anisora' in selected.name.lower():
         return video_run.generate(*args)
+    elif selected and 'Kandinsky' in selected.name:
+        return video_run.generate(*args)
     return video_utils.queue_err(f'model not found: engine="{engine}" model="{model}"')
 
 

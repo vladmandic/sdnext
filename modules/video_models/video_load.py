@@ -39,6 +39,10 @@ def load_model(selected: models_def.Model):
             selected.te = 'hunyuanvideo-community/HunyuanVideo'
             selected.te_folder = 'text_encoder'
             selected.te_revision = None
+        if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_t5:
+            selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
+            selected.te_folder = 'text_encoder'
+            selected.te_revision = None
 
         shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         kwargs["text_encoder"] = selected.te_cls.from_pretrained(
@@ -104,7 +108,7 @@ def load_model(selected: models_def.Model):
     shared.sd_model.sd_model_hash = None
     sd_models.set_diffuser_options(shared.sd_model, offload=False)
 
-    decode, text, image, slicing, tiling = False, False, False, False, False
+    decode, text, image, slicing, tiling, framewise = False, False, False, False, False, False
     if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
         sd_hijack_vae.init_hijack(shared.sd_model)
         decode = True
@@ -115,6 +119,9 @@ def load_model(selected: models_def.Model):
         shared.sd_model.orig_encode_image = shared.sd_model.encode_image
         shared.sd_model.encode_image = video_utils.hijack_encode_image
         image = True
+    if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'use_framewise_decoding'):
+        shared.sd_model.vae.use_framewise_decoding = True
+        framewise = True
     if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'enable_slicing'):
         shared.sd_model.vae.enable_slicing()
         slicing = True
@@ -130,6 +137,6 @@ def load_model(selected: models_def.Model):
     loaded_model = selected.name
     msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     shared.log.info(msg)
-    shared.log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling}')
+    shared.log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling} framewise={framewise}')
     shared.state.end(jobid)
     return msg
