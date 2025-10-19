@@ -3,9 +3,10 @@ import re
 import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
-from .common import use_tensorwise_fp8_matmul, use_contiguous_mm
+from .common import dtype_dict, use_tensorwise_fp8_matmul, use_contiguous_mm
 from .quantizer import SDNQConfig, sdnq_post_load_quant
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
+from .forward import get_forward_func
 
 
 def get_module_names(model: ModelMixin) -> list:
@@ -203,5 +204,7 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                         elif module.svd_down.is_contiguous():
                             module.svd_down.data = module.svd_down.t_().contiguous().t_()
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
+                module.forward = get_forward_func(module.__class__.__name__, use_quantized_matmul, dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
+                module.forward = module.forward.__get__(module, module.__class__)
         module = apply_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
