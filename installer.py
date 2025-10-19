@@ -1496,12 +1496,17 @@ def check_venv():
 
 
 # check version of the main repo and optionally upgrade it
-def check_version(offline=False, reset=True): # pylint: disable=unused-argument
+def check_version(reset=True): # pylint: disable=unused-argument
+    if opts.get('offline_mode', False):
+        log.warning('Offline mode enabled')
+        args.skip_git = True # pylint: disable=attribute-defined-outside-init
+        args.skip_all = True # pylint: disable=attribute-defined-outside-init
+        return
     t_start = time.time()
     if args.skip_all:
         return
     if not os.path.exists('.git'):
-        log.warning('Not a git repository, all git operations are disabled')
+        log.warning('Not a git repository')
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
@@ -1538,7 +1543,7 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
                 else:
                     log.warning('Repository: retrying upgrade...')
                     git_reset()
-                    check_version(offline=offline, reset=False)
+                    check_version(reset=False)
         else:
             dt = commits["commit"]["commit"]["author"]["date"]
             commit = commits["commit"]["sha"][:8]

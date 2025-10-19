@@ -657,6 +657,15 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             unload_model_weights(op=op)
             return
 
+        # handle offline mode
+        if shared.opts.offline_mode:
+            shared.log.info(f'Load {op}: offline=True')
+            diffusers_load_config["local_files_only"] = True
+            os.environ['HF_HUB_OFFLINE'] = '1'
+        else:
+            os.environ.pop('HF_HUB_OFFLINE', None)
+            os.unsetenv('HF_HUB_OFFLINE')
+
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
         set_huggingface_options()
@@ -1247,14 +1256,15 @@ def unload_model_weights(op='model'):
 
 
 def hf_auth_check(checkpoint_info, force:bool=False):
+    if shared.opts.offline_mode:
+        shared.log.info('Offline mode: skipping auth check')
+        return False
     login = None
     if not force:
         try:
-            # skip check for single-file safetensors models
-            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)):
+            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)): # skip check for single-file safetensors models
                 return True
-            # skip check for local diffusers folders
-            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))):
+            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for local diffusers folders
                 return True
         except Exception:
             pass
@@ -1263,7 +1273,7 @@ def hf_auth_check(checkpoint_info, force:bool=False):
         login = modelloader.hf_login()
         return hf.auth_check(repo_id)
     except Exception as e:
-        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
+        shared.log.error(f'Auth: repo="{repo_id}" login={login} {e}')
         return False
 
 

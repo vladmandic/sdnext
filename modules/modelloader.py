@@ -20,6 +20,8 @@ pbar = None
 
 
 def hf_login(token=None):
+    if shared.opts.offline_mode:
+        return False
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
     token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
@@ -38,7 +40,8 @@ def hf_login(token=None):
     if loggedin != token:
         stdout = io.StringIO()
         try:
-            hf.logout()
+            with contextlib.redirect_stdout(stdout):
+                hf.logout()
         except Exception:
             pass
         with contextlib.redirect_stdout(stdout):

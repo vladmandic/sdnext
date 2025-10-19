@@ -37,12 +37,15 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
 
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
             return []
+        count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0 }
         for k, v in shared.reference_models.items():
+            count['total'] += 1
             url = v['path']
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
                     shared.log.debug(f'Networks: experimental model="{k}"')
+                    count['experimental'] += 1
                 else:
                     continue
             preview = v.get('preview', v['path'])
@@ -61,6 +64,12 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 path = f'{v.get("path", "")}+{v.get("subfolder", "")}'
             else:
                 path = f'{v.get("path", "")}'
+            ready = reference_downloaded(url)
+            if not ready and shared.opts.offline_mode:
+                count['hidden'] += 1
+                continue
+            if ready:
+                count['ready'] += 1
             yield {
                 "type": 'Model',
                 "name": name,
@@ -75,8 +84,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
-                "version": "ready" if reference_downloaded(url) else "download",
+                "version": "ready" if ready else "download",
             }
+        shared.log.debug(f'Networks: type="reference" items={count["total"]} ready={count["ready"]} hidden={count["hidden"]} experimental={count["experimental"]}')
 
     def create_item(self, name):
         record = None

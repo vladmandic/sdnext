@@ -1,5 +1,18 @@
 # Change Log for SD.Next
 
+## Update for 2025-10-19
+
+- **Features**
+  - **offline mode**: enable in *settings -> hugginface*  
+    enables fully offline mode where previously downloaded models are used as-is  
+- **Backend**
+  - switch to `torch==2.9` for *ipex, rocm and openvino*  
+  - switch to `rocm==7.0` for nightlies  
+- **Quantization**
+  - improved SDNQ SVD and low-bit matmul performance  
+- **Fixes**
+  - startup error with `--profile` enabled if using `--skip`  
+
 ## Update for 2025-10-18
 
 - **Models**
