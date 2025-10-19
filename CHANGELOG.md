@@ -10,6 +10,8 @@
   - switch to `rocm==7.0` for nightlies  
 - **Quantization**
   - improved SDNQ SVD and low-bit matmul performance  
+- **Other**
+  - **scheduler** add base and max shift parameters for flow-matching samplers  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
 

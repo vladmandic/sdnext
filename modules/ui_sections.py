@@ -232,12 +232,14 @@ def create_sampler_options(tabname):
         shared.opts.schedulers_beta_schedule = sampler_beta
         shared.opts.save(shared.config_filename, silent=True)
 
-    def set_sampler_shift(sampler_shift):
-        shared.log.debug(f'Sampler set options: shift={sampler_shift}')
+    def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
+        shared.log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
+        shared.opts.schedulers_base_shift = sampler_base_shift
+        shared.opts.schedulers_max_shift = sampler_max_shift
         shared.opts.save(shared.config_filename, silent=True)
 
-    def set_sigma_ajust(val, start, end):
+    def set_sigma_adjust(val, start, end):
         shared.log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
         shared.opts.schedulers_sigma_adjust_min = start
@@ -267,7 +269,10 @@ def create_sampler_options(tabname):
         sampler_sigma_adjust_max = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Adjust end', value=shared.opts.schedulers_sigma_adjust_max, elem_id=f"{tabname}_sampler_sigma_adjust_max")
     with gr.Row(elem_classes=['flex-break']):
         sampler_order = gr.Slider(minimum=0, maximum=5, step=1, label="Sampler order", value=shared.opts.schedulers_solver_order, elem_id=f"{tabname}_sampler_order")
+    with gr.Row(elem_classes=['flex-break']):
         sampler_shift = gr.Slider(minimum=0, maximum=10, step=0.1, label="Flow shift", value=shared.opts.schedulers_shift, elem_id=f"{tabname}_sampler_shift")
+        sampler_base_shift = gr.Slider(minimum=0, maximum=10, step=0.01, label="Base shift", value=shared.opts.schedulers_base_shift, elem_id=f"{tabname}_sampler_base_shift")
+        sampler_max_shift = gr.Slider(minimum=0, maximum=10, step=0.01, label="Max shift", value=shared.opts.schedulers_max_shift, elem_id=f"{tabname}_sampler_max_shift")
     with gr.Row(elem_classes=['flex-break']):
         options = ['low order', 'thresholding', 'dynamic', 'rescale']
         values = []
@@ -284,11 +289,11 @@ def create_sampler_options(tabname):
     sampler_beta.change(fn=set_sampler_beta, inputs=[sampler_beta], outputs=[])
     sampler_prediction.change(fn=set_sampler_prediction, inputs=[sampler_prediction], outputs=[])
     sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
-    sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift], outputs=[])
+    sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
-    sampler_sigma_adjust_val.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
-    sampler_sigma_adjust_min.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
-    sampler_sigma_adjust_max.change(fn=set_sigma_ajust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma_adjust_val.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma_adjust_min.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
+    sampler_sigma_adjust_max.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
 
 
 def create_hires_inputs(tab):
