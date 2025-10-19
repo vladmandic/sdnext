@@ -1294,11 +1294,11 @@ def install_optional():
 
 def install_requirements():
     t_start = time.time()
+    if args.skip_requirements and not args.requirements:
+        return
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    if args.skip_requirements and not args.requirements:
-        return
     if int(sys.version_info.minor) >= 13:
         install('audioop-lts')
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
