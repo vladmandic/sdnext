@@ -391,7 +391,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
+        p.iter_init_images = p.init_images # required so we use same starting non-processed images for each batch sequence
         for n in range(p.n_iter):
+            p.init_images = p.iter_init_images
             if p.n_iter > 1:
                 shared.log.debug(f'Processing: batch={n+1} total={p.n_iter} progress={(n+1)/p.n_iter:.2f}')
             shared.state.batch_no = n + 1

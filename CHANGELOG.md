@@ -5,6 +5,7 @@
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models are used as-is  
+    *note*: must be enabled only after all packages have been installed and model has been run online at least once  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
@@ -14,6 +15,7 @@
   - **scheduler** add base and max shift parameters for flow-matching samplers  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
+  - restore orig init image for each batch sequence  
 
 ## Update for 2025-10-18
 
