@@ -61,3 +61,7 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if 'WanVACEPipeline' in cls:
         if (getattr(p, 'init_images', None) is not None) and (len(p.init_images) > 0):
             p.task_args['reference_images'] = p.init_images
+    # WAN 2.2-5B
+    if 'WAN 2.2 5B' in selected.name:
+        print('HERE')
+        shared.sd_model.vae.disable_tiling()

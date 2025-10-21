@@ -11,6 +11,8 @@ def load_model(selected: models_def.Model):
     if selected is None or selected.te_cls is None or selected.dit_cls is None:
         return ''
     global loaded_model # pylint: disable=global-statement
+    if not shared.sd_loaded:
+        loaded_model = None
     if loaded_model == selected.name:
         return ''
     sd_models.unload_model_weights()
