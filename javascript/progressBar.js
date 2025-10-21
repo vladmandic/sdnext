@@ -132,7 +132,7 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
   };
 
   const start = (id_task, id_live_preview) => { // eslint-disable-line no-shadow
-    if (!opts.live_previews_enable || opts.live_preview_refresh_period === 0 || opts.show_progress_every_n_steps === 0) return;
+    if (opts.live_preview_refresh_period === 0) return;
     const request_id = document.hidden ? -1 : id_live_preview;
 
     const onProgressHandler = (res) => {

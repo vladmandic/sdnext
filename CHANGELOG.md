@@ -19,6 +19,7 @@
   - fix modernui hints layout  
   - fix `wan-2.2-a14b` stage selection  
   - fix `wan-2.2-5b` vae decode  
+  - disabling live preview should not disable progress updates  
 
 ## Update for 2025-10-18
 
