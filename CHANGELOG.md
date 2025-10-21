@@ -13,6 +13,7 @@
   - improved SDNQ SVD and low-bit matmul performance  
 - **Other**
   - **scheduler** add base and max shift parameters for flow-matching samplers  
+  - enhance `--optional` flag to pre-install optional packages  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
