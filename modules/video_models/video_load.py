@@ -1,3 +1,4 @@
+import os
 import copy
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
@@ -22,7 +23,15 @@ def load_model(selected: models_def.Model):
     video_cache.apply_teacache_patch(selected.dit_cls)
 
     # overrides
-    kwargs = video_overrides.load_override(selected)
+    offline_args = {}
+    if shared.opts.offline_mode:
+        offline_args["local_files_only"] = True
+        os.environ['HF_HUB_OFFLINE'] = '1'
+    else:
+        os.environ.pop('HF_HUB_OFFLINE', None)
+        os.unsetenv('HF_HUB_OFFLINE')
+
+    kwargs = video_overrides.load_override(selected, **offline_args)
 
     # text encoder
     try:
@@ -53,7 +62,8 @@ def load_model(selected: models_def.Model):
             revision=selected.te_revision or selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
-            **quant_args
+            **quant_args,
+            **offline_args,
         )
     except Exception as e:
         shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
@@ -72,7 +82,8 @@ def load_model(selected: models_def.Model):
                     revision=selected.dit_revision or selected.repo_revision,
                     cache_dir=shared.opts.hfcache_dir,
                     **load_args,
-                    **quant_args
+                    **quant_args,
+                    **offline_args,
                 )
             else:
                 shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} skip')
@@ -97,6 +108,7 @@ def load_model(selected: models_def.Model):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
             **kwargs,
+            **offline_args,
         )
     except Exception as e:
         shared.log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')

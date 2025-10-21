@@ -8,17 +8,17 @@ from modules.video_models.models_def import Model
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-def load_override(selected: Model):
+def load_override(selected: Model, **load_args):
     kwargs = {}
     # Allegro
     if 'Allegro T2V' in selected.name:
-        kwargs['vae'] = diffusers.AutoencoderKLAllegro.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
+        kwargs['vae'] = diffusers.AutoencoderKLAllegro.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
     # LTX
     if 'LTXVideo 0.9.5 I2V' in selected.name:
-        kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
+        kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
     # WAN
     if 'WAN 2.1 14B' in selected.name:
-        kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir)
+        kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
     if ('A14B' in selected.name) or ('14B VACE' in selected.name):
         if shared.opts.model_wan_stage == 'combined':
             kwargs['boundary_ratio'] = shared.opts.model_wan_boundary
