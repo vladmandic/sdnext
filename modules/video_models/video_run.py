@@ -103,7 +103,7 @@ def generate(*args, **kwargs):
         if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
             shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
             shared.sd_model.scheduler.register_to_config(use_dynamic_shifting = dynamic_shift)
-        if hasattr(shared.sd_model.scheduler.config, 'flow_shift'):
+        if hasattr(shared.sd_model.scheduler.config, 'flow_shift') and sampler_shift >= 0:
             shared.sd_model.scheduler.config.flow_shift = sampler_shift
             shared.sd_model.scheduler.register_to_config(flow_shift = sampler_shift)
         shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler)

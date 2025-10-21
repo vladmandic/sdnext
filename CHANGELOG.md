@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-19
+## Update for 2025-10-21
 
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
@@ -16,6 +16,8 @@
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
+  - fix modernui hints layout  
+  - fix `wan-2.2-a14b` stage selection  
 
 ## Update for 2025-10-18
 

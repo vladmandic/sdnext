@@ -74,7 +74,7 @@ def load_wan(checkpoint_info, diffusers_load_config={}):
         elif shared.opts.model_wan_stage == 'low noise' or shared.opts.model_wan_stage == 'second':
             transformer = None
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
-            boundary_ratio = 1.0
+            boundary_ratio = 1000.0
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
