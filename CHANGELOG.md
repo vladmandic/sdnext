@@ -22,6 +22,7 @@
   - fix `wan-2.2-5b` vae decode  
   - disabling live preview should not disable progress updates  
   - video tab create `params.txt` with metadata  
+  - fix full-screen image-viewer toolbar actions with control tab  
 
 ## Update for 2025-10-18
 
