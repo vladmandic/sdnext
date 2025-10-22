@@ -41,6 +41,7 @@ tunableop_results*.csv
 /*.txt
 /*.mp3
 /*.lnk
+/*.swp
 !webui.bat
 !webui.sh
 !package.json

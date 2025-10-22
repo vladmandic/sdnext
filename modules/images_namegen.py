@@ -23,8 +23,8 @@ NOTHING = object()
 
 class FilenameGenerator:
     replacements = {
-        'width': lambda self: self.image.width,
-        'height': lambda self: self.image.height,
+        'width': lambda self: self.width,
+        'height': lambda self: self.height,
         'batch_number': lambda self: self.batch_number,
         'iter_number': lambda self: self.iter_number,
         'num': lambda self: NOTHING if self.p.n_iter == 1 and self.p.batch_size == 1 else self.p.iteration * self.p.batch_size + self.p.batch_index + 1,
@@ -32,8 +32,8 @@ class FilenameGenerator:
         'date': lambda self: datetime.datetime.now().strftime('%Y-%m-%d'),
         'datetime': lambda self, *args: self.datetime(*args),  # accepts formats: [datetime], [datetime<Format>], [datetime<Format><Time Zone>]
         'hasprompt': lambda self, *args: self.hasprompt(*args),  # accepts formats:[hasprompt<prompt1|default><prompt2>..]
-        'hash': lambda self: self.image_hash(),
-        'image_hash': lambda self: self.image_hash(),
+        'hash': lambda self: self.image_hash() if self.image is not None else '',
+        'image_hash': lambda self: self.image_hash() if self.image is not None else '',
         'timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
         'epoch': lambda self: int(time.time()),
         'job_timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
@@ -61,7 +61,7 @@ class FilenameGenerator:
     }
     default_time_format = '%Y%m%d%H%M%S'
 
-    def __init__(self, p, seed, prompt, image, grid=False):
+    def __init__(self, p, seed, prompt, image=None, grid=False, width=None, height=None):
         if p is None:
             debug('Filename generator init skip')
         else:
@@ -82,6 +82,8 @@ class FilenameGenerator:
         if isinstance(self.prompt, list):
             self.prompt = ' '.join(self.prompt)
         self.image = image
+        self.width = width if width is not None else (image.width if image is not None else (p.width if p is not None else 0))
+        self.height = height if height is not None else (image.height if image is not None else (p.height if p is not None else 0))
         if not grid:
             self.batch_number = NOTHING if self.p is None or getattr(self.p, 'batch_size', 1) == 1 else (self.p.batch_index + 1 if hasattr(self.p, 'batch_index') else NOTHING)
             self.iter_number = NOTHING if self.p is None or getattr(self.p, 'n_iter', 1) == 1 else (self.p.iteration + 1 if hasattr(self.p, 'iteration') else NOTHING)
