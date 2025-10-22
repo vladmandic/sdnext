@@ -1,6 +1,7 @@
 import re
 import os
 import time
+import unicodedata
 import uuid
 import string
 import hashlib
@@ -164,14 +165,25 @@ class FilenameGenerator:
         return sanitized
 
     def sanitize(self, filename):
-        invalid_chars = '\'"|?*\n\t\r' # <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+        # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+        invalid_chars = (
+            "#<>:/\\\"'`"                     # ASCII quote and backtick
+            "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants
+            "\u02BB"                          # modifier letter turned comma (ʻ)
+            "\u201C\u201D\u201F"              # smart double quotes and variants
+            "|?*^%$\u00A0\u2013\u2014\n\t\r"  # pipes, wildcards, percent, currency, NBSP, dashes, control chars
+        )
         invalid_folder = ':'
         invalid_files = ['CON', 'PRN', 'AUX', 'NUL', 'NULL', 'COM0', 'COM1', 'LPT0', 'LPT1']
         invalid_prefix = ', '
         invalid_suffix = '.,_ '
-        fn, ext = os.path.splitext(filename)
+        fn, ext = os.path.splitext(unicodedata.normalize('NFKC', filename))
+        fn = fn.strip()
+        ext = ext.strip()
         parts = Path(fn).parts
         newparts = []
+        # for ch in filename:
+        #     print(repr(ch), hex(ord(ch)), unicodedata.name(ch, 'UNKNOWN'), ch in invalid_chars)
         for i, part in enumerate(parts):
             part = part.translate({ ord(x): '_' for x in invalid_chars })
             if i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove
@@ -181,6 +193,7 @@ class FilenameGenerator:
                 [part := part.replace(word, '_') for word in invalid_files] # pylint: disable=expression-not-assigned
             newparts.append(part)
         fn = str(Path(*newparts))
+        fn = fn.replace('  ', ' ').strip()
         max_length = max(256 - len(ext), os.statvfs(__file__).f_namemax - 32 if hasattr(os, 'statvfs') else 256 - len(ext))
         while len(os.path.abspath(fn)) > max_length:
             fn = fn[:-1]

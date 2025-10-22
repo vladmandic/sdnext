@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-21
+## Update for 2025-10-22
 
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
@@ -23,6 +23,7 @@
   - disabling live preview should not disable progress updates  
   - video tab create `params.txt` with metadata  
   - fix full-screen image-viewer toolbar actions with control tab  
+  - improve filename sanitization  
 
 ## Update for 2025-10-18
 
