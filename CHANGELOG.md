@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-22
+## Update for 2025-10-23
 
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
@@ -14,6 +14,7 @@
 - **Other**
   - **scheduler** add base and max shift parameters for flow-matching samplers  
   - enhance `--optional` flag to pre-install optional packages  
+  - add `[lora]` to recognized filename patterns  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  

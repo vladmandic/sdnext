@@ -45,6 +45,8 @@ class FilenameGenerator:
         'model_type': lambda self: shared.sd_model_type if shared.sd_loaded else '',
         'model_hash': lambda self: shared.sd_model.sd_checkpoint_info.shorthash if shared.sd_loaded and getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None else '',
 
+        'lora': lambda self: self.p and getattr(self.p, 'extra_generation_params', {}).get('LoRA networks', ''),
+
         'prompt': lambda self: self.prompt_full(),
         'prompt_no_styles': lambda self: self.prompt_no_style(),
         'prompt_words': lambda self: self.prompt_words(),
@@ -66,7 +68,7 @@ class FilenameGenerator:
         if p is None:
             debug('Filename generator init skip')
         else:
-            debug(f'Filename generator init: {seed} {prompt}')
+            debug(f'Filename generator init: seed={seed} prompt="{prompt}"')
         self.p = p
         if seed is not None and int(seed) > 0:
             self.seed = seed
