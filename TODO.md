@@ -4,9 +4,9 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
+- [Kanvas](https://github.com/vladmandic/kanvas)  
 - Transformers unified cache handler  
 - Remote TE  
-- [Canvas](https://konvajs.org/)  
 - Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: Sampler options  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
@@ -34,7 +34,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 ### New models
 
 - [Ovi](https://github.com/character-ai/Ovi)
-- [Kandinsky 5](https://github.com/ai-forever/Kandinsky-5)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
 - [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
 - [Phantom HuMo](https://github.com/Phantom-video/Phantom)

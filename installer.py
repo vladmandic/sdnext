@@ -388,7 +388,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     arg = arg.replace('>=', '==')
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
-        return
+        return 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
