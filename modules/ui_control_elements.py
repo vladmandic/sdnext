@@ -317,5 +317,7 @@ def create_ui_elements(units, result_txt, preview_process):
                     settings.append(gr.Slider(label="Ensemble size", minimum=1, maximum=99, step=1, value=10))
                 with gr.Accordion('Depth Anything', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Dropdown(label="Depth map", choices=['none'] + masking.COLORMAP, value='inferno'))
+                with gr.Accordion('Depth Pro', open=True, elem_classes=['processor-settings']):
+                    settings.append(gr.Dropdown(label="Depth map", choices=['none'] + masking.COLORMAP, value='inferno'))
                 for setting in settings:
                     setting.change(fn=processors.update_settings, inputs=settings, outputs=[])

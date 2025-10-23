@@ -34,6 +34,7 @@ processors = [
     'DPT Depth Hybrid',
     'GLPN Depth',
     'Depth Anything',
+    'Depth Pro',
 ]
 
 
