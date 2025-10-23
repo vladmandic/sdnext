@@ -353,9 +353,9 @@ class ExtraNetworksPage:
             args = {
                 # "tabname": tabname,
                 "page": self.name,
-                "name": item.get('name', ''),
+                "name": html.escape(item.get('name', ''), quote=True),
                 "title": os.path.basename(item["name"].replace('_', ' ')),
-                "filename": item.get('filename', ''),
+                "filename": html.escape(item.get('filename', ''), quote=True),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
                 "preview": html.escape(item.get('preview', None) or self.link_preview('html/missing.png')),
