@@ -172,15 +172,13 @@ class Processor():
         return f' Processor(id={self.processor_id} model={self.model.__class__.__name__})' if self.processor_id and self.model else ''
 
     def reset(self, processor_id: str = None):
-        from modules.shared import opts
         if self.model is not None:
             debug(f'Control Processor unloaded: id="{self.processor_id}"')
             self.model = None
             self.processor_id = processor_id
             devices.torch_gc(force=True, reason='processor')
-        # self.override = None
-        # devices.torch_gc()
         self.load_config = { 'cache_dir': cache_dir }
+        from modules.shared import opts
         if opts.offline_mode:
             self.load_config["local_files_only"] = True
             os.environ['HF_HUB_OFFLINE'] = '1'

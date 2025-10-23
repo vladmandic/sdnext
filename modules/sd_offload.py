@@ -409,7 +409,7 @@ def report_model_stats(module_name, module):
         shared.log.error(f'Module stats: name={module_name} {e}')
 
 
-def apply_balanced_offload(sd_model=None, exclude=[]):
+def apply_balanced_offload(sd_model=None, exclude=[], force=False):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model
@@ -424,7 +424,7 @@ def apply_balanced_offload(sd_model=None, exclude=[]):
         return sd_model
     cached = True
     checkpoint_name = sd_model.sd_checkpoint_info.name if getattr(sd_model, "sd_checkpoint_info", None) is not None else sd_model.__class__.__name__
-    if (offload_hook_instance is None) or (offload_hook_instance.min_watermark != shared.opts.diffusers_offload_min_gpu_memory) or (offload_hook_instance.max_watermark != shared.opts.diffusers_offload_max_gpu_memory) or (checkpoint_name != offload_hook_instance.checkpoint_name):
+    if force or (offload_hook_instance is None) or (offload_hook_instance.min_watermark != shared.opts.diffusers_offload_min_gpu_memory) or (offload_hook_instance.max_watermark != shared.opts.diffusers_offload_max_gpu_memory) or (checkpoint_name != offload_hook_instance.checkpoint_name):
         cached = False
         offload_hook_instance = OffloadHook(checkpoint_name)
 

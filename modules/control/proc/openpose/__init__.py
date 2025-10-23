@@ -76,7 +76,7 @@ class OpenposeDetector:
         self.face_estimation = face_estimation
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path, filename=None, hand_filename=None, face_filename=None, cache_dir=None):
+    def from_pretrained(cls, pretrained_model_or_path, filename=None, hand_filename=None, face_filename=None, cache_dir=None, local_files_only=False):
 
         if pretrained_model_or_path == "lllyasviel/ControlNet":
             filename = filename or "annotator/ckpts/body_pose_model.pth"
@@ -96,9 +96,9 @@ class OpenposeDetector:
             hand_model_path = os.path.join(pretrained_model_or_path, hand_filename)
             face_model_path = os.path.join(face_pretrained_model_or_path, face_filename)
         else:
-            body_model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir)
-            hand_model_path = hf_hub_download(pretrained_model_or_path, hand_filename, cache_dir=cache_dir)
-            face_model_path = hf_hub_download(face_pretrained_model_or_path, face_filename, cache_dir=cache_dir)
+            body_model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir, local_files_only=local_files_only)
+            hand_model_path = hf_hub_download(pretrained_model_or_path, hand_filename, cache_dir=cache_dir, local_files_only=local_files_only)
+            face_model_path = hf_hub_download(face_pretrained_model_or_path, face_filename, cache_dir=cache_dir, local_files_only=local_files_only)
 
         body_estimation = Body(body_model_path)
         hand_estimation = Hand(hand_model_path)

@@ -23,12 +23,12 @@ class SamDetector:
         self.model = mask_generator
 
     @classmethod
-    def from_pretrained(cls, model_path, filename, model_type, cache_dir=None):
+    def from_pretrained(cls, model_path, filename, model_type, cache_dir=None, local_files_only=False):
         """
         Possible model_type : vit_h, vit_l, vit_b, vit_t
         download weights from https://github.com/facebookresearch/segment-anything
         """
-        model_path = hf_hub_download(model_path, filename, cache_dir=cache_dir)
+        model_path = hf_hub_download(model_path, filename, cache_dir=cache_dir, local_files_only=local_files_only)
         sam = sam_model_registry[model_type](checkpoint=model_path)
         sam.to(devices.device)
         mask_generator = SamAutomaticMaskGenerator(sam)

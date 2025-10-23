@@ -95,7 +95,7 @@ class LineartDetector:
         self.model_coarse = coarse_model
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path, filename=None, coarse_filename=None, cache_dir=None):
+    def from_pretrained(cls, pretrained_model_or_path, filename=None, coarse_filename=None, cache_dir=None, local_files_only=False):
         filename = filename or "sk_model.pth"
         coarse_filename = coarse_filename or "sk_model2.pth"
 
@@ -103,8 +103,8 @@ class LineartDetector:
             model_path = os.path.join(pretrained_model_or_path, filename)
             coarse_model_path = os.path.join(pretrained_model_or_path, coarse_filename)
         else:
-            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir)
-            coarse_model_path = hf_hub_download(pretrained_model_or_path, coarse_filename, cache_dir=cache_dir)
+            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir, local_files_only=local_files_only)
+            coarse_model_path = hf_hub_download(pretrained_model_or_path, coarse_filename, cache_dir=cache_dir, local_files_only=local_files_only)
 
         model = Generator(3, 1, 3)
         model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
