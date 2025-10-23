@@ -16,13 +16,14 @@ class DepthProDetector:
         self.processor = processor
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path: str = "apple/DepthPro-hf", cache_dir: str | None = None) -> "DepthProDetector":
+    def from_pretrained(cls, pretrained_model_or_path: str = "apple/DepthPro-hf", cache_dir: str = None, local_files_only = False) -> "DepthProDetector":
         from transformers import AutoImageProcessor, DepthProForDepthEstimation
 
-        processor = AutoImageProcessor.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir)
+        processor = AutoImageProcessor.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only)
         model = DepthProForDepthEstimation.from_pretrained(
             pretrained_model_or_path,
             cache_dir=cache_dir,
+            local_files_only=local_files_only,
         ).to(devices.device).eval()
         return cls(model, processor)
 
