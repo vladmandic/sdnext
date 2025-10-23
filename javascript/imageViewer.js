@@ -52,12 +52,15 @@ function modalImageSwitch(offset) {
 }
 
 function modalSaveImage(event) {
-  if (gradioApp().getElementById('tab_txt2img').style.display !== 'none') gradioApp().getElementById('save_txt2img').click();
-  else if (gradioApp().getElementById('tab_img2img').style.display !== 'none') gradioApp().getElementById('save_img2img').click();
-  else if (gradioApp().getElementById('tab_process').style.display !== 'none') gradioApp().getElementById('save_extras').click();
+  const tabName = getENActiveTab();
+  const saveBtn = gradioApp().getElementById(`save_${tabName}`);
+  log('modalSaveImage', tabName, saveBtn);
+  if (saveBtn) saveBtn.click();
+  modalImageSwitch(0);
 }
 
 function modalKeyHandler(event) {
+  log('modalKeyHandler', event.key);
   switch (event.key) {
     case 's':
       modalSaveImage();
@@ -158,6 +161,7 @@ function modalZoomToggle(event) {
   const modalImage = gradioApp().getElementById('modalImage');
   modalZoomSet(modalImage, !modalImage.classList.contains('modalImageFullscreen'));
   event.stopPropagation();
+  modalImageSwitch(0);
 }
 
 function modalTileToggle(event) {
@@ -172,12 +176,15 @@ function modalTileToggle(event) {
     modal.style.setProperty('background-image', `url(${modalImage.src})`);
   }
   event.stopPropagation();
+  modalImageSwitch(0);
 }
 
 function modalResetInstance(event) {
   const modalImage = document.getElementById('modalImage');
   previewInstance.dispose();
   previewInstance = panzoom(modalImage, { zoomSpeed: 0.05, minZoom: 0.1, maxZoom: 5.0, filterKey: (/* e, dx, dy, dz */) => true });
+  event.stopPropagation();
+  modalImageSwitch(0);
 }
 
 function modalToggleParams(event) {
@@ -188,6 +195,7 @@ function modalToggleParams(event) {
     modalExif.style.display = 'none';
   }
   event.stopPropagation();
+  modalImageSwitch(0);
 }
 
 function galleryClickEventHandler(event) {

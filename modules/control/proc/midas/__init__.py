@@ -17,7 +17,7 @@ class MidasDetector:
         self.model = model
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path, model_type="dpt_hybrid", filename=None, cache_dir=None):
+    def from_pretrained(cls, pretrained_model_or_path, model_type="dpt_hybrid", filename=None, cache_dir=None, local_files_only=False):
         if pretrained_model_or_path == "lllyasviel/ControlNet":
             filename = filename or "annotator/ckpts/dpt_hybrid-midas-501f0c75.pt"
         else:
@@ -25,7 +25,7 @@ class MidasDetector:
         if os.path.isdir(pretrained_model_or_path):
             model_path = os.path.join(pretrained_model_or_path, filename)
         else:
-            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir)
+            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir, local_files_only=local_files_only)
         model = MiDaSInference(model_type=model_type, model_path=model_path)
         return cls(model)
 

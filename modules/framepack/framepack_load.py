@@ -1,3 +1,4 @@
+import os
 import time
 from modules import shared, devices, errors, sd_models, sd_checkpoint, model_quant
 
@@ -128,23 +129,31 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         sd_models.hf_auth_check(model["text_encoder"]["repo"])
         sd_models.hf_auth_check(model["text_encoder_2"]["repo"])
 
+        offline_config = {}
+        if shared.opts.offline_mode:
+            offline_config["local_files_only"] = True
+            os.environ['HF_HUB_OFFLINE'] = '1'
+        else:
+            os.environ.pop('HF_HUB_OFFLINE', None)
+            os.unsetenv('HF_HUB_OFFLINE')
+
         shared.log.debug(f'FramePack load: module=llm {model["text_encoder"]}')
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
-        text_encoder = LlamaModel.from_pretrained(model["text_encoder"]["repo"], subfolder=model["text_encoder"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args)
-        tokenizer = LlamaTokenizerFast.from_pretrained(model["tokenizer"]["repo"], subfolder=model["tokenizer"]["subfolder"], cache_dir=shared.opts.hfcache_dir)
+        text_encoder = LlamaModel.from_pretrained(model["text_encoder"]["repo"], subfolder=model["text_encoder"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args, **offline_config)
+        tokenizer = LlamaTokenizerFast.from_pretrained(model["tokenizer"]["repo"], subfolder=model["tokenizer"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **offline_config)
         text_encoder.requires_grad_(False)
         text_encoder.eval()
         sd_models.move_model(text_encoder, devices.cpu)
 
         shared.log.debug(f'FramePack load: module=te {model["text_encoder_2"]}')
-        text_encoder_2 = CLIPTextModel.from_pretrained(model["text_encoder_2"]["repo"], subfolder=model["text_encoder_2"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
-        tokenizer_2 = CLIPTokenizer.from_pretrained(model["pipeline"]["repo"], subfolder='tokenizer_2', cache_dir=shared.opts.hfcache_dir)
+        text_encoder_2 = CLIPTextModel.from_pretrained(model["text_encoder_2"]["repo"], subfolder=model["text_encoder_2"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
+        tokenizer_2 = CLIPTokenizer.from_pretrained(model["pipeline"]["repo"], subfolder='tokenizer_2', cache_dir=shared.opts.hfcache_dir, **offline_config)
         text_encoder_2.requires_grad_(False)
         text_encoder_2.eval()
         sd_models.move_model(text_encoder_2, devices.cpu)
 
         shared.log.debug(f'FramePack load: module=vae {model["vae"]}')
-        vae = AutoencoderKLHunyuanVideo.from_pretrained(model["vae"]["repo"], subfolder=model["vae"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
+        vae = AutoencoderKLHunyuanVideo.from_pretrained(model["vae"]["repo"], subfolder=model["vae"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
         vae.requires_grad_(False)
         vae.eval()
         vae.enable_slicing()
@@ -152,8 +161,8 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         sd_models.move_model(vae, devices.cpu)
 
         shared.log.debug(f'FramePack load: module=encoder {model["feature_extractor"]} model={model["image_encoder"]}')
-        feature_extractor = SiglipImageProcessor.from_pretrained(model["feature_extractor"]["repo"], subfolder=model["feature_extractor"]["subfolder"], cache_dir=shared.opts.hfcache_dir)
-        image_encoder = SiglipVisionModel.from_pretrained(model["image_encoder"]["repo"], subfolder=model["image_encoder"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
+        feature_extractor = SiglipImageProcessor.from_pretrained(model["feature_extractor"]["repo"], subfolder=model["feature_extractor"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **offline_config)
+        image_encoder = SiglipVisionModel.from_pretrained(model["image_encoder"]["repo"], subfolder=model["image_encoder"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
         image_encoder.requires_grad_(False)
         image_encoder.eval()
         sd_models.move_model(image_encoder, devices.cpu)
@@ -161,7 +170,7 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         shared.log.debug(f'FramePack load: module=transformer {model["transformer"]}')
         dit_repo = model["transformer"]["repo"]
         load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-        transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(dit_repo, subfolder=model["transformer"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args)
+        transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(dit_repo, subfolder=model["transformer"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args, **offline_config)
         transformer.high_quality_fp32_output_for_inference = False
         transformer.requires_grad_(False)
         transformer.eval()

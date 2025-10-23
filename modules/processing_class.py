@@ -428,9 +428,11 @@ class StableDiffusionProcessing:
 class StableDiffusionProcessingVideo(StableDiffusionProcessing):
     def __init__(self, **kwargs):
         self.prompt_template: str = None
-        self.frames: int = 1
+        self.frames: int = kwargs.pop('frames', 1)
+        self.vae_tile_frames: int = kwargs.pop('vae_tile_frames', 0)
+        self.video_engine: str = kwargs.pop('video_engine', None)
+        self.video_model: str = kwargs.pop('video_model', None)
         self.scheduler_shift: float = 0.0
-        self.vae_tile_frames: int = 0
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 

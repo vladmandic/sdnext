@@ -108,7 +108,7 @@ def search_civitai(
     global models # pylint: disable=global-statement
     import requests
     from urllib.parse import urlencode
-    install('bs4')  # Ensure BeautifulSoup is installed
+    install('beautifulsoup4')
 
     if len(query) == 0:
         log.error('CivitAI: empty query')

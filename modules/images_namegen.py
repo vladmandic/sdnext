@@ -1,6 +1,7 @@
 import re
 import os
 import time
+import unicodedata
 import uuid
 import string
 import hashlib
@@ -23,8 +24,8 @@ NOTHING = object()
 
 class FilenameGenerator:
     replacements = {
-        'width': lambda self: self.image.width,
-        'height': lambda self: self.image.height,
+        'width': lambda self: self.width,
+        'height': lambda self: self.height,
         'batch_number': lambda self: self.batch_number,
         'iter_number': lambda self: self.iter_number,
         'num': lambda self: NOTHING if self.p.n_iter == 1 and self.p.batch_size == 1 else self.p.iteration * self.p.batch_size + self.p.batch_index + 1,
@@ -32,8 +33,8 @@ class FilenameGenerator:
         'date': lambda self: datetime.datetime.now().strftime('%Y-%m-%d'),
         'datetime': lambda self, *args: self.datetime(*args),  # accepts formats: [datetime], [datetime<Format>], [datetime<Format><Time Zone>]
         'hasprompt': lambda self, *args: self.hasprompt(*args),  # accepts formats:[hasprompt<prompt1|default><prompt2>..]
-        'hash': lambda self: self.image_hash(),
-        'image_hash': lambda self: self.image_hash(),
+        'hash': lambda self: self.image_hash() if self.image is not None else '',
+        'image_hash': lambda self: self.image_hash() if self.image is not None else '',
         'timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
         'epoch': lambda self: int(time.time()),
         'job_timestamp': lambda self: getattr(self.p, "job_timestamp", shared.state.job_timestamp),
@@ -43,6 +44,8 @@ class FilenameGenerator:
         'model_name': lambda self: shared.sd_model.sd_checkpoint_info.model_name if shared.sd_loaded and getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None else '',
         'model_type': lambda self: shared.sd_model_type if shared.sd_loaded else '',
         'model_hash': lambda self: shared.sd_model.sd_checkpoint_info.shorthash if shared.sd_loaded and getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None else '',
+
+        'lora': lambda self: self.p and getattr(self.p, 'extra_generation_params', {}).get('LoRA networks', ''),
 
         'prompt': lambda self: self.prompt_full(),
         'prompt_no_styles': lambda self: self.prompt_no_style(),
@@ -61,11 +64,11 @@ class FilenameGenerator:
     }
     default_time_format = '%Y%m%d%H%M%S'
 
-    def __init__(self, p, seed, prompt, image, grid=False):
+    def __init__(self, p, seed, prompt, image=None, grid=False, width=None, height=None):
         if p is None:
             debug('Filename generator init skip')
         else:
-            debug(f'Filename generator init: {seed} {prompt}')
+            debug(f'Filename generator init: seed={seed} prompt="{prompt}"')
         self.p = p
         if seed is not None and int(seed) > 0:
             self.seed = seed
@@ -82,6 +85,8 @@ class FilenameGenerator:
         if isinstance(self.prompt, list):
             self.prompt = ' '.join(self.prompt)
         self.image = image
+        self.width = width if width is not None else (image.width if image is not None else (p.width if p is not None else 0))
+        self.height = height if height is not None else (image.height if image is not None else (p.height if p is not None else 0))
         if not grid:
             self.batch_number = NOTHING if self.p is None or getattr(self.p, 'batch_size', 1) == 1 else (self.p.batch_index + 1 if hasattr(self.p, 'batch_index') else NOTHING)
             self.iter_number = NOTHING if self.p is None or getattr(self.p, 'n_iter', 1) == 1 else (self.p.iteration + 1 if hasattr(self.p, 'iteration') else NOTHING)
@@ -162,14 +167,25 @@ class FilenameGenerator:
         return sanitized
 
     def sanitize(self, filename):
-        invalid_chars = '\'"|?*\n\t\r' # <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+        # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
+        invalid_chars = (
+            "#<>/\\\"'`"                     # ASCII quote and backtick
+            "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants
+            "\u02BB"                          # modifier letter turned comma (ʻ)
+            "\u201C\u201D\u201F"              # smart double quotes and variants
+            "|?*^%$\u00A0\u2013\u2014\n\t\r"  # pipes, wildcards, percent, currency, NBSP, dashes, control chars
+        )
         invalid_folder = ':'
         invalid_files = ['CON', 'PRN', 'AUX', 'NUL', 'NULL', 'COM0', 'COM1', 'LPT0', 'LPT1']
         invalid_prefix = ', '
         invalid_suffix = '.,_ '
-        fn, ext = os.path.splitext(filename)
+        fn, ext = os.path.splitext(unicodedata.normalize('NFKC', filename))
+        fn = fn.strip()
+        ext = ext.strip()
         parts = Path(fn).parts
         newparts = []
+        # for ch in filename:
+        #     print(repr(ch), hex(ord(ch)), unicodedata.name(ch, 'UNKNOWN'), ch in invalid_chars)
         for i, part in enumerate(parts):
             part = part.translate({ ord(x): '_' for x in invalid_chars })
             if i > 0 or (len(part) >= 2 and part[1] != invalid_folder): # skip drive, otherwise remove
@@ -179,6 +195,7 @@ class FilenameGenerator:
                 [part := part.replace(word, '_') for word in invalid_files] # pylint: disable=expression-not-assigned
             newparts.append(part)
         fn = str(Path(*newparts))
+        fn = fn.replace('  ', ' ').strip()
         max_length = max(256 - len(ext), os.statvfs(__file__).f_namemax - 32 if hasattr(os, 'statvfs') else 256 - len(ext))
         while len(os.path.abspath(fn)) > max_length:
             fn = fn[:-1]

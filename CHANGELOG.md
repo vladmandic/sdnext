@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-19
+## Update for 2025-10-23
 
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
@@ -13,9 +13,18 @@
   - improved SDNQ SVD and low-bit matmul performance  
 - **Other**
   - **scheduler** add base and max shift parameters for flow-matching samplers  
+  - enhance `--optional` flag to pre-install optional packages  
+  - add `[lora]` to recognized filename patterns  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
+  - fix modernui hints layout  
+  - fix `wan-2.2-a14b` stage selection  
+  - fix `wan-2.2-5b` vae decode  
+  - disabling live preview should not disable progress updates  
+  - video tab create `params.txt` with metadata  
+  - fix full-screen image-viewer toolbar actions with control tab  
+  - improve filename sanitization  
 
 ## Update for 2025-10-18
 

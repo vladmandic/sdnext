@@ -386,6 +386,9 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
+    if opts.get('offline_mode', False):
+        log.warning('Offline mode enabled')
+        return
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
@@ -608,7 +611,7 @@ def check_diffusers():
     if args.skip_git:
         install('diffusers')
         return
-    sha = '23ebbb4bc81a17ebea17cb7cb94f301199e49a7f' # diffusers commit hash
+    sha = 'b3e56e71fb7c73601851bb83e7583f113f563d26' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -1270,18 +1273,23 @@ def install_insightface():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr')
-    install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan')
-    install('clean-fid', quiet=True)
-    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
-    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
-    install('torchao==0.10.0', ignore=True, quiet=True)
-    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
-    install('nvidia-ml-py', ignore=True, quiet=True)
-    install('ultralytics==8.3.40', ignore=True, quiet=True)
-    install('Cython', ignore=True, quiet=True)
+    install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
+    install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan', ignore=True, quiet=True)
     install('av', ignore=True, quiet=True)
-    install('gguf', ignore=True)
+    install('beautifulsoup4', ignore=True, quiet=True)
+    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
+    install('clean-fid', ignore=True, quiet=True)
+    install('clip_interrogator==0.6.0', ignore=True, quiet=True)
+    install('Cython', ignore=True, quiet=True)
+    install('gguf', ignore=True, quiet=True)
+    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
+    install('hf_transfer', ignore=True, quiet=True)
+    install('hf_xet', ignore=True, quiet=True)
+    install('nvidia-ml-py', ignore=True, quiet=True)
+    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
+    install('torchao==0.10.0', ignore=True, quiet=True)
+    install('ultralytics==8.3.40', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')

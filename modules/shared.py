@@ -259,7 +259,7 @@ options_templates.update(options_section(('vae_encoder', "Variational Auto Encod
     "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
     "diffusers_vae_upcast": OptionInfo("default", "VAE upcasting", gr.Radio, {"choices": ['default', 'true', 'false']}),
     "no_half_vae": OptionInfo(False if not cmd_opts.use_openvino else True, "Full precision (--no-half-vae)"),
-    "diffusers_vae_slicing": OptionInfo(cmd_opts.lowvram or cmd_opts.medvram, "VAE slicing", gr.Checkbox),
+    "diffusers_vae_slicing": OptionInfo(True, "VAE slicing", gr.Checkbox),
     "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram, "VAE tiling", gr.Checkbox),
     "diffusers_vae_tile_size": OptionInfo(0, "VAE tile size", gr.Slider, {"minimum": 0, "maximum": 4096, "step": 8 }),
     "diffusers_vae_tile_overlap": OptionInfo(0.25, "VAE tile overlap", gr.Slider, {"minimum": 0, "maximum": 0.95, "step": 0.05 }),
@@ -591,7 +591,7 @@ options_templates.update(options_section(('ui', "User Interface"), {
 }))
 
 options_templates.update(options_section(('live-preview', "Live Previews"), {
-    "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
+    "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1}),
     "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Radio, {"choices": ["Simple", "Approximate", "TAESD", "Full VAE"]}),
     "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
     "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),

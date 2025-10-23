@@ -1,18 +1,52 @@
 import os
 import time
-import datetime
 import cv2
 import numpy as np
 import torch
 import einops
-from modules import shared, errors ,timer, rife
+from modules import shared, errors ,timer, rife, processing
 from modules.video_models.video_utils import check_av
 
 
-def get_video_filename(frames:int, codec:str):
-    timestamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    output_filename = os.path.join(shared.opts.outdir_video, f'{timestamp}-{codec}-f{frames}')
-    return output_filename
+def get_video_filename(p:processing.StableDiffusionProcessingVideo):
+    from modules.images_namegen import FilenameGenerator
+    namegen = FilenameGenerator(p, seed=p.seed if p is not None else 0, prompt=p.prompt if p is not None else '')
+    filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
+    if shared.opts.save_to_dirs:
+        dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
+        dirname = os.path.join(shared.opts.outdir_video, dirname, filename)
+    else:
+        dirname = shared.opts.outdir_video
+    if not os.path.exists(dirname):
+        os.makedirs(dirname, exist_ok=True)
+    filename = os.path.join(dirname, filename)
+    filename = namegen.sequence(filename)
+    filename = namegen.sanitize(filename)
+    return filename
+
+
+def save_params(p, filename: str = None):
+    from modules.paths import params_path
+    if p is None:
+        dct = {}
+    else:
+        # sampler_index, sampler_shift, dynamic_shift, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, vlm_enhance, vlm_model, vlm_system_prompt, override_settings = args
+        dct = {
+            "Prompt": p.prompt,
+            "Negative prompt": p.negative_prompt,
+            "Steps": p.steps,
+            "Sampler": p.sampler_name,
+            "Seed": p.seed,
+            "Engine": p.video_engine,
+            "Model": p.video_model,
+            "Frames": p.frames,
+            "Size": f"{p.width}x{p.height}",
+            "Styles": ','.join(p.styles) if isinstance(p.styles, list) else p.styles,
+        }
+    params = ', '.join([f'{k}: {v}' for k, v in dct.items() if v is not None and v != ''])
+    fn = filename if filename is not None else params_path
+    with open(fn, "w", encoding="utf8") as file:
+        file.write(params)
 
 
 def images_to_tensor(images):
@@ -71,6 +105,7 @@ def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='li
 
 
 def save_video(
+        p:processing.StableDiffusionProcessingVideo,
         pixels:torch.Tensor,
         mp4_fps:int=24,
         mp4_codec:str='libx264',
@@ -111,7 +146,10 @@ def save_video(
         x = einops.rearrange(x, '(m n) c t h w -> t (m h) (n w) c', n=n)
         x = x.contiguous()
 
-        output_filename = get_video_filename(t, mp4_codec)
+        output_filename = get_video_filename(p)
+        if shared.opts.save_txt:
+            save_params(p, f'{output_filename}.txt')
+        save_params(p)
 
         if mp4_sf:
             fn = f'{output_filename}.safetensors'

@@ -127,7 +127,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
                 generate = gr.Button('Generate', elem_id="video_generate_btn", variant='primary', visible=False)
             with gr.Row():
                 engine = gr.Dropdown(label='Engine', choices=list(models_def.models), value='None', elem_id="video_engine")
-                model = gr.Dropdown(label='Model', choices=[''], value=None, elem_id="video_model")
+                model = gr.Dropdown(label='Model', choices=[''], value='None', elem_id="video_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
             with gr.Row():
                 url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
@@ -197,3 +197,4 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
         show_progress=False,
     )
     generate.click(**video_dict)
+    return [engine, model, steps, sampler_index]

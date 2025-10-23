@@ -2,7 +2,7 @@ import os
 import time
 from typing import Union
 import threading
-from diffusers import pipelines, StableDiffusionPipeline, StableDiffusionXLPipeline, T2IAdapter, MultiAdapter, StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline # pylint: disable=unused-import
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, T2IAdapter, MultiAdapter, StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline # pylint: disable=unused-import
 from installer import log
 from modules import errors, sd_models
 from modules.control.units import detect
@@ -104,6 +104,13 @@ class Adapter():
                     return
                 model_path, model_args = all_models[model_id]
                 self.load_config.update(model_args)
+                from modules.shared import opts
+                if opts.offline_mode:
+                    self.load_config["local_files_only"] = True
+                    os.environ['HF_HUB_OFFLINE'] = '1'
+                else:
+                    os.environ.pop('HF_HUB_OFFLINE', None)
+                    os.unsetenv('HF_HUB_OFFLINE')
                 if model_path is None:
                     log.error(f'Control {what} model load failed: id="{model_id}" error=unknown model id')
                     return
@@ -168,6 +175,7 @@ class AdapterPipeline():
                 adapter=adapter,
             )
             sd_models.move_model(self.pipeline, pipeline.device)
+            sd_models.apply_balanced_offload(self.pipeline, force=True)
         elif detect.is_sd15(pipeline):
             self.pipeline = StableDiffusionAdapterPipeline(
                 vae=pipeline.vae,
@@ -181,6 +189,7 @@ class AdapterPipeline():
                 adapter=adapter,
             )
             sd_models.move_model(self.pipeline, pipeline.device)
+            sd_models.apply_balanced_offload(self.pipeline, force=True)
         else:
             log.error(f'Control {what} pipeline: class={pipeline.__class__.__name__} unsupported model type')
             return
