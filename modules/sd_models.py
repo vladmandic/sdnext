@@ -584,6 +584,7 @@ def set_overrides(sd_model, checkpoint_info, model_type):
             scheduler_config['prediction_type'] = 'flow_prediction'
             scheduler_config['beta_schedule'] = 'linear'
             scheduler_config['use_flow_sigmas'] = True
+            scheduler_config["flow_shift"] = 2.5
             sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
             shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
         elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
