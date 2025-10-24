@@ -591,7 +591,7 @@ def set_overrides(sd_model, checkpoint_info, model_type):
             scheduler_config['prediction_type'] = 'v_prediction'
             scheduler_config['beta_schedule'] = 'scaled_linear'
             scheduler_config['rescale_betas_zero_snr'] = True
-            sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+            sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
             shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
         else:
             try:
@@ -604,7 +604,7 @@ def set_overrides(sd_model, checkpoint_info, model_type):
                     scheduler_config['beta_schedule'] = 'scaled_linear'
                     if 'ztsnr' in keys:
                         scheduler_config['rescale_betas_zero_snr'] = True
-                    sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+                    sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
                     shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
             except Exception as e:
                 shared.log.debug(f'Setting override from keys failed: {e}')

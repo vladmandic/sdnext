@@ -1043,7 +1043,7 @@
     "extras": ""
   },
   "NoobAI XL 1.0 V-Pred": {
-    "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://civitai.com/api/download/models/1190596",
+    "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
     "preview": "noobaiXLNAIXL_vPred10Version.jpg",
     "desc": "",
     "tags": "community",
@@ -1052,7 +1052,7 @@
     "extras": ""
   },
   "NoobAI XL 1.1 Epsilon": {
-    "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://civitai.com/api/download/models/1116447",
+    "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-1.1/resolve/main/NoobAI-XL-v1.1.safetensors",
     "preview": "noobaiXLNAIXL_epsilonPred11Version.jpg",
     "desc": "",
     "tags": "community",
