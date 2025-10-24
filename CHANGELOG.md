@@ -7,7 +7,10 @@
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
   - **Reference** section in networks is now split into actual Reference models plus:  
     **Distilled** which shows distilled variants of base models and **Community** which shows community highlights  
-  - Added some of the most interesting community models: *CenKreChro, WAI-Illustrious, NoobAI, Pony-Realism*  
+  - Add SDNQ-SVD pre-quantized models to distilled models: *FLUX.1-Dev, Chroma1-HD, NoobAI-XL*  
+    *note*: these models are pre-quantized to minimal resource usage while maintaining high quality  
+    if you're low on vram and don't want to explore all of quantization options, these are a good starting point!  
+  - Add additional community models: *CenKreChro, WAI-Illustrious, NoobAI, Pony-Realism*  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
