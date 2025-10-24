@@ -5,12 +5,13 @@
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+  - **Reference** section in networks is now split into actual Reference models plus:  
+    **Distilled** which shows distilled variants of base models and **Community** which shows community highlights  
+  - Added some of the most interesting community models: *CenKreChro, WAI-Illustrious, NoobAI, Pony-Realism*  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
     *note*: must be enabled only after all packages have been installed and model has been run online at least once  
-  - **networks**: add additional sections for **Reference** models:
-    **Distilled** which shows distilled variants of base models and **Community** which shows community highlights  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  

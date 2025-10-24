@@ -973,5 +973,59 @@
     "size": 2.28,
     "tags": "community",
     "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
+  },
+  "Tiwaz CenKreChro": {
+    "path": "Tiwaz/CenKreChro",
+    "preview": "Tiwaz--CenKreChro.jpg",
+    "skip": true,
+    "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
+    "extras": "",
+    "tags": "community",
+    "date": "2025 September"
+  },
+  "WAI Illustrious XL v15": {
+    "path": "waiIllustriousSDXL_v150.safetensors@https://civitai.com/api/download/models/2167369",
+    "preview": "waiIllustriousSDXL_v150.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 August",
+    "extras": ""
+  },
+  "Pony Realism XL v2.3": {
+    "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/2167369",
+    "preview": "ponyRealism_V23.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 May",
+    "extras": ""
+  },
+  "NoobAI XL 1.0 V-Pred": {
+    "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://civitai.com/api/download/models/1190596",
+    "preview": "noobaiXLNAIXL_vPred10Version.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2024 December",
+    "extras": ""
+  },
+  "NoobAI XL 1.1 Epsilon": {
+    "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://civitai.com/api/download/models/1116447",
+    "preview": "noobaiXLNAIXL_epsilonPred11Version.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2024 November",
+    "extras": ""
+  },
+  "WAI-Ani-Pony XL v14": {
+    "path": "waiANIPONYXL_v140.safetensors.safetensors@https://civitai.com/api/download/models/1767402",
+    "preview": "waiANIPONYXL_v140.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 May",
+    "extras": ""
   }
 }
