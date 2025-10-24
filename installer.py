@@ -589,8 +589,10 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
                 sys.exit(1)
     if int(sys.version_info.minor) == 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
+    if int(sys.version_info.minor) == 10:
+        log.warning(f"Python: version={platform.python_version()} is not actively supported")
     if int(sys.version_info.minor) == 9:
-        log.warning("Python 3.9 support is scheduled to be removed")
+        log.warning(f"Python: version={platform.python_version()} is end-of-life")
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:

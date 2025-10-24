@@ -21,6 +21,8 @@
 - **Quantization**
   - improved SDNQ SVD and low-bit matmul performance  
 - **Other**
+  - change default schedulers for sdxl  
+  - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
   - **scheduler** add base and max shift parameters for flow-matching samplers  
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
