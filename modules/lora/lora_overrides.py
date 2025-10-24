@@ -31,6 +31,7 @@ force_models_diffusers = [ # forced always
     'h1',
     'kandinsky',
     'hunyuandit',
+    'hunyuanimage',
     'auraflow',
     'lumina2',
     'qwen',

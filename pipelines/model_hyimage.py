@@ -1,44 +1,37 @@
-from modules import shared, sd_models, devices, model_quant, errors # pylint: disable=unused-import
+import transformers
+import diffusers
+from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hijack_vae
+from pipelines import generic
 
 
 def load_hyimage(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
-    shared.log.error(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" not supported')
-
-    """
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
-    shared.log.debug(f'Load model: type=HunyuanImage repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    shared.log.debug(f'Load model: type=HunyuanImage21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    sys.path.append(os.path.dirname(__file__))
-    from pipelines.hyimage.diffusion.pipelines.hunyuanimage_pipeline import HunyuanImagePipeline, HunyuanImagePipelineConfig
-    from pipelines.hyimage.common.config import instantiate
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.HunyuanImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config, subfolder="text_encoder")
+    text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_2", allow_shared=False)
 
-    use_distilled = 'distilled' in repo_id.lower()
-    config = HunyuanImagePipelineConfig.create_default(version='v2.1', use_distilled=use_distilled)
-    config.torch_dtype = devices.dtype
-    config.device = devices.device
-    config.enable_dit_offloading = False
-    config.enable_reprompt_model_offloading = False
-    config.enable_refiner_offloading = False
-
-    pipe = HunyuanImagePipeline(config=config)
-
-    snapshot_folder = snapshot_download(repo_id, cache_dir=shared.opts.hfcache_dir, allow_patterns='vae/vae_2_1/*')
-    pipe.config.vae_config.load_from = os.path.join(snapshot_folder, 'vae/vae_2_1')
-    pipe.vae = instantiate(pipe.config.vae_config.model, vae_path=pipe.config.vae_config.load_from)
-
-    pipe._load_dit() # pylint: disable=protected-access
-    pipe._load_byt5() # pylint: disable=protected-access
-    pipe._load_text_encoder() # pylint: disable=protected-access
-    pipe._load_reprompt_model() # pylint: disable=protected-access
-
+    pipe = diffusers.HunyuanImagePipeline.from_pretrained(
+        repo_id,
+        transformer=transformer,
+        text_encoder=text_encoder,
+        text_encoder_2=text_encoder_2,
+        cache_dir=shared.opts.diffusers_dir,
+        **load_args,
+    )
     pipe.task_args = {
-        'use_reprompt': False,
-        'use_refiner': False,
+        'output_type': 'np',
     }
 
+    del transformer
+    del text_encoder
+    del text_encoder_2
+    sd_hijack_te.init_hijack(pipe)
+    sd_hijack_vae.init_hijack(pipe)
+
     devices.torch_gc(force=True, reason='load')
-    """
-    return None
+    return pipe

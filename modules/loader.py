@@ -129,6 +129,8 @@ import tqdm as tqdm_lib # pylint: disable=C0411
 from tqdm.rich import tqdm # pylint: disable=W0611,C0411
 
 try:
+    logging.getLogger("diffusers.guiders").setLevel(logging.ERROR)
+    logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
     import diffusers.utils.import_utils # pylint: disable=W0611,C0411
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
@@ -136,7 +138,6 @@ try:
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
-    logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
     timer.startup.record("diffusers")
 except Exception as e:
     errors.log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')

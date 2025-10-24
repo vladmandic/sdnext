@@ -611,7 +611,7 @@ def check_diffusers():
     if args.skip_git:
         install('diffusers')
         return
-    sha = 'b3e56e71fb7c73601851bb83e7583f113f563d26' # diffusers commit hash
+    sha = '7536f647e4144c7acaf9e140893ff7edb85bf9a3' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)

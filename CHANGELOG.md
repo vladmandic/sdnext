@@ -2,6 +2,9 @@
 
 ## Update for 2025-10-23
 
+- **Models**
+  - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
+    HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  

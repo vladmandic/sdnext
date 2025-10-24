@@ -45,6 +45,7 @@ pipelines = {
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
+    'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
 
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
@@ -55,7 +56,6 @@ pipelines = {
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
-    'HunyuanImage': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
 }
 

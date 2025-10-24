@@ -46,6 +46,7 @@ pipe_switch_task_exclude = [
     'StableDiffusionReferencePipeline',
     'StableDiffusionXLInstantIDPipeline',
     'XOmniPipeline',
+    'HunyuanImagePipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',

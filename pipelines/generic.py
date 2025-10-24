@@ -141,6 +141,20 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
                     **load_args,
                     **quant_args,
                 )
+        elif cls_name == transformers.Qwen2_5_VLForConditionalGeneration and allow_shared:
+            if shared.opts.te_shared_t5:
+                repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
+                subfolder = 'text_encoder'
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+                if dtype is not None:
+                    load_args['torch_dtype'] = dtype
+                text_encoder = cls_name.from_pretrained(
+                    repo_id,
+                    cache_dir=shared.opts.hfcache_dir,
+                    subfolder=subfolder,
+                    **load_args,
+                    **quant_args,
+                )
 
         # load from repo
         if text_encoder is None:

@@ -1,52 +1,4 @@
 {
-  "Tempest-by-Vlad XL": {
-    "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
-    "preview": "tempestByVlad_baseV01.jpg",
-    "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
-  },
-  "Tempest-by-Vlad XL Hyper": {
-    "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
-    "preview": "tempestByVlad_hyperV01.jpg",
-    "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
-  },
-
-  "Juggernaut XL XI": {
-    "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
-    "preview": "juggernautXL_juggXIByRundiffusion.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "date": "2024 August",
-    "size": 6.94,
-    "tags": "community",
-    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-  "Juggernaut XL XI Lightning": {
-    "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
-    "preview": "juggernautXL_juggXILightningByRD.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "date": "2024 August",
-    "size": 6.94,
-    "tags": "community",
-    "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
-  },
-  "Juggernaut SD Reborn": {
-    "original": true,
-    "path": "juggernaut_reborn.safetensors@https://civitai.com/api/download/models/274039",
-    "preview": "juggernaut_reborn.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion 1.5",
-    "date": "2023 December",
-    "size": 2.28,
-    "tags": "community",
-    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-
   "RunwayML StableDiffusion 1.5": {
     "original": true,
     "path": "v1-5-pruned-fp16-emaonly.safetensors@https://huggingface.co/Aptronym/SDNext/resolve/main/Reference/v1-5-pruned-fp16-emaonly.safetensors?download=true",
@@ -647,6 +599,34 @@
     "date": "2024 April"
   },
 
+  "Tencent HunyuanImage 2.1": {
+    "path": "hunyuanvideo-community/HunyuanImage-2.1-Diffusers",
+    "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
+    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
+    "extras": "",
+    "skip": true,
+    "size": 0,
+    "date": "2025 August"
+  },
+  "Tencent HunyuanImage 2.1 Distilled": {
+    "path": "hunyuanvideo-community/HunyuanImage-2.1-Distilled-Diffusers",
+    "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
+    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
+    "extras": "",
+    "tags": "distilled",
+    "skip": true,
+    "size": 0,
+    "date": "2025 August"
+  },
+  "Tencent HunyuanImage 2.1 Refiner": {
+    "path": "hunyuanvideo-community/HunyuanImage-2.1-Refiner-Diffusers",
+    "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
+    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
+    "extras": "",
+    "skip": true,
+    "size": 0,
+    "date": "2025 August"
+  },
   "Tencent HunyuanDiT 1.2": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
@@ -946,6 +926,52 @@
     "extras": "sampler: Default",
     "size": 15.48,
     "date": "2023 April"
-  }
+  },
 
+  "Tempest-by-Vlad XL": {
+    "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
+    "preview": "tempestByVlad_baseV01.jpg",
+    "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
+    "extras": ""
+  },
+  "Tempest-by-Vlad XL Hyper": {
+    "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
+    "preview": "tempestByVlad_hyperV01.jpg",
+    "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
+    "extras": ""
+  },
+  "Juggernaut XL XI": {
+    "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
+    "preview": "juggernautXL_juggXIByRundiffusion.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
+    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
+  },
+  "Juggernaut XL XI Lightning": {
+    "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
+    "preview": "juggernautXL_juggXILightningByRD.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
+    "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
+  },
+  "Juggernaut SD Reborn": {
+    "original": true,
+    "path": "juggernaut_reborn.safetensors@https://civitai.com/api/download/models/274039",
+    "preview": "juggernaut_reborn.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion 1.5",
+    "date": "2023 December",
+    "size": 2.28,
+    "tags": "community",
+    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
+  }
 }
