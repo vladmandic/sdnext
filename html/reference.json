@@ -3,12 +3,18 @@
     "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
     "preview": "tempestByVlad_baseV01.jpg",
     "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
     "extras": ""
   },
   "Tempest-by-Vlad XL Hyper": {
     "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
     "preview": "tempestByVlad_hyperV01.jpg",
     "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
     "extras": ""
   },
 
@@ -16,12 +22,18 @@
     "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
     "preview": "juggernautXL_juggXIByRundiffusion.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
     "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
   "Juggernaut XL XI Lightning": {
     "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
     "preview": "juggernautXL_juggXILightningByRD.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
     "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
   },
   "Juggernaut SD Reborn": {
@@ -29,6 +41,9 @@
     "path": "juggernaut_reborn.safetensors@https://civitai.com/api/download/models/274039",
     "preview": "juggernaut_reborn.jpg",
     "desc": "Showcase finetuned model based on Stable diffusion 1.5",
+    "date": "2023 December",
+    "size": 2.28,
+    "tags": "community",
     "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
 
@@ -56,6 +71,8 @@
     "preview": "stabilityai--stable-diffusion-2-1.jpg",
     "skip": true,
     "variant": "fp16",
+    "size": 2.58,
+    "date": "2022 December",
     "desc": "This stable-diffusion-2 model is resumed from stable-diffusion-2-base (512-base-ema.ckpt) and trained for 150k steps using a v-objective on the same dataset. Resumed for another 140k steps on 768x768 images",
     "extras": "width: 768, height: 768, sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
@@ -75,6 +92,7 @@
     "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a 1-4 steps.",
     "skip": true,
     "variant": "fp16",
+    "tags": "distilled",
     "extras": "steps: 4, cfg_scale: 0.0"
   },
   "StabilityAI Stable Cascade": {
@@ -95,6 +113,7 @@
     "preview": "stabilityai--stable-cascade-lite.jpg",
     "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
     "size": 4.97,
+    "tags": "distilled",
     "date": "2024 February"
   },
   "StabilityAI Stable Diffusion 3 Medium": {
@@ -133,6 +152,7 @@
     "variant": "fp16",
     "desc": "Stable Diffusion 3.5 Large Turbo is a Multimodal Diffusion Transformer (MMDiT) text-to-image model with Adversarial Diffusion Distillation (ADD) that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency, with a focus on fewer inference steps.",
     "preview": "stabilityai--stable-diffusion-3_5-large-turbo.jpg",
+    "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 7.0"
   },
 
@@ -176,6 +196,7 @@
     "path": "vladmandic/flux.1-dev-SRPO",
     "preview": "vladmandic--flux.1-dev-SRPO.jpg",
     "desc": "FLUX.1 Dev SRPO is Tencent trained with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference",
+    "tags": "distilled",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
@@ -214,6 +235,7 @@
     "skip": true,
     "extras": "steps: 8",
     "size": 56.1,
+    "tags": "distilled",
     "date": "2025 August"
   },
   "Qwen-Image-Distill": {
@@ -223,6 +245,7 @@
     "skip": true,
     "extras": "steps: 15",
     "size": 56.1,
+    "tags": "distilled",
     "date": "2025 August"
   },
   "Qwen-Image-Lightning-Edit": {
@@ -232,6 +255,7 @@
     "skip": true,
     "extras": "steps: 8",
     "size": 56.1,
+    "tags": "distilled",
     "date": "2025 August"
   },
   "Qwen-Image Pruning-12B": {
@@ -240,6 +264,7 @@
     "preview": "OPPOer--Qwen-Image-Pruning.jpg",
     "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 12B parameters.",
     "skip": true,
+    "tags": "distilled",
     "date": "2025 Ocotober"
   },
   "Qwen-Image-Edit Pruning-13B": {
@@ -248,6 +273,7 @@
     "preview": "OPPOer--Qwen-Image-Edit-Pruning.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
+    "tags": "distilled",
     "date": "2025 Ocotober"
   },
   "Qwen-Image-Edit-2509 Pruning-13B": {
@@ -256,6 +282,7 @@
     "preview": "OPPOer--Qwen-Image-Edit-2509-Pruning.jpg",
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
+    "tags": "distilled",
     "date": "2025 Ocotober"
   },
 
@@ -284,6 +311,7 @@
     "skip": true,
     "extras": "",
     "size": 26.84,
+    "tags": "distilled",
     "date": "2025 July"
   },
   "lodestones Chroma1 v50 Preview Annealed": {
@@ -419,6 +447,7 @@
     "preview": "SDXL-Flash_Mini.jpg",
     "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
     "extras": "width: 2048, height: 1024, sampler: DEIS, steps: 40, cfg_scale: 6.0",
+    "tags": "distilled",
     "experimental": true
   },
 
@@ -442,6 +471,7 @@
     "path": "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
     "desc": "SANA-Sprint is an ultra-efficient diffusion model for text-to-image (T2I) generation, reducing inference steps from 20 to 1-4 while achieving state-of-the-art performance.",
     "preview": "Efficient-Large-Model--Sana15_Sprint_1600M_1024px_diffusers.jpg",
+    "tags": "distilled",
     "skip": true
   },
   "NVLabs Sana 1.0 1.6B 4k": {
@@ -555,6 +585,7 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 9.0",
     "size": 8.72,
+    "tags": "distilled",
     "date": "2023 October"
   },
   "Segmind Tiny": {
@@ -563,6 +594,7 @@
     "desc": "Segmind's Tiny-SD offers a compact, efficient, and distilled version of Realistic Vision 4.0 and is up to 80% faster than SD1.5",
     "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 9.0",
     "size": 1.03,
+    "tags": "distilled",
     "date": "2023 July"
   },
   "Segmind SegMoE SD 4x2": {
@@ -627,6 +659,7 @@
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers-Distilled.jpg",
+    "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
   "Tencent HunyuanDiT 1.1": {
@@ -639,6 +672,7 @@
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled.jpg",
+    "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
 
@@ -796,18 +830,21 @@
     "path": "shuttleai/shuttle-3-diffusion",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-3-diffusion.jpg",
+    "tags": "community",
     "skip": true
   },
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
+    "tags": "community",
     "skip": true
   },
   "ShuttleAI Shuttle Jaguar": {
     "path": "shuttleai/shuttle-jaguar",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-jaguar.jpg",
+    "tags": "community",
     "skip": true
   },
 

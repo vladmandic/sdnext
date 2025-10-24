@@ -255,11 +255,9 @@ class ExtraNetworksPage:
         for parentdir, dirs in {d: files_cache.walk(d, cached=True, recurse=files_cache.not_hidden) for d in allowed_folders}.items():
             for tgt in dirs:
                 tgt = tgt.path
-                if os.path.join(paths.models_path, 'Reference') in tgt and shared.opts.extra_network_reference_enable:
-                    subdirs['Reference'] = 1
+                if os.path.join(paths.models_path, 'Reference') in tgt:
                     continue
                 if shared.opts.diffusers_dir in tgt:
-                    subdirs[diffusers_base] = 1
                     continue
                 if 'models--' in tgt:
                     continue
@@ -274,6 +272,8 @@ class ExtraNetworksPage:
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
+            subdirs['Distilled'] = 1
+            subdirs['Community'] = 1
             subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
             subdirs['Local'] = 1
@@ -287,12 +287,15 @@ class ExtraNetworksPage:
             subdirs.move_to_end(os.path.basename(shared.opts.diffusers_dir), last=True)
         if 'Reference' in subdirs:
             subdirs.move_to_end('Reference', last=True)
+        if 'Distilled' in subdirs:
+            subdirs.move_to_end('Distilled', last=True)
+        if 'Community' in subdirs:
+            subdirs.move_to_end('Community', last=True)
         subdirs_html = ''
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            style = 'color: var(--color-accent)' if subdir in ['All', 'Local', 'Diffusers', 'Reference'] else ''
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Community']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'

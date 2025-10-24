@@ -85,6 +85,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "metadata": {},
                 "description": v.get('desc', ''),
                 "version": "ready" if ready else "download",
+                "tags": v.get('tags', ''),
             }
         shared.log.debug(f'Networks: type="reference" items={count["total"]} ready={count["ready"]} hidden={count["hidden"]} experimental={count["experimental"]}')
 
