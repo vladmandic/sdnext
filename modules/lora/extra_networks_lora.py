@@ -132,6 +132,13 @@ def parse(p, params_list, step=0):
             lora_module.append('transformer_2')
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
+
+        if len(lora_module) == 0 and shared.sd_loaded:
+            if hasattr(shared.sd_model, 'transformer') and (shared.sd_model.transformer is not None) and hasattr(shared.sd_model, 'transformer_2') and (shared.sd_model.transformer_2 is None):
+                lora_module.append('transformer')
+            if hasattr(shared.sd_model, 'transformer') and (shared.sd_model.transformer is None) and hasattr(shared.sd_model, 'transformer_2') and (shared.sd_model.transformer_2 is not None):
+                lora_module.append('transformer_2')
+
         lora_modules.append(lora_module)
 
     return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules

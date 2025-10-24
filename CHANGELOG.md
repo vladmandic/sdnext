@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-23
+## Update for 2025-10-24
 
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
@@ -35,6 +35,7 @@
   - video tab create `params.txt` with metadata  
   - fix full-screen image-viewer toolbar actions with control tab  
   - improve filename sanitization  
+  - lora auto-detect low/high stage if not specified  
   - fix networks display with extended characters, thanks @awsr  
 
 ## Update for 2025-10-18
