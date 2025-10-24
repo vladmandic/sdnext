@@ -61,6 +61,7 @@ def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale
     try:
         if lora_module is not None and isinstance(lora_module, list) and len(lora_module) > 0:
             name = load_per_module(sd_model, network_on_disk.filename, adapter_name=name, lora_modules=lora_module)
+            sd_model._lora_partial = True # pylint: disable=protected-access
         else:
             sd_model.load_lora_weights(network_on_disk.filename, adapter_name=name)
     except Exception as e:

@@ -36,6 +36,7 @@
   - fix full-screen image-viewer toolbar actions with control tab  
   - improve filename sanitization  
   - lora auto-detect low/high stage if not specified  
+  - lora disable fuse on partially applied network  
   - fix networks display with extended characters, thanks @awsr  
 
 ## Update for 2025-10-18

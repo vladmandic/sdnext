@@ -78,4 +78,8 @@ def disable_fuse():
         return True
     if hasattr(shared.sd_model, 'transformer') and hasattr(shared.sd_model.transformer, 'quantization_config'):
         return True
+    if hasattr(shared.sd_model, 'transformer_2') and hasattr(shared.sd_model.transformer_2, 'quantization_config'):
+        return True
+    if hasattr(shared.sd_model, '_lora_partial'):
+        return True
     return shared.sd_model_type in fuse_ignore
