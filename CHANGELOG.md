@@ -5,9 +5,9 @@
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
-  - **Reference** section in networks is now split into actual Reference models plus:  
+  - networks reference section is now split into actual **Reference** models plus:  
     **Distilled** which shows distilled variants of base models and **Community** which shows community highlights  
-  - Add SDNQ-SVD pre-quantized models to distilled models: *FLUX.1-Dev, Chroma1-HD, NoobAI-XL*  
+  - Add SDNQ-SVD **pre-quantized** models to distilled models: *FLUX.1-Dev, Chroma1-HD, NoobAI-XL*  
     *note*: these models are pre-quantized to minimal resource usage while maintaining high quality  
     if you're low on vram and don't want to explore all of quantization options, these are a good starting point!  
   - Add additional community models: *CenKreChro, WAI-Illustrious, NoobAI, Pony-Realism*  
@@ -21,7 +21,7 @@
 - **Quantization**
   - improved SDNQ SVD and low-bit matmul performance  
 - **Other**
-  - change default schedulers for sdxl  
+  - change default **schedulers** for sdxl  
   - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
   - **scheduler** add base and max shift parameters for flow-matching samplers  
   - enhance `--optional` flag to pre-install optional packages  
