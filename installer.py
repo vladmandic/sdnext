@@ -1287,7 +1287,7 @@ def install_optional():
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
     install('optimum-quanto==0.2.7', ignore=True, quiet=True)
-    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
     install('torchao==0.10.0', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     try:

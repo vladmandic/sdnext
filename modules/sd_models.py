@@ -567,18 +567,30 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     return sd_model
 
 
-def set_overrides(sd_model, checkpoint_info):
+def set_overrides(sd_model, checkpoint_info, model_type):
     checkpoint_info_name = checkpoint_info.name.lower()
+    if "Kandinsky" in sd_model.__class__.__name__:
+        sd_model.scheduler.name = 'DDIM'
+    elif (
+        checkpoint_info.path.lower().endswith('.safetensors')
+        and model_type.startswith("Stable Diffusion") and model_type != "Stable Diffusion 3"
+    ): # SDXL and SD 1.5
+        scheduler_config = sd_model.scheduler.config
+        scheduler_config['beta_schedule'] = 'linear'
+        scheduler_config['timestep_spacing'] = 'trailing'
+        sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
+
     if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
         scheduler_config = sd_model.scheduler.config
         scheduler_config['prediction_type'] = 'flow_prediction'
-        scheduler_config['use_flow_sigmas'] = True
         scheduler_config['beta_schedule'] = 'linear'
+        scheduler_config['use_flow_sigmas'] = True
         sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
         shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
     elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
         scheduler_config = sd_model.scheduler.config
         scheduler_config['prediction_type'] = 'v_prediction'
+        scheduler_config['beta_schedule'] = 'scaled_linear'
         scheduler_config['rescale_betas_zero_snr'] = True
         sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
         shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
@@ -590,6 +602,7 @@ def set_overrides(sd_model, checkpoint_info):
             if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
                 scheduler_config = sd_model.scheduler.config
                 scheduler_config['prediction_type'] = 'v_prediction'
+                scheduler_config['beta_schedule'] = 'scaled_linear'
                 if 'ztsnr' in keys:
                     scheduler_config['rescale_betas_zero_snr'] = True
                 sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
@@ -713,11 +726,8 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             shared.log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
             return
 
-        set_overrides(sd_model, checkpoint_info)
+        set_overrides(sd_model, checkpoint_info, model_type)
         set_defaults(sd_model, checkpoint_info)
-
-        if "Kandinsky" in sd_model.__class__.__name__: # need a special case
-            sd_model.scheduler.name = 'DDIM'
 
         if hasattr(sd_model, "unet") and model_type not in ['Stable Cascade']: # others calls load_diffuser again
             sd_unet.load_unet(sd_model, checkpoint_info.path)

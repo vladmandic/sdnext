@@ -1,18 +1,19 @@
 {
-  "_class_name": "EulerDiscreteScheduler",
-  "_diffusers_version": "0.19.0.dev0",
+  "_class_name": "EulerAncestralDiscreteScheduler",
+  "_diffusers_version": "0.35.1",
   "beta_end": 0.012,
-  "beta_schedule": "scaled_linear",
+  "beta_schedule": "linear",
   "beta_start": 0.00085,
   "clip_sample": false,
   "interpolation_type": "linear",
   "num_train_timesteps": 1000,
   "prediction_type": "epsilon",
+  "rescale_betas_zero_snr": false,
   "sample_max_value": 1.0,
   "set_alpha_to_one": false,
   "skip_prk_steps": true,
   "steps_offset": 1,
-  "timestep_spacing": "leading",
+  "timestep_spacing": "trailing",
   "trained_betas": null,
   "use_karras_sigmas": false
 }
