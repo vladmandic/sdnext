@@ -579,36 +579,35 @@ def set_overrides(sd_model, checkpoint_info, model_type):
         scheduler_config['beta_schedule'] = 'linear'
         scheduler_config['timestep_spacing'] = 'trailing'
         sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
-
-    if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
-        scheduler_config = sd_model.scheduler.config
-        scheduler_config['prediction_type'] = 'flow_prediction'
-        scheduler_config['beta_schedule'] = 'linear'
-        scheduler_config['use_flow_sigmas'] = True
-        sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
-    elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
-        scheduler_config = sd_model.scheduler.config
-        scheduler_config['prediction_type'] = 'v_prediction'
-        scheduler_config['beta_schedule'] = 'scaled_linear'
-        scheduler_config['rescale_betas_zero_snr'] = True
-        sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
-    elif checkpoint_info.path.lower().endswith('.safetensors'):
-        try:
-            from safetensors import safe_open
-            with safe_open(checkpoint_info.path, framework='pt') as f:
-                keys = f.keys()
-            if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
-                scheduler_config = sd_model.scheduler.config
-                scheduler_config['prediction_type'] = 'v_prediction'
-                scheduler_config['beta_schedule'] = 'scaled_linear'
-                if 'ztsnr' in keys:
-                    scheduler_config['rescale_betas_zero_snr'] = True
-                sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
-                shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
-        except Exception as e:
-            shared.log.debug(f'Setting override from keys failed: {e}')
+        if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
+            scheduler_config = sd_model.scheduler.config
+            scheduler_config['prediction_type'] = 'flow_prediction'
+            scheduler_config['beta_schedule'] = 'linear'
+            scheduler_config['use_flow_sigmas'] = True
+            sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
+            shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
+        elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
+            scheduler_config = sd_model.scheduler.config
+            scheduler_config['prediction_type'] = 'v_prediction'
+            scheduler_config['beta_schedule'] = 'scaled_linear'
+            scheduler_config['rescale_betas_zero_snr'] = True
+            sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+            shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
+        else:
+            try:
+                from safetensors import safe_open
+                with safe_open(checkpoint_info.path, framework='pt') as f:
+                    keys = f.keys()
+                if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
+                    scheduler_config = sd_model.scheduler.config
+                    scheduler_config['prediction_type'] = 'v_prediction'
+                    scheduler_config['beta_schedule'] = 'scaled_linear'
+                    if 'ztsnr' in keys:
+                        scheduler_config['rescale_betas_zero_snr'] = True
+                    sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
+                    shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
+            except Exception as e:
+                shared.log.debug(f'Setting override from keys failed: {e}')
 
 
 def set_defaults(sd_model, checkpoint_info):
