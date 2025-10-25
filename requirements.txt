@@ -42,10 +42,9 @@ torchsde==0.2.6
 antlr4-python3-runtime==4.9.3
 requests==2.32.4
 tqdm==4.67.1
-accelerate==1.10.1
-opencv-contrib-python-headless==4.11.0.86
+accelerate==1.11.0
 einops==0.8.1
-huggingface_hub==0.35.3
+huggingface_hub==0.36.0
 numexpr==2.11.0
 numpy==2.1.2
 pandas==2.3.1
