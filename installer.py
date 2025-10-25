@@ -1262,8 +1262,8 @@ def install_pydantic():
 
 
 def install_opencv():
-    install('opencv-python-headless==4.12.0.88', ignore=True, quiet=True)
     install('opencv-python==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-python-headless==4.12.0.88', ignore=True, quiet=True)
     install('opencv-contrib-python==4.12.0.88', ignore=True, quiet=True)
     install('opencv-contrib-python-headless==4.12.0.88', ignore=True, quiet=True)
 

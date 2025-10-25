@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-24
+## Update for 2025-10-25
 
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
@@ -40,6 +40,7 @@
   - lora auto-detect low/high stage if not specified  
   - lora disable fuse on partially applied network  
   - fix networks display with extended characters, thanks @awsr  
+  - installer handle different `opencv` package variants  
 
 ## Update for 2025-10-18
 

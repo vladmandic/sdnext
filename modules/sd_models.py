@@ -1149,15 +1149,15 @@ def add_noise_pred_to_diffusers_callback(pipe):
         return pipe
     if pipe.__class__.__name__.startswith("StableDiffusion"):
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif pipe.__class__.__name__.startswith("StableCascade"):
+    elif pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
+    elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower() and ("noise_pred" not in pipe._callback_tensor_inputs):
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction":
+    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and (getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction") and ("noise_pred" not in pipe._callback_tensor_inputs):
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and "flow" in pipe.default_scheduler.__class__.__name__.lower():
+    elif hasattr(pipe, "default_scheduler") and ("flow" in pipe.default_scheduler.__class__.__name__.lower()) and ("noise_pred" not in pipe._callback_tensor_inputs):
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction":
+    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and (getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction") and ("noise_pred" not in pipe._callback_tensor_inputs):
         pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     return pipe
 
