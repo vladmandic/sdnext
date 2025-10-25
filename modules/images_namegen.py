@@ -169,7 +169,7 @@ class FilenameGenerator:
     def sanitize(self, filename):
         # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
         invalid_chars = (
-            "#<>/\"'`"                        # ASCII quote and backtick
+            "#<>\"'`"                         # ASCII quote and backtick
             "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants # noqa: RUF001
             "\u02BB"                          # modifier letter turned comma
             "\u201C\u201D\u201F"              # smart double quotes and variants
