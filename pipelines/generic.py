@@ -12,7 +12,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     transformer = None
     jobid = shared.state.begin('Load DiT')
     try:
-        if 'sdnq-' not in repo_id.lower():
+        if 'sdnq-' in repo_id.lower():
             from modules import sdnq # register to diffusers and transformers
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
@@ -85,7 +85,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
     text_encoder = None
     jobid = shared.state.begin('Load TE')
     try:
-        if 'sdnq-' not in repo_id.lower():
+        if 'sdnq-' in repo_id.lower():
             from modules import sdnq # register to diffusers and transformers
         load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
