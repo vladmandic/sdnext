@@ -22,6 +22,7 @@ vlm_models = {
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
     "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
@@ -181,7 +182,9 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        if '2.5' in repo:
+        if 'Qwen3' in repo:
+            cls_name = transformers.Qwen3VLForConditionalGeneration
+        elif '2.5' in repo:
             cls_name = transformers.Qwen2_5_VLForConditionalGeneration
         else:
             cls_name = transformers.Qwen2VLForConditionalGeneration
