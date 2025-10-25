@@ -547,6 +547,7 @@ def register_pages():
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
+    from modules.video_models.models_def import models # pylint: disable=unused-import
 
 
 def get_pages(title=None):

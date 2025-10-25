@@ -2,6 +2,12 @@
 
 Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
 
+## Blockers
+
+- Load pre-quantized T5: <https://github.com/vladmandic/sdnext/blob/203e46af0cbecef62f36062bfa7da4480053b309/pipelines/generic.py#L137>
+- Wan-2.2-5B VAE tiling: <https://github.com/huggingface/diffusers/pull/12521>
+- Wan-2.2-14V VACE single-stage: <https://github.com/huggingface/diffusers/pull/12428>
+
 ## Future Candidates
 
 - [Kanvas](https://github.com/vladmandic/kanvas)  
@@ -35,7 +41,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - [Ovi](https://github.com/character-ai/Ovi)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
-- [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
 - [Phantom HuMo](https://github.com/Phantom-video/Phantom)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
