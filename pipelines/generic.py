@@ -114,34 +114,32 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
         # load from local file safetensors
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
-            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}"')
+            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
             from modules import model_te
             text_encoder = model_te.load_t5(local_file)
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
         # use shared t5 if possible
         elif cls_name == transformers.T5EncoderModel and allow_shared:
-            with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
-                load_args['config'] = transformers.T5Config(**json.load(f))
             if model_quant.check_nunchaku('TE'):
                 import nunchaku
                 repo_id = 'nunchaku-tech/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
                 cls_name = nunchaku.NunchakuT5EncoderModel
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant"')
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant" args={load_args}')
                 text_encoder = nunchaku.NunchakuT5EncoderModel.from_pretrained(
                     repo_id,
                     torch_dtype=dtype,
                 )
                 text_encoder.quantization_method = 'SVDQuant'
             elif shared.opts.te_shared_t5:
-                """                
-                if 'sdnq-' in repo_id.lower():
+                if 'sdnq-uint4-svd' in repo_id.lower():
                     repo_id = 'Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32'
                     load_args['subfolder'] = 'text_encoder_2'
-                    quant_args = {}
                 else:
-                """
-                repo_id = 'Disty0/t5-xxl'
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+                    repo_id = 'Disty0/t5-xxl'
+                    if 'sdnq-' not in repo_id.lower():
+                        with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
+                            load_args['config'] = transformers.T5Config(**json.load(f))
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5} args={load_args}')
                 if dtype is not None:
                     load_args['torch_dtype'] = dtype
                 text_encoder = cls_name.from_pretrained(
@@ -154,7 +152,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
             if shared.opts.te_shared_t5:
                 repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
                 subfolder = 'text_encoder'
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5} args={load_args}')
                 if dtype is not None:
                     load_args['torch_dtype'] = dtype
                 text_encoder = cls_name.from_pretrained(
@@ -167,7 +165,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
 
         # load from repo
         if text_encoder is None:
-            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5} args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             if subfolder is not None:
