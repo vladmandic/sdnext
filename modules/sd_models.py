@@ -1149,7 +1149,7 @@ def add_noise_pred_to_diffusers_callback(pipe):
         return pipe
     if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
-    elif "noise_pred" not in pipe._callback_tensor_inputs:
+    elif "noise_pred" not in pipe._callback_tensor_inputs: # pylint: disable=protected-access
         if pipe.__class__.__name__.startswith("StableDiffusion"):
             pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
         elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():

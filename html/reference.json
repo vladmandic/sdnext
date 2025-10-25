@@ -909,17 +909,27 @@
   "FLUX.1-Dev sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "4 bit (UINT4 with SVD rank 32) quantization of black-forest-labs/FLUX.1-dev using SDNQ.",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
-    "size": 13.53,
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Dev Krea sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
     "date": "2025 October",
     "extras": ""
   },
   "Chroma1-HD sdnq-svd-uint4": {
     "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Chroma1-HD-SDNQ-uint4-svd-r32.jpg",
-    "desc": "quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "size": 11.89,
@@ -929,7 +939,7 @@
   "Wan-AI Wan2.2 A14B T2I sdnq-svd-uint4": {
     "path": "Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
-    "desc": "quantization of Wan-AI/Wan2.2-T2V-A14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
@@ -939,7 +949,7 @@
   "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
     "path": "Disty0/Wan2.2-I2V-A14B-SDNQ-uint4-svd-r32",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
-    "desc": "quantization of Wan-AI/Wan2.2-I2V-A14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
@@ -949,7 +959,7 @@
   "Qwen-Image sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image.jpg",
-    "desc": "quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
@@ -959,7 +969,7 @@
   "Qwen-Image-Edit sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
-    "desc": "quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
@@ -969,7 +979,7 @@
   "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-2509-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
-    "desc": "quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
@@ -980,7 +990,7 @@
   "NoobAI-XL v1.1 epsilon sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-v1.1-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-v1.1-SDNQ-uint4-svd-r128.jpg",
-    "desc": "quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "skip": true,
     "tags": "quantized",
     "size": 3.37,
@@ -990,7 +1000,7 @@
   "NoobAI-XL v1.0 v-pred sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128.jpg",
-    "desc": "quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "desc": "Quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "skip": true,
     "tags": "quantized",
     "size": 3.37,

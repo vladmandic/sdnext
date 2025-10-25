@@ -5,10 +5,13 @@
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
-  - networks reference section is now split into actual **Reference** *Base* models plus:  
-    - **Distilled**: distilled variants of base models, for example *Turbo or Lightning*  
+  - **Reference** networks section is now split into actual *Base* models plus:  
+    - **Distilled**: distilled variants of base models  
+      examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
     - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
-    - **Community**: community highlights, for example, *Illustrious, Pony, NoobAI*  
+      examples: *FLUX.1-Dev/Krea/Kontext, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+    - **Community**: community highlights  
+      examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
@@ -25,6 +28,7 @@
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
   - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
+  - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  

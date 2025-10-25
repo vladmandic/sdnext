@@ -13,7 +13,7 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     jobid = shared.state.begin('Load DiT')
     try:
         if 'sdnq-' in repo_id.lower():
-            from modules import sdnq # register to diffusers and transformers
+            from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
@@ -86,7 +86,7 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
     jobid = shared.state.begin('Load TE')
     try:
         if 'sdnq-' in repo_id.lower():
-            from modules import sdnq # register to diffusers and transformers
+            from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
         load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
@@ -140,9 +140,8 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
                     load_args['subfolder'] = 'text_encoder_2'
                 else:
                     repo_id = 'Disty0/t5-xxl'
-                    if 'sdnq-' not in repo_id.lower():
-                        with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
-                            load_args['config'] = transformers.T5Config(**json.load(f))
+                    with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
+                        load_args['config'] = transformers.T5Config(**json.load(f))
                 shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5} args={load_args}')
                 if dtype is not None:
                     load_args['torch_dtype'] = dtype
