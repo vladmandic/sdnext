@@ -1261,6 +1261,13 @@ def install_pydantic():
         reload('pydantic', '1.10.21')
 
 
+def install_opencv():
+    install('opencv-python-headless==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-python==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-contrib-python==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-contrib-python-headless==4.12.0.88', ignore=True, quiet=True)
+
+
 def install_insightface():
     install('git+https://github.com/deepinsight/insightface@29b6cd65aa0e9ae3b6602de3c52e9d8949c8ee86#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
     if args.new:
@@ -1329,6 +1336,7 @@ def install_requirements():
             if not installed(line, quiet=True):
                 _res = install(line)
     install_pydantic()
+    install_opencv()
     if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')

@@ -155,6 +155,9 @@ from PIL import Image # pylint: disable=W0611,C0411
 timer.startup.record("pillow")
 
 
+import cv2 # pylint: disable=W0611,C0411
+timer.startup.record("cv2")
+
 class _tqdm_cls():
     def __call__(self, *args, **kwargs):
         bar_format = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
@@ -225,4 +228,4 @@ class VersionString(str): # support both string and tuple for version check
 
 torch.__version__ = VersionString(torch.__version__)
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__}')
+errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__}')
