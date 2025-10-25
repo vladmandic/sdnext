@@ -912,7 +912,7 @@
     "desc": "4 bit (UINT4 with SVD rank 32) quantization of black-forest-labs/FLUX.1-dev using SDNQ.",
     "skip": true,
     "tags": "quantized",
-    "size": 6.8,
+    "size": 13.53,
     "date": "2025 October",
     "extras": ""
   },
@@ -922,7 +922,7 @@
     "desc": "quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
-    "size": 5.4,
+    "size": 11.89,
     "date": "2025 October",
     "extras": ""
   },
@@ -933,6 +933,7 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 23.54,
     "extras": ""
   },
   "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
@@ -942,6 +943,7 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 23.55,
     "extras": ""
   },
   "Qwen-Image sdnq-svd-uint4": {
@@ -951,6 +953,7 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 16.09,
     "extras": ""
   },
   "Qwen-Image-Edit sdnq-svd-uint4": {
@@ -960,6 +963,7 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 16.10,
     "extras": ""
   },
   "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
@@ -969,6 +973,7 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 16.10,
     "extras": ""
   },
 
@@ -978,7 +983,7 @@
     "desc": "quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "skip": true,
     "tags": "quantized",
-    "size": 2.56,
+    "size": 3.37,
     "date": "2025 October",
     "extras": ""
   },
@@ -988,7 +993,7 @@
     "desc": "quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "skip": true,
     "tags": "quantized",
-    "size": 2.56,
+    "size": 3.37,
     "date": "2025 October",
     "extras": ""
   },

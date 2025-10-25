@@ -49,6 +49,8 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
             )
         else:
             shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" args={load_args}')
+            if 'sdnq-' in repo_id.lower():
+                quant_args = {}
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             if subfolder is not None:
@@ -131,6 +133,13 @@ def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder
                 )
                 text_encoder.quantization_method = 'SVDQuant'
             elif shared.opts.te_shared_t5:
+                """                
+                if 'sdnq-' in repo_id.lower():
+                    repo_id = 'Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32'
+                    load_args['subfolder'] = 'text_encoder_2'
+                    quant_args = {}
+                else:
+                """
                 repo_id = 'Disty0/t5-xxl'
                 shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
                 if dtype is not None:
