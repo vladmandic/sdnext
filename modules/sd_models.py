@@ -576,8 +576,8 @@ def set_overrides(sd_model, checkpoint_info, model_type):
         and model_type.startswith("Stable Diffusion") and model_type != "Stable Diffusion 3"
     ): # SDXL and SD 1.5
         scheduler_config = sd_model.scheduler.config
-        scheduler_config['beta_schedule'] = 'linear'
-        scheduler_config['timestep_spacing'] = 'trailing'
+        # scheduler_config['beta_schedule'] = 'scaled_linear'
+        # scheduler_config['timestep_spacing'] = 'trailing'
         sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
         if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
             scheduler_config = sd_model.scheduler.config

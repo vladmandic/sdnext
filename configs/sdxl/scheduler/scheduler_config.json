@@ -2,7 +2,7 @@
   "_class_name": "EulerAncestralDiscreteScheduler",
   "_diffusers_version": "0.35.1",
   "beta_end": 0.012,
-  "beta_schedule": "linear",
+  "beta_schedule": "scaled_linear",
   "beta_start": 0.00085,
   "clip_sample": false,
   "interpolation_type": "linear",
