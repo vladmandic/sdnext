@@ -916,6 +916,16 @@
     "date": "2025 October",
     "extras": ""
   },
+  "FLUX.1-Schnell sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
   "FLUX.1-Dev Krea sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
