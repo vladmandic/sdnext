@@ -95,6 +95,10 @@ module_skip_keys_dict = {
         ["transformer_blocks.0.img_mod.1.weight", ".time_text_embed", ".txt_in", ".img_in", ".proj_out", ".norm_out", "pos_embed"],
         {}
     ],
+    "WanTransformer3DModel": [
+        ["scale_shift_table", ".rope", ".patch_embedding", ".condition_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
     "NaDiT": [
         [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
         {}
