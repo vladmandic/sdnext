@@ -24,7 +24,7 @@ def get_xpu_smi():
             'Version': cap['version'],
             'Driver': prop.driver_version,
             'Platform': prop.platform_name,
-            'ID': prop.device_id,
+            'ID': hex(prop.device_id).removeprefix("0x"),
             'Compute Units': prop.max_compute_units,
             "VRAM usage": f'{round(100 * load["memory"] / total)}% | {load["memory"]} MB used | {total - load["memory"]} MB free | {total} MB total',
             "RAM usage": f'{round(100 * ram["used"] / ram["total"])}% | {round(1024 * ram["used"])} MB used | {round(1024 * ram["free"])} MB free | {round(1024 * ram["total"])} MB total',
