@@ -14,7 +14,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="ltx_generate_btn", variant='primary', visible=False)
             with gr.Row():
-                ltx_models = [m.name for m in models['LTX Video']]
+                ltx_models = [m.name for m in models['LTX Video']] if 'LTX Video' in models else ['None']
                 model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0])
             with gr.Accordion(open=False, label="Condition", elem_id='ltx_condition_accordion'):
                 with gr.Tabs():

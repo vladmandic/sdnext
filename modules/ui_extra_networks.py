@@ -273,6 +273,7 @@ class ExtraNetworksPage:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
             subdirs['Distilled'] = 1
+            subdirs['Quantized'] = 1
             subdirs['Community'] = 1
             subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
@@ -289,13 +290,15 @@ class ExtraNetworksPage:
             subdirs.move_to_end('Reference', last=True)
         if 'Distilled' in subdirs:
             subdirs.move_to_end('Distilled', last=True)
+        if 'Quantized' in subdirs:
+            subdirs.move_to_end('Quantized', last=True)
         if 'Community' in subdirs:
             subdirs.move_to_end('Community', last=True)
         subdirs_html = ''
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Community']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'
@@ -544,6 +547,7 @@ def register_pages():
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
+    from modules.video_models.models_def import models # pylint: disable=unused-import
 
 
 def get_pages(title=None):

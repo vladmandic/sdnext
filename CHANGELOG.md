@@ -1,16 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-24
+## Update for 2025-10-25
 
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
-  - networks reference section is now split into actual **Reference** models plus:  
-    **Distilled** which shows distilled variants of base models and **Community** which shows community highlights  
-  - Add SDNQ-SVD **pre-quantized** models to distilled models: *FLUX.1-Dev, Chroma1-HD, NoobAI-XL*  
-    *note*: these models are pre-quantized to minimal resource usage while maintaining high quality  
-    if you're low on vram and don't want to explore all of quantization options, these are a good starting point!  
-  - Add additional community models: *CenKreChro, WAI-Illustrious, NoobAI, Pony-Realism*  
+- **Reference** networks section is now split into actual *Base* models plus:  
+  - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
+    examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+  - **Distilled**: distilled variants of base models  
+    examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
+  - **Community**: community highlights  
+    examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
@@ -19,7 +20,7 @@
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
 - **Quantization**
-  - improved SDNQ SVD and low-bit matmul performance  
+  - improved **SDNQ SVD** and low-bit matmul performance  
 - **Other**
   - change default **schedulers** for sdxl  
   - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
@@ -27,6 +28,7 @@
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
   - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
+  - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
@@ -40,6 +42,8 @@
   - lora auto-detect low/high stage if not specified  
   - lora disable fuse on partially applied network  
   - fix networks display with extended characters, thanks @awsr  
+  - installer handle different `opencv` package variants  
+  - fix using pre-quantized shared-t5  
 
 ## Update for 2025-10-18
 

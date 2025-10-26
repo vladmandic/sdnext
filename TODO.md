@@ -35,7 +35,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 - [Ovi](https://github.com/character-ai/Ovi)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
-- [HunyuanImage](https://huggingface.co/tencent/HunyuanImage-2.1)
 - [Phantom HuMo](https://github.com/Phantom-video/Phantom)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)

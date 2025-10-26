@@ -14,14 +14,14 @@ processor = None
 model = None
 loaded: str = None
 quant_args = None
-vlm_default = "Alibaba Qwen 2.5 VL 4B"
+vlm_default = "Alibaba Qwen 2.5 VL 3B"
 vlm_models = {
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
     "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
-    "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
     "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
     "Alibaba Qwen 3 VL 2B Thinking": "Qwen/Qwen3-VL-2B-Thinking",
     "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",

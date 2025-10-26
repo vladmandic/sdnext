@@ -72,16 +72,16 @@ class FilenameGenerator:
         self.p = p
         if seed is not None and int(seed) > 0:
             self.seed = seed
-        elif p is not None and hasattr(p, 'all_seeds'):
-            self.seed = p.all_seeds[0]
-        elif p is not None and hasattr(p, 'seeds'):
-            self.seed = p.seeds[0]
+        elif p is not None and getattr(p, 'all_seeds', None) is not None and len(p.all_seeds) > 0:
+            self.seed = p.all_seeds[0] if int(p.all_seeds[0]) > 0 else 0
+        elif p is not None and getattr(p, 'seeds', None) is not None and len(p.seeds) > 0:
+            self.seed = p.seeds[0] if int(p.seeds[0]) > 0 else 0
         else:
-            self.seed = p.seed if p is not None else 0
+            self.seed = p.seed if p is not None and getattr(p, 'seed', 0) > 0 else 0
         if prompt is not None:
             self.prompt = prompt
         else:
-            self.prompt = p.prompt if p is not None else ''
+            self.prompt = p.prompt if p is not None and getattr(p, 'prompt', '') != '' else ''
         if isinstance(self.prompt, list):
             self.prompt = ' '.join(self.prompt)
         self.image = image
@@ -169,7 +169,7 @@ class FilenameGenerator:
     def sanitize(self, filename):
         # starting reference: <https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file>
         invalid_chars = (
-            "#<>/\"'`"                        # ASCII quote and backtick
+            "#<>\"'`"                         # ASCII quote and backtick
             "’‚‛\u2018\u2019\u201B"           # smart single quotes and variants # noqa: RUF001
             "\u02BB"                          # modifier letter turned comma
             "\u201C\u201D\u201F"              # smart double quotes and variants

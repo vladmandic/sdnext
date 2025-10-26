@@ -425,6 +425,10 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
 
     try: #0 - using detected model type and pipeline
         if (model_type is not None) and (pipeline is not None):
+            if ('sdnq' in model_type.lower()) or ('sdnq' in checkpoint_info.path.lower()):
+                from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
+                global allow_post_quant # pylint: disable=global-statement
+                allow_post_quant = False
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model.model_type = sd_model.__class__.__name__
     except Exception as e:
@@ -466,7 +470,7 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
 
     try: # 3 - try basic pipeline just in case
         if err2 is not None:
-            sd_model = diffusers.StableDiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            sd_model = diffusers.StableDiffusionXLPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model.model_type = sd_model.__class__.__name__
     except Exception as e:
         err3 = e  # ignore last error
@@ -576,8 +580,8 @@ def set_overrides(sd_model, checkpoint_info, model_type):
         and model_type.startswith("Stable Diffusion") and model_type != "Stable Diffusion 3"
     ): # SDXL and SD 1.5
         scheduler_config = sd_model.scheduler.config
-        scheduler_config['beta_schedule'] = 'linear'
-        scheduler_config['timestep_spacing'] = 'trailing'
+        # scheduler_config['beta_schedule'] = 'scaled_linear'
+        # scheduler_config['timestep_spacing'] = 'trailing'
         sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
         if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
             scheduler_config = sd_model.scheduler.config
@@ -712,15 +716,15 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
                 allow_post_quant = False
                 model_type = model_type.replace(' SDNQ', '')
 
-        # load from hf folder-style
-        if sd_model is None:
-            if os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface' or checkpoint_info.type == 'transformer':
-                sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
-
         # load from single-file
         if sd_model is None:
             if os.path.isfile(checkpoint_info.path) and checkpoint_info.path.lower().endswith('.safetensors'):
                 sd_model = load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
+
+        # load from hf folder-style
+        if sd_model is None:
+            if os.path.isdir(checkpoint_info.path) or (checkpoint_info.type == 'huggingface') or (checkpoint_info.type == 'transformer') or (checkpoint_info.type == 'reference'):
+                sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
 
         if sd_model is None:
             shared.log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
@@ -1147,18 +1151,19 @@ def set_diffusers_attention(pipe, quiet:bool=False):
 def add_noise_pred_to_diffusers_callback(pipe):
     if not hasattr(pipe, "_callback_tensor_inputs"):
         return pipe
-    if pipe.__class__.__name__.startswith("StableDiffusion"):
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif pipe.__class__.__name__.startswith("StableCascade"):
+    if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction":
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and "flow" in pipe.default_scheduler.__class__.__name__.lower():
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction":
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif "noise_pred" not in pipe._callback_tensor_inputs: # pylint: disable=protected-access
+        if pipe.__class__.__name__.startswith("StableDiffusion"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and (getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "default_scheduler") and ("flow" in pipe.default_scheduler.__class__.__name__.lower()):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and (getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     return pipe
 
 

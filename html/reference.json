@@ -68,7 +68,7 @@
     "tags": "distilled",
     "date": "2024 February"
   },
-  "StabilityAI Stable Diffusion 3 Medium": {
+  "StabilityAI Stable Diffusion 3.0 Medium": {
     "path": "stabilityai/stable-diffusion-3-medium-diffusers",
     "skip": true,
     "variant": "fp16",
@@ -806,28 +806,6 @@
     "date": "2024 October"
   },
 
-  "ShuttleAI Shuttle 3.0 Diffusion": {
-    "path": "shuttleai/shuttle-3-diffusion",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3-diffusion.jpg",
-    "tags": "community",
-    "skip": true
-  },
-  "ShuttleAI Shuttle 3.1 Aesthetic": {
-    "path": "shuttleai/shuttle-3.1-aesthetic",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
-    "tags": "community",
-    "skip": true
-  },
-  "ShuttleAI Shuttle Jaguar": {
-    "path": "shuttleai/shuttle-jaguar",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-jaguar.jpg",
-    "tags": "community",
-    "skip": true
-  },
-
   "Bria 3.2": {
     "path": "briaai/BRIA-3.2",
     "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
@@ -931,40 +909,127 @@
   "FLUX.1-Dev sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "4 bit (UINT4 with SVD rank 32) quantization of black-forest-labs/FLUX.1-dev using SDNQ.",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
-    "tags": "distilled",
-    "size": 6.8,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Schnell sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Dev Krea sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Dev Kontext sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-Kontext-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
     "date": "2025 October",
     "extras": ""
   },
   "Chroma1-HD sdnq-svd-uint4": {
     "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Chroma1-HD-SDNQ-uint4-svd-r32.jpg",
-    "desc": "4 bit (UINT4 with SVD rank 32) quantization of lodestones/Chroma1-HD using SDNQ.",
+    "desc": "Quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
-    "tags": "distilled",
-    "size": 5.4,
+    "tags": "quantized",
+    "size": 11.89,
     "date": "2025 October",
     "extras": ""
   },
-  "NoobAI-XL v1.1 sdnq-svd-uint4": {
+  "Wan-AI Wan2.2 A14B T2I sdnq-svd-uint4": {
+    "path": "Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 23.54,
+    "extras": ""
+  },
+  "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
+    "path": "Disty0/Wan2.2-I2V-A14B-SDNQ-uint4-svd-r32",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 23.55,
+    "extras": ""
+  },
+  "Qwen-Image sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.09,
+    "extras": ""
+  },
+  "Qwen-Image-Edit sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-2509-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Tempest-by-Vlad XL sdnq-svd-uint4": {
+    "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
+    "preview": "tempestByVlad_baseV01.jpg",
+    "desc": "Quantization of vladmandic/tempestByVlad_baseV01 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "NoobAI-XL v1.1 epsilon sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-v1.1-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-v1.1-SDNQ-uint4-svd-r128.jpg",
-    "desc": "4 bit (UINT4 with SVD rank 128) quantization of Laxhar/noobai-XL-1.1 using SDNQ.",
-    "skip": true,
-    "tags": "distilled",
-    "size": 5.4,
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
     "date": "2025 October",
     "extras": ""
   },
   "NoobAI-XL v1.0 v-pred sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128.jpg",
-    "desc": "4 bit (UINT4 with SVD rank 128) quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ.",
-    "skip": true,
-    "tags": "distilled",
-    "size": 5.4,
+    "desc": "Quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
     "date": "2025 October",
     "extras": ""
   },
@@ -1015,15 +1080,6 @@
     "tags": "community",
     "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
-  "Tiwaz CenKreChro": {
-    "path": "Tiwaz/CenKreChro",
-    "preview": "Tiwaz--CenKreChro.jpg",
-    "skip": true,
-    "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
-    "extras": "",
-    "tags": "community",
-    "date": "2025 September"
-  },
   "WAI Illustrious XL v15": {
     "path": "waiIllustriousSDXL_v150.safetensors@https://civitai.com/api/download/models/2167369",
     "preview": "waiIllustriousSDXL_v150.jpg",
@@ -1068,5 +1124,36 @@
     "size": 6.94,
     "date": "2025 May",
     "extras": ""
+  },
+  "Tiwaz CenKreChro": {
+    "path": "Tiwaz/CenKreChro",
+    "preview": "Tiwaz--CenKreChro.jpg",
+    "skip": true,
+    "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
+    "extras": "",
+    "tags": "community",
+    "date": "2025 September"
+  },
+  "ShuttleAI Shuttle 3.0 Diffusion": {
+    "path": "shuttleai/shuttle-3-diffusion",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-3-diffusion.jpg",
+    "tags": "community",
+    "skip": true
+  },
+  "ShuttleAI Shuttle 3.1 Aesthetic": {
+    "path": "shuttleai/shuttle-3.1-aesthetic",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
+    "tags": "community",
+    "skip": true
+  },
+  "ShuttleAI Shuttle Jaguar": {
+    "path": "shuttleai/shuttle-jaguar",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-jaguar.jpg",
+    "tags": "community",
+    "skip": true
   }
+
 }
