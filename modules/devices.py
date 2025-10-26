@@ -383,7 +383,7 @@ def test_bf16():
 
 def test_triton(early: bool = False):
     global triton_ok # pylint: disable=global-statement
-    if triton_ok is not None:
+    if triton_ok is not None and early:
         return triton_ok
     t0 = time.time()
     try:
@@ -408,6 +408,8 @@ def test_triton(early: bool = False):
     log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
     if not triton_ok:
         opts.sdnq_dequantize_compile = False
+    return triton_ok
+
 
 def set_cudnn_params():
     if not cuda_ok:

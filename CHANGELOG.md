@@ -29,6 +29,7 @@
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
   - log `triton` availability on startup  
+  - add `xpu` stats in gpu monitor  
 - **Quantization**
   - improved **SDNQ SVD** and low-bit matmul performance  
 - **Other**
