@@ -406,7 +406,7 @@ def test_triton(early: bool = False):
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
-    if not triton_ok:
+    if not triton_ok and opts is not None:
         opts.sdnq_dequantize_compile = False
     return triton_ok
 
