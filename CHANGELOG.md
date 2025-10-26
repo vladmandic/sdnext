@@ -1,10 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-25
+## Update for 2025-10-26
 
-- **Models**
-  - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
-    HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+### Highlights for 2025-10-26
+
+### Details for 2025-10-26
+
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
     examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
@@ -12,6 +13,9 @@
     examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
   - **Community**: community highlights  
     examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
+- **Models**
+  - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
+    HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
@@ -28,6 +32,8 @@
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
   - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
+  - add **Qwen 3-VL** llm for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
+    this includes *2B, 4B and 8B* variants  
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
@@ -45,6 +51,7 @@
   - installer handle different `opencv` package variants  
   - fix using pre-quantized shared-t5  
   - catch `xet` warnings  
+  - validate pipelines on import  
 
 ## Update for 2025-10-18
 
