@@ -312,14 +312,15 @@ def torch_cuda_set_device(device):
 
 
 @wraps(torch.cuda.get_device_properties)
-def get_device_properties(device = None):
+def get_device_properties(device=None):
     device_prop = torch.xpu.get_device_properties(device)
     new_keys = {
         "major": 12,
         "minor": 1,
         "multi_processor_count": device_prop.gpu_subslice_count,
-        "L2_cache_size": cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000]),
     }
+    if not hasattr(device_prop, "L2_cache_size"):
+        new_keys["L2_cache_size"] = cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000])
     return DeviceProperties(device_prop, new_keys)
 
 
