@@ -22,6 +22,12 @@ vlm_models = {
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
     "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
+    "Alibaba Qwen 3 VL 2B Thinking": "Qwen/Qwen3-VL-2B-Thinking",
+    "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
+    "Alibaba Qwen 3 VL 4B Thinking": "Qwen/Qwen3-VL-4B-Thinking",
+    "Alibaba Qwen 3 VL 8B": "Qwen/Qwen3-VL-8B-Instruct",
+    "Alibaba Qwen 3 VL 8B Thinking": "Qwen/Qwen3-VL-8B-Thinking",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
@@ -181,10 +187,14 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        if '2.5' in repo:
+        if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
+            cls_name = transformers.Qwen3VLForConditionalGeneration
+        elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo:
             cls_name = transformers.Qwen2_5_VLForConditionalGeneration
-        else:
+        elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
             cls_name = transformers.Qwen2VLForConditionalGeneration
+        else:
+            cls_name = transformers.AutoModelForCausalLM
         model = cls_name.from_pretrained(
             repo,
             torch_dtype=devices.dtype,
