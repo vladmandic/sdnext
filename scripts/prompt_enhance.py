@@ -32,6 +32,14 @@ def b64(image):
 class Options:
     img2img = [
         'google/gemma-3-4b-it',
+        'allura-org/Gemma-3-Glitter-4B',
+        'Qwen/Qwen2.5-VL-3B-Instruct',
+        'Qwen/Qwen3-VL-2B-Instruct',
+        'Qwen/Qwen3-VL-2B-Thinking',
+        'Qwen/Qwen3-VL-4B-Instruct',
+        'Qwen/Qwen3-VL-4B-Thinking',
+        'Qwen/Qwen3-VL-8B-Instruct',
+        'Qwen/Qwen3-VL-8B-Thinking',
     ]
     models = {
         'google/gemma-3-1b-it': {},
@@ -49,6 +57,12 @@ class Options:
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},
         'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        'Qwen/Qwen3-VL-2B-Instruct': {},
+        'Qwen/Qwen3-VL-2B-Thinking': {},
+        'Qwen/Qwen3-VL-4B-Instruct': {},
+        'Qwen/Qwen3-VL-4B-Thinking': {},
+        'Qwen/Qwen3-VL-8B-Instruct': {},
+        'Qwen/Qwen3-VL-8B-Thinking': {},
         'microsoft/Phi-4-mini-instruct': {},
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
