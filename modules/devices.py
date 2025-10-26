@@ -65,11 +65,10 @@ def has_zluda() -> bool:
         return False
 
 
-def has_triton() -> bool:
-    global triton_ok
+def has_triton(early:bool=False) -> bool:
     if triton_ok is not None:
         return triton_ok
-    return test_triton()
+    return test_triton(early=early)
 
 
 def get_backend(shared_cmd_opts):
@@ -382,25 +381,33 @@ def test_bf16():
     return bf16_ok
 
 
-def test_triton():
-    global triton_ok
+def test_triton(early: bool = False):
+    global triton_ok # pylint: disable=global-statement
     if triton_ok is not None:
         return triton_ok
+    t0 = time.time()
     try:
         from torch.utils._triton import has_triton as torch_has_triton
         if torch_has_triton():
+            if early:
+                return True
             def test_triton_func(a,b,c):
                 return a * b + c
             test_triton_func = torch.compile(test_triton_func, fullgraph=True)
-            test_triton_func(torch.randn(128, device=device), torch.randn(128, device=device), torch.randn(128, device=device))
+            test_triton_func(torch.randn(32, device=device), torch.randn(32, device=device), torch.randn(32, device=device))
             triton_ok = True
         else:
             triton_ok = False
     except Exception as e:
-        log.warning(f"Triton test fail: {e}")
         triton_ok = False
-    return triton_ok
-
+        log.warning(f"Triton test fail: {e}")
+        from modules import errors
+        errors.display(e, 'Triton')
+    t1 = time.time()
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+    log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
+    if not triton_ok:
+        opts.sdnq_dequantize_compile = False
 
 def set_cudnn_params():
     if not cuda_ok:

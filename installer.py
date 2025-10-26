@@ -241,7 +241,10 @@ def setup_logging():
     log.addHandler(fh)
     global log_rolled # pylint: disable=global-statement
     if not log_rolled and args.debug and not args.log:
-        fh.doRollover()
+        try:
+            fh.doRollover()
+        except Exception:
+            pass
         log_rolled = True
 
     rb = RingBuffer(100) # 100 entries default in log ring buffer
