@@ -203,6 +203,7 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
         model_name = s.replace('https://huggingface.co/', '')
         checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
         checkpoint_info.type = 'huggingface'
+        shared.log.debug(f'Seach model: name="{s}" matched="{checkpoint_info.path}" type=huggingface')
         return checkpoint_info
     if s.startswith('huggingface/'):
         model_name = s.replace('huggingface/', '')
@@ -213,23 +214,28 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
     # alias search
     checkpoint_info = checkpoint_aliases.get(s, None)
     if checkpoint_info is not None:
+        shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=alias')
         return checkpoint_info
 
     # models search
-    found = sorted([info for info in checkpoints_list.values() if os.path.basename(info.title).lower().startswith(s.lower())], key=lambda x: len(x.title))
+    found = sorted([info for info in checkpoints_list.values() if os.path.basename(info.title).lower() == s.lower()], key=lambda x: len(x.title))
     if found and len(found) == 1:
-        return found[0]
+        checkpoint_info = found[0]
+        shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=hash')
+        return checkpoint_info
 
     # nohash search
-    nohash = remove_hash(s)
-    found = sorted([info for info in checkpoints_list.values() if info.title.lower().startswith(nohash.lower())], key=lambda x: len(x.title))
+    found = sorted([info for info in checkpoints_list.values() if remove_hash(info.title).lower() == remove_hash(s).lower()], key=lambda x: len(x.title))
     if found and len(found) == 1:
-        return found[0]
+        checkpoint_info = found[0]
+        shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=model')
+        return checkpoint_info
 
     # absolute path
     if s.endswith('.safetensors') and os.path.isfile(s):
         checkpoint_info = CheckpointInfo(s)
         checkpoint_info.type = 'safetensors'
+        shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=safetensors')
         return checkpoint_info
 
     # reference search
@@ -241,6 +247,7 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
         checkpoint_info = CheckpointInfo(s)
         checkpoint_info.subfolder = info.get('subfolder', None)
         checkpoint_info.type = 'reference'
+        shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=reference')
         return checkpoint_info
 
     # huggingface search
@@ -261,6 +268,7 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
             checkpoint_info.type = 'huggingface'
             if subfolder is not None and len(subfolder) > 0:
                 checkpoint_info.subfolder = subfolder
+            shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=huggingface')
             return checkpoint_info
 
     # civitai search
@@ -269,6 +277,7 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
         fn = download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
         if fn is not None:
             checkpoint_info = CheckpointInfo(fn)
+            shared.log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=civitai')
             return checkpoint_info
 
     return None
