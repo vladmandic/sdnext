@@ -193,6 +193,8 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
             cls_name = transformers.Qwen2_5_VLForConditionalGeneration
         elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
             cls_name = transformers.Qwen2VLForConditionalGeneration
+        else:
+            cls_name = transformers.AutoModelForCausalLM
         model = cls_name.from_pretrained(
             repo,
             torch_dtype=devices.dtype,

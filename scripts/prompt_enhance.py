@@ -331,7 +331,7 @@ class Script(scripts_manager.Script):
 
                 if needs_rgb:
                     current_image = current_image.convert('RGB')
-                    debug_log(f'Prompt enhance: Converted image to RGB mode')
+                    debug_log('Prompt enhance: Converted image to RGB mode')
 
         has_system = system is not None and len(system) > 4
         mode = 'custom' if has_system else ''
