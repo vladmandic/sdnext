@@ -44,6 +44,7 @@
   - fix networks display with extended characters, thanks @awsr  
   - installer handle different `opencv` package variants  
   - fix using pre-quantized shared-t5  
+  - catch `xet` warnings  
 
 ## Update for 2025-10-18
 

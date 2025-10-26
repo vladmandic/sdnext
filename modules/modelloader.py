@@ -87,6 +87,7 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
 
     ok = False
     err = None
+    """
     if not ok:
         try:
             pipeline_dir = DiffusionPipeline.download(hub_id, **download_config)
@@ -95,6 +96,7 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
             err = e
             ok = False
             debug(f'HF download error: id="{hub_id}" {e}')
+    """
     if not ok and 'Repository Not Found' not in str(err):
         try:
             download_config.pop('load_connected_pipeline', None)
