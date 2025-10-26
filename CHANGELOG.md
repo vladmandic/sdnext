@@ -4,6 +4,11 @@
 
 ### Highlights for 2025-10-26
 
+- Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation
+- New **Tencent HunyuanImage 2.1** model capable of generating 2K images natively
+- New **offline mode** to use previously downloaded models without internet connection  
+- Fixes, fixes, fixes... too many to list here!
+
 ### Details for 2025-10-26
 
 - **Reference** networks section is now split into actual *Base* models plus:  
@@ -23,6 +28,7 @@
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
+  - log `triton` availability on startup  
 - **Quantization**
   - improved **SDNQ SVD** and low-bit matmul performance  
 - **Other**
