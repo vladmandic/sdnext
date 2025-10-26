@@ -169,10 +169,8 @@ class Script(scripts_manager.Script):
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
 
-            # Determine model class based on model type
             if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
                 cls_name = transformers.Qwen3VLForConditionalGeneration
-                # Use Qwen3-VL's optimized default attention
             elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
                 cls_name = transformers.Qwen2_5_VLForConditionalGeneration
             elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
@@ -314,7 +312,7 @@ class Script(scripts_manager.Script):
         except Exception:
             current_image = None
 
-        # Resize large images to match VQA performance (vision models are sensitive to resolution)
+        # Resize large images to match VQA performance (Qwen3-VL performance is sensitive to resolution)
         # Create a copy to avoid modifying the original image used by img2img
         if current_image is not None and isinstance(current_image, Image.Image):
             original_size = (current_image.width, current_image.height)
