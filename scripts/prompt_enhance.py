@@ -171,16 +171,16 @@ class Script(scripts_manager.Script):
 
             # Determine model class based on model type
             if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
-                model_cls = transformers.Qwen3VLForConditionalGeneration
+                cls_name = transformers.Qwen3VLForConditionalGeneration
                 # Use Qwen3-VL's optimized default attention
             elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
-                model_cls = transformers.Qwen2_5_VLForConditionalGeneration
+                cls_name = transformers.Qwen2_5_VLForConditionalGeneration
             elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
-                model_cls = transformers.Qwen2VLForConditionalGeneration
+                cls_name = transformers.Qwen2VLForConditionalGeneration
             else:
-                model_cls = transformers.AutoModelForCausalLM
+                cls_name = transformers.AutoModelForCausalLM
 
-            self.llm = model_cls.from_pretrained(
+            self.llm = cls_name.from_pretrained(
                 **load_args,
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
