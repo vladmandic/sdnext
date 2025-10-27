@@ -33,6 +33,7 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ### New models
 
+- [Chroma1 Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
 - [Ovi](https://github.com/character-ai/Ovi)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
 - [Phantom HuMo](https://github.com/Phantom-video/Phantom)

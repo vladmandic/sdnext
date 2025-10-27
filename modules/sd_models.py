@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -62,6 +62,10 @@ def set_huggingface_options():
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
+    if shared.opts.runai_streamer:
+        sd_hijack_safetensors.hijack_safetensors()
+    else:
+        sd_hijack_safetensors.restore_safetensors()
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -543,26 +547,67 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
     return sd_model
 
 
-def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
+def load_sdnq_module(fn: str, module_name: str, load_method: str):
     from modules import sdnq
+    t0 = time.time()
+    quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
+    if not os.path.exists(quantization_config_path):
+        return None, module_name, 0
+    model_name = os.path.join(fn, module_name)
+    quantization_config = shared.readfile(quantization_config_path, silent=True)
+    try:
+        module = sdnq.load_sdnq_model(
+            model_path=model_name,
+            quantization_config=quantization_config,
+            device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
+            dtype=devices.dtype,
+            load_method=load_method,
+        )
+        t1 = time.time()
+        return module, module_name, t1 - t0
+    except Exception as e:
+        shared.log.error(f'Load sdnq: model="{fn}" module="{module_name}" {e}')
+        errors.display(e, 'Load')
+        return None, module_name, 0
+
+
+def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     modules = {}
+    global allow_post_quant # pylint: disable=global-statement
+    allow_post_quant = False
+    t0 = time.time()
+
+    if shared.opts.runai_streamer:
+        load_method = 'streamer'
+        from installer import install
+        install('runai_model_streamer')
+        shared.log.trace(f'Loader: method={load_method} chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+    elif shared.opts.sd_parallel_load:
+        load_method = 'threaded'
+    else:
+        load_method = 'safetensors'
+
     for module_name in os.listdir(checkpoint_info.path):
-        quantization_config_path = os.path.join(checkpoint_info.path, module_name, 'quantization_config.json')
-        if not os.path.exists(quantization_config_path):
-            continue
-        model_name = os.path.join(checkpoint_info.path, module_name)
-        quantization_config = shared.readfile(quantization_config_path, silent=True)
-        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
-        try:
-            modules[module_name] = sdnq.load_sdnq_model(
-                model_path=model_name,
-                quantization_config=quantization_config,
-                device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
-                dtype=devices.dtype,
-            )
-        except Exception as e:
-            shared.log.error(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" {e}')
-            errors.display(e, 'Load')
+        module, name, t = load_sdnq_module(checkpoint_info.path, module_name, load_method=load_method)
+        if module is not None:
+            modules[name] = module
+            shared.log.debug(f'Load {op}: module="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq method={load_method} time={t:.2f}')
+
+    """
+    futures = []
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        for module_name in os.listdir(checkpoint_info.path):
+            future = executor.submit(load_sdnq_module, checkpoint_info.path, module_name)
+            futures.append(future)
+        for future in futures:
+            loaded_module, name, t = future.result()
+            if loaded_module is not None:
+                shared.log.debug(f'Load module: model="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq time={t:.2f}')
+                modules[name] = loaded_module
+    """
+    t1 = time.time()
+    shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" modules={list(modules.keys())} prequant=sdnq time={t1-t0:.2f}')
     sd_model = pipeline.from_pretrained(
         checkpoint_info.path,
         cache_dir=shared.opts.diffusers_dir,
@@ -714,7 +759,6 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         if sd_model is None:
             if model_type.endswith('SDNQ'):
                 sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
-                allow_post_quant = False
                 model_type = model_type.replace(' SDNQ', '')
 
         # load from single-file

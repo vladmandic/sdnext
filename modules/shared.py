@@ -151,6 +151,7 @@ options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_parallel_load": OptionInfo(True, "Model load using multiple threads"),
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
+    "runai_streamer": OptionInfo(False, "Model load using Run:ai streamer", gr.Checkbox),
     "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
     "diffusers_eval": OptionInfo(False, "Force model eval", gr.Checkbox, {"visible": True }),
     "device_map": OptionInfo('default', "Model load device map", gr.Radio, {"choices": ['default', 'gpu', 'cpu'] }),

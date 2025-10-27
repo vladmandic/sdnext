@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
@@ -7,6 +6,7 @@ from .common import dtype_dict, use_tensorwise_fp8_matmul, use_contiguous_mm
 from .quantizer import SDNQConfig, sdnq_post_load_quant
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 from .forward import get_forward_func
+from .file_loader import load_files
 
 
 def get_module_names(model: ModelMixin) -> list:
@@ -63,9 +63,8 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "1
             model.config.quantization_config.to_json_file(quantization_config_path)
 
 
-def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = "cpu", dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None) -> ModelMixin:
+def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = "cpu", dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None, load_method: str = 'safetensors') -> ModelMixin:
     from accelerate import init_empty_weights
-    from safetensors.torch import safe_open
 
     with init_empty_weights():
         if quantization_config is None:
@@ -112,7 +111,6 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
     key_mapping = getattr(model, "_checkpoint_conversion_mapping", None)
-    state_dict = {}
     files = []
 
     if file_name:
@@ -121,16 +119,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         all_files = os.listdir(model_path)
         files = sorted([os.path.join(model_path, f) for f in all_files if f.endswith(".safetensors")])
 
-    for fn in files:
-        with safe_open(fn, framework="pt", device=str(device)) as f:
-            for key in f.keys():
-                new_key = key
-                if key_mapping:
-                    for pattern, replacement in key_mapping.items():
-                        new_key, n_replace = re.subn(pattern, replacement, new_key)
-                        if n_replace > 0:
-                            break
-                state_dict[new_key] = f.get_tensor(key)
+    state_dict = load_files(files, key_mapping=key_mapping, device=device, method=load_method)
 
     if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"} and "encoder.embed_tokens.weight" not in state_dict.keys():
         state_dict["encoder.embed_tokens.weight"] = state_dict["shared.weight"]

@@ -27,6 +27,9 @@
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
     *note*: must be enabled only after all packages have been installed and model has been run online at least once  
+  - **model load**: SOTA method using nVidia's [Run:ai streamer](https://github.com/run-ai/runai-model-streamer)  
+    enable in *settings -> model options -> runai streamer*
+    applies to *diffusers, transformers and sdnq* loaders  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
