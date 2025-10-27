@@ -62,7 +62,7 @@ def set_huggingface_options():
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
-    if shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers:
+    if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
@@ -577,7 +577,7 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     allow_post_quant = False
     t0 = time.time()
 
-    if shared.opts.runai_streamer:
+    if shared.opts.runai_streamer_diffusers and (sys.platform == 'linux'):
         load_method = 'streamer'
         from installer import install
         install('runai_model_streamer')

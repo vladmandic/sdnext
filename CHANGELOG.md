@@ -32,7 +32,7 @@
     *note*: must be enabled only after all packages have been installed and model has been run online at least once  
   - **model load**: SOTA method using nVidia's [Run:ai streamer](https://github.com/run-ai/runai-model-streamer)  
     enable in *settings -> model options -> runai streamer*  
-    applies to *diffusers, transformers and sdnq* loaders  
+    applies to *diffusers, transformers and sdnq* loaders, note this is linux-only feature  
     *experimental* but shows significant model load speedups, 20-40% depending on model and hardware  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
