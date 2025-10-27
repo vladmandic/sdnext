@@ -8,8 +8,14 @@ from modules import shared, devices, errors, sd_models, model_quant
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=[], modules_dtype_dict={}):
+def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None):
     transformer = None
+    if load_config is None:
+        load_config = {}
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
     jobid = shared.state.begin('Load DiT')
     try:
         if 'sdnq-' in repo_id.lower():
@@ -81,8 +87,14 @@ def load_transformer(repo_id, cls_name, load_config={}, subfolder="transformer",
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config={}, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=[], modules_dtype_dict={}):
+def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None):
     text_encoder = None
+    if load_config is None:
+        load_config = {}
+    if modules_to_not_convert is None:
+        modules_to_not_convert = []
+    if modules_dtype_dict is None:
+        modules_dtype_dict = {}
     jobid = shared.state.begin('Load TE')
     try:
         if 'sdnq-' in repo_id.lower():
