@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-26
+## Update for 2025-10-27
 
 ### Highlights for 2025-10-27
 
@@ -14,14 +14,14 @@
 ### Details for 2025-10-27
 
 - **Reference** networks section is now split into actual *Base* models plus:  
-  **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
-  examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
-  **Distilled**: distilled variants of base models  
-  examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
-  **Community**: community highlights  
-  examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
-  and all reference models have new preview images, thanks @liutyi  
-- **Models**
+  - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
+    examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+  - **Distilled**: distilled variants of base models  
+    examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
+  - **Community**: community highlights  
+    examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
+    and all reference models have new preview images, thanks @liutyi  
+- **Models**  
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
@@ -39,9 +39,8 @@
   - switch to `rocm==7.0` for nightlies  
   - log `triton` availability on startup  
   - add `xpu` stats in gpu monitor  
-- **Quantization**
-  - improved **SDNQ SVD** and low-bit matmul performance  
 - **Other**
+  - improved **SDNQ SVD** and low-bit matmul performance  
   - change default **schedulers** for sdxl  
   - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
   - **scheduler** add base and max shift parameters for flow-matching samplers  
