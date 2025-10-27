@@ -163,6 +163,9 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             if p.override_settings.get('sd_vae', None) == 'TAESD':
                 p.vae_type = 'Tiny'
                 p.override_settings.pop('sd_vae', None)
+            if p.override_settings.get('sd_vae', None) == 'REPA-E':
+                p.vae_type = 'Repa'
+                p.override_settings.pop('sd_vae', None)
         if p.override_settings.get('Hires upscaler', None) is not None:
             p.enable_hr = True
         if len(p.override_settings.keys()) > 0:

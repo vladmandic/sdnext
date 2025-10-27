@@ -78,6 +78,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["VAE"] = (None if not shared.opts.add_model_name_to_info or sd_vae.loaded_vae_file is None else os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0])
     elif p.vae_type == 'Tiny':
         args["VAE"] = 'TAESD'
+    elif p.vae_type == 'REPA-E':
+        args["VAE"] = 'REPA-E'
     elif p.vae_type == 'Remote':
         args["VAE"] = 'Remote'
     if grid is None and (p.n_iter > 1 or p.batch_size > 1) and index >= 0:

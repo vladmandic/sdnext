@@ -7,6 +7,7 @@
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation
 - New **Tencent HunyuanImage 2.1** model capable of generating 2K images natively
 - New **offline mode** to use previously downloaded models without internet connection  
+- New SOTA model loader using **Run:ai**  
 - Fixes, fixes, fixes... too many to list here!
 
 ### Details for 2025-10-26
@@ -31,7 +32,7 @@
   - **model load**: SOTA method using nVidia's [Run:ai streamer](https://github.com/run-ai/runai-model-streamer)  
     enable in *settings -> model options -> runai streamer*  
     applies to *diffusers, transformers and sdnq* loaders  
-    *experimental* but shows significant model load speedups  
+    *experimental* but shows significant model load speedups, 20-40% depending on model and hardware  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
