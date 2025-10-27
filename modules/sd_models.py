@@ -871,7 +871,7 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args = {}):
+def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args: dict = None):
     """
     args:
     - cls: can be pipeline class or a string from custom pipelines
@@ -881,6 +881,8 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
       for example: { 'vae': None }
     """
     try:
+        if args is None:
+            args = {}
         if isinstance(cls, str):
             shared.log.debug(f'Pipeline switch: custom={cls}')
             cls = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
