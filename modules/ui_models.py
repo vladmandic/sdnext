@@ -113,7 +113,7 @@ def create_ui():
                             else:
                                 typ = 'unknown'
                                 size = 'unknown'
-                            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+                            guess = 'Diffusion' # set default guess
                             guess = sd_detect.guess_by_size(f, guess)
                             guess = sd_detect.guess_by_name(f, guess)
                             guess, pipeline = sd_detect.guess_by_diffusers(f, guess)

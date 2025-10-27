@@ -7,6 +7,7 @@ pipelines = {
     'Custom Diffusers Pipeline': getattr(diffusers, 'DiffusionPipeline', None),
 
     # standard pipelines
+    'Diffusion': getattr(diffusers, 'DiffusionPipeline', None),
     'Stable Diffusion': getattr(diffusers, 'StableDiffusionPipeline', None),
     'Stable Diffusion Inpaint': getattr(diffusers, 'StableDiffusionInpaintPipeline', None),
     'Stable Diffusion Instruct': getattr(diffusers, 'StableDiffusionInstructPix2PixPipeline', None),

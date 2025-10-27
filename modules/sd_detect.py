@@ -68,7 +68,7 @@ def guess_by_name(fn, current_guess):
         return 'Lumina 2'
     elif 'kolors' in fn.lower():
         return 'Kolors'
-    elif 'auraflow' in fn.lower():
+    elif 'auraflow' in fn.lower() or 'pony-v7' in fn.lower():
         return 'AuraFlow'
     elif 'cogview3' in fn.lower():
         return 'CogView 3'

@@ -21,6 +21,8 @@
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+  - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
+    Pony 7 steps in a different direction from previous Pony models and is based on AuraFlow architecture and UMT5 encoder  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  

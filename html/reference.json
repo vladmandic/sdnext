@@ -1134,6 +1134,15 @@
     "tags": "community",
     "date": "2025 September"
   },
+  "purplesmartai Pony 7": {
+    "path": "purplesmartai/pony-v7-base",
+    "preview": "purplesmartai--pony-v7-base.jpg",
+    "skip": true,
+    "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
+    "extras": "",
+    "tags": "community",
+    "date": "October September"
+  },
   "ShuttleAI Shuttle 3.0 Diffusion": {
     "path": "shuttleai/shuttle-3-diffusion",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
