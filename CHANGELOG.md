@@ -2,15 +2,16 @@
 
 ## Update for 2025-10-26
 
-### Highlights for 2025-10-26
+### Highlights for 2025-10-27
 
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation
 - New **Tencent HunyuanImage 2.1** model capable of generating 2K images natively
 - New **offline mode** to use previously downloaded models without internet connection  
-- New SOTA model loader using **Run:ai**  
+- New SOTA model loader using **Run:ai streamer**  
+- Updates to `rocm` and `xpu` backends  
 - Fixes, fixes, fixes... too many to list here!
 
-### Details for 2025-10-26
+### Details for 2025-10-27
 
 - **Reference** networks section is now split into actual *Base* models plus:  
   **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
