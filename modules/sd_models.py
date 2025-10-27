@@ -62,8 +62,8 @@ def set_huggingface_options():
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
-    if shared.opts.runai_streamer:
-        sd_hijack_safetensors.hijack_safetensors()
+    if shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers:
+        sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
 

@@ -40,9 +40,11 @@ def hijacked_load_state_dict(checkpoint_file, is_quantized: bool = False, map_lo
     return state_dict
 
 
-def hijack_safetensors():
-    safetensors.torch.load_file = hijacked_load_file
-    transformers.modeling_utils.load_state_dict = hijacked_load_state_dict
+def hijack_safetensors(_diffusers: bool = True, _transformers: bool = True):
+    if _diffusers:
+        safetensors.torch.load_file = hijacked_load_file
+    if _transformers:
+        transformers.modeling_utils.load_state_dict = hijacked_load_state_dict
 
 
 def restore_safetensors():

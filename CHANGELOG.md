@@ -12,12 +12,13 @@
 ### Details for 2025-10-26
 
 - **Reference** networks section is now split into actual *Base* models plus:  
-  - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
-    examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
-  - **Distilled**: distilled variants of base models  
-    examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
-  - **Community**: community highlights  
-    examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
+  **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
+  examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+  **Distilled**: distilled variants of base models  
+  examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
+  **Community**: community highlights  
+  examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
+  and all reference models have new preview images, thanks @liutyi  
 - **Models**
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
@@ -28,8 +29,9 @@
     enables fully offline mode where previously downloaded models can be used as-is  
     *note*: must be enabled only after all packages have been installed and model has been run online at least once  
   - **model load**: SOTA method using nVidia's [Run:ai streamer](https://github.com/run-ai/runai-model-streamer)  
-    enable in *settings -> model options -> runai streamer*
+    enable in *settings -> model options -> runai streamer*  
     applies to *diffusers, transformers and sdnq* loaders  
+    *experimental* but shows significant model load speedups  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
