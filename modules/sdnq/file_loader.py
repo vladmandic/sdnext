@@ -47,6 +47,8 @@ def load_streamer(files: list[str], state_dict: dict = None, key_mapping: dict =
 
 def load_files(files: list[str], state_dict: dict = None, key_mapping: dict = None, device: torch.device = "cpu", method: str = None) -> dict:
     # note: files is list-of-files within a module for chunked loading, not accross model
+    if isinstance(files, str):
+        files = [files]
     if method is None:
         method = 'safetensors'
     if state_dict is None:
