@@ -611,7 +611,7 @@
   "Tencent HunyuanImage 2.1 Distilled": {
     "path": "hunyuanvideo-community/HunyuanImage-2.1-Distilled-Diffusers",
     "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
-    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
+    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Distilled-Diffusers.jpg",
     "extras": "",
     "tags": "distilled",
     "skip": true,
