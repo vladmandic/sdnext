@@ -16,6 +16,7 @@
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
     examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+    *note*: pre-quantized *WAN-2.2-14B* is also available in video models and runs with only 12GB VRAM!  
   - **Distilled**: distilled variants of base models  
     examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
   - **Community**: community highlights  
