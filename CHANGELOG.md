@@ -50,6 +50,7 @@
   - add **Qwen 3-VL** llm for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
     this includes *2B, 4B and 8B* variants  
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
+  - enhanced LoRA support for **Wan-2.2-14B**  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
@@ -65,6 +66,8 @@
   - fix networks display with extended characters, thanks @awsr  
   - installer handle different `opencv` package variants  
   - fix using pre-quantized shared-t5  
+  - fix `wan-2.2-14b-vace` single-stage exectution  
+  - fix `wan-2.2-5b` tiled vae decode  
   - catch `xet` warnings  
   - validate pipelines on import  
 
