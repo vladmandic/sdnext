@@ -571,6 +571,7 @@ def set_sdpa_params():
             except Exception as err:
                 log.error(f'Torch attention: type="sage attention" {err}')
 
+
         from importlib.metadata import version
         try:
             flash = version('flash-attn')
@@ -580,7 +581,11 @@ def set_sdpa_params():
             sage = version('sageattention')
         except Exception:
             sage = False
-        log.info(f'Torch attention: flashattn={flash} sageattention={sage}')
+        log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
+
+        from diffusers.models import attention_dispatch as a
+        log.debug(f'Torch diffusers available: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN}') # pylint: disable=protected-access
+
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
 

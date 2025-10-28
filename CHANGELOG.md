@@ -55,6 +55,7 @@
   - add `[lora]` to recognized filename patterns  
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
   - enhanced LoRA support for **Wan-2.2-14B**  
+  - log available attention mechanisms on startup  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  

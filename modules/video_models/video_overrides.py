@@ -64,3 +64,10 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     # WAN 2.2-5B
     if 'WAN 2.2 5B' in selected.name:
         shared.sd_model.vae.disable_tiling()
+    # Kandinsky 5
+    if 'Kandinsky 5.0 Lite 5s' in selected.name:
+        # p.task_args['time_length'] = 5
+        pass
+    if 'Kandinsky 5.0 Lite 10s' in selected.name:
+        # p.task_args['time_length'] = 10
+        shared.sd_model.transformer.set_attention_backend("flex")
