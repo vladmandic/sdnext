@@ -4,7 +4,9 @@
 
 ### Highlights for 2025-10-28
 
+Less than 2 weeks since last release, here's a service-pack style update with a lot of fixes and improvements:
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
+  and introduction of optimized **pre-quantized** variants for many popular models - use this as your quick start!  
 - New models: **HunyuanImage 2.1** capable of 2K images natively, **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
 - Optimizations to **WAN-2.2** given its popularity  
@@ -12,6 +14,11 @@
 - New SOTA model loader using **Run:ai streamer**  
 - Updates to `rocm` and `xpu` backends  
 - Fixes, fixes, fixes... too many to list here!  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
 
 ### Details for 2025-10-28
 
