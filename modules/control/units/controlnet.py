@@ -90,7 +90,7 @@ predefined_f1 = {
     "XLabs-AI Canny F1": 'XLabs-AI/flux-controlnet-canny-diffusers',
     "XLabs-AI Depth F1": 'XLabs-AI/flux-controlnet-depth-diffusers',
     "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers',
-    "LibreFlux F1": 'neuralvfx/LibreFlux-ControlNet',
+    "LibreFlux Segment F1": 'neuralvfx/LibreFlux-ControlNet',
 }
 predefined_sd3 = {
     "StabilityAI Canny SD35": 'diffusers-internal-dev/sd35-controlnet-canny-8b',
@@ -122,11 +122,11 @@ variants = {
 }
 
 subfolders = {
-    "LibreFlux F1": 'controlnet',
+    "LibreFlux Segment F1": 'controlnet',
 }
 
 remote_code = {
-    "LibreFlux F1": True,
+    "LibreFlux Segment F1": True,
 }
 
 models = {}
@@ -337,9 +337,9 @@ class ControlNet():
                     if variants.get(model_id, None) is not None:
                         kwargs['variant'] = variants[model_id]
                     if subfolders.get(model_id, None) is not None:
-                        self.load_config['subfolder'] = subfolders[model_id]
+                        kwargs['subfolder'] = subfolders[model_id]
                     if remote_code.get(model_id, None) is not None:
-                        self.load_config['trust_remote_code'] = remote_code[model_id]
+                        kwargs['trust_remote_code'] = remote_code[model_id]
                     try:
                         self.model = cls.from_pretrained(model_path, **self.load_config, **kwargs)
                     except Exception as e:
@@ -352,6 +352,8 @@ class ControlNet():
                     self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)
+                if self.device is not None:
+                    self.model.to_empty(device=self.device) # model could be sparse
                 if "Control" in opts.sdnq_quantize_weights:
                     try:
                         log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
@@ -376,7 +378,7 @@ class ControlNet():
                     except Exception as e:
                         log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
-                    self.model.to(self.device)
+                    sd_models.move_model(self.model, self.device)
                 if "Control" in opts.cuda_compile:
                     try:
                         from modules.sd_models_compile import compile_torch
@@ -527,7 +529,7 @@ class ControlNetPipeline():
         if opts.diffusers_offload_mode == 'none':
             sd_models.move_model(self.pipeline, devices.device)
         sd_models.clear_caches()
-        sd_models.set_diffuser_offload(self.pipeline, 'model')
+        sd_models.set_diffuser_offload(self.pipeline, 'model', force=True)
 
         t1 = time.time()
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')

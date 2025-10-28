@@ -92,7 +92,7 @@ def apply_group_offload(sd_model, op:str='model'):
     return sd_model
 
 
-def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
+def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
     if sd_model is None:
@@ -154,7 +154,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
         sd_model = apply_group_offload(sd_model, op=op)
 
     if shared.opts.diffusers_offload_mode == "balanced":
-        sd_model = apply_balanced_offload(sd_model)
+        sd_model = apply_balanced_offload(sd_model, force=force)
 
     process_timer.add('offload', time.time() - t0)
 

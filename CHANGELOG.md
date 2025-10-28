@@ -70,6 +70,7 @@
   - fix using pre-quantized shared-t5  
   - fix `wan-2.2-14b-vace` single-stage exectution  
   - fix `wan-2.2-5b` tiled vae decode  
+  - fix `controlnet` loading with quantization  
   - catch `xet` warnings  
   - validate pipelines on import  
 
