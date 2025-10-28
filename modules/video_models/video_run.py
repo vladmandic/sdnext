@@ -113,6 +113,11 @@ def generate(*args, **kwargs):
     video_overrides.set_overrides(p, selected)
     debug(f'Video: task_args={p.task_args}')
 
+    if p.vae_type == 'Upscale':
+        video_load.load_upscale_vae()
+    elif hasattr(shared.sd_model, 'orig_vae'):
+        shared.sd_model.vae = shared.sd_model.orig_vae
+
     # run processing
     shared.state.disable_preview = True
     shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')

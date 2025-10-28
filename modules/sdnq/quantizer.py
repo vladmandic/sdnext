@@ -617,7 +617,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if shared.opts.diffusers_offload_mode != "none":
-            model = model.to(devices.cpu)
+            try:
+                model = model.to(device=devices.cpu)
+            except Exception:
+                model = model.to_empty(device=devices.cpu)
         devices.torch_gc(force=True, reason="sdnq")
         return model
 

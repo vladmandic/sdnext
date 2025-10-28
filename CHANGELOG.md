@@ -5,9 +5,11 @@
 ### Highlights for 2025-10-28
 
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
-- New models: **HunyuanImage 2.1** capable of generating 2K images natively, **Pony 7** based on AuraFlow architecture and **Kandinsky 5** 10s video models  
+- New models: **HunyuanImage 2.1** capable of generating 2K images natively, **Pony 7** based on AuraFlow architecture,  
+  **Kandinsky 5** 10s video models, **Krea Realtime** autoregressive variant of WAN-2.1  
 - New **offline mode** to use previously downloaded models without internet connection  
 - New SOTA model loader using **Run:ai streamer**  
+- Optimizations to **WAN-2.2** given its popularity plus addition of native **VAE Upscaler** and optimized **pre-quantized** variants  
 - Updates to `rocm` and `xpu` backends  
 - Fixes, fixes, fixes... too many to list here!  
 
@@ -29,11 +31,14 @@
     second series of models in *Kandinsky5* series is T2V model optimized for 10sec videos and uses Qwen2.5 text encoder  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
     Pony 7 steps in a different direction from previous Pony models and is based on AuraFlow architecture and UMT5 encoder  
-- **Models Auxiliary**
-  - add **Qwen 3-VL** VLM for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
+- **Models Auxiliary**  
+  - [Qwen 3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) VLM for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
     this includes *2B, 4B and 8B* variants  
-  - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
-  - add **LibreFlux** segmentation controlnet for FLUX.1  
+  - [WAN Asymettric Upscale](https://huggingface.co/spacepxl/Wan2.1-VAE-upscale2x)  
+    available as general purpose upscaler that can be used during standard workflow or process tab  
+    available as VAE for compatible video models: *WAN-2.x-14B, SkyReels-v2* models  
+  - [Apple DepthPro](https://huggingface.co/apple/DepthPro) controlnet processor, thanks @nolbert82  
+  - [LibreFlux controlnet](https://huggingface.co/neuralvfx/LibreFlux-ControlNet) segmentation controlnet for FLUX.1  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
@@ -75,6 +80,7 @@
   - fix `wan-2.2-14b-vace` single-stage exectution  
   - fix `wan-2.2-5b` tiled vae decode  
   - fix `controlnet` loading with quantization  
+  - video use pre-quantized text-encoder if selected model is pre-quantized  
   - handle sparse `controlnet` models  
   - catch `xet` warnings  
   - validate pipelines on import  

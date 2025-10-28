@@ -4,15 +4,17 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
-- [Kanvas](https://github.com/vladmandic/kanvas)  
-- Transformers unified cache handler  
-- Remote TE  
+- Core: New inpaint/outpaint interface  
+  [Kanvas](https://github.com/vladmandic/kanvas)  
+- Core: Create executable for SD.Next  
+- Feature: Transformers unified cache handler  
+- Remote Text-Encoder support  
 - Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
-- Refactor: Sampler options  
+- Refactor: move sampler options to settings to config  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
-- Video Core: API  
-- Video LTX: TeaCache and others, API, Conditioning preprocess Video: LTX API  
+- Video tab: add full API support  
+- Control tab: add overrides handling  
 
 ### Under Consideration
 
@@ -26,13 +28,19 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
+- [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
 - Remove: `CodeFormer`
 - Remove: `GFPGAN`  
 - ModernUI: Lite vs Expert mode  
 - Engine: TensorRT acceleration
 
-### New models
+### New models / Pipelines
 
+- [Krea Realtime Video](https://huggingface.co/krea/krea-realtime-video)
+- [Wan-2.2 Animate](https://github.com/huggingface/diffusers/pull/12526)
+- [Wan-2.2 S2V](https://github.com/huggingface/diffusers/pull/12258)
+- [LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video)
+- [MUG-V 10B](https://huggingface.co/MUG-V/MUG-V-inference)
 - [Chroma1 Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
 - [Ovi](https://github.com/character-ai/Ovi)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)

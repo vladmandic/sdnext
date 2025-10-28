@@ -141,7 +141,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
                     guidance_true = gr.Slider(label='True guidance', minimum=-1.0, maximum=14.0, step=0.1, value=-1.0, elem_id="video_guidance_true")
             with gr.Accordion(open=False, label="Decode", elem_id='video_decode_accordion'):
                 with gr.Row():
-                    vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote'], value='Default', elem_id="video_vae_type")
+                    vae_type = gr.Dropdown(label='VAE decode', choices=['Default', 'Tiny', 'Remote', 'Upscale'], value='Default', elem_id="video_vae_type")
                     vae_tile_frames = gr.Slider(label='Tile frames', minimum=1, maximum=64, step=1, value=16, elem_id="video_vae_tile_frames")
 
             vlm_enhance, vlm_model, vlm_system_prompt = ui_video_vlm.create_ui(prompt_element=prompt, image_element=init_image)
