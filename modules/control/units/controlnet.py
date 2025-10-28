@@ -89,7 +89,8 @@ predefined_f1 = {
     "Shakker-Labs Depth F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
     "XLabs-AI Canny F1": 'XLabs-AI/flux-controlnet-canny-diffusers',
     "XLabs-AI Depth F1": 'XLabs-AI/flux-controlnet-depth-diffusers',
-    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers'
+    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers',
+    "LibreFlux F1": 'neuralvfx/LibreFlux-ControlNet',
 }
 predefined_sd3 = {
     "StabilityAI Canny SD35": 'diffusers-internal-dev/sd35-controlnet-canny-8b',
@@ -119,6 +120,15 @@ variants = {
     'NoobAI SoftEdge XL': 'fp16',
     'TTPlanet Tile Realistic XL': 'fp16',
 }
+
+subfolders = {
+    "LibreFlux F1": 'controlnet',
+}
+
+remote_code = {
+    "LibreFlux F1": True,
+}
+
 models = {}
 all_models = {}
 all_models.update(predefined_sd15)
@@ -326,6 +336,10 @@ class ControlNet():
                         self.load_config['use_safetensors'] = True
                     if variants.get(model_id, None) is not None:
                         kwargs['variant'] = variants[model_id]
+                    if subfolders.get(model_id, None) is not None:
+                        self.load_config['subfolder'] = subfolders[model_id]
+                    if remote_code.get(model_id, None) is not None:
+                        self.load_config['trust_remote_code'] = remote_code[model_id]
                     try:
                         self.model = cls.from_pretrained(model_path, **self.load_config, **kwargs)
                     except Exception as e:

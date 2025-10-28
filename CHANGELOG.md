@@ -21,11 +21,16 @@
   - **Community**: community highlights  
     examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
     and all reference models have new preview images, thanks @liutyi  
-- **Models**  
+- **Models Reference**  
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
     Pony 7 steps in a different direction from previous Pony models and is based on AuraFlow architecture and UMT5 encoder  
+- **Models Auxiliary**
+  - add **Qwen 3-VL** VLM for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
+    this includes *2B, 4B and 8B* variants  
+  - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
+  - add **LibreFlux** segmentation controlnet for FLUX.1  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
@@ -46,9 +51,6 @@
   - **scheduler** add base and max shift parameters for flow-matching samplers  
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
-  - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
-  - add **Qwen 3-VL** llm for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
-    this includes *2B, 4B and 8B* variants  
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
   - enhanced LoRA support for **Wan-2.2-14B**  
 - **Fixes**
