@@ -5,11 +5,11 @@
 ### Highlights for 2025-10-28
 
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
-- New models: **HunyuanImage 2.1** capable of generating 2K images natively, **Pony 7** based on AuraFlow architecture,  
-  **Kandinsky 5** 10s video models, **Krea Realtime** autoregressive variant of WAN-2.1  
+- New models: **HunyuanImage 2.1** capable of 2K images natively, **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
+- Optimizations to **WAN-2.2** given its popularity  
+  plus addition of native **VAE Upscaler** and optimized **pre-quantized** variants  
 - New SOTA model loader using **Run:ai streamer**  
-- Optimizations to **WAN-2.2** given its popularity plus addition of native **VAE Upscaler** and optimized **pre-quantized** variants  
 - Updates to `rocm` and `xpu` backends  
 - Fixes, fixes, fixes... too many to list here!  
 

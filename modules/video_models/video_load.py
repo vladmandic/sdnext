@@ -164,8 +164,7 @@ def load_upscale_vae():
         return
     if hasattr(shared.sd_model.vae, '_asymmetric_upscale_vae'):
         return # already loaded
-    cls = shared.sd_model.vae.__class__.__name__
-    if cls != 'AutoencoderKLWan':
+    if shared.sd_model.vae.__class__.__name__ != 'AutoencoderKLWan':
         shared.log.warning('Video decode: upscale VAE unsupported')
         return
 
@@ -176,7 +175,7 @@ def load_upscale_vae():
     vae_decode.requires_grad_(False)
     vae_decode = vae_decode.to(device=devices.device, dtype=devices.dtype)
     vae_decode.eval()
-    shared.log.debug(f'Decode: load={repo_id}')
+    shared.log.debug(f'Decode: load="{repo_id}"')
     shared.sd_model.orig_vae = shared.sd_model.vae
     shared.sd_model.vae = vae_decode
     shared.sd_model.vae._asymmetric_upscale_vae = True # pylint: disable=protected-access
