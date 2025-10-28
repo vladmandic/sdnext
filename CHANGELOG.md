@@ -1,17 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-27
+## Update for 2025-10-28
 
-### Highlights for 2025-10-27
+### Highlights for 2025-10-28
 
-- Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation
-- New **Tencent HunyuanImage 2.1** model capable of generating 2K images natively
+- Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
+- New models: **HunyuanImage 2.1** capable of generating 2K images natively, **Pony 7** based on AuraFlow architecture and **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
 - New SOTA model loader using **Run:ai streamer**  
 - Updates to `rocm` and `xpu` backends  
-- Fixes, fixes, fixes... too many to list here!
+- Fixes, fixes, fixes... too many to list here!  
 
-### Details for 2025-10-27
+### Details for 2025-10-28
 
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
@@ -23,7 +23,9 @@
     and all reference models have new preview images, thanks @liutyi  
 - **Models Reference**  
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
-    HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+    *HunyuanImage-2.1* is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+  - [Kandinsky 5 Lite 10s](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-10s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
+    second series of models in *Kandinsky5* series is T2V model optimized for 10sec videos and uses Qwen2.5 text encoder  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
     Pony 7 steps in a different direction from previous Pony models and is based on AuraFlow architecture and UMT5 encoder  
 - **Models Auxiliary**
@@ -71,6 +73,7 @@
   - fix `wan-2.2-14b-vace` single-stage exectution  
   - fix `wan-2.2-5b` tiled vae decode  
   - fix `controlnet` loading with quantization  
+  - handle sparse `controlnet` models  
   - catch `xet` warnings  
   - validate pipelines on import  
 
