@@ -285,6 +285,11 @@ def process_samples(p: StableDiffusionProcessing, samples):
             sample = validate_sample(sample)
             image = Image.fromarray(sample)
 
+        if isinstance(image, list):
+            if len(image) > 1:
+                shared.log.warning(f'Processing: images={image} contains multiple images using first one only')
+            image = image[0]
+
         if not shared.state.interrupted and not shared.state.skipped:
 
             if p.restore_faces:

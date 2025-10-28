@@ -1097,6 +1097,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
                     shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
                     return pipe
             except Exception as e: # pylint: disable=unused-variable
+                fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+                shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
                 shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
                 has_errors = True
         if not hasattr(pipe, 'config') or has_errors:

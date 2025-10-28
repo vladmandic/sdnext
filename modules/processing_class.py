@@ -483,9 +483,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
                 self.width = int(vae_scale_factor * (self.init_images[0].width * self.scale_by // vae_scale_factor))
             if self.height is None or self.height == 0:
                 self.height = int(vae_scale_factor * (self.init_images[0].height * self.scale_by // vae_scale_factor))
-        if getattr(self, 'image_mask', None) is not None:
+        if (getattr(self, 'image_mask', None) is not None) and (len(getattr(self, 'image_mask', [])) > 0):
             shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-        elif getattr(self, 'init_images', None) is not None:
+        elif (getattr(self, 'init_images', None) is not None) and (len(getattr(self, 'init_images', [])) > 0):
             shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
 
         if all_prompts is not None:

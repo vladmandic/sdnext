@@ -69,6 +69,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
   - enhanced LoRA support for **Wan-2.2-14B**  
   - log available attention mechanisms on startup  
+  - support for switching back-and-forth **t2i** and **t2v** for *wan-2.x* models  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
@@ -90,6 +91,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - video use pre-quantized text-encoder if selected model is pre-quantized  
   - handle sparse `controlnet` models  
   - catch `xet` warnings  
+  - avoid unnecessary pipe variant switching  
   - validate pipelines on import  
 
 ## Update for 2025-10-18
