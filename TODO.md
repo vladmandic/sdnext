@@ -4,19 +4,25 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Future Candidates
 
-- Core: New inpaint/outpaint interface  
+- UI: New inpaint/outpaint interface  
   [Kanvas](https://github.com/vladmandic/kanvas)  
-- Core: Create executable for SD.Next  
+- Deploy: Create executable for SD.Next  
+- Feature: Integrate natural language imagesearch  
+  [ImageDB](https://github.com/vladmandic/imagedb)  
 - Feature: Transformers unified cache handler  
-- Remote Text-Encoder support  
+- Feature: Remote Text-Encoder support  
 - Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
 - Refactor: move sampler options to settings to config  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
 - Feature: LoRA add OMI format support for SD35/FLUX.1  
+- Refactor: remove `CodeFormer`
+- Refactor: remove `GFPGAN`  
+- UI: Lite vs Expert mode  
 - Video tab: add full API support  
 - Control tab: add overrides handling  
+- Engine: TensorRT acceleration
 
-### Under Consideration
+### New models / Pipelines
 
 - [Inf-DiT](https://github.com/zai-org/Inf-DiT)
 - [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
@@ -29,13 +35,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
-- Remove: `CodeFormer`
-- Remove: `GFPGAN`  
-- ModernUI: Lite vs Expert mode  
-- Engine: TensorRT acceleration
-
-### New models / Pipelines
-
 - [Krea Realtime Video](https://huggingface.co/krea/krea-realtime-video)
 - [Wan-2.2 Animate](https://github.com/huggingface/diffusers/pull/12526)
 - [Wan-2.2 S2V](https://github.com/huggingface/diffusers/pull/12258)
