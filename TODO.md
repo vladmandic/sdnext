@@ -1,8 +1,10 @@
 # TODO
 
-Main ToDo list can be found at [GitHub projects](https://github.com/users/vladmandic/projects)
+## Project Board
 
-## Future Candidates
+- <https://github.com/users/vladmandic/projects>
+
+## Internal
 
 - UI: New inpaint/outpaint interface  
   [Kanvas](https://github.com/vladmandic/kanvas)  
@@ -22,46 +24,52 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - Control tab: add overrides handling  
 - Engine: TensorRT acceleration
 
+## Features
+
+- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
+- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
+- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
+- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
+- [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
+
 ### New models / Pipelines
 
-- [Inf-DiT](https://github.com/zai-org/Inf-DiT)
-- [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
-- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
-- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
-- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
-- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
-- [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
+TODO: *Prioritize*!
+
+- [Bria FIBO](https://huggingface.co/briaai/FIBO)
+- [Bytedance Lynx](https://github.com/bytedance/lynx)
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
-- [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
+- [Chroma1 Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
+- [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
+- [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)  
+- [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  
+- [HunyuanAvatar](https://huggingface.co/tencent/HunyuanVideo-Avatar)  
+- [HunyuanCustom](https://github.com/Tencent-Hunyuan/HunyuanCustom)  
+- [Inf-DiT](https://github.com/zai-org/Inf-DiT)
 - [Krea Realtime Video](https://huggingface.co/krea/krea-realtime-video)
+- [LanDiff](https://github.com/landiff/landiff)  
+- [Liquid](https://github.com/FoundationVision/Liquid)  
+- [LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video)
+- [LucyEdit](https://github.com/huggingface/diffusers/pull/12340)
+- [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
+- [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
+- [Ming](https://github.com/inclusionAI/Ming)  
+- [MUG-V 10B](https://huggingface.co/MUG-V/MUG-V-inference)
+- [Ovi](https://github.com/character-ai/Ovi)
+- [Phantom HuMo](https://github.com/Phantom-video/Phantom)
+- [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit)  
+- [SelfForcing](https://github.com/guandeh17/Self-Forcing)  
+- [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
+- [Step1X](https://github.com/stepfun-ai/Step1X-Edit)  
 - [Wan-2.2 Animate](https://github.com/huggingface/diffusers/pull/12526)
 - [Wan-2.2 S2V](https://github.com/huggingface/diffusers/pull/12258)
-- [LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video)
-- [MUG-V 10B](https://huggingface.co/MUG-V/MUG-V-inference)
-- [Chroma1 Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
-- [Ovi](https://github.com/character-ai/Ovi)
-- [Bytedance Lynx](https://github.com/bytedance/lynx)
-- [Phantom HuMo](https://github.com/Phantom-video/Phantom)
-- [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
-- [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
-- [Magi](https://github.com/SandAI-org/MAGI-1)(https://github.com/huggingface/diffusers/pull/11713)  
-- [SEVA](https://github.com/huggingface/diffusers/pull/11440)  
-- [Ming](https://github.com/inclusionAI/Ming)  
-- [Liquid](https://github.com/FoundationVision/Liquid)  
-- [Step1X](https://github.com/stepfun-ai/Step1X-Edit)  
-- [LucyEdit](https://github.com/huggingface/diffusers/pull/12340)
-- [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit)  
-- [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
-- [SelfForcing](https://github.com/guandeh17/Self-Forcing)  
-- [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)  
-- [LanDiff](https://github.com/landiff/landiff)  
-- [HunyuanCustom](https://github.com/Tencent-Hunyuan/HunyuanCustom)  
-- [HunyuanAvatar](https://huggingface.co/tencent/HunyuanVideo-Avatar)  
-- [WAN-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)  
 - [WAN-CausVid-Plus t2v](https://github.com/goatWu/CausVid-Plus/)  
+- [WAN-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)  
 - [WAN-StepDistill](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-StepDistill-CfgDistill)  
+- [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
+- [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 
 ## Code TODO
 
