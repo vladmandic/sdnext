@@ -42,7 +42,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     sd_models.hf_auth_check(checkpoint_info)
     shared.log.debug(f'Load model: type=HunyuanImage3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    from sdnq import SDNQConfig # import sdnq to register it into transformers
+    from sdnq import SDNQConfig # pylint: disable=unused-import
     pipe = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         attn_implementation="sdpa",

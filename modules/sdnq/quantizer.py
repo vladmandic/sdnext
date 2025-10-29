@@ -482,7 +482,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         param_value: "torch.Tensor",
         param_name: str,
         return_true: bool = True,
-        *args, **kwargs, # pylint: disable=unused-argument
+        *args, **kwargs, # pylint: disable=unused-argument,keyword-arg-before-vararg
     ):
         if return_true:
             return True

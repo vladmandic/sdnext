@@ -150,8 +150,8 @@ class NudeDetector:
             return background
         if fg_channels < 4: # make sure that overlay is rgba
             log.warning('NudeNet overlay image does not have alpha channel')
-            foreground = cv2.cvtColor(foreground, cv2.COLOR_RGB2RGBA)
-            foreground[:, :, 3] = cv2.cvtColor(foreground, cv2.COLOR_BGR2GRAY)
+            foreground_color = cv2.cvtColor(foreground, cv2.COLOR_RGB2RGBA)
+            foreground[:, :, 3] = cv2.cvtColor(foreground_color, cv2.COLOR_BGR2GRAY)
             fg_h, fg_w, fg_channels = foreground.shape
         if x_offset is None: # center by default
             x_offset = (bg_w - fg_w) // 2
