@@ -65,13 +65,13 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 
 ## Code TODO
 
-> pnpm lint | grep W0511 | awk -F'TODO ' '{print "- "$NF}' | sed 's/ (fixme)//g' | sort
+> npm run todo
  
 - control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
 - hypertile: vae breaks when using non-standard sizes
-- install: enable ROCm for windows when available
+- install: switch to pytorch source when it becomes available
 - loader: load receipe
 - loader: save receipe
 - lora: add other quantization types
@@ -81,5 +81,6 @@ Main ToDo list can be found at [GitHub projects](https://github.com/users/vladma
 - model load: implement model in-memory caching
 - modernui: monkey-patch for missing tabs.select event
 - modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
+- modules/modular_guiders.py:65:58: W0511: TODO: guiders
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent
