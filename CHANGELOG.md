@@ -1,13 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-28
+## Update for 2025-10-29
 
-### Highlights for 2025-10-28
+### Highlights for 2025-10-29
 
 Less than 2 weeks since last release, here's a service-pack style update with a lot of fixes and improvements:
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
   and introduction of optimized **pre-quantized** variants for many popular models - use this as your quick start!  
-- New models: **HunyuanImage 2.1** capable of 2K images natively, **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
+- New models: **HunyuanImage 2.1** capable of 2K images natively, **HunyuanImage 3.0** large unified multimodal autoregressive model,  
+  **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
 - Optimizations to **WAN-2.2** given its popularity  
   plus addition of native **VAE Upscaler** and optimized **pre-quantized** variants  
@@ -19,8 +20,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-
-### Details for 2025-10-28
+### Details for 2025-10-29
 
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
@@ -34,6 +34,8 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
 - **Models Reference**  
   - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
     *HunyuanImage-2.1* is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+  - [Tencent HunyuanImage 3.0](https://huggingface.co/tencent/HunyuanImage-3.0) in [pre-quant](https://huggingface.co/Disty0/HunyuanImage3-SDNQ-uint4-svd-r32) only variant due to massive size  
+    *HunyuanImage 3.0* is very large at 47GB pre-quantized (oherwise its 157GB) that unifies multimodal understanding and generation within an autoregressive framework  
   - [Kandinsky 5 Lite 10s](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-10s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
     second series of models in *Kandinsky5* series is T2V model optimized for 10sec videos and uses Qwen2.5 text encoder  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
@@ -61,6 +63,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - add `xpu` stats in gpu monitor  
 - **Other**
   - improved **SDNQ SVD** and low-bit matmul performance  
+  - reduce RAM usage on model load using **SDNQ SVD**
   - change default **schedulers** for sdxl  
   - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
   - **scheduler** add base and max shift parameters for flow-matching samplers  

@@ -1006,6 +1006,16 @@
     "size": 16.10,
     "extras": ""
   },
+  "Tencent HunyuanImage 3.0": {
+    "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
+    "desc": "HunyuanImage-3.0 is a groundbreaking native multimodal model that unifies multimodal understanding and generation within an autoregressive framework.",
+    "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
+    "extras": "",
+    "skip": true,
+    "tags": "quantized",
+    "size": 57.06,
+    "date": "2025 September"
+  },
   "Tempest-by-Vlad XL sdnq-svd-uint4": {
     "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
     "preview": "tempestByVlad_baseV01.jpg",
