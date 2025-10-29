@@ -183,6 +183,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
             output = SimpleNamespace(images=output)
+        if isinstance(output, Image.Image):
+            output = SimpleNamespace(images=[output])
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
         timer.process.record('pipeline')
@@ -196,7 +198,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             else:
                 shared.log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
-        if isinstance(output.images, np.ndarray):
+        if hasattr(output, 'images') and isinstance(output.images, np.ndarray):
             output.images = torch.from_numpy(output.images)
     except AssertionError as e:
         shared.log.info(e)

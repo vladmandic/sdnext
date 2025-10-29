@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 import torch
 import transformers
 import diffusers
@@ -102,7 +103,7 @@ class HunyuanImage3Wrapper(torch.nn.Module):
         else:
             image_size = (height, width)
 
-        return self.model.generate_image(
+        output = self.model.generate_image(
             prompt,
             image_size=(height, width),
             diff_infer_steps=num_inference_steps,
@@ -112,3 +113,7 @@ class HunyuanImage3Wrapper(torch.nn.Module):
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
             **kwargs,
         )
+
+        if not isinstance(output, list):
+            output = [output]
+        return SimpleNamespace(images=output)
