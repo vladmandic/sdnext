@@ -6,12 +6,16 @@ from enum import Enum
 
 import re
 import torch
+
 from transformers.quantizers import HfQuantizer
 from diffusers.quantizers.base import DiffusersQuantizer
 from diffusers.quantizers.quantization_config import QuantizationConfigMixin
-from diffusers.utils import get_module_from_name
-from modules import devices, shared
 
+from diffusers.utils import get_module_from_name
+from accelerate import init_empty_weights
+from accelerate.utils import set_module_tensor_to_device
+
+from modules import devices, shared
 from .common import dtype_dict, module_skip_keys_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
 from .dequantizer import dequantizer_dict, dequantize_sdnq_model
 from .forward import get_forward_func
@@ -477,8 +481,11 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         model,
         param_value: "torch.Tensor",
         param_name: str,
+        return_true: bool = True,
         *args, **kwargs, # pylint: disable=unused-argument
     ):
+        if return_true:
+            return True
         if self.pre_quantized:
             layer, _tensor_name = get_module_from_name(model, param_name)
             if hasattr(layer, "sdnq_dequantizer"):
@@ -492,9 +499,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                             return True
                     else:
                         return True
-        if param_value is not None and param_value.device.type == "cpu":
-            with devices.inference_context():
-                param_value.data = param_value.clone() # safetensors is unable to release the cpu memory without this
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
@@ -518,10 +522,19 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         target_device: torch.device,
         *args, **kwargs, # pylint: disable=unused-argument
     ):
+        if not self.check_if_quantized_param(model, param_value, param_name, return_true=False):
+            # safetensors is unable to release the cpu memory without this
+            if devices.same_device(param_value.device, target_device):
+                param_value = param_value.clone()
+            else:
+                param_value = param_value.to(target_device)
+            set_module_tensor_to_device(model, param_name, target_device, param_value, param_value.dtype)
+            return
+
         if self.pre_quantized:
             layer, tensor_name = get_module_from_name(model, param_name)
             if param_value is not None:
-                return_dtype = param_value.dtype if tensor_name == "weight" else torch.float32 if self.quantization_config.dequantize_fp32 else self.torch_dtype if self.torch_dtype is not None else param_value.dtype
+                return_dtype = param_value.dtype if tensor_name == "weight" else torch.float32 if self.quantization_config.dequantize_fp32 else kwargs.get("dtype", param_value.dtype if self.torch_dtype is None else self.torch_dtype)
                 if param_value.dtype == return_dtype and devices.same_device(param_value.device, target_device):
                     param_value = param_value.clone()
                 else:
@@ -530,7 +543,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             setattr(layer, tensor_name, param_value)
             return
 
-        torch_dtype = param_value.dtype if self.torch_dtype is None else self.torch_dtype
+        torch_dtype = kwargs.get("dtype", param_value.dtype if self.torch_dtype is None else self.torch_dtype)
         weights_dtype = get_minimum_dtype(self.quantization_config.weights_dtype, param_name, self.quantization_config.modules_dtype_dict)
 
         if self.quantization_config.return_device is not None:
@@ -585,7 +598,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         **kwargs, # pylint: disable=unused-argument
     ):
         if self.pre_quantized:
-            from accelerate import init_empty_weights
             self.quantization_config.quantization_device = None
             self.quantization_config.return_device = None
             self.quantization_config.non_blocking = False
