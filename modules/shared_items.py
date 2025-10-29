@@ -58,6 +58,7 @@ pipelines = {
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
+    'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 

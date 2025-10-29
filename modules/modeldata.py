@@ -80,6 +80,8 @@ def get_model_type(pipe):
         model_type = 'wanai'
     elif 'HDM-xut' in name:
         model_type = 'hdm'
+    elif 'HunyuanImage3' in name:
+        model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:
         model_type = 'hunyuanimage'
     else:
