@@ -113,7 +113,7 @@ def guess_by_name(fn, current_guess):
         return 'Kandinsky 2.2'
     elif 'kandinsky-3' in fn.lower():
         return 'Kandinsky 3.0'
-    elif 'hunyuanimage3' in fn.lower():
+    elif 'hunyuanimage3' in fn.lower() or 'hunyuanimage-3' in fn.lower():
         return 'HunyuanImage3'
     elif 'hunyuanimage' in fn.lower():
         return 'HunyuanImage'

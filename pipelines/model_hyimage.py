@@ -42,21 +42,23 @@ def load_hyimage3(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     sd_models.hf_auth_check(checkpoint_info)
     shared.log.debug(f'Load model: type=HunyuanImage3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
-    from sdnq import SDNQConfig # pylint: disable=unused-import
+    allow_quant = True
+    if 'sdnq-' in repo_id.lower():
+        from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
+        sd_models.allow_post_quant = False # we already handled it
+        allow_quant = False
+    load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=allow_quant)
     pipe = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
-        attn_implementation="sdpa",
         trust_remote_code=True,
-        torch_dtype=devices.dtype,
-        device_map="auto",
+        attn_implementation="sdpa",
         moe_impl="eager",
+        **load_args,
+        **quant_args,
     )
     pipe.load_tokenizer(repo_id)
     pipe.__call__ = pipe.generate_image
-    pipe.task_args = {
-        'stream': True,
-        'diff_infer_steps': 20,
-    }
+    pipe.task_args = {'diff_infer_steps': 20}
 
     devices.torch_gc(force=True, reason='load')
     return pipe
