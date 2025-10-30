@@ -109,4 +109,5 @@ module_skip_keys_dict = {
     ],
 }
 
+module_skip_keys_dict["ChronoEditTransformer3DModel"] = module_skip_keys_dict["WanTransformer3DModel"]
 module_skip_keys_dict["NaDiTUpscaler"] = module_skip_keys_dict["NaDiT"]
