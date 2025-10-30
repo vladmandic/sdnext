@@ -98,7 +98,8 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - avoid unnecessary pipe variant switching  
   - validate pipelines on import  
   - fix `nudenet` process tab operations  
-  - `controlnet` input validation
+  - `controlnet` input validation  
+  - log metadata keys that cannot be applied  
 
 ## Update for 2025-10-18
 
