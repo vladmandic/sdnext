@@ -103,6 +103,10 @@ module_skip_keys_dict = {
         [".patch_embed", ".time_embed", ".time_embed_2", ".final_layer", ".model.wte", ".model.ln_f", ".timestep_emb", ".vae", ".vision_aligner", ".vision_model.head", ".vision_model.post_layernorm", ".vision_model.embeddings", ".lm_head"],
         {}
     ],
+    "Emu3ForCausalLM": [
+        [".lm_head", ".vq_model", ".tokenizer", ".model.embed_tokens", ".model.norm"],
+        {}
+    ],
     "NaDiT": [
         [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
         {}
