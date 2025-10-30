@@ -3,8 +3,10 @@ import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 
 
-def load_qwen(checkpoint_info, diffusers_load_config={}):
+def load_qwen(checkpoint_info, diffusers_load_config=None):
     from pipelines import generic, qwen
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     repo_subfolder = checkpoint_info.subfolder
     sd_models.hf_auth_check(checkpoint_info)

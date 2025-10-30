@@ -6,7 +6,9 @@ from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hi
 from pipelines import generic
 
 
-def load_bria(checkpoint_info, diffusers_load_config={}):
+def load_bria(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

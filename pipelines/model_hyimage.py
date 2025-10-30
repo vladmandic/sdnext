@@ -6,7 +6,9 @@ from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hi
 from pipelines import generic
 
 
-def load_hyimage(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
+def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
@@ -39,7 +41,9 @@ def load_hyimage(checkpoint_info, diffusers_load_config={}): # pylint: disable=u
     return pipe
 
 
-def load_hyimage3(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
+def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
     shared.log.debug(f'Load model: type=HunyuanImage3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
