@@ -31,7 +31,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                     "mtime": mtime,
                     "size": size,
                     "info": info,
-                    "description": self.find_description(filename, info),
+                    "description": self.find_description(filename, info, markdown=True),
                     "version": version.get("baseModel", "N/A") if info else "N/A",
                 }
                 yield record

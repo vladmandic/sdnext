@@ -15,6 +15,7 @@ from collections import OrderedDict
 import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
+from html_to_markdown import convert as to_markdown, ConversionOptions
 from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 
 
@@ -48,6 +49,13 @@ card_list = '''
     </div>
 '''
 preview_map = None
+
+markdown_options = ConversionOptions(
+    code_block_style="backticks",
+    newline_style="backslash",
+    wrap=True,
+    wrap_width=80
+)
 
 
 def init_api():
@@ -91,14 +99,14 @@ def init_api():
         # shared.log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
         return JSONResponse({"info": info})
 
-    def get_desc(page: str = "", item: str = ""):
+    def get_desc(page: str = "", item: str = "", markdown: bool = False):
         page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'description': 'none' })
         item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'description': 'none' })
-        desc = page.find_description(item.get('filename', None) or item.get('name', None))
+        desc = page.find_description(item.get('filename', None) or item.get('name', None), markdown=markdown)
         if desc is None:
             desc = ''
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
@@ -461,7 +469,7 @@ class ExtraNetworksPage:
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
-    def find_description(self, path, info=None):
+    def find_description(self, path, info=None, markdown=False):
         t0 = time.time()
         class HTMLFilter(HTMLParser):
             text = ""
@@ -472,23 +480,29 @@ class ExtraNetworksPage:
                     self.text += '\n'
 
         if path is not None:
-            fn = os.path.splitext(path)[0] + '.txt'
-            if os.path.exists(fn):
+            txt_fn = os.path.splitext(path)[0] + '.txt'
+            if not (markdown and shared.opts.extra_networks_desc_use_json) and os.path.exists(txt_fn):
                 try:
-                    with open(fn, "r", encoding="utf-8", errors="replace") as f:
+                    with open(txt_fn, "r", encoding="utf-8", errors="replace") as f:
                         txt = f.read()
                         txt = re.sub('[<>]', '', txt)
-                        return txt
+                        if txt != '':
+                            return txt
                 except OSError:
                     pass
             if info is None:
                 info = self.find_info(path)
         desc = info.get('description', '') or ''
-        f = HTMLFilter()
-        f.feed(desc)
+        if markdown:
+            # TODO: Try to preprocess HTML and locally cache images (basename_cache/*)
+            desc = to_markdown(desc, markdown_options)
+        else:
+            f = HTMLFilter()
+            f.feed(desc)
+            desc = f.text
         t1 = time.time()
         self.desc_time += t1-t0
-        return f.text
+        return "No description available" if desc == '' else desc
 
     def find_info(self, path):
         data = {}
@@ -496,13 +510,26 @@ class ExtraNetworksPage:
             return data
         if path is not None:
             t0 = time.time()
-            fn = os.path.splitext(path)[0] + '.json'
-            if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True)
-            fn = os.path.join(path, 'model_index.json')
-            if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True)
-            if type(data) is list:
+            base_filename = os.path.splitext(path)[0]
+            base_dir = os.path.split(path)[0]
+            exts_str: str = shared.opts.extra_networks_desc_lookup or ''
+            exts: list[str] = exts_str.split(",") + [".json", "model_index.json"]
+            exts = [val.strip() for val in exts] # Remove whitespace
+            exts = list(filter(lambda item: item != '', exts)) # Remove empty
+            for ext_val in exts:
+                if ext_val.endswith("json"):
+                    if ext_val.startswith("."):
+                        fn = base_filename + ext_val
+                    else:
+                        fn = base_dir + ext_val # If str doesn't start with ".", assume it's a file name
+                else:
+                    continue # Skip non-json files
+                if os.path.exists(fn):
+                    data = shared.readfile(fn, silent=True)
+                    if not data:
+                        continue # Try next file
+                    break # Found data
+            if isinstance(data, list):
                 data = data[0]
             t1 = time.time()
             self.info_time += t1-t0
@@ -663,7 +690,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         with gr.Group(elem_id=f"{tabname}_extra_details_tabs", visible=False) as ui.details_tabs:
             with gr.Tabs():
                 with gr.Tab('Description', elem_classes=['extra-details-tabs']):
-                    desc = gr.Textbox('', show_label=False, lines=8, placeholder="Network description...")
+                    desc = gr.Markdown('Network description...', show_label=False)
                     ui.details_components.append(desc)
                     with gr.Row():
                         btn_save_desc = gr.Button('Save', elem_classes=['small-button'], elem_id=f'{tabname}_extra_details_save_desc')

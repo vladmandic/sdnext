@@ -736,6 +736,10 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
+
+    "extra_networks_desc_lookup_sep": OptionInfo("<h2>Model Description Lookup</h2>", "", gr.HTML),
+    "extra_networks_desc_use_json": OptionInfo(False, "Get full description from JSON", gr.Checkbox),
+    "extra_networks_desc_lookup": OptionInfo("", "Preferred JSON source for description (Comma separated list) [Must be in the same directory as the model file. Values starting with '.' will be based on the file name of the model.] ", gr.Textbox),
 }))
 
 options_templates.update(options_section(('extensions', "Extensions"), {
