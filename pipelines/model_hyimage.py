@@ -66,7 +66,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     )
     pipe.load_tokenizer(repo_id)
 
-    pipe.pipeline # call it to set up pipeline
+    pipe.pipeline # noqa: B018 # call it to set up pipeline
     pipe = HunyuanImage3Wrapper(pipe)
 
     devices.torch_gc(force=True, reason='load')
@@ -110,7 +110,7 @@ class HunyuanImage3Wrapper(torch.nn.Module):
 
         output = self.model.generate_image(
             prompt,
-            image_size=(height, width),
+            image_size=image_size,
             diff_infer_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             guidance_rescale=guidance_rescale,
