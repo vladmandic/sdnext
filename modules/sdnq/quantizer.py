@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from accelerate.utils import set_module_tensor_to_device
 
 from modules import devices, shared
-from .common import dtype_dict, module_skip_keys_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
+from .common import dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weights, use_tensorwise_fp8_matmul, allowed_types, conv_types, conv_transpose_types, use_contiguous_mm
 from .dequantizer import dequantizer_dict, dequantize_sdnq_model
 from .forward import get_forward_func
 
@@ -119,6 +119,8 @@ def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, module
         modules_dtype_dict = {}
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
+    if getattr(model, "_tied_weights_keys", None) is not None:
+        modules_to_not_convert.extend(model._tied_weights_keys) # pylint: disable=protected-access
 
     skip_key_list = module_skip_keys_dict.get(model.__class__.__name__, None)
     if skip_key_list is not None:
@@ -128,8 +130,10 @@ def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, module
                 modules_dtype_dict[key].extend(value)
             else:
                 modules_dtype_dict[key] = value
-    elif getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
-        modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
+    else:
+        modules_to_not_convert.extend(common_skip_keys)
+        if getattr(model, "_skip_layerwise_casting_patterns", None) is not None:
+            modules_to_not_convert.extend(model._skip_layerwise_casting_patterns) # pylint: disable=protected-access
 
     # dedupe
     modules_to_not_convert = list(set(modules_to_not_convert))
