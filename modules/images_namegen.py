@@ -81,7 +81,7 @@ class FilenameGenerator:
         if prompt is not None:
             self.prompt = prompt
         else:
-            self.prompt = p.prompt if p is not None and getattr(p, 'prompt', '') is not '' else ''
+            self.prompt = p.prompt if p is not None and getattr(p, 'prompt', '') != '' else ''
         if isinstance(self.prompt, list):
             self.prompt = ' '.join(self.prompt)
         self.image = image
