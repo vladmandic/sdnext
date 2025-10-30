@@ -87,7 +87,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "size": size,
                 "version": version.get("baseModel", l.sd_version),
                 "info": info,
-                "description": self.find_description(l.filename, info),
+                "description": self.find_description(l.filename, info, markdown=True),
                 "tags": self.get_tags(l, info, version),
             }
             return item

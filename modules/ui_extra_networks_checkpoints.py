@@ -119,7 +119,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "size": size,
             }
             record['info'] = self.find_info(checkpoint.filename)
-            record['description'] = self.find_description(checkpoint.filename, record['info'])
+            record['description'] = self.find_description(checkpoint.filename, record['info'], markdown=True)
             version = self.find_version(checkpoint, record['info'])
             if 'baseModel' in version:
                 record['version'] = version.get("baseModel", "")

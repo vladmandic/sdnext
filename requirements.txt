@@ -58,6 +58,8 @@ pyparsing==3.2.3
 typing-extensions==4.14.1
 sentencepiece==0.2.1
 
+html_to_markdown[lxml]~=2.5
+
 # additional
 blendmodes
 scipy==1.14.1

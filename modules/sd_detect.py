@@ -179,7 +179,7 @@ def detect_pipeline(f: str, op: str = 'model'):
     pipeline = None
     if guess == 'Autodetect':
         try:
-            guess = 'Stable Diffusion XL' if 'XL' in f.upper() else 'Stable Diffusion' # set default guess
+            guess = 'Stable Diffusion XL' if ('XL' in f.upper() or 'SDNQ' in f.upper()) else 'Stable Diffusion' # set default guess
             guess = guess_by_size(f, guess)
             guess = guess_by_name(f, guess)
             guess, pipeline = guess_by_diffusers(f, guess)
