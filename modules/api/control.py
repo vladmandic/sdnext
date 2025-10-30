@@ -37,28 +37,6 @@ ReqControl = models.create_model_from_signature(
 if not hasattr(ReqControl, "__config__"):
     ReqControl.__config__ = models.DummyConfig
 
-"""
-ReqControl = models.PydanticModelGenerator(
-    "StableDiffusionProcessingControl",
-    StableDiffusionProcessingControl,
-    [
-        {"key": "sampler_index", "type": Union[int, str], "default": 0},
-        {"key": "sampler_name", "type": str, "default": "Default"},
-        {"key": "script_name", "type": Optional[str], "default": ""},
-        {"key": "script_args", "type": list, "default": []},
-        {"key": "send_images", "type": bool, "default": True},
-        {"key": "save_images", "type": bool, "default": False},
-        {"key": "alwayson_scripts", "type": dict, "default": {}},
-        {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
-        {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
-        {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
-        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
-    ]
-).generate_model()
-if not hasattr(ReqControl, "__config__"):
-    ReqControl.__config__ = models.DummyConfig
-"""
-
 
 class ResControl(BaseModel):
     images: List[str] = Field(default=None, title="Images", description="")
@@ -71,6 +49,7 @@ class APIControl():
     def __init__(self, queue_lock: Lock):
         self.queue_lock = queue_lock
         self.default_script_arg = []
+        self.units = []
 
     def sanitize_args(self, args: dict):
         args = vars(args)
@@ -142,29 +121,38 @@ class APIControl():
         from modules.control.unit import Unit, unit_types
         req.units = []
         if req.unit_type is None:
-            return req.control
+            req.unit_type = 'controlnet'
         if req.unit_type not in unit_types:
             shared.log.error(f'Control uknown unit type: type={req.unit_type} available={unit_types}')
-            return req.control
-        for u in req.control:
-            unit = Unit(
-                enabled = True,
-                unit_type = req.unit_type,
-                model_id = u.model,
-                process_id = u.process,
-                strength = u.strength,
-                start = u.start,
-                end = u.end,
-            )
+            return
+        for i in range(len(req.control)):
+            u = req.control[i]
+            if (len(self.units) > i) and (self.units[i].process_id == u.process) and (self.units[i].model_id == u.model):
+                unit = self.units[i]
+                unit.enabled = True
+                unit.strength = u.strength
+                unit.start = u.start
+                unit.end = u.end
+            else:
+                unit = Unit(
+                    enabled = True,
+                    unit_type = req.unit_type,
+                    model_id = u.model,
+                    process_id = u.process,
+                    strength = u.strength,
+                    start = u.start,
+                    end = u.end,
+                )
             if u.override is not None:
                 unit.override = helpers.decode_base64_to_image(u.override)
             req.units.append(unit)
-        return req.control
+        self.units = req.units
+        del req.control
 
     def post_control(self, req: ReqControl):
         self.prepare_face_module(req)
-        orig_control = self.prepare_control(req)
-        del req.control
+        requested = req.control
+        self.prepare_control(req)
 
         # prepare args
         args = req.copy(update={  # Override __init__ params
@@ -203,5 +191,5 @@ class APIControl():
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []
         b64processed = list(map(helpers.encode_pil_to_base64, output_processed)) if send_images else []
         self.sanitize_b64(req)
-        req.units = orig_control
+        req.units = requested
         return ResControl(images=b64images, processed=b64processed, params=vars(req), info=output_info)

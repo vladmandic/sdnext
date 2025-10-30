@@ -265,7 +265,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 output.images = [TF.to_pil_image(output.images[i].permute(2,0,1)) for i in range(output.images.shape[0])]
 
         strength = p.hr_denoising_strength if p.hr_denoising_strength > 0 else p.denoising_strength
-        if (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:
+        if (p.hr_upscaler is not None) and (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:
             p.ops.append('hires')
             sd_models_compile.openvino_recompile_model(p, hires=True, refiner=False)
             if shared.sd_model.__class__.__name__ == "OnnxRawPipeline":

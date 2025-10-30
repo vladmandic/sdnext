@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-29
+## Update for 2025-10-30
 
-### Highlights for 2025-10-29
+### Highlights for 2025-10-30
 
 Less than 2 weeks since last release, here's a service-pack style update with a lot of fixes and improvements:
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
@@ -20,7 +20,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-10-29
+### Details for 2025-10-30
 
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
@@ -73,6 +73,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - enhanced LoRA support for **Wan-2.2-14B**  
   - log available attention mechanisms on startup  
   - support for switching back-and-forth **t2i** and **t2v** for *wan-2.x* models  
+  - control `api` cache controlnets  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
@@ -97,6 +98,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - avoid unnecessary pipe variant switching  
   - validate pipelines on import  
   - fix `nudenet` process tab operations  
+  - `controlnet` input validation
 
 ## Update for 2025-10-18
 

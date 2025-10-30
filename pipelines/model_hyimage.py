@@ -66,7 +66,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     )
     pipe.load_tokenizer(repo_id)
 
-    pipe.pipeline # noqa: B018 # call it to set up pipeline
+    pipe.pipeline # noqa: B018 # call it to set up pipeline # pylint: disable=pointless-statement
     pipe = HunyuanImage3Wrapper(pipe)
 
     devices.torch_gc(force=True, reason='load')

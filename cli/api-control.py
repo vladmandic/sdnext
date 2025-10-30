@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# example: api-control.py --prompt "anime girl" --control "Canny:Canny:1.0:0.1:0.9:/home/vlado/generative/Samples/anime1.jpg,None:Depth:0.9:0.0:1.0:/home/vlado/generative/Samples/anime1.jpg" --hires --detailer --output /tmp/anime.jpg
 import os
 import io
 import time
@@ -70,10 +71,12 @@ def generate(args): # pylint: disable=redefined-outer-name
     options['negative_prompt'] = args.negative
     options['steps'] = int(args.steps)
     options['seed'] = int(args.seed)
-    options['sampler_name'] = args.sampler
+    if args.sampler is not None:
+        options['sampler_name'] = args.sampler
 
     if args.control is not None:
-        options['unit_type'] = args.type
+        if args.type is not None:
+            options['unit_type'] = args.type
         options['control'] = []
         for control in args.control.split(','):
             u = control.split(':')
@@ -86,7 +89,9 @@ def generate(args): # pylint: disable=redefined-outer-name
                 'strength': float(u[2].strip()) if len(u) > 2 else 1.0,
                 'start': float(u[3].strip()) if len(u) > 3 else 0.0,
                 'end': float(u[4].strip()) if len(u) > 4 else 1.0,
+                'override': encode(u[5].strip()) if len(u) > 5 else None,
             })
+        log.info(f'added control: {options["control"]}')
 
     if args.ipadapter is not None:
         options['ip_adapter'] = []
@@ -108,6 +113,13 @@ def generate(args): # pylint: disable=redefined-outer-name
 
     if args.mask is not None:
         options['mask'] = encode(args.mask)
+
+    if args.detailer:
+        options['detailer_enabled'] = True
+
+    if args.hires:
+        options['enable_hr'] = True
+        options['hr_force'] = True
 
     data = post('/sdapi/v1/control', options)
     t1 = time.time()
@@ -141,13 +153,15 @@ if __name__ == "__main__":
     parser.add_argument('--negative', required=False, default='', help='negative prompt text')
     parser.add_argument('--steps', required=False, default=20, help='number of steps')
     parser.add_argument('--seed', required=False, default=-1, help='initial seed')
-    parser.add_argument('--sampler', required=False, default='UniPC', help='sampler name')
+    parser.add_argument('--sampler', required=False, default=None, help='sampler name')
     parser.add_argument('--output', required=False, default=None, help='output image file')
     parser.add_argument('--processed', required=False, default=None, help='processed output file')
     parser.add_argument('--model', required=False, help='model name')
-    parser.add_argument('--type', required=False, help='control type')
+    parser.add_argument('--type', required=False, default="controlnet", help='control type')
     parser.add_argument('--control', required=False, help='control units')
     parser.add_argument('--ipadapter', required=False, help='ipadapter units')
+    parser.add_argument('--detailer', required=False, default=False, action='store_true', help='force detailer')
+    parser.add_argument('--hires', required=False, default=False, action='store_true', help='force hires')
     args = parser.parse_args()
     log.info(f'api-control: {args}')
     generate(args)

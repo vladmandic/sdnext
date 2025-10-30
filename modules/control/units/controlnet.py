@@ -295,7 +295,7 @@ class ControlNet():
             self.load_config['original_config_file '] = config_path
         self.model = cls.from_single_file(model_path, config=config, **self.load_config)
 
-    def load(self, model_id: str = None, force: bool = True) -> str:
+    def load(self, model_id: str = None, force: bool = False) -> str:
         with load_lock:
             try:
                 t0 = time.time()
@@ -387,9 +387,9 @@ class ControlNet():
                         log.warning(f"Control compile error: {e}")
                 t1 = time.time()
                 self.model_id = model_id
-                log.info(f'Control {what} model loaded: id="{model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
+                log.info(f'Control {what} model loaded: id="{self.model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
                 state.end(jobid)
-                return f'{what} loaded model: {model_id}'
+                return f'{what} loaded model: {self.model_id}'
             except Exception as e:
                 log.error(f'Control {what} model load: id="{model_id}" {e}')
                 errors.display(e, f'Control {what} load')

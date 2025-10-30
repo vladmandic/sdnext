@@ -53,9 +53,22 @@ def is_unified_model():
     return shared.sd_model.__class__.__name__ in unified_models
 
 
-def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits=None):
+def has_inputs(inputs):
+    current = inputs or []
+    current = current if isinstance(current, list) else [current]
+    current = [input for input in current if input is not None]
+    if current is None or len(current) == 0:
+        return False
+    return True
+
+
+def set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits=None, inputs=None):
     global pipe, instance # pylint: disable=global-statement
     pipe = None
+    if has_models and not has_inputs(inits) and not has_inputs(inputs):
+        if not any(has_inputs(u.override) for u in active_units if u.enabled): # check overrides
+            shared.log.error('Control: no input images')
+            return pipe
     if has_models:
         p.ops.append('control')
         p.extra_generation_params["Control type"] = unit_type # overriden later with pretty-print
@@ -132,6 +145,7 @@ def check_active(p, unit_type, units):
     active_strength: List[float] = [] # strength factors for all active models
     active_start: List[float] = [] # start step for all active models
     active_end: List[float] = [] # end step for all active models
+    active_units: List[unit.Unit] = [] # all active units
     num_units = 0
     for u in units:
         if u.type != unit_type:
@@ -151,6 +165,7 @@ def check_active(p, unit_type, units):
             active_model.append(u.adapter)
             active_strength.append(float(u.strength))
             p.adapter_conditioning_factor = u.factor
+            active_units.append(u)
             shared.log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
         elif unit_type == 'controlnet' and (u.controlnet.model is not None or is_unified_model()):
             active_process.append(u.process)
@@ -159,6 +174,7 @@ def check_active(p, unit_type, units):
             active_start.append(float(u.start))
             active_end.append(float(u.end))
             p.guess_mode = u.guess
+            active_units.append(u)
             if isinstance(u.mode, str):
                 if not hasattr(p, 'control_mode'):
                     p.control_mode = []
@@ -173,11 +189,13 @@ def check_active(p, unit_type, units):
             active_strength.append(float(u.strength))
             active_start.append(float(u.start))
             active_end.append(float(u.end))
+            active_units.append(u)
             shared.log.debug(f'Control ControlNet-XS unit: i={num_units} process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'lite' and u.controlnet.model is not None:
             active_process.append(u.process)
             active_model.append(u.controlnet)
             active_strength.append(float(u.strength))
+            active_units.append(u)
             shared.log.debug(f'Control ControlLLite unit: i={num_units} process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'reference':
             p.override = u.override
@@ -185,14 +203,16 @@ def check_active(p, unit_type, units):
             p.query_weight = float(u.query_weight)
             p.adain_weight = float(u.adain_weight)
             p.fidelity = u.fidelity
+            active_units.append(u)
             shared.log.debug('Control Reference unit')
         else:
             if u.process.processor_id is not None:
                 active_process.append(u.process)
+                active_units.append(u)
                 shared.log.debug(f'Control process unit: i={num_units} process={u.process.processor_id}')
             active_strength.append(float(u.strength))
     debug_log(f'Control active: process={len(active_process)} model={len(active_model)}')
-    return active_process, active_model, active_strength, active_start, active_end
+    return active_process, active_model, active_strength, active_start, active_end, active_units
 
 
 def check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end):
@@ -258,7 +278,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
-                detailer_enabled: bool = True, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
+                detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
@@ -419,7 +439,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         return [], '', '', 'Error: model not loaded'
 
     unit_type = unit_type.strip().lower() if unit_type is not None else ''
-    active_process, active_model, active_strength, active_start, active_end = check_active(p, unit_type, units)
+    active_process, active_model, active_strength, active_start, active_end, active_units = check_active(p, unit_type, units)
     has_models, selected_models, control_conditioning, control_guidance_start, control_guidance_end = check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end)
 
     image_txt = ''
@@ -429,7 +449,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if is_unified_model():
         p.init_images = inputs
 
-    pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
+    pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits, inputs)
     debug_log(f'Control pipeline: class={pipe.__class__.__name__} args={vars(p)}')
     status = True
     frame = None
