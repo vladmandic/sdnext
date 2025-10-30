@@ -404,8 +404,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_control_grids,
         # overrides
         override_settings=extra
-
     )
+
     p.state = state
     p.is_tile = False
     p.init_control = inits or []

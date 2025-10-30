@@ -252,7 +252,8 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                         val = valtype(v)
                     res.append(gr.update(value=val))
                     applied[key] = val
-                except Exception:
+                except Exception as e:
+                    shared.log.error(f'Paste param: key="{key}" value="{v}" error="{e}"')
                     res.append(gr.update())
         list_applied = [{k: v} for k, v in applied.items() if not callable(v) and not callable(k)]
         shared.log.debug(f"Prompt restore: apply={list_applied} skip={skipped}")
