@@ -438,6 +438,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
 
+            # main processing
             if samples is None:
                 from modules.processing_diffusers import process_diffusers
                 samples = process_diffusers(p)

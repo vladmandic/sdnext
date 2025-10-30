@@ -8,6 +8,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
   and introduction of optimized **pre-quantized** variants for many popular models - use this as your quick start!  
 - New models: **HunyuanImage 2.1** capable of 2K images natively, **HunyuanImage 3.0** large unified multimodal autoregressive model,  
+  **ChronoEdit** that re-purposes temporal consistency of generation for image editing  
   **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
 - Optimizations to **WAN-2.2** given its popularity  
@@ -36,6 +37,10 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
     *HunyuanImage-2.1* is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
   - [Tencent HunyuanImage 3.0](https://huggingface.co/tencent/HunyuanImage-3.0) in [pre-quant](https://huggingface.co/Disty0/HunyuanImage3-SDNQ-uint4-svd-r32) only variant due to massive size  
     *HunyuanImage 3.0* is very large at 47GB pre-quantized (oherwise its 157GB) that unifies multimodal understanding and generation within an autoregressive framework  
+  - [nVidia ChronoEdit](https://huggingface.co/nvidia/ChronoEdit-14B-Diffusers)  
+    *ChronoEdit* is a 14B image editing model based on *WAN*  
+    this model reframes image editing as a video generation task, using input and edited images as start/end frames to leverage pretrained video models with temporal consistency  
+    to extend temporal consistency for image editing, set *settings -> model options -> chrono temporal steps* to desired number of temporaly reasoning steps  
   - [Kandinsky 5 Lite 10s](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-10s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
     second series of models in *Kandinsky5* series is T2V model optimized for 10sec videos and uses Qwen2.5 text encoder  
   - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  

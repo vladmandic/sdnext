@@ -135,7 +135,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
             text_encoder = model_te.load_t5(local_file)
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
         # use shared t5 if possible
-        elif cls_name == transformers.T5EncoderModel and allow_shared:
+        elif cls_name == transformers.T5EncoderModel and allow_shared and shared.opts.te_shared_t5:
             if model_quant.check_nunchaku('TE'):
                 import nunchaku
                 repo_id = 'nunchaku-tech/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
@@ -146,7 +146,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                     torch_dtype=dtype,
                 )
                 text_encoder.quantization_method = 'SVDQuant'
-            elif shared.opts.te_shared_t5:
+            else:
                 if 'sdnq-uint4-svd' in repo_id.lower():
                     repo_id = 'Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32'
                     load_args['subfolder'] = 'text_encoder_2'
@@ -163,20 +163,35 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                     **load_args,
                     **quant_args,
                 )
-        elif cls_name == transformers.Qwen2_5_VLForConditionalGeneration and allow_shared:
-            if shared.opts.te_shared_t5:
-                repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
-                subfolder = 'text_encoder'
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
-                if dtype is not None:
-                    load_args['torch_dtype'] = dtype
-                text_encoder = cls_name.from_pretrained(
-                    repo_id,
-                    cache_dir=shared.opts.hfcache_dir,
-                    subfolder=subfolder,
-                    **load_args,
-                    **quant_args,
-                )
+        elif cls_name == transformers.UMT5EncoderModel and allow_shared and shared.opts.te_shared_t5:
+            if 'sdnq-uint4-svd' in repo_id.lower():
+                repo_id = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
+            else:
+                repo_id = 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers'
+            subfolder = 'text_encoder'
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
+            text_encoder = cls_name.from_pretrained(
+                repo_id,
+                cache_dir=shared.opts.hfcache_dir,
+                subfolder=subfolder,
+                **load_args,
+                **quant_args,
+            )
+        elif cls_name == transformers.Qwen2_5_VLForConditionalGeneration and allow_shared and shared.opts.te_shared_t5:
+            repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
+            subfolder = 'text_encoder'
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
+            text_encoder = cls_name.from_pretrained(
+                repo_id,
+                cache_dir=shared.opts.hfcache_dir,
+                subfolder=subfolder,
+                **load_args,
+                **quant_args,
+            )
 
         # load from repo
         if text_encoder is None:

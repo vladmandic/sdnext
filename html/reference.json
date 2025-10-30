@@ -458,6 +458,13 @@
     "size": 7.51,
     "date": "2024 November"
   },
+  "nVidia ChronoEdit": {
+    "path": "nvidia/ChronoEdit-14B-Diffusers",
+    "preview": "nvidia--ChronoEdit-14B-Diffusers.jpg",
+    "desc": "ChronoEdit reframes image editing as a video generation task, using input and edited images as start/end frames to leverage pretrained video models with temporal consistency.",
+    "skip": true,
+    "extras": ""
+  },
   "nVidia Cosmos-Predict2 T2I 2B": {
     "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",

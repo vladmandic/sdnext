@@ -138,8 +138,11 @@ def task_specific_kwargs(p, model):
             'width': p.width,
             'height': p.height,
         }
-    if ('WanImageToVideoPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images[0]
+    if ('WanImageToVideoPipeline' in model_cls) or ('ChronoEditPipeline' in model_cls):
+        if (p.init_images is not None) and (len(p.init_images) > 0):
+            task_args['image'] = p.init_images[0]
+        else:
+            task_args['image'] = Image.new('RGB', (p.width, p.height), (0, 0, 0)) # monkey-patch so wan-i2i pipeline does not error-out on t2i
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
     if 'BlipDiffusionPipeline' in model_cls:

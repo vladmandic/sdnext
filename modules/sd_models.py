@@ -48,6 +48,7 @@ pipe_switch_task_exclude = [
     'XOmniPipeline',
     'HunyuanImagePipeline',
     'AuraFlowPipeline',
+    'ChronoEditPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -365,6 +366,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['WanAI']:
             from pipelines.model_wanai import load_wan
             sd_model = load_wan(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['ChronoEdit']:
+            from pipelines.model_chrono import load_chrono
+            sd_model = load_chrono(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Bria']:
             from pipelines.model_bria import load_bria

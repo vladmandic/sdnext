@@ -24,6 +24,7 @@ exclude = [
     "pipelines/hdm",
     "pipelines/segmoe",
     "pipelines/xomni",
+    "pipelines/chrono",
 
     "scripts/lbm",
     "scripts/daam",

@@ -76,7 +76,7 @@ def get_model_type(pipe):
     elif "Allegro" in name:
         model_type = 'allegrovideo'
     # hybrid models
-    elif 'Wan' in name:
+    elif 'Wan' in name or 'ChronoEdit' in name:
         model_type = 'wanai'
     elif 'HDM-xut' in name:
         model_type = 'hdm'

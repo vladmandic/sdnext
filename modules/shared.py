@@ -170,6 +170,8 @@ options_templates.update(options_section(('model_options', "Model Options"), {
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
     "model_wan_stage": OptionInfo("low noise", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
+    "model_chrono_sep": OptionInfo("<h2>ChronoEdit</h2>", "", gr.HTML),
+    "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {

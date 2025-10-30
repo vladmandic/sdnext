@@ -101,6 +101,8 @@ def guess_by_name(fn, current_guess):
         return 'FLite'
     elif 'wan' in fn.lower():
         return 'WanAI'
+    if 'chronoedit' in fn.lower():
+        return 'ChronoEdit'
     elif 'bria' in fn.lower():
         return 'Bria'
     elif 'qwen' in fn.lower():
@@ -210,7 +212,6 @@ def detect_pipeline(f: str, op: str = 'model'):
             shared.log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
 
     if pipeline is None:
-        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" not recognized')
         pipeline = diffusers.DiffusionPipeline
     return pipeline, guess
 

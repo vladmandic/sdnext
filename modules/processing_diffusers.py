@@ -223,6 +223,9 @@ def process_base(p: processing.StableDiffusionProcessing):
     finally:
         process_post(p)
 
+    if hasattr(shared.sd_model, 'postprocess') and callable(shared.sd_model.postprocess):
+        output = shared.sd_model.postprocess(p, output)
+
     shared.state.end(jobid)
     shared.state.nextjob()
     return output
@@ -328,6 +331,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 modelstats.analyze()
             finally:
                 process_post(p)
+            if hasattr(shared.sd_model, 'postprocess') and callable(shared.sd_model.postprocess):
+                output = shared.sd_model.postprocess(p, output)
             if orig_image is not None:
                 p.task_args['image'] = orig_image
             p.denoising_strength = orig_denoise

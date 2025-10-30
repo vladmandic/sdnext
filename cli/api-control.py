@@ -121,6 +121,13 @@ def generate(args): # pylint: disable=redefined-outer-name
         options['enable_hr'] = True
         options['hr_force'] = True
 
+    if args.upscaler is not None:
+        options['enable_hr'] = True
+        options['hr_force'] = True
+        options['hr_scale'] = 2
+        options['hr_resize_mode'] = 1
+        options['hr_upscaler'] = args.upscaler
+
     data = post('/sdapi/v1/control', options)
     t1 = time.time()
     if 'info' in data:
@@ -162,6 +169,7 @@ if __name__ == "__main__":
     parser.add_argument('--ipadapter', required=False, help='ipadapter units')
     parser.add_argument('--detailer', required=False, default=False, action='store_true', help='force detailer')
     parser.add_argument('--hires', required=False, default=False, action='store_true', help='force hires')
+    parser.add_argument('--upscaler', required=False, default=None, help='upscaler name')
     args = parser.parse_args()
     log.info(f'api-control: {args}')
     generate(args)
