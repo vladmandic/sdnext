@@ -53,6 +53,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config={}): # pylint: disable=
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=allow_quant)
     pipe = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
+        cache_dir=shared.opts.diffusers_dir,
         trust_remote_code=True,
         attn_implementation="sdpa",
         moe_impl="eager",
