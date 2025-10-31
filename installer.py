@@ -1442,7 +1442,8 @@ def get_version(force=False):
                 'updated': updated,
                 'hash': githash,
                 'branch': branch_name.replace('\n', ''),
-                'url': origin.replace('\n', '') + '/tree/' + branch_name.replace('\n', '')
+                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
+                'fork': origin.replace('\n', '').split('/sdnext')[0].split('/')[-1]
             }
         except Exception:
             version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
@@ -1533,6 +1534,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
     branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
+    fork_name = ver['fork'] if ver is not None and 'fork' in ver else 'vladmandic'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1547,7 +1549,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         return
     commits = None
     try:
-        commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
+        commits = requests.get(f'https://api.github.com/repos/{fork_name}/sdnext/branches/{branch_name}', timeout=10).json()
         if commits['commit']['sha'] != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False
