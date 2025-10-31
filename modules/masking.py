@@ -421,7 +421,7 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
         mask = run_segment(input_image, input_mask)
     mask = cv2.resize(mask, (input_image.width, input_image.height), interpolation=cv2.INTER_LANCZOS4)
 
-    shared.log.trace(f'Mask shape={mask.shape} opts={opts} fn={fn}')
+    # shared.log.trace(f'Mask shape={mask.shape} opts={opts} fn={fn}')
     if opts.mask_erode > 0:
         try:
             kernel = np.ones((int(opts.mask_erode * size / 4) + 1, int(opts.mask_erode * size / 4) + 1), np.uint8)
