@@ -437,4 +437,3 @@ def update_token_counter(text: str):
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
     return gr.update(value=f"<span class='gr-box gr-text-input' title='{sum(token_count)}'>{token_count} / {max_length}</span>", visible=is_visible)
-
