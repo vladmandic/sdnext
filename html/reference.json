@@ -1013,9 +1013,19 @@
     "size": 16.10,
     "extras": ""
   },
-  "Tencent HunyuanImage 3.0": {
+  "nVidia ChronoEdit sdnq-svd-uint4": {
+    "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
+    "preview": "nvidia--ChronoEdit-14B-Diffusers.jpg",
+    "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 18.10,
+    "extras": ""
+  },
+  "Tencent HunyuanImage 3.0 sdnq-svd-uint4": {
     "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
-    "desc": "HunyuanImage-3.0 is a groundbreaking native multimodal model that unifies multimodal understanding and generation within an autoregressive framework.",
+    "desc": "Quantization of tencent/HunyuanImage-3.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
     "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
     "extras": "",
     "skip": true,

@@ -80,6 +80,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - log available attention mechanisms on startup  
   - support for switching back-and-forth **t2i** and **t2v** for *wan-2.x* models  
   - control `api` cache controlnets  
+  - additional model modules **deduplication** for both normal and pre-quant models: *umt5, qwen25-vl*  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
