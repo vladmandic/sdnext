@@ -260,7 +260,7 @@ class State:
         if self.job == 'VAE' or self.job == 'Upscale': # avoid generating preview while vae is running
             return False
         from modules.shared import opts, cmd_opts
-        if cmd_opts.lowvram or self.api or (not opts.live_previews_enable) or (opts.show_progress_every_n_steps <= 0):
+        if cmd_opts.lowvram or self.api or (opts.show_progress_every_n_steps <= 0):
             return False
         if (not self.disable_preview) and (abs(self.sampling_step - self.current_image_sampling_step) >= opts.show_progress_every_n_steps):
             return self.do_set_current_image()

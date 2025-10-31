@@ -123,11 +123,11 @@ def task_specific_kwargs(p, model):
         }
 
     # model specific args
-    if 'QwenImageEdit' in model_cls and (p.init_images is None or len(p.init_images) == 0):
+    if ('QwenImageEdit' in model_cls) and (p.init_images is None or len(p.init_images) == 0):
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
-    if 'QwenImageEditPlusPipeline' in model_cls and p.init_control is not None and len(p.init_control) > 0:
+    if ('QwenImageEditPlusPipeline' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
-    if 'LatentConsistencyModelPipeline' in model_cls and len(p.init_images) > 0:
+    if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
@@ -138,6 +138,13 @@ def task_specific_kwargs(p, model):
             'width': p.width,
             'height': p.height,
         }
+    if ('WanImageToVideoPipeline' in model_cls) or ('ChronoEditPipeline' in model_cls):
+        if (p.init_images is not None) and (len(p.init_images) > 0):
+            task_args['image'] = p.init_images[0]
+        else:
+            task_args['image'] = Image.new('RGB', (p.width, p.height), (0, 0, 0)) # monkey-patch so wan-i2i pipeline does not error-out on t2i
+    if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
+        task_args['reference_images'] = p.init_images
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             shared.log.error('BLiP diffusion requires init image')
@@ -148,10 +155,6 @@ def task_specific_kwargs(p, model):
             'target_subject_category': getattr(p, 'prompt', '').split()[-1],
             'output_type': 'pil',
         }
-    if ('WanImageToVideoPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images[0]
-    if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['reference_images'] = p.init_images
 
     if debug_enabled:
         debug_log(f'Process task specific args: {task_args}')

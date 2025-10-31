@@ -36,7 +36,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanai', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen']
 
 
 def warn_once(msg, variant=None):
@@ -59,7 +59,7 @@ def get_model(model_type = 'decoder', variant = None):
         model_cls = 'sdxl'
     elif model_cls in {'h1', 'lumina2', 'chroma'}:
         model_cls = 'f1'
-    elif model_cls in {'wanai', 'qwen'}:
+    elif model_cls in {'wanai', 'qwen', 'chrono'}:
         variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)

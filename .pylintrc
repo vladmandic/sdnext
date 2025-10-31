@@ -2,6 +2,7 @@
 analyse-fallback-blocks=no
 clear-cache-post-run=no
 extension-pkg-allow-list=
+prefer-stubs=yes
 extension-pkg-whitelist=
 fail-on=
 fail-under=10
@@ -44,6 +45,7 @@ ignore-paths=/usr/lib/.*$,
              pipelines/omnigen2,
              pipelines/segmoe,
              pipelines/xomni,
+             pipelines/chrono,
              scripts/consistory,
              scripts/ctrlx,
              scripts/daam,
@@ -69,11 +71,11 @@ ignore-patterns=.*test*.py$,
                 .*_model_arch.py*,
                 .*_model_arch_v2.py$,
 ignored-modules=
-jobs=0
+jobs=8
 limit-inference-results=100
 load-plugins=
-persistent=yes
-py-version=3.9
+persistent=no
+py-version=3.10
 recursive=no
 source-roots=
 unsafe-load-any-extension=no
@@ -207,6 +209,8 @@ disable=abstract-method,
         unnecessary-lambda-assigment,
         unnecessary-lambda,
         unused-wildcard-import,
+        unpacking-non-sequence,
+        unsubscriptable-object,
         useless-return,
         use-dict-literal,
         use-symbolic-message-instead,

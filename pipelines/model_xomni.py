@@ -104,7 +104,9 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
         return images
 
 
-def load_xomni(checkpoint_info, diffusers_load_config={}):
+def load_xomni(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

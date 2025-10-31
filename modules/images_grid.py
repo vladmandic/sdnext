@@ -13,7 +13,11 @@ def check_grid_size(imgs):
         return False
     mp = 0
     for img in imgs:
-        mp += img.width * img.height if img is not None else 0
+        if isinstance(img, list):
+            for im in img:
+                mp += im.width * im.height if im is not None else 0
+        else:
+            mp += img.width * img.height if img is not None else 0
     mp = round(mp / 1000000)
     ok = mp <= shared.opts.img_max_size_mp
     if not ok:

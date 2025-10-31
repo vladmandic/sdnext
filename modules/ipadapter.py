@@ -190,14 +190,15 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
     if pipe.image_encoder is None or clip_loaded != f'{clip_repo}/{clip_subfolder}':
         jobid = shared.state.begin('Load encoder')
         try:
+            offline_config = { 'local_files_only': True } if shared.opts.offline_mode else {}
             if shared.sd_model_type == 'sd3':
-                image_encoder = transformers.SiglipVisionModel.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
+                image_encoder = transformers.SiglipVisionModel.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
             else:
                 if clip_subfolder is None:
-                    image_encoder = transformers.CLIPVisionModelWithProjection.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, use_safetensors=True)
+                    image_encoder = transformers.CLIPVisionModelWithProjection.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, use_safetensors=True, **offline_config)
                     shared.log.debug(f'IP adapter load: encoder="{clip_repo}" cls={pipe.image_encoder.__class__.__name__}')
                 else:
-                    image_encoder = transformers.CLIPVisionModelWithProjection.from_pretrained(clip_repo, subfolder=clip_subfolder, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, use_safetensors=True)
+                    image_encoder = transformers.CLIPVisionModelWithProjection.from_pretrained(clip_repo, subfolder=clip_subfolder, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, use_safetensors=True, **offline_config)
                     shared.log.debug(f'IP adapter load: encoder="{clip_repo}/{clip_subfolder}" cls={pipe.image_encoder.__class__.__name__}')
             sd_models.clear_caches()
             image_encoder = model_quant.do_post_load_quant(image_encoder, allow=True)
@@ -220,8 +221,9 @@ def load_feature_extractor(pipe):
     if pipe.feature_extractor is None:
         try:
             jobid = shared.state.begin('Load extractor')
+            offline_config = { 'local_files_only': True } if shared.opts.offline_mode else {}
             if shared.sd_model_type == 'sd3':
-                feature_extractor = transformers.SiglipImageProcessor.from_pretrained(SIGLIP_ID, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
+                feature_extractor = transformers.SiglipImageProcessor.from_pretrained(SIGLIP_ID, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
             else:
                 feature_extractor = transformers.CLIPImageProcessor()
             if hasattr(pipe, 'register_modules'):
@@ -343,6 +345,8 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=[], adapt
             kwargs['weight_name'] = names if len(names) > 1 else names[0]
         if len(revisions) > 0:
             kwargs['revision'] = revisions[0]
+        if shared.opts.offline_mode:
+            kwargs["local_files_only"] = True
         pipe.load_ip_adapter(repos, **kwargs)
         adapters_loaded = names
         if hasattr(p, 'ip_adapter_layers'):

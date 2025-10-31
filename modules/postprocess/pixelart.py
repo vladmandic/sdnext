@@ -55,7 +55,7 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
     block_height = height // block_size
     block_width = width // block_size
 
-    min_pool = -torch.nn.functional.max_pool2d(-new_image, block_size, 1, block_size//2, 1, False, False)
+    min_pool = 0 - torch.nn.functional.max_pool2d(-new_image, block_size, 1, block_size//2, 1, False, False)
     min_pool = min_pool[:, :, :height, :width]
 
     greyscale = (new_image[:,0,:,:] * 0.299).add_(new_image[:,1,:,:], alpha=0.587).add_(new_image[:,2,:,:], alpha=0.114)

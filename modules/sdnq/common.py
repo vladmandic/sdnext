@@ -82,6 +82,28 @@ else:
         return fn
 
 
+common_skip_keys = (
+    ".lm_head",
+    ".patch_embedding",
+    ".time_embed",
+    ".time_text_embed",
+    ".context_embedder",
+    ".condition_embedder",
+    ".x_embedder",
+    ".emb_in",
+    ".txt_in",
+    ".img_in",
+    ".vid_in",
+    ".proj_out",
+    ".norm_out",
+    ".emb_out",
+    ".txt_out",
+    ".img_out",
+    ".vid_out",
+    ".final_layer",
+    "pos_embed",
+)
+
 module_skip_keys_dict = {
     "FluxTransformer2DModel": [
         ["single_transformer_blocks.0.norm.linear.weight", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
@@ -95,10 +117,28 @@ module_skip_keys_dict = {
         ["transformer_blocks.0.img_mod.1.weight", ".time_text_embed", ".txt_in", ".img_in", ".proj_out", ".norm_out", "pos_embed"],
         {}
     ],
+    "WanTransformer3DModel": [
+        ["scale_shift_table", ".rope", ".patch_embedding", ".condition_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        {}
+    ],
+    "Gemma3nForCausalLM": [
+        [".lm_head", "correction_coefs", "prediction_coefs", "embedding_projection"],
+        {}
+    ],
+    "HunyuanImage3ForCausalMM": [
+        [".lm_head", ".patch_embed", ".time_embed", ".time_embed_2", ".final_layer", ".model.wte", ".model.ln_f", ".timestep_emb", ".vae", ".vision_aligner", ".vision_model.head", ".vision_model.post_layernorm", ".vision_model.embeddings"],
+        {}
+    ],
+    "Emu3ForCausalLM": [
+        [".lm_head", ".vq_model", ".tokenizer"],
+        {}
+    ],
     "NaDiT": [
         [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
         {}
     ],
 }
 
+module_skip_keys_dict["ChronoEditTransformer3DModel"] = module_skip_keys_dict["WanTransformer3DModel"]
+module_skip_keys_dict["Gemma3nForConditionalGeneration"] = module_skip_keys_dict["Gemma3nForCausalLM"]
 module_skip_keys_dict["NaDiTUpscaler"] = module_skip_keys_dict["NaDiT"]

@@ -39,6 +39,7 @@ config = {
     'DPT Depth Hybrid': {'class': None, 'checkpoint': False, 'params': {}},
     'GLPN Depth': {'class': None, 'checkpoint': False, 'params': {}},
     'Depth Anything': {'class': None, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
+    'Depth Pro': {'class': None, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
     # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
     # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
     # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
@@ -67,6 +68,7 @@ def delay_load_config():
     from modules.control.proc.dpt import DPTDetector
     from modules.control.proc.glpn import GLPNDetector
     from modules.control.proc.depth_anything import DepthAnythingDetector
+    from modules.control.proc.depth_pro import DepthProDetector
     config = {
         # placeholder
         'None': {},
@@ -95,6 +97,7 @@ def delay_load_config():
         'DPT Depth Hybrid': {'class': DPTDetector, 'checkpoint': False, 'params': {}},
         'GLPN Depth': {'class': GLPNDetector, 'checkpoint': False, 'params': {}},
         'Depth Anything': {'class': DepthAnythingDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
+        'Depth Pro': {'class': DepthProDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
         # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
         # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
         # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
@@ -155,6 +158,7 @@ def update_settings(*settings):
     update(['Marigold Depth', 'params', 'denoising_steps'], settings[25])
     update(['Marigold Depth', 'params', 'ensemble_size'], settings[26])
     update(['Depth Anything', 'params', 'color_map'], settings[27])
+    update(['Depth Pro', 'params', 'color_map'], settings[28])
 
 
 class Processor():
@@ -177,9 +181,15 @@ class Processor():
             self.model = None
             self.processor_id = processor_id
             devices.torch_gc(force=True, reason='processor')
-        # self.override = None
-        # devices.torch_gc()
         self.load_config = { 'cache_dir': cache_dir }
+        from modules.shared import opts
+        if opts.offline_mode:
+            self.load_config["local_files_only"] = True
+            os.environ['HF_HUB_OFFLINE'] = '1'
+        else:
+            os.environ.pop('HF_HUB_OFFLINE', None)
+            os.unsetenv('HF_HUB_OFFLINE')
+
 
     def config(self, processor_id = None):
         if processor_id is not None:

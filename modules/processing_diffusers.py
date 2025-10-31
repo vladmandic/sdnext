@@ -102,8 +102,9 @@ def process_pre(p: processing.StableDiffusionProcessing):
         modular_pipe = modular.convert_to_modular(shared.sd_model)
         if modular_pipe is not None:
             shared.sd_model = modular_pipe
-            from modules import modular_guiders
-            modular_guiders.set_guider(p)
+    if modular.is_guider(shared.sd_model):
+        from modules import modular_guiders
+        modular_guiders.set_guider(p)
 
     timer.process.record('pre')
 
@@ -182,6 +183,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(**output)
         if isinstance(output, list):
             output = SimpleNamespace(images=output)
+        if isinstance(output, Image.Image):
+            output = SimpleNamespace(images=[output])
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
         timer.process.record('pipeline')
@@ -195,7 +198,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             else:
                 shared.log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
-        if isinstance(output.images, np.ndarray):
+        if hasattr(output, 'images') and isinstance(output.images, np.ndarray):
             output.images = torch.from_numpy(output.images)
     except AssertionError as e:
         shared.log.info(e)
@@ -219,6 +222,9 @@ def process_base(p: processing.StableDiffusionProcessing):
         modelstats.analyze()
     finally:
         process_post(p)
+
+    if hasattr(shared.sd_model, 'postprocess') and callable(shared.sd_model.postprocess):
+        output = shared.sd_model.postprocess(p, output)
 
     shared.state.end(jobid)
     shared.state.nextjob()
@@ -262,7 +268,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 output.images = [TF.to_pil_image(output.images[i].permute(2,0,1)) for i in range(output.images.shape[0])]
 
         strength = p.hr_denoising_strength if p.hr_denoising_strength > 0 else p.denoising_strength
-        if (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:
+        if (p.hr_upscaler is not None) and (p.hr_upscaler.lower().startswith('latent') or p.hr_force) and strength > 0:
             p.ops.append('hires')
             sd_models_compile.openvino_recompile_model(p, hires=True, refiner=False)
             if shared.sd_model.__class__.__name__ == "OnnxRawPipeline":
@@ -325,6 +331,8 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 modelstats.analyze()
             finally:
                 process_post(p)
+            if hasattr(shared.sd_model, 'postprocess') and callable(shared.sd_model.postprocess):
+                output = shared.sd_model.postprocess(p, output)
             if orig_image is not None:
                 p.task_args['image'] = orig_image
             p.denoising_strength = orig_denoise

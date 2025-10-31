@@ -85,6 +85,8 @@ class SharedSettingsStackHelper():
     schedulers_beta_end = None
     schedulers_shift = None
     schedulers_sigma = None
+    schedulers_base_shift = None
+    schedulers_max_shift = None
     schedulers_timestep_spacing = None
     schedulers_timesteps_range = None
     schedulers_beta_schedule = None
@@ -114,6 +116,8 @@ class SharedSettingsStackHelper():
         self.schedulers_beta_end = shared.opts.schedulers_beta_end
         self.schedulers_shift = shared.opts.schedulers_shift
         self.scheduler_eta = shared.opts.scheduler_eta
+        self.schedulers_base_shift = shared.opts.schedulers_base_shift
+        self.schedulers_max_shift = shared.opts.schedulers_max_shift
         self.eta_noise_seed_delta = shared.opts.eta_noise_seed_delta
         self.tome_ratio = shared.opts.tome_ratio
         self.todo_ratio = shared.opts.todo_ratio
@@ -150,6 +154,8 @@ class SharedSettingsStackHelper():
         shared.opts.data["schedulers_beta_start"] = self.schedulers_beta_start
         shared.opts.data["schedulers_beta_end"] = self.schedulers_beta_end
         shared.opts.data["schedulers_shift"] = self.schedulers_shift
+        shared.opts.data["schedulers_base_shift"] = self.schedulers_base_shift
+        shared.opts.data["schedulers_max_shift"] = self.schedulers_max_shift
         shared.opts.data["scheduler_eta"] = self.scheduler_eta
         shared.opts.data["eta_noise_seed_delta"] = self.eta_noise_seed_delta
         shared.opts.data["cfgzero_enabled"] = self.cfgzero_enabled
@@ -219,14 +225,16 @@ axis_options = [
     AxisOption("[Sampler] Beta schedule", str, apply_setting("schedulers_beta_schedule"), choices=lambda: ['default', 'linear', 'scaled', 'cosine']),
     AxisOption("[Sampler] Beta start", float, apply_setting("schedulers_beta_start")),
     AxisOption("[Sampler] Beta end", float, apply_setting("schedulers_beta_end")),
-    AxisOption("[Sampler] Shift", float, apply_setting("schedulers_shift")),
-    AxisOption("[Sampler] eta delta", float, apply_setting("eta_noise_seed_delta")),
-    AxisOption("[Sampler] eta multiplier", float, apply_setting("scheduler_eta")),
-    AxisOption("[Guidance] scale", float, apply_field("cfg_scale")),
-    AxisOption("[Guidance] end", float, apply_field("cfg_end")),
-    AxisOption("[Guidance] image scale", float, apply_field("image_cfg_scale")),
-    AxisOption("[Guidance] rescale", float, apply_field("diffusers_guidance_rescale")),
-    AxisOption("[Guidance] modular name", str, apply_guidance, choices=lambda: ['Default', 'CFG', 'Auto', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']),
+    AxisOption("[Sampler] Flow shift", float, apply_setting("schedulers_shift")),
+    AxisOption("[Sampler] Base shift", float, apply_setting("schedulers_base_shift")),
+    AxisOption("[Sampler] Max shift", float, apply_setting("schedulers_max_shift")),
+    AxisOption("[Sampler] ETA delta", float, apply_setting("eta_noise_seed_delta")),
+    AxisOption("[Sampler] ETA multiplier", float, apply_setting("scheduler_eta")),
+    AxisOption("[Guidance] Scale", float, apply_field("cfg_scale")),
+    AxisOption("[Guidance] End", float, apply_field("cfg_end")),
+    AxisOption("[Guidance] Image scale", float, apply_field("image_cfg_scale")),
+    AxisOption("[Guidance] Rescale", float, apply_field("diffusers_guidance_rescale")),
+    AxisOption("[Guidance] Modular name", str, apply_guidance, choices=lambda: ['Default', 'CFG', 'Auto', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']),
     AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.3, choices=lambda: [x.name for x in shared.sd_upscalers]),
     AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers]),
     AxisOption("[Refine] Denoising strength", float, apply_field("denoising_strength")),

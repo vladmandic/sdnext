@@ -27,7 +27,7 @@ class DepthAnythingDetector:
             PrepareForNet()])
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path: str, cache_dir: str) -> str:
+    def from_pretrained(cls, pretrained_model_or_path: str, cache_dir: str, local_files_only=False) -> str:
         from modules.control.proc.depth_anything.dpt import DPT_DINOv2
         import huggingface_hub as hf
         model = (
@@ -40,7 +40,7 @@ class DepthAnythingDetector:
             .to(devices.device)
             .eval()
         )
-        model_path = hf.hf_hub_download(repo_id=pretrained_model_or_path, filename="pytorch_model.bin", cache_dir=cache_dir)
+        model_path = hf.hf_hub_download(repo_id=pretrained_model_or_path, filename="pytorch_model.bin", cache_dir=cache_dir, local_files_only=local_files_only)
         model_dict = torch.load(model_path)
         model.load_state_dict(model_dict)
         return cls(model)

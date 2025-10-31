@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_hijack_accelerate, sd_detect, model_quant, sd_hijack_te
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -46,6 +46,9 @@ pipe_switch_task_exclude = [
     'StableDiffusionReferencePipeline',
     'StableDiffusionXLInstantIDPipeline',
     'XOmniPipeline',
+    'HunyuanImagePipeline',
+    'AuraFlowPipeline',
+    'ChronoEditPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -60,6 +63,10 @@ def set_huggingface_options():
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
+    if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
+    else:
+        sd_hijack_safetensors.restore_safetensors()
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -360,6 +367,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_wanai import load_wan
             sd_model = load_wan(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['ChronoEdit']:
+            from pipelines.model_chrono import load_chrono
+            sd_model = load_chrono(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Bria']:
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
@@ -396,6 +407,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_hyimage import load_hyimage
             sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
+        elif model_type in ['HunyuanImage3']:
+            from pipelines.model_hyimage import load_hyimage3
+            sd_model = load_hyimage3(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
         elif model_type in ['X-Omni']:
             from pipelines.model_xomni import load_xomni
             sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
@@ -424,6 +439,10 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
 
     try: #0 - using detected model type and pipeline
         if (model_type is not None) and (pipeline is not None):
+            if ('sdnq' in model_type.lower()) or ('sdnq' in checkpoint_info.path.lower()):
+                from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
+                global allow_post_quant # pylint: disable=global-statement
+                allow_post_quant = False
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model.model_type = sd_model.__class__.__name__
     except Exception as e:
@@ -465,7 +484,7 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
 
     try: # 3 - try basic pipeline just in case
         if err2 is not None:
-            sd_model = diffusers.StableDiffusionPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            sd_model = diffusers.StableDiffusionXLPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model.model_type = sd_model.__class__.__name__
     except Exception as e:
         err3 = e  # ignore last error
@@ -537,26 +556,67 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
     return sd_model
 
 
-def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
+def load_sdnq_module(fn: str, module_name: str, load_method: str):
     from modules import sdnq
+    t0 = time.time()
+    quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
+    if not os.path.exists(quantization_config_path):
+        return None, module_name, 0
+    model_name = os.path.join(fn, module_name)
+    quantization_config = shared.readfile(quantization_config_path, silent=True)
+    try:
+        module = sdnq.load_sdnq_model(
+            model_path=model_name,
+            quantization_config=quantization_config,
+            device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
+            dtype=devices.dtype,
+            load_method=load_method,
+        )
+        t1 = time.time()
+        return module, module_name, t1 - t0
+    except Exception as e:
+        shared.log.error(f'Load sdnq: model="{fn}" module="{module_name}" {e}')
+        errors.display(e, 'Load')
+        return None, module_name, 0
+
+
+def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     modules = {}
+    global allow_post_quant # pylint: disable=global-statement
+    allow_post_quant = False
+    t0 = time.time()
+
+    if shared.opts.runai_streamer_diffusers and (sys.platform == 'linux'):
+        load_method = 'streamer'
+        from installer import install
+        install('runai_model_streamer')
+        shared.log.trace(f'Loader: method={load_method} chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+    elif shared.opts.sd_parallel_load:
+        load_method = 'threaded'
+    else:
+        load_method = 'safetensors'
+
     for module_name in os.listdir(checkpoint_info.path):
-        quantization_config_path = os.path.join(checkpoint_info.path, module_name, 'quantization_config.json')
-        if not os.path.exists(quantization_config_path):
-            continue
-        model_name = os.path.join(checkpoint_info.path, module_name)
-        quantization_config = shared.readfile(quantization_config_path, silent=True)
-        shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq')
-        try:
-            modules[module_name] = sdnq.load_sdnq_model(
-                model_path=model_name,
-                quantization_config=quantization_config,
-                device=devices.device if shared.opts.diffusers_to_gpu else devices.cpu,
-                dtype=devices.dtype,
-            )
-        except Exception as e:
-            shared.log.error(f'Load {op}: model="{checkpoint_info.name}" module="{module_name}" {e}')
-            errors.display(e, 'Load')
+        module, name, t = load_sdnq_module(checkpoint_info.path, module_name, load_method=load_method)
+        if module is not None:
+            modules[name] = module
+            shared.log.debug(f'Load {op}: module="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq method={load_method} time={t:.2f}')
+
+    """
+    futures = []
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        for module_name in os.listdir(checkpoint_info.path):
+            future = executor.submit(load_sdnq_module, checkpoint_info.path, module_name)
+            futures.append(future)
+        for future in futures:
+            loaded_module, name, t = future.result()
+            if loaded_module is not None:
+                shared.log.debug(f'Load module: model="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq time={t:.2f}')
+                modules[name] = loaded_module
+    """
+    t1 = time.time()
+    shared.log.debug(f'Load {op}: model="{checkpoint_info.name}" modules={list(modules.keys())} prequant=sdnq time={t1-t0:.2f}')
     sd_model = pipeline.from_pretrained(
         checkpoint_info.path,
         cache_dir=shared.opts.diffusers_dir,
@@ -566,35 +626,48 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     return sd_model
 
 
-def set_overrides(sd_model, checkpoint_info):
+def set_overrides(sd_model, checkpoint_info, model_type):
     checkpoint_info_name = checkpoint_info.name.lower()
-    if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
+    if "Kandinsky" in sd_model.__class__.__name__:
+        sd_model.scheduler.name = 'DDIM'
+    elif (
+        checkpoint_info.path.lower().endswith('.safetensors')
+        and model_type.startswith("Stable Diffusion") and model_type != "Stable Diffusion 3"
+    ): # SDXL and SD 1.5
         scheduler_config = sd_model.scheduler.config
-        scheduler_config['prediction_type'] = 'flow_prediction'
-        scheduler_config['use_flow_sigmas'] = True
-        scheduler_config['beta_schedule'] = 'linear'
-        sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
-    elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
-        scheduler_config = sd_model.scheduler.config
-        scheduler_config['prediction_type'] = 'v_prediction'
-        scheduler_config['rescale_betas_zero_snr'] = True
-        sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
-        shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
-    elif checkpoint_info.path.lower().endswith('.safetensors'):
-        try:
-            from safetensors import safe_open
-            with safe_open(checkpoint_info.path, framework='pt') as f:
-                keys = f.keys()
-            if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
-                scheduler_config = sd_model.scheduler.config
-                scheduler_config['prediction_type'] = 'v_prediction'
-                if 'ztsnr' in keys:
-                    scheduler_config['rescale_betas_zero_snr'] = True
-                sd_model.scheduler = diffusers.EulerDiscreteScheduler.from_config(scheduler_config)
-                shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
-        except Exception as e:
-            shared.log.debug(f'Setting override from keys failed: {e}')
+        # scheduler_config['beta_schedule'] = 'scaled_linear'
+        # scheduler_config['timestep_spacing'] = 'trailing'
+        sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
+        if 'bigaspv25' in checkpoint_info_name or ('flow' in checkpoint_info_name and 'flower' not in checkpoint_info_name):
+            scheduler_config = sd_model.scheduler.config
+            scheduler_config['prediction_type'] = 'flow_prediction'
+            scheduler_config['beta_schedule'] = 'linear'
+            scheduler_config['use_flow_sigmas'] = True
+            scheduler_config["flow_shift"] = 2.5
+            sd_model.scheduler = diffusers.UniPCMultistepScheduler.from_config(scheduler_config)
+            shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="flow-prediction"')
+        elif 'vpred' in checkpoint_info_name or 'v-pred' in checkpoint_info_name or 'v_pred' in checkpoint_info_name:
+            scheduler_config = sd_model.scheduler.config
+            scheduler_config['prediction_type'] = 'v_prediction'
+            scheduler_config['beta_schedule'] = 'scaled_linear'
+            scheduler_config['rescale_betas_zero_snr'] = True
+            sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
+            shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale=True')
+        else:
+            try:
+                from safetensors import safe_open
+                with safe_open(checkpoint_info.path, framework='pt') as f:
+                    keys = f.keys()
+                if 'v_pred' in keys: # NoobAI VPred models added empty v_pred and ztsnr keys
+                    scheduler_config = sd_model.scheduler.config
+                    scheduler_config['prediction_type'] = 'v_prediction'
+                    scheduler_config['beta_schedule'] = 'scaled_linear'
+                    if 'ztsnr' in keys:
+                        scheduler_config['rescale_betas_zero_snr'] = True
+                    sd_model.scheduler = diffusers.EulerAncestralDiscreteScheduler.from_config(scheduler_config)
+                    shared.log.info(f'Setting override: model="{checkpoint_info.name}" component=scheduler prediction="v-prediction" rescale={scheduler_config.get("rescale_betas_zero_snr", False)}')
+            except Exception as e:
+                shared.log.debug(f'Setting override from keys failed: {e}')
 
 
 def set_defaults(sd_model, checkpoint_info):
@@ -657,6 +730,15 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             unload_model_weights(op=op)
             return
 
+        # handle offline mode
+        if shared.opts.offline_mode:
+            shared.log.info(f'Load {op}: offline=True')
+            diffusers_load_config["local_files_only"] = True
+            os.environ['HF_HUB_OFFLINE'] = '1'
+        else:
+            os.environ.pop('HF_HUB_OFFLINE', None)
+            os.unsetenv('HF_HUB_OFFLINE')
+
         # detect pipeline
         pipeline, model_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
         set_huggingface_options()
@@ -686,28 +768,24 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         if sd_model is None:
             if model_type.endswith('SDNQ'):
                 sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
-                allow_post_quant = False
                 model_type = model_type.replace(' SDNQ', '')
-
-        # load from hf folder-style
-        if sd_model is None:
-            if os.path.isdir(checkpoint_info.path) or checkpoint_info.type == 'huggingface' or checkpoint_info.type == 'transformer':
-                sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
 
         # load from single-file
         if sd_model is None:
             if os.path.isfile(checkpoint_info.path) and checkpoint_info.path.lower().endswith('.safetensors'):
                 sd_model = load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
 
+        # load from hf folder-style
+        if sd_model is None:
+            if os.path.isdir(checkpoint_info.path) or (checkpoint_info.type == 'huggingface') or (checkpoint_info.type == 'transformer') or (checkpoint_info.type == 'reference'):
+                sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
+
         if sd_model is None:
             shared.log.error(f'Load {op}: name="{checkpoint_info.name if checkpoint_info is not None else None}" not loaded')
             return
 
-        set_overrides(sd_model, checkpoint_info)
+        set_overrides(sd_model, checkpoint_info, model_type)
         set_defaults(sd_model, checkpoint_info)
-
-        if "Kandinsky" in sd_model.__class__.__name__: # need a special case
-            sd_model.scheduler.name = 'DDIM'
 
         if hasattr(sd_model, "unet") and model_type not in ['Stable Cascade']: # others calls load_diffuser again
             sd_unet.load_unet(sd_model, checkpoint_info.path)
@@ -802,7 +880,7 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args = {}):
+def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args: dict = None):
     """
     args:
     - cls: can be pipeline class or a string from custom pipelines
@@ -812,6 +890,8 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
       for example: { 'vae': None }
     """
     try:
+        if args is None:
+            args = {}
         if isinstance(cls, str):
             shared.log.debug(f'Pipeline switch: custom={cls}')
             cls = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
@@ -1026,6 +1106,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
                     shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
                     return pipe
             except Exception as e: # pylint: disable=unused-variable
+                fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+                shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
                 shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
                 has_errors = True
         if not hasattr(pipe, 'config') or has_errors:
@@ -1127,18 +1209,19 @@ def set_diffusers_attention(pipe, quiet:bool=False):
 def add_noise_pred_to_diffusers_callback(pipe):
     if not hasattr(pipe, "_callback_tensor_inputs"):
         return pipe
-    if pipe.__class__.__name__.startswith("StableDiffusion"):
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif pipe.__class__.__name__.startswith("StableCascade"):
+    if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction":
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and "flow" in pipe.default_scheduler.__class__.__name__.lower():
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
-    elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction":
-        pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+    elif "noise_pred" not in pipe._callback_tensor_inputs: # pylint: disable=protected-access
+        if pipe.__class__.__name__.startswith("StableDiffusion"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "scheduler") and "flow" in pipe.scheduler.__class__.__name__.lower():
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "config") and (getattr(pipe.scheduler.config, "prediction_type", "none") == "flow_prediction"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "default_scheduler") and ("flow" in pipe.default_scheduler.__class__.__name__.lower()):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
+        elif hasattr(pipe, "default_scheduler") and hasattr(pipe.default_scheduler, "config") and (getattr(pipe.default_scheduler.config, "prediction_type", "none") == "flow_prediction"):
+            pipe._callback_tensor_inputs.append("noise_pred") # pylint: disable=protected-access
     return pipe
 
 
@@ -1247,14 +1330,15 @@ def unload_model_weights(op='model'):
 
 
 def hf_auth_check(checkpoint_info, force:bool=False):
+    if shared.opts.offline_mode:
+        shared.log.info('Offline mode: skipping auth check')
+        return False
     login = None
     if not force:
         try:
-            # skip check for single-file safetensors models
-            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)):
+            if (checkpoint_info.path.endswith('.safetensors') and os.path.isfile(checkpoint_info.path)): # skip check for single-file safetensors models
                 return True
-            # skip check for local diffusers folders
-            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))):
+            if (os.path.exists(checkpoint_info.path) and os.path.isdir(checkpoint_info.path) and os.path.isfile(os.path.join(checkpoint_info.path, 'model_index.json'))): # skip check for local diffusers folders
                 return True
         except Exception:
             pass
@@ -1263,7 +1347,7 @@ def hf_auth_check(checkpoint_info, force:bool=False):
         login = modelloader.hf_login()
         return hf.auth_check(repo_id)
     except Exception as e:
-        shared.log.error(f'Load model: repo="{repo_id}" login={login} {e}')
+        shared.log.error(f'Auth: repo="{repo_id}" login={login} {e}')
         return False
 
 

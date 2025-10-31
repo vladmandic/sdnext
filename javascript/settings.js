@@ -170,7 +170,7 @@ async function initModels() {
     if (en.classList.contains('hide')) gradioApp().getElementById('txt2img_extra_networks_btn').click();
     const repeat = setInterval(() => {
       const buttons = Array.from(gradioApp().querySelectorAll('#txt2img_model_subdirs > button')) || [];
-      const reference = buttons.find((b) => b.innerText === 'Reference');
+      const reference = buttons.find((b) => (b.innerText === 'Reference') || (b.innerText === 'Distilled') || (b.innerText === 'Community') || (b.innerText === 'Quantized'));
       if (reference) {
         clearInterval(repeat);
         reference.click();

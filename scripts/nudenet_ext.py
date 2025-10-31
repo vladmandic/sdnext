@@ -1,3 +1,4 @@
+import time
 import gradio as gr
 from modules import scripts, scripts_postprocessing, processing, images
 from  scripts.nudenet import nudenet # pylint: disable=no-name-in-module
@@ -66,17 +67,20 @@ def process(
         words='',
     ):
     from modules.shared import state, log
-    if enabled and p is not None and pp is not None and pp.image is not None:
+    if enabled and pp is not None and pp.image is not None:
         if nudenet.detector is None:
             nudenet.detector = nudenet.NudeDetector(providers=['CUDAExecutionProvider', 'CPUExecutionProvider']) # loads and initializes model once
+        t0 = time.time()
         nudes = nudenet.detector.censor(image=pp.image, method=method, min_score=score, censor=censor, blocks=blocks, overlay=overlay)
+        t1 = time.time()
         if len(nudes.censored) > 0:  # Check if there are any censored areas
             if not copy:
                 pp.image = nudes.output
             else:
                 info = processing.create_infotext(p)
                 images.save_image(nudes.output, path=p.outpath_samples, seed=p.seed, prompt=p.prompt, info=info, p=p, suffix="-censored")
-        meta = '; '.join([f'{d["label"]}:{d["score"]}' for d in nudes.detections]) # add all metadata
+        dct = {d["label"]: d["score"] for d in nudes.detections}
+        meta = '; '.join([f'{k}:{v}' for k, v in dct.items()]) # add all metadata
         nsfw = any([d["label"] in nudenet.nsfw for d in nudes.detections]) # noqa:C419 # pylint: disable=use-a-generator
         if metadata and p is not None:
             p.extra_generation_params["NudeNet"] = meta
@@ -84,7 +88,7 @@ def process(
         if metadata and hasattr(pp, 'info'):
             pp.info['NudeNet'] = meta
             pp.info['NSFW'] = nsfw
-        log.debug(f'NudeNet detect: {meta} nsfw={nsfw}')
+        log.debug(f'NudeNet detect: {dct} nsfw={nsfw} time={(t1 - t0):.2f}')
     if lang and p is not None:
         prompts = '.\n'.join(p.all_prompts) if p.all_prompts else p.prompt
         allowed = [a.strip() for a in allowed.split(',')] if allowed else []

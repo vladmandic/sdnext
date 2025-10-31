@@ -20,6 +20,8 @@ pbar = None
 
 
 def hf_login(token=None):
+    if shared.opts.offline_mode:
+        return False
     global loggedin # pylint: disable=global-statement
     token = token or shared.opts.huggingface_token
     token = token.replace("\n", "").replace("\r", "").strip() if token is not None else None
@@ -38,7 +40,8 @@ def hf_login(token=None):
     if loggedin != token:
         stdout = io.StringIO()
         try:
-            hf.logout()
+            with contextlib.redirect_stdout(stdout):
+                hf.logout()
         except Exception:
             pass
         with contextlib.redirect_stdout(stdout):
@@ -76,35 +79,23 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
         download_config["mirror"] = mirror
     if custom_pipeline is not None and len(custom_pipeline) > 0:
         download_config["custom_pipeline"] = custom_pipeline
-    shared.log.debug(f'Diffusers downloading: id="{hub_id}" args={download_config}')
+    shared.log.debug(f'HF download: id="{hub_id}" args={download_config}')
     token = token or shared.opts.huggingface_token
     if token is not None and len(token) > 2:
         hf_login(token)
     pipeline_dir = None
-
-    ok = False
-    err = None
-    if not ok:
-        try:
-            pipeline_dir = DiffusionPipeline.download(hub_id, **download_config)
-            ok = True
-        except Exception as e:
-            err = e
-            ok = False
-            debug(f'Diffusers download error: id="{hub_id}" {e}')
-    if not ok and 'Repository Not Found' not in str(err):
-        try:
-            download_config.pop('load_connected_pipeline', None)
-            download_config.pop('variant', None)
-            pipeline_dir = hf.snapshot_download(hub_id, **download_config)
-        except Exception as e:
-            debug(f'Diffusers download error: id="{hub_id}" {e}')
-            if 'gated' in str(e):
-                shared.log.error(f'Diffusers download error: id="{hub_id}" model access requires login')
-                shared.state.end(jobid)
-                return None
+    try:
+        download_config.pop('load_connected_pipeline', None)
+        download_config.pop('variant', None)
+        pipeline_dir = hf.snapshot_download(hub_id, **download_config)
+    except Exception as e:
+        debug(f'HF download error: id="{hub_id}" {e}')
+        if 'gated' in str(e):
+            shared.log.error(f'HF download error: id="{hub_id}" model access requires login')
+            shared.state.end(jobid)
+            return None
     if pipeline_dir is None:
-        shared.log.error(f'Diffusers download error: id="{hub_id}" {err}')
+        shared.log.error(f'HF download error: id="{hub_id}" no data')
         shared.state.end(jobid)
         return None
     try:

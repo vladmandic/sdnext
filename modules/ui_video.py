@@ -38,7 +38,7 @@ def create_ui():
                     mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf = video_ui.create_ui_outputs()
                 with gr.Tab('Models', id='video-core-tab') as video_core_tab:
                     from modules.video_models import video_ui
-                    video_ui.create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed, reuse_seed)
+                    engine, model, steps, sampler_index = video_ui.create_ui(prompt, negative, styles, overrides, init_image, init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed, reuse_seed)
                 with gr.Tab('FramePack', id='framepack-tab') as framepack_tab:
                     from modules.framepack import framepack_ui
                     framepack_ui.create_ui(prompt, negative, styles, overrides, init_image, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf)
@@ -48,8 +48,18 @@ def create_ui():
 
         paste_fields = [
             (prompt, "Prompt"), # cannot add more fields as they are not defined yet
+            (negative, "Negative prompt"),
+            (width, "Width"),
+            (height, "Height"),
+            (frames, "Frames"),
+            (seed, "Seed"),
+            (styles, "Styles"),
+            (steps, "Steps"),
+            (sampler_index, "Sampler"),
+            (engine, "Engine"),
+            (model, "Model"),
         ]
-        generation_parameters_copypaste.add_paste_fields("video", None, paste_fields, overrides)
+        generation_parameters_copypaste.add_paste_fields("video", None, paste_fields)
         bindings = generation_parameters_copypaste.ParamBinding(paste_button=paste, tabname="video", source_text_component=prompt, source_image_component=None)
         generation_parameters_copypaste.register_paste_params_button(bindings)
 

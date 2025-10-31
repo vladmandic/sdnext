@@ -100,6 +100,12 @@ class ControlNetXS():
                     # log.debug(f'Control {what} model: id="{model_id}" path="{model_path}" already loaded')
                     return
                 self.load_config['time_embedding_mix'] = time_embedding_mix
+                if opts.offline_mode:
+                    self.load_config["local_files_only"] = True
+                    os.environ['HF_HUB_OFFLINE'] = '1'
+                else:
+                    os.environ.pop('HF_HUB_OFFLINE', None)
+                    os.unsetenv('HF_HUB_OFFLINE')
                 log.debug(f'Control {what} model loading: id="{model_id}" path="{model_path}" {self.load_config}')
                 if model_path.endswith('.safetensors'):
                     self.model = ControlNetXSModel.from_single_file(model_path, **self.load_config)
@@ -140,6 +146,7 @@ class ControlNetXSPipeline():
                 controlnet=controlnet, # can be a list
             )
             sd_models.move_model(self.pipeline, pipeline.device)
+            sd_models.apply_balanced_offload(self.pipeline, force=True)
         elif detect.is_sd15(pipeline):
             self.pipeline = StableDiffusionControlNetXSPipeline(
                 vae=pipeline.vae,
@@ -153,6 +160,7 @@ class ControlNetXSPipeline():
                 controlnet=controlnet, # can be a list
             )
             sd_models.move_model(self.pipeline, pipeline.device)
+            sd_models.apply_balanced_offload(self.pipeline, force=True)
         else:
             log.error(f'Control {what} pipeline: class={pipeline.__class__.__name__} unsupported model type')
             return

@@ -4,7 +4,9 @@ from modules import shared, sd_models, devices, model_quant
 from pipelines import generic
 
 
-def load_hunyuandit(checkpoint_info, diffusers_load_config={}):
+def load_hunyuandit(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

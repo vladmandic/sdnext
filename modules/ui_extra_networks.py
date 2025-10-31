@@ -255,11 +255,9 @@ class ExtraNetworksPage:
         for parentdir, dirs in {d: files_cache.walk(d, cached=True, recurse=files_cache.not_hidden) for d in allowed_folders}.items():
             for tgt in dirs:
                 tgt = tgt.path
-                if os.path.join(paths.models_path, 'Reference') in tgt and shared.opts.extra_network_reference_enable:
-                    subdirs['Reference'] = 1
+                if os.path.join(paths.models_path, 'Reference') in tgt:
                     continue
                 if shared.opts.diffusers_dir in tgt:
-                    subdirs[diffusers_base] = 1
                     continue
                 if 'models--' in tgt:
                     continue
@@ -274,6 +272,9 @@ class ExtraNetworksPage:
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
             subdirs['Reference'] = 1
+            subdirs['Distilled'] = 1
+            subdirs['Quantized'] = 1
+            subdirs['Community'] = 1
             subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
             subdirs['Local'] = 1
@@ -287,12 +288,17 @@ class ExtraNetworksPage:
             subdirs.move_to_end(os.path.basename(shared.opts.diffusers_dir), last=True)
         if 'Reference' in subdirs:
             subdirs.move_to_end('Reference', last=True)
+        if 'Distilled' in subdirs:
+            subdirs.move_to_end('Distilled', last=True)
+        if 'Quantized' in subdirs:
+            subdirs.move_to_end('Quantized', last=True)
+        if 'Community' in subdirs:
+            subdirs.move_to_end('Community', last=True)
         subdirs_html = ''
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            style = 'color: var(--color-accent)' if subdir in ['All', 'Local', 'Diffusers', 'Reference'] else ''
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'
@@ -353,9 +359,9 @@ class ExtraNetworksPage:
             args = {
                 # "tabname": tabname,
                 "page": self.name,
-                "name": item.get('name', ''),
+                "name": html.escape(item.get('name', ''), quote=True),
                 "title": os.path.basename(item["name"].replace('_', ' ')),
-                "filename": item.get('filename', ''),
+                "filename": html.escape(item.get('filename', ''), quote=True),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
                 "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
                 "preview": html.escape(item.get('preview', None) or self.link_preview('html/missing.png')),
@@ -541,6 +547,7 @@ def register_pages():
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
+    from modules.video_models.models_def import models # pylint: disable=unused-import
 
 
 def get_pages(title=None):

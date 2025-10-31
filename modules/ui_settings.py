@@ -385,11 +385,19 @@ def create_quicksettings(interfaces):
         def reference_submit(model):
             if '@' not in model: # diffusers
                 loaded = modelloader.load_reference(model)
-                return model if loaded else shared.opts.sd_model_checkpoint
+                if loaded:
+                    shared.opts.sd_model_checkpoint = model
+                    sd_models.reload_model_weights(force=True)
+                    return model
+                return shared.opts.sd_model_checkpoint
             else: # civitai
                 model, url = model.split('@')
                 loaded = modelloader.load_civitai(model, url)
-                return loaded if loaded is not None else shared.opts.sd_model_checkpoint
+                if loaded is not None:
+                    shared.opts.sd_model_checkpoint = loaded
+                    sd_models.reload_model_weights(force=True)
+                    return loaded
+                return shared.opts.sd_model_checkpoint
 
         button_set_reference = gr.Button('Change reference', elem_id='change_reference', visible=False)
         button_set_reference.click(

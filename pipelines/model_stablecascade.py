@@ -84,10 +84,13 @@ def load_prior(path, config_file="default"):
     return prior_unet, prior_text_encoder
 
 
-def load_cascade_combined(checkpoint_info, diffusers_load_config):
+def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
     from diffusers import StableCascadeDecoderPipeline, StableCascadePriorPipeline, StableCascadeCombinedPipeline
     from diffusers.models.unets import StableCascadeUNet
     from modules.sd_unet import unet_dict
+
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
 
     diffusers_load_config.pop("vae", None)
     if 'cascade' in checkpoint_info.name.lower():

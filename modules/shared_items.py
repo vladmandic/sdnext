@@ -7,6 +7,7 @@ pipelines = {
     'Custom Diffusers Pipeline': getattr(diffusers, 'DiffusionPipeline', None),
 
     # standard pipelines
+    'Diffusion': getattr(diffusers, 'DiffusionPipeline', None),
     'Stable Diffusion': getattr(diffusers, 'StableDiffusionPipeline', None),
     'Stable Diffusion Inpaint': getattr(diffusers, 'StableDiffusionInpaintPipeline', None),
     'Stable Diffusion Instruct': getattr(diffusers, 'StableDiffusionInstructPix2PixPipeline', None),
@@ -45,7 +46,8 @@ pipelines = {
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
-
+    'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'ChronoEdit': getattr(diffusers, 'WanImageToVideoPipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
@@ -55,8 +57,8 @@ pipelines = {
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
-    'HunyuanImage': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
+    'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
@@ -130,7 +132,7 @@ def get_pipelines():
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
             from installer import log # pylint: disable=redefined-outer-name
-            log.error(f'Not available: pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__}')
+            log.error(f'Pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__} not available')
     return pipelines
 
 

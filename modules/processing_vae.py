@@ -275,15 +275,6 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
     if latents is None or not torch.is_tensor(latents): # already decoded
         return latents
 
-    if vae_type == 'Remote':
-        jobid = shared.state.begin('Remote VAE')
-        from modules.sd_vae_remote import remote_decode
-        tensors = remote_decode(latents=latents, width=width, height=height)
-        shared.state.end(jobid)
-        if tensors is not None and len(tensors) > 0:
-            return vae_postprocess(tensors, model, output_type)
-
-    jobid = shared.state.begin('VAE Decode')
     if latents.shape[0] == 0:
         shared.log.error(f'VAE nothing to decode: {latents.shape}')
         return []
@@ -293,6 +284,21 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         shared.log.error('VAE not found in model')
         return []
 
+    if vae_type == 'Remote':
+        jobid = shared.state.begin('Remote VAE')
+        from modules.sd_vae_remote import remote_decode
+        tensors = remote_decode(latents=latents, width=width, height=height)
+        shared.state.end(jobid)
+        if tensors is not None and len(tensors) > 0:
+            return vae_postprocess(tensors, model, output_type)
+    if vae_type == 'Repa':
+        from modules.sd_vae_repa import repa_load
+        vae = repa_load(latents)
+        vae_type = 'Full'
+        if vae is not None:
+            model.vae = vae
+
+    jobid = shared.state.begin('VAE Decode')
     if hasattr(model, '_unpack_latents') and hasattr(model, 'transformer_spatial_patch_size') and frames is not None: # LTX
         latent_num_frames = (frames - 1) // model.vae_temporal_compression_ratio + 1
         latents = model._unpack_latents(latents.unsqueeze(0), latent_num_frames, height // 32, width // 32, model.transformer_spatial_patch_size, model.transformer_temporal_patch_size) # pylint: disable=protected-access

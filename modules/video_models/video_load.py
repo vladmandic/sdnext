@@ -1,3 +1,4 @@
+import os
 import copy
 import time
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
@@ -11,6 +12,8 @@ def load_model(selected: models_def.Model):
     if selected is None or selected.te_cls is None or selected.dit_cls is None:
         return ''
     global loaded_model # pylint: disable=global-statement
+    if not shared.sd_loaded:
+        loaded_model = None
     if loaded_model == selected.name:
         return ''
     sd_models.unload_model_weights()
@@ -20,7 +23,15 @@ def load_model(selected: models_def.Model):
     video_cache.apply_teacache_patch(selected.dit_cls)
 
     # overrides
-    kwargs = video_overrides.load_override(selected)
+    offline_args = {}
+    if shared.opts.offline_mode:
+        offline_args["local_files_only"] = True
+        os.environ['HF_HUB_OFFLINE'] = '1'
+    else:
+        os.environ.pop('HF_HUB_OFFLINE', None)
+        os.unsetenv('HF_HUB_OFFLINE')
+
+    kwargs = video_overrides.load_override(selected, **offline_args)
 
     # text encoder
     try:
@@ -32,7 +43,10 @@ def load_model(selected: models_def.Model):
             selected.te_folder = ''
             selected.te_revision = None
         if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
-            selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+            if 'SDNQ' in selected.name:
+                selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
+            else:
+                selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
             selected.te_folder = 'text_encoder'
             selected.te_revision = None
         if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
@@ -51,7 +65,8 @@ def load_model(selected: models_def.Model):
             revision=selected.te_revision or selected.repo_revision,
             cache_dir=shared.opts.hfcache_dir,
             **load_args,
-            **quant_args
+            **quant_args,
+            **offline_args,
         )
     except Exception as e:
         shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
@@ -70,7 +85,8 @@ def load_model(selected: models_def.Model):
                     revision=selected.dit_revision or selected.repo_revision,
                     cache_dir=shared.opts.hfcache_dir,
                     **load_args,
-                    **quant_args
+                    **quant_args,
+                    **offline_args,
                 )
             else:
                 shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} skip')
@@ -95,6 +111,7 @@ def load_model(selected: models_def.Model):
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
             **kwargs,
+            **offline_args,
         )
     except Exception as e:
         shared.log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')
@@ -140,3 +157,27 @@ def load_model(selected: models_def.Model):
     shared.log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling} framewise={framewise}')
     shared.state.end(jobid)
     return msg
+
+
+def load_upscale_vae():
+    if not hasattr(shared.sd_model, 'vae'):
+        return
+    if hasattr(shared.sd_model.vae, '_asymmetric_upscale_vae'):
+        return # already loaded
+    if shared.sd_model.vae.__class__.__name__ != 'AutoencoderKLWan':
+        shared.log.warning('Video decode: upscale VAE unsupported')
+        return
+
+    import diffusers
+    repo_id = 'spacepxl/Wan2.1-VAE-upscale2x'
+    subfolder = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
+    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir)
+    vae_decode.requires_grad_(False)
+    vae_decode = vae_decode.to(device=devices.device, dtype=devices.dtype)
+    vae_decode.eval()
+    shared.log.debug(f'Decode: load="{repo_id}"')
+    shared.sd_model.orig_vae = shared.sd_model.vae
+    shared.sd_model.vae = vae_decode
+    shared.sd_model.vae._asymmetric_upscale_vae = True # pylint: disable=protected-access
+    sd_hijack_vae.init_hijack(shared.sd_model)
+    sd_models.apply_balanced_offload(shared.sd_model, force=True) # reapply offload

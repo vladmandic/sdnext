@@ -144,7 +144,19 @@ async function filterExtraNetworksForTab(searchTerm) {
     } else if (searchTerm === 'reference/') {
       cards.forEach((elem) => elem.style.display = elem.dataset.name
         .toLowerCase()
-        .includes('reference/') ? '' : 'none');
+        .includes('reference/') && elem.dataset.tags === '' ? '' : 'none');
+    } else if (searchTerm === 'distilled/') {
+      cards.forEach((elem) => elem.style.display = elem.dataset.tags
+        .toLowerCase()
+        .includes('distilled') ? '' : 'none');
+    } else if (searchTerm === 'community/') {
+      cards.forEach((elem) => elem.style.display = elem.dataset.tags
+        .toLowerCase()
+        .includes('community') ? '' : 'none');
+    } else if (searchTerm === 'quantized/') {
+      cards.forEach((elem) => elem.style.display = elem.dataset.tags
+        .toLowerCase()
+        .includes('quantized') ? '' : 'none');
     } else if (searchTerm === 'local/') {
       cards.forEach((elem) => elem.style.display = elem.dataset.name
         .toLowerCase()

@@ -51,7 +51,7 @@ def check_dependencies():
     status = [installed(p, reload=False, quiet=True) for p in packages]
     debug(f'DWPose required={packages} status={status}')
     if not all(status):
-        log.info(f'Installing DWPose dependencies: {packages}')
+        log.info(f'Installing dependencies: for=dwpose packages={packages}')
         cmd = 'install --upgrade --no-deps --force-reinstall '
         pkgs = ' '.join(packages)
         pip(cmd + pkgs, ignore=False, quiet=True, uv=False)

@@ -3,7 +3,6 @@ import io
 import os
 from PIL import Image
 import gradio as gr
-from modules.paths import params_path
 from modules import shared, gr_tempdir, script_callbacks, images
 from modules.infotext import parse, mapping, quote, unquote # pylint: disable=unused-import
 
@@ -204,6 +203,7 @@ def create_override_settings_dict(text_pairs):
 def connect_paste(button, local_paste_fields, input_comp, override_settings_component, tabname):
 
     def paste_func(prompt):
+        from modules.paths import params_path
         if prompt is None or len(prompt.strip()) == 0:
             if os.path.exists(params_path):
                 with open(params_path, "r", encoding="utf8") as file:
@@ -252,7 +252,8 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                         val = valtype(v)
                     res.append(gr.update(value=val))
                     applied[key] = val
-                except Exception:
+                except Exception as e:
+                    shared.log.error(f'Paste param: key="{key}" value="{v}" error="{e}"')
                     res.append(gr.update())
         list_applied = [{k: v} for k, v in applied.items() if not callable(v) and not callable(k)]
         shared.log.debug(f"Prompt restore: apply={list_applied} skip={skipped}")

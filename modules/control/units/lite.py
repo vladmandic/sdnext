@@ -108,8 +108,15 @@ class ControlLLLite():
                     self.model = ControlNetLLLite(model_path)
                 else:
                     import huggingface_hub as hf
+                    offline_config = {}
+                    if opts.offline_mode:
+                        offline_config["local_files_only"] = True
+                        os.environ['HF_HUB_OFFLINE'] = '1'
+                    else:
+                        os.environ.pop('HF_HUB_OFFLINE', None)
+                        os.unsetenv('HF_HUB_OFFLINE')
                     folder, filename = os.path.split(model_path)
-                    model_path = hf.hf_hub_download(repo_id=folder, filename=f'{filename}.safetensors', cache_dir=cache_dir)
+                    model_path = hf.hf_hub_download(repo_id=folder, filename=f'{filename}.safetensors', cache_dir=cache_dir, **offline_config)
                     self.model = ControlNetLLLite(model_path)
                 if self.device is not None:
                     self.model.to(self.device)

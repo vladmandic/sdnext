@@ -20,12 +20,12 @@ class ZoeDetector:
         self.model = model
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path, model_type="zoedepth", filename=None, cache_dir=None):
+    def from_pretrained(cls, pretrained_model_or_path, model_type="zoedepth", filename=None, cache_dir=None, local_files_only=False):
         filename = filename or "ZoeD_M12_N.pt"
         if os.path.isdir(pretrained_model_or_path):
             model_path = os.path.join(pretrained_model_or_path, filename)
         else:
-            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir)
+            model_path = hf_hub_download(pretrained_model_or_path, filename, cache_dir=cache_dir, local_files_only=local_files_only)
         if model_type == "zoedepth":
             model_cls = ZoeDepth
         elif model_type == "zoedepth_nk":

@@ -3,7 +3,9 @@ from modules import shared, devices, sd_models, model_quant # pylint: disable=un
 from pipelines import generic # pylint: disable=unused-import
 
 
-def load_nextstep(checkpoint_info, diffusers_load_config={}): # pylint: disable=unused-argument
+def load_nextstep(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

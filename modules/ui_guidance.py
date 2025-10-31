@@ -15,7 +15,7 @@ def create_guidance_inputs(tab):
                 guidance_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_guider_docs")
                 guidance_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_name], outputs=[])
             with gr.Row(visible=shared.opts.model_modular_enable):
-                guidance_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.1, label='_Guidance scale', value=6.0, elem_id=f"{tab}_guidance_scale")
+                guidance_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.1, label='_Guidance scale', value=4.0, elem_id=f"{tab}_guidance_scale")
                 guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='_Guidance rescale', value=0.0, elem_id=f"{tab}_guidance_rescale")
             with gr.Row(visible=shared.opts.model_modular_enable):
                 guidance_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='_Guidance start', value=0.0, elem_id=f"{tab}_guidance_start")

@@ -1,8 +1,7 @@
+# https://github.com/somanchiu/ReSwapper/blob/GAN/Image.py
 import cv2
 import numpy as np
 
-
-### https://github.com/somanchiu/ReSwapper/blob/GAN/Image.py
 
 input_std = 255.0
 input_mean = 0.0
@@ -38,7 +37,7 @@ def blend_swapped_image(swapped_face, target_image, M):
     warped_face = cv2.warpAffine(swapped_face, M_inv, (w, h),borderValue=0.0)
     img_white = np.full((swapped_face.shape[0], swapped_face.shape[1]), 255, dtype=np.float32)
     img_mask = cv2.warpAffine(img_white, M_inv, (w, h), borderValue=0.0)
-    img_mask[img_mask > 20] = 255
+    img_mask[img_mask > 20] = 255 # pylint: disable=unsupported-assignment-operation
     mask_h_inds, mask_w_inds = np.where(img_mask == 255)
     if len(mask_h_inds) > 0 and len(mask_w_inds) > 0:  # safety check
         mask_h = np.max(mask_h_inds) - np.min(mask_h_inds)

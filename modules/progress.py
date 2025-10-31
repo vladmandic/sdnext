@@ -92,9 +92,9 @@ def api_progress(req: ProgressRequest):
         id_live_preview = -1
         textinfo = "Queued..." if queued else "Waiting..."
 
-    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} enabled={shared.opts.live_previews_enable} job={shared.state.preview_job} elapsed={elapsed:.3f}')
+    debug_log(f'Preview: job={shared.state.job} active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} job={shared.state.preview_job} elapsed={elapsed:.3f}')
 
-    if shared.opts.live_previews_enable and active and (req.id_live_preview != -1):
+    if active and (req.id_live_preview != -1):
         have_image = shared.state.set_current_image()
         if have_image and shared.state.current_image is not None:
             buffered = io.BytesIO()

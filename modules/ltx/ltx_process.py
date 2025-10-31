@@ -89,6 +89,8 @@ def run_ltx(task_id,
         shared.state.job_count = 1
 
         p = processing.StableDiffusionProcessingVideo(
+            video_engine=engine,
+            video_model=model,
             prompt=prompt,
             negative_prompt=negative,
             styles=styles,
@@ -247,6 +249,7 @@ def run_ltx(task_id,
         timer.process.add('offload', t11 - t10)
 
         num_frames, video_file = save_video(
+            p=p,
             pixels=frames,
             mp4_fps=mp4_fps,
             mp4_codec=mp4_codec,

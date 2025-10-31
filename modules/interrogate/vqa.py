@@ -14,27 +14,27 @@ processor = None
 model = None
 loaded: str = None
 quant_args = None
-vlm_default = "Alibaba Qwen 2.5 VL 4B"
+vlm_default = "Alibaba Qwen 2.5 VL 3B"
 vlm_models = {
     "Google Gemma 3 4B": "google/gemma-3-4b-it",
     "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
-    "Alibaba Qwen 2.5 VL 4B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
+    "Alibaba Qwen 3 VL 2B Thinking": "Qwen/Qwen3-VL-2B-Thinking",
+    "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
+    "Alibaba Qwen 3 VL 4B Thinking": "Qwen/Qwen3-VL-4B-Thinking",
+    "Alibaba Qwen 3 VL 8B": "Qwen/Qwen3-VL-8B-Instruct",
+    "Alibaba Qwen 3 VL 8B Thinking": "Qwen/Qwen3-VL-8B-Thinking",
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
     "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
     "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
     "Apple FastVLM 7B": "apple/FastVLM-7B",
-    # "Microsoft Florence 2 Base": "microsoft/Florence-2-base-ft", # 0.5GB
-    # "Microsoft Florence 2 Large": "microsoft/Florence-2-large-ft", # 1.5GB
     "Microsoft Florence 2 Base": "florence-community/Florence-2-base-ft", # 0.5GB
     "Microsoft Florence 2 Large": "florence-community/Florence-2-large-ft", # 1.5GB
-    #"MiaoshouAI PromptGen 1.5 Base": "MiaoshouAI/Florence-2-base-PromptGen-v1.5@c06a5f02cc6071a5d65ee5d294cf3732d3097540", # 1.1GB
-    #"MiaoshouAI PromptGen 1.5 Large": "MiaoshouAI/Florence-2-large-PromptGen-v1.5@28a42440e39c9c32b83f7ae74ec2b3d1540404f0", # 3.3GB
-    #"MiaoshouAI PromptGen 2.0 Base": "MiaoshouAI/Florence-2-base-PromptGen-v2.0", # 1.1GB
-    #"MiaoshouAI PromptGen 2.0 Large": "MiaoshouAI/Florence-2-large-PromptGen-v2.0", # 3.3GB
     "MiaoshouAI PromptGen 1.5 Base": "Disty0/Florence-2-base-PromptGen-v1.5", # 0.5GB
     "MiaoshouAI PromptGen 1.5 Large": "Disty0/Florence-2-large-PromptGen-v1.5", # 1.5GB
     "MiaoshouAI PromptGen 2.0 Base": "Disty0/Florence-2-base-PromptGen-v2.0", # 0.5GB
@@ -181,10 +181,14 @@ def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
-        if '2.5' in repo:
+        if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
+            cls_name = transformers.Qwen3VLForConditionalGeneration
+        elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo:
             cls_name = transformers.Qwen2_5_VLForConditionalGeneration
-        else:
+        elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
             cls_name = transformers.Qwen2VLForConditionalGeneration
+        else:
+            cls_name = transformers.AutoModelForCausalLM
         model = cls_name.from_pretrained(
             repo,
             torch_dtype=devices.dtype,

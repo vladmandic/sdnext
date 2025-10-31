@@ -129,6 +129,8 @@ import tqdm as tqdm_lib # pylint: disable=C0411
 from tqdm.rich import tqdm # pylint: disable=W0611,C0411
 
 try:
+    logging.getLogger("diffusers.guiders").setLevel(logging.ERROR)
+    logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
     import diffusers.utils.import_utils # pylint: disable=W0611,C0411
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
@@ -136,7 +138,6 @@ try:
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
-    logging.getLogger("diffusers.loaders.single_file").setLevel(logging.ERROR)
     timer.startup.record("diffusers")
 except Exception as e:
     errors.log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
@@ -144,6 +145,7 @@ except Exception as e:
     sys.exit(1)
 
 import huggingface_hub # pylint: disable=W0611,C0411
+logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
 timer.startup.record("hfhub")
 
 try:
@@ -153,6 +155,9 @@ except Exception:
 from PIL import Image # pylint: disable=W0611,C0411
 timer.startup.record("pillow")
 
+
+import cv2 # pylint: disable=W0611,C0411
+timer.startup.record("cv2")
 
 class _tqdm_cls():
     def __call__(self, *args, **kwargs):
@@ -184,7 +189,7 @@ def get_packages():
 try:
     import math
     cores = os.cpu_count()
-    affinity = len(os.sched_getaffinity(0))
+    affinity = len(os.sched_getaffinity(0)) # pylint: disable=no-member
     threads = torch.get_num_threads()
     if threads < (affinity / 2):
         torch.set_num_threads(math.floor(affinity / 2))
@@ -224,4 +229,4 @@ class VersionString(str): # support both string and tuple for version check
 
 torch.__version__ = VersionString(torch.__version__)
 errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__}')
+errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__}')

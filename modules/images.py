@@ -157,6 +157,10 @@ def save_image(image,
     if image is None:
         shared.log.warning('Image is none')
         return None, None, None
+    if isinstance(image, list):
+        if len(image) > 1:
+            shared.log.warning(f'Save: images={image} multiple images provided only the first one will be saved')
+        image = image[0]
     if not check_grid_size([image]):
         return None, None, None
     if path is None or path == '': # set default path to avoid errors when functions are triggered manually or via api and param is not set

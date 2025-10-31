@@ -55,7 +55,7 @@ def nms(x, t, s):
     for f in [f1, f2, f3, f4]:
         np.putmask(y, cv2.dilate(x, kernel=f) == x, x)
     z = np.zeros_like(y, dtype=np.uint8)
-    z[y > t] = 255
+    z[y > t] = 255 # pylint: disable=unsupported-assignment-operation
     return z
 
 def min_max_norm(x):

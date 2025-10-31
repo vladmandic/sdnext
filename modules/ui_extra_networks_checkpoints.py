@@ -4,6 +4,7 @@ import json
 import concurrent
 from datetime import datetime
 from modules import shared, ui_extra_networks, sd_models, modelstats, paths
+from modules.json_helpers import readfile
 
 
 version_map = {
@@ -36,13 +37,18 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             return any(model.endswith(url) for model in existing)
 
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
+            shared.log.debug(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable}')
             return []
+        count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0 }
+        shared.reference_models = readfile(os.path.join('html', 'reference.json'))
         for k, v in shared.reference_models.items():
+            count['total'] += 1
             url = v['path']
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
                     shared.log.debug(f'Networks: experimental model="{k}"')
+                    count['experimental'] += 1
                 else:
                     continue
             preview = v.get('preview', v['path'])
@@ -61,6 +67,22 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 path = f'{v.get("path", "")}+{v.get("subfolder", "")}'
             else:
                 path = f'{v.get("path", "")}'
+
+            ready = reference_downloaded(url)
+            if not ready and shared.opts.offline_mode:
+                count['hidden'] += 1
+                continue
+            if ready:
+                count['ready'] += 1
+
+            tag = v.get('tags', '')
+            if tag in count:
+                count[tag] += 1
+            elif tag != '':
+                count[tag] = 1
+            else:
+                count['base'] += 1
+
             yield {
                 "type": 'Model',
                 "name": name,
@@ -75,8 +97,10 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
-                "version": "ready" if reference_downloaded(url) else "download",
+                "version": "ready" if ready else "download",
+                "tags": tag,
             }
+        shared.log.debug(f'Networks: type="reference" items={count}')
 
     def create_item(self, name):
         record = None

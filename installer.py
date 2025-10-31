@@ -241,7 +241,10 @@ def setup_logging():
     log.addHandler(fh)
     global log_rolled # pylint: disable=global-statement
     if not log_rolled and args.debug and not args.log:
-        fh.doRollover()
+        try:
+            fh.doRollover()
+        except Exception:
+            pass
         log_rolled = True
 
     rb = RingBuffer(100) # 100 entries default in log ring buffer
@@ -386,6 +389,9 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
+    if opts.get('offline_mode', False):
+        log.warning('Offline mode enabled')
+        return 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
@@ -586,8 +592,10 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
                 sys.exit(1)
     if int(sys.version_info.minor) == 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
+    if int(sys.version_info.minor) == 10:
+        log.warning(f"Python: version={platform.python_version()} is not actively supported")
     if int(sys.version_info.minor) == 9:
-        log.warning("Python 3.9 support is scheduled to be removed")
+        log.warning(f"Python: version={platform.python_version()} is end-of-life")
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
@@ -605,10 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    if args.skip_git:
-        install('diffusers')
-        return
-    sha = '23ebbb4bc81a17ebea17cb7cb94f301199e49a7f' # diffusers commit hash
+    sha = '9f3c0fdcd859905c2c13ec47f10eb0250d2576ac' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -620,6 +625,8 @@ def check_diffusers():
         else:
             log.info(f'Diffusers update: current={pkg.version} hash={cur} target={sha}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
+        if args.skip_git:
+            log.warning('Git: marked as not available but required for diffusers installation')
         pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{sha}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = sha
@@ -756,28 +763,24 @@ def install_rocm_zluda():
             except Exception as e:
                 log.warning(f'Failed to load ZLUDA: {e}')
     else:
-        #check_python(supported_minors=[10, 11, 12, 13], reason='ROCm backend requires a Python version between 3.10 and 3.13')
-
+        #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 7.0: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.0')
+            else: # oldest rocm version on nightly is 6.4
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
-            else: # oldest rocm version on nightly is 6.3
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.3')
         else:
             if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
-                # Torch 2.8 with ROCm has common segfaults, memory access violations and accuracy issues
-                #torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+rocm6.4 torchvision==0.23.0+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.3 torchvision==0.22.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+rocm6.4 torchvision==0.24.0+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
             elif rocm.version == "6.3":
-                #torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+rocm6.3 torchvision==0.23.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.3 torchvision==0.22.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+rocm6.3 torchvision==0.24.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
             elif rocm.version == "6.2":
                 # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
             elif rocm.version == "6.1":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.6.0+rocm6.1 torchvision==0.21.0+rocm6.1 --index-url https://download.pytorch.org/whl/rocm6.1')
             else:
-                # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6.0 for rocm 6.0
+                # lock to 2.4.1 instead of 2.5.1 for performance reasons there are no support for torch 2.6 for rocm 6.0
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1+rocm6.0 torchvision==0.19.1+rocm6.0 --index-url https://download.pytorch.org/whl/rocm6.0')
                 if float(rocm.version) < 6.0:
                     log.warning(f"ROCm: unsupported version={rocm.version}")
@@ -797,15 +800,14 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[10, 11, 12, 13], reason='IPEX backend requires a Python version between 3.10 and 3.13')
+    #check_python(supported_minors=[10, 11, 12, 13, 14], reason='IPEX backend requires a Python version between 3.10 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        # torch 2.8 segfaults with torch.compile: https://github.com/pytorch/pytorch/issues/159974
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+xpu torchvision==0.22.1+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+xpu torchvision==0.24.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -818,9 +820,9 @@ def install_openvino():
 
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0 torchvision==0.23.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0 torchvision==0.24.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.8.0+cpu torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+cpu torchvision==0.24.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
         install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
@@ -855,7 +857,7 @@ def install_torch_addons():
     if len(opts.get('torchao_quantization', [])):
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.4', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.5', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
@@ -1261,6 +1263,13 @@ def install_pydantic():
         reload('pydantic', '1.10.21')
 
 
+def install_opencv():
+    install('opencv-python==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-python-headless==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-contrib-python==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-contrib-python-headless==4.12.0.88', ignore=True, quiet=True)
+
+
 def install_insightface():
     install('git+https://github.com/deepinsight/insightface@29b6cd65aa0e9ae3b6602de3c52e9d8949c8ee86#subdirectory=python-package', 'insightface') # insightface==0.7.3 with patches
     if args.new:
@@ -1275,18 +1284,23 @@ def install_insightface():
 def install_optional():
     t_start = time.time()
     log.info('Installing optional requirements...')
-    install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr')
-    install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan')
-    install('clean-fid', quiet=True)
-    install('pillow-jxl-plugin==1.3.4', ignore=True, quiet=True)
-    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
-    install('torchao==0.10.0', ignore=True, quiet=True)
-    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
-    install('nvidia-ml-py', ignore=True, quiet=True)
-    install('ultralytics==8.3.40', ignore=True, quiet=True)
-    install('Cython', ignore=True, quiet=True)
+    install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
+    install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan', ignore=True, quiet=True)
     install('av', ignore=True, quiet=True)
-    install('gguf', ignore=True)
+    install('beautifulsoup4', ignore=True, quiet=True)
+    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
+    install('clean-fid', ignore=True, quiet=True)
+    install('clip_interrogator==0.6.0', ignore=True, quiet=True)
+    install('Cython', ignore=True, quiet=True)
+    install('gguf', ignore=True, quiet=True)
+    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
+    install('hf_transfer', ignore=True, quiet=True)
+    install('hf_xet', ignore=True, quiet=True)
+    install('nvidia-ml-py', ignore=True, quiet=True)
+    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
+    install('torchao==0.10.0', ignore=True, quiet=True)
+    install('ultralytics==8.3.40', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
@@ -1299,11 +1313,11 @@ def install_optional():
 
 def install_requirements():
     t_start = time.time()
+    if args.skip_requirements and not args.requirements:
+        return
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    if args.skip_requirements and not args.requirements:
-        return
     if int(sys.version_info.minor) >= 13:
         install('audioop-lts')
     if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
@@ -1324,6 +1338,7 @@ def install_requirements():
             if not installed(line, quiet=True):
                 _res = install(line)
     install_pydantic()
+    install_opencv()
     if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')
@@ -1356,6 +1371,8 @@ def set_environment():
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
+    os.environ.setdefault('RUNAI_STREAMER_CHUNK_BYTESIZE', '2097152')
+    os.environ.setdefault('RUNAI_STREAMER_MEMORY_LIMIT', '-1')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'
@@ -1501,12 +1518,17 @@ def check_venv():
 
 
 # check version of the main repo and optionally upgrade it
-def check_version(offline=False, reset=True): # pylint: disable=unused-argument
+def check_version(reset=True): # pylint: disable=unused-argument
+    if opts.get('offline_mode', False):
+        log.warning('Offline mode enabled')
+        args.skip_git = True # pylint: disable=attribute-defined-outside-init
+        args.skip_all = True # pylint: disable=attribute-defined-outside-init
+        return
     t_start = time.time()
     if args.skip_all:
         return
     if not os.path.exists('.git'):
-        log.warning('Not a git repository, all git operations are disabled')
+        log.warning('Not a git repository')
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
@@ -1543,7 +1565,7 @@ def check_version(offline=False, reset=True): # pylint: disable=unused-argument
                 else:
                     log.warning('Repository: retrying upgrade...')
                     git_reset()
-                    check_version(offline=offline, reset=False)
+                    check_version(reset=False)
         else:
             dt = commits["commit"]["commit"]["author"]["date"]
             commit = commits["commit"]["sha"][:8]

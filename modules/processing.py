@@ -163,6 +163,9 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             if p.override_settings.get('sd_vae', None) == 'TAESD':
                 p.vae_type = 'Tiny'
                 p.override_settings.pop('sd_vae', None)
+            if p.override_settings.get('sd_vae', None) == 'REPA-E':
+                p.vae_type = 'Repa'
+                p.override_settings.pop('sd_vae', None)
         if p.override_settings.get('Hires upscaler', None) is not None:
             p.enable_hr = True
         if len(p.override_settings.keys()) > 0:
@@ -282,6 +285,11 @@ def process_samples(p: StableDiffusionProcessing, samples):
             sample = validate_sample(sample)
             image = Image.fromarray(sample)
 
+        if isinstance(image, list):
+            if len(image) > 1:
+                shared.log.warning(f'Processing: images={image} contains multiple images using first one only')
+            image = image[0]
+
         if not shared.state.interrupted and not shared.state.skipped:
 
             if p.restore_faces:
@@ -391,7 +399,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         if not hasattr(p, 'skip_init'):
             p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
         debug(f'Processing inner: args={vars(p)}')
+        p.iter_init_images = p.init_images # required so we use same starting non-processed images for each batch sequence
         for n in range(p.n_iter):
+            p.init_images = p.iter_init_images
             if p.n_iter > 1:
                 shared.log.debug(f'Processing: batch={n+1} total={p.n_iter} progress={(n+1)/p.n_iter:.2f}')
             shared.state.batch_no = n + 1
@@ -428,6 +438,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
 
+            # main processing
             if samples is None:
                 from modules.processing_diffusers import process_diffusers
                 samples = process_diffusers(p)

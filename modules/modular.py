@@ -26,6 +26,11 @@ def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
     return compatible
 
 
+def is_guider(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
+    guider = getattr(diffusion_pipeline, 'guider', None)
+    return guider is not None
+
+
 def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffusers.ModularPipeline:
     modular_pipe = None
     try:
