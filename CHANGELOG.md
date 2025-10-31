@@ -1,13 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-30
+## Update for 2025-10-31
 
-### Highlights for 2025-10-30
+### Highlights for 2025-10-31
 
 Less than 2 weeks since last release, here's a service-pack style update with a lot of fixes and improvements:
 - Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
   and introduction of optimized **pre-quantized** variants for many popular models - use this as your quick start!  
-- New models: **HunyuanImage 2.1** capable of 2K images natively, **HunyuanImage 3.0** large unified multimodal autoregressive model,  
+- New models:  
+  **HunyuanImage 2.1** capable of 2K images natively, **HunyuanImage 3.0** large unified multimodal autoregressive model,  
   **ChronoEdit** that re-purposes temporal consistency of generation for image editing  
   **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
 - New **offline mode** to use previously downloaded models without internet connection  
@@ -21,7 +22,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-10-30
+### Details for 2025-10-31
 
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  

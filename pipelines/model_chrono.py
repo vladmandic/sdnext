@@ -37,11 +37,12 @@ def load_chrono(checkpoint_info, diffusers_load_config=None):
         'num_temporal_reasoning_steps': shared.opts.model_chrono_temporal_steps,
         'output_type': 'np',
     }
+    # reference: <https://github.com/nv-tlabs/ChronoEdit/blob/main/scripts/run_inference_diffusers.py>
     if shared.opts.model_chrono_temporal_steps > 0:
         pipe.task_args['num_frames'] = 29
         pipe.task_args['enable_temporal_reasoning'] = True
     else:
-        pipe.task_args['num_frames'] = 29
+        pipe.task_args['num_frames'] = 5
         pipe.task_args['enable_temporal_reasoning'] = False
 
     del text_encoder
