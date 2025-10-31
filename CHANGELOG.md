@@ -1,5 +1,12 @@
 # Change Log for SD.Next
 
+## Update for 2025-11-01
+
+- add inline wildcards using curly braces syntax  
+- fix inpaint  
+- fix model type detection  
+- guard against multi-controlnet in hires  
+
 ## Update for 2025-10-31
 
 ### Highlights for 2025-10-31
