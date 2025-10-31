@@ -14,7 +14,7 @@ from modules.timer import process as process_timer
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni', 'hunyuanimage']
+offload_warn = ['sc', 'sd3', 'f1', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni', 'hunyuanimage', 'hunyuanimage3']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
@@ -92,7 +92,7 @@ def apply_group_offload(sd_model, op:str='model'):
     return sd_model
 
 
-def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
+def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
     if sd_model is None:
@@ -154,7 +154,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False):
         sd_model = apply_group_offload(sd_model, op=op)
 
     if shared.opts.diffusers_offload_mode == "balanced":
-        sd_model = apply_balanced_offload(sd_model)
+        sd_model = apply_balanced_offload(sd_model, force=force)
 
     process_timer.add('offload', time.time() - t0)
 
@@ -288,7 +288,9 @@ def get_pipe_variants(pipe=None):
     return variants
 
 
-def get_module_names(pipe=None, exclude=[]):
+def get_module_names(pipe=None, exclude=None):
+    if exclude is None:
+        exclude = []
     if pipe is None:
         if shared.sd_loaded:
             pipe = shared.sd_model
@@ -304,7 +306,9 @@ def get_module_names(pipe=None, exclude=[]):
     return modules_names
 
 
-def get_module_sizes(pipe=None, exclude=[]):
+def get_module_sizes(pipe=None, exclude=None):
+    if exclude is None:
+        exclude = []
     modules = {}
     for module_name in get_module_names(pipe, exclude):
         module_size = offload_hook_instance.offload_map.get(module_name, None)
@@ -409,7 +413,7 @@ def report_model_stats(module_name, module):
         shared.log.error(f'Module stats: name={module_name} {e}')
 
 
-def apply_balanced_offload(sd_model=None, exclude=[], force=False):
+def apply_balanced_offload(sd_model=None, exclude=None, force=False):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model
@@ -419,6 +423,8 @@ def apply_balanced_offload(sd_model=None, exclude=[], force=False):
         sd_model = shared.sd_model
     if sd_model is None:
         return sd_model
+    if exclude is None:
+        exclude = []
     t0 = time.time()
     if sd_model.__class__.__name__ in balanced_offload_exclude:
         return sd_model

@@ -32,6 +32,14 @@ def b64(image):
 class Options:
     img2img = [
         'google/gemma-3-4b-it',
+        'allura-org/Gemma-3-Glitter-4B',
+        'Qwen/Qwen2.5-VL-3B-Instruct',
+        'Qwen/Qwen3-VL-2B-Instruct',
+        'Qwen/Qwen3-VL-2B-Thinking',
+        'Qwen/Qwen3-VL-4B-Instruct',
+        'Qwen/Qwen3-VL-4B-Thinking',
+        'Qwen/Qwen3-VL-8B-Instruct',
+        'Qwen/Qwen3-VL-8B-Thinking',
     ]
     models = {
         'google/gemma-3-1b-it': {},
@@ -49,6 +57,12 @@ class Options:
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},
         'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        'Qwen/Qwen3-VL-2B-Instruct': {},
+        'Qwen/Qwen3-VL-2B-Thinking': {},
+        'Qwen/Qwen3-VL-4B-Instruct': {},
+        'Qwen/Qwen3-VL-4B-Thinking': {},
+        'Qwen/Qwen3-VL-8B-Instruct': {},
+        'Qwen/Qwen3-VL-8B-Thinking': {},
         'microsoft/Phi-4-mini-instruct': {},
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
@@ -154,7 +168,17 @@ class Script(scripts_manager.Script):
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
-            self.llm = transformers.AutoModelForCausalLM.from_pretrained(
+
+            if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
+                cls_name = transformers.Qwen3VLForConditionalGeneration
+            elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
+                cls_name = transformers.Qwen2_5_VLForConditionalGeneration
+            elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
+                cls_name = transformers.Qwen2VLForConditionalGeneration
+            else:
+                cls_name = transformers.AutoModelForCausalLM
+
+            self.llm = cls_name.from_pretrained(
                 **load_args,
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
@@ -287,6 +311,25 @@ class Script(scripts_manager.Script):
                 current_image = None
         except Exception:
             current_image = None
+
+        # Resize large images to match VQA performance (Qwen3-VL performance is sensitive to resolution)
+        # Create a copy to avoid modifying the original image used by img2img
+        if current_image is not None and isinstance(current_image, Image.Image):
+            original_size = (current_image.width, current_image.height)
+            needs_resize = current_image.width > 768 or current_image.height > 768
+            needs_rgb = current_image.mode != 'RGB'
+
+            if needs_resize or needs_rgb:
+                # Copy the image before any modifications to preserve the original
+                current_image = current_image.copy()
+
+                if needs_resize:
+                    current_image.thumbnail((768, 768), Image.Resampling.LANCZOS)
+                    debug_log(f'Prompt enhance: Resized image from {original_size} to {(current_image.width, current_image.height)}')
+
+                if needs_rgb:
+                    current_image = current_image.convert('RGB')
+                    debug_log('Prompt enhance: Converted image to RGB mode')
 
         has_system = system is not None and len(system) > 4
         mode = 'custom' if has_system else ''

@@ -68,7 +68,7 @@ def guess_by_name(fn, current_guess):
         return 'Lumina 2'
     elif 'kolors' in fn.lower():
         return 'Kolors'
-    elif 'auraflow' in fn.lower():
+    elif 'auraflow' in fn.lower() or 'pony-v7' in fn.lower():
         return 'AuraFlow'
     elif 'cogview3' in fn.lower():
         return 'CogView 3'
@@ -101,6 +101,8 @@ def guess_by_name(fn, current_guess):
         return 'FLite'
     elif 'wan' in fn.lower():
         return 'WanAI'
+    if 'chronoedit' in fn.lower():
+        return 'ChronoEdit'
     elif 'bria' in fn.lower():
         return 'Bria'
     elif 'qwen' in fn.lower():
@@ -113,6 +115,8 @@ def guess_by_name(fn, current_guess):
         return 'Kandinsky 2.2'
     elif 'kandinsky-3' in fn.lower():
         return 'Kandinsky 3.0'
+    elif 'hunyuanimage3' in fn.lower() or 'hunyuanimage-3' in fn.lower():
+        return 'HunyuanImage3'
     elif 'hunyuanimage' in fn.lower():
         return 'HunyuanImage'
     elif 'x-omni' in fn.lower():
@@ -208,7 +212,6 @@ def detect_pipeline(f: str, op: str = 'model'):
             shared.log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
 
     if pipeline is None:
-        shared.log.warning(f'Load {op}: detect="{guess}" file="{f}" not recognized')
         pipeline = diffusers.DiffusionPipeline
     return pipeline, guess
 

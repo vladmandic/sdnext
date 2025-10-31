@@ -89,7 +89,8 @@ predefined_f1 = {
     "Shakker-Labs Depth F1": 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
     "XLabs-AI Canny F1": 'XLabs-AI/flux-controlnet-canny-diffusers',
     "XLabs-AI Depth F1": 'XLabs-AI/flux-controlnet-depth-diffusers',
-    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers'
+    "XLabs-AI HED F1": 'XLabs-AI/flux-controlnet-hed-diffusers',
+    "LibreFlux Segment F1": 'neuralvfx/LibreFlux-ControlNet',
 }
 predefined_sd3 = {
     "StabilityAI Canny SD35": 'diffusers-internal-dev/sd35-controlnet-canny-8b',
@@ -119,6 +120,15 @@ variants = {
     'NoobAI SoftEdge XL': 'fp16',
     'TTPlanet Tile Realistic XL': 'fp16',
 }
+
+subfolders = {
+    "LibreFlux Segment F1": 'controlnet',
+}
+
+remote_code = {
+    "LibreFlux Segment F1": True,
+}
+
 models = {}
 all_models = {}
 all_models.update(predefined_sd15)
@@ -285,7 +295,7 @@ class ControlNet():
             self.load_config['original_config_file '] = config_path
         self.model = cls.from_single_file(model_path, config=config, **self.load_config)
 
-    def load(self, model_id: str = None, force: bool = True) -> str:
+    def load(self, model_id: str = None, force: bool = False) -> str:
         with load_lock:
             try:
                 t0 = time.time()
@@ -326,6 +336,10 @@ class ControlNet():
                         self.load_config['use_safetensors'] = True
                     if variants.get(model_id, None) is not None:
                         kwargs['variant'] = variants[model_id]
+                    if subfolders.get(model_id, None) is not None:
+                        kwargs['subfolder'] = subfolders[model_id]
+                    if remote_code.get(model_id, None) is not None:
+                        kwargs['trust_remote_code'] = remote_code[model_id]
                     try:
                         self.model = cls.from_pretrained(model_path, **self.load_config, **kwargs)
                     except Exception as e:
@@ -338,6 +352,8 @@ class ControlNet():
                     self.model.offload_never = True
                 if self.dtype is not None:
                     self.model.to(self.dtype)
+                if self.device is not None:
+                    self.model.to_empty(device=self.device) # model could be sparse
                 if "Control" in opts.sdnq_quantize_weights:
                     try:
                         log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
@@ -362,7 +378,7 @@ class ControlNet():
                     except Exception as e:
                         log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
-                    self.model.to(self.device)
+                    sd_models.move_model(self.model, self.device)
                 if "Control" in opts.cuda_compile:
                     try:
                         from modules.sd_models_compile import compile_torch
@@ -371,9 +387,9 @@ class ControlNet():
                         log.warning(f"Control compile error: {e}")
                 t1 = time.time()
                 self.model_id = model_id
-                log.info(f'Control {what} model loaded: id="{model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
+                log.info(f'Control {what} model loaded: id="{self.model_id}" path="{model_path}" cls={cls.__name__} time={t1-t0:.2f}')
                 state.end(jobid)
-                return f'{what} loaded model: {model_id}'
+                return f'{what} loaded model: {self.model_id}'
             except Exception as e:
                 log.error(f'Control {what} model load: id="{model_id}" {e}')
                 errors.display(e, f'Control {what} load')
@@ -513,7 +529,7 @@ class ControlNetPipeline():
         if opts.diffusers_offload_mode == 'none':
             sd_models.move_model(self.pipeline, devices.device)
         sd_models.clear_caches()
-        sd_models.set_diffuser_offload(self.pipeline, 'model')
+        sd_models.set_diffuser_offload(self.pipeline, 'model', force=True)
 
         t1 = time.time()
         debug_log(f'Control {what} pipeline: class={self.pipeline.__class__.__name__} time={t1-t0:.2f}')

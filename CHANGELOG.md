@@ -1,34 +1,86 @@
 # Change Log for SD.Next
 
-## Update for 2025-10-25
+## Update for 2025-10-31
 
-- **Models**
-  - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
-    HunyuanImage-2.1 is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+### Highlights for 2025-10-31
+
+Less than 2 weeks since last release, here's a service-pack style update with a lot of fixes and improvements:
+- Reorganization of **Reference Models** into *Base, Quantized, Distilled and Community* sections for easier navigation  
+  and introduction of optimized **pre-quantized** variants for many popular models - use this as your quick start!  
+- New models:  
+  **HunyuanImage 2.1** capable of 2K images natively, **HunyuanImage 3.0** large unified multimodal autoregressive model,  
+  **ChronoEdit** that re-purposes temporal consistency of generation for image editing  
+  **Pony 7** based on AuraFlow architecture, **Kandinsky 5** 10s video models  
+- New **offline mode** to use previously downloaded models without internet connection  
+- Optimizations to **WAN-2.2** given its popularity  
+  plus addition of native **VAE Upscaler** and optimized **pre-quantized** variants  
+- New SOTA model loader using **Run:ai streamer**  
+- Updates to `rocm` and `xpu` backends  
+- Fixes, fixes, fixes... too many to list here!  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-10-31
+
 - **Reference** networks section is now split into actual *Base* models plus:  
   - **Quantized**: pre-quantized variants of the base models using SDNQ-SVD quantization for optimal quality and smallest possible resource usage  
     examples: *FLUX.1-Dev/Krea/Kontext/Schnell, Qwen-Image/Edit/2509, Chroma1-HD, WAN-2.2-A44B, etc.*  
+    *note*: pre-quantized *WAN-2.2-14B* is also available in video models and runs with only 12GB VRAM!  
   - **Distilled**: distilled variants of base models  
     examples: *Turbo, Lightning, Lite, SRPO, Distill, Pruning, etc.*  
   - **Community**: community highlights  
     examples: *Tempest, Juggernaut, Illustrious, Pony, NoobAI, etc.*  
+    and all reference models have new preview images, thanks @liutyi  
+- **Models Reference**  
+  - [Tencent HunyuanImage 2.1](https://huggingface.co/tencent/HunyuanImage-2.1) in *full*, *distilled* and *refiner* variants  
+    *HunyuanImage-2.1* is a large (51GB) T2I model capable of natively generating 2K images and uses Qwen2.5 + T5 text-encoders and 32x VAE  
+  - [Tencent HunyuanImage 3.0](https://huggingface.co/tencent/HunyuanImage-3.0) in [pre-quant](https://huggingface.co/Disty0/HunyuanImage3-SDNQ-uint4-svd-r32) only variant due to massive size  
+    *HunyuanImage 3.0* is very large at 47GB pre-quantized (oherwise its 157GB) that unifies multimodal understanding and generation within an autoregressive framework  
+  - [nVidia ChronoEdit](https://huggingface.co/nvidia/ChronoEdit-14B-Diffusers)  
+    *ChronoEdit* is a 14B image editing model based on *WAN*  
+    this model reframes image editing as a video generation task, using input and edited images as start/end frames to leverage pretrained video models with temporal consistency  
+    to extend temporal consistency for image editing, set *settings -> model options -> chrono temporal steps* to desired number of temporaly reasoning steps  
+  - [Kandinsky 5 Lite 10s](https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-10s-Diffusers') in *SFT, CFG-distilled and Steps-distilled* variants  
+    second series of models in *Kandinsky5* series is T2V model optimized for 10sec videos and uses Qwen2.5 text encoder  
+  - [Pony 7](https://huggingface.co/purplesmartai/pony-v7-base)  
+    Pony 7 steps in a different direction from previous Pony models and is based on AuraFlow architecture and UMT5 encoder  
+- **Models Auxiliary**  
+  - [Qwen 3-VL](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct) VLM for interrogate and prompt enhance, thanks @CalamitousFelicitousness  
+    this includes *2B, 4B and 8B* variants  
+  - [WAN Asymettric Upscale](https://huggingface.co/spacepxl/Wan2.1-VAE-upscale2x)  
+    available as general purpose upscaler that can be used during standard workflow or process tab  
+    available as VAE for compatible video models: *WAN-2.x-14B, SkyReels-v2* models  
+  - [Apple DepthPro](https://huggingface.co/apple/DepthPro) controlnet processor, thanks @nolbert82  
+  - [LibreFlux controlnet](https://huggingface.co/neuralvfx/LibreFlux-ControlNet) segmentation controlnet for FLUX.1  
 - **Features**
   - **offline mode**: enable in *settings -> hugginface*  
     enables fully offline mode where previously downloaded models can be used as-is  
     *note*: must be enabled only after all packages have been installed and model has been run online at least once  
+  - **model load**: SOTA method using nVidia's [Run:ai streamer](https://github.com/run-ai/runai-model-streamer)  
+    enable in *settings -> model options -> runai streamer*  
+    applies to *diffusers, transformers and sdnq* loaders, note this is linux-only feature  
+    *experimental* but shows significant model load speedups, 20-40% depending on model and hardware  
 - **Backend**
   - switch to `torch==2.9` for *ipex, rocm and openvino*  
   - switch to `rocm==7.0` for nightlies  
-- **Quantization**
-  - improved **SDNQ SVD** and low-bit matmul performance  
+  - log `triton` availability on startup  
+  - add `xpu` stats in gpu monitor  
 - **Other**
+  - improved **SDNQ SVD** and low-bit matmul performance  
+  - reduce RAM usage on model load using **SDNQ SVD**
   - change default **schedulers** for sdxl  
   - warn on `python==3.9` end-of-life and `python==3.10` not actively supported  
   - **scheduler** add base and max shift parameters for flow-matching samplers  
   - enhance `--optional` flag to pre-install optional packages  
   - add `[lora]` to recognized filename patterns  
-  - add **Apple DepthPro** controlnet processor, thanks @nolbert82  
   - when using **shared-t5** *(default)*, it will load standard or pre-quant depending on model  
+  - enhanced LoRA support for **Wan-2.2-14B**  
+  - log available attention mechanisms on startup  
+  - support for switching back-and-forth **t2i** and **t2v** for *wan-2.x* models  
+  - control `api` cache controlnets  
+  - additional model modules **deduplication** for both normal and pre-quant models: *umt5, qwen25-vl*  
 - **Fixes**
   - startup error with `--profile` enabled if using `--skip`  
   - restore orig init image for each batch sequence  
@@ -44,6 +96,18 @@
   - fix networks display with extended characters, thanks @awsr  
   - installer handle different `opencv` package variants  
   - fix using pre-quantized shared-t5  
+  - fix `wan-2.2-14b-vace` single-stage exectution  
+  - fix `wan-2.2-5b` tiled vae decode  
+  - fix `controlnet` loading with quantization  
+  - video use pre-quantized text-encoder if selected model is pre-quantized  
+  - handle sparse `controlnet` models  
+  - catch `xet` warnings  
+  - avoid unnecessary pipe variant switching  
+  - validate pipelines on import  
+  - fix `nudenet` process tab operations  
+  - `controlnet` input validation  
+  - log metadata keys that cannot be applied  
+  - fix `framepack` with image input  
 
 ## Update for 2025-10-18
 

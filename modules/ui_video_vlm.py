@@ -58,7 +58,7 @@ def create_ui(prompt_element:gr.Textbox, image_element:gr.Image):
             nsfw = gr.Checkbox(label='NSFW allowed', value=True)
             btn_enhance = gr.Button(value='Enhance now', elem_id='btn_enhance')
         with gr.Row():
-            model = gr.Dropdown(label='Model', choices=models, value=models[0])
+            model = gr.Dropdown(label='LLM Model', choices=models, value=models[0])
         with gr.Row():
             system_prompt = gr.Textbox(label='System prompt', placeholder='override system prompt with user-provided prompt', lines=3)
         btn_enhance.click(

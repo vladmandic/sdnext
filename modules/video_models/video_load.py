@@ -43,7 +43,10 @@ def load_model(selected: models_def.Model):
             selected.te_folder = ''
             selected.te_revision = None
         if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
-            selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+            if 'SDNQ' in selected.name:
+                selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
+            else:
+                selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
             selected.te_folder = 'text_encoder'
             selected.te_revision = None
         if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
@@ -154,3 +157,27 @@ def load_model(selected: models_def.Model):
     shared.log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling} framewise={framewise}')
     shared.state.end(jobid)
     return msg
+
+
+def load_upscale_vae():
+    if not hasattr(shared.sd_model, 'vae'):
+        return
+    if hasattr(shared.sd_model.vae, '_asymmetric_upscale_vae'):
+        return # already loaded
+    if shared.sd_model.vae.__class__.__name__ != 'AutoencoderKLWan':
+        shared.log.warning('Video decode: upscale VAE unsupported')
+        return
+
+    import diffusers
+    repo_id = 'spacepxl/Wan2.1-VAE-upscale2x'
+    subfolder = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
+    vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir)
+    vae_decode.requires_grad_(False)
+    vae_decode = vae_decode.to(device=devices.device, dtype=devices.dtype)
+    vae_decode.eval()
+    shared.log.debug(f'Decode: load="{repo_id}"')
+    shared.sd_model.orig_vae = shared.sd_model.vae
+    shared.sd_model.vae = vae_decode
+    shared.sd_model.vae._asymmetric_upscale_vae = True # pylint: disable=protected-access
+    sd_hijack_vae.init_hijack(shared.sd_model)
+    sd_models.apply_balanced_offload(shared.sd_model, force=True) # reapply offload

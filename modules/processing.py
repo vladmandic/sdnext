@@ -163,6 +163,9 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             if p.override_settings.get('sd_vae', None) == 'TAESD':
                 p.vae_type = 'Tiny'
                 p.override_settings.pop('sd_vae', None)
+            if p.override_settings.get('sd_vae', None) == 'REPA-E':
+                p.vae_type = 'Repa'
+                p.override_settings.pop('sd_vae', None)
         if p.override_settings.get('Hires upscaler', None) is not None:
             p.enable_hr = True
         if len(p.override_settings.keys()) > 0:
@@ -281,6 +284,11 @@ def process_samples(p: StableDiffusionProcessing, samples):
         else:
             sample = validate_sample(sample)
             image = Image.fromarray(sample)
+
+        if isinstance(image, list):
+            if len(image) > 1:
+                shared.log.warning(f'Processing: images={image} contains multiple images using first one only')
+            image = image[0]
 
         if not shared.state.interrupted and not shared.state.skipped:
 
@@ -430,6 +438,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         output_images.append(script_image)
                         infotexts.append(script_infotext)
 
+            # main processing
             if samples is None:
                 from modules.processing_diffusers import process_diffusers
                 samples = process_diffusers(p)

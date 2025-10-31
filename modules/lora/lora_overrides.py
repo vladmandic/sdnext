@@ -38,10 +38,12 @@ force_models_diffusers = [ # forced always
     'bria',
     'flite',
     'cosmos',
+    'chrono',
     # video models
     'hunyuanvideo',
     'cogvideo',
     'wanai',
+    'chrono',
     'ltxvideo',
     'mochivideo',
     'allegrovideo',

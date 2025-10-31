@@ -339,7 +339,7 @@ def outpaint(input_image: Image.Image, outpaint_type: str = 'Edge'):
     debug(f'Run outpaint: fn={fn}') # pylint: disable=protected-access
     image = cv2.cvtColor(np.array(input_image), cv2.COLOR_RGB2BGR)
     h0, w0 = image.shape[:2]
-    empty = (image == 0).all(axis=2)
+    empty = (image == 0).all(axis=2) # pylint: disable=no-member
     y0, x0 = np.where(~empty) # non empty
     x1, x2 = min(x0), max(x0)
     y1, y2 = min(y0), max(y0)
@@ -421,7 +421,7 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
         mask = run_segment(input_image, input_mask)
     mask = cv2.resize(mask, (input_image.width, input_image.height), interpolation=cv2.INTER_LANCZOS4)
 
-    shared.log.trace(f'Mask shape={mask.shape} opts={opts} fn={fn}')
+    # shared.log.trace(f'Mask shape={mask.shape} opts={opts} fn={fn}')
     if opts.mask_erode > 0:
         try:
             kernel = np.ones((int(opts.mask_erode * size / 4) + 1, int(opts.mask_erode * size / 4) + 1), np.uint8)

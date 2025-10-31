@@ -4,7 +4,9 @@ import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 
 
-def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer'):
+def load_transformer(repo_id, diffusers_load_config=None, subfolder='transformer'):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True)
     fn = None
 
@@ -45,7 +47,9 @@ def load_transformer(repo_id, diffusers_load_config={}, subfolder='transformer')
     return transformer
 
 
-def load_text_encoder(repo_id, diffusers_load_config={}):
+def load_text_encoder(repo_id, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     repo_id = 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers' if 'Wan2.' in repo_id else repo_id # always use shared umt5
     shared.log.debug(f'Load model: type=WanAI te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
@@ -61,7 +65,9 @@ def load_text_encoder(repo_id, diffusers_load_config={}):
     return text_encoder
 
 
-def load_wan(checkpoint_info, diffusers_load_config={}):
+def load_wan(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

@@ -458,6 +458,13 @@
     "size": 7.51,
     "date": "2024 November"
   },
+  "nVidia ChronoEdit": {
+    "path": "nvidia/ChronoEdit-14B-Diffusers",
+    "preview": "nvidia--ChronoEdit-14B-Diffusers.jpg",
+    "desc": "ChronoEdit reframes image editing as a video generation task, using input and edited images as start/end frames to leverage pretrained video models with temporal consistency.",
+    "skip": true,
+    "extras": ""
+  },
   "nVidia Cosmos-Predict2 T2I 2B": {
     "path": "nvidia/Cosmos-Predict2-2B-Text2Image",
     "desc": "Cosmos-Predict2: A family of highly performant pre-trained world foundation models purpose-built for generating physics-aware images, videos and world states for physical AI development.",
@@ -611,7 +618,7 @@
   "Tencent HunyuanImage 2.1 Distilled": {
     "path": "hunyuanvideo-community/HunyuanImage-2.1-Distilled-Diffusers",
     "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
-    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
+    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Distilled-Diffusers.jpg",
     "extras": "",
     "tags": "distilled",
     "skip": true,
@@ -1006,6 +1013,26 @@
     "size": 16.10,
     "extras": ""
   },
+  "nVidia ChronoEdit sdnq-svd-uint4": {
+    "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
+    "preview": "nvidia--ChronoEdit-14B-Diffusers.jpg",
+    "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 18.10,
+    "extras": ""
+  },
+  "Tencent HunyuanImage 3.0 sdnq-svd-uint4": {
+    "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
+    "desc": "Quantization of tencent/HunyuanImage-3.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
+    "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
+    "extras": "",
+    "skip": true,
+    "tags": "quantized",
+    "size": 57.06,
+    "date": "2025 September"
+  },
   "Tempest-by-Vlad XL sdnq-svd-uint4": {
     "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
     "preview": "tempestByVlad_baseV01.jpg",
@@ -1133,6 +1160,15 @@
     "extras": "",
     "tags": "community",
     "date": "2025 September"
+  },
+  "purplesmartai Pony 7": {
+    "path": "purplesmartai/pony-v7-base",
+    "preview": "purplesmartai--pony-v7-base.jpg",
+    "skip": true,
+    "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
+    "extras": "",
+    "tags": "community",
+    "date": "October September"
   },
   "ShuttleAI Shuttle 3.0 Diffusion": {
     "path": "shuttleai/shuttle-3-diffusion",

@@ -394,7 +394,7 @@ def create_quicksettings(interfaces):
                 model, url = model.split('@')
                 loaded = modelloader.load_civitai(model, url)
                 if loaded is not None:
-                    shared.opts.sd_model_checkpoint = loaded.title
+                    shared.opts.sd_model_checkpoint = loaded
                     sd_models.reload_model_weights(force=True)
                     return loaded
                 return shared.opts.sd_model_checkpoint

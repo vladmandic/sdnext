@@ -97,16 +97,24 @@ class Agent:
 
     @property
     def therock(self) -> Union[str, None]:
-        if (self.gfx_version & 0xFFF0) == 0x1100:
-            return "gfx110X-dgpu"
-        if self.gfx_version == 0x1151:
-            return "gfx1151"
         if (self.gfx_version & 0xFFF0) == 0x1200:
             return "gfx120X-all"
-        if (self.gfx_version & 0xFFF0) == 0x940:
-            return "gfx94X-dcgpu"
-        if self.gfx_version == 0x950:
-            return "gfx950-dcgpu"
+        if (self.gfx_version & 0xFFF0) == 0x1100:
+            return "gfx110X-all"
+        if self.gfx_version == 0x1150:
+            return "gfx1150"
+        if self.gfx_version == 0x1151:
+            return "gfx1151"
+        #if (self.gfx_version & 0xFFF0) == 0x1030:
+        #    return "gfx103X-dgpu"
+        #if (self.gfx_version & 0xFFF0) == 0x1010:
+        #    return "gfx101X-dgpu"
+        #if (self.gfx_version & 0xFFF0) == 0x900:
+        #    return "gfx90X-dcgpu"
+        #if (self.gfx_version & 0xFFF0) == 0x940:
+        #    return "gfx94X-dcgpu"
+        #if self.gfx_version == 0x950:
+        #    return "gfx950-dcgpu"
         return None
 
     def get_gfx_version(self) -> Union[str, None]:
@@ -239,15 +247,9 @@ if sys.platform == "win32":
     def driver_get_agents() -> List[Agent]:
         # unsafe and experimental feature
         from modules import windows_hip_ffi
-        hip = windows_hip_ffi.HIP()
-        count = hip.get_device_count()
-        _agents = [None] * count
-        for i in range(count):
-            prop = hip.get_device_properties(i)
-            name = prop.gcnArchName.decode('utf-8').strip('\x00')
-            _agents[i] = Agent(name)
-        del hip
-        return _agents
+        archs = windows_hip_ffi.get_archs()
+        # filter out None (is there any better way?)
+        return [Agent(x) for x in archs if x is not None]
 
     def postinstall():
         import torch

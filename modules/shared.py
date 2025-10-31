@@ -152,6 +152,8 @@ options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_checkpoint_autodownload": OptionInfo(True, "Model auto-download on demand"),
     "stream_load": OptionInfo(False, "Model load using streams", gr.Checkbox),
     "diffusers_to_gpu": OptionInfo(False, "Model load model direct to GPU"),
+    "runai_streamer_diffusers": OptionInfo(False, "Diffusers load using Run:ai streamer", gr.Checkbox),
+    "runai_streamer_transformers": OptionInfo(False, "Transformers load using Run:ai streamer", gr.Checkbox),
     "diffusers_eval": OptionInfo(False, "Force model eval", gr.Checkbox, {"visible": True }),
     "device_map": OptionInfo('default', "Model load device map", gr.Radio, {"choices": ['default', 'gpu', 'cpu'] }),
     "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
@@ -168,6 +170,8 @@ options_templates.update(options_section(('model_options', "Model Options"), {
     "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
     "model_wan_stage": OptionInfo("low noise", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
+    "model_chrono_sep": OptionInfo("<h2>ChronoEdit</h2>", "", gr.HTML),
+    "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {
@@ -205,7 +209,7 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
     "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
-    "sdnq_dequantize_compile": OptionInfo(devices.has_triton(), "Dequantize using torch.compile", gr.Checkbox),
+    "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
     "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
     "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
     "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize using GPU", gr.Checkbox),

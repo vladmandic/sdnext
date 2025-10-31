@@ -87,6 +87,7 @@ def parse(infotext):
 
 mapping = [
     # Models
+    ('Model', 'sd_model_checkpoint'),
     ('Model hash', 'sd_model_checkpoint'),
     ('Refiner', 'sd_model_refiner'),
     ('VAE', 'sd_vae'),

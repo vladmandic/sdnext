@@ -241,7 +241,10 @@ def setup_logging():
     log.addHandler(fh)
     global log_rolled # pylint: disable=global-statement
     if not log_rolled and args.debug and not args.log:
-        fh.doRollover()
+        try:
+            fh.doRollover()
+        except Exception:
+            pass
         log_rolled = True
 
     rb = RingBuffer(100) # 100 entries default in log ring buffer
@@ -610,7 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = '7536f647e4144c7acaf9e140893ff7edb85bf9a3' # diffusers commit hash
+    sha = '9f3c0fdcd859905c2c13ec47f10eb0250d2576ac' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -1368,6 +1371,8 @@ def set_environment():
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
+    os.environ.setdefault('RUNAI_STREAMER_CHUNK_BYTESIZE', '2097152')
+    os.environ.setdefault('RUNAI_STREAMER_MEMORY_LIMIT', '-1')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'

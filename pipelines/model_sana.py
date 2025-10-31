@@ -21,7 +21,9 @@ def load_quants(kwargs, repo_id, cache_dir):
     return kwargs
 
 
-def load_sana(checkpoint_info, kwargs={}):
+def load_sana(checkpoint_info, kwargs=None):
+    if kwargs is None:
+        kwargs = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 

@@ -21,7 +21,7 @@ class ReqFramepack(BaseModel):
     resolution: Optional[int] = Field(default=640, title="Resolution", description="Resolution of the image")
     duration: Optional[float] = Field(default=4, title="Duration", description="Duration of the video in seconds")
     latent_ws: Optional[int] = Field(default=9, title="Latent window size", description="Size of the latent window")
-    steps: Optional[int] = Field(default=25, title="Steps", description="Number of steps for the model")
+    steps: Optional[int] = Field(default=25, title="Video steps", description="Number of steps for the video generation")
     cfg_scale: Optional[float] = Field(default=1.0, title="CFG scale", description="CFG scale for the model")
     cfg_distilled: Optional[float] = Field(default=10.0, title="Distilled CFG scale", description="Distilled CFG scale for the model")
     cfg_rescale: Optional[float] = Field(default=0.0, title="CFG re-scale", description="CFG re-scale for the model")

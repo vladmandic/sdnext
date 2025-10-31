@@ -13,6 +13,9 @@ available_network_aliases = {}
 forbidden_network_aliases = {}
 available_network_hash_lookup = {}
 dump_lora_keys = os.environ.get('SD_LORA_DUMP', None) is not None
+exclude_errors = [
+    "'ChronoEditTransformer3DModel'",
+]
 
 
 def lora_dump(lora, dct):
@@ -285,7 +288,8 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 shared.log.trace(f'Network load: type=LoRA active={sd_model.get_active_adapters()}')
             sd_model.set_adapters(adapter_names=lora_diffusers.diffuser_loaded, adapter_weights=lora_diffusers.diffuser_scales)
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA action=set {e}')
+            if str(e) not in exclude_errors:
+                shared.log.error(f'Network load: type=LoRA action=strength {str(e)}')
             if l.debug:
                 errors.display(e, 'LoRA')
         try:
@@ -294,7 +298,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 sd_model.unload_lora_weights()
             l.timer.activate += time.time() - t1
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA action=fuse {e}')
+            shared.log.error(f'Network load: type=LoRA action=fuse {str(e)}')
             if l.debug:
                 errors.display(e, 'LoRA')
 

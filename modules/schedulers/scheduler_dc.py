@@ -692,10 +692,7 @@ class DCSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             rhos_c = torch.linalg.solve(R, b)
 
         if self.predict_x0:
-            try:
-                x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
-            except Exception as e:
-                import pdb; pdb.set_trace()
+            x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
             if D1s is not None:
                 corr_res = torch.einsum("k,bkc...->bc...", rhos_c[:-1], D1s)
             else:

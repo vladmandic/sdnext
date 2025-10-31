@@ -20,6 +20,9 @@ def get_gpu_status():
     elif 'amd' in device.lower():
         from modules.api import rocm_smi
         return rocm_smi.get_rocm_smi()
+    elif 'arc' in device.lower():
+        from modules.api import xpu_smi
+        return xpu_smi.get_xpu_smi()
     return []
 
 
