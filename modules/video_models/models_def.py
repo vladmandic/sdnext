@@ -281,17 +281,6 @@ try:
                 te_cls=getattr(transformers, 'UMT5EncoderModel', None),
                 dit_cls=getattr(diffusers, 'SkyReelsV2Transformer3DModel', None)),
         ],
-        """
-        'Krea': [
-            Model(name='Krea Realtime WAN-2.1 14B T2V',
-                url='https://huggingface.co/krea/krea-realtime-video',
-                repo='krea/krea-realtime-video',
-                repo_cls=getattr(diffusers, 'WanPipeline', None),
-                te='Wan-AI/Wan2.1-T2V-14B-Diffusers',
-                te_cls=getattr(transformers, 'UMT5EncoderModel', None),
-                dit_cls=getattr(diffusers, 'WanTransformer3DModel', None)),
-        ],
-        """
         'Mochi Video': [
             Model(name='None'),
             Model(name='Mochi 1 T2V',

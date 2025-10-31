@@ -226,7 +226,7 @@ def move_model(model, device=None, force=False):
         t1 = time.time()
     except Exception as e1:
         t1 = time.time()
-        shared.log.error(f'Model move: device={device} {e1}')
+        shared.log.warning(f'Model move: device={device} {e1}')
     if 'move' not in timer.process.records:
         timer.process.records['move'] = 0
     timer.process.records['move'] += t1 - t0
