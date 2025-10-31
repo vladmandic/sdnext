@@ -106,6 +106,7 @@ Less than 2 weeks since last release, here's a service-pack style update with a 
   - fix `nudenet` process tab operations  
   - `controlnet` input validation  
   - log metadata keys that cannot be applied  
+  - fix `framepack` with image input  
 
 ## Update for 2025-10-18
 

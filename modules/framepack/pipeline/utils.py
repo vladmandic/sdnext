@@ -1,15 +1,14 @@
 import os
-import cv2
 import json
 import random
 import glob
+import datetime
 import torch
 import einops
+import cv2
 import numpy as np
-import datetime
 import torchvision
-import safetensors.torch as sf
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 
 def min_resize(x, m):
@@ -30,7 +29,7 @@ def min_resize(x, m):
 
 
 def d_resize(x, y):
-    H, W, C = y.shape
+    H, W, _C = y.shape
     new_min = min(H, W)
     raw_min = min(x.shape[0], x.shape[1])
     if new_min < raw_min:
@@ -50,7 +49,7 @@ def resize_and_center_crop(image, target_width, target_height):
     scale_factor = max(target_width / original_width, target_height / original_height)
     resized_width = int(round(original_width * scale_factor))
     resized_height = int(round(original_height * scale_factor))
-    resized_image = pil_image.resize((resized_width, resized_height), Image.LANCZOS)
+    resized_image = pil_image.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
     left = (resized_width - target_width) / 2
     top = (resized_height - target_height) / 2
     right = (resized_width + target_width) / 2
@@ -60,7 +59,7 @@ def resize_and_center_crop(image, target_width, target_height):
 
 
 def resize_and_center_crop_pytorch(image, target_width, target_height):
-    B, C, H, W = image.shape
+    _B, _C, H, W = image.shape
 
     if H == target_height and W == target_width:
         return image
@@ -83,7 +82,7 @@ def resize_without_crop(image, target_width, target_height):
         return image
 
     pil_image = Image.fromarray(image)
-    resized_image = pil_image.resize((target_width, target_height), Image.LANCZOS)
+    resized_image = pil_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
     return np.array(resized_image)
 
 
@@ -188,7 +187,7 @@ def supress_lower_channels(m, k, alpha=0.01):
 
 def freeze_module(m):
     if not hasattr(m, '_forward_inside_frozen_module'):
-        m._forward_inside_frozen_module = m.forward
+        m._forward_inside_frozen_module = m.forward # pylint: disable=protected-access
     m.requires_grad_(False)
     m.forward = torch.no_grad()(m.forward)
     return m
@@ -243,7 +242,7 @@ def soft_append_bcthw(history, current, overlap=0):
 
 
 def save_bcthw_as_mp4(x, output_filename, fps=10, crf=0):
-    b, c, t, h, w = x.shape
+    b, _c, _t, _h, _w = x.shape
 
     per_row = b
     for p in [6, 5, 4, 3, 2]:
@@ -297,8 +296,6 @@ def add_tensors_with_padding(tensor1, tensor2):
 
 
 def visualize_txt_as_img(width, height, text, font_path='font/DejaVuSans.ttf', size=18):
-    from PIL import Image, ImageDraw, ImageFont
-
     txt = Image.new("RGB", (width, height), color="white")
     draw = ImageDraw.Draw(txt)
     font = ImageFont.truetype(font_path, size=size)

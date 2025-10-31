@@ -5,6 +5,7 @@ import threading
 import numpy as np
 import torch
 import gradio as gr
+from PIL import Image
 from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm
 from modules.video_models.video_utils import check_av
 from modules.framepack import framepack_install # pylint: disable=wrong-import-order
@@ -27,6 +28,8 @@ def prepare_image(image, resolution):
         (416, 960), (448, 864), (480, 832), (512, 768), (544, 704), (576, 672), (608, 640),
         (640, 608), (672, 576), (704, 544), (768, 512), (832, 480), (864, 448), (960, 416),
     ]
+    if isinstance(image, Image.Image):
+        image = np.array(image)
     h, w, _c = image.shape
     min_metric = float('inf')
     scale_factor = resolution / 640.0
