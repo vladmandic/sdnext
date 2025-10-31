@@ -78,7 +78,7 @@ def get_model_type(pipe):
     # hybrid models
     elif 'Wan' in name:
         model_type = 'wanai'
-    if 'ChronoEdit' in name:
+    elif 'ChronoEdit' in name:
         model_type = 'chrono'
     elif 'HDM-xut' in name:
         model_type = 'hdm'
