@@ -188,7 +188,7 @@ class ChronoEditRotaryPosEmbed(nn.Module):
         self.freqs = torch.cat(freqs, dim=1)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        batch_size, _num_channels, num_frames, height, width = hidden_states.shape
+        _batch_size, _num_channels, num_frames, height, width = hidden_states.shape
         p_t, p_h, p_w = self.patch_size
         ppf, pph, ppw = num_frames // p_t, height // p_h, width // p_w
 
@@ -419,7 +419,7 @@ class ChronoEditTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, Fr
                 )
 
         batch_size, _num_channels, num_frames, height, width = hidden_states.shape
-        p_t, p_h, p_w = self.config.patch_size
+        p_t, p_h, p_w = self.config.patch_size # pylint: disable=no-member
         post_patch_num_frames = num_frames // p_t
         post_patch_height = height // p_h
         post_patch_width = width // p_w

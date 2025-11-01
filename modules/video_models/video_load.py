@@ -58,6 +58,9 @@ def load_model(selected: models_def.Model):
             selected.te_folder = 'text_encoder'
             selected.te_revision = None
 
+        if 'sdnq-' in (selected.te or selected.repo).lower():
+            from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
+
         shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
         kwargs["text_encoder"] = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
@@ -90,6 +93,9 @@ def load_model(selected: models_def.Model):
                 )
             else:
                 shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} skip')
+
+        if 'sdnq-' in (selected.dit or selected.repo).lower():
+            from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
 
         if selected.dit_folder is None:
             selected.dit_folder = ['transformer']

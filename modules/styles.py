@@ -45,6 +45,17 @@ def apply_styles_to_prompt(prompt, styles):
     return prompt
 
 
+def apply_curly_braces_to_prompt(prompt):
+    # woman with {blonde|brunette|red-head|purple highlights} hair
+    curly_braces_matches = re.findall(r'\{(.*?)\}', prompt)
+    for match in curly_braces_matches:
+        options = match.split('|')
+        if options:
+            choice = random.choice(options).strip()
+            prompt = prompt.replace(f'{{{match}}}', choice, 1)
+    return prompt
+
+
 def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, seed=-1):
     def check_wildcard_files(prompt, wildcard, files, file_only=True):
         trimmed = wildcard.replace('\\', os.path.sep).strip().lower()
@@ -260,7 +271,6 @@ class StyleDatabase:
                 shared.log.error(f'Failed to load style: file="{fn}" error={e}')
             return new_style
 
-
     def reload(self):
         t0 = time.time()
         self.styles.clear()
@@ -329,6 +339,7 @@ class StyleDatabase:
             if seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = prompts[i]
+            prompt = apply_curly_braces_to_prompt(prompt)
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_positive.append(prompt)
@@ -336,6 +347,7 @@ class StyleDatabase:
             if seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = negatives[i]
+            prompt = apply_curly_braces_to_prompt(prompt)
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_negative.append(prompt)
