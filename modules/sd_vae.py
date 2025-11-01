@@ -14,6 +14,7 @@ debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 unspecified = object()
 vae_scale_override = {
     'WanPipeline': 16,
+    'ChronoEditPipeline': 16,
 }
 
 
