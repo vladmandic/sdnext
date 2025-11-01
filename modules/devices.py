@@ -429,14 +429,14 @@ def set_cudnn_params():
             torch.use_deterministic_algorithms(opts.cudnn_deterministic)
             if opts.cudnn_deterministic:
                 os.environ.setdefault('CUBLAS_WORKSPACE_CONFIG', ':4096:8')
-                log.debug('Torch cuDNN: deterministic=True')
+                log.debug(f'Torch cuDNN: deterministic={opts.cudnn_deterministic}')
             torch.backends.cudnn.benchmark = opts.cudnn_benchmark
             if opts.cudnn_benchmark:
-                log.debug('Torch cuDNN: benchmark=True')
+                log.debug(f'Torch cuDNN: benchmark={opts.cudnn_benchmark}')
             torch.backends.cudnn.benchmark_limit = opts.cudnn_benchmark_limit
             torch.backends.cudnn.allow_tf32 = True
         except Exception as e:
-            log.warning(f'Torch cudnn: {e}')
+            log.warning(f'Torch cuDNN: {e}')
 
 
 def override_ipex_math():
