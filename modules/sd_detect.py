@@ -156,6 +156,24 @@ def guess_by_diffusers(fn, current_guess):
                             is_quant = True
                             break
             pipelines = shared_items.get_pipelines()
+            # Special handling for WanImageToVideoPipeline which is used by both WanAI and ChronoEdit
+            # Distinguish based on current_guess from name-based detection
+            if pipeline.__name__ == 'WanImageToVideoPipeline':
+                if current_guess == 'WanAI':
+                    if is_quant:
+                        current_guess = f'{current_guess} SDNQ'
+                    return current_guess, pipeline
+                elif current_guess == 'ChronoEdit':
+                    if is_quant:
+                        current_guess = f'{current_guess} SDNQ'
+                    return current_guess, pipeline
+            # Check if current_guess already matches the detected pipeline class
+            if current_guess in pipelines:
+                current_pipeline = pipelines[current_guess]
+                if current_pipeline is not None and current_pipeline.__name__ == pipeline.__name__:
+                    if is_quant:
+                        current_guess = f'{current_guess} SDNQ'
+                    return current_guess, current_pipeline
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:
                     if is_quant:
