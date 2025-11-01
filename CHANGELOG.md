@@ -5,7 +5,11 @@
 - add inline wildcards using curly braces syntax  
 - fix inpaint  
 - fix model type detection  
+- fix version detection when cloned with `.git` suffix  
 - guard against multi-controlnet in hires  
+- fix full-screen image viewer buttons with non-standard ui theme  
+- init `sdnq` on video model load  
+- control tab show override section  
 
 ## Update for 2025-10-31
 

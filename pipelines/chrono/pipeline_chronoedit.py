@@ -24,7 +24,7 @@ from transformers import AutoTokenizer, CLIPImageProcessor, CLIPVisionModel, UMT
 from diffusers.callbacks import MultiPipelineCallbacks, PipelineCallback
 from diffusers.image_processor import PipelineImageInput
 from diffusers.loaders import WanLoraLoaderMixin
-from diffusers.models import AutoencoderKLWan, WanTransformer3DModel
+from diffusers.models import AutoencoderKLWan, WanTransformer3DModel # pylint: disable=unused-import # register to diffusers
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
 from diffusers.utils import is_ftfy_available, is_torch_xla_available, logging, replace_example_docstring
 from diffusers.utils.torch_utils import randn_tensor
@@ -731,7 +731,7 @@ class ChronoEditPipeline(DiffusionPipeline, WanLoraLoaderMixin):
 
         self._current_timestep = None
 
-        if not output_type == "latent":
+        if output_type != "latent":
             latents = latents.to(self.vae.dtype)
             latents_mean = (
                 torch.tensor(self.vae.config.latents_mean)
