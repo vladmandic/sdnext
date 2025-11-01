@@ -2,14 +2,17 @@
 
 ## Update for 2025-11-01
 
-- add inline wildcards using curly braces syntax  
-- fix inpaint  
-- fix model type detection  
-- fix version detection when cloned with `.git` suffix  
-- guard against multi-controlnet in hires  
-- fix full-screen image viewer buttons with non-standard ui theme  
-- init `sdnq` on video model load  
-- control tab show override section  
+- feature: add inline wildcards using curly braces syntax  
+- feature: guard against multi-controlnet in hires  
+- feature: add setting to control `cudnn` enable/disable  
+- feature: cleanup `--optional` installer  
+- fix: update diffusers  
+- fix: inpaint  
+- fix: model type detection  
+- fix: version detection when cloned with `.git` suffix  
+- fix: init `sdnq` on video model load  
+- ui: fix full-screen image viewer buttons with non-standard ui theme  
+- ui: control tab show override section  
 
 ## Update for 2025-10-31
 

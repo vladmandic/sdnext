@@ -422,6 +422,9 @@ def set_cudnn_params():
         log.warning(f'Torch matmul: {e}')
     if torch.backends.cudnn.is_available():
         try:
+            if opts.cudnn_enabled != 'default':
+                torch.backends.cudnn.enabled = opts.cudnn_enabled == 'true'
+                log.debug(f'Torch cuDNN: enabled={torch.backends.cudnn.enabled}')
             torch.backends.cudnn.deterministic = opts.cudnn_deterministic
             torch.use_deterministic_algorithms(opts.cudnn_deterministic)
             if opts.cudnn_deterministic:

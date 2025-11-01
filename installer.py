@@ -613,7 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = '9f3c0fdcd859905c2c13ec47f10eb0250d2576ac' # diffusers commit hash
+    sha = '051c8a1c0f5c393a447bef18081fdf94c2a3ab9e' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -1288,19 +1288,19 @@ def install_optional():
     install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan', ignore=True, quiet=True)
     install('av', ignore=True, quiet=True)
     install('beautifulsoup4', ignore=True, quiet=True)
-    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
     install('clean-fid', ignore=True, quiet=True)
     install('clip_interrogator==0.6.0', ignore=True, quiet=True)
     install('Cython', ignore=True, quiet=True)
     install('gguf', ignore=True, quiet=True)
-    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     install('hf_transfer', ignore=True, quiet=True)
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
-    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
-    install('torchao==0.10.0', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
+    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
+    # install('torchao==0.10.0', ignore=True, quiet=True)
+    # install('bitsandbytes==0.47.0', ignore=True, quiet=True)
+    # install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
