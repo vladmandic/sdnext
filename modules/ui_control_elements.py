@@ -255,7 +255,7 @@ def create_ui_elements(units, result_txt, preview_process):
                 with gr.Accordion('Global', open=True, elem_classes=['processor-settings']):
                     control_hires = gr.Checkbox(label="Use control during hires", value=shared.opts.control_hires, elem_id='control_hires')
                     def set_control_hires(value):
-                        shared.opts.control_active = value
+                        shared.opts.control_hires = value
                     control_hires.change(fn=set_control_hires, inputs=[control_hires], outputs=[])
                     control_max_units = gr.Slider(label="Maximum units", minimum=1, maximum=10, step=1, value=shared.opts.control_max_units, elem_id='control_max_units')
                     def set_control_max_units(value):
