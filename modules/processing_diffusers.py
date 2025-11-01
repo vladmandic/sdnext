@@ -252,7 +252,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         # hires runs on original pipeline
         if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None) and (not shared.opts.control_hires):
             shared.sd_model.restore_pipeline()
-        if (getattr(shared.sd_model, 'controlnet', None) is not None) and ((isinstance(shared.sd_model.controlnet, list) and len(shared.sd_model.controlnet) > 1)) or ('Multi' in type(shared.sd_model.controlnet).__name__):
+        if (getattr(shared.sd_model, 'controlnet', None) is not None) and (((isinstance(shared.sd_model.controlnet, list) and len(shared.sd_model.controlnet) > 1)) or ('Multi' in type(shared.sd_model.controlnet).__name__)):
             shared.log.warning(f'Process: control={type(shared.sd_model.controlnet)} not supported in hires')
             return output
 
