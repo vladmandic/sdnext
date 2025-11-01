@@ -11,6 +11,8 @@
 - fix: model type detection  
 - fix: version detection when cloned with `.git` suffix  
 - fix: init `sdnq` on video model load  
+- fix: add vae scale override for chrono  
+- fix: add tracing to model detection  
 - ui: fix full-screen image viewer buttons with non-standard ui theme  
 - ui: control tab show override section  
 

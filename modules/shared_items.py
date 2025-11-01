@@ -47,7 +47,6 @@ pipelines = {
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
-    'ChronoEdit': getattr(diffusers, 'WanImageToVideoPipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
@@ -59,6 +58,7 @@ pipelines = {
     'hdm': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
+    'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
