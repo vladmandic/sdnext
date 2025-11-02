@@ -208,7 +208,6 @@ def create_ui():
                 if (section_id, section_text) not in sections:
                     sections.append((section_id, section_text))
 
-            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))} quicksettings={len(quicksettings_list)}')
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
                 for (section_id, section_text) in sections:
@@ -240,6 +239,8 @@ def create_ui():
                 with gr.TabItem("Show all pages", elem_id="settings_show_all_pages"):
                     create_dirty_indicator("show_all_pages", [])
                 request_notifications = gr.Button(value='Request browser notifications', elem_id="request_notifications", visible=False)
+
+            shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))} quicksettings={len(quicksettings_list)}')
 
         with gr.TabItem("Update", id="system_update", elem_id="tab_update"):
             from modules import update

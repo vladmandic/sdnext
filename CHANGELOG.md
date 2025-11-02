@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-01
+## Update for 2025-11-02
 
 - **Features**
   - **detailer**
@@ -10,17 +10,18 @@
   - add inline wildcards using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
 - **Fixes**
+  - fix: better handling of detailer settings, thanks @awsr
   - fix: cleanup `--optional` installer  
   - fix: guard against multi-controlnet in hires  
   - fix: update diffusers  
-  - fix: inpaint  
-  - fix: model type detection  
-  - fix: version detection when cloned with `.git` suffix  
-  - fix: init `sdnq` on video model load  
-  - fix: add vae scale override for chrono  
-  - fix: add tracing to model detection  
-  - ui: fix full-screen image viewer buttons with non-standard ui theme  
-  - ui: control tab show override section  
+  - fix: inpaint handling
+  - fix: model type detection
+  - fix: version detection when cloned with `.git` suffix, thanks @awsr
+  - fix: init `sdnq` on video model load
+  - fix: add vae scale override for chrono
+  - fix: add tracing to model detection
+  - ui: fix full-screen image viewer buttons with non-standard ui theme
+  - ui: control tab show override section
 
 ## Update for 2025-10-31
 
