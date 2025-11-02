@@ -2,19 +2,25 @@
 
 ## Update for 2025-11-01
 
-- feature: add inline wildcards using curly braces syntax  
-- feature: guard against multi-controlnet in hires  
-- feature: add setting to control `cudnn` enable/disable  
-- feature: cleanup `--optional` installer  
-- fix: update diffusers  
-- fix: inpaint  
-- fix: model type detection  
-- fix: version detection when cloned with `.git` suffix  
-- fix: init `sdnq` on video model load  
-- fix: add vae scale override for chrono  
-- fix: add tracing to model detection  
-- ui: fix full-screen image viewer buttons with non-standard ui theme  
-- ui: control tab show override section  
+- **Features**
+  - **detailer**
+    optional include detection image to output results  
+    optional sort detection objects left-to-right for improved prompt consistency  
+    enable multi-subject and multi-model prompts  
+  - add inline wildcards using curly braces syntax  
+  - add setting to control `cudnn` enable/disable  
+- **Fixes**
+  - fix: cleanup `--optional` installer  
+  - fix: guard against multi-controlnet in hires  
+  - fix: update diffusers  
+  - fix: inpaint  
+  - fix: model type detection  
+  - fix: version detection when cloned with `.git` suffix  
+  - fix: init `sdnq` on video model load  
+  - fix: add vae scale override for chrono  
+  - fix: add tracing to model detection  
+  - ui: fix full-screen image viewer buttons with non-standard ui theme  
+  - ui: control tab show override section  
 
 ## Update for 2025-10-31
 
