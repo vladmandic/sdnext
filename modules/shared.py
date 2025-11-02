@@ -633,6 +633,8 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
     "detailer_models": OptionInfo(['face-yolo8n'], "Detailer models", gr.Dropdown, lambda: {"multiselect":True, "choices": list(yolo.list), "visible": False}),
     "detailer_args": OptionInfo("", "Detailer args", gr.Textbox, { "visible": False}),
     "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
+    "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),
+    "detailer_save": OptionInfo(False, "Include detection results", gr.Checkbox, {"visible": False}),
     "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),
     "detailer_augment": OptionInfo(True, "Detailer use model augment"),
 
