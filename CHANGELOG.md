@@ -7,9 +7,12 @@
     optional include detection image to output results  
     optional sort detection objects left-to-right for improved prompt consistency  
     enable multi-subject and multi-model prompts  
-  - add inline wildcards using curly braces syntax  
+  - **wildcards**: add inline processing using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
+  - change `vlm` beams to 1 by default for faster response  
 - **Fixes**
+  - fix: rocm possible endless loop during hip detection  
+  - fix: rocm auto-disable miopen for gfx120x
   - fix: better handling of detailer settings, thanks @awsr
   - fix: cleanup `--optional` installer  
   - fix: guard against multi-controlnet in hires  
