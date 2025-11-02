@@ -276,6 +276,12 @@ if sys.platform == "win32":
         try:
             import torch
             import numpy as np
+            from modules.devices import get_optimal_device
+
+            gfx_version = Agent.parse_gfx_version(getattr(torch.cuda.get_device_properties(get_optimal_device()), "gcnArchName", "gfx0000"))
+            if (gfx_version & 0xFFF0) == 0x1200:
+                # disable MIOpen for gfx120x
+                torch.backends.cudnn.enabled = False
 
             original_cholesky_ex = torch.linalg.cholesky_ex
             @wraps(original_cholesky_ex)
