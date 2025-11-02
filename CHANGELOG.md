@@ -18,17 +18,18 @@
   - `runai` improve streamer integration  
   - `transformers` dtype use new syntax  
   - `rocm` possible endless loop during hip detection  
-  - `rocm` auto-disable miopen for gfx120x
-  - `detailer` better handling of settings, thanks @awsr
+  - `rocm` auto-disable miopen for gfx120x  
+  - `detailer` better handling of settings, thanks @awsr  
   - `installer` cleanup `--optional`  
   - `hires` guard against multi-controlnet  
-  - `inpaint` handling
-  - `version` detection when cloned with `.git` suffix, thanks @awsr
-  - `sdnq` init on video model load
-  - `model type` detection
-  - `model type` add tracing to model detection
-  - `ui` fix full-screen image viewer buttons with non-standard ui theme
-  - `ui` control tab show override section
+  - `inpaint` handling  
+  - `version` detection when cloned with `.git` suffix, thanks @awsr  
+  - `sdnq` init on video model load  
+  - `model type` detection  
+  - `model type` add tracing to model detection  
+  - `ui` fix full-screen image viewer buttons with non-standard ui theme  
+  - `ui` control tab show override section  
+  - `ui` mobile layout for video tab  
 
 ## Update for 2025-10-31
 
