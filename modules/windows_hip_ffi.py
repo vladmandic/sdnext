@@ -72,11 +72,11 @@ if sys.platform == "win32":
                 idx = idx + 2
                 while prop[idx] != 0x00:
                     c = prop[idx]
+                    idx += 1
                     if (c < 0x30 or c > 0x39) and (c < 0x61 or c > 0x66): # hexadecimal
                         name = ""
                         continue
                     name += chr(c)
-                    idx += 1
                 break
 
             # if name == "", hipDeviceProp does not contain arch name
