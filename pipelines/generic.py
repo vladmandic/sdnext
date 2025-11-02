@@ -101,7 +101,9 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
             from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
         load_args, quant_args = model_quant.get_dit_args(load_config, module='TE', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
+        load_args.pop('torch_dtype', None)
         dtype = dtype or devices.dtype
+        load_args['dtype'] = dtype
 
         # load from local file if specified
         local_file = None
@@ -128,12 +130,14 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
             """
             text_encoder = model_te.load_t5(local_file)
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
+
         # load from local file safetensors
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}"')
             from modules import model_te
             text_encoder = model_te.load_t5(local_file)
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
+
         # use shared t5 if possible
         elif cls_name == transformers.T5EncoderModel and allow_shared and shared.opts.te_shared_t5:
             if model_quant.check_nunchaku('TE'):
@@ -155,8 +159,6 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                     with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
                         load_args['config'] = transformers.T5Config(**json.load(f))
                 shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
-                if dtype is not None:
-                    load_args['torch_dtype'] = dtype
                 text_encoder = cls_name.from_pretrained(
                     repo_id,
                     cache_dir=shared.opts.hfcache_dir,
@@ -170,8 +172,6 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 repo_id = 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers'
             subfolder = 'text_encoder'
             shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
-            if dtype is not None:
-                load_args['torch_dtype'] = dtype
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -183,8 +183,6 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
             repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
             subfolder = 'text_encoder'
             shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
-            if dtype is not None:
-                load_args['torch_dtype'] = dtype
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -196,8 +194,6 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         # load from repo
         if text_encoder is None:
             shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
-            if dtype is not None:
-                load_args['torch_dtype'] = dtype
             if subfolder is not None:
                 load_args['subfolder'] = subfolder
             if variant is not None:

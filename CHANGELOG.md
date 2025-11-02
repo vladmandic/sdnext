@@ -1,18 +1,34 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-01
+## Update for 2025-11-02
 
-- feature: add inline wildcards using curly braces syntax  
-- feature: guard against multi-controlnet in hires  
-- feature: add setting to control `cudnn` enable/disable  
-- feature: cleanup `--optional` installer  
-- fix: update diffusers  
-- fix: inpaint  
-- fix: model type detection  
-- fix: version detection when cloned with `.git` suffix  
-- fix: init `sdnq` on video model load  
-- ui: fix full-screen image viewer buttons with non-standard ui theme  
-- ui: control tab show override section  
+- **Features**
+  - **detailer**
+    optional include detection image to output results  
+    optional sort detection objects left-to-right for improved prompt consistency  
+    enable multi-subject and multi-model prompts  
+  - **wildcards**: add inline processing using curly braces syntax  
+  - add setting to control `cudnn` enable/disable  
+  - change `vlm` beams to 1 by default for faster response  
+  - update diffusers  
+- **Fixes**
+  - `chrono` transformers handling  
+  - `chrono` extract last frame  
+  - `chrono` add vae scale override, thanks @CalamitousFelicitousness  
+  - `runai` improve streamer integration  
+  - `transformers` dtype use new syntax  
+  - `rocm` possible endless loop during hip detection  
+  - `rocm` auto-disable miopen for gfx120x
+  - `detailer` better handling of settings, thanks @awsr
+  - `installer` cleanup `--optional`  
+  - `hires` guard against multi-controlnet  
+  - `inpaint` handling
+  - `version` detection when cloned with `.git` suffix, thanks @awsr
+  - `sdnq` init on video model load
+  - `model type` detection
+  - `model type` add tracing to model detection
+  - `ui` fix full-screen image viewer buttons with non-standard ui theme
+  - `ui` control tab show override section
 
 ## Update for 2025-10-31
 

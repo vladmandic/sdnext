@@ -307,7 +307,14 @@ def process_samples(p: StableDiffusionProcessing, samples):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                     images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-detailer")
                 sample = detailer.detail(sample, p)
-                if sample is not None:
+                if isinstance(sample, list):
+                    if len(sample) > 0:
+                        image = Image.fromarray(sample[0])
+                    if len(sample) > 1:
+                        annotated = Image.fromarray(sample[1])
+                        out_images.append(annotated)
+                        out_infotexts.append("Detailer annotations")
+                elif sample is not None:
                     image = Image.fromarray(sample)
 
             if p.color_corrections is not None and i < len(p.color_corrections):
