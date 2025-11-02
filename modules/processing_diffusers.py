@@ -16,11 +16,6 @@ debug = os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None
 last_p = None
 orig_pipeline = shared.sd_model
 
-image_frame_index = {
-    'WanPipeline': 0,
-    'ChronoEditPipeline': -1,
-}
-
 
 def restore_state(p: processing.StableDiffusionProcessing):
     if p.state in ['reprocess_refine', 'reprocess_detail']:
@@ -202,7 +197,7 @@ def process_base(p: processing.StableDiffusionProcessing):
                 shared.log.debug(f'Generated: frames={output.frames[0].shape[1]}')
             else:
                 shared.log.debug(f'Generated: frames={len(output.frames[0])}')
-            output.images = output.frames[image_frame_index.get(shared.sd_model.__class__.__name__, 0)]
+            output.images = output.frames[0]
         if hasattr(output, 'images') and isinstance(output.images, np.ndarray):
             output.images = torch.from_numpy(output.images)
     except AssertionError as e:
@@ -442,7 +437,7 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
     if output is not None:
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             shared.log.debug(f'Generated: frames={len(output.frames[0])}')
-            output.images = output.frames[image_frame_index.get(shared.sd_model.__class__.__name__, 0)]
+            output.images = output.frames[0]
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
             return output.images
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
