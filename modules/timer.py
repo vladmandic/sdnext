@@ -4,7 +4,7 @@ import sys
 
 
 try:
-    default_min_time = float(os.environ.get('SD_MIN_TIMER', '0.05'))
+    default_min_time = float(os.environ.get('SD_MIN_TIMER', '0.1'))
 except Exception:
     default_min_time = 0.1
 
