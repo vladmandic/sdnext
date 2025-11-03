@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2025-11-03
+
+- **Fixes**
+  - video save to subfolder  
+  - `taesd` warn on long decode times  
+
 ## Update for 2025-11-02
 
 - **Features**
