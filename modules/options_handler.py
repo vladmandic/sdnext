@@ -96,6 +96,8 @@ class Options():
         return components
 
     def save_atomic(self, filename=None, silent=False):
+        if self.debug:
+            log.debug(f'Settings: save settings="{self.filename}" override="{filename}" cmd="{cmd_opts.config}" cwd="{os.getcwd()}"')
         if self.filename is None:
             self.filename = cmd_opts.config
         if filename is None:

@@ -1446,17 +1446,16 @@ def get_version(force=False):
             }
         except Exception:
             version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
+        cwd = os.getcwd()
         try:
-            cwd = os.getcwd()
             os.chdir('extensions-builtin/sdnext-modernui')
             res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            os.chdir(cwd)
             branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
             branch_ui = 'dev' if 'dev' in branch_ui else 'main'
             version['ui'] = branch_ui
         except Exception:
-            os.chdir(cwd)
             version['ui'] = 'unknown'
+        os.chdir(cwd)
     ts('version', t_start)
     return version
 
