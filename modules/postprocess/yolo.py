@@ -241,7 +241,7 @@ class YoloRestorer(Detailer):
             return np_image
         models = []
         if len(shared.opts.detailer_args) > 0:
-            models = [m.strip() for m in re.split(r'\n|,|;', shared.opts.detailer_args)]
+            models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
             models = [m for m in models if len(m) > 0]
         if len(models) == 0:
             models = shared.opts.detailer_models
@@ -437,6 +437,8 @@ class YoloRestorer(Detailer):
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(shared.config_filename, silent=True)
             shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort}')
+            if not self.ui_mode:
+                shared.log.debug(f'Detailer expert: {text}')
 
         with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"]):
             with gr.Row():
