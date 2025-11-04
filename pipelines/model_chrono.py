@@ -1,4 +1,3 @@
-import sys
 import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
