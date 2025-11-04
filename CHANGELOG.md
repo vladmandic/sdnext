@@ -22,6 +22,7 @@
   - change `vlm` beams to 1 by default for faster response  
   - update diffusers  
   - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
+  - **networks** info details now displays image metadata from preview image  
 - **Fixes**
   - `qwen` improve lora compatibility  
   - `chrono` transformers handling  
