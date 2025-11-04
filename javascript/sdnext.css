@@ -2208,6 +2208,18 @@ div:has(>#tab-gallery-folders) {
   font-weight: normal;
 }
 
+.controlnet-controls .styler {
+  display: flex;
+  flex-direction: row;
+  justify-self: flex-start;
+}
+
+.controlnet-controls .styler .form {
+  display: flex;
+  flex-flow: nowrap;
+  flex: none;
+}
+
 #civitai_token textarea, #hf_token textarea, #setting_huggingface_token textarea {
   filter: blur(4px);
 }

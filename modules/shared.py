@@ -745,7 +745,8 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
 
     # control settings are handled separately
-    "control_hires": OptionInfo(False, "Use control during hires", gr.Checkbox, {"visible": False}),
+    "control_hires": OptionInfo(False, "Hires use Control", gr.Checkbox, {"visible": False}),
+    "control_aspect_ratio": OptionInfo(False, "Aspect ratio resize", gr.Checkbox, {"visible": False}),
     "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
     "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options", gr.Textbox, {"visible": False}),
     "control_move_processor": OptionInfo(False, "Processor move to CPU after use", gr.Checkbox, {"visible": False}),

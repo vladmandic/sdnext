@@ -20,6 +20,7 @@
   - add setting to control `cudnn` enable/disable  
   - change `vlm` beams to 1 by default for faster response  
   - update diffusers  
+  - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
 - **Fixes**
   - `qwen` improve lora compatibility  
   - `chrono` transformers handling  
