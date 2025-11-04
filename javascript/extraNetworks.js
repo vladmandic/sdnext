@@ -465,23 +465,24 @@ function setupExtraNetworksForTab(tabName) {
   // card hover
   let hoverTimer = null;
   let previousCard = null;
-  if (window.opts.extra_networks_fetch) {
-    gradioApp().getElementById(`${tabName}_extra_tabs`).onmouseover = async (e) => {
-      const el = e.target.closest('.card'); // bubble-up to card
-      if (!el || (el.title === previousCard)) return;
-      if (!hoverTimer) {
-        hoverTimer = setTimeout(() => {
-          readCardDescription(el.dataset.page, el.dataset.name);
-          readCardTags(el, el.dataset.tags);
-          previousCard = el.title;
-        }, 300);
-      }
-      el.onmouseout = () => {
-        clearTimeout(hoverTimer);
-        hoverTimer = null;
-      };
+  gradioApp().getElementById(`${tabName}_extra_tabs`).onmouseover = async (e) => {
+    if (!window.opts.extra_networks_fetch) {
+      return;
+    }
+    const el = e.target.closest('.card'); // bubble-up to card
+    if (!el || (el.title === previousCard)) return;
+    if (!hoverTimer) {
+      hoverTimer = setTimeout(() => {
+        readCardDescription(el.dataset.page, el.dataset.name);
+        readCardTags(el, el.dataset.tags);
+        previousCard = el.title;
+      }, 300);
+    }
+    el.onmouseout = () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
     };
-  }
+  };
 
   // auto-resize networks sidebar
   const resizeObserver = new ResizeObserver((entries) => {
