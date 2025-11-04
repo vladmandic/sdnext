@@ -604,6 +604,11 @@ async function setupExtraNetworks() {
   registerPrompt('control', 'control_neg_prompt');
   registerPrompt('video', 'video_prompt');
   registerPrompt('video', 'video_neg_prompt');
+
+  // Blocking with await instead of async function to ensure setupExtraNetworks only resolves once everything is loaded
+  while (window.opts.extra_networks_card_size === undefined) {
+    await sleep(50);
+  }
   log('initNetworks', window.opts.extra_networks_card_size);
   document.documentElement.style.setProperty('--card-size', `${window.opts.extra_networks_card_size}px`);
 }
