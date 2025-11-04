@@ -1,9 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-03
+## Update for 2025-11-04
 
 - **Features**
-  - ability to disable parts of the app  
+  - **detailer**
+    optional include detection image to output results  
+    optional sort detection objects left-to-right for improved prompt consistency  
+    enable multi-subject and multi-model prompts  
+  - **disable modules**  
+    ability to disable parts of the app  
     useful for custom deployments where some features are not desired  
     *note*: this doesn't just hide it from user, it completely disables the code paths  
     use `--disable x,y,z`  
@@ -11,22 +16,12 @@
     - main tabs: *control,txt2img,img2img,video,extras,caption,gallery*  
     - aside tabs: *extensions,models,info,update,history,monitor,onnx,system,networks,logs*  
     - special: *settings,config*  
-- **Fixes**
-  - video save to subfolder  
-  - `taesd` warn on long decode times  
-
-## Update for 2025-11-02
-
-- **Features**
-  - **detailer**
-    optional include detection image to output results  
-    optional sort detection objects left-to-right for improved prompt consistency  
-    enable multi-subject and multi-model prompts  
   - **wildcards**: add inline processing using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
   - change `vlm` beams to 1 by default for faster response  
   - update diffusers  
 - **Fixes**
+  - `qwen` improve lora compatibility  
   - `chrono` transformers handling  
   - `chrono` extract last frame  
   - `chrono` add vae scale override, thanks @CalamitousFelicitousness  
@@ -42,9 +37,12 @@
   - `sdnq` init on video model load  
   - `model type` detection  
   - `model type` add tracing to model detection  
+  - `settings` guard against non-string values, thanks @awsr  
   - `ui` fix full-screen image viewer buttons with non-standard ui theme  
   - `ui` control tab show override section  
   - `ui` mobile layout for video tab  
+  - `video` save to subfolder  
+  - `taesd` warn on long decode times  
 
 ## Update for 2025-10-31
 
