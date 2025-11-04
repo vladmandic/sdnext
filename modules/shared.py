@@ -571,7 +571,7 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "ui_request_timeout": OptionInfo(120000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 300000, "step": 10}),
 
     "ui_tabs": OptionInfo("<h2>UI Tabs</h2>", "", gr.HTML),
-    "ui_disabled": OptionInfo("", "Disabled UI tabs", gr.Textbox, { 'visible': False }),
+    "ui_disabled": OptionInfo([], "Disabled UI tabs", gr.Dropdown, { 'visible': False }),
 
     "cards_sep_ui": OptionInfo("<h2>Networks panel</h2>", "", gr.HTML),
     "extra_networks_card_size": OptionInfo(140, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
