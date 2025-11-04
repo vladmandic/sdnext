@@ -245,7 +245,7 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                         valtype = float
                     debug(f'Paste: "{key}"="{v}" type={valtype} var={vars(output)}')
                     if valtype == bool:
-                        val = False if v.lower() == "false" else True
+                        val = False if str(v).lower() == "false" else True
                     elif valtype == list:
                         val = v if isinstance(v, list) else [item.strip() for item in v.split(',')]
                     else:
