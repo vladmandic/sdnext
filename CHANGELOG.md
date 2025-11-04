@@ -3,8 +3,8 @@
 ## Update for 2025-11-04
 
 - **Features**
-  - **ROCm for Windows** switch to using **TheRock** torch builds when available  
-  - **detailer**
+  - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
+  - **detailer**  
     optional include detection image to output results  
     optional sort detection objects left-to-right for improved prompt consistency  
     enable multi-subject and multi-model prompts  
@@ -19,34 +19,34 @@
     - special: *settings,config*  
   - **wildcards**: add inline processing using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
+    *note*: this can also be used to enable/disable `MIOpen` on ROCm backends  
   - change `vlm` beams to 1 by default for faster response  
-  - update diffusers  
   - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
   - **networks** info details now displays image metadata from preview image  
 - **Fixes**
-  - `qwen` improve lora compatibility  
-  - `chrono` transformers handling  
-  - `chrono` extract last frame  
-  - `chrono` add vae scale override, thanks @CalamitousFelicitousness  
-  - `runai` improve streamer integration  
-  - `transformers` dtype use new syntax  
-  - `rocm` possible endless loop during hip detection  
-  - `rocm` auto-disable miopen for gfx120x  
-  - `detailer` better handling of settings, thanks @awsr  
-  - `installer` cleanup `--optional`  
-  - `hires` guard against multi-controlnet  
-  - `inpaint` handling  
-  - `version` detection when cloned with `.git` suffix, thanks @awsr  
-  - `sdnq` init on video model load  
-  - `model type` detection  
-  - `model type` add tracing to model detection  
-  - `settings` guard against non-string values, thanks @awsr  
-  - `ui` fix full-screen image viewer buttons with non-standard ui theme  
-  - `ui` control tab show override section  
-  - `ui` mobile layout for video tab  
-  - `video` save to subfolder  
-  - `taesd` warn on long decode times  
-  - `metadata` keep exif on thumbnail generation  
+  - qwen: improve lora compatibility  
+  - chrono: transformers handling  
+  - chrono: extract last frame  
+  - chrono: add vae scale override, thanks @CalamitousFelicitousness  
+  - runai: improve streamer integration  
+  - transformers: `dtype` use new syntax  
+  - rocm: possible endless loop during hip detection  
+  - rocm: auto-disable `miopen` for gfx120x  
+  - detailer: better handling of settings, thanks @awsr  
+  - installer: cleanup `--optional`  
+  - hires: guard against multi-controlnet  
+  - inpaint: fix init  
+  - version: detection when cloned with .git suffix, thanks @awsr  
+  - sdnq: init on video model load  
+  - model type: detection  
+  - model type: add tracing to model detection  
+  - settings: guard against non-string values, thanks @awsr  
+  - ui: fix full-screen image viewer buttons with non-standard ui theme  
+  - ui: control tab show override section  
+  - ui: mobile layout for video tab  
+  - video: save to subfolder  
+  - taesd: warn on long decode times  
+  - metadata: keep exif on thumbnail generation  
 
 ## Update for 2025-10-31
 
