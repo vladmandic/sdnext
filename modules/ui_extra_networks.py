@@ -190,6 +190,22 @@ class ExtraNetworksPage:
         preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
+    def get_exif(self, image: Image.Image):
+        import piexif
+        try:
+            exifinfo = image.getexif()
+            if exifinfo is not None and len(exifinfo) > 0:
+                return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+        except Exception:
+            pass
+        try:
+            exifinfo = image.info.get('parameters', None)
+            if exifinfo is not None and len(exifinfo) > 0:
+                return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+        except Exception:
+            pass
+        return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump('', encoding="unicode") } })
+
     def create_thumb(self):
         debug(f'EN create-thumb: {self.name}')
         created = 0
@@ -203,6 +219,7 @@ class ExtraNetworksPage:
             img = None
             try:
                 img = Image.open(f)
+                img.load()
             except Exception as e:
                 img = None
                 shared.log.warning(f'Network removing invalid: image={f} {e}')
@@ -210,16 +227,18 @@ class ExtraNetworksPage:
                 if img is None:
                     img = None
                     os.remove(f)
-                elif img.width > 1024 or img.height > 1024 or os.path.getsize(f) > 65536:
+                elif (img.width > 1024) or (img.height > 1024) or (os.path.getsize(f) > 65536):
+                    exif = self.get_exif(img)
                     img = img.convert('RGB')
                     img.thumbnail((512, 512), Image.Resampling.HAMMING)
-                    img.save(fn, quality=50)
+                    img.save(fn, quality=50, exif=exif)
                     img.close()
                     created += 1
             except Exception as e:
                 shared.log.warning(f'Network create thumbnail={f} {e}')
+                errors.display(e, 'thumbnail')
         if created > 0:
-            shared.log.info(f'Network thumbnails: {self.name} created={created}')
+            shared.log.info(f'Network thumbnails: type={self.name} created={created}')
             self.missing_thumbs.clear()
 
     def create_items(self, tabname):

@@ -3,6 +3,7 @@
 ## Update for 2025-11-04
 
 - **Features**
+  - **ROCm for Windows** switch to using **TheRock** torch builds when available  
   - **detailer**
     optional include detection image to output results  
     optional sort detection objects left-to-right for improved prompt consistency  
@@ -44,6 +45,7 @@
   - `ui` mobile layout for video tab  
   - `video` save to subfolder  
   - `taesd` warn on long decode times  
+  - `metadata` keep exif on thumbnail generation  
 
 ## Update for 2025-10-31
 
