@@ -49,7 +49,7 @@ def wrap_call(func, filename, funcname, *args, default=None, **kwargs):
 
 class ScriptPostprocessingRunner:
     def __init__(self):
-        self.scripts = None
+        self.scripts = []
         self.ui_created = False
 
     def initialize_scripts(self, scripts_data):

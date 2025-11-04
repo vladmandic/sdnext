@@ -74,6 +74,8 @@ function executeCallbacks(queue, arg) {
   }
 }
 
+const anyPromptExists = () => gradioApp().querySelectorAll('.main-prompts').length > 0;
+
 function scheduleAfterUiUpdateCallbacks() {
   clearTimeout(uiAfterUpdateTimeout);
   uiAfterUpdateTimeout = setTimeout(() => executeCallbacks(uiAfterUpdateCallbacks, 500));
@@ -96,7 +98,7 @@ async function mutationCallback(mutations) {
 
   if (mutationTimer) clearTimeout(mutationTimer);
   mutationTimer = setTimeout(async () => {
-    if (!executedOnLoaded && gradioApp().getElementById('txt2img_prompt')) { // execute once
+    if (!executedOnLoaded && anyPromptExists()) { // execute once
       executedOnLoaded = true;
       executeCallbacks(uiLoadedCallbacks);
     }

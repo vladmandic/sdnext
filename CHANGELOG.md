@@ -2,6 +2,15 @@
 
 ## Update for 2025-11-03
 
+- **Features**
+  - ability to disable parts of the app  
+    useful for custom deployments where some features are not desired  
+    *note*: this doesn't just hide it from user, it completely disables the code paths  
+    use `--disable x,y,z`  
+    possible values:  
+    - main tabs: *control,txt2img,img2img,video,extras,caption,gallery*  
+    - aside tabs: *extensions,models,info,update,history,monitor,onnx,system,networks,logs*  
+    - special: *settings,config*  
 - **Fixes**
   - video save to subfolder  
   - `taesd` warn on long decode times  

@@ -603,6 +603,8 @@ class ExtraNetworksUi:
 
 
 def create_ui(container, button_parent, tabname, skip_indexing = False):
+    if 'networks' in shared.opts.ui_disabled:
+        return None
     debug(f'EN create-ui: {tabname}')
     ui = ExtraNetworksUi()
     ui.tabname = tabname
@@ -1054,4 +1056,6 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
 
 def setup_ui(ui, gallery: gr.Gallery = None):
+    if ui is None:
+        return
     ui.gallery = gallery

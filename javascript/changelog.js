@@ -61,7 +61,7 @@ async function initChangelog() {
   const search = gradioApp().querySelector('#changelog_search > label> textarea');
   const md = gradioApp().getElementById('changelog_markdown');
   if (!search || !md) {
-    error('initChangelog', 'Missing search or markdown elements');
+    // error('initChangelog', 'Missing search or markdown elements');
     return;
   }
   const searchChangelog = async (e) => {

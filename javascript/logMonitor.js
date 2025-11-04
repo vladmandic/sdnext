@@ -99,6 +99,7 @@ async function initLogMonitor() {
   const el = document.getElementsByTagName('footer')[0];
   if (!el) return;
   el.classList.add('log-monitor');
+  if (window.opts.ui_disabled?.includes('logs')) return;
   el.innerHTML = `
     <table id="logMonitor" style="width: 100%;">
       <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
