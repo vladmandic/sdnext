@@ -139,7 +139,7 @@ module_skip_keys_dict = {
         ["lm_head", "region", "wte", "post_ln", "proj_mlp", "patch_emb", "pos_emb"],
         {}
     ],
-    "D": [
+    "NaDiT": [
         [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
         {}
     ],
