@@ -2,6 +2,17 @@
 
 ## Update for 2025-11-05
 
+### Highlights for 2025-11-05
+
+Service pack release that handles critical issues and improvements for **ROCm-on-Windows** and **ZLUDA** backends  
+Also included are several new features, notably improvements to **detailer** and ability to run [SD.Next](https://github.com/vladmandic/sdnext) with specific modules disabled  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-11-05
+
 - **Features**
   - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
   - **detailer**  
@@ -16,7 +27,7 @@
     possible values:  
     - main tabs: *control,txt2img,img2img,video,extras,caption,gallery*  
     - aside tabs: *extensions,models,info,update,history,monitor,onnx,system,networks,logs*  
-    - special: *settings,config*  
+    - special: *settings,config* (hidden instead of disabled)  
   - **wildcards**: add inline processing using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
     *note*: this can also be used to enable/disable `MIOpen` on ROCm backends  
@@ -24,6 +35,7 @@
   - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
   - **networks** info details now displays image metadata from preview image  
 - **Fixes**
+  - zluda: test and disable MIOpen as needed  
   - qwen: improve lora compatibility  
   - chrono: transformers handling  
   - chrono: extract last frame  
