@@ -95,14 +95,22 @@ function markIfModified(setting_name, value) {
   // elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-onAfterUiUpdate(async () => {
-  if (Object.keys(opts).length !== 0) return;
+function updateAllOpts() {
+  if (Object.keys(opts).length !== 0) return false;
   const json_elem = gradioApp().getElementById('settings_json');
-  if (!json_elem) return;
+  log('updateAllOpts', !!json_elem);
+  if (!json_elem) return false;
   json_elem.parentElement.style.display = 'none';
   const textarea = json_elem.querySelector('textarea');
   const jsdata = textarea.value;
   updateOpts(jsdata);
+  return true;
+}
+
+onAfterUiUpdate(async () => {
+  if (!updateAllOpts()) return;
+  const json_elem = gradioApp().getElementById('settings_json');
+  const textarea = json_elem.querySelector('textarea');
   executeCallbacks(optionsChangedCallbacks);
   registerDragDrop();
 

@@ -41,6 +41,7 @@
   - model type: detection  
   - model type: add tracing to model detection  
   - settings: guard against non-string values, thanks @awsr  
+  - ui: wait for server options to be ready before initializing ui  
   - ui: fix full-screen image viewer buttons with non-standard ui theme  
   - ui: control tab show override section  
   - ui: mobile layout for video tab  

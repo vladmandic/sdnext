@@ -2,6 +2,27 @@
 window.api = '/sdapi/v1';
 window.subpath = '';
 
+async function waitForOpts() {
+  // make sure all of the ui is ready and options are loaded
+  const t0 = performance.now();
+  let t1 = performance.now();
+  while (true) { // eslint-disable-line no-constant-condition
+    if (t1 - t0 > 120000) {
+      log('waitForOpts timeout');
+      break;
+    }
+    if (window.opts && Object.keys(window.opts).length > 0) {
+      ok = window.opts.theme_type === 'Modern' ? 'uiux_separator_appearance' in window.opts : true;
+      if (ok) {
+        log('waitForOpts', `time=${Math.round(t1 - t0)}`);
+        break;
+      }
+    }
+    await sleep(50);
+    t1 = performance.now();
+  }
+}
+
 async function initStartup() {
   const t0 = performance.now();
   log('gradio', `time=${Math.round(t0 - appStartTime)}`);
@@ -24,13 +45,8 @@ async function initStartup() {
 
   // reconnect server session
   await reconnectUI();
+  await waitForOpts();
 
-  // make sure all of the ui is ready and options are loaded
-  let t1 = performance.now();
-  while ((Object.keys(window.opts).length === 0) && (t1 - t0 < 120000)) {
-    t1 = performance.now();
-    await sleep(50);
-  }
   log('mountURL', window.opts.subpath);
   if (window.opts.subpath?.length > 0) {
     window.subpath = window.opts.subpath;
