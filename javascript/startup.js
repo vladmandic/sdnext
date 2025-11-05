@@ -27,7 +27,7 @@ async function initStartup() {
 
   // make sure all of the ui is ready and options are loaded
   let t1 = performance.now();
-  while ((Object.keys(window.opts).length === 0) && (t1 - t0 < 10000)) {
+  while ((Object.keys(window.opts).length === 0) && (t1 - t0 < 60000)) {
     t1 = performance.now();
     await sleep(50);
   }
