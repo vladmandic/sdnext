@@ -563,8 +563,8 @@ def set_sdpa_params():
                 # See: https://github.com/vladmandic/sdnext/issues/4235
                 use_cuda_backend = False
                 capability = None
-                if torch.cuda.is_available():
-                    capability = torch.cuda.get_device_capability()
+                if backend == "cuda":
+                    capability = torch.cuda.get_device_capability(device)
                     # sm80 = compute capability 8.0 (A100/A6000), sm86 = 8.6 (RTX 3090/3090 Ti)
                     # Issue existing in 8.0 rumored but is not confirmed, enabling only for 8.6 for now
                     # if capability in [(8, 0), (8, 6)]:
@@ -574,6 +574,21 @@ def set_sdpa_params():
                         use_cuda_backend = True
                         log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend (Triton workaround)')
 
+                # Define the sage attention implementation at setup
+                if use_cuda_backend:
+                    def sage_attn_impl(query, key, value, is_causal, scale):
+                        return sageattn_qk_int8_pv_fp16_cuda(
+                            q=query, k=key, v=value,
+                            tensor_layout="HND",
+                            is_causal=is_causal,
+                            sm_scale=scale,
+                            return_lse=False,
+                            pv_accum_dtype="fp32"
+                        )
+                else:
+                    def sage_attn_impl(query, key, value, is_causal, scale):
+                        return sageattn(q=query, k=key, v=value, attn_mask=None, dropout_p=0.0, is_causal=is_causal, scale=scale)
+
                 sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_sage_atten)
                 def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.FloatTensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
@@ -582,18 +597,8 @@ def set_sdpa_params():
                             key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                             value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
 
-                        # Use CUDA backend for sm80/sm86 GPUs, otherwise use auto-dispatch
-                        if use_cuda_backend:
-                            return sageattn_qk_int8_pv_fp16_cuda(
-                                q=query, k=key, v=value,
-                                tensor_layout="HND",
-                                is_causal=is_causal,
-                                sm_scale=scale,
-                                return_lse=False,
-                                pv_accum_dtype="fp32"
-                            )
-                        else:
-                            return sageattn(q=query, k=key, v=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+                        # Call pre-selected sage attention implementation
+                        return sage_attn_impl(query, key, value, is_causal, scale)
                     else:
                         if enable_gqa:
                             kwargs["enable_gqa"] = enable_gqa
