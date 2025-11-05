@@ -559,50 +559,41 @@ def set_sdpa_params():
                 install('sageattention')
                 from sageattention import sageattn, sageattn_qk_int8_pv_fp16_cuda
 
-                # Detect GPU architecture - sm80/sm86 need CUDA backend workaround
-                # See: https://github.com/comfyanonymous/ComfyUI/issues/9773
+                # Detect GPU architecture - sm86 confirmed to need CUDA backend workaround as Sage Attention + Triton causes NaNs
+                # See: https://github.com/vladmandic/sdnext/issues/4235
                 use_cuda_backend = False
                 capability = None
                 if torch.cuda.is_available():
                     capability = torch.cuda.get_device_capability()
                     # sm80 = compute capability 8.0 (A100/A6000), sm86 = 8.6 (RTX 3090/3090 Ti)
-                    if capability in [(8, 0), (8, 6)]:
+                    # Issue existing in 8.0 rumored but is not confirmed, enabling only for 8.6 for now
+                    # if capability in [(8, 0), (8, 6)]:
+                    #     use_cuda_backend = True
+                    #     log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend (Triton workaround)')
+                    if capability == (8, 6):
                         use_cuda_backend = True
-                        log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend for Qwen models')
-
-                backend_logged_model = None  # Track which model type we've logged for
+                        log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend (Triton workaround)')
 
                 sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_sage_atten)
                 def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.FloatTensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-                    nonlocal backend_logged_model
                     if (query.shape[-1] in {128, 96, 64}) and (attn_mask is None) and (query.dtype != torch.float32):
                         if enable_gqa:
                             key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                             value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
 
-                        # Use CUDA backend for sm80/sm86 + Qwen models to avoid Triton backend bugs
-                        # Other models on sm80/sm86 can use the better Triton backend
+                        # Use CUDA backend for sm80/sm86 GPUs, otherwise use auto-dispatch
                         if use_cuda_backend:
-                            from modules import shared
-                            if shared.sd_model_type == 'qwen':
-                                if backend_logged_model != 'qwen':
-                                    log.debug(f'Sage Attention: using CUDA backend for Qwen model on sm{capability[0]}{capability[1]} GPU (Triton backend workaround)')
-                                    backend_logged_model = 'qwen'
-                                return sageattn_qk_int8_pv_fp16_cuda(
-                                    q=query, k=key, v=value,
-                                    tensor_layout="HND",
-                                    is_causal=is_causal,
-                                    sm_scale=scale,
-                                    return_lse=False,
-                                    pv_accum_dtype="fp32"
-                                )
-                            else:
-                                if backend_logged_model != shared.sd_model_type:
-                                    log.debug(f'Sage Attention: using Triton backend (auto-dispatch) for {shared.sd_model_type} model on sm{capability[0]}{capability[1]} GPU')
-                                    backend_logged_model = shared.sd_model_type
-                        # Use normal sageattn (auto-dispatch) for all other cases
-                        return sageattn(q=query, k=key, v=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+                            return sageattn_qk_int8_pv_fp16_cuda(
+                                q=query, k=key, v=value,
+                                tensor_layout="HND",
+                                is_causal=is_causal,
+                                sm_scale=scale,
+                                return_lse=False,
+                                pv_accum_dtype="fp32"
+                            )
+                        else:
+                            return sageattn(q=query, k=key, v=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
                     else:
                         if enable_gqa:
                             kwargs["enable_gqa"] = enable_gqa
