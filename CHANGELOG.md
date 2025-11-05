@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-04
+## Update for 2025-11-05
 
 - **Features**
   - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
@@ -49,6 +49,7 @@
   - taesd: warn on long decode times  
   - metadata: keep exif on thumbnail generation  
   - wildcard: obey seed for reproducible results  
+  - sageattention: handle possible triton issues on some nvidia gpus, thanks @CalamitousFelicitousness  
 
 ## Update for 2025-10-31
 

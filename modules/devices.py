@@ -559,23 +559,12 @@ def set_sdpa_params():
                 install('sageattention')
                 from sageattention import sageattn, sageattn_qk_int8_pv_fp16_cuda
 
-                # Detect GPU architecture - sm86 confirmed to need CUDA backend workaround as Sage Attention + Triton causes NaNs
-                # See: https://github.com/vladmandic/sdnext/issues/4235
                 use_cuda_backend = False
-                capability = None
-                if backend == "cuda":
-                    capability = torch.cuda.get_device_capability(device)
-                    # sm80 = compute capability 8.0 (A100/A6000), sm86 = 8.6 (RTX 3090/3090 Ti)
-                    # Issue existing in 8.0 rumored but is not confirmed, enabling only for 8.6 for now
-                    # if capability in [(8, 0), (8, 6)]:
-                    #     use_cuda_backend = True
-                    #     log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend (Triton workaround)')
-                    if capability == (8, 6):
-                        use_cuda_backend = True
-                        log.debug(f'Sage Attention: sm{capability[0]}{capability[1]} GPU detected, will use CUDA backend (Triton workaround)')
+                if (backend == "cuda") and (torch.cuda.get_device_capability(device) == (8, 6)):
+                    use_cuda_backend = True # Detect GPU architecture - sm86 confirmed to need CUDA backend workaround as Sage Attention + Triton causes NaNs
 
-                # Define the sage attention implementation at setup
                 if use_cuda_backend:
+                    log.debug('Torch attention: type=SageAttention backend=cuda')
                     def sage_attn_impl(query, key, value, is_causal, scale):
                         return sageattn_qk_int8_pv_fp16_cuda(
                             q=query, k=key, v=value,
@@ -583,11 +572,18 @@ def set_sdpa_params():
                             is_causal=is_causal,
                             sm_scale=scale,
                             return_lse=False,
-                            pv_accum_dtype="fp32"
+                            pv_accum_dtype="fp32",
                         )
                 else:
+                    log.debug('Torch attention: type=SageAttention backend=auto')
                     def sage_attn_impl(query, key, value, is_causal, scale):
-                        return sageattn(q=query, k=key, v=value, attn_mask=None, dropout_p=0.0, is_causal=is_causal, scale=scale)
+                        return sageattn(
+                            q=query, k=key, v=value,
+                            attn_mask=None,
+                            dropout_p=0.0,
+                            is_causal=is_causal,
+                            scale=scale,
+                        )
 
                 sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_sage_atten)
