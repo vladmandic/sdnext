@@ -44,9 +44,11 @@
   - ui: fix full-screen image viewer buttons with non-standard ui theme  
   - ui: control tab show override section  
   - ui: mobile layout for video tab  
+  - ui: increase init timeout  
   - video: save to subfolder  
   - taesd: warn on long decode times  
   - metadata: keep exif on thumbnail generation  
+  - wildcard: obey seed for reproducible results  
 
 ## Update for 2025-10-31
 

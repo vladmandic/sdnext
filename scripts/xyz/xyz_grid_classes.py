@@ -136,7 +136,6 @@ class SharedSettingsStackHelper():
         self.disable_apply_metadata = shared.opts.disable_apply_metadata
         self.disable_apply_params = shared.opts.disable_apply_params
         self.sdnq_quant_mode = shared.opts.sdnq_quantize_weights_mode
-
         shared.opts.data["disable_apply_metadata"] = []
         shared.opts.data["disable_apply_params"] = ''
 
