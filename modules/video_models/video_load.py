@@ -1,6 +1,8 @@
 import os
 import copy
 import time
+import transformers # pylint: disable=unused-import
+import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
 
@@ -174,7 +176,6 @@ def load_upscale_vae():
         shared.log.warning('Video decode: upscale VAE unsupported')
         return
 
-    import diffusers
     repo_id = 'spacepxl/Wan2.1-VAE-upscale2x'
     subfolder = "diffusers/Wan2.1_VAE_upscale2x_imageonly_real_v1"
     vae_decode = diffusers.AutoencoderKLWan.from_pretrained(repo_id, subfolder=subfolder, cache_dir=shared.opts.hfcache_dir)

@@ -356,7 +356,7 @@ class ControlNet():
                     self.model.to_empty(device=self.device) # model could be sparse
                 if "Control" in opts.sdnq_quantize_weights:
                     try:
-                        log.debug(f'Control {what} model SDNQ Compress: id="{model_id}"')
+                        log.debug(f'Control {what} model SDNQ quantize: id="{model_id}"')
                         from modules.model_quant import sdnq_quantize_model
                         self.model = sdnq_quantize_model(self.model)
                     except Exception as e:

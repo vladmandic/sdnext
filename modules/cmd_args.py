@@ -24,6 +24,7 @@ def main_args():
     group_config.add_argument("--freeze", default=os.environ.get("SD_FREEZE", False), action='store_true', help="Disable editing settings")
     group_config.add_argument("--medvram", default=os.environ.get("SD_MEDVRAM", False), action='store_true', help="Split model stages and keep only active part in VRAM, default: %(default)s")
     group_config.add_argument("--lowvram", default=os.environ.get("SD_LOWVRAM", False), action='store_true', help="Split model components and keep only active part in VRAM, default: %(default)s")
+    group_config.add_argument("--disable", default=os.environ.get("SD_DISABLE", ''),  help="Disable specific UI tabs: %(default)s")
 
 
 def compatibility_args():

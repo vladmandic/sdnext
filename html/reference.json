@@ -925,7 +925,7 @@
   },
   "FLUX.1-Schnell sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "preview": "Disty0--FLUX.1-schnell-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
@@ -935,7 +935,7 @@
   },
   "FLUX.1-Dev Krea sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "preview": "Disty0--FLUX.1-Krea-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
@@ -945,7 +945,7 @@
   },
   "FLUX.1-Dev Kontext sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "preview": "Disty0--FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-Kontext-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
@@ -1015,7 +1015,7 @@
   },
   "nVidia ChronoEdit sdnq-svd-uint4": {
     "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
-    "preview": "nvidia--ChronoEdit-14B-Diffusers.jpg",
+    "preview": "Disty0--ChronoEdit-14B-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
     "skip": true,
     "tags": "quantized",
@@ -1035,7 +1035,7 @@
   },
   "Tempest-by-Vlad XL sdnq-svd-uint4": {
     "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
-    "preview": "tempestByVlad_baseV01.jpg",
+    "preview": "vladmandic--tempestByVlad_baseV01-SDNQ-uint4-svd.jpg",
     "desc": "Quantization of vladmandic/tempestByVlad_baseV01 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
     "tags": "quantized",
     "size": 3.37,
@@ -1117,7 +1117,7 @@
     "extras": ""
   },
   "Pony Realism XL v2.3": {
-    "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/2167369",
+    "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/1763661",
     "preview": "ponyRealism_V23.jpg",
     "desc": "",
     "tags": "community",

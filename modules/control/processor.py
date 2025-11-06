@@ -55,8 +55,8 @@ def preprocess_image(
     jobid = shared.state.begin('Preprocess')
 
     # run resize before
-    if p.resize_mode_before != 0 and p.resize_name_before != 'None':
-        if p.selected_scale_tab_before == 1 and input_image is not None:
+    if (p.resize_mode_before != 0) and (p.resize_name_before != 'None'):
+        if (p.selected_scale_tab_before == 1) and (input_image is not None):
             p.width_before, p.height_before = int(input_image.width * p.scale_by_before), int(input_image.height * p.scale_by_before)
         if input_image is not None:
             debug_log(f'Control resize: op=before image={input_image} width={p.width_before} height={p.height_before} mode={p.resize_mode_before} name={p.resize_name_before} context="{p.resize_context_before}"')
@@ -64,10 +64,10 @@ def preprocess_image(
             p.init_img_width = getattr(p, 'init_img_width', input_image.width) # pylint: disable=attribute-defined-outside-init
             p.init_img_height = getattr(p, 'init_img_height', input_image.height) # pylint: disable=attribute-defined-outside-init
             input_image = images.resize_image(p.resize_mode_before, input_image, p.width_before, p.height_before, p.resize_name_before, context=p.resize_context_before)
-    if input_image is not None and init_image is not None and init_image.size != input_image.size:
+    if (input_image is not None) and (init_image is not None) and (init_image.size != input_image.size):
         debug_log(f'Control resize init: image={init_image} target={input_image}')
         init_image = images.resize_image(resize_mode=1, im=init_image, width=input_image.width, height=input_image.height)
-    if input_image is not None and p.override is not None and p.override.size != input_image.size:
+    if (input_image is not None) and (p.override is not None) and (p.override.size != input_image.size):
         debug_log(f'Control resize override: image={p.override} target={input_image}')
         p.override = images.resize_image(resize_mode=1, im=p.override, width=input_image.width, height=input_image.height)
     if input_image is not None:
@@ -100,10 +100,16 @@ def preprocess_image(
     blended_image = None
     for i, process in enumerate(active_process): # list[image]
         debug_log(f'Control: i={i+1} process="{process.processor_id}" input={masked_image} override={process.override}')
+        if p.resize_mode_before != 0:
+            resize_mode = p.resize_mode_before
+        else:
+            resize_mode = 3 if shared.opts.control_aspect_ratio else 1
         processed_image = process(
             image_input=masked_image,
+            width=p.width,
+            height=p.height,
             mode='RGB',
-            resize_mode=p.resize_mode_before,
+            resize_mode=resize_mode,
             resize_name=p.resize_name_before,
             scale_tab=p.selected_scale_tab_before,
             scale_by=p.scale_by_before,

@@ -577,7 +577,8 @@ function setupExtraNetworksForTab(tabName) {
 
 async function showNetworks() {
   for (const tabName of ['txt2img', 'img2img', 'control', 'video']) {
-    if (window.opts.extra_networks_show) gradioApp().getElementById(`${tabName}_extra_networks_btn`).click();
+    const btn = gradioApp().getElementById(`${tabName}_extra_networks_btn`);
+    if (window.opts.extra_networks_show && btn) btn.click();
   }
   log('showNetworks');
 }

@@ -28,8 +28,7 @@ def initialize_zluda():
     if not devices.cuda_ok or not devices.has_zluda():
         return
 
-    if shared.opts.cudnn_enabled != 'default':
-        torch.backends.cudnn.enabled = shared.opts.cudnn_enabled == 'true'
+    torch.backends.cudnn.enabled = zluda_installer.MIOpen_enabled if shared.opts.cudnn_enabled == 'default' else shared.opts.cudnn_enabled == 'true'
     if hasattr(torch.backends.cuda, "enable_cudnn_sdp"):
         if not zluda_installer.MIOpen_enabled:
             torch.backends.cuda.enable_cudnn_sdp(False)

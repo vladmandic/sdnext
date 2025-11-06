@@ -14,7 +14,8 @@ def get_video_filename(p:processing.StableDiffusionProcessingVideo):
     filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
     if shared.opts.save_to_dirs:
         dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
-        dirname = os.path.join(shared.opts.outdir_video, dirname, filename)
+        dirfile = os.path.dirname(filename)
+        dirname = os.path.join(shared.opts.outdir_video, dirname, dirfile)
     else:
         dirname = shared.opts.outdir_video
     if not os.path.exists(dirname):

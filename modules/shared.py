@@ -570,6 +570,9 @@ options_templates.update(options_section(('ui', "User Interface"), {
     "subpath": OptionInfo("", "Mount URL subpath"),
     "ui_request_timeout": OptionInfo(120000, "UI request timeout", gr.Slider, {"minimum": 1000, "maximum": 300000, "step": 10}),
 
+    "ui_tabs": OptionInfo("<h2>UI Tabs</h2>", "", gr.HTML),
+    "ui_disabled": OptionInfo([], "Disabled UI tabs", gr.Dropdown, { 'visible': False }),
+
     "cards_sep_ui": OptionInfo("<h2>Networks panel</h2>", "", gr.HTML),
     "extra_networks_card_size": OptionInfo(140, "Network card size (px)", gr.Slider, {"minimum": 20, "maximum": 2000, "step": 1}),
     "extra_networks_card_cover": OptionInfo("sidebar", "Network panel position", gr.Radio, {"choices": ["cover", "inline", "sidebar"]}),
@@ -742,7 +745,8 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
 
     # control settings are handled separately
-    "control_hires": OptionInfo(False, "Use control during hires", gr.Checkbox, {"visible": False}),
+    "control_hires": OptionInfo(False, "Hires use Control", gr.Checkbox, {"visible": False}),
+    "control_aspect_ratio": OptionInfo(False, "Aspect ratio resize", gr.Checkbox, {"visible": False}),
     "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
     "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options", gr.Textbox, {"visible": False}),
     "control_move_processor": OptionInfo(False, "Processor move to CPU after use", gr.Checkbox, {"visible": False}),

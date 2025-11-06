@@ -20,11 +20,11 @@ def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visibl
             with gr.Row():
                 with gr.Column(scale=80):
                     with gr.Row(elem_id=f"{id_part}_prompt_row"):
-                        prompt = gr.Textbox(elem_id=f"{id_part}_prompt", label="Prompt", show_label=False, lines=3 if negative_visible else 5, placeholder="Prompt", elem_classes=["prompt"])
+                        prompt = gr.Textbox(elem_id=f"{id_part}_prompt", label="Prompt", show_label=False, lines=3 if negative_visible else 5, placeholder="Prompt", elem_classes=["prompt", "main-prompts"])
             with gr.Row():
                 with gr.Column(scale=80):
                     with gr.Row(elem_id=f"{id_part}_negative_row"):
-                        negative_prompt = gr.Textbox(elem_id=f"{id_part}_neg_prompt", label="Negative prompt", show_label=False, lines=3, placeholder="Negative prompt", elem_classes=["prompt"], visible=negative_visible)
+                        negative_prompt = gr.Textbox(elem_id=f"{id_part}_neg_prompt", label="Negative prompt", show_label=False, lines=3, placeholder="Negative prompt", elem_classes=["prompt", "main-prompts"], visible=negative_visible)
         with gr.Column(scale=1, elem_id=f"{id_part}_actions_column"):
             with gr.Row(elem_id=f"{id_part}_generate_box"):
                 reprocess = []

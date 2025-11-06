@@ -314,6 +314,12 @@ def parse_novelai_metadata(data: dict):
 def read_info_from_image(image: Image, watermark: bool = False):
     if image is None:
         return '', {}
+    if isinstance(image, str):
+        try:
+            image = Image.open(image)
+            image.load()
+        except Exception:
+            return '', {}
     items = image.info or {}
     geninfo = items.pop('parameters', None) or items.pop('UserComment', None) or ''
     if geninfo is not None and len(geninfo) > 0:
