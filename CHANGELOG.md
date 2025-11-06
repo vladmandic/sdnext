@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-05
+## Update for 2025-11-06
 
-### Highlights for 2025-11-05
+### Highlights for 2025-11-06
 
 Service pack release that handles critical issues and improvements for **ROCm-on-Windows** and **ZLUDA** backends  
 Also included are several new features, notably improvements to **detailer** and ability to run [SD.Next](https://github.com/vladmandic/sdnext) with specific modules disabled  
@@ -11,10 +11,13 @@ Also included are several new features, notably improvements to **detailer** and
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-05
+### Details for 2025-11-06
 
 - **Features**
   - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
+    recommended to run: `webui --use-rocm --reinstall`  
+  - **ZLUDA** improve detection and handling of unsupported GPUs  
+    recommended to run: `webui --use-zluda --reinstall`  
   - **detailer**  
     optional include detection image to output results  
     optional sort detection objects left-to-right for improved prompt consistency  
@@ -34,6 +37,7 @@ Also included are several new features, notably improvements to **detailer** and
   - change `vlm` beams to 1 by default for faster response  
   - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
   - **networks** info details now displays image metadata from preview image  
+  - **networks** new model previews, thanks @liutyi  
 - **Fixes**
   - zluda: test and disable MIOpen as needed  
   - qwen: improve lora compatibility  
