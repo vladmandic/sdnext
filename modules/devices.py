@@ -401,8 +401,9 @@ def test_triton(early: bool = False):
     except Exception as e:
         triton_ok = False
         log.warning(f"Triton test fail: {e}")
-        from modules import errors
-        errors.display(e, 'Triton')
+        if debug:
+            from modules import errors
+            errors.display(e, 'Triton')
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
@@ -556,7 +557,34 @@ def set_sdpa_params():
         if 'Sage attention' in opts.sdp_options:
             try:
                 install('sageattention')
-                from sageattention import sageattn
+                from sageattention import sageattn, sageattn_qk_int8_pv_fp16_cuda
+
+                use_cuda_backend = False
+                if (backend == "cuda") and (torch.cuda.get_device_capability(device) == (8, 6)):
+                    use_cuda_backend = True # Detect GPU architecture - sm86 confirmed to need CUDA backend workaround as Sage Attention + Triton causes NaNs
+
+                if use_cuda_backend:
+                    log.debug('Torch attention: type=SageAttention backend=cuda')
+                    def sage_attn_impl(query, key, value, is_causal, scale):
+                        return sageattn_qk_int8_pv_fp16_cuda(
+                            q=query, k=key, v=value,
+                            tensor_layout="HND",
+                            is_causal=is_causal,
+                            sm_scale=scale,
+                            return_lse=False,
+                            pv_accum_dtype="fp32",
+                        )
+                else:
+                    log.debug('Torch attention: type=SageAttention backend=auto')
+                    def sage_attn_impl(query, key, value, is_causal, scale):
+                        return sageattn(
+                            q=query, k=key, v=value,
+                            attn_mask=None,
+                            dropout_p=0.0,
+                            is_causal=is_causal,
+                            scale=scale,
+                        )
+
                 sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
                 @wraps(sdpa_pre_sage_atten)
                 def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.FloatTensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
@@ -564,7 +592,9 @@ def set_sdpa_params():
                         if enable_gqa:
                             key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                             value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
-                        return sageattn(q=query, k=key, v=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
+
+                        # Call pre-selected sage attention implementation
+                        return sage_attn_impl(query, key, value, is_causal, scale)
                     else:
                         if enable_gqa:
                             kwargs["enable_gqa"] = enable_gqa

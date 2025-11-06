@@ -83,10 +83,7 @@ else:
 
 
 common_skip_keys = (
-    ".lm_head",
-    ".patch_embedding",
     ".time_embed",
-    ".time_text_embed",
     ".context_embedder",
     ".condition_embedder",
     ".x_embedder",
@@ -101,36 +98,45 @@ common_skip_keys = (
     ".img_out",
     ".vid_out",
     ".final_layer",
-    "pos_embed",
+    "time_text_embed",
+    "patch_embedding",
+    "patch_embed",
+    "patch_emb",
+    "lm_head",
+    "wte",
 )
 
 module_skip_keys_dict = {
     "FluxTransformer2DModel": [
-        ["single_transformer_blocks.0.norm.linear.weight", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        ["single_transformer_blocks.0.norm.linear.weight", "time_text_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
         {}
     ],
     "ChromaTransformer2DModel": [
-        ["distilled_guidance_layer", ".time_text_embed", ".context_embedder", ".x_embedder", ".proj_out", ".norm_out", "pos_embed"],
+        ["distilled_guidance_layer", "time_text_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
         {}
     ],
     "QwenImageTransformer2DModel": [
-        ["transformer_blocks.0.img_mod.1.weight", ".time_text_embed", ".txt_in", ".img_in", ".proj_out", ".norm_out", "pos_embed"],
+        ["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "txt_in", "img_in", "proj_out", "norm_out"],
         {}
     ],
     "WanTransformer3DModel": [
-        ["scale_shift_table", ".rope", ".patch_embedding", ".condition_embedder", ".proj_out", ".norm_out", "pos_embed"],
-        {}
-    ],
-    "Gemma3nForCausalLM": [
-        [".lm_head", "correction_coefs", "prediction_coefs", "embedding_projection"],
+        ["scale_shift_table", "patch_embedding", "condition_embedder", "proj_out", "norm_out"],
         {}
     ],
     "HunyuanImage3ForCausalMM": [
-        [".lm_head", ".patch_embed", ".time_embed", ".time_embed_2", ".final_layer", ".model.wte", ".model.ln_f", ".timestep_emb", ".vae", ".vision_aligner", ".vision_model.head", ".vision_model.post_layernorm", ".vision_model.embeddings"],
+        ["lm_head", "patch_embed", "time_embed", "time_embed_2", "final_layer", "wte", "ln_f", "timestep_emb", "vae", "vision_aligner", "head", "post_layernorm", "embeddings"],
         {}
     ],
     "Emu3ForCausalLM": [
-        [".lm_head", ".vq_model", ".tokenizer"],
+        ["lm_head", "vq_model", "tokenizer"],
+        {}
+    ],
+    "Gemma3nForCausalLM": [
+        ["lm_head", "correction_coefs", "prediction_coefs", "embedding_projection"],
+        {}
+    ],
+    "MoondreamModel": [
+        ["lm_head", "region", "wte", "post_ln", "proj_mlp", "patch_emb", "pos_emb"],
         {}
     ],
     "NaDiT": [
@@ -141,4 +147,5 @@ module_skip_keys_dict = {
 
 module_skip_keys_dict["ChronoEditTransformer3DModel"] = module_skip_keys_dict["WanTransformer3DModel"]
 module_skip_keys_dict["Gemma3nForConditionalGeneration"] = module_skip_keys_dict["Gemma3nForCausalLM"]
+module_skip_keys_dict["HfMoondream"] = module_skip_keys_dict["MoondreamModel"]
 module_skip_keys_dict["NaDiTUpscaler"] = module_skip_keys_dict["NaDiT"]

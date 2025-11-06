@@ -168,17 +168,21 @@ async function tooltipHide(e) {
   localeData.currentElement = null;
 }
 
-async function validateHints(json, elements) {
+async function validateHints(json, elements, tab) {
   json.missing = [];
   const data = Object.values(json).flat().filter((e) => e.hint.length > 0);
   for (const e of data) e.label = e.label.trim();
+  if (tab) {
+    elements = elements.filter((el) => el.closest(`#${tab}_tabitem`)); // include only elements within specified tab
+    elements = elements.filter((el) => !el.closest(`#${tab}_scripts_tabitem`));
+  }
   let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort(); // should be case sensitive
   let duplicateUI = original.filter((e, i, a) => a.indexOf(e.toLowerCase()) !== i).sort();
   original = [...new Set(original)]; // remove duplicates
   duplicateUI = [...new Set(duplicateUI)]; // remove duplicates
   const current = data.map((e) => e.label.toLowerCase().trim()).sort(); // should be case sensitive
-  log('all elements:', original);
-  log('all hints:', current);
+  // log('all elements:', original);
+  // log('all hints:', current);
   log('hints-differences', { elements: original.length, hints: current.length });
   const missingHints = original.filter((e) => !current.includes(e.toLowerCase())).sort();
   const orphanedHints = current.filter((e) => !original.includes(e.toLowerCase())).sort();
@@ -333,6 +337,7 @@ async function setHints(analyze = false) {
   log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
   // sortUIElements();
   if (analyze) {
+    log('analyzing hints', 'control_tabitem');
     const [missingHints, orphanedHints] = await validateHints(json, elements);
     await addMissingHints(json, missingHints);
     await removeOrphanedHints(json, orphanedHints);

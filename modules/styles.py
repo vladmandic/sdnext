@@ -45,14 +45,20 @@ def apply_styles_to_prompt(prompt, styles):
     return prompt
 
 
-def apply_curly_braces_to_prompt(prompt):
+def apply_curly_braces_to_prompt(prompt, seed=-1):
     # woman with {blonde|brunette|red-head|purple highlights} hair
     curly_braces_matches = re.findall(r'\{(.*?)\}', prompt)
     for match in curly_braces_matches:
+        old_state = None
+        if seed > 0:
+            old_state = random.getstate()
+            random.seed(seed)
         options = match.split('|')
         if options:
             choice = random.choice(options).strip()
             prompt = prompt.replace(f'{{{match}}}', choice, 1)
+        if old_state is not None:
+            random.setstate(old_state)
     return prompt
 
 
@@ -112,8 +118,8 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
         return prompt
     old_state = None
     if seed > 0 and len(all_wildcards) > 0:
-        random.seed(seed)
         old_state = random.getstate()
+        random.seed(seed)
     replaced = {}
     t0 = time.time()
     for style_wildcards in all_wildcards:
@@ -339,7 +345,7 @@ class StyleDatabase:
             if seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = prompts[i]
-            prompt = apply_curly_braces_to_prompt(prompt)
+            prompt = apply_curly_braces_to_prompt(prompt, seeds[i])
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_positive.append(prompt)
@@ -347,7 +353,7 @@ class StyleDatabase:
             if seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = negatives[i]
-            prompt = apply_curly_braces_to_prompt(prompt)
+            prompt = apply_curly_braces_to_prompt(prompt, seeds[i])
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_negative.append(prompt)

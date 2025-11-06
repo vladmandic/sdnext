@@ -38,7 +38,7 @@ class YoloResult:
         self.height = height
         self.args = args
 
-    def __str__(self):
+    def __repl__(self):
         return f'cls={self.cls} label={self.label} score={self.score} box={self.box} mask={self.mask} item={self.item} size={self.width}x{self.height} args={self.args}'
 
 
@@ -217,14 +217,18 @@ class YoloRestorer(Detailer):
         return [merged]
 
     def draw_boxes(self, image: Image.Image, items: list[YoloResult]) -> Image.Image:
-        annotated = image.copy()
-        draw = ImageDraw.Draw(annotated)
+        if isinstance(image, Image.Image):
+            draw = ImageDraw.Draw(image)
+        else:
+            image = Image.fromarray(image)
+            draw = ImageDraw.Draw(image)
         font = images.get_font(16)
+        shared.log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
             draw.rectangle(item.box, outline="#00C8C8", width=3)
             draw.text((item.box[0]+4, item.box[1]+4), f'{i+1} {item.label} {item.score:.2f}', fill="black", font=font)
             draw.text((item.box[0]+2, item.box[1]+2), f'{i+1} {item.label} {item.score:.2f}', fill="white", font=font)
-        return np.array(annotated)
+        return np.array(image)
 
     def restore(self, np_image, p: processing.StableDiffusionProcessing = None):
         if shared.state.interrupted or shared.state.skipped:
@@ -237,7 +241,7 @@ class YoloRestorer(Detailer):
             return np_image
         models = []
         if len(shared.opts.detailer_args) > 0:
-            models = [m.strip() for m in re.split(r'\n|,|;', shared.opts.detailer_args)]
+            models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
             models = [m for m in models if len(m) > 0]
         if len(models) == 0:
             models = shared.opts.detailer_models
@@ -252,6 +256,7 @@ class YoloRestorer(Detailer):
         orig_cls = p.__class__
         models_used = []
         np_images = []
+        annotated = Image.fromarray(np_image)
 
         for i, model_val in enumerate(models):
             if ':' in model_val:
@@ -339,8 +344,8 @@ class YoloRestorer(Detailer):
             if p.steps < 1:
                 p.steps = orig_p.get('steps', 0)
 
-            report = [{'label': i.label, 'score': i.score, 'size': f'{i.width}x{i.height}' } for i in items]
-            shared.log.info(f'Detailer: model="{name}" items={report} args={args}')
+            # report = [{'label': i.label, 'score': i.score, 'size': f'{i.width}x{i.height}' } for i in items]
+            # shared.log.info(f'Detailer: model="{name}" items={report} args={args}')
             models_used.append(name)
 
             mask_all = []
@@ -356,7 +361,7 @@ class YoloRestorer(Detailer):
             if shared.opts.detailer_sort:
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
             if shared.opts.detailer_save:
-                np_images.append(self.draw_boxes(image, items)) # save debug image with boxes
+                annotated = self.draw_boxes(annotated, items)
 
             for j, item in enumerate(items):
                 if item.mask is None:
@@ -364,7 +369,7 @@ class YoloRestorer(Detailer):
                 pc.keep_prompts = True
                 pc.prompts = [prompt_lines[(i*len(items)+j) % len(prompt_lines)]]
                 pc.negative_prompts = [negative_lines[(i*len(items)+j) % len(negative_lines)]]
-                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} score={item.score:.2f} prompt="{pc.prompt}"')
+                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
@@ -392,13 +397,15 @@ class YoloRestorer(Detailer):
             p.state = orig_p.get('state', None)
             p.ops = orig_p.get('ops', [])
             shared.opts.data['mask_apply_overlay'] = orig_apply_overlay
-            np_images.append(np.array(image))
 
             if len(mask_all) > 0 and shared.opts.include_mask:
                 from modules.control.util import blend
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)
 
+        np_images.append(np.array(image))
+        if shared.opts.detailer_save and annotated is not None:
+            np_images.append(annotated) # save debug image with boxes
         return np_images
 
     def change_mode(self, dropdown, text):
@@ -430,6 +437,8 @@ class YoloRestorer(Detailer):
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(shared.config_filename, silent=True)
             shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort}')
+            if not self.ui_mode:
+                shared.log.debug(f'Detailer expert: {text}')
 
         with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"]):
             with gr.Row():

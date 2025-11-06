@@ -56,6 +56,8 @@ def create_setting_component(key, is_quicksettings=False):
     info = shared.opts.data_labels[key]
     t = type(info.default)
     args = (info.component_args() if callable(info.component_args) else info.component_args) or {}
+    if 'settings' in shared.opts.ui_disabled:
+        args['visible'] = False
     if info.component is not None:
         comp = info.component
     elif t == str:
@@ -171,16 +173,35 @@ def run_settings_single(value, key, progress=False):
     return get_value_for_setting(key), shared.opts.dumpjson()
 
 
-def create_ui():
+def create_ui(disabled_tabs=[]):
     shared.log.debug('UI initialize: tab=settings')
     global text_settings # pylint: disable=global-statement
     text_settings = gr.Textbox(elem_id="settings_json", elem_classes=["settings_json"], value=lambda: shared.opts.dumpjson(), visible=False)
-    with gr.Row(elem_id="system_row"):
-        unload_sd_model = gr.Button(value='Unload model', variant='primary', elem_id="sett_unload_sd_model")
-        reload_sd_model = gr.Button(value='Reload model', variant='primary', elem_id="sett_reload_sd_model")
-        restart_submit = gr.Button(value="Restart server", variant='primary', elem_id="restart_submit")
-        shutdown_submit = gr.Button(value="Shutdown server", variant='primary', elem_id="shutdown_submit")
-        enable_profiling = gr.Button(value='Start profiling', variant='primary', elem_id="enable_profiling")
+
+    def unload_sd_weights():
+        sd_models.unload_model_weights(op='model')
+        sd_models.unload_model_weights(op='refiner')
+
+    def reload_sd_weights():
+        sd_models.reload_model_weights(force=True)
+
+    def switch_profiling():
+        shared.cmd_opts.profile = not shared.cmd_opts.profile
+        shared.log.warning(f'Profiling: {shared.cmd_opts.profile}')
+        return 'Stop profiling' if shared.cmd_opts.profile else 'Start profiling'
+
+    if 'system' not in disabled_tabs:
+        with gr.Row(elem_id="system_row"):
+            unload_sd_model = gr.Button(value='Unload model', variant='primary', elem_id="sett_unload_sd_model")
+            reload_sd_model = gr.Button(value='Reload model', variant='primary', elem_id="sett_reload_sd_model")
+            restart_submit = gr.Button(value="Restart server", variant='primary', elem_id="restart_submit")
+            shutdown_submit = gr.Button(value="Shutdown server", variant='primary', elem_id="shutdown_submit")
+            enable_profiling = gr.Button(value='Start profiling', variant='primary', elem_id="enable_profiling")
+            unload_sd_model.click(fn=unload_sd_weights, inputs=[], outputs=[])
+            reload_sd_model.click(fn=reload_sd_weights, inputs=[], outputs=[])
+            enable_profiling.click(fn=switch_profiling, inputs=[], outputs=[enable_profiling])
+            restart_submit.click(fn=lambda: shared.restart_server(restart=True), _js="restartReload")
+            shutdown_submit.click(fn=lambda: shared.restart_server(restart=False), _js="restartReload")
 
     with gr.Tabs(elem_id="system") as system_tabs:
         global ui_system_tabs # pylint: disable=global-statement
@@ -242,61 +263,51 @@ def create_ui():
 
             shared.log.debug(f'Settings: sections={len(sections)} settings={len(shared.opts.list())}/{len(list(shared.opts.data_labels))} quicksettings={len(quicksettings_list)}')
 
-        with gr.TabItem("Update", id="system_update", elem_id="tab_update"):
-            from modules import update
-            update.create_ui()
+        if 'update' not in disabled_tabs:
+            with gr.TabItem("Update", id="system_update", elem_id="tab_update"):
+                from modules import update
+                update.create_ui()
 
-        with gr.TabItem("User interface", id="system_config", elem_id="tab_config"):
-            loadsave.create_ui()
-            create_dirty_indicator("tab_defaults", [], interactive=False)
+        if 'config' not in disabled_tabs:
+            with gr.TabItem("User interface", id="system_config", elem_id="tab_config"):
+                loadsave.create_ui()
+                create_dirty_indicator("tab_defaults", [], interactive=False)
 
-        with gr.TabItem("History", id="system_history", elem_id="tab_history"):
-            ui_history.create_ui()
+        if 'history' not in disabled_tabs:
+            with gr.TabItem("History", id="system_history", elem_id="tab_history"):
+                ui_history.create_ui()
 
-        with gr.TabItem("GPU Monitor", id="system_gpu", elem_id="tab_gpu"):
-            with gr.Row(elem_id='gpu-controls'):
-                gpu_start = gr.Button(value="Start", elem_id="gpu_start", variant="primary")
-                gpu_stop = gr.Button(value="Stop", elem_id="gpu_stop", variant="primary")
-                gpu_start.click(fn=lambda: None, _js='startGPU', inputs=[], outputs=[])
-                gpu_stop.click(fn=lambda: None, _js='disableGPU', inputs=[], outputs=[])
-            gr.HTML('''
-                <div class="gpu" id="gpu">
-                    <table class="gpu-table" id="gpu-table">
-                        <thead><tr><th></th><th></th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                    <div id="gpuChart"></div>
-                </div>
-            ''', elem_id='gpu-container', visible=True)
+        if 'monitor' not in disabled_tabs:
+            with gr.TabItem("GPU Monitor", id="system_gpu", elem_id="tab_gpu"):
+                with gr.Row(elem_id='gpu-controls'):
+                    gpu_start = gr.Button(value="Start", elem_id="gpu_start", variant="primary")
+                    gpu_stop = gr.Button(value="Stop", elem_id="gpu_stop", variant="primary")
+                    gpu_start.click(fn=lambda: None, _js='startGPU', inputs=[], outputs=[])
+                    gpu_stop.click(fn=lambda: None, _js='disableGPU', inputs=[], outputs=[])
+                gr.HTML('''
+                    <div class="gpu" id="gpu">
+                        <table class="gpu-table" id="gpu-table">
+                            <thead><tr><th></th><th></th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div id="gpuChart"></div>
+                    </div>
+                ''', elem_id='gpu-container', visible=True)
 
-        with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
-            from modules.onnx_impl import ui as ui_onnx
-            ui_onnx.create_ui()
+        if 'onnx' not in disabled_tabs:
+            with gr.TabItem("ONNX", id="onnx_config", elem_id="tab_onnx"):
+                from modules.onnx_impl import ui as ui_onnx
+                ui_onnx.create_ui()
 
-    def unload_sd_weights():
-        sd_models.unload_model_weights(op='model')
-        sd_models.unload_model_weights(op='refiner')
-
-    def reload_sd_weights():
-        sd_models.reload_model_weights(force=True)
-
-    def switch_profiling():
-        shared.cmd_opts.profile = not shared.cmd_opts.profile
-        shared.log.warning(f'Profiling: {shared.cmd_opts.profile}')
-        return 'Stop profiling' if shared.cmd_opts.profile else 'Start profiling'
-
-    unload_sd_model.click(fn=unload_sd_weights, inputs=[], outputs=[])
-    reload_sd_model.click(fn=reload_sd_weights, inputs=[], outputs=[])
-    enable_profiling.click(fn=switch_profiling, inputs=[], outputs=[enable_profiling])
-    request_notifications.click(fn=lambda: None, inputs=[], outputs=[], _js='function(){}')
+    if request_notifications:
+        request_notifications.click(fn=lambda: None, inputs=[], outputs=[], _js='function(){}')
     settings_submit.click(
         fn=call_queue.wrap_gradio_call(run_settings, extra_outputs=[gr.update()]),
         inputs=components,
         outputs=[text_settings, result],
     )
-    defaults_submit.click(fn=lambda: shared.restore_defaults(restart=True), _js="restartReload")
-    restart_submit.click(fn=lambda: shared.restart_server(restart=True), _js="restartReload")
-    shutdown_submit.click(fn=lambda: shared.restart_server(restart=False), _js="restartReload")
+    if defaults_submit:
+        defaults_submit.click(fn=lambda: shared.restore_defaults(restart=True), _js="restartReload")
 
 
 def reset_quicksettings(quick_components):

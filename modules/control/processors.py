@@ -268,12 +268,14 @@ class Processor():
             display(e, 'Control Processor load')
             return f'Processor load filed: {processor_id}'
 
-    def __call__(self, image_input: Image, mode: str = 'RGB', resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict = {}):
+    def __call__(self, image_input: Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict = {}):
         if self.override is not None:
             debug(f'Control Processor: id="{self.processor_id}" override={self.override}')
-            if image_input is not None and image_input.size != self.override.size:
-                debug(f'Control resize: op=override image={self.override} width={image_input.width} height={image_input.height} mode={resize_mode} name={resize_name}')
-                image_input = images.resize_image(resize_mode, self.override, image_input.width, image_input.height, resize_name)
+            width = image_input.width if image_input is not None else width
+            height = image_input.height if image_input is not None else height
+            if (width != self.override.width) or (height != self.override.height):
+                debug(f'Control resize: op=override image={self.override} width={width} height={height} mode={resize_mode} name={resize_name}')
+                image_input = images.resize_image(resize_mode, self.override, width, height, resize_name)
             else:
                 image_input = self.override
             if resize_mode != 0 and resize_name != 'None':

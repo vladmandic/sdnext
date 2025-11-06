@@ -5,6 +5,7 @@ Tiny AutoEncoder for Stable Diffusion
 https://github.com/madebyollin/taesd
 """
 import os
+import time
 import threading
 from PIL import Image
 import torch
@@ -32,6 +33,7 @@ CQYAN_MODELS = {
 }
 
 prev_warnings = False
+first_run = True
 prev_cls = ''
 prev_type = ''
 prev_model = ''
@@ -49,7 +51,7 @@ def warn_once(msg, variant=None):
 
 
 def get_model(model_type = 'decoder', variant = None):
-    global prev_cls, prev_type, prev_model # pylint: disable=global-statement
+    global prev_cls, prev_type, prev_model, prev_warnings # pylint: disable=global-statement
     model_cls = shared.sd_model_type
     if model_cls is None or model_cls == 'none':
         return None, variant
@@ -103,6 +105,7 @@ def get_model(model_type = 'decoder', variant = None):
                 from modules.taesd.taesd import TAESD
                 vae = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
             if vae is not None:
+                prev_warnings = False # reset warnings for new model
                 vae = vae.to(devices.device, dtype=dtype)
                 TAESD_MODELS[variant]['model'] = vae
             return vae, variant
@@ -135,22 +138,28 @@ def get_model(model_type = 'decoder', variant = None):
 
 
 def decode(latents):
+    global first_run # pylint: disable=global-statement
     with lock:
         vae, variant = get_model(model_type='decoder')
         if vae is None or max(latents.shape) > 256: # safetey check of large tensors
             return latents
         try:
             with devices.inference_context():
+                t0 = time.time()
                 dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
                 tensor = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
                 tensor = tensor.detach().clone().to(devices.device, dtype=dtype)
                 if variant.startswith('TAESD'):
                     image = vae.decoder(tensor).clamp(0, 1).detach()
-                    return image[0]
+                    image = image[0]
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
-                    return image
+                t1 = time.time()
+                if (t1 - t0) > 1.0 and not first_run:
+                    shared.log.warning(f'Decode: type="taesd" variant="{variant}" time{t1 - t0:.2f}')
+                first_run = False
+                return image
         except Exception as e:
             # from modules import errors
             # errors.display(e, 'taesd"')

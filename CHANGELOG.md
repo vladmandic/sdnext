@@ -1,34 +1,76 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-02
+## Update for 2025-11-06
 
+### Highlights for 2025-11-06
+
+Service pack release that handles critical issues and improvements for **ROCm-on-Windows** and **ZLUDA** backends  
+Also included are several new features, notably improvements to **detailer** and ability to run [SD.Next](https://github.com/vladmandic/sdnext) with specific modules disabled  
+And new video model, **nVidia SANA 2B**  
+
+![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-11-06
+
+- **Models**
+  - [SANA Video_2B_480p T2V](https://huggingface.co/Efficient-Large-Model/SANA-Video_2B_480p_diffusers) is a small 2B ultra-efficient diffusion model  
+    designed for rapid generation of high-quality videos and uses Gemma2 text encoder  
 - **Features**
-  - **detailer**
+  - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
+    recommended to run: `webui --use-rocm --reinstall`  
+  - **ZLUDA** improve detection and handling of unsupported GPUs  
+    recommended to run: `webui --use-zluda --reinstall`  
+  - **detailer**  
     optional include detection image to output results  
     optional sort detection objects left-to-right for improved prompt consistency  
     enable multi-subject and multi-model prompts  
+  - **disable modules**  
+    ability to disable parts of the app  
+    useful for custom deployments where some features are not desired  
+    *note*: this doesn't just hide it from user, it completely disables the code paths  
+    use `--disable x,y,z`  
+    possible values:  
+    - main tabs: *control,txt2img,img2img,video,extras,caption,gallery*  
+    - aside tabs: *extensions,models,info,update,history,monitor,onnx,system,networks,logs*  
+    - special: *settings,config* (hidden instead of disabled)  
   - **wildcards**: add inline processing using curly braces syntax  
   - add setting to control `cudnn` enable/disable  
+    *note*: this can also be used to enable/disable `MIOpen` on ROCm backends  
   - change `vlm` beams to 1 by default for faster response  
-  - update diffusers  
+  - **controlnet** allow processor to keep aspect-ratio for override images based on i2i or t2i resolution  
+  - **networks** info details now displays image metadata from preview image  
+  - **networks** new model previews, thanks @liutyi  
 - **Fixes**
-  - `chrono` transformers handling  
-  - `chrono` extract last frame  
-  - `chrono` add vae scale override, thanks @CalamitousFelicitousness  
-  - `runai` improve streamer integration  
-  - `transformers` dtype use new syntax  
-  - `rocm` possible endless loop during hip detection  
-  - `rocm` auto-disable miopen for gfx120x
-  - `detailer` better handling of settings, thanks @awsr
-  - `installer` cleanup `--optional`  
-  - `hires` guard against multi-controlnet  
-  - `inpaint` handling
-  - `version` detection when cloned with `.git` suffix, thanks @awsr
-  - `sdnq` init on video model load
-  - `model type` detection
-  - `model type` add tracing to model detection
-  - `ui` fix full-screen image viewer buttons with non-standard ui theme
-  - `ui` control tab show override section
+  - zluda: test and disable MIOpen as needed  
+  - qwen: improve lora compatibility  
+  - chrono: transformers handling  
+  - chrono: extract last frame  
+  - chrono: add vae scale override, thanks @CalamitousFelicitousness  
+  - runai: improve streamer integration  
+  - transformers: `dtype` use new syntax  
+  - rocm: possible endless loop during hip detection  
+  - rocm: auto-disable `miopen` for gfx120x  
+  - detailer: better handling of settings, thanks @awsr  
+  - installer: cleanup `--optional`  
+  - hires: guard against multi-controlnet  
+  - inpaint: fix init  
+  - version: detection when cloned with .git suffix, thanks @awsr  
+  - sdnq: init on video model load  
+  - model type: detection  
+  - model type: add tracing to model detection  
+  - settings: guard against non-string values, thanks @awsr  
+  - ui: wait for server options to be ready before initializing ui  
+  - ui: fix full-screen image viewer buttons with non-standard ui theme  
+  - ui: control tab show override section  
+  - ui: mobile layout for video tab  
+  - ui: increase init timeout  
+  - video: save to subfolder  
+  - taesd: warn on long decode times  
+  - metadata: keep exif on thumbnail generation  
+  - wildcard: obey seed for reproducible results  
+  - sageattention: handle possible triton issues on some nvidia gpus, thanks @CalamitousFelicitousness  
 
 ## Update for 2025-10-31
 
