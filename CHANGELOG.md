@@ -6,6 +6,7 @@
 
 Service pack release that handles critical issues and improvements for **ROCm-on-Windows** and **ZLUDA** backends  
 Also included are several new features, notably improvements to **detailer** and ability to run [SD.Next](https://github.com/vladmandic/sdnext) with specific modules disabled  
+And new video model, **nVidia SANA 2B**  
 
 ![Screenshot](https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5)
 
@@ -13,6 +14,9 @@ Also included are several new features, notably improvements to **detailer** and
 
 ### Details for 2025-11-06
 
+- **Models**
+  - [SANA Video_2B_480p T2V](https://huggingface.co/Efficient-Large-Model/SANA-Video_2B_480p_diffusers) is a small 2B ultra-efficient diffusion model  
+    designed for rapid generation of high-quality videos and uses Gemma2 text encoder  
 - **Features**
   - **ROCm for Windows** switch to using **TheRock** `torch` builds when available  
     recommended to run: `webui --use-rocm --reinstall`  

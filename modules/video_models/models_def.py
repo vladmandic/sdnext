@@ -367,6 +367,14 @@ try:
                 te_cls=getattr(transformers, 'T5EncoderModel', None),
                 dit_cls=getattr(diffusers, 'CosmosTransformer3DModel', None)),
         ],
+        'nVidia SANA': [
+            Model(name='SANA Video 2B 480p T2V',
+                url='https://huggingface.co/Efficient-Large-Model/SANA-Video_2B_480p_diffusers',
+                repo='Efficient-Large-Model/SANA-Video_2B_480p_diffusers',
+                repo_cls=getattr(diffusers, 'SanaVideoPipeline', None),
+                te_cls=getattr(transformers, 'Gemma2Model', None),
+                dit_cls=getattr(diffusers, 'SanaVideoTransformer3DModel', None)),
+        ],
         'Kandinsky': [
             Model(name='Kandinsky 5.0 Lite 5s SFT T2V',
                 url='https://huggingface.co/ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers',
