@@ -1452,7 +1452,18 @@ def get_version(force=False):
             version['ui'] = branch_ui
         except Exception:
             version['ui'] = 'unknown'
-        os.chdir(cwd)
+        finally:
+            os.chdir(cwd)
+        try:
+            os.chdir('extensions-builtin/sdnext-kanvas')
+            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
+            branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
+            branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
+            version['kanvas'] = branch_kanvas
+        except Exception:
+            version['kanvas'] = 'unknown'
+        finally:
+            os.chdir(cwd)
     ts('version', t_start)
     return version
 

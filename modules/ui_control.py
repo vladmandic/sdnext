@@ -187,10 +187,6 @@ def create_ui(_blocks: gr.Blocks=None):
                         with gr.Tab('Image', id='in-image') as tab_image:
                             input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
-                        with gr.Tab('Inpaint', id='in-inpaint') as _tab_inpaint:
-                            input_inpaint = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="sketch", height=gr_height, image_mode='RGB', elem_id='control_input_inpaint', brush_radius=32, mask_opacity=0.6, elem_classes=['control-image'])
-                        with gr.Tab('Outpaint', id='in-outpaint') as _tab_outpaint:
-                            input_resize = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="select", height=gr_height, image_mode='RGB', elem_id='control_input_resize', elem_classes=['control-image'])
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
                         with gr.Tab('Batch', id='in-batch') as tab_batch:
@@ -251,7 +247,7 @@ def create_ui(_blocks: gr.Blocks=None):
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
-                inputs=[input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder],
+                inputs=[input_mode, input_image, init_image, input_type, input_video, input_batch, input_folder],
                 outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
                 show_progress=False,
                 queue=False,
@@ -260,14 +256,11 @@ def create_ui(_blocks: gr.Blocks=None):
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
             btn_generate.click(**select_dict)
-            for ctrl in [input_image, input_resize, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
+            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
                 if hasattr(ctrl, 'change'):
                     ctrl.change(**select_dict)
                 if hasattr(ctrl, 'clear'):
                     ctrl.clear(**select_dict)
-            for ctrl in [input_inpaint]: # gradio image mode inpaint triggeres endless loop on change event
-                if hasattr(ctrl, 'upload'):
-                    ctrl.upload(**select_dict)
 
             tabs_state = gr.Textbox(value='none', visible=False)
             input_fields = [
@@ -410,7 +403,7 @@ def create_ui(_blocks: gr.Blocks=None):
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)
             bindings = generation_parameters_copypaste.ParamBinding(paste_button=btn_paste, tabname="control", source_text_component=prompt, source_image_component=output_gallery)
             generation_parameters_copypaste.register_paste_params_button(bindings)
-            masking.bind_controls([input_image, input_inpaint, input_resize], preview_process, output_image)
+            masking.bind_controls([input_image], preview_process, output_image)
 
             if os.environ.get('SD_CONTROL_DEBUG', None) is not None: # debug only
                 from modules.control.test import test_processors, test_controlnets, test_adapters, test_xs, test_lite
