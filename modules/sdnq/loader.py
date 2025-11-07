@@ -68,24 +68,24 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
     from accelerate import init_empty_weights
 
     with init_empty_weights():
+        model_config_path = os.path.join(model_path, "config.json")
+        quantization_config_path = os.path.join(model_path, "quantization_config.json")
+
+        if model_config is None:
+            if os.path.exists(model_config_path):
+                with open(model_config_path, "r", encoding="utf-8") as f:
+                    model_config = json.load(f)
+            else:
+                model_config = {}
+
         if quantization_config is None:
-            quantization_config_path = os.path.join(model_path, "quantization_config.json")
-            model_config_path = os.path.join(model_path, "config.json")
             if os.path.exists(quantization_config_path):
                 with open(quantization_config_path, "r", encoding="utf-8") as f:
                     quantization_config = json.load(f)
-            elif os.path.exists(model_config_path):
-                with open(model_config_path, "r", encoding="utf-8") as f:
-                    quantization_config = json.load(f).get("quantization_config", None)
+            else:
+                quantization_config = model_config.get("quantization_config", None)
                 if quantization_config is None:
                     raise ValueError(f"Cannot determine quantization_config for {model_path}, please provide quantization_config argument")
-
-        if model_config is None:
-            try:
-                with open(os.path.join(model_path, "config.json"), "r", encoding="utf-8") as f:
-                    model_config = json.load(f)
-            except Exception:
-                model_config = {}
 
         if model_cls is None:
             import transformers
@@ -105,14 +105,14 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         quantization_config.pop("non_blocking", None)
         quantization_config.pop("add_skip_keys", None)
 
-        if hasattr(model_cls, "load_config"):
+        if hasattr(model_cls, "load_config") and hasattr(model_cls, "from_config"):
             config = model_cls.load_config(model_path)
             model = model_cls.from_config(config)
         elif hasattr(model_cls, "_from_config"):
             config = transformers.AutoConfig.from_pretrained(model_path)
             model = model_cls(config)
         else:
-            raise ValueError(f"Dont know how to load model for {model_cls}")
+            model = model_cls(**model_config)
 
         model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
 
