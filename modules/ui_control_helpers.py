@@ -74,15 +74,12 @@ def get_video(filepath: str):
         return msg
 
 
-def select_input(input_mode, input_image, init_image, init_type, input_resize, input_inpaint, input_video, input_batch, input_folder):
+def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
     global busy, input_source, input_init, input_mask # pylint: disable=global-statement
     busy = True
-    if input_mode == 'Image':
+    selected_input = input_image
+    if input_mode == 'Kanvas':
         selected_input = input_image
-    elif input_mode == 'Outpaint':
-        selected_input = input_resize
-    elif input_mode == 'Inpaint':
-        selected_input = input_inpaint
     elif input_mode == 'Video':
         selected_input = input_video
     elif input_mode == 'Batch':

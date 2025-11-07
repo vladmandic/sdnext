@@ -11,7 +11,7 @@ from modules import extensions, shared, paths, errors, ui_symbols, call_queue
 debug = shared.log.debug if os.environ.get('SD_EXT_DEBUG', None) is not None else lambda *args, **kwargs: None
 extensions_index = "https://vladmandic.github.io/sd-data/pages/extensions.json"
 hide_tags = ["localization"]
-exclude_extensions = ['sdnext-modernui']
+exclude_extensions = ['sdnext-modernui', 'sdnext-kanvas']
 extensions_list = []
 sort_ordering = {
     "default": (True, lambda x: x.get('sort_default', '')),
