@@ -49,6 +49,7 @@ def initialize():
 
 
 def interrogate():
+    prompt = None
     if input_source is None or len(input_source) == 0:
         shared.log.warning('Interrogate: no input source')
     try:
