@@ -156,11 +156,22 @@ def guess_by_diffusers(fn, current_guess):
                 if folder.endswith('quantization_config.json'):
                     is_quant = True
                     break
+                if folder.endswith('config.json'):
+                    quantization_config = shared.readfile(folder, silent=True).get("quantization_config", None)
+                    if quantization_config is not None:
+                        is_quant = True
+                        break
                 if os.path.isdir(folder):
                     for f in os.listdir(folder):
+                        f = os.path.join(folder, f)
                         if f.endswith('quantization_config.json'):
                             is_quant = True
                             break
+                        if f.endswith('config.json'):
+                            quantization_config = shared.readfile(f, silent=True).get("quantization_config", None)
+                            if quantization_config is not None:
+                                is_quant = True
+                                break
             pipelines = shared_items.get_pipelines()
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:

@@ -76,8 +76,11 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
             sd_models.move_model(transformer, devices.cpu)
 
-        if (transformer is not None) and (quant_type is not None) and (quant_args.get('quantization_config', None) is not None): # attach quantization_config
-            transformer.quantization_config = quant_args.get('quantization_config', None)
+        if transformer is not None and not hasattr(transformer, 'quantization_config'): # attach quantization_config
+            if hasattr(transformer, 'config') and hasattr(transformer.config, 'quantization_config'):
+                transformer.quantization_config = transformer.config.quantization_config
+            elif (quant_type is not None) and (quant_args.get('quantization_config', None) is not None):
+                transformer.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load:')
@@ -209,8 +212,11 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         if shared.opts.diffusers_offload_mode != 'none' and text_encoder is not None:
             sd_models.move_model(text_encoder, devices.cpu)
 
-        if (text_encoder is not None) and (quant_type is not None) and (quant_args.get('quantization_config', None) is not None): # attach quantization_config
-            text_encoder.quantization_config = quant_args.get('quantization_config', None)
+        if text_encoder is not None and not hasattr(text_encoder, 'quantization_config'): # attach quantization_config
+            if hasattr(text_encoder, 'config') and hasattr(text_encoder.config, 'quantization_config'):
+                text_encoder.quantization_config = text_encoder.config.quantization_config
+            elif (quant_type is not None) and (quant_args.get('quantization_config', None) is not None):
+                text_encoder.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load:')

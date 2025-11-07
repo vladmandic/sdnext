@@ -1,5 +1,13 @@
 # Change Log for SD.Next
 
+## Update for 2025-11-07
+
+- **Features**  
+  - allow recursive inline wildcards using curly braces syntax  
+  - simplify SDNQ pre-quantization saved config  
+- **Fixes**
+  - hires strength save/load in metadata
+
 ## Update for 2025-11-06
 
 ### Highlights for 2025-11-06
