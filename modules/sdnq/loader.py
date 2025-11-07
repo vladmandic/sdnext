@@ -2,8 +2,9 @@ import os
 import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
-from .common import dtype_dict, use_tensorwise_fp8_matmul, use_contiguous_mm
-from .quantizer import SDNQConfig, sdnq_post_load_quant
+
+from .common import dtype_dict, use_tensorwise_fp8_matmul
+from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul
 from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 from .forward import get_forward_func
 from .file_loader import load_files
@@ -68,11 +69,16 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
     with init_empty_weights():
         if quantization_config is None:
-            try:
-                with open(os.path.join(model_path, "quantization_config.json"), "r", encoding="utf-8") as f:
+            quantization_config_path = os.path.join(model_path, "quantization_config.json")
+            model_config_path = os.path.join(model_path, "config.json")
+            if os.path.exists(quantization_config_path):
+                with open(quantization_config_path, "r", encoding="utf-8") as f:
                     quantization_config = json.load(f)
-            except Exception:
-                quantization_config = {}
+            elif os.path.exists(model_config_path):
+                with open(model_config_path, "r", encoding="utf-8") as f:
+                    quantization_config = json.load(f).get("quantization_config", None)
+                if quantization_config is None:
+                    raise ValueError(f"Cannot determine quantization_config for {model_path}, please provide quantization_config argument")
 
         if model_config is None:
             try:
@@ -127,8 +133,23 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
     model.load_state_dict(state_dict, assign=True)
     del state_dict
 
+    model = post_process_model(model)
     if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):
         model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
+    return model
+
+
+def post_process_model(model):
+    has_children = list(model.children())
+    if not has_children:
+        return model
+    for module in model.children():
+        if hasattr(module, "sdnq_dequantizer"):
+            if module.sdnq_dequantizer.use_quantized_matmul and not module.sdnq_dequantizer.re_quantize_for_matmul:
+                module.weight.data = prepare_weight_for_matmul(module.weight)
+            if module.svd_up is not None:
+                module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up, module.svd_down, module.sdnq_dequantizer.use_quantized_matmul)
+        module = post_process_model(module)
     return model
 
 
@@ -168,30 +189,12 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                             if use_tensorwise_fp8_matmul:
                                 module.scale.data = module.scale.to(dtype=scale_dtype)
                     elif not module.sdnq_dequantizer.re_quantize_for_matmul:
-                        module.weight.data, module.scale.data = module.weight.t_(), module.scale.t_()
+                        module.scale.t_()
+                        module.weight.t_()
                     if use_quantized_matmul:
-                        if use_contiguous_mm:
-                            module.weight.data = module.weight.contiguous()
-                        elif module.weight.is_contiguous():
-                            module.weight.data = module.weight.t_().contiguous().t_()
+                        module.weight.data = prepare_weight_for_matmul(module.weight)
                 if module.svd_up is not None:
-                    module.svd_up.data = module.svd_up.t_()
-                    module.svd_down.data = module.svd_down.t_()
-                    if use_quantized_matmul:
-                        if use_contiguous_mm:
-                            module.svd_up.data = module.svd_up.contiguous()
-                            module.svd_down.data = module.svd_down.contiguous()
-                        else:
-                            if module.svd_up.is_contiguous():
-                                module.svd_up.data = module.svd_up.t_().contiguous().t_()
-                            if module.svd_up.is_contiguous():
-                                module.svd_down.data = module.svd_down.t_().contiguous().t_()
-                    else:
-                        module.svd_up.data = module.svd_up.contiguous()
-                        if use_contiguous_mm:
-                            module.svd_down.data = module.svd_down.contiguous()
-                        elif module.svd_down.is_contiguous():
-                            module.svd_down.data = module.svd_down.t_().contiguous().t_()
+                    module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), use_quantized_matmul)
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
                 module.forward = get_forward_func(module.__class__.__name__, use_quantized_matmul, dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
                 module.forward = module.forward.__get__(module, module.__class__)
