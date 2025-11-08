@@ -10,6 +10,7 @@
   - fix imgi2img initial scale tab, thanks @awsr  
   - fix pony-v7 text-encoder  
   - detailer with face-restorers  
+  - fix sage-attention checks on sm86  
 
 ## Update for 2025-11-06
 
