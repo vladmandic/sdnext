@@ -1,12 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-07
+## Update for 2025-11-08
 
 - **Features**  
   - allow recursive inline wildcards using curly braces syntax  
   - simplify SDNQ pre-quantization saved config  
 - **Fixes**
-  - hires strength save/load in metadata  
+  - hires strength save/load in metadata, thanks @awsr  
+  - fix imgi2img initial scale tab, thanks @awsr  
+  - fix pony-v7 text-encoder  
   - detailer with face-restorers  
 
 ## Update for 2025-11-06
