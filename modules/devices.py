@@ -474,10 +474,13 @@ def set_sdpa_params():
             global sdpa_pre_dyanmic_atten # pylint: disable=global-statement
             sdpa_pre_dyanmic_atten = attention.set_dynamic_attention()
 
-        if 'Triton Flash attention' in opts.sdp_overrides:
-            attention.set_triton_flash_attention()
+        if 'Flex attention' in opts.sdp_overrides:
+            attention.set_flex_attention()
 
-        if 'CK Flash attention' in opts.sdp_overrides:
+        if 'Triton Flash attention' in opts.sdp_overrides:
+            attention.set_triton_flash_attention(backend)
+
+        if 'Flash attention' in opts.sdp_overrides:
             attention.set_ck_flash_attention(backend, device)
 
         if 'Sage attention' in opts.sdp_overrides:
