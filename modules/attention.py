@@ -83,9 +83,9 @@ def set_ck_flash_attention(backend: str, device: torch.device):
                     kwargs["enable_gqa"] = enable_gqa
                 return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
         torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten
-        log.debug('Torch attention: type="CK Flash attention"')
+        log.debug('Torch attention: type="Flash attention"')
     except Exception as err:
-        log.error(f'Torch attention: type="CK Flash attention" {err}')
+        log.error(f'Torch attention: type="Flash attention" {err}')
 
 def set_sage_attention(backend: str, device: torch.device):
     try:

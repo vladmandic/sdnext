@@ -477,7 +477,7 @@ def set_sdpa_params():
         if 'Triton Flash attention' in opts.sdp_overrides:
             attention.set_triton_flash_attention(backend)
 
-        if 'CK Flash attention' in opts.sdp_overrides:
+        if 'Flash attention' in opts.sdp_overrides:
             attention.set_ck_flash_attention(backend, device)
 
         if 'Sage attention' in opts.sdp_overrides:
