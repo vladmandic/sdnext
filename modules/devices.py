@@ -458,29 +458,29 @@ def set_sdpa_params():
             log.warning(f'Torch attention: type="sdpa" {err}')
 
         try:
-            torch.backends.cuda.enable_flash_sdp('Flash attention' in opts.sdp_options)
-            torch.backends.cuda.enable_mem_efficient_sdp('Memory attention' in opts.sdp_options)
-            torch.backends.cuda.enable_math_sdp('Math attention' in opts.sdp_options)
+            torch.backends.cuda.enable_flash_sdp('Flash' in opts.sdp_options)
+            torch.backends.cuda.enable_mem_efficient_sdp('Memory' in opts.sdp_options)
+            torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
-            log.debug(f'Torch attention: type="sdpa" opts={opts.sdp_options}')
+            log.debug(f'Torch attention: type="sdpa" kernels={opts.sdp_options} overrides={opts.sdp_overrides}')
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
 
         # Stack hijcaks in reverse order. This gives priority to the last added hijack.
         # If the last hijack is not compatible, it will use the one before it and so on.
 
-        if 'Dynamic attention' in opts.sdp_options:
+        if 'Dynamic attention' in opts.sdp_overrides:
             global sdpa_pre_dyanmic_atten # pylint: disable=global-statement
             sdpa_pre_dyanmic_atten = attention.set_dynamic_attention()
 
-        if 'Triton Flash attention' in opts.sdp_options:
-            attention.set_triton_flash_attention(backend)
+        if 'Triton Flash attention' in opts.sdp_overrides:
+            attention.set_triton_flash_attention()
 
-        if 'CK Flash attention' in opts.sdp_options:
+        if 'CK Flash attention' in opts.sdp_overrides:
             attention.set_ck_flash_attention(backend, device)
 
-        if 'Sage attention' in opts.sdp_options:
+        if 'Sage attention' in opts.sdp_overrides:
             attention.set_sage_attention(backend, device)
 
         from importlib.metadata import version

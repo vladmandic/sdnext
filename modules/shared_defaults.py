@@ -40,16 +40,17 @@ def get_default_modes(cmd_opts, mem_stat):
 
     default_cross_attention = "Scaled-Dot-Product"
 
+    default_sdp_override_options = []
     if devices.backend == "zluda":
         default_sdp_options = ['Math attention', 'Dynamic attention']
     elif devices.backend in {"rocm", "directml", "cpu", "mps"}:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention']
+        default_sdp_options = ['Flash', 'Memory', 'Math']
+        default_sdp_override_options = ['Dynamic attention']
     else:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention']
+        default_sdp_options = ['Flash', 'Memory', 'Math']
 
-    default_sdp_choices = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention', 'CK Flash attention', 'Sage attention']
-    if devices.backend in {"rocm", "zluda"}:
-        default_sdp_choices.insert(4, 'Triton Flash attention') # insert after Dynamic attention
+    default_sdp_choices = ['Flash', 'Memory', 'Math']
+    default_sdp_override_choices = ['Dynamic attention', 'CK Flash attention', 'Triton Flash attention', 'Sage attention']
 
     return (
         default_offload_mode,
@@ -58,6 +59,8 @@ def get_default_modes(cmd_opts, mem_stat):
         default_cross_attention,
         default_sdp_options,
         default_sdp_choices,
+        default_sdp_override_options,
+        default_sdp_override_choices,
         default_diffusers_offload_always,
-        default_diffusers_offload_never
+        default_diffusers_offload_never,
     )

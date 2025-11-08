@@ -5,12 +5,12 @@
 - **Features**  
   - allow recursive inline wildcards using curly braces syntax  
   - simplify SDNQ pre-quantization saved config  
+  - refactor settings and improve handling of attention mechanisms  
 - **Fixes**
   - hires strength save/load in metadata, thanks @awsr  
   - fix imgi2img initial scale tab, thanks @awsr  
   - fix pony-v7 text-encoder  
   - detailer with face-restorers  
-  - fix sage-attention checks on sm86  
 
 ## Update for 2025-11-06
 
