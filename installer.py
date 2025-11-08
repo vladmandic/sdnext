@@ -1445,21 +1445,29 @@ def get_version(force=False):
             version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
         cwd = os.getcwd()
         try:
-            os.chdir('extensions-builtin/sdnext-modernui')
-            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            branch_ui = 'dev' if 'dev' in branch_ui else 'main'
-            version['ui'] = branch_ui
+            if os.path.exists('extensions-builtin/sdnext-modernui'):
+                os.chdir('extensions-builtin/sdnext-modernui')
+                res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
+                branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
+                branch_ui = 'dev' if 'dev' in branch_ui else 'main'
+                version['ui'] = branch_ui
+            else:
+                version['ui'] = 'unavailable'
         except Exception:
             version['ui'] = 'unknown'
         finally:
             os.chdir(cwd)
         try:
-            os.chdir('extensions-builtin/sdnext-kanvas')
-            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
-            version['kanvas'] = branch_kanvas
+            if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
+                version['kanvas'] = 'disabled'
+            elif os.path.exists('extensions-builtin/sdnext-kanvas'):
+                os.chdir('extensions-builtin/sdnext-kanvas')
+                res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
+                branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
+                branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
+                version['kanvas'] = branch_kanvas
+            else:
+                version['kanvas'] = 'unavailable'
         except Exception:
             version['kanvas'] = 'unknown'
         finally:

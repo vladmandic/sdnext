@@ -12,7 +12,7 @@ from threading import Thread
 import modules.loader
 import modules.hashes
 
-from installer import log, git_commit, custom_excepthook
+from installer import log, git_commit, custom_excepthook, version
 from modules import timer, paths, shared, extensions, gr_tempdir, modelloader, modeldata
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.devices
@@ -263,6 +263,7 @@ def mount_subpath(app):
 
 def start_ui():
     log.debug('UI start sequence')
+    log.debug(f'UI image support: kanvas={version["kanvas"]}')
     modules.script_callbacks.before_ui_callback()
     timer.startup.record("before-ui")
     shared.demo = modules.ui.create_ui(timer.startup)

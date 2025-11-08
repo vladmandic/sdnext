@@ -5,6 +5,7 @@ from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
 from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
+import installer
 
 
 gr_height = 512
@@ -185,9 +186,11 @@ def create_ui(_blocks: gr.Blocks=None):
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-input'):
                         input_mode = gr.Label(value='select', visible=False)
                         with gr.Tab('Image', id='in-image') as tab_image:
-                            input_image = gr.HTML(value="Kanvas placeholder", elem_id='control_input_select')
-                            input_changed = gr.Button('Kanvas change', elem_id='control_input_change', visible=False)
-                            # input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
+                            if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
+                                input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
+                            else:
+                                input_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')
+                            input_changed = gr.Button('Kanvas change', elem_id='kanvas-change-button', visible=False)
                             btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])

@@ -52,6 +52,7 @@ def interrogate():
     prompt = None
     if input_source is None or len(input_source) == 0:
         shared.log.warning('Interrogate: no input source')
+        return prompt
     try:
         from modules.interrogate.interrogate import interrogate as interrogate_fn
         prompt = interrogate_fn(input_source[0])
