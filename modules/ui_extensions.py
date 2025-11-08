@@ -124,11 +124,11 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
     return create_html(search_text, sort_column), "Extension update complete | Restart required"
 
 
-def normalize_git_url(url: str | None) -> str:
+def normalize_git_url(url) -> str:
     return '' if url is None else url.removesuffix('.git')
 
 
-def install_extension_from_url(dirname, url: str | None, branch_name, search_text, sort_column):
+def install_extension_from_url(dirname, url, branch_name, search_text, sort_column):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
         return ['', '']
