@@ -1,12 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-07
+## Update for 2025-11-08
 
 - **Features**  
-  - allow recursive inline wildcards using curly braces syntax  
-  - simplify SDNQ pre-quantization saved config  
+  - **wildcards**: allow recursive inline wildcards using curly braces syntax  
+  - **sdnq**: simplify pre-quantization saved config  
+  - **attention**: refactor settings and improve handling of attention mechanisms  
+  - **lora**: separate fuse setting for native-vs-diffuser implementations  
+  - **auth**: strong-enforce auth check on all api endpoints  
 - **Fixes**
-  - hires strength save/load in metadata
+  - hires strength save/load in metadata, thanks @awsr  
+  - fix imgi2img initial scale tab, thanks @awsr  
+  - fix pony-v7 text-encoder  
+  - detailer with face-restorers  
 
 ## Update for 2025-11-06
 

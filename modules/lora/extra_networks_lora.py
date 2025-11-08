@@ -235,7 +235,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             infotext(p)
             prompt(p)
             if has_changed and len(include) == 0: # print only once
-                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
+                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p):
         if len(lora_diffusers.diffuser_loaded) > 0:

@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -130,7 +130,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
 
     clear_caches()
     set_vae_options(sd_model, vae, op, quiet)
-    set_diffusers_attention(sd_model, quiet)
+    attention.set_diffusers_attention(sd_model, quiet)
 
     if shared.opts.diffusers_fuse_projections and hasattr(sd_model, 'fuse_qkv_projections'):
         try:
@@ -1155,60 +1155,6 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     shared.log.debug(f"Pipeline class change: original={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
     pipe = new_pipe
     return pipe
-
-
-def set_diffusers_attention(pipe, quiet:bool=False):
-    import diffusers.models.attention_processor as p
-
-    def set_attn(pipe, attention, name:str=None, quiet:bool=False):
-        if attention is None:
-            return
-        # other models uses their own attention processor
-        if pipe.__class__.__name__.startswith("StableDiffusion") and getattr(pipe, "unet", None) is not None and hasattr(pipe.unet, "set_attn_processor"):
-            try:
-                pipe.unet.set_attn_processor(attention)
-            except Exception as e:
-                if 'Nunchaku' in pipe.unet.__class__.__name__:
-                    pass
-                else:
-                    shared.log.error(f"Attention: {name if name is not None else attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}")
-        elif not quiet:
-            shared.log.warning(f"Attention: {name if name is not None else attention.__class__.__name__} is not compatible with {pipe.__class__.__name__}")
-
-    # if hasattr(pipe, 'pipe'):
-    #    set_diffusers_attention(pipe.pipe)
-
-    if 'Control' in pipe.__class__.__name__ or 'Adapter' in pipe.__class__.__name__ or not (pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet")):
-        if shared.opts.cross_attention_optimization not in {"Scaled-Dot-Product", "Disabled"}:
-            shared.log.warning(f"Attention: {shared.opts.cross_attention_optimization} is not compatible with {pipe.__class__.__name__}")
-        else:
-            pipe.current_attn_name = shared.opts.cross_attention_optimization
-        return
-
-    shared.log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
-    if shared.opts.cross_attention_optimization == "Disabled":
-        pass # do nothing
-    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product": # The default set by Diffusers
-        set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product", quiet=True)
-    elif shared.opts.cross_attention_optimization == "xFormers":
-        if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
-            pipe.enable_xformers_memory_efficient_attention()
-        else:
-            shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
-    elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
-        set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
-    elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
-        from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
-        set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
-
-    if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
-        if shared.opts.attention_slicing:
-            pipe.enable_attention_slicing()
-        else:
-            pipe.disable_attention_slicing()
-        shared.log.debug(f"Attention: slicing={shared.opts.attention_slicing}")
-
-    pipe.current_attn_name = shared.opts.cross_attention_optimization
 
 
 def add_noise_pred_to_diffusers_callback(pipe):

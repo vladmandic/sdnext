@@ -257,6 +257,7 @@ class YoloRestorer(Detailer):
         models_used = []
         np_images = []
         annotated = Image.fromarray(np_image)
+        image = None
 
         for i, model_val in enumerate(models):
             if ':' in model_val:
@@ -271,9 +272,10 @@ class YoloRestorer(Detailer):
                 shared.log.warning(f'Detailer: model="{name}" not loaded')
                 continue
 
-            if name.endswith('.fp16'):
+            if name.endswith('.fp16'): # run gfpgan or codeformer directly and skip detailer processing
                 from modules.postprocess import restorer
                 np_image = restorer.restore(np_image, name, model, p.detailer_strength)
+                image = Image.fromarray(np_image)
                 continue
 
             image = Image.fromarray(np_image)
@@ -403,7 +405,8 @@ class YoloRestorer(Detailer):
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)
 
-        np_images.append(np.array(image))
+        if image is not None:
+            np_images.append(np.array(image))
         if shared.opts.detailer_save and annotated is not None:
             np_images.append(annotated) # save debug image with boxes
         return np_images

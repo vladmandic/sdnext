@@ -281,7 +281,7 @@ def create_ui():
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),
                 (denoising_strength, "Denoising strength"),
-                (denoising_strength, "Hires strength"),
+                (hr_denoising_strength, "Hires strength"),
                 (hr_sampler_index, "Hires sampler"),
                 (hr_resize_mode, "Hires mode"),
                 (hr_resize_context, "Hires context"),
