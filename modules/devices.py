@@ -475,7 +475,7 @@ def set_sdpa_params():
             sdpa_pre_dyanmic_atten = attention.set_dynamic_attention()
 
         if 'Triton Flash attention' in opts.sdp_overrides:
-            attention.set_triton_flash_attention()
+            attention.set_triton_flash_attention(backend)
 
         if 'CK Flash attention' in opts.sdp_overrides:
             attention.set_ck_flash_attention(backend, device)

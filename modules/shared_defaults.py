@@ -39,21 +39,25 @@ def get_default_modes(cmd_opts, mem_stat):
         default_diffusers_offload_min_gpu_memory = 0
 
     default_cross_attention = "Scaled-Dot-Product"
+
+    default_sdp_choices = ['Flash', 'Memory', 'Math']
     default_sdp_options = ['Flash', 'Memory', 'Math']
+
+    default_sdp_override_choices = ['Dynamic attention', 'CK Flash attention', 'Sage attention']
     default_sdp_override_options = []
 
     if devices.backend == "zluda":
         default_sdp_options = ['Math']
         default_sdp_override_options = ['Dynamic attention']
-    if devices.backend == "rocm":
+        default_sdp_override_choices.append('Triton Flash attention')
+    elif devices.backend == "rocm":
+        default_sdp_override_choices.append('Triton Flash attention')
         import torch
         if int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100:
             default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
     elif devices.backend in {"directml", "cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
 
-    default_sdp_choices = ['Flash', 'Memory', 'Math']
-    default_sdp_override_choices = ['Dynamic attention', 'CK Flash attention', 'Triton Flash attention', 'Sage attention']
 
     return (
         default_offload_mode,
