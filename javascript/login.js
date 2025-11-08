@@ -4,21 +4,21 @@ const loginCSS = `
   left: 0;
   width: 100%;
   height: 100%;
-  background: var(--background-fill-primary);
-  color: var(--body-text-color-subdued);
+  background: #222;
+  color: #ddd;
   font-family: monospace;
   z-index: 100;
 `;
 
 const loginHTML = `
-  <div id="loginDiv" style="margin: 15% auto; max-width: 200px; padding: 2em; background: var(--background-fill-secondary);">
+  <div id="loginDiv" style="margin: 15% auto; max-width: 200px; padding: 2em; background: #444; border-radius: 4px; filter: drop-shadow(2px 4px 6px black);">
     <h2>Login</h2>
     <label for="username" style="margin-top: 0.5em">Username</label>
-    <input type="text" id="loginUsername" name="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em">
+    <input type="text" id="loginUsername" name="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
     <label for="password" style="margin-top: 0.5em">Password</label>
-    <input type="text" id="loginPassword" name="password" style="width: 92%; padding: 0.5em; margin-top: 0.5em">
+    <input type="text" id="loginPassword" name="password" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
     <div id="loginStatus" style="margin-top: 0.5em"></div>
-    <button type="submit" style="width: 100%; padding: 0.5em; margin-top: 0.5em; background: var(--button-primary-background-fill); color: var(--button-primary-text-color); border: var(--button-primary-border-color);">Login</button>
+    <button type="submit" style="width: 100%; padding: 0.5em; margin-top: 0.5em; background: #366; color: #ddd; border: none; border-radius: 4px; filter: drop-shadow(2px 4px 6px black);">Login</button>
   </div>
 `;
 

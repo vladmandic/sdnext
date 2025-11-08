@@ -7,6 +7,7 @@
   - **sdnq**: simplify pre-quantization saved config  
   - **attention**: refactor settings and improve handling of attention mechanisms  
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
+  - **auth**: strong-enforce auth check on all api endpoints  
 - **Fixes**
   - hires strength save/load in metadata, thanks @awsr  
   - fix imgi2img initial scale tab, thanks @awsr  
