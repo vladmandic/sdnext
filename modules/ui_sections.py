@@ -339,7 +339,7 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
 
         with gr.Row(visible=True) as _resize_group:
             with gr.Column(elem_id=f"{tab}_column_size"):
-                selected_scale_tab = gr.State(value=0) # pylint: disable=abstract-class-instantiated
+                selected_scale_tab = gr.State(value=0 if tab != 'img2img' else 1) # pylint: disable=abstract-class-instantiated
                 with gr.Tabs(elem_id=f"{tab}_scale_tabs", selected=0 if non_zero else 1):
                     with gr.Tab(label="Fixed", id=0, elem_id=f"{tab}_scale_tab_fixed") as tab_scale_to:
                         with gr.Row(elem_id=f"{tab}_resize_row_fixed"):
