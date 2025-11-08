@@ -128,7 +128,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[netw
         if l.debug:
             shared.log.debug(f'Network load: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
     else:
-        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} fuse={shared.opts.lora_fuse_diffusers}')
+        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
     if len(matched_networks) == 0:
         return None
     lora_cache[name] = net
@@ -303,7 +303,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 errors.display(e, 'LoRA')
 
     if len(l.loaded_networks) > 0 and l.debug:
-        shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)}')
+        shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
 
     if recompile_model:
         shared.log.info("Network load: type=LoRA recompiling model")
