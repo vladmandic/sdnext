@@ -43,7 +43,7 @@ def get_default_modes(cmd_opts, mem_stat):
     default_sdp_choices = ['Flash', 'Memory', 'Math']
     default_sdp_options = ['Flash', 'Memory', 'Math']
 
-    default_sdp_override_choices = ['Dynamic attention', 'Flash attention', 'Sage attention']
+    default_sdp_override_choices = ['Dynamic attention', 'Flex attention', 'Flash attention', 'Sage attention']
     default_sdp_override_options = []
 
     if devices.backend == "zluda":
