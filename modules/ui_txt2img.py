@@ -35,7 +35,7 @@ def create_ui():
                     guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('txt2img')
                     vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('txt2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
-                    enable_hr, hr_sampler_index, denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
+                    enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution  = shared.yolo.ui('txt2img')
                     override_settings = ui_common.create_override_inputs('txt2img')
                     state = gr.Textbox(value='', visible=False)
@@ -61,7 +61,7 @@ def create_ui():
                 clip_skip,
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
                 height, width,
-                enable_hr, denoising_strength,
+                enable_hr, hr_denoising_strength,
                 hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_resize_x, hr_resize_y,
                 refiner_steps, refiner_start, refiner_prompt, refiner_negative,
                 hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
@@ -132,8 +132,7 @@ def create_ui():
                 # second pass
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),
-                (denoising_strength, "Denoising strength"),
-                (denoising_strength, "Hires strength"),
+                (hr_denoising_strength, "Hires strength"),
                 (hr_sampler_index, "Hires sampler"),
                 (hr_resize_mode, "Hires mode"),
                 (hr_resize_context, "Hires context"),
