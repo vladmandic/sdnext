@@ -6,7 +6,8 @@
   - allow recursive inline wildcards using curly braces syntax  
   - simplify SDNQ pre-quantization saved config  
 - **Fixes**
-  - hires strength save/load in metadata
+  - hires strength save/load in metadata  
+  - detailer with face-restorers  
 
 ## Update for 2025-11-06
 
