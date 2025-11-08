@@ -124,14 +124,11 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
     return create_html(search_text, sort_column), "Extension update complete | Restart required"
 
 
-def normalize_git_url(url):
-    if url is None:
-        return ""
-    url = url.replace(".git", "")
-    return url
+def normalize_git_url(url: str | None) -> str:
+    return '' if url is None else url.removesuffix('.git')
 
 
-def install_extension_from_url(dirname, url, branch_name, search_text, sort_column):
+def install_extension_from_url(dirname, url: str | None, branch_name, search_text, sort_column):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
         return ['', '']
@@ -139,19 +136,15 @@ def install_extension_from_url(dirname, url, branch_name, search_text, sort_colu
         shared.log.error('Extension: url is not specified')
         return ['', '']
     if dirname is None or dirname == "":
-        *parts, last_part = url.split('/') # pylint: disable=unused-variable
-        last_part = normalize_git_url(last_part)
-        dirname = last_part
+        dirname = normalize_git_url(url.split('/')[-1])
     target_dir = os.path.join(extensions.extensions_dir, dirname)
     shared.log.info(f'Installing extension: {url} into {target_dir}')
     if os.path.exists(target_dir):
         shared.log.error(f'Extension: path="{target_dir}" directory already exists')
         return ['', '']
-    normalized_url = normalize_git_url(url)
-    assert len([x for x in extensions.extensions if normalize_git_url(x.remote) == normalized_url]) == 0, 'Extension with this URL is already installed'
+    url = normalize_git_url(url)
+    assert len([x for x in extensions.extensions if normalize_git_url(x.remote) == url]) == 0, 'Extension with this URL is already installed'
     tmpdir = os.path.join(paths.data_path, "tmp", dirname)
-    if url.endswith('.git'):
-        url = url.replace('.git', '')
     try:
         import git
         shutil.rmtree(tmpdir, True)
