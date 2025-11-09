@@ -311,7 +311,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                     if len(sample) > 0:
                         image = Image.fromarray(sample[0])
                     if len(sample) > 1:
-                        annotated = Image.fromarray(sample[1])
+                        annotated = sample[1] if isinstance(sample[1], Image.Image) else Image.fromarray(sample[1])
                         out_images.append(annotated)
                         out_infotexts.append("Detailer annotations")
                 elif sample is not None:

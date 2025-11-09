@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-08
+## Update for 2025-11-09
 
 - **Features**  
   - **wildcards**: allow recursive inline wildcards using curly braces syntax  
@@ -9,10 +9,11 @@
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
   - **auth**: strong-enforce auth check on all api endpoints  
 - **Fixes**
-  - hires strength save/load in metadata, thanks @awsr  
-  - fix imgi2img initial scale tab, thanks @awsr  
-  - fix pony-v7 text-encoder  
-  - detailer with face-restorers  
+  - hires: strength save/load in metadata, thanks @awsr  
+  - imgi2img: fix initial scale tab, thanks @awsr  
+  - pony-v7: fix text-encoder  
+  - detailer: with face-restorers  
+  - detailer: using lora in detailer prompt  
 
 ## Update for 2025-11-06
 

@@ -6,7 +6,7 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks
 from modules.detailer import Detailer
 
 
@@ -304,10 +304,8 @@ class YoloRestorer(Detailer):
             else:
                 negative = negative.replace('[PROMPT]', orig_negative)
                 negative = negative.replace('[prompt]', orig_negative)
-            prompt_lines = prompt.split('\n')
-            negative_lines = negative.split('\n')
-            prompt = prompt_lines[i % len(prompt_lines)]
-            negative = negative_lines[i % len(negative_lines)]
+            prompt_lines = 99 * [p.strip() for p in prompt.split('\n')]
+            negative_lines = 99 * [n.strip() for n in negative.split('\n')]
 
             args = {
                 'detailer': True,
@@ -369,16 +367,23 @@ class YoloRestorer(Detailer):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
-                pc.prompts = [prompt_lines[(i*len(items)+j) % len(prompt_lines)]]
-                pc.negative_prompts = [negative_lines[(i*len(items)+j) % len(negative_lines)]]
+                pc.prompt = prompt_lines[i*len(items)+j]
+                pc.negative_prompt = negative_lines[i*len(items)+j]
+                pc.prompts = [pc.prompt]
+                pc.negative_prompts = [pc.negative_prompt]
+                pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts)
+                extra_networks.activate(pc, pc.network_data)
                 shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
                 pc.recursion = True
+
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
+                extra_networks.deactivate(pc, force=True)
                 shared.state.end(jobid)
+
                 del pc.recursion
                 if pp is not None and pp.images is not None and len(pp.images) > 0:
                     image = pp.images[0] # update image to be reused for next item

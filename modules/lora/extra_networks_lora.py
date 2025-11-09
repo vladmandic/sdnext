@@ -226,8 +226,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                     shared.log.info(f'Network unload: type=LoRA apply={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
-                if len(exclude) > 0: # only update on last activation
-                    l.previously_loaded_networks = l.loaded_networks.copy()
+                l.previously_loaded_networks = l.loaded_networks.copy()
                 debug_log(f'Network load: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]} changed')
                 shared.state.end(jobid)
 
@@ -237,10 +236,12 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed and len(include) == 0: # print only once
                 shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
-    def deactivate(self, p):
+    def deactivate(self, p, force=False):
         if len(lora_diffusers.diffuser_loaded) > 0:
             if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
                 unload_diffusers()
+        if force:
+            networks.network_deactivate()
         if self.active and l.debug:
             shared.log.debug(f"Network end: type=LoRA time={l.timer.summary}")
         if self.errors:
