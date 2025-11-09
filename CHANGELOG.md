@@ -2,7 +2,17 @@
 
 ## Update for 2025-11-09
 
+### Highlights for 2025-11-09
+
+TBD
+
+### Details for 2025-11-09
+
 - **Features**  
+  - **kanvas**: new module for native canvas-based image manipulation  
+    kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Kanvas/) for details  
+    *experimental*: report any feedback in master [issue](https://github.com/vladmandic/sdnext/issues/4358)  
   - **wildcards**: allow recursive inline wildcards using curly braces syntax  
   - **sdnq**: simplify pre-quantization saved config  
   - **attention**: additional torch attention settings  

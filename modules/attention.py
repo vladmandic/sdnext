@@ -51,12 +51,12 @@ def set_triton_flash_attention(backend: str):
 def set_flex_attention():
     try:
         from torch.nn.attention.flex_attention import flex_attention, create_block_mask
-        def flex_attention_causal_mask(b, h, q_idx, kv_idx):
+        def flex_attention_causal_mask(b, h, q_idx, kv_idx): # pylint: disable=unused-argument
             return q_idx >= kv_idx
 
         sdpa_pre_flex_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flex_atten)
-        def sdpa_flex_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.Tensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+        def sdpa_flex_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: Optional[torch.Tensor] = None, dropout_p: float = 0.0, is_causal: bool = False, scale: Optional[float] = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor: # pylint: disable=unused-argument
             score_mod = None
             block_mask = None
             if attn_mask is not None:
@@ -71,8 +71,9 @@ def set_flex_attention():
                         return attn_mask[batch_idx, head_idx, q_idx, kv_idx]
                     block_mask = create_block_mask(mask_mod, batch_size, None, seq_len_q, seq_len_kv, device=query.device)
                 else:
-                    def score_mod(score, batch_idx, head_idx, q_idx, kv_idx):
+                    def score_mod_fn(score, batch_idx, head_idx, q_idx, kv_idx):
                         return score + attn_mask[batch_idx, head_idx, q_idx, kv_idx]
+                    score_mod = score_mod_fn
             elif is_causal:
                 block_mask = create_block_mask(flex_attention_causal_mask, query.shape[0], query.shape[1], query.shape[-2], key.shape[-2], device=query.device)
             return flex_attention(query, key, value, score_mod=score_mod, block_mask=block_mask, scale=scale, enable_gqa=enable_gqa)

@@ -17,10 +17,10 @@
   ],
   "env": {
     "browser": true,
-    "commonjs": false,
-    "node": false,
-    "jquery": false,
-    "es2021": true
+    "commonjs": true,
+    "node": true,
+    "jquery": true,
+    "es2024": true
   },
   "rules": {
     "max-len": [1, 275, 3],
@@ -122,12 +122,13 @@
   "ignorePatterns": [
     "node_modules",
     "extensions",
-    "extensions-builtin",
     "repositories",
     "venv",
     "panzoom.js",
     "split.js",
     "exifr.js",
+    "jquery.js",
+    "sparkline.js",
     "iframeResizer.min.js"
   ]
 }
