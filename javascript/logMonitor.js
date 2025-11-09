@@ -17,6 +17,10 @@ function dateToStr(ts) {
   return s;
 }
 
+function htmlEscape(text) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+}
+
 async function logMonitor() {
   const addLogLine = (line) => {
     try {
@@ -27,7 +31,7 @@ async function logMonitor() {
       if (l.level === 'WARNING') logWarnings++;
       if (l.level === 'ERROR') logErrors++;
       const module = `<td style="color: var(--var(--neutral-400))">${l.module}</td>`;
-      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${l.msg}</td>`;
+      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (e) {
       error(`logMonitor: ${e}\n${line}`);
