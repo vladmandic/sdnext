@@ -458,9 +458,9 @@ def set_sdpa_params():
             log.warning(f'Torch attention: type="sdpa" {err}')
 
         try:
-            torch.backends.cuda.enable_flash_sdp('Flash' in opts.sdp_options)
-            torch.backends.cuda.enable_mem_efficient_sdp('Memory' in opts.sdp_options)
-            torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options)
+            torch.backends.cuda.enable_flash_sdp('Flash' in opts.sdp_options or 'Flash attention' in opts.sdp_options)
+            torch.backends.cuda.enable_mem_efficient_sdp('Memory' in opts.sdp_options or 'Memory attention' in opts.sdp_options)
+            torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options or 'Math attention' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
             log.debug(f'Torch attention: type="sdpa" kernels={opts.sdp_options} overrides={opts.sdp_overrides}')
