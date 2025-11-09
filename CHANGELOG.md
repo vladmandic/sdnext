@@ -21,6 +21,7 @@ TBD
 - **Internal**
   - refactor attention handling  
   - remove obsolete video scripts  
+  - update global lint rules  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
