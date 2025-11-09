@@ -24,7 +24,7 @@ function htmlEscape(text) {
 async function logMonitor() {
   const addLogLine = (line) => {
     try {
-      const l = JSON.parse(line.replaceAll('\n', ' '));
+      const l = JSON.parse(line.replaceAll('\n', ' ').replaceAll('\\', '\\\\'));
       const row = document.createElement('tr');
       // row.style = 'padding: 10px; margin: 0;';
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
