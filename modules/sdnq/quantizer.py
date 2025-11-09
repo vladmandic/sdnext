@@ -321,11 +321,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             layer.svd_up, layer.svd_down = None, None
 
         layer.sdnq_dequantizer = dequantizer_dict[weights_dtype](
-            quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
             original_shape=original_shape,
+            quantized_weight_shape=layer.weight.shape,
             weights_dtype=weights_dtype,
+            group_size=group_size,
+            svd_rank=svd_rank,
             use_quantized_matmul=use_quantized_matmul,
             re_quantize_for_matmul=re_quantize_for_matmul,
         )

@@ -137,17 +137,25 @@ class AsymmetricWeightsDequantizer(torch.nn.Module):
         result_dtype: torch.dtype,
         result_shape: torch.Size,
         original_shape: torch.Size,
+        quantized_weight_shape: torch.Size,
         weights_dtype: str,
-        use_quantized_matmul: bool = False,
-        **kwargs, # pylint: disable=unused-argument
+        group_size: int,
+        svd_rank: int,
+        use_quantized_matmul: bool,
+        re_quantize_for_matmul: bool,
     ):
         super().__init__()
-        self.weights_dtype = weights_dtype
-        self.original_shape = original_shape
-        self.use_quantized_matmul = use_quantized_matmul
-        self.re_quantize_for_matmul = True
+        self.is_packed = False
+        self.is_asym = True
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.original_shape = original_shape
+        self.quantized_weight_shape = quantized_weight_shape
+        self.weights_dtype = weights_dtype
+        self.group_size = group_size
+        self.svd_rank = svd_rank
+        self.use_quantized_matmul = use_quantized_matmul
+        self.re_quantize_for_matmul = re_quantize_for_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
@@ -165,18 +173,25 @@ class SymmetricWeightsDequantizer(torch.nn.Module):
         result_dtype: torch.dtype,
         result_shape: torch.Size,
         original_shape: torch.Size,
+        quantized_weight_shape: torch.Size,
         weights_dtype: str,
-        use_quantized_matmul: bool = False,
-        re_quantize_for_matmul: bool = False,
-        **kwargs, # pylint: disable=unused-argument
+        group_size: int,
+        svd_rank: int,
+        use_quantized_matmul: bool,
+        re_quantize_for_matmul: bool,
     ):
         super().__init__()
-        self.weights_dtype = weights_dtype
-        self.original_shape = original_shape
-        self.use_quantized_matmul = use_quantized_matmul
-        self.re_quantize_for_matmul = re_quantize_for_matmul
+        self.is_packed = False
+        self.is_asym = False
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.original_shape = original_shape
+        self.quantized_weight_shape = quantized_weight_shape
+        self.weights_dtype = weights_dtype
+        self.group_size = group_size
+        self.svd_rank = svd_rank
+        self.use_quantized_matmul = use_quantized_matmul
+        self.re_quantize_for_matmul = re_quantize_for_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return weight.to(dtype=dtype_dict[self.weights_dtype]["torch_dtype"])
@@ -192,22 +207,28 @@ class SymmetricWeightsDequantizer(torch.nn.Module):
 class PackedINTAsymmetricWeightsDequantizer(torch.nn.Module):
     def __init__(
         self,
-        quantized_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
         original_shape: torch.Size,
+        quantized_weight_shape: torch.Size,
         weights_dtype: str,
-        use_quantized_matmul: bool = False,
-        **kwargs, # pylint: disable=unused-argument
+        group_size: int,
+        svd_rank: int,
+        use_quantized_matmul: bool,
+        re_quantize_for_matmul: bool,
     ):
         super().__init__()
-        self.weights_dtype = weights_dtype
-        self.use_quantized_matmul = use_quantized_matmul
-        self.re_quantize_for_matmul = True
-        self.original_shape = original_shape
-        self.quantized_weight_shape = quantized_weight_shape
+        self.is_packed = True
+        self.is_asym = True
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.original_shape = original_shape
+        self.quantized_weight_shape = quantized_weight_shape
+        self.weights_dtype = weights_dtype
+        self.group_size = group_size
+        self.svd_rank = svd_rank
+        self.use_quantized_matmul = use_quantized_matmul
+        self.re_quantize_for_matmul = re_quantize_for_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return pack_int_asymetric(weight, self.weights_dtype)
@@ -222,23 +243,28 @@ class PackedINTAsymmetricWeightsDequantizer(torch.nn.Module):
 class PackedINTSymmetricWeightsDequantizer(torch.nn.Module):
     def __init__(
         self,
-        quantized_weight_shape: torch.Size,
         result_dtype: torch.dtype,
         result_shape: torch.Size,
         original_shape: torch.Size,
+        quantized_weight_shape: torch.Size,
         weights_dtype: str,
-        use_quantized_matmul: bool = False,
-        re_quantize_for_matmul: bool = False,
-        **kwargs, # pylint: disable=unused-argument
+        group_size: int,
+        svd_rank: int,
+        use_quantized_matmul: bool,
+        re_quantize_for_matmul: bool,
     ):
         super().__init__()
-        self.weights_dtype = weights_dtype
-        self.original_shape = original_shape
-        self.use_quantized_matmul = use_quantized_matmul
-        self.re_quantize_for_matmul = re_quantize_for_matmul
-        self.quantized_weight_shape = quantized_weight_shape
+        self.is_packed = True
+        self.is_asym = False
         self.result_dtype = result_dtype
         self.result_shape = result_shape
+        self.original_shape = original_shape
+        self.quantized_weight_shape = quantized_weight_shape
+        self.weights_dtype = weights_dtype
+        self.group_size = group_size
+        self.svd_rank = svd_rank
+        self.use_quantized_matmul = use_quantized_matmul
+        self.re_quantize_for_matmul = re_quantize_for_matmul
 
     def pack_weight(self, weight: torch.Tensor) -> torch.Tensor:
         return pack_int_symetric(weight, self.weights_dtype)
