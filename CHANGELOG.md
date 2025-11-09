@@ -5,9 +5,12 @@
 - **Features**  
   - **wildcards**: allow recursive inline wildcards using curly braces syntax  
   - **sdnq**: simplify pre-quantization saved config  
-  - **attention**: refactor settings and improve handling of attention mechanisms  
+  - **attention**: additional torch attention settings  
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
   - **auth**: strong-enforce auth check on all api endpoints  
+- **Internal**
+  - refactor attention handling  
+  - remove obsolete video scripts  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  

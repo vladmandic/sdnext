@@ -1088,51 +1088,50 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     if 'Onnx' in cls:
         return pipe
 
-    new_pipe = None
     # in some cases we want to reset the pipeline to parent as they dont have their own variants
-    if new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE or new_pipe_type == DiffusersTaskType.INPAINTING:
+    if (new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE) or (new_pipe_type == DiffusersTaskType.INPAINTING):
         if cls == 'StableDiffusionPAGPipeline':
             pipe = switch_pipe(diffusers.StableDiffusionPipeline, pipe)
         if cls == 'StableDiffusionXLPAGPipeline':
             pipe = switch_pipe(diffusers.StableDiffusionXLPipeline, pipe)
 
+    new_pipe = None
     components_backup = backup_pipe_components(pipe)
 
-    if new_pipe is None:
-        if hasattr(pipe, 'config'): # real pipeline which can be auto-switched
-            try:
-                if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
-                    new_pipe = diffusers.AutoPipelineForText2Image.from_pipe(pipe)
-                elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
-                    new_pipe = diffusers.AutoPipelineForImage2Image.from_pipe(pipe)
-                elif new_pipe_type == DiffusersTaskType.INPAINTING:
-                    new_pipe = diffusers.AutoPipelineForInpainting.from_pipe(pipe)
-                else:
-                    shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
-                    return pipe
-            except Exception as e: # pylint: disable=unused-variable
-                fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-                shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
-                shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
-                has_errors = True
-        if not hasattr(pipe, 'config') or has_errors:
-            try: # maybe a wrapper pipeline so just change the class
-                if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
-                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                    new_pipe = pipe
-                elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
-                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                    new_pipe = pipe
-                elif new_pipe_type == DiffusersTaskType.INPAINTING:
-                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                    new_pipe = pipe
-                else:
-                    shared.log.error(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls}')
-                    return pipe
-            except Exception as e: # pylint: disable=unused-variable
-                shared.log.warning(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls} {e}')
-                has_errors = True
+    if hasattr(pipe, 'config'): # real pipeline which can be auto-switched
+        try:
+            if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
+                new_pipe = diffusers.AutoPipelineForText2Image.from_pipe(pipe)
+            elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
+                new_pipe = diffusers.AutoPipelineForImage2Image.from_pipe(pipe)
+            elif new_pipe_type == DiffusersTaskType.INPAINTING:
+                new_pipe = diffusers.AutoPipelineForInpainting.from_pipe(pipe)
+            else:
+                shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
                 return pipe
+        except Exception as e: # pylint: disable=unused-variable
+            fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
+            shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
+            has_errors = True
+    if not hasattr(pipe, 'config') or has_errors:
+        try: # maybe a wrapper pipeline so just change the class
+            if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
+                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                new_pipe = pipe
+            elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
+                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                new_pipe = pipe
+            elif new_pipe_type == DiffusersTaskType.INPAINTING:
+                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                new_pipe = pipe
+            else:
+                shared.log.error(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls}')
+                return pipe
+        except Exception as e: # pylint: disable=unused-variable
+            shared.log.warning(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls} {e}')
+            has_errors = True
+            return pipe
 
     if new_pipe is None:
         return pipe
