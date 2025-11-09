@@ -30,7 +30,7 @@ async function logMonitor() {
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${l.msg}</td>`;
       logMonitorEl.appendChild(row);
     } catch (e) {
-      error(`logMonitor: ${line}`);
+      error(`logMonitor: ${e}\n${line}`);
     }
   };
 
