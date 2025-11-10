@@ -690,7 +690,6 @@ def install_rocm_zluda():
     amd_gpus = []
     try:
         amd_gpus = rocm.get_agents()
-        log.info('ROCm: AMD toolkit detected')
     except Exception as e:
         log.warning(f'ROCm agent enumerator failed: {e}')
 
@@ -716,7 +715,7 @@ def install_rocm_zluda():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and args.use_rocm and device is not None and device.therock is not None:
+    if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
         install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
         rocm.refresh()
@@ -727,16 +726,7 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32":
-        if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
-            if device is None:
-                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
-            else:
-                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
-                torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
-        else:
+        if args.use_zluda:
             #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
 
@@ -759,6 +749,15 @@ def install_rocm_zluda():
                 zluda_installer.load()
             except Exception as e:
                 log.warning(f'Failed to load ZLUDA: {e}')
+        else: # TODO install: switch to pytorch source when it becomes available
+            if device is None:
+                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+            else:
+                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
+                torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         if args.use_nightly:
@@ -912,7 +911,7 @@ def check_torch():
 
         if not is_cuda_available and not is_ipex_available and allow_rocm:
             from modules import rocm
-            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or (len(rocm.agents) != 0 if sys.platform == "win32" else rocm.is_installed)) # late eval to avoid unnecessary import
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()
