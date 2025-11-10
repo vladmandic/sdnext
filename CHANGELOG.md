@@ -28,12 +28,14 @@ TBD
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
+  - img2img: fix restoring refine sampler from metadata, thanks @awsr
   - log: client log formatting, thanks @awsr  
   - rocm: check if installed before forcing install  
   - pony-v7: fix text-encoder  
   - detailer: with face-restorers  
   - detailer: using lora in detailer prompt  
   - detailer: fail on unsupported models instead of corrputing results  
+  - ui: fix collapsible panels  
 
 ## Update for 2025-11-06
 
