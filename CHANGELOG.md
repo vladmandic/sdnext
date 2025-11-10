@@ -25,6 +25,7 @@ TBD
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
+  - log: client log formatting, thanks @awsr  
   - pony-v7: fix text-encoder  
   - detailer: with face-restorers  
   - detailer: using lora in detailer prompt  
