@@ -6,7 +6,7 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
 from modules.detailer import Detailer
 
 
@@ -239,6 +239,12 @@ class YoloRestorer(Detailer):
             p.detailer_active = 0
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
+
+        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
+        if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
+            shared.log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
+            return np_image
+
         models = []
         if len(shared.opts.detailer_args) > 0:
             models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
@@ -367,6 +373,7 @@ class YoloRestorer(Detailer):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
+                shared.sd_model.fail_on_switch_error = True
                 pc.prompt = prompt_lines[i*len(items)+j]
                 pc.negative_prompt = negative_lines[i*len(items)+j]
                 pc.prompts = [pc.prompt]
@@ -382,6 +389,7 @@ class YoloRestorer(Detailer):
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
                 extra_networks.deactivate(pc, force=True)
+                shared.sd_model.fail_on_switch_error = False
                 shared.state.end(jobid)
 
                 del pc.recursion

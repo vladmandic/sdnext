@@ -1,14 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-09
+## Update for 2025-11-10
 
-### Highlights for 2025-11-09
+### Highlights for 2025-11-10
 
 TBD
 
-### Details for 2025-11-09
+### Details for 2025-11-10
 
-- **Features**  
+- **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
     kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
     see [docs](https://vladmandic.github.io/sdnext-docs/Kanvas/) for details  
@@ -18,6 +18,7 @@ TBD
   - **attention**: additional torch attention settings  
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
   - **auth**: strong-enforce auth check on all api endpoints  
+  - **amdgpu**: prefer rocm-on-windows over zluda
 - **Internal**
   - refactor attention handling  
   - remove obsolete video scripts  
@@ -26,9 +27,11 @@ TBD
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
   - log: client log formatting, thanks @awsr  
+  - rocm: check if installed before forcing install  
   - pony-v7: fix text-encoder  
   - detailer: with face-restorers  
   - detailer: using lora in detailer prompt  
+  - detailer: fail on unsupported models instead of corrputing results  
 
 ## Update for 2025-11-06
 
