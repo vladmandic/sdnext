@@ -18,11 +18,13 @@ TBD
   - **attention**: additional torch attention settings  
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
   - **auth**: strong-enforce auth check on all api endpoints  
-  - **amdgpu**: prefer rocm-on-windows over zluda
+  - **amdgpu**: prefer rocm-on-windows over zluda  
 - **Internal**
   - refactor attention handling  
   - remove obsolete video scripts  
   - update global lint rules  
+  - chrono: switch to official pipeline  
+  - pipeline: add optional preprocess and postprocess hooks  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  

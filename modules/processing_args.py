@@ -391,6 +391,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                     continue
             args[arg] = kwargs[arg]
 
+    # optional preprocess
+    if hasattr(model, 'preprocess') and callable(model.preprocess):
+        model.preprocess(p, args)
+
+
     # handle task specific args
     if sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.MODULAR:
         task_kwargs = task_modular_kwargs(p, model)
