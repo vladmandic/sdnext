@@ -521,7 +521,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                             yield terminate('Interrupted')
                         return [], '', '', 'Interrupted'
                     # get input
-                    if isinstance(input_image, str):
+                    if isinstance(input_image, str) and os.path.exists(input_image):
                         try:
                             input_image = Image.open(input_image)
                         except Exception as e:

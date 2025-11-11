@@ -67,6 +67,8 @@ def display_units(num_units):
 
 
 def get_video(filepath: str):
+    if not os.path.exists(filepath):
+        return ''
     try:
         frames, fps, duration, w, h, codec, _cap = video.get_video_params(filepath)
         shared.log.debug(f'Control: input video: path={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec}')
@@ -175,7 +177,7 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
         input_source = [selected_input.value]
         input_type = 'gr.Image'
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
-    elif isinstance(selected_input, str): # video via upload > tmp filepath to video
+    elif isinstance(selected_input, str) and os.path.exists(selected_input): # video via upload > tmp filepath to video
         input_source = selected_input
         input_type = 'gr.Video'
         status = get_video(input_source)
