@@ -353,7 +353,12 @@ class ControlNet():
                 if self.dtype is not None:
                     self.model.to(self.dtype)
                 if self.device is not None:
-                    self.model.to_empty(device=self.device) # model could be sparse
+                    if (opts.diffusers_offload_mode != 'balanced') and hasattr(self.model, 'to'):
+                        try:
+                            self.model.to(self.device)
+                        except Exception as e:
+                            if 'Cannot copy out of meta tensor' in str(e):
+                                self.model.to_empty(device=self.device)
                 if "Control" in opts.sdnq_quantize_weights:
                     try:
                         log.debug(f'Control {what} model SDNQ quantize: id="{model_id}"')

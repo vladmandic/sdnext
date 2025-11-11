@@ -36,6 +36,7 @@ TBD
   - detailer: using lora in detailer prompt  
   - detailer: fail on unsupported models instead of corrputing results  
   - ui: fix collapsible panels  
+  - control: safe load non-sparse controlnet  
 
 ## Update for 2025-11-06
 
