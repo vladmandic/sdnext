@@ -187,6 +187,7 @@ def create_ui(_blocks: gr.Blocks=None):
                         input_mode = gr.Label(value='select', visible=False)
                         with gr.Tab('Image', id='in-image') as tab_image:
                             if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
+                                shared.log.warning(f'Kanvas: version={installer.version['kanvas']}')
                                 input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             else:
                                 input_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')

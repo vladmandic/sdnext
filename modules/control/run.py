@@ -474,7 +474,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
     try:
         with devices.inference_context():
-            if isinstance(inputs, str): # only video, the rest is a list
+            if isinstance(inputs, str) and os.path.exists(inputs): # only video, the rest is a list
                 if input_type == 2: # separate init image
                     if isinstance(inits, str) and inits != inputs:
                         shared.log.warning('Control: separate init video not support for video input')
