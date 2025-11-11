@@ -16,7 +16,7 @@ const loginHTML = `
     <label for="username" style="margin-top: 0.5em">Username</label>
     <input type="text" id="loginUsername" name="username" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
     <label for="password" style="margin-top: 0.5em">Password</label>
-    <input type="text" id="loginPassword" name="password" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
+    <input type="password" id="loginPassword" name="password" style="width: 92%; padding: 0.5em; margin-top: 0.5em; border-radius: 4px;">
     <div id="loginStatus" style="margin-top: 0.5em"></div>
     <button type="submit" style="width: 100%; padding: 0.5em; margin-top: 0.5em; background: #366; color: #ddd; border: none; border-radius: 4px; filter: drop-shadow(2px 4px 6px black);">Login</button>
   </div>

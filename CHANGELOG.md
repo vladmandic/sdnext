@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-10
+## Update for 2025-11-11
 
-### Highlights for 2025-11-10
+### Highlights for 2025-11-11
 
 TBD
 
-### Details for 2025-11-10
+### Details for 2025-11-11
 
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
@@ -37,6 +37,7 @@ TBD
   - detailer: fail on unsupported models instead of corrputing results  
   - ui: fix collapsible panels  
   - control: safe load non-sparse controlnet  
+  - auth: fix password being shown in clear text during login  
 
 ## Update for 2025-11-06
 
