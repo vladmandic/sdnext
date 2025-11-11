@@ -463,7 +463,7 @@ function monitorServerStatus() {
 function restartReload() {
   document.body.style = 'background: #222222; font-size: 1rem; font-family:monospace; margin-top:20%; color:lightgray; text-align:center';
   document.body.innerHTML = '<h1>Server shutdown in progress...</h1>';
-  fetch(`${window.api}/progress?skip_current_image=true`)
+  authFetch(`${window.api}/progress?skip_current_image=true`)
     .then((res) => setTimeout(restartReload, 1000))
     .catch((e) => setTimeout(monitorServerStatus, 500));
   return [];

@@ -3,7 +3,7 @@ const ioTypes = ['load', 'save'];
 
 function refreshHistory() {
   log('refreshHistory');
-  fetch(`${window.api}/history`, { priority: 'low' }).then((res) => {
+  authFetch(`${window.api}/history`, { priority: 'low' }).then((res) => {
     const timeline = document.getElementById('history_timeline');
     const table = document.getElementById('history_table');
     timeline.innerHTML = '';

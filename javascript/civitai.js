@@ -73,7 +73,7 @@ async function modelCardClick(id) {
   log('modelCardClick id', id);
   const el = gradioApp().getElementById('model-details') || gradioApp().getElementById('civitai_models_output') || gradioApp().getElementById('models_outcome');
   if (!el) return;
-  const res = await fetch(`${window.api}/civitai?model_id=${encodeURI(id)}`);
+  const res = await authFetch(`${window.api}/civitai?model_id=${encodeURI(id)}`);
   if (!res || res.status !== 200) {
     error(`modelCardClick: id=${id} status=${res ? res.status : 'unknown'}`);
     return;

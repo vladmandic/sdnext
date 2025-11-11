@@ -50,6 +50,7 @@
   },
   "globals": {
     "panzoom": "readonly",
+    "authFetch": "readonly",
     "log": "readonly",
     "debug": "readonly",
     "error": "readonly",

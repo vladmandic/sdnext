@@ -25,6 +25,7 @@ TBD
   - update global lint rules  
   - chrono: switch to official pipeline  
   - pipeline: add optional preprocess and postprocess hooks  
+  - auth: wrap all internal api calls with auth check and use token when possible  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  

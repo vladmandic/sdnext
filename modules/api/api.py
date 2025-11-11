@@ -117,8 +117,8 @@ class Api:
         from modules.civitai import api_civitai
         api_civitai.register_api()
 
-    def add_api_route(self, path: str, fn, **kwargs):
-        if self.credentials:
+    def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
+        if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))
             deps.append(Depends(self.auth))
             kwargs['dependencies'] = deps
@@ -132,6 +132,9 @@ class Api:
         if credentials.username in self.credentials:
             if compare_digest(credentials.password, self.credentials[credentials.username]):
                 return True
+            if hasattr(self.app, 'tokens') and (self.app.tokens is not None):
+                if credentials.password in self.app.tokens.keys():
+                    return True
         shared.log.error(f'API authentication: user="{credentials.username}" password="{credentials.password}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 

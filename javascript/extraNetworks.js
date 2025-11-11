@@ -368,7 +368,7 @@ function selectHistory(id) {
   const headers = new Headers();
   headers.set('Content-Type', 'application/json');
   const init = { method: 'POST', body: { name: id }, headers };
-  fetch(`${window.api}/history`, { method: 'POST', body: JSON.stringify({ name: id }), headers });
+  authFetch(`${window.api}/history`, { method: 'POST', body: JSON.stringify({ name: id }), headers });
 }
 
 let enDirty = false;

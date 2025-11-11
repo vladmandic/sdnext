@@ -4,6 +4,11 @@
 
 - <https://github.com/users/vladmandic/projects>
 
+## Kanvas
+
+- server-side mask handling vs ui mask handling
+- outpaint visible image edge seam
+
 ## Internal
 
 - UI: New inpaint/outpaint interface  

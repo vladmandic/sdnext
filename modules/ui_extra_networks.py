@@ -115,10 +115,10 @@ def init_api():
         return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"], auth=False)
 
 
 class DateTimeEncoder(json.JSONEncoder):

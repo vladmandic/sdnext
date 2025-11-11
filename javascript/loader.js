@@ -52,7 +52,7 @@ async function createSplash() {
   }
   const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=html/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=html/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
   document.getElementById('splash').insertAdjacentHTML('afterbegin', imgEl);
-  fetch(`${window.api}/motd`)
+  authFetch(`${window.api}/motd`)
     .then((res) => res.text())
     .then((text) => {
       const motdEl = document.getElementById('motd');
