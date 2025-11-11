@@ -18,7 +18,7 @@ function dateToStr(ts) {
 }
 
 function htmlEscape(text) {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 async function logMonitor() {
