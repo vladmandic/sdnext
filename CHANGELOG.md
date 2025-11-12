@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-11
+## Update for 2025-11-12
 
-### Highlights for 2025-11-11
+### Highlights for 2025-11-12
 
 TBD
 
-### Details for 2025-11-11
+### Details for 2025-11-12
 
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
@@ -37,6 +37,7 @@ TBD
   - detailer: using lora in detailer prompt  
   - detailer: fail on unsupported models instead of corrputing results  
   - ui: fix collapsible panels  
+  - process: improve send-to functionality  
   - control: safe load non-sparse controlnet  
   - auth: fix password being shown in clear text during login  
 
