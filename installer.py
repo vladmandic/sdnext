@@ -20,7 +20,7 @@ class Dot(dict): # dot notation access to dictionary attributes
 
 
 pkg_resources, setuptools, distutils = None, None, None # defined via ensure_base_requirements
-version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown', 'kanvas': 'unknown' }
+version = { 'app': 'sd.next', 'updated': 'unknown', 'commit': 'unknown', 'branch': 'unknown', 'url': 'unknown', 'kanvas': 'unknown' }
 current_branch = None
 log = logging.getLogger("sd")
 console = None
@@ -1419,8 +1419,7 @@ def check_extensions():
 
 def get_version(force=False):
     t_start = time.time()
-    global version # pylint: disable=global-statement
-    if version is None or force:
+    if version.get('branch', 'unknown') == 'unknown' or force:
         try:
             subprocess.run('git config log.showsignature false', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
         except Exception:
@@ -1428,21 +1427,19 @@ def get_version(force=False):
         try:
             res = subprocess.run('git log --pretty=format:"%h %ad" -1 --date=short', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             ver = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else '  '
-            githash, updated = ver.split(' ')
+            commit, updated = ver.split(' ')
+            version['commit'], version['updated'] = commit, updated
+        except Exception as e:
+            log.warning(f'Version: where=commit {e}')
+        try:
             res = subprocess.run('git remote get-url origin', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             origin = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
             res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             branch_name = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            version = {
-                'app': 'sd.next',
-                'updated': updated,
-                'hash': githash,
-                'branch': branch_name.replace('\n', ''),
-                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
-                'kanvas': 'uknown',
-            }
-        except Exception:
-            version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown', 'kanvas': 'unknown' }
+            version['url'] = origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
+            version['branch'] = branch_name.replace('\n', '')
+        except Exception as e:
+            log.warning(f'Version: where=branch {e}')
         cwd = os.getcwd()
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
@@ -1453,7 +1450,8 @@ def get_version(force=False):
                 version['ui'] = branch_ui
             else:
                 version['ui'] = 'unavailable'
-        except Exception:
+        except Exception as e:
+            log.warning(f'Version: where=modernui {e}')
             version['ui'] = 'unknown'
         finally:
             os.chdir(cwd)
@@ -1468,7 +1466,8 @@ def get_version(force=False):
                 version['kanvas'] = branch_kanvas
             else:
                 version['kanvas'] = 'unavailable'
-        except Exception:
+        except Exception as e:
+            log.warning(f'Version: where=kanvas {e}')
             version['kanvas'] = 'unknown'
         finally:
             os.chdir(cwd)
