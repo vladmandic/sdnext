@@ -39,6 +39,7 @@ TBD
   - ui: fix collapsible panels  
   - process: improve send-to functionality  
   - control: safe load non-sparse controlnet  
+  - control: fix marigold preprocessor with bfloat16  
   - auth: fix password being shown in clear text during login  
 
 ## Update for 2025-11-06
