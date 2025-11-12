@@ -7,7 +7,6 @@ function controlInputMode(inputMode, ...args) {
   log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof Kanvas });
   if ((inputTab === 'Image') && (typeof 'Kanvas' !== 'undefined')) {
     inputTab = 'Kanvas';
-    // const imageData = window.kanvas.getImageData();
     const imageData = window.kanvas.getImage();
     args[0] = imageData;
   }

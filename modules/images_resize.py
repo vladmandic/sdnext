@@ -116,13 +116,14 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
             src_image = resize(im, src_w, src_h)
         else:
             return im
-        res = Image.fromarray(seam_carving.resize(
+        np_image = seam_carving.resize(
             src_image, # source image (rgb or gray)
             size=(width, height),  # target size
             energy_mode=energy_mode,  # choose from {backward, forward}
             order="width-first",  # choose from {width-first, height-first}
             keep_mask=None,  # object mask to protect from removal
-        ))
+        )
+        res = Image.fromarray(np_image)
         return res
 
     t0 = time.time()

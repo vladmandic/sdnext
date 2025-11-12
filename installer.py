@@ -20,7 +20,7 @@ class Dot(dict): # dot notation access to dictionary attributes
 
 
 pkg_resources, setuptools, distutils = None, None, None # defined via ensure_base_requirements
-version = None
+version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown', 'kanvas': 'unknown' }
 current_branch = None
 log = logging.getLogger("sd")
 console = None
@@ -613,7 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = '0fd58c7706ac69e046587c374320637c29b62b06' # diffusers commit hash
+    sha = 'd6c63bb956358f1990443a849ca250419a238b95' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -1438,10 +1438,11 @@ def get_version(force=False):
                 'updated': updated,
                 'hash': githash,
                 'branch': branch_name.replace('\n', ''),
-                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
+                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
+                'kanvas': 'uknown',
             }
         except Exception:
-            version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
+            version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown', 'kanvas': 'unknown' }
         cwd = os.getcwd()
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
