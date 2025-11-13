@@ -66,6 +66,8 @@ def get_model_type(pipe):
         model_type = 'nextstep'
     elif 'X-Omni' in name:
         model_type = 'x-omni'
+    elif 'Photoroom' in name:
+        model_type = 'prx'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

@@ -17,6 +17,8 @@ And a first cloud model with **Google's Nano Banana**
   - [Google Gemini 2.5 Flash Nano Banana](https://blog.google/products/gemini/gemini-nano-banana-examples/)  
     first cloud-based model directly supported in SD.Next UI  
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
+  - [Photoroom PRX 1024 Beta](https://huggingface.co/Photoroom/prx-1024-t2i-beta)  
+    PRX (Photoroom Experimental) is a small 1.3-billion-parameter text-to-image model trained entirely from scratch, it uses T5-Gemma text-encoder  
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
     kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
