@@ -1220,18 +1220,21 @@ def ensure_base_requirements():
             setuptools = importlib.import_module('setuptools')
             sys.modules['setuptools'] = setuptools
         except ImportError as e:
+            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
             local_log.critical(f'Import: setuptools {e}')
             os._exit(1)
         try:
             distutils = importlib.import_module('distutils')
             sys.modules['distutils'] = distutils
         except ImportError as e:
+            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
             local_log.critical(f'Import: distutils {e}')
             os._exit(1)
         try:
             pkg_resources = importlib.import_module('pkg_resources')
             sys.modules['pkg_resources'] = pkg_resources
         except ImportError as e:
+            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
             local_log.critical(f'Import: pkg_resources {e}')
             os._exit(1)
 
