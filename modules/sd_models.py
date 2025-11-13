@@ -49,6 +49,7 @@ pipe_switch_task_exclude = [
     'HunyuanImagePipeline',
     'AuraFlowPipeline',
     'ChronoEditPipeline',
+    'GoogleNanoBananaPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -420,6 +421,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
         elif model_type in ['X-Omni']:
             from pipelines.model_xomni import load_xomni
             sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
+            allow_post_quant = False
+        elif model_type in ['NanoBanana']:
+            from pipelines.model_google import load_nanobanana
+            sd_model = load_nanobanana(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
@@ -863,6 +868,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         modelstats.analyze()
 
     shared.log.info(f"Load {op}: family={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
+    shared.opts.save(silent=True)
 
 
 class DiffusersTaskType(Enum):

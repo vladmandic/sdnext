@@ -145,6 +145,8 @@ def task_specific_kwargs(p, model):
             task_args['image'] = Image.new('RGB', (p.width, p.height), (0, 0, 0)) # monkey-patch so wan-i2i pipeline does not error-out on t2i
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
+    if ('GoogleNanoBananaPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
+        task_args['image'] = p.init_images[0]
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             shared.log.error('BLiP diffusion requires init image')

@@ -88,6 +88,9 @@ def get_model_type(pipe):
         model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:
         model_type = 'hunyuanimage'
+    # cloud models
+    elif 'NanoBanana' in name:
+        model_type = 'nanobanana'
     else:
         model_type = name
     return model_type

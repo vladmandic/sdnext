@@ -153,6 +153,10 @@ async function filterExtraNetworksForTab(searchTerm) {
       cards.forEach((elem) => elem.style.display = elem.dataset.tags
         .toLowerCase()
         .includes('community') ? '' : 'none');
+    } else if (searchTerm === 'cloud/') {
+      cards.forEach((elem) => elem.style.display = elem.dataset.tags
+        .toLowerCase()
+        .includes('cloud') ? '' : 'none');
     } else if (searchTerm === 'quantized/') {
       cards.forEach((elem) => elem.style.display = elem.dataset.tags
         .toLowerCase()

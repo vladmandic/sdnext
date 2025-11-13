@@ -4,10 +4,19 @@
 
 ### Highlights for 2025-11-13
 
-TBD
+New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
+And a first cloud model with **Google's Nano Banana**
+
+![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
 ### Details for 2025-11-13
 
+- **Models**
+  - [Google Gemini 2.5 Flash Nano Banana](https://blog.google/products/gemini/gemini-nano-banana-examples/)  
+    first cloud-based model directly supported in SD.Next UI  
+    *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
     kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
