@@ -84,6 +84,7 @@ def set_adapter(adapter_name: str = 'None'):
         new_pipe = None
 
         if 'Model' in shared.opts.sdnq_quantize_weights:
+            shared.log.debug(f'AnimateDiff: sdnq={shared.opts.sdnq_quantize_weights} reloading model weights')
             prev_opts = shared.opts.sdnq_quantize_weights
             shared.opts.sdnq_quantize_weights = []
             sd_models.reload_model_weights(force=True)
