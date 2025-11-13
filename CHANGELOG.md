@@ -39,6 +39,7 @@ TBD
   - detailer: fail on unsupported models instead of corrputing results  
   - ui: fix collapsible panels  
   - svd: fix stable-video-diffusion dtype mismatch  
+  - animatediff: disable sdnq if used  
   - process: improve send-to functionality  
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
