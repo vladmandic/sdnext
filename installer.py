@@ -1208,6 +1208,7 @@ def ensure_base_requirements():
     setuptools_version = '69.5.1'
 
     def update_setuptools():
+        local_log = logging.getLogger('sdnext.installer')
         global pkg_resources, setuptools, distutils # pylint: disable=global-statement
         # python may ship with incompatible setuptools
         subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version}', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1215,12 +1216,24 @@ def ensure_base_requirements():
         modules = [m for m in sys.modules if m.startswith('setuptools') or m.startswith('pkg_resources') or m.startswith('distutils')]
         for m in modules:
             del sys.modules[m]
-        setuptools = importlib.import_module('setuptools')
-        sys.modules['setuptools'] = setuptools
-        distutils = importlib.import_module('distutils')
-        sys.modules['distutils'] = distutils
-        pkg_resources = importlib.import_module('pkg_resources')
-        sys.modules['pkg_resources'] = pkg_resources
+        try:
+            setuptools = importlib.import_module('setuptools')
+            sys.modules['setuptools'] = setuptools
+        except ImportError as e:
+            local_log.critical(f'Import: setuptools {e}')
+            os._exit(1)
+        try:
+            distutils = importlib.import_module('distutils')
+            sys.modules['distutils'] = distutils
+        except ImportError as e:
+            local_log.critical(f'Import: distutils {e}')
+            os._exit(1)
+        try:
+            pkg_resources = importlib.import_module('pkg_resources')
+            sys.modules['pkg_resources'] = pkg_resources
+        except ImportError as e:
+            local_log.critical(f'Import: pkg_resources {e}')
+            os._exit(1)
 
     try:
         global pkg_resources, setuptools # pylint: disable=global-statement
