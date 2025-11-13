@@ -8,6 +8,9 @@ TBD
 
 ### Details for 2025-11-12
 
+- **Models**
+  - [WAN 2.2 Animate 14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)  
+    available for *text-to-video* and *image-to-video* workflows
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
     kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
