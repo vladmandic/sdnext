@@ -127,6 +127,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'X-Omni'
     elif 'sdxl-turbo' in fn.lower() or 'stable-diffusion-xl' in fn.lower():
         new_guess = 'Stable Diffusion XL'
+    elif 'stable-video-diffusion' in fn.lower():
+        new_guess = 'StableVideoDiffusion'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess

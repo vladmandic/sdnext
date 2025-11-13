@@ -14,6 +14,8 @@ def get_model_type(pipe):
         model_type = 'sdxl'
     elif "StableDiffusion" in name:
         model_type = 'sd'
+    elif "StableVideoDiffusion" in name:
+        model_type = 'svd'
     elif "LatentConsistencyModel" in name:
         model_type = 'sd' # lcm is compatible with sd
     elif "InstaFlowPipeline" in name:

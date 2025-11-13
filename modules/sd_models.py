@@ -84,33 +84,39 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
             ops['no-half'] = True
     if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'enable_slicing') and hasattr(sd_model.vae, 'disable_slicing'):
         ops['slicing'] = shared.opts.diffusers_vae_slicing
-        if shared.opts.diffusers_vae_slicing:
-            sd_model.vae.enable_slicing()
-        else:
-            sd_model.vae.disable_slicing()
+        try:
+            if shared.opts.diffusers_vae_slicing:
+                sd_model.vae.enable_slicing()
+            else:
+                sd_model.vae.disable_slicing()
+        except Exception:
+            pass
     if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'enable_tiling') and hasattr(sd_model.vae, 'disable_tiling'):
         ops['tiling'] = shared.opts.diffusers_vae_tiling
-        if shared.opts.diffusers_vae_tiling:
-            if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
-                if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
-                    sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
-                    sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
-                    sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
-                if shared.opts.diffusers_vae_tile_size > 0:
-                    sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
-                    sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
-                else:
-                    sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
-                    sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
-                if shared.opts.diffusers_vae_tile_overlap != 0.25:
-                    sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
-                else:
-                    sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
-                ops['tile'] = sd_model.vae.tile_sample_min_size
-                ops['overlap'] = sd_model.vae.tile_overlap_factor
-            sd_model.vae.enable_tiling()
-        else:
-            sd_model.vae.disable_tiling()
+        try:
+            if shared.opts.diffusers_vae_tiling:
+                if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
+                    if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
+                        sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
+                        sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
+                        sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
+                    if shared.opts.diffusers_vae_tile_size > 0:
+                        sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
+                        sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                    else:
+                        sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
+                        sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
+                    if shared.opts.diffusers_vae_tile_overlap != 0.25:
+                        sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
+                    else:
+                        sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
+                    ops['tile'] = sd_model.vae.tile_sample_min_size
+                    ops['overlap'] = sd_model.vae.tile_overlap_factor
+                sd_model.vae.enable_tiling()
+            else:
+                sd_model.vae.disable_tiling()
+        except Exception:
+            pass
     if hasattr(sd_model, "vqvae"):
         ops['upcast'] = True
         sd_model.vqvae.to(torch.float32) # vqvae is producing nans in fp16

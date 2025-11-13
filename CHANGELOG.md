@@ -1,16 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-12
+## Update for 2025-11-13
 
-### Highlights for 2025-11-12
+### Highlights for 2025-11-13
 
 TBD
 
-### Details for 2025-11-12
+### Details for 2025-11-13
 
-- **Models**
-  - [WAN 2.2 Animate 14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)  
-    available for *text-to-video* and *image-to-video* workflows
 - **Features**
   - **kanvas**: new module for native canvas-based image manipulation  
     kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
@@ -41,6 +38,7 @@ TBD
   - detailer: using lora in detailer prompt  
   - detailer: fail on unsupported models instead of corrputing results  
   - ui: fix collapsible panels  
+  - svd: fix stable-video-diffusion dtype mismatch  
   - process: improve send-to functionality  
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
