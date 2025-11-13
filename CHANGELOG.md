@@ -40,6 +40,7 @@ TBD
   - ui: fix collapsible panels  
   - svd: fix stable-video-diffusion dtype mismatch  
   - animatediff: disable sdnq if used  
+  - lora: restore pipeline type if reload/recompile needed  
   - process: improve send-to functionality  
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  

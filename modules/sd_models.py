@@ -1263,6 +1263,7 @@ def clear_caches(full:bool=False):
 
 
 def unload_model_weights(op='model'):
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     clear_caches(full=True)
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
@@ -1275,14 +1276,14 @@ def unload_model_weights(op='model'):
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
         devices.torch_gc(force=True, reason='unload')
-        shared.log.debug(f'Unload {op}: {memory_stats()} after')
+        shared.log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
     elif (op == 'refiner') and model_data.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
         disable_offload(model_data.sd_refiner)
         move_model(model_data.sd_refiner, 'meta')
         model_data.sd_refiner = None
         devices.torch_gc(force=True, reason='unload')
-        shared.log.debug(f'Unload {op}: {memory_stats()}')
+        shared.log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 
 
 def hf_auth_check(checkpoint_info, force:bool=False):
