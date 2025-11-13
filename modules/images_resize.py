@@ -95,6 +95,8 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
         return res
 
     def context_aware(im: Image.Image, width, height, context):
+        from installer import install
+        install('seam-carving')
         width, height = int(width), int(height)
         import seam_carving # https://github.com/li-plus/seam-carving
         if 'forward' in context.lower():
