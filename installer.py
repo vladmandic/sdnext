@@ -503,7 +503,7 @@ def branch(folder=None):
 
 
 # update git repository
-def update(folder, keep_branch = False, rebase = True):
+def update(folder, keep_branch = False, rebase = True, restart = False):
     t_start = time.time()
     try:
         git('config rebase.Autostash true')
@@ -513,19 +513,22 @@ def update(folder, keep_branch = False, rebase = True):
     if keep_branch:
         res = git(f'pull {arg}', folder)
         debug(f'Install update: folder={folder} args={arg} {res}')
-        return res
-    b = branch(folder)
-    if branch is None:
-        res = git(f'pull {arg}', folder)
-        debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
     else:
-        res = git(f'pull origin {b} {arg}', folder)
-        debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
-    if not args.experimental:
-        commit = extensions_commit.get(os.path.basename(folder), None)
-        if commit is not None:
-            res = git(f'checkout {commit}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
+        b = branch(folder)
+        if branch is None:
+            res = git(f'pull {arg}', folder)
+            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+        else:
+            res = git(f'pull origin {b} {arg}', folder)
+            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+        if not args.experimental:
+            commit = extensions_commit.get(os.path.basename(folder), None)
+            if commit is not None:
+                res = git(f'checkout {commit}', folder)
+                debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
+    if restart:
+        log.critical('Restarting application to apply updates...')
+        os.execv(sys.executable, ['python'] + sys.argv)
     ts('update', t_start)
     return res
 
@@ -1435,7 +1438,7 @@ def check_extensions():
 
 def get_version(force=False):
     t_start = time.time()
-    if version.get('branch', 'unknown') == 'unknown' or force:
+    if (version is None) or (version.get('branch', 'unknown') == 'unknown') or force:
         try:
             subprocess.run('git config log.showsignature false', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
         except Exception:
@@ -1562,7 +1565,9 @@ def check_version(reset=True): # pylint: disable=unused-argument
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
-    branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
+    branch_name = ver.get('branch', None) if ver is not None else 'master'
+    if branch_name is None or branch_name == 'unknown':
+        branch_name = 'master'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1585,7 +1590,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
             try:
                 git('add .')
                 git('stash')
-                update('.', keep_branch=True)
+                update('.', keep_branch=True, restart=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
                 log.info(f'Repository upgraded: {ver}')
