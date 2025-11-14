@@ -75,7 +75,10 @@ def create_ui(startup_timer = None):
     ui_javascript.reload_javascript()
     generation_parameters_copypaste.reset()
     scripts_manager.scripts_current = None
-    ui_disabled = [x.strip().lower() for x in shared.cmd_opts.disable.split(',') if x.strip()]
+    if hasattr(shared.cmd_opts, 'disable'):
+        ui_disabled = [x.strip().lower() for x in shared.cmd_opts.disable.split(',') if x.strip()]
+    else:
+        ui_disabled = []
     interfaces.clear()
     shared.opts.ui_disabled = ui_disabled
     if len(ui_disabled) > 0:
