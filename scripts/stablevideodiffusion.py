@@ -32,7 +32,7 @@ class Script(scripts_manager.Script):
             min_guidance_scale = gr.Slider(label='Min guidance', minimum=0.0, maximum=10.0, step=0.1, value=1.0)
             max_guidance_scale = gr.Slider(label='Max guidance', minimum=0.0, maximum=10.0, step=0.1, value=3.0)
         with gr.Row():
-            decode_chunk_size = gr.Slider(label='Decode chunks', minimum=1, maximum=25, step=1, value=6)
+            decode_chunk_size = gr.Slider(label='Decode chunks', minimum=1, maximum=25, step=1, value=1)
             motion_bucket_id = gr.Slider(label='Motion level', minimum=0, maximum=1, step=0.05, value=0.5)
             noise_aug_strength = gr.Slider(label='Noise strength', minimum=0.0, maximum=1.0, step=0.01, value=0.1)
         with gr.Row():
@@ -41,6 +41,31 @@ class Script(scripts_manager.Script):
             from modules.ui_sections import create_video_inputs
             video_type, duration, gif_loop, mp4_pad, mp4_interpolate = create_video_inputs(tab='img2img' if is_img2img else 'txt2img')
         return [model, num_frames, override_resolution, min_guidance_scale, max_guidance_scale, decode_chunk_size, motion_bucket_id, noise_aug_strength, video_type, duration, gif_loop, mp4_pad, mp4_interpolate]
+
+    def _encode_image(self, image: torch.Tensor, device, num_videos_per_prompt, do_classifier_free_guidance):
+        image = image.to(device=device, dtype=shared.sd_model.vae.dtype)
+        shared.log.debug(f'Video encode: type=svd input={image.shape} dtype={image.dtype} device={image.device}')
+        image_latents = shared.sd_model.vae.encode(image).latent_dist.mode()
+        image_latents = image_latents.repeat(num_videos_per_prompt, 1, 1, 1)
+        if do_classifier_free_guidance:
+            negative_image_latents = torch.zeros_like(image_latents)
+            image_latents = torch.cat([negative_image_latents, image_latents])
+        return image_latents
+
+    def _decode_latents(self, latents: torch.Tensor, num_frames: int, decode_chunk_size: int = 14):
+        shared.log.debug(f'Video decode: type=svd input={latents.shape} dtype={latents.dtype} device={latents.device} chunk={decode_chunk_size} frames={num_frames}')
+        latents = latents.flatten(0, 1)
+        latents = 1 / shared.sd_model.vae.config.scaling_factor * latents
+        frames = []
+        for i in range(0, latents.shape[0], decode_chunk_size):
+            num_frames_in = latents[i : i + decode_chunk_size].shape[0]
+            decode_kwargs = { "num_frames": num_frames_in }
+            frame = shared.sd_model.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs).sample
+            frames.append(frame)
+        frames = torch.cat(frames, dim=0)
+        frames = frames.reshape(-1, num_frames, *frames.shape[1:]).permute(0, 2, 1, 3, 4)
+        frames = frames.float()
+        return frames
 
     def run(self, p: processing.StableDiffusionProcessing, model, num_frames, override_resolution, min_guidance_scale, max_guidance_scale, decode_chunk_size, motion_bucket_id, noise_aug_strength, video_type, duration, gif_loop, mp4_pad, mp4_interpolate): # pylint: disable=arguments-differ, unused-argument
         image = getattr(p, 'init_images', None)
@@ -60,9 +85,11 @@ class Script(scripts_manager.Script):
         c = shared.sd_model.__class__.__name__
         model_loaded = shared.sd_model.sd_checkpoint_info.model_name if shared.sd_loaded else None
         if model_name != model_loaded or c != 'StableVideoDiffusionPipeline':
+            from diffusers import StableVideoDiffusionPipeline # pylint: disable=unused-import
             shared.opts.sd_model_checkpoint = model_path
             sd_models.reload_model_weights()
-            shared.sd_model = shared.sd_model.to(torch.float32) # must run in fp32 due to dtype mismatch
+            shared.sd_model._encode_vae_image = self._encode_image # pylint: disable=protected-access
+            shared.sd_model.decode_latents = self._decode_latents # pylint: disable=protected-access
 
         # set params
         if override_resolution:

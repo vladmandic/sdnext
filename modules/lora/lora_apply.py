@@ -20,7 +20,7 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
         weights_backup = getattr(self, "network_weights_backup", None)
         bias_backup = getattr(self, "network_bias_backup", None)
         if weights_backup is not None or bias_backup is not None:
-            if (shared.opts.lora_fuse_diffusers and not isinstance(weights_backup, bool)) or (not shared.opts.lora_fuse_diffusers and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
+            if (shared.opts.lora_fuse_native and not isinstance(weights_backup, bool)) or (not shared.opts.lora_fuse_native and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
                 weights_backup = None
                 bias_backup = None
                 self.network_weights_backup = weights_backup
@@ -33,15 +33,15 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
                 if bnb is None:
                     bnb = model_quant.load_bnb('Network load: type=LoRA', silent=True)
                 if bnb is not None:
-                    if shared.opts.lora_fuse_diffusers:
+                    if shared.opts.lora_fuse_native:
                         self.network_weights_backup = True
                     else:
                         self.network_weights_backup = bnb.functional.dequantize_4bit(weight, quant_state=weight.quant_state, quant_type=weight.quant_type, blocksize=weight.blocksize,)
                     self.quant_state, self.quant_type, self.blocksize = weight.quant_state, weight.quant_type, weight.blocksize
                 else:
-                    self.network_weights_backup = weight.clone().to(devices.cpu) if not shared.opts.lora_fuse_diffusers else True
+                    self.network_weights_backup = weight.clone().to(devices.cpu) if not shared.opts.lora_fuse_native else True
             else:
-                if shared.opts.lora_fuse_diffusers:
+                if shared.opts.lora_fuse_native:
                     self.network_weights_backup = True
                 else:
                     self.network_weights_backup = weight.clone().to(devices.cpu)
@@ -61,7 +61,7 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
-                if shared.opts.lora_fuse_diffusers:
+                if shared.opts.lora_fuse_native:
                     self.network_bias_backup = True
                 else:
                     bias_backup = self.bias.clone()
@@ -167,23 +167,27 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
         try:
             from modules.sdnq import sdnq_quantize_layer
             if hasattr(self, "sdnq_dequantizer_backup"):
-                weights_dtype = self.sdnq_dequantizer_backup.weights_dtype
+                use_svd = bool(self.sdnq_svd_up_backup is not None)
+                dequantize_fp32 = bool(self.sdnq_scale_backup.dtype == torch.float32)
+                sdnq_dequantizer = self.sdnq_dequantizer_backup
                 dequant_weight = self.sdnq_dequantizer_backup.to(devices.device)(
                     model_weights.to(devices.device),
                     self.sdnq_scale_backup.to(devices.device),
                     self.sdnq_zero_point_backup.to(devices.device) if self.sdnq_zero_point_backup is not None else None,
-                    self.sdnq_svd_up_backup.to(devices.device) if self.sdnq_svd_up_backup is not None else None,
-                    self.sdnq_svd_down_backup.to(devices.device) if self.sdnq_svd_down_backup is not None else None,
+                    self.sdnq_svd_up_backup.to(devices.device) if use_svd else None,
+                    self.sdnq_svd_down_backup.to(devices.device) if use_svd else None,
                     skip_quantized_matmul=self.sdnq_dequantizer_backup.use_quantized_matmul
                 )
             else:
-                weights_dtype = self.sdnq_dequantizer.weights_dtype
+                use_svd = bool(self.svd_up is not None)
+                dequantize_fp32 = bool(self.scale.dtype == torch.float32)
+                sdnq_dequantizer = self.sdnq_dequantizer
                 dequant_weight = self.sdnq_dequantizer.to(devices.device)(
                     model_weights.to(devices.device),
                     self.scale.to(devices.device),
                     self.zero_point.to(devices.device) if self.zero_point is not None else None,
-                    self.svd_up.to(devices.device) if self.svd_up is not None else None,
-                    self.svd_down.to(devices.device) if self.svd_down is not None else None,
+                    self.svd_up.to(devices.device) if use_svd else None,
+                    self.svd_down.to(devices.device) if use_svd else None,
                     skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul
                 )
 
@@ -192,16 +196,16 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             del self.sdnq_dequantizer, self.scale, self.zero_point, self.svd_up, self.svd_down
             self = sdnq_quantize_layer(
                 self,
-                weights_dtype=weights_dtype,
-                torch_dtype=devices.dtype,
-                group_size=shared.opts.sdnq_quantize_weights_group_size,
-                svd_rank=shared.opts.sdnq_svd_rank,
+                weights_dtype=sdnq_dequantizer.weights_dtype,
+                torch_dtype=sdnq_dequantizer.result_dtype,
+                group_size=sdnq_dequantizer.group_size,
+                svd_rank=sdnq_dequantizer.svd_rank,
+                use_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
+                use_quantized_matmul_conv=sdnq_dequantizer.use_quantized_matmul,
+                use_svd=use_svd,
+                dequantize_fp32=dequantize_fp32,
                 svd_steps=shared.opts.sdnq_svd_steps,
-                use_svd=shared.opts.sdnq_use_svd,
-                quant_conv=shared.opts.sdnq_quantize_conv_layers,
-                use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
-                use_quantized_matmul_conv=shared.opts.sdnq_use_quantized_matmul_conv,
-                dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+                quant_conv=True, # quant_conv is True if conv layers ends up here
                 non_blocking=False,
                 quantization_device=devices.device,
                 return_device=device,

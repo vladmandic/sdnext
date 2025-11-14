@@ -95,6 +95,8 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
         return res
 
     def context_aware(im: Image.Image, width, height, context):
+        from installer import install
+        install('seam-carving')
         width, height = int(width), int(height)
         import seam_carving # https://github.com/li-plus/seam-carving
         if 'forward' in context.lower():
@@ -116,13 +118,14 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
             src_image = resize(im, src_w, src_h)
         else:
             return im
-        res = Image.fromarray(seam_carving.resize(
+        np_image = seam_carving.resize(
             src_image, # source image (rgb or gray)
             size=(width, height),  # target size
             energy_mode=energy_mode,  # choose from {backward, forward}
             order="width-first",  # choose from {width-first, height-first}
             keep_mask=None,  # object mask to protect from removal
-        ))
+        )
+        res = Image.fromarray(np_image)
         return res
 
     t0 = time.time()
@@ -154,5 +157,6 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
         shared.log.error(f'Invalid resize mode: {resize_mode}')
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    shared.log.debug(f'Image resize: source={im.width}:{im.height} target={width}:{height} mode="{shared.resize_modes[resize_mode]}" upscaler="{upscaler_name}" type={output_type} time={t1-t0:.2f} fn={fn}') # pylint: disable=protected-access
+    if im.width != width or im.height != height:
+        shared.log.debug(f'Image resize: source={im.width}:{im.height} target={width}:{height} mode="{shared.resize_modes[resize_mode]}" upscaler="{upscaler_name}" type={output_type} time={t1-t0:.2f} fn={fn}') # pylint: disable=protected-access
     return np.array(res) if output_type == 'np' else res

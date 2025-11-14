@@ -135,5 +135,5 @@ class ExtraNetworkStyles(extra_networks.ExtraNetwork):
                     styles.apply_styles_to_extra(p, style)
 
 
-    def deactivate(self, p):
+    def deactivate(self, p, force=False):
         pass

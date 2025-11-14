@@ -4,7 +4,7 @@ from secrets import compare_digest
 from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
-from modules import errors, shared, postprocessing
+from modules import errors, shared
 from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
 
 
@@ -60,8 +60,8 @@ class Api:
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img)
         self.add_api_route("/sdapi/v1/img2img", self.generate.post_img2img, methods=["POST"], response_model=models.ResImg2Img)
         self.add_api_route("/sdapi/v1/control", self.control.post_control, methods=["POST"], response_model=control.ResControl)
-        self.add_api_route("/sdapi/v1/extra-single-image", self.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage)
-        self.add_api_route("/sdapi/v1/extra-batch-images", self.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch)
+        self.add_api_route("/sdapi/v1/extra-single-image", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage)
+        self.add_api_route("/sdapi/v1/extra-batch-images", self.process.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch)
         self.add_api_route("/sdapi/v1/preprocess", self.process.post_preprocess, methods=["POST"])
         self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"])
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"])
@@ -117,17 +117,25 @@ class Api:
         from modules.civitai import api_civitai
         api_civitai.register_api()
 
-
-    def add_api_route(self, path: str, endpoint, **kwargs):
+    def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
+        if auth and self.credentials:
+            deps = list(kwargs.get('dependencies', []))
+            deps.append(Depends(self.auth))
+            kwargs['dependencies'] = deps
         if shared.opts.subpath is not None and len(shared.opts.subpath) > 0:
-            self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint, **kwargs)
-        self.app.add_api_route(path, endpoint, **kwargs)
+            self.app.add_api_route(f'{shared.opts.subpath}{path}', endpoint=fn, **kwargs)
+        self.app.add_api_route(path, endpoint=fn, **kwargs)
 
     def auth(self, credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
-        # this is only needed for api-only since otherwise auth is handled in gradio/routes.py
+        if not self.credentials:
+            return True
         if credentials.username in self.credentials:
             if compare_digest(credentials.password, self.credentials[credentials.username]):
                 return True
+            if hasattr(self.app, 'tokens') and (self.app.tokens is not None):
+                if credentials.password in self.app.tokens.keys():
+                    return True
+        shared.log.error(f'API authentication: user="{credentials.username}" password="{credentials.password}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
     def get_session_start(self, req: Request, agent: Optional[str] = None):
@@ -135,27 +143,6 @@ class Api:
         user = self.app.tokens.get(token) if hasattr(self.app, 'tokens') else None
         shared.log.info(f'Browser session: user={user} client={req.client.host} agent={agent}')
         return {}
-
-    def set_upscalers(self, req: dict):
-        reqDict = vars(req)
-        reqDict['extras_upscaler_1'] = reqDict.pop('upscaler_1', None)
-        reqDict['extras_upscaler_2'] = reqDict.pop('upscaler_2', None)
-        return reqDict
-
-    def extras_single_image_api(self, req: models.ReqProcessImage):
-        reqDict = self.set_upscalers(req)
-        reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
-        with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", save_output=False, **reqDict)
-        return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
-
-    def extras_batch_images_api(self, req: models.ReqProcessBatch):
-        reqDict = self.set_upscalers(req)
-        image_list = reqDict.pop('imageList', [])
-        image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]
-        with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", save_output=False, **reqDict)
-        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, result[0])), html_info=result[1])
 
     def launch(self):
         config = {

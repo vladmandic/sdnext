@@ -77,6 +77,14 @@ def generate(*args, **kwargs):
         if init_image is not None:
             p.task_args['reference_images'] = [images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')]
             shared.log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
+    elif 'Animate' in model:
+        if init_image is None:
+            return video_utils.queue_err('init image not set')
+        p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
+        p.task_args['mode'] = 'animate'
+        p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.
+        p.task_args['face_video'] = [] # input face video to condition the generation on. must be a list of PIL images.
+        shared.log.debug(f'Video: op=Animate init={p.task_args["image"]} pose={p.task_args["pose_video"]} face={p.task_args["face_video"]}')
     else:
         shared.log.warning(f'Video: unknown model type "{model}"')
 

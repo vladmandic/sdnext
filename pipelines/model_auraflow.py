@@ -14,7 +14,7 @@ def load_auraflow(checkpoint_info, diffusers_load_config=None):
     shared.log.debug(f'Load model: type=AuraFlow repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.AuraFlowTransformer2DModel, load_config=diffusers_load_config)
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.UMT5EncoderModel, load_config=diffusers_load_config) # auraflow uses EleutherAI/pile-t5-xl
+    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.UMT5EncoderModel, load_config=diffusers_load_config, allow_shared=False) # auraflow uses EleutherAI/pile-t5-xl
 
     pipe = diffusers.AuraFlowPipeline.from_pretrained(
         repo_id,

@@ -115,10 +115,10 @@ def init_api():
         return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"], auth=False)
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -294,6 +294,7 @@ class ExtraNetworksPage:
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
             subdirs['Community'] = 1
+            subdirs['Cloud'] = 1
             subdirs[diffusers_base] = 1
         if self.name == 'style' and shared.opts.extra_networks_styles:
             subdirs['Local'] = 1
@@ -313,11 +314,13 @@ class ExtraNetworksPage:
             subdirs.move_to_end('Quantized', last=True)
         if 'Community' in subdirs:
             subdirs.move_to_end('Community', last=True)
+        if 'Cloud' in subdirs:
+            subdirs.move_to_end('Cloud', last=True)
         subdirs_html = ''
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community', 'Cloud']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'

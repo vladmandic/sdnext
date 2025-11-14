@@ -153,6 +153,10 @@ async function filterExtraNetworksForTab(searchTerm) {
       cards.forEach((elem) => elem.style.display = elem.dataset.tags
         .toLowerCase()
         .includes('community') ? '' : 'none');
+    } else if (searchTerm === 'cloud/') {
+      cards.forEach((elem) => elem.style.display = elem.dataset.tags
+        .toLowerCase()
+        .includes('cloud') ? '' : 'none');
     } else if (searchTerm === 'quantized/') {
       cards.forEach((elem) => elem.style.display = elem.dataset.tags
         .toLowerCase()
@@ -368,7 +372,7 @@ function selectHistory(id) {
   const headers = new Headers();
   headers.set('Content-Type', 'application/json');
   const init = { method: 'POST', body: { name: id }, headers };
-  fetch(`${window.api}/history`, { method: 'POST', body: JSON.stringify({ name: id }), headers });
+  authFetch(`${window.api}/history`, { method: 'POST', body: JSON.stringify({ name: id }), headers });
 }
 
 let enDirty = false;

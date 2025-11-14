@@ -105,8 +105,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         if p.hr_force or ('Latent' in p.hr_upscaler):
             args["Hires force"] = p.hr_force
             args["Hires steps"] = p.hr_second_pass_steps
-            args["Hires strength"] = p.denoising_strength
-            args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != p.sampler_name else None
+            args["Hires strength"] = p.hr_denoising_strength
+            args["Hires sampler"] = p.hr_sampler_name
             args["Hires CFG scale"] = p.image_cfg_scale
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr

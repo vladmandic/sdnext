@@ -19,7 +19,7 @@ def get_version():
     origin = origin.splitlines()[0]
     version.branch = i.git('rev-parse --abbrev-ref HEAD')
     version.branch = version.branch.splitlines()[0]
-    version.url = origin + '/tree/' + version.branch
+    version.url = origin.removesuffix('.git') + '/tree/' + version.branch
 
     ver = i.git('log --pretty=format:"%h %ad" -1 --date=short')
     ver = ver.splitlines()[0]

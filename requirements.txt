@@ -61,9 +61,7 @@ sentencepiece==0.2.1
 # additional
 blendmodes
 scipy==1.14.1
-torchdiffeq
 scikit-image
-seam-carving
 
 # lint
 ruff

@@ -1,4 +1,5 @@
 import os
+import time
 import gradio as gr
 from PIL import Image
 from modules import shared, scripts_manager, masking, video # pylint: disable=ungrouped-imports
@@ -49,11 +50,14 @@ def initialize():
 
 def interrogate():
     prompt = None
+    if input_source is None or len(input_source) == 0:
+        shared.log.warning('Interrogate: no input source')
+        return prompt
     try:
         from modules.interrogate.interrogate import interrogate as interrogate_fn
         prompt = interrogate_fn(input_source[0])
-    except Exception:
-        pass
+    except Exception as e:
+        shared.log.error(f'Interrogate: {e}')
     return prompt
 
 
@@ -63,6 +67,8 @@ def display_units(num_units):
 
 
 def get_video(filepath: str):
+    if not os.path.exists(filepath):
+        return ''
     try:
         frames, fps, duration, w, h, codec, _cap = video.get_video_params(filepath)
         shared.log.debug(f'Control: input video: path={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec}')
@@ -74,28 +80,69 @@ def get_video(filepath: str):
         return msg
 
 
-def select_input(input_mode, input_image, init_image, init_type, input_resize, input_inpaint, input_video, input_batch, input_folder):
+def process_kanvas(x): # only used when kanvas overrides gr.Image object
+    image = None
+    mask = None
+    try: # try base64 decode
+        t0 = time.time()
+        image_data = x.get('image', '')
+        image_bytes = len(image_data)
+        if image_bytes > 0:
+            from modules.api import helpers
+            image = helpers.decode_base64_to_image(image_data)
+            image = image.convert('RGB')
+        mask_data = x.get('mask', '')
+        mask_bytes = len(mask_data)
+        if mask_bytes > 0:
+            from modules.api import helpers
+            mask = helpers.decode_base64_to_image(mask_data)
+            mask = mask.convert('L')
+        t1 = time.time()
+        shared.log.debug(f'Kanvas: image={image}:{image_bytes} mask={mask}:{mask_bytes} time={t1-t0:.2f}')
+        return image, mask
+    except Exception:
+        pass
+    try: # try raw pixel data
+        import numpy as np
+        t0 = time.time()
+        image_data = list(x.get('image', {}).values())
+        if image_data:
+            width = x['imageWidth']
+            height = x['imageHeight']
+            array = np.array(image_data, dtype=np.uint8).reshape((height, width, 4))
+            image = Image.fromarray(array, 'RGBA')
+            image = image.convert('RGB')
+        mask_data = list(x.get('mask', {}).values())
+        if mask_data:
+            width = x['maskWidth']
+            height = x['maskHeight']
+            array = np.array(mask_data, dtype=np.uint8).reshape((height, width, 4))
+            mask = Image.fromarray(array, 'RGBA')
+            # alpha = mask.getchannel("A").convert("L")
+            # mask = Image.merge("RGB", [alpha, alpha, alpha])
+            mask = mask.convert('L')
+        t1 = time.time()
+        shared.log.debug(f'Kanvas: image={image} mask={mask} time={t1-t0:.2f}')
+    except Exception:
+        pass
+    return image, mask
+
+
+def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
     global busy, input_source, input_init, input_mask # pylint: disable=global-statement
+    t0 = time.time()
     busy = True
-    if input_mode == 'Image':
-        selected_input = input_image
-    elif input_mode == 'Outpaint':
-        selected_input = input_resize
-    elif input_mode == 'Inpaint':
-        selected_input = input_inpaint
-    elif input_mode == 'Video':
+    selected_input = input_image # default: Image or Kanvas
+    if input_mode == 'Video':
         selected_input = input_video
     elif input_mode == 'Batch':
         selected_input = input_batch
     elif input_mode == 'Folder':
         selected_input = input_folder
-    else:
-        selected_input = None
     size = [gr.update(), gr.update()]
     if selected_input is None:
         input_source = None
         busy = False
-        # debug('Control input: none')
         return [gr.Tabs.update(), None, ''] + size
     input_type = type(selected_input)
     input_mask = None
@@ -108,21 +155,29 @@ def select_input(input_mode, input_image, init_image, init_type, input_resize, i
             selected_input, input_mask = masking.outpaint(input_image=selected_input)
         input_source = [selected_input]
         input_type = 'PIL.Image'
-        status = f'Control input | Image | Size {selected_input.width}x{selected_input.height} | Mode {selected_input.mode}'
+        status = f'Control input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
         size = [gr.update(value=selected_input.width), gr.update(value=selected_input.height)]
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
-    elif isinstance(selected_input, dict): # inpaint -> dict image+mask
+    elif isinstance(selected_input, dict) and 'kanvas' in selected_input: # kanvas via js -> kanvas dict
+        selected_input, input_mask = process_kanvas(selected_input)
+        input_source = [selected_input]
+        input_type = 'Kanvas'
+        status = f'Control input | Kanvas | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
+        if selected_input:
+            size = [gr.update(value=selected_input.width), gr.update(value=selected_input.height)]
+        res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
+    elif isinstance(selected_input, dict) and 'mask' in selected_input: # inpaint -> dict image+mask
         input_mask = selected_input['mask']
         selected_input = selected_input['image']
         input_source = [selected_input]
         input_type = 'PIL.Image'
-        status = f'Control input | Image | Size {selected_input.width}x{selected_input.height} | Mode {selected_input.mode}'
+        status = f'Control input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
     elif isinstance(selected_input, gr.components.image.Image): # not likely
         input_source = [selected_input.value]
         input_type = 'gr.Image'
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
-    elif isinstance(selected_input, str): # video via upload > tmp filepath to video
+    elif isinstance(selected_input, str) and os.path.exists(selected_input): # video via upload > tmp filepath to video
         input_source = selected_input
         input_type = 'gr.Video'
         status = get_video(input_source)
@@ -138,14 +193,14 @@ def select_input(input_mode, input_image, init_image, init_type, input_resize, i
         res = [gr.Tabs.update(selected='out-gallery'), input_mask, status]
     else: # unknown
         input_source = None
-    # init inputs: optional
     if init_type == 0: # Control only
         input_init = None
     elif init_type == 1: # Init image same as control assigned during runtime
         input_init = None
     elif init_type == 2: # Separate init image
         input_init = [init_image]
-    debug_log(f'Control select input: type={input_type} source={input_source} init={input_init} mask={input_mask} mode={input_mode}')
+    t1 = time.time()
+    shared.log.debug(f'Select input: type={input_type} source={input_source} init={input_init} mask={input_mask} mode={input_mode} time={t1-t0:.2f}')
     busy = False
     return res + size
 

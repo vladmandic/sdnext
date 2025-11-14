@@ -15,7 +15,7 @@ def get_motd():
     motd = ''
     ver = shared.get_version()
     if ver.get('updated', None) is not None:
-        motd = f"version <b>{ver['hash']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>"
+        motd = f"version <b>{ver['commit']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>" # pylint: disable=use-maxsplit-arg
     if shared.opts.motd:
         try:
             res = requests.get('https://vladmandic.github.io/sdnext/motd', timeout=3)

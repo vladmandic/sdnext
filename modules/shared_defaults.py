@@ -40,16 +40,24 @@ def get_default_modes(cmd_opts, mem_stat):
 
     default_cross_attention = "Scaled-Dot-Product"
 
-    if devices.backend == "zluda":
-        default_sdp_options = ['Math attention', 'Dynamic attention']
-    elif devices.backend in {"rocm", "directml", "cpu", "mps"}:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention']
-    else:
-        default_sdp_options = ['Flash attention', 'Memory attention', 'Math attention']
+    default_sdp_choices = ['Flash', 'Memory', 'Math']
+    default_sdp_options = ['Flash', 'Memory', 'Math']
 
-    default_sdp_choices = ['Flash attention', 'Memory attention', 'Math attention', 'Dynamic attention', 'CK Flash attention', 'Sage attention']
-    if devices.backend in {"rocm", "zluda"}:
-        default_sdp_choices.insert(4, 'Triton Flash attention') # insert after Dynamic attention
+    default_sdp_override_choices = ['Dynamic attention', 'Flex attention', 'Flash attention', 'Sage attention']
+    default_sdp_override_options = []
+
+    if devices.backend == "zluda":
+        default_sdp_options = ['Math']
+        default_sdp_override_options = ['Dynamic attention']
+        default_sdp_override_choices.append('Triton Flash attention')
+    elif devices.backend == "rocm":
+        default_sdp_override_choices.append('Triton Flash attention')
+        import torch
+        if int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100:
+            default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
+    elif devices.backend in {"directml", "cpu", "mps"}:
+        default_sdp_override_options = ['Dynamic attention']
+
 
     return (
         default_offload_mode,
@@ -58,6 +66,8 @@ def get_default_modes(cmd_opts, mem_stat):
         default_cross_attention,
         default_sdp_options,
         default_sdp_choices,
+        default_sdp_override_options,
+        default_sdp_override_choices,
         default_diffusers_offload_always,
-        default_diffusers_offload_never
+        default_diffusers_offload_never,
     )

@@ -68,13 +68,6 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             else:
                 path = f'{v.get("path", "")}'
 
-            ready = reference_downloaded(url)
-            if not ready and shared.opts.offline_mode:
-                count['hidden'] += 1
-                continue
-            if ready:
-                count['ready'] += 1
-
             tag = v.get('tags', '')
             if tag in count:
                 count[tag] += 1
@@ -82,6 +75,16 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 count[tag] = 1
             else:
                 count['base'] += 1
+
+            ready = reference_downloaded(url)
+            version = "ready" if ready else "download"
+            if tag == 'cloud':
+                version = 'cloud'
+            if not ready and shared.opts.offline_mode:
+                count['hidden'] += 1
+                continue
+            if ready:
+                count['ready'] += 1
 
             yield {
                 "type": 'Model',
@@ -97,7 +100,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "info": {},
                 "metadata": {},
                 "description": v.get('desc', ''),
-                "version": "ready" if ready else "download",
+                "version": version,
                 "tags": tag,
             }
         shared.log.debug(f'Networks: type="reference" items={count}')

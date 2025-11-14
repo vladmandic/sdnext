@@ -46,17 +46,24 @@ def apply_styles_to_prompt(prompt, styles):
 
 
 def apply_curly_braces_to_prompt(prompt, seed=-1):
-    # woman with {blonde|brunette|red-head|purple highlights} hair
-    curly_braces_matches = re.findall(r'\{(.*?)\}', prompt)
-    for match in curly_braces_matches:
-        old_state = None
-        if seed > 0:
-            old_state = random.getstate()
-            random.seed(seed)
-        options = match.split('|')
-        if options:
-            choice = random.choice(options).strip()
-            prompt = prompt.replace(f'{{{match}}}', choice, 1)
+    # woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
+    if not isinstance(prompt, str) or len(prompt) == 0:
+        return prompt
+    old_state = None
+    if seed > 0:
+        old_state = random.getstate()
+        random.seed(seed)
+    try:
+        pattern = re.compile(r'\{([^{}]*)\}', re.DOTALL) # innermost braces
+        while True:
+            m = pattern.search(prompt)
+            if not m:
+                break
+            inner = m.group(1)
+            options = [opt.strip() for opt in inner.split('|')]
+            choice = random.choice([o for o in options if o != '']) if options else ''
+            prompt = prompt[:m.start()] + choice + prompt[m.end():] # replace this specific span (slice-based) to avoid accidental other replacements
+    finally:
         if old_state is not None:
             random.setstate(old_state)
     return prompt

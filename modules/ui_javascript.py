@@ -20,12 +20,18 @@ def html_head():
     skip = ['login.js']
     for js in main:
         script_js = os.path.join(script_path, "javascript", js)
-        head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
+        if '.esm' in js or '.mjs' in js:
+            head += f'<script type="module" src="{webpath(script_js)}"></script>\n'
+        else:
+            head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
     added = []
     for script in modules.scripts_manager.list_scripts("javascript", ".js"):
         if script.filename in main or script.filename in skip:
             continue
-        head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
+        if '.esm' in js or '.mjs' in js:
+            head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
+        else:
+            head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
     for script in modules.scripts_manager.list_scripts("javascript", ".mjs"):
         head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
@@ -96,7 +102,6 @@ def reload_javascript():
 
     css_base = theme.reload_gradio_theme()
     css_timesheet = "timesheet.css"
-
     css = html_css([css_base, css_timesheet])
     body = html_body()
 
@@ -111,8 +116,6 @@ def reload_javascript():
         for line in lines:
             if 'meta name="twitter:' in line:
                 res.body = res.body.replace(line.encode("utf8"), b'')
-            # if 'href="https://fonts.googleapis.com"' in line or 'href="https://fonts.gstatic.com"' in line:
-            #     res.body = res.body.replace(line.encode("utf8"), b'')
             if 'iframeResizer.contentWindow.min.js' in line:
                 res.body = res.body.replace(line.encode("utf8"), b'src="file=javascript/iframeResizer.min.js"')
         res.init_headers()

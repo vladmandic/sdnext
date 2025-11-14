@@ -1,3 +1,4 @@
+import time
 from PIL import Image
 import gradio as gr
 import gradio.processing_utils
@@ -11,13 +12,49 @@ original_BlockContext_init = None
 original_Blocks_get_config_file = None
 
 
+def process_kanvas(self, x): # only used when kanvas overrides gr.Image object
+    import numpy as np
+    from modules import errors
+    t0 = time.time()
+    image_data = list(x.get('image', {}).values())
+    image = None
+    mask = None
+    if image_data:
+        width = x['imageWidth']
+        height = x['imageHeight']
+        array = np.array(image_data, dtype=np.uint8).reshape((height, width, 4))
+        image = Image.fromarray(array, 'RGBA')
+        image = image.convert('RGB')
+    mask_data = list(x.get('mask', {}).values())
+    if mask_data:
+        width = x['maskWidth']
+        height = x['maskHeight']
+        array = np.array(mask_data, dtype=np.uint8).reshape((height, width, 4))
+        mask = Image.fromarray(array, 'RGBA')
+        # alpha = mask.getchannel("A").convert("L")
+        # mask = Image.merge("RGB", [alpha, alpha, alpha])
+        mask = mask.convert('L')
+    t1 = time.time()
+    errors.log.debug(f'Kanvas: image={image} mask={mask} time={t1-t0:.2f}')
+    if image is None:
+        return None
+    if mask is None:
+        return self._format_image(image) # pylint: disable=protected-access
+    return { "image": self._format_image(image), "mask": self._format_image(mask) } # pylint: disable=protected-access
+
+
 def gr_image_preprocess(self, x):
     if x is None:
         return x
     mask = None
-    if isinstance(x, dict):
+    if isinstance(x, dict) and "kanvas" in x:
+        return process_kanvas(self, x)
+    if isinstance(x, dict) and "image" in x:
         x, mask = x["image"], x["mask"]
-    im = gradio.processing_utils.decode_base64_to_image(x)
+    if isinstance(x, str):
+        im = gradio.processing_utils.decode_base64_to_image(x)
+    else:
+        im = x
     im = im.convert(self.image_mode)
     if self.shape is not None:
         im = gradio.processing_utils.resize_and_crop(im, self.shape)

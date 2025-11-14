@@ -23,7 +23,7 @@ async function updateIndicator(online, data, msg) {
 
 async function monitorConnection() {
   try {
-    const res = await fetch(`${window.api}/version`);
+    const res = await authFetch(`${window.api}/version`);
     const data = await res.json();
     const url = res.url.split('/sdapi')[0].replace('http', 'ws'); // update global url as ws need fqdn
     const ws = new WebSocket(`${url}/queue/join`);

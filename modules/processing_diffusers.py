@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as TF
 from PIL import Image
-from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks
+from modules import shared, devices, processing, sd_models, errors, sd_hijack_hypertile, processing_vae, sd_models_compile, timer, modelstats, extra_networks, attention
 from modules.processing_helpers import resize_hires, calculate_base_steps, calculate_hires_steps, calculate_refiner_steps, save_intermediate, update_sampler, is_txt2img, is_refiner_enabled, get_job_name
 from modules.processing_args import set_pipeline_args
 from modules.onnx_impl import preprocess_pipeline as preprocess_onnx_pipeline, check_parameters_changed as olive_check_parameters_changed
@@ -497,7 +497,7 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
         orig_pipeline = sd_model # processed ONNX pipeline should not be replaced with original pipeline.
     if getattr(sd_model, "current_attn_name", None) != shared.opts.cross_attention_optimization:
         shared.log.info(f"Setting attention optimization: {shared.opts.cross_attention_optimization}")
-        sd_models.set_diffusers_attention(sd_model)
+        attention.set_diffusers_attention(sd_model)
     return sd_model
 
 
@@ -543,6 +543,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     if len(getattr(p, 'init_images', [])) > 0:
         while len(p.init_images) < len(p.prompts):
             p.init_images.append(p.init_images[-1])
+
     # pipeline type is set earlier in processing, but check for sanity
     is_control = getattr(p, 'is_control', False) is True
     has_images = len(getattr(p, 'init_images', [])) > 0

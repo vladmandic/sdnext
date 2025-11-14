@@ -56,7 +56,7 @@ def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torc
     else:
         weight = self.weight
         scale = self.scale
-        quantized_weight_shape = getattr(self.sdnq_dequantizer, "quantized_weight_shape", None)
+        quantized_weight_shape = self.sdnq_dequantizer.quantized_weight_shape if self.sdnq_dequantizer.is_packed else None
     return int8_matmul(input, weight, self.bias, scale, self.svd_up, self.svd_down, quantized_weight_shape, self.sdnq_dequantizer.weights_dtype)
 
 
