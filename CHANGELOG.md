@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-13
+## Update for 2025-11-14
 
-### Highlights for 2025-11-13
+### Highlights for 2025-11-14
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
 And a first cloud model with **Google's Nano Banana**
@@ -11,7 +11,7 @@ And a first cloud model with **Google's Nano Banana**
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-13
+### Details for 2025-11-14
 
 - **Models**
   - [Google Gemini 2.5 Flash Nano Banana](https://blog.google/products/gemini/gemini-nano-banana-examples/)  
@@ -38,6 +38,7 @@ And a first cloud model with **Google's Nano Banana**
   - pipeline: add optional preprocess and postprocess hooks  
   - auth: wrap all internal api calls with auth check and use token when possible  
   - installer: reduce requirements  
+  - installer: auto-restart on self-update  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
