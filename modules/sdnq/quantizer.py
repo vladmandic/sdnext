@@ -359,27 +359,23 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
             if layer_class_name in allowed_types:
                 if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
-            else:
-                continue
-
-            weights_dtype = get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict)
-            module = sdnq_quantize_layer(
-                module,
-                weights_dtype=weights_dtype,
-                torch_dtype=torch_dtype,
-                group_size=group_size,
-                svd_rank=svd_rank,
-                svd_steps=svd_steps,
-                use_svd=use_svd,
-                quant_conv=quant_conv,
-                use_quantized_matmul=use_quantized_matmul,
-                use_quantized_matmul_conv=use_quantized_matmul_conv,
-                dequantize_fp32=dequantize_fp32,
-                non_blocking=non_blocking,
-                quantization_device=quantization_device,
-                return_device=return_device,
-                param_name=param_name,
-            )
+                module = sdnq_quantize_layer(
+                    module,
+                    weights_dtype=get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict),
+                    torch_dtype=torch_dtype,
+                    group_size=group_size,
+                    svd_rank=svd_rank,
+                    svd_steps=svd_steps,
+                    use_svd=use_svd,
+                    quant_conv=quant_conv,
+                    use_quantized_matmul=use_quantized_matmul,
+                    use_quantized_matmul_conv=use_quantized_matmul_conv,
+                    dequantize_fp32=dequantize_fp32,
+                    non_blocking=non_blocking,
+                    quantization_device=quantization_device,
+                    return_device=return_device,
+                    param_name=param_name,
+                )
         module = apply_sdnq_to_module(
                 module,
                 weights_dtype=weights_dtype,
