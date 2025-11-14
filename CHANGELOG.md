@@ -2,6 +2,10 @@
 
 ## Update for 2025-11-14
 
+### TBD
+
+Merge commit: `f903a36d9`
+
 ### Highlights for 2025-11-14
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
