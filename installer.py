@@ -502,8 +502,14 @@ def branch(folder=None):
     return b
 
 
+# restart process
+def restart():
+    log.critical('Restarting process...')
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+
 # update git repository
-def update(folder, keep_branch = False, rebase = True, restart = False):
+def update(folder, keep_branch = False, rebase = True):
     t_start = time.time()
     try:
         git('config rebase.Autostash true')
@@ -526,10 +532,6 @@ def update(folder, keep_branch = False, rebase = True, restart = False):
             if commit is not None:
                 res = git(f'checkout {commit}', folder)
                 debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
-    if restart:
-        log.critical('Restarting to apply updates...')
-        print('HERE', sys.argv)
-        os.execv(sys.executable, ['python'] + sys.argv)
     ts('update', t_start)
     return res
 
@@ -1594,10 +1596,12 @@ def check_version(reset=True): # pylint: disable=unused-argument
             try:
                 git('add .')
                 git('stash')
-                update('.', keep_branch=True, restart=True)
+                update('.', keep_branch=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
                 log.info(f'Repository upgraded: {ver}')
+                if (ver == latest): # double check
+                    restart()
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')
