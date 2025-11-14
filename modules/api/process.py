@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
 from modules.api.helpers import decode_base64_to_image, encode_pil_to_base64
-from modules import errors, shared, postprocessing
-from modules.api import models, helpers
+from modules import errors, shared
+from modules.api import models
 
 
 processor = None # cached instance of processor
@@ -175,24 +175,3 @@ class APIProcess():
             raise HTTPException(status_code=400, detail="prompt enhancement: invalid type")
         res = models.ResPromptEnhance(prompt=prompt, seed=seed)
         return res
-
-    def set_upscalers(self, req: dict):
-        reqDict = vars(req)
-        reqDict['extras_upscaler_1'] = reqDict.pop('upscaler_1', None)
-        reqDict['extras_upscaler_2'] = reqDict.pop('upscaler_2', None)
-        return reqDict
-
-    def extras_single_image_api(self, req: models.ReqProcessImage):
-        reqDict = self.set_upscalers(req)
-        reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
-        with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", save_output=False, **reqDict)
-        return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
-
-    def extras_batch_images_api(self, req: models.ReqProcessBatch):
-        reqDict = self.set_upscalers(req)
-        image_list = reqDict.pop('imageList', [])
-        image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]
-        with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", save_output=False, **reqDict)
-        return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, result[0])), html_info=result[1])

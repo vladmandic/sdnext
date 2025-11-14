@@ -6,7 +6,7 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images
 from modules.detailer import Detailer
 
 
@@ -239,12 +239,6 @@ class YoloRestorer(Detailer):
             p.detailer_active = 0
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
-
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-        if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
-            shared.log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
-            return np_image
-
         models = []
         if len(shared.opts.detailer_args) > 0:
             models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
@@ -263,7 +257,6 @@ class YoloRestorer(Detailer):
         models_used = []
         np_images = []
         annotated = Image.fromarray(np_image)
-        image = None
 
         for i, model_val in enumerate(models):
             if ':' in model_val:
@@ -278,10 +271,9 @@ class YoloRestorer(Detailer):
                 shared.log.warning(f'Detailer: model="{name}" not loaded')
                 continue
 
-            if name.endswith('.fp16'): # run gfpgan or codeformer directly and skip detailer processing
+            if name.endswith('.fp16'):
                 from modules.postprocess import restorer
                 np_image = restorer.restore(np_image, name, model, p.detailer_strength)
-                image = Image.fromarray(np_image)
                 continue
 
             image = Image.fromarray(np_image)
@@ -310,8 +302,10 @@ class YoloRestorer(Detailer):
             else:
                 negative = negative.replace('[PROMPT]', orig_negative)
                 negative = negative.replace('[prompt]', orig_negative)
-            prompt_lines = 99 * [p.strip() for p in prompt.split('\n')]
-            negative_lines = 99 * [n.strip() for n in negative.split('\n')]
+            prompt_lines = prompt.split('\n')
+            negative_lines = negative.split('\n')
+            prompt = prompt_lines[i % len(prompt_lines)]
+            negative = negative_lines[i % len(negative_lines)]
 
             args = {
                 'detailer': True,
@@ -373,25 +367,16 @@ class YoloRestorer(Detailer):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
-                shared.sd_model.fail_on_switch_error = True
-                pc.prompt = prompt_lines[i*len(items)+j]
-                pc.negative_prompt = negative_lines[i*len(items)+j]
-                pc.prompts = [pc.prompt]
-                pc.negative_prompts = [pc.negative_prompt]
-                pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts)
-                extra_networks.activate(pc, pc.network_data)
+                pc.prompts = [prompt_lines[(i*len(items)+j) % len(prompt_lines)]]
+                pc.negative_prompts = [negative_lines[(i*len(items)+j) % len(negative_lines)]]
                 shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
                 pc.recursion = True
-
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
-                extra_networks.deactivate(pc, force=True)
-                shared.sd_model.fail_on_switch_error = False
                 shared.state.end(jobid)
-
                 del pc.recursion
                 if pp is not None and pp.images is not None and len(pp.images) > 0:
                     image = pp.images[0] # update image to be reused for next item
@@ -418,8 +403,7 @@ class YoloRestorer(Detailer):
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)
 
-        if image is not None:
-            np_images.append(np.array(image))
+        np_images.append(np.array(image))
         if shared.opts.detailer_save and annotated is not None:
             np_images.append(annotated) # save debug image with boxes
         return np_images

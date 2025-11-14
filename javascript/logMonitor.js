@@ -17,24 +17,20 @@ function dateToStr(ts) {
   return s;
 }
 
-function htmlEscape(text) {
-  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-}
-
 async function logMonitor() {
   const addLogLine = (line) => {
     try {
-      const l = JSON.parse(line.replaceAll('\n', ' ').replaceAll('\\', '\\\\'));
+      const l = JSON.parse(line.replaceAll('\n', ' '));
       const row = document.createElement('tr');
       // row.style = 'padding: 10px; margin: 0;';
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === 'WARNING') logWarnings++;
       if (l.level === 'ERROR') logErrors++;
       const module = `<td style="color: var(--var(--neutral-400))">${l.module}</td>`;
-      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${htmlEscape(l.msg)}</td>`;
+      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${l.msg}</td>`;
       logMonitorEl.appendChild(row);
     } catch (e) {
-      error(`logMonitor: ${e}\n${line}`);
+      error(`logMonitor: ${line}`);
     }
   };
 
@@ -74,7 +70,7 @@ async function logMonitor() {
   if (!logMonitorEl) return;
   const atBottom = logMonitorEl.scrollHeight <= (logMonitorEl.scrollTop + logMonitorEl.clientHeight);
   try {
-    const res = await authFetch(`${window.api}/log?clear=True`);
+    const res = await fetch(`${window.api}/log?clear=True`);
     if (res?.ok) {
       logMonitorStatus = true;
       const lines = await res.json();
@@ -123,7 +119,7 @@ async function initLogMonitor() {
     </table>
   `;
   el.style.display = 'none';
-  authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
+  fetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
   log('initLogMonitor');
 }

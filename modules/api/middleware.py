@@ -81,8 +81,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
         if err['code'] == 404 and 'file=html/' in req.url.path: # dont spam with locales
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
 
-        if not any([req.url.path.endswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
-            log.error(f"API error: {req.method}: {req.url} {err}")
+        log.error(f"API error: {req.method}: {req.url} {err}")
 
         if not isinstance(e, HTTPException) and err['error'] != 'TypeError': # do not print backtrace on known httpexceptions
             errors.display(e, 'HTTP API', [anyio, fastapi, uvicorn, starlette])

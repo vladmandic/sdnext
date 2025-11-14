@@ -178,7 +178,7 @@ def fastvlm(question: str, image: Image.Image, repo: str = None):
 
 def qwen(question: str, image: Image.Image, repo: str = None, system_prompt: str = None):
     global processor, model, loaded # pylint: disable=global-statement
-    if (model is None) or (loaded != repo):
+    if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
         if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
@@ -633,7 +633,8 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
     global quant_args # pylint: disable=global-statement
     jobid = shared.state.begin('Interrogate LLM')
     t0 = time.time()
-    quant_args = model_quant.create_config(module='LLM')
+    if quant_args is None:
+        quant_args = model_quant.create_config(module='LLM')
     model_name = model_name or shared.opts.interrogate_vlm_model
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None

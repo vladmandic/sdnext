@@ -68,25 +68,6 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8) ->
     return weight, svd_up, svd_down
 
 
-def prepare_weight_for_matmul(weight: torch.Tensor) -> torch.Tensor:
-    if use_contiguous_mm:
-        weight = weight.contiguous()
-    elif weight.is_contiguous():
-        weight = weight.t_().contiguous().t_()
-    return weight
-
-
-def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTensor, use_quantized_matmul: bool) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-    if svd_up is not None:
-        if use_quantized_matmul:
-            svd_up = prepare_weight_for_matmul(svd_up)
-        else:
-            svd_up = svd_up.contiguous()
-    if svd_down is not None:
-        svd_down = prepare_weight_for_matmul(svd_down)
-    return svd_up, svd_down
-
-
 def check_param_name_in(param_name: str, param_list: List[str]) -> bool:
     split_param_name = param_name.split(".")
     for param in param_list:
@@ -231,7 +212,20 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
                 if use_quantized_matmul:
                     svd_up = svd_up.t_()
                     svd_down = svd_down.t_()
-                svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, use_quantized_matmul)
+                    if use_contiguous_mm:
+                        svd_up = svd_up.contiguous()
+                        svd_down = svd_down.contiguous()
+                    else:
+                        if svd_up.is_contiguous():
+                            svd_up = svd_up.t_().contiguous().t_()
+                        if svd_down.is_contiguous():
+                            svd_down = svd_down.t_().contiguous().t_()
+                else:
+                    svd_up = svd_up.contiguous()
+                    if use_contiguous_mm:
+                        svd_down = svd_down.contiguous()
+                    elif svd_down.is_contiguous():
+                        svd_down = svd_down.t_().contiguous().t_()
             except Exception:
                 svd_up, svd_down = None, None
         else:
@@ -301,7 +295,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         if use_quantized_matmul and not re_quantize_for_matmul:
             scale.t_()
             layer.weight.t_()
-            layer.weight.data = prepare_weight_for_matmul(layer.weight)
+            if use_contiguous_mm:
+                layer.weight.data = layer.weight.contiguous()
+            elif layer.weight.is_contiguous():
+                layer.weight.data = layer.weight.t_().contiguous().t_()
             if not use_tensorwise_fp8_matmul and not dtype_dict[weights_dtype]["is_integer"]:
                 scale = scale.to(dtype=torch.float32)
 
@@ -321,13 +318,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
             layer.svd_up, layer.svd_down = None, None
 
         layer.sdnq_dequantizer = dequantizer_dict[weights_dtype](
+            quantized_weight_shape=layer.weight.shape,
             result_dtype=torch_dtype,
             result_shape=result_shape,
             original_shape=original_shape,
-            quantized_weight_shape=layer.weight.shape,
             weights_dtype=weights_dtype,
-            group_size=group_size,
-            svd_rank=svd_rank,
             use_quantized_matmul=use_quantized_matmul,
             re_quantize_for_matmul=re_quantize_for_matmul,
         )
@@ -359,23 +354,27 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
             if layer_class_name in allowed_types:
                 if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
-                module = sdnq_quantize_layer(
-                    module,
-                    weights_dtype=get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict),
-                    torch_dtype=torch_dtype,
-                    group_size=group_size,
-                    svd_rank=svd_rank,
-                    svd_steps=svd_steps,
-                    use_svd=use_svd,
-                    quant_conv=quant_conv,
-                    use_quantized_matmul=use_quantized_matmul,
-                    use_quantized_matmul_conv=use_quantized_matmul_conv,
-                    dequantize_fp32=dequantize_fp32,
-                    non_blocking=non_blocking,
-                    quantization_device=quantization_device,
-                    return_device=return_device,
-                    param_name=param_name,
-                )
+            else:
+                continue
+
+            weights_dtype = get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict)
+            module = sdnq_quantize_layer(
+                module,
+                weights_dtype=weights_dtype,
+                torch_dtype=torch_dtype,
+                group_size=group_size,
+                svd_rank=svd_rank,
+                svd_steps=svd_steps,
+                use_svd=use_svd,
+                quant_conv=quant_conv,
+                use_quantized_matmul=use_quantized_matmul,
+                use_quantized_matmul_conv=use_quantized_matmul_conv,
+                dequantize_fp32=dequantize_fp32,
+                non_blocking=non_blocking,
+                quantization_device=quantization_device,
+                return_device=return_device,
+                param_name=param_name,
+            )
         module = apply_sdnq_to_module(
                 module,
                 weights_dtype=weights_dtype,
@@ -419,13 +418,6 @@ def sdnq_post_load_quant(
     modules_dtype_dict: Dict[str, List[str]] = None,
     op=None,
 ):
-    if modules_to_not_convert is None:
-        modules_to_not_convert = []
-    if modules_dtype_dict is None:
-        modules_dtype_dict = {}
-
-    modules_to_not_convert = modules_to_not_convert.copy()
-    modules_dtype_dict = modules_dtype_dict.copy()
     if add_skip_keys:
         model, modules_to_not_convert, modules_dtype_dict = add_module_skip_keys(model, modules_to_not_convert, modules_dtype_dict)
 
@@ -446,7 +438,7 @@ def sdnq_post_load_quant(
         quantization_device=quantization_device,
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
-        modules_dtype_dict=modules_dtype_dict,
+        modules_dtype_dict=modules_dtype_dict.copy(),
         op=op,
     )
     model.quantization_config = SDNQConfig(
@@ -463,15 +455,12 @@ def sdnq_post_load_quant(
         quantization_device=quantization_device,
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
-        modules_dtype_dict=modules_dtype_dict,
+        modules_dtype_dict=modules_dtype_dict.copy(),
     )
 
     if hasattr(model, "config"):
         try:
             model.config.quantization_config = model.quantization_config
-        except Exception:
-            pass
-        try:
             model.config["quantization_config"] = model.quantization_config.to_dict()
         except Exception:
             pass
@@ -554,14 +543,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                     param_value = param_value.clone()
                 else:
                     param_value = param_value.to(target_device, dtype=return_dtype)
-
-                if tensor_name == "weight" and layer.sdnq_dequantizer.use_quantized_matmul and not layer.sdnq_dequantizer.re_quantize_for_matmul:
-                    param_value = prepare_weight_for_matmul(param_value)
-                elif tensor_name == "svd_up":
-                    param_value, _ = prepare_svd_for_matmul(param_value, None, layer.sdnq_dequantizer.use_quantized_matmul)
-                elif tensor_name == "svd_down":
-                    _, param_value = prepare_svd_for_matmul(None, param_value, layer.sdnq_dequantizer.use_quantized_matmul)
-
                 param_value = torch.nn.Parameter(param_value, requires_grad=False)
             setattr(layer, tensor_name, param_value)
             return
@@ -645,9 +626,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         if hasattr(model, "config"):
             try:
                 model.config.quantization_config = self.quantization_config
-            except Exception:
-                pass
-            try:
                 model.config["quantization_config"] = self.quantization_config.to_dict()
             except Exception:
                 pass
@@ -677,17 +655,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             del model.quantization_method
         if hasattr(model, "quantization_config"):
             del model.quantization_config
-        if hasattr(model, "config"):
-            try:
-                if hasattr(model.config, "quantization_config"):
-                    del model.config.quantization_config
-            except Exception:
-                pass
-            try:
-                if hasattr(model.config, "pop"):
-                    model.config.pop("quantization_config", None)
-            except Exception:
-                pass
+        if hasattr(model, "config") and hasattr(model.config, "quantization_config"):
+            del model.config.quantization_config
         return model
 
     def is_serializable(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument, invalid-overridden-method
@@ -803,7 +772,6 @@ class SDNQConfig(QuantizationConfigMixin):
         elif not isinstance(self.modules_dtype_dict, dict):
             raise ValueError(f"modules_dtype_dict must be a dict but got {type(self.modules_dtype_dict)}")
         elif len(self.modules_dtype_dict.keys()) > 0:
-            self.modules_dtype_dict = self.modules_dtype_dict.copy()
             for key, value in self.modules_dtype_dict.items():
                 if isinstance(value, str):
                     value = [value]
@@ -813,9 +781,6 @@ class SDNQConfig(QuantizationConfigMixin):
                     self.modules_dtype_dict[key] = value
                 if not isinstance(key, str) or not isinstance(value, list):
                     raise ValueError(f"modules_dtype_dict must be a dictionary of strings and lists but got {type(key)} and {type(value)}")
-
-        self.modules_to_not_convert = self.modules_to_not_convert.copy()
-        self.modules_dtype_dict = self.modules_dtype_dict.copy()
 
     def to_dict(self):
         dct = self.__dict__.copy() # make serializable

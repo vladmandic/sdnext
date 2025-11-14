@@ -127,12 +127,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'X-Omni'
     elif 'sdxl-turbo' in fn.lower() or 'stable-diffusion-xl' in fn.lower():
         new_guess = 'Stable Diffusion XL'
-    elif 'stable-video-diffusion' in fn.lower():
-        new_guess = 'StableVideoDiffusion'
-    elif 'prx-' in fn.lower():
-        new_guess = 'PRX'
-    elif 'gemini-2.5-flash-image' in fn.lower():
-        new_guess = 'NanoBanana'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
@@ -162,22 +156,11 @@ def guess_by_diffusers(fn, current_guess):
                 if folder.endswith('quantization_config.json'):
                     is_quant = True
                     break
-                if folder.endswith('config.json'):
-                    quantization_config = shared.readfile(folder, silent=True).get("quantization_config", None)
-                    if quantization_config is not None:
-                        is_quant = True
-                        break
                 if os.path.isdir(folder):
                     for f in os.listdir(folder):
-                        f = os.path.join(folder, f)
                         if f.endswith('quantization_config.json'):
                             is_quant = True
                             break
-                        if f.endswith('config.json'):
-                            quantization_config = shared.readfile(f, silent=True).get("quantization_config", None)
-                            if quantization_config is not None:
-                                is_quant = True
-                                break
             pipelines = shared_items.get_pipelines()
             for k, v in pipelines.items():
                 if v is not None and v.__name__ == pipeline.__name__:

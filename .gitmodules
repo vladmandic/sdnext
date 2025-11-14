@@ -17,6 +17,3 @@
 [submodule "extensions-builtin/sdnext-modernui"]
   path = extensions-builtin/sdnext-modernui
   url = https://github.com/BinaryQuantumSoul/sdnext-modernui
-[submodule "extensions-builtin/sdnext-kanvas"]
-	path = extensions-builtin/sdnext-kanvas
-	url = https://github.com/vladmandic/sdnext-kanvas

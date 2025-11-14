@@ -14,8 +14,6 @@ def get_model_type(pipe):
         model_type = 'sdxl'
     elif "StableDiffusion" in name:
         model_type = 'sd'
-    elif "StableVideoDiffusion" in name:
-        model_type = 'svd'
     elif "LatentConsistencyModel" in name:
         model_type = 'sd' # lcm is compatible with sd
     elif "InstaFlowPipeline" in name:
@@ -66,8 +64,6 @@ def get_model_type(pipe):
         model_type = 'nextstep'
     elif 'X-Omni' in name:
         model_type = 'x-omni'
-    elif 'Photoroom' in name:
-        model_type = 'prx'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
@@ -90,9 +86,6 @@ def get_model_type(pipe):
         model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:
         model_type = 'hunyuanimage'
-    # cloud models
-    elif 'NanoBanana' in name:
-        model_type = 'nanobanana'
     else:
         model_type = name
     return model_type

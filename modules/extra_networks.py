@@ -58,7 +58,7 @@ class ExtraNetwork:
         """
         raise NotImplementedError
 
-    def deactivate(self, p, force=False):
+    def deactivate(self, p):
         """
         Called at the end of processing for housekeeping. No need to do anything here.
         """
@@ -123,7 +123,7 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         shared.opts.data['lora_functional'] = functional
 
 
-def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
+def deactivate(p, extra_network_data=None):
     """call deactivate for extra networks in extra_network_data in specified order, then call deactivate for all remaining registered networks"""
     if p.disable_extra_networks:
         return
@@ -135,7 +135,7 @@ def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
         if extra_network is None:
             continue
         try:
-            extra_network.deactivate(p, force=force)
+            extra_network.deactivate(p)
         except Exception as e:
             errors.display(e, f"deactivating extra network {extra_network_name}")
 
@@ -144,7 +144,7 @@ def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
         if args is not None:
             continue
         try:
-            extra_network.deactivate(p, force=force)
+            extra_network.deactivate(p)
         except Exception as e:
             errors.display(e, f"deactivating unmentioned extra network {extra_network_name}")
 
@@ -154,8 +154,6 @@ re_extra_net = re.compile(r"<(\w+):([^>]+)>")
 
 def parse_prompt(prompt):
     res = defaultdict(list)
-    if prompt is None:
-        return prompt, res
 
     def found(m):
         name = m.group(1)
@@ -172,8 +170,6 @@ def parse_prompt(prompt):
 def parse_prompts(prompts):
     res = []
     extra_data = None
-    if prompts is None:
-        return prompts, extra_data
 
     for prompt in prompts:
         updated_prompt, parsed_extra_data = parse_prompt(prompt)

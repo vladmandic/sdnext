@@ -10,7 +10,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
@@ -49,7 +49,6 @@ pipe_switch_task_exclude = [
     'HunyuanImagePipeline',
     'AuraFlowPipeline',
     'ChronoEditPipeline',
-    'GoogleNanoBananaPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -85,39 +84,33 @@ def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
             ops['no-half'] = True
     if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'enable_slicing') and hasattr(sd_model.vae, 'disable_slicing'):
         ops['slicing'] = shared.opts.diffusers_vae_slicing
-        try:
-            if shared.opts.diffusers_vae_slicing:
-                sd_model.vae.enable_slicing()
-            else:
-                sd_model.vae.disable_slicing()
-        except Exception:
-            pass
+        if shared.opts.diffusers_vae_slicing:
+            sd_model.vae.enable_slicing()
+        else:
+            sd_model.vae.disable_slicing()
     if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'enable_tiling') and hasattr(sd_model.vae, 'disable_tiling'):
         ops['tiling'] = shared.opts.diffusers_vae_tiling
-        try:
-            if shared.opts.diffusers_vae_tiling:
-                if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
-                    if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
-                        sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
-                        sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
-                        sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
-                    if shared.opts.diffusers_vae_tile_size > 0:
-                        sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
-                        sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
-                    else:
-                        sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
-                        sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
-                    if shared.opts.diffusers_vae_tile_overlap != 0.25:
-                        sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
-                    else:
-                        sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
-                    ops['tile'] = sd_model.vae.tile_sample_min_size
-                    ops['overlap'] = sd_model.vae.tile_overlap_factor
-                sd_model.vae.enable_tiling()
-            else:
-                sd_model.vae.disable_tiling()
-        except Exception:
-            pass
+        if shared.opts.diffusers_vae_tiling:
+            if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config') and hasattr(sd_model.vae.config, 'sample_size') and isinstance(sd_model.vae.config.sample_size, int):
+                if getattr(sd_model.vae, "tile_sample_min_size_backup", None) is None:
+                    sd_model.vae.tile_sample_min_size_backup = sd_model.vae.tile_sample_min_size
+                    sd_model.vae.tile_latent_min_size_backup = sd_model.vae.tile_latent_min_size
+                    sd_model.vae.tile_overlap_factor_backup = sd_model.vae.tile_overlap_factor
+                if shared.opts.diffusers_vae_tile_size > 0:
+                    sd_model.vae.tile_sample_min_size = int(shared.opts.diffusers_vae_tile_size)
+                    sd_model.vae.tile_latent_min_size = int(shared.opts.diffusers_vae_tile_size / (2 ** (len(sd_model.vae.config.block_out_channels) - 1)))
+                else:
+                    sd_model.vae.tile_sample_min_size = getattr(sd_model.vae, "tile_sample_min_size_backup", sd_model.vae.tile_sample_min_size)
+                    sd_model.vae.tile_latent_min_size = getattr(sd_model.vae, "tile_latent_min_size_backup", sd_model.vae.tile_latent_min_size)
+                if shared.opts.diffusers_vae_tile_overlap != 0.25:
+                    sd_model.vae.tile_overlap_factor = float(shared.opts.diffusers_vae_tile_overlap)
+                else:
+                    sd_model.vae.tile_overlap_factor = getattr(sd_model.vae, "tile_overlap_factor_backup", sd_model.vae.tile_overlap_factor)
+                ops['tile'] = sd_model.vae.tile_sample_min_size
+                ops['overlap'] = sd_model.vae.tile_overlap_factor
+            sd_model.vae.enable_tiling()
+        else:
+            sd_model.vae.disable_tiling()
     if hasattr(sd_model, "vqvae"):
         ops['upcast'] = True
         sd_model.vqvae.to(torch.float32) # vqvae is producing nans in fp16
@@ -137,7 +130,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
 
     clear_caches()
     set_vae_options(sd_model, vae, op, quiet)
-    attention.set_diffusers_attention(sd_model, quiet)
+    set_diffusers_attention(sd_model, quiet)
 
     if shared.opts.diffusers_fuse_projections and hasattr(sd_model, 'fuse_qkv_projections'):
         try:
@@ -422,14 +415,6 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_xomni import load_xomni
             sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
-        elif model_type in ['NanoBanana']:
-            from pipelines.model_google import load_nanobanana
-            sd_model = load_nanobanana(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
-        elif model_type in ['PRX']:
-            from pipelines.model_prx import load_prx
-            sd_model = load_prx(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
@@ -574,16 +559,11 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 def load_sdnq_module(fn: str, module_name: str, load_method: str):
     from modules import sdnq
     t0 = time.time()
-    quantization_config = None
     quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
-    model_config_path = os.path.join(fn, module_name, 'config.json')
-    if os.path.exists(quantization_config_path):
-        quantization_config = shared.readfile(quantization_config_path, silent=True)
-    elif os.path.exists(model_config_path):
-        quantization_config = shared.readfile(model_config_path, silent=True).get("quantization_config", None)
-    if quantization_config is None:
+    if not os.path.exists(quantization_config_path):
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
+    quantization_config = shared.readfile(quantization_config_path, silent=True)
     try:
         module = sdnq.load_sdnq_model(
             model_path=model_name,
@@ -872,7 +852,6 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         modelstats.analyze()
 
     shared.log.info(f"Load {op}: family={shared.sd_model_type} time={timer.load.dct()} native={get_native(sd_model)} memory={memory_stats()}")
-    shared.opts.save(silent=True)
 
 
 class DiffusersTaskType(Enum):
@@ -1104,50 +1083,51 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     if 'Onnx' in cls:
         return pipe
 
+    new_pipe = None
     # in some cases we want to reset the pipeline to parent as they dont have their own variants
-    if (new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE) or (new_pipe_type == DiffusersTaskType.INPAINTING):
+    if new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE or new_pipe_type == DiffusersTaskType.INPAINTING:
         if cls == 'StableDiffusionPAGPipeline':
             pipe = switch_pipe(diffusers.StableDiffusionPipeline, pipe)
         if cls == 'StableDiffusionXLPAGPipeline':
             pipe = switch_pipe(diffusers.StableDiffusionXLPipeline, pipe)
 
-    new_pipe = None
     components_backup = backup_pipe_components(pipe)
 
-    if hasattr(pipe, 'config'): # real pipeline which can be auto-switched
-        try:
-            if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
-                new_pipe = diffusers.AutoPipelineForText2Image.from_pipe(pipe)
-            elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
-                new_pipe = diffusers.AutoPipelineForImage2Image.from_pipe(pipe)
-            elif new_pipe_type == DiffusersTaskType.INPAINTING:
-                new_pipe = diffusers.AutoPipelineForInpainting.from_pipe(pipe)
-            else:
-                shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
+    if new_pipe is None:
+        if hasattr(pipe, 'config'): # real pipeline which can be auto-switched
+            try:
+                if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
+                    new_pipe = diffusers.AutoPipelineForText2Image.from_pipe(pipe)
+                elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
+                    new_pipe = diffusers.AutoPipelineForImage2Image.from_pipe(pipe)
+                elif new_pipe_type == DiffusersTaskType.INPAINTING:
+                    new_pipe = diffusers.AutoPipelineForInpainting.from_pipe(pipe)
+                else:
+                    shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
+                    return pipe
+            except Exception as e: # pylint: disable=unused-variable
+                fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+                shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
+                shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
+                has_errors = True
+        if not hasattr(pipe, 'config') or has_errors:
+            try: # maybe a wrapper pipeline so just change the class
+                if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
+                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                    new_pipe = pipe
+                elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
+                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                    new_pipe = pipe
+                elif new_pipe_type == DiffusersTaskType.INPAINTING:
+                    pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
+                    new_pipe = pipe
+                else:
+                    shared.log.error(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls}')
+                    return pipe
+            except Exception as e: # pylint: disable=unused-variable
+                shared.log.warning(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls} {e}')
+                has_errors = True
                 return pipe
-        except Exception as e: # pylint: disable=unused-variable
-            fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
-            shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls} {e}')
-            has_errors = True
-    if not hasattr(pipe, 'config') or has_errors:
-        try: # maybe a wrapper pipeline so just change the class
-            if new_pipe_type == DiffusersTaskType.TEXT_2_IMAGE:
-                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                new_pipe = pipe
-            elif new_pipe_type == DiffusersTaskType.IMAGE_2_IMAGE:
-                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                new_pipe = pipe
-            elif new_pipe_type == DiffusersTaskType.INPAINTING:
-                pipe.__class__ = diffusers.pipelines.auto_pipeline._get_task_class(diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING, cls) # pylint: disable=protected-access
-                new_pipe = pipe
-            else:
-                shared.log.error(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls}')
-                return pipe
-        except Exception as e: # pylint: disable=unused-variable
-            shared.log.warning(f'Pipeline class set failed: type={new_pipe_type} pipeline={cls} {e}')
-            has_errors = True
-            return pipe
 
     if new_pipe is None:
         return pipe
@@ -1170,6 +1150,60 @@ def set_diffuser_pipe(pipe, new_pipe_type):
     shared.log.debug(f"Pipeline class change: original={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
     pipe = new_pipe
     return pipe
+
+
+def set_diffusers_attention(pipe, quiet:bool=False):
+    import diffusers.models.attention_processor as p
+
+    def set_attn(pipe, attention, name:str=None, quiet:bool=False):
+        if attention is None:
+            return
+        # other models uses their own attention processor
+        if pipe.__class__.__name__.startswith("StableDiffusion") and getattr(pipe, "unet", None) is not None and hasattr(pipe.unet, "set_attn_processor"):
+            try:
+                pipe.unet.set_attn_processor(attention)
+            except Exception as e:
+                if 'Nunchaku' in pipe.unet.__class__.__name__:
+                    pass
+                else:
+                    shared.log.error(f"Attention: {name if name is not None else attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}")
+        elif not quiet:
+            shared.log.warning(f"Attention: {name if name is not None else attention.__class__.__name__} is not compatible with {pipe.__class__.__name__}")
+
+    # if hasattr(pipe, 'pipe'):
+    #    set_diffusers_attention(pipe.pipe)
+
+    if 'Control' in pipe.__class__.__name__ or 'Adapter' in pipe.__class__.__name__ or not (pipe.__class__.__name__.startswith("StableDiffusion") and hasattr(pipe, "unet")):
+        if shared.opts.cross_attention_optimization not in {"Scaled-Dot-Product", "Disabled"}:
+            shared.log.warning(f"Attention: {shared.opts.cross_attention_optimization} is not compatible with {pipe.__class__.__name__}")
+        else:
+            pipe.current_attn_name = shared.opts.cross_attention_optimization
+        return
+
+    shared.log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
+    if shared.opts.cross_attention_optimization == "Disabled":
+        pass # do nothing
+    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product": # The default set by Diffusers
+        set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product", quiet=True)
+    elif shared.opts.cross_attention_optimization == "xFormers":
+        if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
+            pipe.enable_xformers_memory_efficient_attention()
+        else:
+            shared.log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
+    elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
+        set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
+    elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
+        from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
+        set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
+
+    if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
+        if shared.opts.attention_slicing:
+            pipe.enable_attention_slicing()
+        else:
+            pipe.disable_attention_slicing()
+        shared.log.debug(f"Attention: slicing={shared.opts.attention_slicing}")
+
+    pipe.current_attn_name = shared.opts.cross_attention_optimization
 
 
 def add_noise_pred_to_diffusers_callback(pipe):
@@ -1273,7 +1307,6 @@ def clear_caches(full:bool=False):
 
 
 def unload_model_weights(op='model'):
-    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     clear_caches(full=True)
     if shared.compiled_model_state is not None:
         shared.compiled_model_state.compiled_cache.clear()
@@ -1286,14 +1319,14 @@ def unload_model_weights(op='model'):
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None
         devices.torch_gc(force=True, reason='unload')
-        shared.log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
+        shared.log.debug(f'Unload {op}: {memory_stats()} after')
     elif (op == 'refiner') and model_data.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
         disable_offload(model_data.sd_refiner)
         move_model(model_data.sd_refiner, 'meta')
         model_data.sd_refiner = None
         devices.torch_gc(force=True, reason='unload')
-        shared.log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
+        shared.log.debug(f'Unload {op}: {memory_stats()}')
 
 
 def hf_auth_check(checkpoint_info, force:bool=False):

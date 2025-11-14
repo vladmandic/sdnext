@@ -228,7 +228,7 @@ class MarigoldPipeline(DiffusionPipeline):
         depth_pred = (depth_pred - min_d) / (max_d - min_d)
 
         # Convert to numpy
-        depth_pred = depth_pred.to(torch.float32).cpu().numpy()
+        depth_pred = depth_pred.cpu().numpy().astype(np.float32)
 
         # Resize back to original resolution
         if match_input_res:

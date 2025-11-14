@@ -1,4 +1,3 @@
-import torch
 from PIL import Image
 from modules.control.util import HWC3, resize_image
 from modules import devices
@@ -29,7 +28,7 @@ class MarigoldDetector:
         color_map: str = "Spectral",
         output_type=None,
     ):
-        self.model.to(device=devices.device, dtype=torch.float16)
+        self.model.to(device=devices.device, dtype=devices.dtype)
         res = self.model(
             input_image,
             denoising_steps=denoising_steps,

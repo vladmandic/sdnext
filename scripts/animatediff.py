@@ -82,14 +82,6 @@ def set_adapter(adapter_name: str = 'None'):
         sd_models.set_diffuser_options(motion_adapter, vae=None, op='adapter')
         loaded_adapter = adapter_name
         new_pipe = None
-
-        if 'Model' in shared.opts.sdnq_quantize_weights:
-            shared.log.debug(f'AnimateDiff: sdnq={shared.opts.sdnq_quantize_weights} reloading model weights')
-            prev_opts = shared.opts.sdnq_quantize_weights
-            shared.opts.sdnq_quantize_weights = []
-            sd_models.reload_model_weights(force=True)
-            shared.opts.sdnq_quantize_weights = prev_opts
-
         if shared.sd_model_type == 'sd':
             new_pipe = diffusers.AnimateDiffPipeline(
                 vae=shared.sd_model.vae,
@@ -114,7 +106,6 @@ def set_adapter(adapter_name: str = 'None'):
                 image_encoder=getattr(shared.sd_model, 'image_encoder', None),
                 motion_adapter=motion_adapter,
             )
-
         if new_pipe is None:
             motion_adapter = None
             loaded_adapter = None
@@ -131,8 +122,6 @@ def set_adapter(adapter_name: str = 'None'):
         motion_adapter = None
         loaded_adapter = None
         shared.log.error(f'AnimateDiff load error: adapter="{adapter_name}" {e}')
-        from modules import errors
-        errors.display('e', 'AnimateDiff')
 
 
 def set_scheduler(p, model, override: bool = False):

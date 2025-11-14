@@ -30,7 +30,7 @@ async function updateGPU() {
   const gpuEl = document.getElementById('gpu');
   const gpuTable = document.getElementById('gpu-table');
   try {
-    const res = await authFetch(`${window.api}/gpu`);
+    const res = await fetch(`${window.api}/gpu`);
     if (!res.ok) {
       clearInterval(gpuInterval);
       gpuEl.style.display = 'none';

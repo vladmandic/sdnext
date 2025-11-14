@@ -128,7 +128,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[netw
         if l.debug:
             shared.log.debug(f'Network load: type=LoRA name="{name}" unmatched={keys_failed_to_match}')
     else:
-        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
+        shared.log.debug(f'Network load: type=LoRA name="{name}" type={set(network_types)} keys={len(matched_networks)} dtypes={dtypes} fuse={shared.opts.lora_fuse_diffusers}')
     if len(matched_networks) == 0:
         return None
     lora_cache[name] = net
@@ -157,14 +157,11 @@ def maybe_recompile_model(names, te_multipliers):
             recompile_model = True
             shared.compiled_model_state.lora_model = []
     if recompile_model:
-        current_task = sd_models.get_diffusers_task(shared.sd_model)
-        shared.log.debug(f'Compile: task={current_task} force model reload')
         backup_cuda_compile = shared.opts.cuda_compile
         backup_scheduler = getattr(sd_model, "scheduler", None)
         sd_models.unload_model_weights(op='model')
         shared.opts.cuda_compile = []
         sd_models.reload_model_weights(op='model')
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, current_task)
         shared.opts.cuda_compile = backup_cuda_compile
         if backup_scheduler is not None:
             sd_model.scheduler = backup_scheduler
@@ -250,7 +247,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             try:
                 lora_scale = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
                 lora_module = lora_modules[i] if lora_modules and len(lora_modules) > i else None
-                if recompile_model and shared.compiled_model_state is not None:
+                if recompile_model:
                     shared.compiled_model_state.lora_model.append(f"{name}:{lora_scale}")
                 lora_method = lora_overrides.get_method(shorthash)
                 if lora_method == 'diffusers':
@@ -306,17 +303,13 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 errors.display(e, 'LoRA')
 
     if len(l.loaded_networks) > 0 and l.debug:
-        shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
+        shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)}')
 
     if recompile_model:
         shared.log.info("Network load: type=LoRA recompiling model")
-        if shared.compiled_model_state is not None:
-            backup_lora_model = shared.compiled_model_state.lora_model
-        else:
-            backup_lora_model = []
+        backup_lora_model = shared.compiled_model_state.lora_model
         if 'Model' in shared.opts.cuda_compile:
             sd_model = sd_models_compile.compile_diffusers(sd_model)
-        if shared.compiled_model_state is not None:
-            shared.compiled_model_state.lora_model = backup_lora_model
+        shared.compiled_model_state.lora_model = backup_lora_model
 
     l.timer.load = time.time() - t0

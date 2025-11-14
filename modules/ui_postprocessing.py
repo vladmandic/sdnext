@@ -1,3 +1,4 @@
+import json
 import gradio as gr
 from modules import scripts_manager, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
 
@@ -6,15 +7,12 @@ def submit_info(image):
     from modules.extras import run_pnginfo
     from modules.ui_common import infotext_to_html
     _, geninfo, info = run_pnginfo(image)
-    if hasattr(scripts_manager, 'scripts_postproc'):
-        scripts_manager.scripts_postproc.image_changed()
     return infotext_to_html(geninfo), info, geninfo
 
 
 def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, show_extras_results, save_output, *script_inputs):
-    from modules.ui_common import infotext_to_html
-    result_images, geninfo, _js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, show_extras_results, *script_inputs, save_output=save_output)
-    return result_images, geninfo, infotext_to_html(geninfo)
+    result_images, geninfo, js_info = postprocessing.run_postprocessing(tab_index, extras_image, image_batch, extras_batch_input_dir, extras_batch_output_dir, show_extras_results, *script_inputs, save_output=save_output)
+    return result_images, geninfo, json.dumps(js_info), ''
 
 
 def create_ui():
@@ -46,20 +44,22 @@ def create_ui():
                 skip.click(fn=shared.state.skip, inputs=[], outputs=[])
                 pause = gr.Button('Pause', elem_id=f"{id_part}_pause")
                 pause.click(fn=shared.state.pause, _js='checkPaused', inputs=[], outputs=[])
-            result_images, generation_info, _html_info, html_info_formatted, _html_log = ui_common.create_output_panel("extras")
+            result_images, generation_info, html_info, html_info_formatted, html_log = ui_common.create_output_panel("extras")
             gr.HTML('File metadata')
             exif_info = gr.HTML(elem_id="pnginfo_html_info")
+            gen_info = gr.Textbox(elem_id="pnginfo_gen_info", visible=False)
             with gr.Row(elem_id='copy_buttons_process'):
                 copy_process_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "caption"])
 
         for tabname, button in copy_process_buttons.items():
-            generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=generation_info, source_image_component=extras_image))
+            generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=gen_info, source_image_component=extras_image))
         generation_parameters_copypaste.add_paste_fields("extras", extras_image, None)
 
     tab_single.select(fn=lambda: 0, inputs=[], outputs=[tab_index])
     tab_batch.select(fn=lambda: 1, inputs=[], outputs=[tab_index])
     tab_batch_dir.select(fn=lambda: 2, inputs=[], outputs=[tab_index])
-    extras_image.change(fn=submit_info, inputs=[extras_image], outputs=[html_info_formatted, exif_info, generation_info])
+    extras_image.change(fn=submit_info, inputs=[extras_image], outputs=[html_info_formatted, exif_info, gen_info])
+    extras_image.change(fn=scripts_manager.scripts_postproc.image_changed, inputs=[], outputs=[])
     submit.click(
         _js="submit_postprocessing",
         fn=call_queue.wrap_gradio_gpu_call(submit_process, extra_outputs=[None, ''], name='Postprocess'),
@@ -75,7 +75,8 @@ def create_ui():
         ],
         outputs=[
             result_images,
+            html_info,
             generation_info,
-            html_info_formatted,
+            html_log,
         ]
     )

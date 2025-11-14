@@ -20,7 +20,7 @@ class Dot(dict): # dot notation access to dictionary attributes
 
 
 pkg_resources, setuptools, distutils = None, None, None # defined via ensure_base_requirements
-version = { 'app': 'sd.next', 'updated': 'unknown', 'commit': 'unknown', 'branch': 'unknown', 'url': 'unknown', 'kanvas': 'unknown' }
+version = None
 current_branch = None
 log = logging.getLogger("sd")
 console = None
@@ -502,12 +502,6 @@ def branch(folder=None):
     return b
 
 
-# restart process
-def restart():
-    log.critical('Restarting process...')
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-
 # update git repository
 def update(folder, keep_branch = False, rebase = True):
     t_start = time.time()
@@ -519,19 +513,19 @@ def update(folder, keep_branch = False, rebase = True):
     if keep_branch:
         res = git(f'pull {arg}', folder)
         debug(f'Install update: folder={folder} args={arg} {res}')
+        return res
+    b = branch(folder)
+    if branch is None:
+        res = git(f'pull {arg}', folder)
+        debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
     else:
-        b = branch(folder)
-        if branch is None:
-            res = git(f'pull {arg}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
-        else:
-            res = git(f'pull origin {b} {arg}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
-        if not args.experimental:
-            commit = extensions_commit.get(os.path.basename(folder), None)
-            if commit is not None:
-                res = git(f'checkout {commit}', folder)
-                debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
+        res = git(f'pull origin {b} {arg}', folder)
+        debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+    if not args.experimental:
+        commit = extensions_commit.get(os.path.basename(folder), None)
+        if commit is not None:
+            res = git(f'checkout {commit}', folder)
+            debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
     ts('update', t_start)
     return res
 
@@ -619,7 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = 'cd3bbe2910666880307b84729176203f5785ff7e' # diffusers commit hash
+    sha = 'b3e9dfced7c9e8d00f646c710766b532383f04c6' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -696,6 +690,7 @@ def install_rocm_zluda():
     amd_gpus = []
     try:
         amd_gpus = rocm.get_agents()
+        log.info('ROCm: AMD toolkit detected')
     except Exception as e:
         log.warning(f'ROCm agent enumerator failed: {e}')
 
@@ -721,7 +716,7 @@ def install_rocm_zluda():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
+    if sys.platform == "win32" and args.use_rocm and device is not None and device.therock is not None:
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
         install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
         rocm.refresh()
@@ -732,7 +727,16 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32":
-        if args.use_zluda:
+        if args.use_rocm: # TODO install: switch to pytorch source when it becomes available
+            if device is None:
+                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
+                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+            else:
+                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
+                torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
+        else:
             #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
 
@@ -755,15 +759,6 @@ def install_rocm_zluda():
                 zluda_installer.load()
             except Exception as e:
                 log.warning(f'Failed to load ZLUDA: {e}')
-        else: # TODO install: switch to pytorch source when it becomes available
-            if device is None:
-                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
-            if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
-            else:
-                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
-                torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         if args.use_nightly:
@@ -917,7 +912,7 @@ def check_torch():
 
         if not is_cuda_available and not is_ipex_available and allow_rocm:
             from modules import rocm
-            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or (len(rocm.agents) != 0 if sys.platform == "win32" else rocm.is_installed)) # late eval to avoid unnecessary import
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()
@@ -1214,7 +1209,6 @@ def ensure_base_requirements():
     setuptools_version = '69.5.1'
 
     def update_setuptools():
-        local_log = logging.getLogger('sdnext.installer')
         global pkg_resources, setuptools, distutils # pylint: disable=global-statement
         # python may ship with incompatible setuptools
         subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version}', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1222,27 +1216,12 @@ def ensure_base_requirements():
         modules = [m for m in sys.modules if m.startswith('setuptools') or m.startswith('pkg_resources') or m.startswith('distutils')]
         for m in modules:
             del sys.modules[m]
-        try:
-            setuptools = importlib.import_module('setuptools')
-            sys.modules['setuptools'] = setuptools
-        except ImportError as e:
-            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-            local_log.critical(f'Import: setuptools {e}')
-            os._exit(1)
-        try:
-            distutils = importlib.import_module('distutils')
-            sys.modules['distutils'] = distutils
-        except ImportError as e:
-            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-            local_log.critical(f'Import: distutils {e}')
-            os._exit(1)
-        try:
-            pkg_resources = importlib.import_module('pkg_resources')
-            sys.modules['pkg_resources'] = pkg_resources
-        except ImportError as e:
-            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-            local_log.critical(f'Import: pkg_resources {e}')
-            os._exit(1)
+        setuptools = importlib.import_module('setuptools')
+        sys.modules['setuptools'] = setuptools
+        distutils = importlib.import_module('distutils')
+        sys.modules['distutils'] = distutils
+        pkg_resources = importlib.import_module('pkg_resources')
+        sys.modules['pkg_resources'] = pkg_resources
 
     try:
         global pkg_resources, setuptools # pylint: disable=global-statement
@@ -1441,7 +1420,8 @@ def check_extensions():
 
 def get_version(force=False):
     t_start = time.time()
-    if (version is None) or (version.get('branch', 'unknown') == 'unknown') or force:
+    global version # pylint: disable=global-statement
+    if version is None or force:
         try:
             subprocess.run('git config log.showsignature false', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
         except Exception:
@@ -1449,52 +1429,30 @@ def get_version(force=False):
         try:
             res = subprocess.run('git log --pretty=format:"%h %ad" -1 --date=short', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             ver = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else '  '
-            commit, updated = ver.split(' ')
-            version['commit'], version['updated'] = commit, updated
-        except Exception as e:
-            log.warning(f'Version: where=commit {e}')
-        try:
+            githash, updated = ver.split(' ')
             res = subprocess.run('git remote get-url origin', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             origin = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
             res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
             branch_name = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            version['url'] = origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
-            version['branch'] = branch_name.replace('\n', '')
-            if version['branch'] == 'HEAD':
-                log.warning('Version: detached state detected')
-        except Exception as e:
-            log.warning(f'Version: where=branch {e}')
+            version = {
+                'app': 'sd.next',
+                'updated': updated,
+                'hash': githash,
+                'branch': branch_name.replace('\n', ''),
+                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
+            }
+        except Exception:
+            version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
         cwd = os.getcwd()
         try:
-            if os.path.exists('extensions-builtin/sdnext-modernui'):
-                os.chdir('extensions-builtin/sdnext-modernui')
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-                branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-                branch_ui = 'dev' if 'dev' in branch_ui else 'main'
-                version['ui'] = branch_ui
-            else:
-                version['ui'] = 'unavailable'
-        except Exception as e:
-            log.warning(f'Version: where=modernui {e}')
+            os.chdir('extensions-builtin/sdnext-modernui')
+            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
+            branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
+            branch_ui = 'dev' if 'dev' in branch_ui else 'main'
+            version['ui'] = branch_ui
+        except Exception:
             version['ui'] = 'unknown'
-        finally:
-            os.chdir(cwd)
-        try:
-            if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
-                version['kanvas'] = 'disabled'
-            elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                os.chdir('extensions-builtin/sdnext-kanvas')
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-                branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-                branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
-                version['kanvas'] = branch_kanvas
-            else:
-                version['kanvas'] = 'unavailable'
-        except Exception as e:
-            log.warning(f'Version: where=kanvas {e}')
-            version['kanvas'] = 'unknown'
-        finally:
-            os.chdir(cwd)
+        os.chdir(cwd)
     ts('version', t_start)
     return version
 
@@ -1503,7 +1461,7 @@ def check_ui(ver):
     def same(ver):
         core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
         ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
-        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev') or (core == 'HEAD')
+        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev')
 
     t_start = time.time()
     if not same(ver):
@@ -1570,9 +1528,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
-    branch_name = ver.get('branch', None) if ver is not None else 'master'
-    if branch_name is None or branch_name == 'unknown':
-        branch_name = 'master'
+    branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1586,24 +1542,9 @@ def check_version(reset=True): # pylint: disable=unused-argument
     except ImportError:
         return
     commits = None
-    branch_names = []
-    try:
-        branches = requests.get('https://api.github.com/repos/vladmandic/sdnext/branches', timeout=10).json()
-        branch_names = [b['name'] for b in branches if 'name' in b]
-        log.trace(f'Repository branches: active={branch_name} available={branch_names}')
-    except Exception as e:
-        log.error(f'Repository: failed to get branches: {e}')
-        return
-    if branch_name not in branch_names:
-        log.warning(f'Repository: branch={branch_name} skipping update')
-        ts('latest', t_start)
-        return
     try:
         commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
-        latest = commits['commit']['sha']
-        if len(latest) != 40:
-            log.error(f'Repository error: commit={latest} invalid')
-        elif latest != commit and args.upgrade:
+        if commits['commit']['sha'] != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
@@ -1614,8 +1555,6 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
                 log.info(f'Repository upgraded: {ver}')
-                if (ver == latest): # double check
-                    restart()
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')

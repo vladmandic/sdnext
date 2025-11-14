@@ -242,12 +242,6 @@ try:
                 repo_cls=getattr(diffusers, 'WanVACEPipeline', None),
                 te_cls=getattr(transformers, 'UMT5EncoderModel', None),
                 dit_cls=getattr(diffusers, 'WanVACETransformer3DModel', None)),
-            Model(name='WAN 2.2 Animate 14B',
-                url='https://huggingface.co/Wan-AI/Wan2.2-Animate-14B-Diffusers',
-                repo='Wan-AI/Wan2.2-Animate-14B-Diffusers',
-                repo_cls=getattr(diffusers, 'WanAnimatePipeline', None),
-                te_cls=getattr(transformers, 'UMT5EncoderModel', None),
-                dit_cls=getattr(diffusers, 'WanAnimateTransformer3DModel', None)),
         ],
         'SkyReels V2': [
             Model(name='None'),

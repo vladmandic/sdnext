@@ -64,9 +64,8 @@ def ensemble_depths(
             input_images = downscaler(torch.from_numpy(input_images)).numpy()
 
     # init guess
-    np_img = input_images.reshape((n_img, -1)).to(torch.float32).cpu().numpy()
-    _min = np.min(np_img, axis=1)
-    _max = np.max(np_img, axis=1)
+    _min = np.min(input_images.reshape((n_img, -1)).cpu().numpy(), axis=1)
+    _max = np.max(input_images.reshape((n_img, -1)).cpu().numpy(), axis=1)
     s_init = 1.0 / (_max - _min).reshape((-1, 1, 1))
     t_init = (-1 * s_init.flatten() * _min.flatten()).reshape((-1, 1, 1))
     x = np.concatenate([s_init, t_init]).reshape(-1).astype(np_dtype)
@@ -96,7 +95,7 @@ def ensemble_depths(
         far_err = torch.sqrt((1 - torch.max(pred)) ** 2)
 
         err = sqrt_dist + (near_err + far_err) * regularizer_strength
-        err = err.to(torch.float32).detach().cpu().numpy().astype(np_dtype)
+        err = err.detach().cpu().numpy().astype(np_dtype)
         return err
 
     res = minimize(

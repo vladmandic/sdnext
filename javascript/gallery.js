@@ -185,7 +185,7 @@ async function delayFetchThumb(fn) {
   while (outstanding > 16) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
   outstanding++;
   const ts = Date.now().toString();
-  const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
+  const res = await fetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
   if (!res.ok) {
     error(`fetchThumb: ${res.statusText}`);
     outstanding--;
@@ -552,7 +552,7 @@ async function fetchFilesHT(evt) {
   updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
   let numFiles = 0;
 
-  const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
+  const res = await fetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
     updateStatusWithSort(`Folder: ${evt.target.name} | failed: ${res?.statusText}`);
     return;
@@ -639,7 +639,7 @@ async function pruneImages() {
 
 async function galleryVisible() {
   // if (el.folders.children.length > 0) return;
-  const res = await authFetch(`${window.api}/browser/folders`);
+  const res = await fetch(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
   el.folders.innerHTML = '';
   url = res.url.split('/sdapi')[0].replace('http', 'ws'); // update global url as ws need fqdn

@@ -3,14 +3,8 @@ function controlInputMode(inputMode, ...args) {
   if (updateEl) updateEl.click();
   const tab = gradioApp().querySelector('#control-tab-input button.selected');
   if (!tab) return ['Image', ...args];
-  let inputTab = tab.innerText;
-  log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof Kanvas });
-  if ((inputTab === 'Image') && (typeof 'Kanvas' !== 'undefined')) {
-    inputTab = 'Kanvas';
-    const imageData = window.kanvas.getImage();
-    args[0] = imageData;
-  }
-  return [inputTab, ...args];
+  inputMode = tab.innerText;
+  return [inputMode, ...args];
 }
 
 async function setupControlUI() {

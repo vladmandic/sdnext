@@ -246,10 +246,10 @@ def check_nunchaku(module: str = ''):
 
 
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
+    if dont_quant():
+        return kwargs
     if kwargs is None:
         kwargs = {}
-    if module == 'Model' and dont_quant():
-        return kwargs
     kwargs = create_sdnq_config(kwargs, allow=allow, module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
     if kwargs is not None and 'quantization_config' in kwargs:
         if debug:

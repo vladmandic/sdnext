@@ -73,13 +73,6 @@ if hasattr(torch, "float8_e8m0fnu"):
     dtype_mapping[torch.float8_e8m0fnu] = Type.f8e8m0
 
 
-warned = False
-def warn_once(msg):
-    global warned
-    if not warned:
-        shared.log.warning(msg)
-        warned = True
-
 class OpenVINOGraphModule(torch.nn.Module):
     def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None, file_name="", int_inputs=[]):
         super().__init__()
@@ -135,7 +128,7 @@ def get_device():
         device = "GPU.0"
     else:
         device = core.available_devices[-1]
-        warn_once(f"OpenVINO: device={device} no compatible GPU detected")
+        shared.log.warning(f"OpenVINO: No compatible GPU detected! Using {device}")
     return device
 
 

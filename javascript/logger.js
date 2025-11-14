@@ -54,11 +54,11 @@ const xhrInternal = (xhrObj, data, handler = undefined, errorHandler = undefined
         try {
           const json = JSON.parse(xhrObj.responseText);
           if (handler) handler(json);
-        } catch {
-          // error(`xhr.onreadystatechange: ${e}`);
+        } catch (e) {
+          error(`xhr.onreadystatechange: ${e}`);
         }
       } else {
-        // err(`xhr.onreadystatechange: state=${xhrObj.readyState} status=${xhrObj.status} response=${xhrObj.responseText}`);
+        err(`xhr.onreadystatechange: state=${xhrObj.readyState} status=${xhrObj.status} response=${xhrObj.responseText}`);
       }
     }
   };

@@ -30,15 +30,10 @@ async function main() {
   const headers = new Headers();
   const body = JSON.stringify(sd_options);
   headers.set('Content-Type', 'application/json');
-  if (sd_username && sd_password) {
-    // const credentials = btoa(`${sd_username}:${sd_password}`);
-    const credentials = Buffer.from(`${sd_username}:${sd_password}`).toString('base64');
-    headers.set('Authorization', `Basic ${credentials}`);
-  }
+  if (sd_username && sd_password) headers.set({ Authorization: `Basic ${btoa('sd_username:sd_password')}` });
   const res = await fetch(`${sd_url}/sdapi/v1/txt2img`, { method, headers, body });
   if (res.status !== 200) {
-    const err = await res.text();
-    console.log('Error', res.status, res.statusText, err);
+    console.log('Error', res.status);
   } else {
     const json = await res.json();
     console.log('result:', json.info);

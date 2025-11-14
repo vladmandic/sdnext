@@ -4,17 +4,12 @@
 
 - <https://github.com/users/vladmandic/projects>
 
-## Kanvas
-
-- server-side mask handling vs ui mask handling
-- implement different auto-masking options  
-
 ## Internal
 
 - UI: New inpaint/outpaint interface  
   [Kanvas](https://github.com/vladmandic/kanvas)  
 - Deploy: Create executable for SD.Next  
-- Feature: Integrate natural language image search  
+- Feature: Integrate natural language imagesearch  
   [ImageDB](https://github.com/vladmandic/imagedb)  
 - Feature: Transformers unified cache handler  
 - Feature: Remote Text-Encoder support  

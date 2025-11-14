@@ -1,4 +1,4 @@
-from modules import shared, sd_models, devices, attention
+from modules import shared, sd_models, devices
 from .linfusion import LinFusion
 from .attention import GeneralizedLinearAttention
 
@@ -41,6 +41,6 @@ def unapply(pipeline):
     if applied is None:
         return
     # shared.log.debug('LinFusion: unapply')
-    attention.set_diffusers_attention(pipeline)
+    sd_models.set_diffusers_attention(pipeline)
     devices.torch_gc()
     applied = None

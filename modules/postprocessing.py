@@ -77,10 +77,6 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
             pp.image.info[k] = v
         if 'parameters' in items:
             info = items['parameters'] + ', '
-        if (params.get('size-1', 0) != pp.image.width) or (params.get('size-2', 0) != pp.image.height):
-            params['size-1'] = pp.image.width
-            params['size-2'] = pp.image.height
-            info += f"Size: {pp.image.width}x{pp.image.height}, "
         info = info + ", ".join([k if k == v else f'{k}: {infotext.quote(v)}' for k, v in pp.info.items() if v is not None])
         pp.image.info["postprocessing"] = info
         processed_images.append(pp.image)

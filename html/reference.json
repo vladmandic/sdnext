@@ -912,12 +912,6 @@
     "size": 15.48,
     "date": "2023 April"
   },
-  "Photoroom PRX 1024": {
-    "path": "Photoroom/prx-1024-t2i-beta",
-    "desc": "PRX (Photoroom Experimental) is a 1.3-billion-parameter text-to-image model trained entirely from scratch and released under an Apache 2.0 license.",
-    "preview": "gemini-2.5-flash-image.jpg",
-    "skip": true
-  },
 
   "FLUX.1-Dev sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
@@ -1195,14 +1189,6 @@
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-jaguar.jpg",
     "tags": "community",
-    "skip": true
-  },
-
-  "Google Gemini 2.5 Flash Nano Banana": {
-    "path": "gemini-2.5-flash-image",
-    "desc": "Gemini can generate and process images conversationally. You can prompt Gemini with text, images, or a combination of both allowing you to create, edit, and iterate on visuals with unprecedented control.",
-    "preview": "gemini-2.5-flash-image.jpg",
-    "tags": "cloud",
     "skip": true
   }
 

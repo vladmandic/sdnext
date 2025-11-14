@@ -132,7 +132,7 @@ const getStatus = async () => {
     log('progressInternal:', data);
     if (el) el.innerText += '\nProgress internal:\n' + JSON.stringify(data, null, 2); // eslint-disable-line prefer-template
   }
-  res = await authFetch('./sdapi/v1/progress?skip_current_image=true', { method: 'GET', headers });
+  res = await fetch('./sdapi/v1/progress?skip_current_image=true', { method: 'GET', headers });
   if (res?.ok) {
     data = await res.json();
     log('progressAPI:', data);

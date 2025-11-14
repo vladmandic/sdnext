@@ -474,7 +474,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
     try:
         with devices.inference_context():
-            if isinstance(inputs, str) and os.path.exists(inputs): # only video, the rest is a list
+            if isinstance(inputs, str): # only video, the rest is a list
                 if input_type == 2: # separate init image
                     if isinstance(inits, str) and inits != inputs:
                         shared.log.warning('Control: separate init video not support for video input')
@@ -521,7 +521,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                             yield terminate('Interrupted')
                         return [], '', '', 'Interrupted'
                     # get input
-                    if isinstance(input_image, str) and os.path.exists(input_image):
+                    if isinstance(input_image, str):
                         try:
                             input_image = Image.open(input_image)
                         except Exception as e:

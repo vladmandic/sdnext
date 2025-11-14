@@ -28,11 +28,9 @@ class Script(scripts_manager.Script):
         return True
 
     def dependencies(self):
-        from installer import installed, install, install_insightface
+        from installer import installed, install_insightface
         if not installed('insightface', reload=False, quiet=True):
             install_insightface()
-        if not installed('torchdiffeq'):
-            install('torchdiffeq')
 
     def register(self): # register xyz grid elements
         global registered # pylint: disable=global-statement

@@ -5,7 +5,6 @@ from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
 from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
-import installer
 
 
 gr_height = 512
@@ -186,13 +185,12 @@ def create_ui(_blocks: gr.Blocks=None):
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-input'):
                         input_mode = gr.Label(value='select', visible=False)
                         with gr.Tab('Image', id='in-image') as tab_image:
-                            if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
-                                shared.log.warning(f'Kanvas: status={installer.version["kanvas"]}')
-                                input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
-                            else:
-                                input_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')
-                            input_changed = gr.Button('Kanvas change', elem_id='kanvas-change-button', visible=False)
+                            input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
+                        with gr.Tab('Inpaint', id='in-inpaint') as _tab_inpaint:
+                            input_inpaint = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="sketch", height=gr_height, image_mode='RGB', elem_id='control_input_inpaint', brush_radius=32, mask_opacity=0.6, elem_classes=['control-image'])
+                        with gr.Tab('Outpaint', id='in-outpaint') as _tab_outpaint:
+                            input_resize = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="select", height=gr_height, image_mode='RGB', elem_id='control_input_resize', elem_classes=['control-image'])
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
                         with gr.Tab('Batch', id='in-batch') as tab_batch:
@@ -248,29 +246,28 @@ def create_ui(_blocks: gr.Blocks=None):
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
             btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter], show_progress = False)
             btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter], show_progress = False)
+            btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
 
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
-                inputs=[input_mode, input_image, init_image, input_type, input_video, input_batch, input_folder],
+                inputs=[input_mode, input_image, init_image, input_type, input_resize, input_inpaint, input_video, input_batch, input_folder],
                 outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
                 show_progress=False,
                 queue=False,
             )
 
-            input_changed.click(**select_dict)
-            btn_interrogate.click(**select_dict) # need to fetch input first
-            btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
-
-
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
             btn_generate.click(**select_dict)
-            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
+            for ctrl in [input_image, input_resize, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
                 if hasattr(ctrl, 'change'):
                     ctrl.change(**select_dict)
                 if hasattr(ctrl, 'clear'):
                     ctrl.clear(**select_dict)
+            for ctrl in [input_inpaint]: # gradio image mode inpaint triggeres endless loop on change event
+                if hasattr(ctrl, 'upload'):
+                    ctrl.upload(**select_dict)
 
             tabs_state = gr.Textbox(value='none', visible=False)
             input_fields = [
@@ -385,7 +382,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 # second pass
                 (enable_hr, "Second pass"),
                 (enable_hr, "Refine"),
-                (hr_denoising_strength, "Hires strength"),
+                (denoising_strength, "Denoising strength"),
+                (denoising_strength, "Hires strength"),
                 (hr_sampler_index, "Hires sampler"),
                 (hr_resize_mode, "Hires mode"),
                 (hr_resize_context, "Hires context"),
@@ -412,7 +410,7 @@ def create_ui(_blocks: gr.Blocks=None):
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)
             bindings = generation_parameters_copypaste.ParamBinding(paste_button=btn_paste, tabname="control", source_text_component=prompt, source_image_component=output_gallery)
             generation_parameters_copypaste.register_paste_params_button(bindings)
-            # masking.bind_controls([input_image], preview_process, output_image)
+            masking.bind_controls([input_image, input_inpaint, input_resize], preview_process, output_image)
 
             if os.environ.get('SD_CONTROL_DEBUG', None) is not None: # debug only
                 from modules.control.test import test_processors, test_controlnets, test_adapters, test_xs, test_lite

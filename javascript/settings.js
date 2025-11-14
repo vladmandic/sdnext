@@ -164,7 +164,7 @@ async function initModels() {
   const el = gradioApp().getElementById('main_info');
   const en = gradioApp().getElementById('txt2img_extra_networks');
   if (!el || !en) return;
-  const req = await authFetch(`${window.api}/sd-models`);
+  const req = await fetch(`${window.api}/sd-models`);
   const res = req.ok ? await req.json() : [];
   log('initModels', res.length);
   const ready = () => `
@@ -178,7 +178,7 @@ async function initModels() {
     if (en.classList.contains('hide')) gradioApp().getElementById('txt2img_extra_networks_btn').click();
     const repeat = setInterval(() => {
       const buttons = Array.from(gradioApp().querySelectorAll('#txt2img_model_subdirs > button')) || [];
-      const reference = buttons.find((b) => (b.innerText === 'Reference') || (b.innerText === 'Distilled') || (b.innerText === 'Community') || (b.innerText === 'Quantized') || (b.innerText === 'Cloud'));
+      const reference = buttons.find((b) => (b.innerText === 'Reference') || (b.innerText === 'Distilled') || (b.innerText === 'Community') || (b.innerText === 'Quantized'));
       if (reference) {
         clearInterval(repeat);
         reference.click();

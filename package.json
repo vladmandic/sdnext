@@ -9,7 +9,7 @@
   "homepage": "https://github.com/vladmandic/sdnext",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=14.0.0"
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,7 @@
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
     "packages": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft pytorch_lightning pylint ruff",
-    "eslint": "eslint . javascript/",
+    "eslint": "eslint . javascript/ extensions-builtin/sdnext-modernui/javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "format": ". venv/bin/activate && pre-commit run --all-files",
