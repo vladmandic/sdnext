@@ -512,20 +512,20 @@ def update(folder, keep_branch = False, rebase = True, restart = False):
     arg = '--rebase --force' if rebase else ''
     if keep_branch:
         res = git(f'pull {arg}', folder)
-        debug(f'Install update: folder={folder} args={arg} {res}')
+        log.trace(f'Install update: folder={folder} args={arg} {res}')
     else:
         b = branch(folder)
         if branch is None:
             res = git(f'pull {arg}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+            log.trace(f'Install update: folder={folder} branch={b} args={arg} {res}')
         else:
             res = git(f'pull origin {b} {arg}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+            log.trace(f'Install update: folder={folder} branch={b} args={arg} {res}')
         if not args.experimental:
             commit = extensions_commit.get(os.path.basename(folder), None)
             if commit is not None:
                 res = git(f'checkout {commit}', folder)
-                debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
+                log.trace(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
     if restart:
         log.critical('Restarting application to apply updates...')
         os.execv(sys.executable, ['python'] + sys.argv)
