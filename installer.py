@@ -1555,6 +1555,8 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
                 log.info(f'Repository upgraded: {ver}')
+                if ver == latest: # double check
+                    restart()
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')
