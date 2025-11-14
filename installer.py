@@ -773,9 +773,9 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
         else:
             if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+rocm6.4 torchvision==0.24.0+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
             elif rocm.version == "6.3":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+rocm6.3 torchvision==0.24.0+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
             elif rocm.version == "6.2":
                 # use rocm 6.2.4 instead of 6.2 as torch==2.7.1+rocm6.2 doesn't exists
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+rocm6.2.4 torchvision==0.22.1+rocm6.2.4 --index-url https://download.pytorch.org/whl/rocm6.2.4')
@@ -822,9 +822,9 @@ def install_openvino():
 
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0 torchvision==0.24.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1 torchvision==0.24.1')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.0+cpu torchvision==0.24.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+cpu torchvision==0.24.1 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
         install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
