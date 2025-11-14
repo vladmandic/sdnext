@@ -1460,6 +1460,8 @@ def get_version(force=False):
             branch_name = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
             version['url'] = origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
             version['branch'] = branch_name.replace('\n', '')
+            if version['branch'] == 'HEAD':
+                log.warning('Version: detached state detected')
         except Exception as e:
             log.warning(f'Version: where=branch {e}')
         cwd = os.getcwd()
@@ -1501,7 +1503,7 @@ def check_ui(ver):
     def same(ver):
         core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
         ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
-        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev')
+        return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev') or (core == 'HEAD')
 
     t_start = time.time()
     if not same(ver):
@@ -1584,6 +1586,18 @@ def check_version(reset=True): # pylint: disable=unused-argument
     except ImportError:
         return
     commits = None
+    branch_names = []
+    try:
+        branches = requests.get('https://api.github.com/repos/vladmandic/sdnext/branches', timeout=10).json()
+        branch_names = [b['name'] for b in branches if 'name' in b]
+        log.trace(f'Repository branches: active={branch_name} available={branch_names}')
+    except Exception as e:
+        log.error(f'Repository: failed to get branches: {e}')
+        return
+    if branch_name not in branch_names:
+        log.warning(f'Repository: branch={branch_name} skipping update')
+        ts('latest', t_start)
+        return
     try:
         commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
         latest = commits['commit']['sha']
