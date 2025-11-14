@@ -527,7 +527,8 @@ def update(folder, keep_branch = False, rebase = True, restart = False):
                 res = git(f'checkout {commit}', folder)
                 debug(f'Install update: folder={folder} branch={b} args={arg} commit={commit} {res}')
     if restart:
-        log.critical('Restarting application to apply updates...')
+        log.critical('Restarting to apply updates...')
+        print('HERE', sys.argv)
         os.execv(sys.executable, ['python'] + sys.argv)
     ts('update', t_start)
     return res
@@ -1583,7 +1584,10 @@ def check_version(reset=True): # pylint: disable=unused-argument
     commits = None
     try:
         commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
-        if commits['commit']['sha'] != commit and args.upgrade:
+        latest = commits['commit']['sha']
+        if len(latest) != 40:
+            log.error(f'Repository error: commit={latest} invalid')
+        elif latest != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
