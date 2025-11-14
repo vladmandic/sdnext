@@ -393,7 +393,8 @@ def str_permutations(x):
     return x
 
 
-def list_to_csv_string(data_list):
+def list_to_csv_string(data_list, alt=False):
     with StringIO() as o:
-        csv.writer(o).writerow(data_list)
+        delimiter = "|" if alt else ","
+        csv.writer(o, delimiter=delimiter).writerow(data_list)
         return o.getvalue().strip()

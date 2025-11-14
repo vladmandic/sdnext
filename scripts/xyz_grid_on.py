@@ -62,6 +62,7 @@ class Script(scripts_manager.Script):
                 with gr.Column():
                     draw_legend = gr.Checkbox(label='Draw legend', value=True, elem_id=self.elem_id("draw_legend"), container=False)
                     csv_mode = gr.Checkbox(label='Use text inputs', value=False, elem_id=self.elem_id("csv_mode"), container=False)
+                    csv_alt = gr.Checkbox(label='Delimit using |', value=False, elem_id=self.elem_id("csv_alt"), container=False)
                     no_fixed_seeds = gr.Checkbox(label='Use random seeds', value=False, elem_id=self.elem_id("no_fixed_seeds"), container=False)
                     include_time = gr.Checkbox(label='Add time info', value=False, elem_id=self.elem_id("include_time"), container=False)
                     include_text = gr.Checkbox(label='Add text info', value=False, elem_id=self.elem_id("include_text"), container=False)
@@ -93,21 +94,21 @@ class Script(scripts_manager.Script):
         xz_swap_args = [x_type, x_values, x_values_dropdown, z_type, z_values, z_values_dropdown]
         swap_xz_axes_button.click(swap_axes, inputs=xz_swap_args, outputs=xz_swap_args)
 
-        def fill(axis_type, csv_mode):
+        def fill(axis_type, csv_mode, csv_alt):
             axis = self.current_axis_options[axis_type]
             if axis.choices:
                 if csv_mode:
-                    return list_to_csv_string(axis.choices()), gr.update()
+                    return list_to_csv_string(axis.choices(), csv_alt), gr.update()
                 else:
                     return gr.update(), axis.choices()
             else:
                 return gr.update(), gr.update()
 
-        fill_x_button.click(fn=fill, inputs=[x_type, csv_mode], outputs=[x_values, x_values_dropdown])
-        fill_y_button.click(fn=fill, inputs=[y_type, csv_mode], outputs=[y_values, y_values_dropdown])
-        fill_z_button.click(fn=fill, inputs=[z_type, csv_mode], outputs=[z_values, z_values_dropdown])
+        fill_x_button.click(fn=fill, inputs=[x_type, csv_mode, csv_alt], outputs=[x_values, x_values_dropdown])
+        fill_y_button.click(fn=fill, inputs=[y_type, csv_mode, csv_alt], outputs=[y_values, y_values_dropdown])
+        fill_z_button.click(fn=fill, inputs=[z_type, csv_mode, csv_alt], outputs=[z_values, z_values_dropdown])
 
-        def select_axis(axis_type, axis_values, axis_values_dropdown, csv_mode):
+        def select_axis(axis_type, axis_values, axis_values_dropdown, csv_mode, csv_alt):
             choices = self.current_axis_options[axis_type].choices
             has_choices = choices is not None
             current_values = axis_values
@@ -116,30 +117,39 @@ class Script(scripts_manager.Script):
                 choices = choices()
                 if csv_mode:
                     current_dropdown_values = list(filter(lambda x: x in choices, current_dropdown_values))
-                    current_values = list_to_csv_string(current_dropdown_values)
+                    current_values = list_to_csv_string(current_dropdown_values, csv_alt)
                 else:
-                    current_dropdown_values = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(axis_values)))]
+                    delimiter = '|' if csv_alt or axis_values.find('|') > 0 else ','
+                    current_dropdown_values = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(axis_values), delimiter=delimiter))]
                     current_dropdown_values = list(filter(lambda x: x in choices, current_dropdown_values))
 
             return (gr.Button.update(visible=has_choices), gr.Textbox.update(visible=not has_choices or csv_mode, value=current_values),
                     gr.update(choices=choices if has_choices else None, visible=has_choices and not csv_mode, value=current_dropdown_values))
 
-        x_type.change(fn=select_axis, inputs=[x_type, x_values, x_values_dropdown, csv_mode], outputs=[fill_x_button, x_values, x_values_dropdown])
-        y_type.change(fn=select_axis, inputs=[y_type, y_values, y_values_dropdown, csv_mode], outputs=[fill_y_button, y_values, y_values_dropdown])
-        z_type.change(fn=select_axis, inputs=[z_type, z_values, z_values_dropdown, csv_mode], outputs=[fill_z_button, z_values, z_values_dropdown])
+        x_type.change(fn=select_axis, inputs=[x_type, x_values, x_values_dropdown, csv_mode, csv_alt], outputs=[fill_x_button, x_values, x_values_dropdown])
+        y_type.change(fn=select_axis, inputs=[y_type, y_values, y_values_dropdown, csv_mode, csv_alt], outputs=[fill_y_button, y_values, y_values_dropdown])
+        z_type.change(fn=select_axis, inputs=[z_type, z_values, z_values_dropdown, csv_mode, csv_alt], outputs=[fill_z_button, z_values, z_values_dropdown])
 
-        def change_choice_mode(csv_mode, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown):
-            _fill_x_button, _x_values, _x_values_dropdown = select_axis(x_type, x_values, x_values_dropdown, csv_mode)
-            _fill_y_button, _y_values, _y_values_dropdown = select_axis(y_type, y_values, y_values_dropdown, csv_mode)
-            _fill_z_button, _z_values, _z_values_dropdown = select_axis(z_type, z_values, z_values_dropdown, csv_mode)
+        def change_choice_mode(csv_mode, csv_alt, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown):
+            _fill_x_button, _x_values, _x_values_dropdown = select_axis(x_type, x_values, x_values_dropdown, csv_mode, csv_alt)
+            _fill_y_button, _y_values, _y_values_dropdown = select_axis(y_type, y_values, y_values_dropdown, csv_mode, csv_alt)
+            _fill_z_button, _z_values, _z_values_dropdown = select_axis(z_type, z_values, z_values_dropdown, csv_mode, csv_alt)
             return _fill_x_button, _x_values, _x_values_dropdown, _fill_y_button, _y_values, _y_values_dropdown, _fill_z_button, _z_values, _z_values_dropdown
 
-        csv_mode.change(fn=change_choice_mode, inputs=[csv_mode, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown], outputs=[fill_x_button, x_values, x_values_dropdown, fill_y_button, y_values, y_values_dropdown, fill_z_button, z_values, z_values_dropdown])
+        def replace_csv_delimiter(value, csv_alt):
+            return gr.update(value=value.replace(',', '|') if csv_alt else value.replace('|', ','))
+
+        def change_csv_delimiter(csv_alt, x_values, y_values, z_values):
+            return (replace_csv_delimiter(x_values, csv_alt), replace_csv_delimiter(y_values, csv_alt), replace_csv_delimiter(z_values, csv_alt))
+
+        csv_mode.change(fn=change_choice_mode, inputs=[csv_mode, csv_alt, x_type, x_values, x_values_dropdown, y_type, y_values, y_values_dropdown, z_type, z_values, z_values_dropdown], outputs=[fill_x_button, x_values, x_values_dropdown, fill_y_button, y_values, y_values_dropdown, fill_z_button, z_values, z_values_dropdown])
+        csv_alt.change(fn=change_csv_delimiter, inputs=[csv_alt, x_values, y_values, z_values], outputs=[x_values, y_values, z_values])
 
         def get_dropdown_update_from_params(axis,params):
             val_key = f"{axis} Values"
             vals = params.get(val_key,"")
-            valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals))) if x]
+            delimiter = '|' if csv_alt or vals.find('|') > 0 else ','
+            valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals), delimiter=delimiter)) if x]
             return gr.update(value = valslist)
 
         self.infotext_fields = (
@@ -159,7 +169,7 @@ class Script(scripts_manager.Script):
             x_type, x_values, x_values_dropdown,
             y_type, y_values, y_values_dropdown,
             z_type, z_values, z_values_dropdown,
-            csv_mode, draw_legend, no_fixed_seeds,
+            csv_mode, csv_alt, draw_legend, no_fixed_seeds,
             include_grid, include_subgrids, include_images,
             include_time, include_text, margin_size,
             create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
@@ -170,7 +180,7 @@ class Script(scripts_manager.Script):
                 x_type, x_values, x_values_dropdown,
                 y_type, y_values, y_values_dropdown,
                 z_type, z_values, z_values_dropdown,
-                csv_mode, draw_legend, no_fixed_seeds,
+                csv_mode, csv_alt, draw_legend, no_fixed_seeds,
                 include_grid, include_subgrids, include_images,
                 include_time, include_text, margin_size,
                 create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
@@ -192,7 +202,8 @@ class Script(scripts_manager.Script):
             if opt.choices is not None and not csv_mode:
                 valslist = vals_dropdown
             else:
-                valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals))) if x]
+                delimiter = '|' if csv_alt or vals.find('|') > 0 else ','
+                valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals), delimiter=delimiter)) if x]
             if opt.type == int:
                 valslist_ext = []
                 for val in valslist:
@@ -238,15 +249,15 @@ class Script(scripts_manager.Script):
         try:
             x_opt = self.current_axis_options[x_type]
             if x_opt.choices is not None and not csv_mode:
-                x_values = list_to_csv_string(x_values_dropdown)
+                x_values = list_to_csv_string(x_values_dropdown, csv_alt)
             xs = process_axis(x_opt, x_values, x_values_dropdown)
             y_opt = self.current_axis_options[y_type]
             if y_opt.choices is not None and not csv_mode:
-                y_values = list_to_csv_string(y_values_dropdown)
+                y_values = list_to_csv_string(y_values_dropdown, csv_alt)
             ys = process_axis(y_opt, y_values, y_values_dropdown)
             z_opt = self.current_axis_options[z_type]
             if z_opt.choices is not None and not csv_mode:
-                z_values = list_to_csv_string(z_values_dropdown)
+                z_values = list_to_csv_string(z_values_dropdown, csv_alt)
             zs = process_axis(z_opt, z_values, z_values_dropdown)
         except Exception as e:
             shared.log.error(f"XYZ grid: invalid axis values {e}")
