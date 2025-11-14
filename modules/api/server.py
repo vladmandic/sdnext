@@ -1,6 +1,9 @@
+import os
 import time
 from typing import Any, Dict
-from fastapi import Depends
+from fastapi import Request, Depends
+from fastapi.exceptions import HTTPException
+from fastapi.responses import FileResponse
 from modules import shared
 from modules.api import models, helpers
 
@@ -9,6 +12,32 @@ def post_shutdown():
     shared.log.info('Shutdown request received')
     import sys
     sys.exit(0)
+
+def get_js(request: Request):
+    file = request.query_params.get("file", None)
+    if (file is None) or (len(file) == 0):
+        raise HTTPException(status_code=400, detail="file parameter is required")
+    ext = file.split('.')[-1]
+    if ext not in ['js', 'css', 'map', 'html', 'wasm', 'ttf', 'mjs', 'json']:
+        raise HTTPException(status_code=400, detail=f"invalid file extension: {ext}")
+    if not os.path.exists(file):
+        shared.log.error(f"API: file not found: {file}")
+        raise HTTPException(status_code=404, detail=f"file not found: {file}")
+    if ext in ['js', 'mjs']:
+        media_type = 'application/javascript'
+    elif ext in ['map', 'json']:
+        media_type = 'application/json'
+    elif ext in ['css']:
+        media_type = 'text/css'
+    elif ext in ['html']:
+        media_type = 'text/html'
+    elif ext in ['wasm']:
+        media_type = 'application/wasm'
+    elif ext in ['ttf']:
+        media_type = 'font/ttf'
+    else:
+        media_type = 'application/octet-stream'
+    return FileResponse(file, media_type=media_type)
 
 def get_motd():
     import requests
@@ -120,7 +149,6 @@ def post_skip():
 
 def get_memory():
     try:
-        import os
         import psutil
         process = psutil.Process(os.getpid())
         res = process.memory_info() # only rss is cross-platform guaranteed so we dont rely on other values

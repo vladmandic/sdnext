@@ -8,10 +8,13 @@ import modules.scripts_manager
 
 def webpath(fn):
     if fn.startswith(script_path):
-        web_path = os.path.relpath(fn, script_path).replace('\\', '/')
+        uri = os.path.relpath(fn, script_path)
     else:
-        web_path = os.path.abspath(fn)
-    return f'file={web_path}?{os.path.getmtime(fn)}'
+        uri = fn
+    uri = uri.replace('\\', '/')
+    uri = f'file={uri}?{os.path.getmtime(fn)}'
+    # uri = f'js?file={uri}&{os.path.getmtime(fn)}'
+    return uri
 
 
 def html_head():

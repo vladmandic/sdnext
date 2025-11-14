@@ -35,14 +35,15 @@ And a first cloud model with **Google's Nano Banana**
   - **auth**: strong-enforce auth check on all api endpoints  
   - **amdgpu**: prefer rocm-on-windows over zluda  
 - **Internal**
-  - refactor attention handling  
-  - remove obsolete video scripts  
-  - update global lint rules  
+  - attention: refactor attention handling  
+  - scripts: remove obsolete video scripts  
+  - lint: update global lint rules  
   - chrono: switch to official pipeline  
   - pipeline: add optional preprocess and postprocess hooks  
   - auth: wrap all internal api calls with auth check and use token when possible  
   - installer: reduce requirements  
   - installer: auto-restart on self-update  
+  - server: set correct mime-types  
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  

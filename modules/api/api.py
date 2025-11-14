@@ -37,6 +37,8 @@ class Api:
         self.img2imgapi = self.generate.post_img2img
 
     def register(self):
+        # fetch js/css
+        self.add_api_route("/js", server.get_js, methods=["GET"], auth=False)
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str)
         self.add_api_route("/sdapi/v1/log", server.get_log, methods=["GET"], response_model=List[str])

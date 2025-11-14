@@ -1,16 +1,13 @@
-import mimetypes
 import gradio as gr
 import gradio.routes
 import gradio.utils
 from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager
 from modules.paths import script_path, data_path # pylint: disable=unused-import
+from modules.api import mime
 
 
 errors.install()
-mimetypes.init()
-mimetypes.add_type('application/javascript', '.js')
-mimetypes.add_type('image/webp', '.webp')
-mimetypes.add_type('image/jxl', '.jxl')
+mime.register()
 gr_hijack.init()
 switch_values_symbol = ui_symbols.switch
 detect_image_size_symbol = ui_symbols.detect
