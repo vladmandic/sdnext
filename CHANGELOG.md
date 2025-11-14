@@ -35,6 +35,7 @@ And a first cloud model with **Google's Nano Banana**
   - **auth**: strong-enforce auth check on all api endpoints  
   - **amdgpu**: prefer rocm-on-windows over zluda  
 - **Internal**
+  - torch: update to `torch==2.9.1` for cuda and ipex backends
   - attention: refactor attention handling  
   - scripts: remove obsolete video scripts  
   - lint: update global lint rules  
