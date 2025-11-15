@@ -915,7 +915,7 @@
   "Photoroom PRX 1024": {
     "path": "Photoroom/prx-1024-t2i-beta",
     "desc": "PRX (Photoroom Experimental) is a 1.3-billion-parameter text-to-image model trained entirely from scratch and released under an Apache 2.0 license.",
-    "preview": "gemini-2.5-flash-image.jpg",
+    "preview": "Photoroom--prx-1024-t2i-beta.jpg",
     "skip": true
   },
 
