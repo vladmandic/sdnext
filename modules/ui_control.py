@@ -262,7 +262,6 @@ def create_ui(_blocks: gr.Blocks=None):
             btn_interrogate.click(**select_dict) # need to fetch input first
             btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
 
-
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
             btn_generate.click(**select_dict)
@@ -412,7 +411,11 @@ def create_ui(_blocks: gr.Blocks=None):
             generation_parameters_copypaste.add_paste_fields("control", input_image, paste_fields, override_settings)
             bindings = generation_parameters_copypaste.ParamBinding(paste_button=btn_paste, tabname="control", source_text_component=prompt, source_image_component=output_gallery)
             generation_parameters_copypaste.register_paste_params_button(bindings)
-            # masking.bind_controls([input_image], preview_process, output_image)
+
+            if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
+                masking.bind_controls([input_image], preview_process, output_image)
+            else:
+                masking.bind_kanvas(input_image, preview_process)
 
             if os.environ.get('SD_CONTROL_DEBUG', None) is not None: # debug only
                 from modules.control.test import test_processors, test_controlnets, test_adapters, test_xs, test_lite

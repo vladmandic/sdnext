@@ -133,12 +133,12 @@ MODELS = {
     'Facebook SAM ViT Huge': 'facebook/sam-vit-huge',
     'SlimSAM Uniform': 'Zigeng/SlimSAM-uniform-50',
     'SlimSAM Uniform Tiny': 'Zigeng/SlimSAM-uniform-77',
+    'Rembg BEN2': 'ben2',
     'Rembg Silueta': 'silueta',
     'Rembg U2Net': 'u2net',
-    'Rembg ISNet': 'isnet',
-    # "u2net_human_seg",
-    # "isnet-general-use",
-    # "isnet-anime",
+    'Rembg U2Net human': 'u2net_human_seg',
+    'Rembg ISNet general': 'isnet-general-use',
+    'Rembg ISNet anime': 'isnet-anime',
 }
 COLORMAP = ['autumn', 'bone', 'jet', 'winter', 'rainbow', 'ocean', 'summer', 'spring', 'cool', 'hsv', 'pink', 'hot', 'parula', 'magma', 'inferno', 'plasma', 'viridis', 'cividis', 'twilight', 'shifted', 'turbo', 'deepgreen']
 TYPES = ['None', 'Opaque', 'Binary', 'Masked', 'Grayscale', 'Color', 'Composite']
@@ -152,12 +152,13 @@ controls = []
 opts = SimpleNamespace(**{
     'model': None,
     'auto_mask': 'None',
+    'auto_segment': 'None',
     'mask_only': False,
-    'mask_blur': 0.01,
-    'mask_erode': 0.01,
-    'mask_dilate': 0.01,
+    'mask_blur': 0,
+    'mask_erode': 0,
+    'mask_dilate': 0,
     'seg_iou_thresh': 0.5,
-    'seg_score_thresh': 0.5,
+    'seg_score_thresh': 0.8,
     'seg_nms_thresh': 0.5,
     'seg_overlap_ratio': 0.3,
     'seg_points_per_batch': 64,
@@ -190,7 +191,7 @@ def init_model(selected_model: str):
     if opts.model != selected_model or generator is None: # sam pipeline
         busy = True
         t0 = time.time()
-        shared.log.debug(f'Mask segment loading: model={selected_model} path={model_path}')
+        shared.log.debug(f'Mask segment loading: model="{selected_model}" path={model_path}')
         model = SamModel.from_pretrained(model_path, cache_dir=cache_dir).to(device=devices.device)
         processor = SamImageProcessor.from_pretrained(model_path, cache_dir=cache_dir)
         generator = MaskGenerationPipeline(
@@ -201,7 +202,7 @@ def init_model(selected_model: str):
             # output_rle_masks=False,
         )
         devices.torch_gc()
-        shared.log.debug(f'Mask segment loaded: model={selected_model} path={model_path} time={time.time()-t0:.2f}s')
+        shared.log.debug(f'Mask segment loaded: model="{selected_model}" path={model_path} time={time.time()-t0:.2f}s')
         opts.model = selected_model
         busy = False
     return selected_model
@@ -227,10 +228,14 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
             return outputs
     devices.torch_gc()
     i = 1
+    if input_mask is None:
+        input_mask = np.zeros((input_image.height, input_image.width), dtype='uint8')
+    elif isinstance(input_mask, Image.Image):
+        input_mask = np.array(input_mask)
     combined_mask = np.zeros(input_mask.shape, dtype='uint8')
     input_mask_size = np.count_nonzero(input_mask)
     debug(f'Segment SAM: {vars(opts)}')
-    for mask in outputs['masks']:
+    for mask, score in zip(outputs['masks'], outputs['scores']):
         mask = mask.astype('uint8')
         mask_size = np.count_nonzero(mask)
         if mask_size == 0:
@@ -245,7 +250,7 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
                 continue
         mask = (opts.seg_topK + 1 - i) * mask * (255 // opts.seg_topK) # set grayscale intensity so we can recolor
         combined_mask = combined_mask + mask
-        debug(f'Segment mask: i={i} size={input_image.width}x{input_image.height} masked={mask_size}px overlap={overlap} score={outputs["scores"][i-1]:.2f}')
+        debug(f'Segment mask: i={i} size={input_image.width}x{input_image.height} masked={mask_size}px overlap={overlap} score={score:.2f}')
         i += 1
         if i > opts.seg_topK:
             break
@@ -260,21 +265,33 @@ def run_rembg(input_image: Image, input_mask: np.ndarray):
         return input_mask
     if "U2NET_HOME" not in os.environ:
         os.environ["U2NET_HOME"] = os.path.join(paths.models_path, "Rembg")
-    args = {
-        'data': input_image,
-        'only_mask': True,
-        'post_process_mask': False,
-        'bgcolor': None,
-        'alpha_matting': False,
-        'alpha_matting_foreground_threshold': 240,
-        'alpha_matting_background_threshold': 10,
-        'alpha_matting_erode_size': int(opts.mask_erode * 40),
-        'session': rembg.new_session(opts.model),
-    }
-    mask = rembg.remove(**args)
+    if opts.model == 'ben2':
+        from modules import ben2
+        args = {
+            'image': input_image,
+            'refine': True,
+        }
+        mask = ben2.remove(**args)
+        _r, _g, _b, alpha = mask.split()
+        mask = alpha
+    else:
+        args = {
+            'data': input_image,
+            'only_mask': True,
+            'post_process_mask': False,
+            'bgcolor': None,
+            'alpha_matting': False,
+            'alpha_matting_foreground_threshold': 240,
+            'alpha_matting_background_threshold': 10,
+            'alpha_matting_erode_size': int(opts.mask_erode * 40),
+            'session': rembg.new_session(opts.model),
+        }
+        mask = rembg.remove(**args)
     mask = np.array(mask)
-    if len(input_mask.shape) > 2:
-        mask = cv2.cvtColor(input_mask, cv2.COLOR_RGB2GRAY)
+    if input_mask is None:
+        input_mask = np.zeros(mask.shape, dtype='uint8')
+    elif isinstance(input_mask, Image.Image):
+        input_mask = np.array(input_mask)
     binary_input = cv2.threshold(input_mask, 127, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
     binary_output = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
     if binary_input.shape != binary_output.shape:
@@ -289,6 +306,7 @@ def run_rembg(input_image: Image, input_mask: np.ndarray):
 
 
 def get_mask(input_image: gr.Image, input_mask: gr.Image):
+    debug('Run auto-mask') # pylint: disable=protected-access
     t0 = time.time()
     if input_mask is not None:
         output_mask = np.array(input_mask)
@@ -349,30 +367,6 @@ def outpaint(input_image: Image.Image, outpaint_type: str = 'Edge'):
     mask = cv2.resize(mask, (w0, h0))
     mask = cv2.cvtColor(np.array(mask), cv2.COLOR_BGR2GRAY)
     mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
-    """
-    size = min(input_image.width, input_image.height)
-    if opts.mask_erode > 0:
-        try:
-            kernel = np.ones((int(opts.mask_erode * size / 4) + 1, int(opts.mask_erode * size / 4) + 1), np.uint8)
-            mask = cv2.erode(mask, kernel, iterations=opts.kernel_iterations) # remove noise
-            debug(f'Mask erode={opts.mask_erode:.3f} kernel={kernel.shape} mask={mask.shape}')
-        except Exception as e:
-            shared.log.error(f'Mask erode: {e}')
-    if opts.mask_dilate > 0:
-        try:
-            kernel = np.ones((int(opts.mask_dilate * size / 4) + 1, int(opts.mask_dilate * size / 4) + 1), np.uint8)
-            mask = cv2.dilate(mask, kernel, iterations=opts.kernel_iterations) # expand area
-            debug(f'Mask dilate={opts.mask_dilate:.3f} kernel={kernel.shape} mask={mask.shape}')
-        except Exception as e:
-            shared.log.error(f'Mask dilate: {e}')
-    if opts.mask_blur > 0:
-        try:
-            sigmax, sigmay = 1 + int(opts.mask_blur * size / 4), 1 + int(opts.mask_blur * size / 4)
-            mask = cv2.GaussianBlur(mask, (0, 0), sigmaX=sigmax, sigmaY=sigmay) # blur mask
-            debug(f'Mask blur={opts.mask_blur:.3f} x={sigmax} y={sigmay} mask={mask.shape}')
-        except Exception as e:
-            shared.log.error(f'Mask blur: {e}')
-    """
     if outpaint_type == 'Edge':
         bordered = cv2.copyMakeBorder(cropped, y1, h0-y2, x1, w0-x2, cv2.BORDER_REPLICATE)
         bordered = cv2.resize(bordered, (w0, h0))
@@ -384,44 +378,55 @@ def outpaint(input_image: Image.Image, outpaint_type: str = 'Edge'):
     return image, mask
 
 
-def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_type: str = None, mask_blur: int = None, mask_padding: int = None, segment_enable=True, invert=None):
-    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    debug(f'Run mask: fn={fn}') # pylint: disable=protected-access
-
-    if input_image is None:
-        return input_mask
-    if isinstance(input_image, list):
+def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_type: str = None, mask_blur: int = None, mask_padding: int = None, invert=None):
+    if isinstance(input_image, list) and len(input_image) > 0:
         input_image = input_image[0]
-    if isinstance(input_image, dict):
+    elif isinstance(input_image, dict):
         input_mask = input_image.get('mask', None)
         input_image = input_image.get('image', None)
-    if input_image is None:
+    elif isinstance(input_image, np.ndarray):
+        input_image = Image.fromarray(input_image)
+    elif isinstance(input_image, Image.Image):
+        pass
+    else:
         return input_mask
 
-    # t0 = time.time()
-    input_mask = get_mask(input_image, input_mask) # perform optional auto-masking
-    if input_mask is None:
-        return None
+    fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+    debug(f'Run mask: fn={fn}') # pylint: disable=protected-access
+    debug(f'Run mask: opts={opts}') # pylint: disable=protected-access
 
     size = min(input_image.width, input_image.height)
-    if mask_blur is not None or mask_padding is not None:
-        debug(f'Mask args legacy: blur={mask_blur} padding={mask_padding}')
     if invert is not None:
         opts.invert = invert
-    if mask_blur is not None: # compatibility with old img2img values which uses px values
-        opts.mask_blur = round(4 * mask_blur / size, 3)
-    if mask_padding is not None: # compatibility with old img2img values which uses px values
-        opts.mask_dilate = 4 * mask_padding / size
 
-    if opts.model is None or not segment_enable:
-        mask = input_mask
-    elif generator is None:
-        mask = run_rembg(input_image, input_mask)
-    else:
-        mask = run_segment(input_image, input_mask)
+    # set legacy mask args
+    if mask_blur is not None or mask_padding is not None:
+        debug(f'Mask args legacy: blur={mask_blur} padding={mask_padding}')
+        if mask_blur is not None: # compatibility with old img2img values which uses px values
+            opts.mask_blur = round(4 * mask_blur / size, 3)
+        if mask_padding is not None: # compatibility with old img2img values which uses px values
+            size = min(input_image.width, input_image.height)
+            opts.mask_dilate = 4 * mask_padding / size
+
+
+    # optional auto-masking and auto-segmentation
+    mask = input_mask
+    if opts.auto_mask is not None and opts.auto_mask != 'None':
+        mask = get_mask(input_image, input_mask) # perform optional auto-masking
+    elif opts.auto_segment is not None and opts.auto_segment != 'None':
+        init_model(opts.auto_segment)
+        if generator is not None:
+            mask = run_segment(input_image, input_mask)
+        else:
+            mask = run_rembg(input_image, input_mask)
+    elif isinstance(mask, Image.Image):
+        mask = np.array(mask)
+
+    # early exit if no input mask or auto-mask
+    if mask is None:
+        return None
     mask = cv2.resize(mask, (input_image.width, input_image.height), interpolation=cv2.INTER_LANCZOS4)
 
-    # shared.log.trace(f'Mask shape={mask.shape} opts={opts} fn={fn}')
     if opts.mask_erode > 0:
         try:
             kernel = np.ones((int(opts.mask_erode * size / 4) + 1, int(opts.mask_erode * size / 4) + 1), np.uint8)
@@ -448,11 +453,6 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
 
     return_type = return_type or opts.preview_type
 
-    # mask_size = np.count_nonzero(mask)
-    # total_size = np.prod(mask.shape)
-    # area_size = np.count_nonzero(mask)
-    # t1 = time.time()
-    # shared.log.debug(f'Mask: size={input_image.width}x{input_image.height} masked={mask_size}px area={area_size/total_size:.2f} auto={opts.auto_mask} blur={opts.mask_blur:.3f} erode={opts.mask_erode:.3f} dilate={opts.mask_dilate:.3f} type={return_type} time={t1-t0:.2f}')
     if return_type == 'None':
         return input_mask
     elif return_type == 'Opaque':
@@ -518,42 +518,44 @@ def create_segment_ui():
         opts.seg_live = args[0]
         opts.mask_only = args[1]
         opts.invert = args[2]
-        opts.mask_blur = args[3]
+        opts.mask_dilate = args[3]
         opts.mask_erode = args[4]
-        opts.mask_dilate = args[5]
-        opts.auto_mask = args[6]
-        opts.seg_score_thresh = args[7]
-        opts.seg_iou_thresh = args[8]
-        opts.seg_nms_thresh = args[9]
-        opts.preview_type = args[10]
-        opts.seg_colormap = args[11]
+        opts.mask_blur = args[5]
+        opts.seg_score_thresh = args[6]
+        opts.auto_mask = args[7]
+        opts.auto_segment = args[8]
+        opts.seg_iou_thresh = args[9]
+        opts.seg_nms_thresh = args[10]
+        opts.preview_type = args[11]
+        opts.seg_colormap = args[12]
 
     global btn_mask, btn_lama # pylint: disable=global-statement
     with gr.Accordion(open=False, label="Mask", elem_id="control_mask", elem_classes=["small-accordion"]):
         controls.clear()
         with gr.Row():
-            controls.append(gr.Checkbox(label="Live update", value=True, elem_id="control_mask_live_update"))
-            btn_mask = ui_components.ToolButton(value=ui_symbols.refresh, visible=True, elem_id="control_mask_refresh", )
-            btn_lama = ui_components.ToolButton(value=ui_symbols.image, visible=True, elem_id="control_mask_remove")
+            controls.append(gr.Checkbox(label="Live update", value=False, visible=False, elem_id="control_mask_live_update"))
         with gr.Row():
             controls.append(gr.Checkbox(label="Inpaint masked only", value=False, elem_id="control_mask_only", ))
             controls.append(gr.Checkbox(label="Invert mask", value=False, elem_id="control_mask_invert"))
         with gr.Row():
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Blur', value=0.01, elem_id="control_mask_blur"))
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Erode', value=0.01, elem_id="control_mask_erode"))
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Dilate', value=0.01, elem_id="control_mask_dilate"))
+            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Dilate', value=0, elem_id="control_mask_dilate"))
+            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Erode', value=0, elem_id="control_mask_erode"))
+        with gr.Row():
+            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Blur', value=0, elem_id="control_mask_blur"))
+            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Auto min score', value=0.8, elem_id="control_mask_score"))
         with gr.Row():
             controls.append(gr.Dropdown(label="Auto-mask", choices=['None', 'Threshold', 'Edge', 'Grayscale'], value='None', elem_id="control_mask_auto"))
-            selected_model = gr.Dropdown(label="Auto-segment", choices=MODELS.keys(), value='None', elem_id="control_mask_segment")
+            controls.append(gr.Dropdown(label="Auto-segment", choices=MODELS.keys(), value='None', elem_id="control_mask_segment"))
         with gr.Row():
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Score', value=0.5, visible=False, elem_id="control_mask_score"))
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='IOU', value=0.5, visible=False, elem_id="control_mask_iou"))
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='NMS', value=0.5, visible=False, elem_id="control_mask_nms"))
         with gr.Row():
             controls.append(gr.Dropdown(label="Preview", choices=['None', 'Masked', 'Binary', 'Grayscale', 'Color', 'Composite'], value='Composite', elem_id="control_mask_preview"))
             controls.append(gr.Dropdown(label="Colormap", choices=COLORMAP, value='pink', elem_id="control_mask_colormap"))
+        with gr.Row():
+            btn_mask = gr.Button("Run Preview", elem_id="control_mask_refresh", )
+            btn_lama = gr.Button("LaMa Remove", elem_id="control_mask_remove")
 
-        selected_model.change(fn=init_model, inputs=[selected_model], outputs=[selected_model])
         for control in controls:
             control.change(fn=update_opts, inputs=controls, outputs=[])
         return controls
@@ -566,3 +568,28 @@ def bind_controls(image_controls: List[gr.Image], preview_image: gr.Image, outpu
         image_control.edit(fn=run_mask_live, inputs=[image_control], outputs=[preview_image])
         for control in controls:
             control.change(fn=run_mask_live, inputs=[image_control], outputs=[preview_image])
+
+
+def process_kanvas(kanvas_data):
+    from modules import ui_control_helpers
+    if kanvas_data is None or 'kanvas' not in kanvas_data:
+        return None
+    input_image, input_mask = ui_control_helpers.process_kanvas(kanvas_data)
+    shared.log.debug(f'Kanvas mask: opts={vars(opts)}')
+    output_mask = run_mask(input_image, input_mask)
+    return output_mask
+
+
+def process_kanvas_lama(kanvas_data):
+    from modules import ui_control_helpers
+    if kanvas_data is None or 'kanvas' not in kanvas_data:
+        return None
+    input_image, input_mask = ui_control_helpers.process_kanvas(kanvas_data)
+    shared.log.debug(f'Kanvas LaMa: opts={vars(opts)}')
+    output_mask = run_lama(input_image, input_mask)
+    return output_mask
+
+
+def bind_kanvas(input_image: Image.Image, output_image: gr.Image):
+    btn_mask.click(_js='getKanvasData', fn=process_kanvas, inputs=[input_image], outputs=[output_image])
+    btn_lama.click(_js='getKanvasData', fn=process_kanvas_lama, inputs=[input_image], outputs=[output_image])

@@ -500,28 +500,27 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.ops.append('img2img')
         crop_region = None
 
-        if self.image_mask is not None:
-            if type(self.image_mask) == list:
-                self.image_mask = self.image_mask[0]
-            if 'control' in self.ops:
-                self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
-            else:
-                self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
-            if self.inpaint_full_res: # mask only inpaint
-                self.mask_for_overlay = self.image_mask
-                mask = self.image_mask.convert('L')
-                crop_region = masking.get_crop_region(np.array(mask), self.inpaint_full_res_padding)
-                crop_region = masking.expand_crop_region(crop_region, self.width, self.height, mask.width, mask.height)
-                x1, y1, x2, y2 = crop_region
-                crop_mask = mask.crop(crop_region)
-                self.image_mask = images.resize_image(resize_mode=2, im=crop_mask, width=self.width, height=self.height)
-                self.paste_to = (x1, y1, x2-x1, y2-y1)
-            else: # full image inpaint
-                self.image_mask = images.resize_image(resize_mode=self.resize_mode, im=self.image_mask, width=self.width, height=self.height)
-                np_mask = np.array(self.image_mask)
-                np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
-                self.mask_for_overlay = Image.fromarray(np_mask)
-            self.overlay_images = []
+        if type(self.image_mask) == list:
+            self.image_mask = self.image_mask[0]
+        if 'Control' in self.__class__.__name__:
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
+        elif self.image_mask is not None:
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
+        if self.inpaint_full_res and self.image_mask is not None: # mask only inpaint
+            self.mask_for_overlay = self.image_mask
+            mask = self.image_mask.convert('L')
+            crop_region = masking.get_crop_region(np.array(mask), self.inpaint_full_res_padding)
+            crop_region = masking.expand_crop_region(crop_region, self.width, self.height, mask.width, mask.height)
+            x1, y1, x2, y2 = crop_region
+            crop_mask = mask.crop(crop_region)
+            self.image_mask = images.resize_image(resize_mode=2, im=crop_mask, width=self.width, height=self.height)
+            self.paste_to = (x1, y1, x2-x1, y2-y1)
+        elif self.image_mask is not None: # full image inpaint
+            self.image_mask = images.resize_image(resize_mode=self.resize_mode, im=self.image_mask, width=self.width, height=self.height)
+            np_mask = np.array(self.image_mask)
+            np_mask = np.clip((np_mask.astype(np.float32)) * 2, 0, 255).astype(np.uint8)
+            self.mask_for_overlay = Image.fromarray(np_mask)
+        self.overlay_images = []
 
         add_color_corrections = shared.opts.img2img_color_correction and self.color_corrections is None
         if add_color_corrections:
@@ -563,7 +562,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             processed_images.append(image)
         self.init_images = processed_images
         # self.batch_size = len(self.init_images)
-        if self.overlay_images is not None:
+        if self.overlay_images is not None and len(self.overlay_images) > 0:
             self.overlay_images = self.overlay_images * self.batch_size
         if self.color_corrections is not None and len(self.color_corrections) == 1:
             self.color_corrections = self.color_corrections * self.batch_size
