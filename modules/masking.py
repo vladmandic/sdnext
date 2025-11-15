@@ -8,7 +8,7 @@ import numpy as np
 import cv2
 from PIL import Image, ImageFilter, ImageOps
 from transformers import SamModel, SamImageProcessor, MaskGenerationPipeline
-from modules import shared, errors, devices, ui_components, ui_symbols, paths, sd_models
+from modules import shared, errors, devices, paths, sd_models
 from modules.memstats import memory_stats
 
 
@@ -522,8 +522,8 @@ def create_segment_ui():
         opts.mask_erode = args[4]
         opts.mask_blur = args[5]
         opts.seg_score_thresh = args[6]
-        opts.auto_mask = args[7]
-        opts.auto_segment = args[8]
+        opts.auto_segment = args[7]
+        opts.auto_mask = args[8]
         opts.seg_iou_thresh = args[9]
         opts.seg_nms_thresh = args[10]
         opts.preview_type = args[11]
@@ -544,8 +544,8 @@ def create_segment_ui():
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Blur', value=0, elem_id="control_mask_blur"))
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Auto min score', value=0.8, elem_id="control_mask_score"))
         with gr.Row():
-            controls.append(gr.Dropdown(label="Auto-mask", choices=['None', 'Threshold', 'Edge', 'Grayscale'], value='None', elem_id="control_mask_auto"))
             controls.append(gr.Dropdown(label="Auto-segment", choices=MODELS.keys(), value='None', elem_id="control_mask_segment"))
+            controls.append(gr.Dropdown(label="Auto-mask", choices=['None', 'Threshold', 'Edge', 'Grayscale'], value='None', elem_id="control_mask_auto"))
         with gr.Row():
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='IOU', value=0.5, visible=False, elem_id="control_mask_iou"))
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='NMS', value=0.5, visible=False, elem_id="control_mask_nms"))
