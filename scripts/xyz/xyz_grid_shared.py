@@ -2,12 +2,15 @@
 
 import os
 import re
-import csv
-from io import StringIO
 from modules import shared, processing, sd_samplers, sd_models, sd_vae, sd_unet
 
 
 re_range = re.compile(r'([-+]?[0-9]*\.?[0-9]+)-([-+]?[0-9]*\.?[0-9]+):?([0-9]+)?')
+re_plain_comma = re.compile(r"(?<!\\),")
+
+
+def restore_comma(val: str):
+    return val.replace(r"\,", ",")
 
 
 def apply_field(field):
@@ -393,8 +396,5 @@ def str_permutations(x):
     return x
 
 
-def list_to_csv_string(data_list, alt=False):
-    with StringIO() as o:
-        delimiter = "|" if alt else ","
-        csv.writer(o, delimiter=delimiter).writerow(data_list)
-        return o.getvalue().strip()
+def list_to_csv_string(data_list: list):
+    return ",".join(data_list)
