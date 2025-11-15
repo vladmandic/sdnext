@@ -1,16 +1,14 @@
 # xyz grid that shows as selectable script
 import os
-import csv
 import time
 import random
 from collections import namedtuple
 from copy import copy
-from itertools import permutations, chain
-from io import StringIO
+from itertools import permutations
 from PIL import Image
 import numpy as np
 import gradio as gr
-from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re_range # pylint: disable=no-name-in-module
+from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, restore_comma, re_range, re_plain_comma # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_shared import apply_field, apply_task_args, apply_setting, apply_prompt, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing # pylint: disable=no-name-in-module, unused-import
@@ -112,7 +110,7 @@ class Script(scripts_manager.Script):
                     current_dropdown_values = list(filter(lambda x: x in choices, current_dropdown_values))
                     current_values = list_to_csv_string(current_dropdown_values)
                 else:
-                    current_dropdown_values = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(axis_values)))]
+                    current_dropdown_values = [restore_comma(x.strip()) for x in re_plain_comma.split(axis_values) if x]
                     current_dropdown_values = list(filter(lambda x: x in choices, current_dropdown_values))
 
             return (gr.Button.update(visible=has_choices), gr.Textbox.update(visible=not has_choices or csv_mode, value=current_values),
@@ -133,7 +131,7 @@ class Script(scripts_manager.Script):
         def get_dropdown_update_from_params(axis,params):
             val_key = f"{axis} Values"
             vals = params.get(val_key,"")
-            valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals))) if x]
+            valslist = [restore_comma(x.strip()) for x in re_plain_comma.split(vals) if x]
             return gr.update(value = valslist)
 
         self.infotext_fields = (
@@ -177,7 +175,7 @@ class Script(scripts_manager.Script):
             if opt.choices is not None and not csv_mode:
                 valslist = vals_dropdown
             else:
-                valslist = [x.strip() for x in chain.from_iterable(csv.reader(StringIO(vals))) if x]
+                valslist = [restore_comma(x.strip()) for x in re_plain_comma.split(vals) if x]
             if opt.type == int:
                 valslist_ext = []
                 for val in valslist:
