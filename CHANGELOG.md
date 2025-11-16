@@ -15,7 +15,7 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-14
+### Details for 2025-11-16
 
 - **Models**
   - [Google Gemini 2.5 Flash Nano Banana](https://blog.google/products/gemini/gemini-nano-banana-examples/)  
@@ -47,6 +47,7 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
   - server: set correct mime-types  
   - sdnq: unconditional register on startup    
 - **Fixes**
+  - xyz-grid: improve parsing of axis lists, thanks @awsr  
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  
   - img2img: fix restoring refine sampler from metadata, thanks @awsr
