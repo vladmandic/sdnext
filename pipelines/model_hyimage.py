@@ -50,7 +50,6 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
 
     allow_quant = True
     if 'sdnq-' in repo_id.lower():
-        from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
         sd_models.allow_post_quant = False # we already handled it
         allow_quant = False
 

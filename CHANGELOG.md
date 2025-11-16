@@ -1,15 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-14
+## Update for 2025-11-16
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-11-14
+### Highlights for 2025-11-16
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
-And a first cloud model with **Google's Nano Banana**
+And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX** model  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
 
@@ -35,7 +35,7 @@ And a first cloud model with **Google's Nano Banana**
   - **auth**: strong-enforce auth check on all api endpoints  
   - **amdgpu**: prefer rocm-on-windows over zluda  
 - **Internal**
-  - torch: update to `torch==2.9.1` for cuda, ipex, openvino, rocm backends
+  - torch: update to `torch==2.9.1` for *cuda, ipex, openvino, rocm* backends
   - attention: refactor attention handling  
   - scripts: remove obsolete video scripts  
   - lint: update global lint rules  
@@ -45,6 +45,7 @@ And a first cloud model with **Google's Nano Banana**
   - installer: reduce requirements  
   - installer: auto-restart on self-update  
   - server: set correct mime-types  
+  - sdnq: unconditional register on startup    
 - **Fixes**
   - hires: strength save/load in metadata, thanks @awsr  
   - imgi2img: fix initial scale tab, thanks @awsr  

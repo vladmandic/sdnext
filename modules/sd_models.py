@@ -455,7 +455,6 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
     try: #0 - using detected model type and pipeline
         if (model_type is not None) and (pipeline is not None):
             if ('sdnq' in model_type.lower()) or ('sdnq' in checkpoint_info.path.lower()):
-                from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
                 global allow_post_quant # pylint: disable=global-statement
                 allow_post_quant = False
             sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
@@ -572,7 +571,6 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
 
 
 def load_sdnq_module(fn: str, module_name: str, load_method: str):
-    from modules import sdnq
     t0 = time.time()
     quantization_config = None
     quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
@@ -585,6 +583,7 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
     try:
+        from modules import sdnq
         module = sdnq.load_sdnq_model(
             model_path=model_name,
             quantization_config=quantization_config,

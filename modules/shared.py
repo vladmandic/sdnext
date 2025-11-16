@@ -837,6 +837,9 @@ elif sys.platform == "win32" and (devices.backend == "zluda" or devices.backend 
     if devices.backend == "zluda":
         from modules.zluda import initialize_zluda
         initialize_zluda()
+from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
+log.debug('Quantization: registered=SDNQ')
+
 try:
     log.info(f'Device: {print_dict(devices.get_gpu_info())}')
 except Exception as ex:
