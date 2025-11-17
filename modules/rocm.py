@@ -20,7 +20,7 @@ def dirname(path_: str, r: int = 1) -> str:
     return path_
 
 
-def spawn(command: str, cwd: os.PathLike = '.') -> str:
+def spawn(command: Union[str, List[str]], cwd: os.PathLike = '.') -> str:
     process = subprocess.run(command, cwd=cwd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return process.stdout.decode(encoding="utf8", errors="ignore")
 
@@ -196,7 +196,7 @@ def get_version() -> str:
         else:
             arr = spawn("hipconfig --version", cwd=os.path.join(environment.path, 'bin')).split(".")
             return f'{arr[0]}.{arr[1]}' if len(arr) >= 2 else None
-    else:
+    elif isinstance(environment, PythonPackageEnvironment):
         # If rocm-sdk package is installed, the hip library may be used by PyTorch.
         ver = ctypes.c_int()
         environment.hip.hipRuntimeGetVersion(ctypes.byref(ver))
@@ -227,6 +227,8 @@ def refresh():
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):
             blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+        elif isinstance(environment, PythonPackageEnvironment):
+            spawn(["rocm-sdk", "init"])
         is_installed = True
         version = get_version()
 

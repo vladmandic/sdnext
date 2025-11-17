@@ -723,7 +723,7 @@ def install_rocm_zluda():
 
     if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-        install(f"rocm rocm-sdk-core --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
+        install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
