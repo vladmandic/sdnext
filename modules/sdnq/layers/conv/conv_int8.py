@@ -51,9 +51,9 @@ def conv_int8_matmul(
             result.append(int_mm_func(input[:, i], weight[:, i]))
         result = torch.cat(result, dim=-1)
     if bias is not None:
-        result = dequantize_symmetric_with_bias(result, scale, bias, return_dtype, mm_output_shape)
+        result = dequantize_symmetric_with_bias(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
     else:
-        result = dequantize_symmetric(result, scale, return_dtype, mm_output_shape)
+        result = dequantize_symmetric(result, scale, dtype=return_dtype, result_shape=mm_output_shape)
 
     if conv_type == 1:
         result = result.transpose_(1,2)
