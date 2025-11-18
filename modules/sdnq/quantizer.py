@@ -197,8 +197,11 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     result_shape = None
     original_shape = weight.shape
     original_stride = weight.stride()
+
     if torch_dtype is None:
         torch_dtype = weight.dtype
+    if dtype_dict[weights_dtype]["num_bits"] > 8:
+        use_quantized_matmul = False
 
     if layer_class_name in conv_types:
         if dtype_dict[weights_dtype]["num_bits"] < 4:
@@ -309,7 +312,11 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
             group_size = -1
 
     weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype)
-    if not dequantize_fp32 and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul):
+    if (
+        not dequantize_fp32
+        and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul)
+        and not (weights_dtype == "uint16" and torch_dtype == torch.float16) # uint16 range is larger than fp16, fp16 will cause NaN on dequant
+    ):
         scale = scale.to(dtype=torch_dtype)
         if zero_point is not None:
             zero_point = zero_point.to(dtype=torch_dtype)
@@ -781,7 +788,7 @@ class SDNQConfig(QuantizationConfigMixin):
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
-            ("int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
+            ("int16", "int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint16", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float16", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
         group_size (`int`, *optional*, defaults to `0`):
             Used to decide how many elements of a tensor will share the same quantization group.
             group_size = 0 will automatically select a group size based on weights_dtype.
