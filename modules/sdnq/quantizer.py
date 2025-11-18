@@ -24,6 +24,7 @@ from .forward import get_forward_func
 
 class QuantizationMethod(str, Enum):
     SDNQ = "sdnq"
+    SDNQ_TRAINING = "sdnq_training"
 
 
 @devices.inference_context()
@@ -396,13 +397,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         layer.svd_down = torch.nn.Parameter(layer.svd_down.to(return_device, non_blocking=non_blocking), requires_grad=False)
 
     layer = layer.to(return_device, non_blocking=non_blocking)
-    layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, dtype_dict[weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
+    layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, layer.sdnq_dequantizer.is_integer)
     layer.forward = layer.forward.__get__(layer, layer.__class__)
     return layer
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name="", op=None): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name=""): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -460,15 +461,14 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 modules_to_not_convert=modules_to_not_convert,
                 modules_dtype_dict=modules_dtype_dict,
                 full_param_name=param_name,
-                op=op,
             ))
     return model
 
 
 @devices.inference_context()
 def sdnq_post_load_quant(
-    model,
-    weights_dtype="int8",
+    model: torch.nn.Module,
+    weights_dtype: str = "int8",
     torch_dtype: torch.dtype = None,
     group_size: int = 0,
     svd_rank: int = 32,
@@ -481,11 +481,10 @@ def sdnq_post_load_quant(
     dequantize_fp32: bool = False,
     non_blocking: bool = False,
     add_skip_keys:bool = True,
-    quantization_device: torch.device = None,
-    return_device: torch.device = None,
+    quantization_device: Optional[torch.device] = None,
+    return_device: Optional[torch.device] = None,
     modules_to_not_convert: List[str] = None,
     modules_dtype_dict: Dict[str, List[str]] = None,
-    op=None,
 ):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
@@ -516,7 +515,6 @@ def sdnq_post_load_quant(
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
-        op=op,
     )
     model.quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
@@ -527,8 +525,10 @@ def sdnq_post_load_quant(
         quant_conv=quant_conv,
         use_quantized_matmul=use_quantized_matmul,
         use_quantized_matmul_conv=use_quantized_matmul_conv,
+        use_stochastic_rounding=use_stochastic_rounding,
         dequantize_fp32=dequantize_fp32,
         non_blocking=non_blocking,
+        add_skip_keys=add_skip_keys,
         quantization_device=quantization_device,
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
@@ -703,7 +703,11 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             quantization_config_dict.pop("return_device", None)
             quantization_config_dict.pop("non_blocking", None)
             quantization_config_dict.pop("add_skip_keys", None)
+            quantization_config_dict.pop("use_static_quantization", None)
             quantization_config_dict.pop("use_stochastic_rounding", None)
+            quantization_config_dict.pop("quantized_matmul_dtype", None)
+            quantization_config_dict.pop("use_grad_ckpt", None)
+            quantization_config_dict.pop("is_training", None)
             with init_empty_weights():
                 model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config_dict)
 
@@ -725,6 +729,17 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         model.quantization_config = self.quantization_config
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
+        if self.quantization_config.is_training:
+            from .training import convert_sdnq_model_to_training
+            model = convert_sdnq_model_to_training(
+                model,
+                dtype=self.torch_dtype,
+                quantized_matmul_dtype=self.quantization_config.quantized_matmul_dtype,
+                use_grad_ckpt=self.quantization_config.use_grad_ckpt,
+                use_quantized_matmul=self.quantization_config.use_quantized_matmul,
+                use_stochastic_rounding=self.quantization_config.use_stochastic_rounding,
+                dequantize_fp32=self.quantization_config.dequantize_fp32,
+            )
         if shared.opts.diffusers_offload_mode != "none":
             try:
                 model = model.to(device=devices.cpu)
@@ -743,30 +758,14 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         return self.get_accelerator_warm_up_factor()
 
     def _dequantize(self, model):
-        model = dequantize_sdnq_model(model)
-        if hasattr(model, "quantization_method"):
-            del model.quantization_method
-        if hasattr(model, "quantization_config"):
-            del model.quantization_config
-        if hasattr(model, "config"):
-            try:
-                if hasattr(model.config, "quantization_config"):
-                    del model.config.quantization_config
-            except Exception:
-                pass
-            try:
-                if hasattr(model.config, "pop"):
-                    model.config.pop("quantization_config", None)
-            except Exception:
-                pass
-        return model
+        return dequantize_sdnq_model(model)
 
     def is_serializable(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument, invalid-overridden-method
-        return True
+        return not self.quantization_config.is_training
 
     @property
     def is_trainable(self):
-        return False
+        return self.quantization_config.is_training
 
     @property
     def is_compileable(self):
@@ -818,13 +817,16 @@ class SDNQConfig(QuantizationConfigMixin):
     def __init__( # pylint: disable=super-init-not-called
         self,
         weights_dtype: str = "int8",
+        quantized_matmul_dtype: str = "int8",
         group_size: int = 0,
         svd_rank: int = 32,
         svd_steps: int = 8,
         use_svd: bool = False,
+        use_grad_ckpt: bool = True,
         quant_conv: bool = False,
         use_quantized_matmul: bool = False,
         use_quantized_matmul_conv: bool = False,
+        use_static_quantization: bool = True,
         use_stochastic_rounding: bool = False,
         dequantize_fp32: bool = False,
         non_blocking: bool = False,
@@ -833,17 +835,25 @@ class SDNQConfig(QuantizationConfigMixin):
         return_device: Optional[torch.device] = None,
         modules_to_not_convert: Optional[List[str]] = None,
         modules_dtype_dict: Optional[Dict[str, List[str]]] = None,
+        is_training: bool = False,
         **kwargs, # pylint: disable=unused-argument
     ):
         self.weights_dtype = weights_dtype
-        self.quant_method = QuantizationMethod.SDNQ
+        self.quantized_matmul_dtype = quantized_matmul_dtype
+        self.is_training = is_training
+        if self.is_training:
+            self.quant_method = QuantizationMethod.SDNQ_TRAINING
+        else:
+            self.quant_method = QuantizationMethod.SDNQ
         self.group_size = group_size
         self.svd_rank = svd_rank
         self.svd_steps = svd_steps
         self.use_svd = use_svd
+        self.use_grad_ckpt = use_grad_ckpt
         self.quant_conv = quant_conv
         self.use_quantized_matmul = use_quantized_matmul
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
+        self.use_static_quantization = use_static_quantization
         self.use_stochastic_rounding = use_stochastic_rounding
         self.dequantize_fp32 = dequantize_fp32
         self.non_blocking = non_blocking

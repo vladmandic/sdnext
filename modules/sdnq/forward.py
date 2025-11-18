@@ -2,10 +2,10 @@
 
 from typing import Callable
 
-from .common import conv_types, conv_transpose_types
+from .common import conv_types, conv_transpose_types, use_tensorwise_fp8_matmul
 
 
-def get_forward_func(layer_class_name: str, use_quantized_matmul: bool, is_integer: bool, use_tensorwise_fp8_matmul: bool) -> Callable: # pylint: disable=inconsistent-return-statements
+def get_forward_func(layer_class_name: str, use_quantized_matmul: bool, is_integer: bool) -> Callable: # pylint: disable=inconsistent-return-statements
     if layer_class_name in conv_types:
         if use_quantized_matmul:
             if is_integer:
