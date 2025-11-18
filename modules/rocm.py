@@ -204,6 +204,8 @@ def get_version() -> str:
         minor = (ver.value // 100000) % 100
         #patch = version.value % 100000
         return f"{major}.{minor}"
+    else:
+        return None
 
 
 def get_flash_attention_command(agent: Agent) -> str:

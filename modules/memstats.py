@@ -102,7 +102,7 @@ def gpu_stats():
         gpu['used'] = 0
         gpu['error'] = str(e)
         if not fail_once:
-            shared.log.error(f'GPU stats: {e}')
+            shared.log.warning(f'GPU stats: {e}')
             # errors.display(e, 'GPU stats')
             fail_once = True
     return gpu
