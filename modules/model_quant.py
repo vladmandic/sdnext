@@ -537,7 +537,6 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict.copy(),
-        op=op,
     )
 
     t1 = time.time()
