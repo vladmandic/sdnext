@@ -723,7 +723,7 @@ def install_rocm_zluda():
 
     if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-        install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}")
+        install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
 
     msg = f'ROCm: version={rocm.version}'
@@ -760,7 +760,7 @@ def install_rocm_zluda():
                 log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
                 check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
-                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/v2-staging/{device.therock}')
+                torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
                 check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
