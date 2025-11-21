@@ -564,7 +564,7 @@ async function thumbCacheCleanup() {
     .then(keys => keys.length)
     .catch(() => 0);
 
-  if (idbSize < thumbHashes.size + 200) {
+  if (idbSize < thumbHashes.size + 100) {
     // Don't run when there aren't many excess entries
     idbIsCleaning = false;
     return;
