@@ -79,9 +79,21 @@ async function idbGetAllKeys() {
   if (!db) return null;
   return new Promise((resolve, reject) => {
     const request = db
-      .transaction("thumbs")
+      .transaction("thumbs", "readonly")
       .objectStore("thumbs")
       .getAllKeys();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (evt) => reject(evt);
+  });
+}
+
+async function idbCount() {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const request = db
+      .transaction("thumbs", "readonly")
+      .objectStore("thumbs")
+      .count();
     request.onsuccess = () => resolve(request.result);
     request.onerror = (evt) => reject(evt);
   });

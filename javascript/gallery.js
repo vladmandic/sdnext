@@ -560,8 +560,7 @@ async function thumbCacheCleanup() {
 
   const t0 = performance.now();
 
-  const idbSize = await idbGetAllKeys()
-    .then(keys => keys.length)
+  const idbSize = await idbCount()
     .catch(() => 0);
 
   if (idbSize < thumbHashes.size + 100) {
