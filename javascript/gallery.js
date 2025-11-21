@@ -6,6 +6,7 @@ let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
+let idbIsCleaning = false;
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -15,6 +16,7 @@ const el = {
   status: undefined,
   btnSend: undefined,
 };
+const thumbHashes = new Set();
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
@@ -182,7 +184,7 @@ async function addSeparators() {
 }
 
 async function delayFetchThumb(fn) {
-  while (outstanding > 16) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
+  await awaitForIDB(16);
   outstanding++;
   const ts = Date.now().toString();
   const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
@@ -231,6 +233,7 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    thumbHashes.add(this.hash);
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
     style.textContent = `
@@ -324,7 +327,11 @@ class GalleryFile extends HTMLElement {
 
 // methods
 
-const gallerySendImage = (_images) => [currentImage]; // invoked by gadio button
+const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
+
+async function awaitForIDB(num = 0) {
+  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50));
+}
 
 async function getHash(str, algo = 'SHA-256') {
   try {
@@ -546,6 +553,36 @@ async function gallerySort(btn) {
   updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
 }
 
+async function thumbCacheCleanup() {
+  if (idbIsCleaning) return;
+  await awaitForIDB();
+  idbIsCleaning = true;
+
+  const t0 = performance.now();
+
+  const idbSize = await idbGetAllKeys()
+    .then(keys => keys.length)
+    .catch(() => 0);
+
+  if (idbSize < thumbHashes.size + 200) {
+    // Don't run when there aren't many excess entries
+    idbIsCleaning = false;
+    return;
+  }
+
+  idbClean(thumbHashes)
+    .then(delcount => {
+      const t1 = performance.now();
+      log(`Thumbnail DB cleanup: kept=${thumbHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+    })
+    .catch(() => {
+      log("Thumbnail DB cleanup: Cleanup failed");
+    })
+    .finally(() => {
+      idbIsCleaning = false;
+    });
+}
+
 async function fetchFilesHT(evt) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
@@ -575,9 +612,12 @@ async function fetchFilesHT(evt) {
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
+  thumbCacheCleanup();
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
+  if (idbIsCleaning) return;
+  thumbHashes.clear(); // Only called here because fetchFilesHT isn't called directly
   el.files.innerHTML = '';
   if (!url) return;
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
@@ -626,6 +666,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
+    thumbCacheCleanup();
   };
   ws.onerror = (event) => {
     log('gallery ws error', event);
