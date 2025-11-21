@@ -63,7 +63,8 @@ restricted_opts = {
 }
 resize_modes = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"]
 max_workers = 12
-sdnq_quant_modes = ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"]
+sdnq_quant_modes = ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "float16", "int16", "uint16", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"]
+sdnq_matmul_modes = ["auto", "int8", "float8_e4m3fn", "float16"]
 default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
 state = shared_state.State()
 
@@ -201,7 +202,9 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "sdnq_quantize_weights": OptionInfo([], "Quantization enabled", gr.CheckboxGroup, {"choices": ["Model", "TE", "LLM", "Control", "VAE"]}),
     "sdnq_quantize_mode": OptionInfo("auto", "Quantization mode", gr.Dropdown, {"choices": ["auto", "pre", "post"]}),
     "sdnq_quantize_weights_mode": OptionInfo("int8", "Quantization type", gr.Dropdown, {"choices": sdnq_quant_modes}),
+    "sdnq_quantize_matmul_mode": OptionInfo("auto", "Quantized MatMul type", gr.Dropdown, {"choices": sdnq_matmul_modes}),
     "sdnq_quantize_weights_mode_te": OptionInfo("Same as model", "Quantization type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_quant_modes}),
+    "sdnq_quantize_matmul_mode_te": OptionInfo("Same as model", "Quantized MatMul type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_matmul_modes}),
     "sdnq_modules_to_not_convert": OptionInfo("", "Modules to not convert"),
     "sdnq_modules_dtype_dict": OptionInfo("{}", "Modules dtype dict"),
     "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),

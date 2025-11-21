@@ -5,7 +5,6 @@ from diffusers.models.modeling_utils import ModelMixin
 
 from .common import dtype_dict, use_tensorwise_fp8_matmul
 from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul
-from .dequantizer import dequantize_symmetric, re_quantize_int8, re_quantize_fp8
 from .forward import get_forward_func
 from .file_loader import load_files
 
@@ -177,22 +176,14 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                 module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
             if use_quantized_matmul is not None and use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
-                if module.sdnq_dequantizer.weights_dtype in {"int8", "float8_e4m3fn", "float8_e5m2"}:
-                    if use_quantized_matmul and module.sdnq_dequantizer.re_quantize_for_matmul:
-                        scale_dtype = module.scale.dtype
-                        if module.sdnq_dequantizer.weights_dtype == "int8":
-                            module.weight.data, module.scale.data = re_quantize_int8(dequantize_symmetric(module.weight, module.scale, dtype=torch.float32, result_shape=module.sdnq_dequantizer.result_shape))
-                            module.scale.data = module.scale.to(dtype=scale_dtype)
-                        else:
-                            is_e5 = bool(module.sdnq_dequantizer.weights_dtype == "float8_e5m2")
-                            module.weight.data, module.scale.data = re_quantize_fp8(dequantize_symmetric(module.weight, module.scale, dtype=torch.float32, result_shape=module.sdnq_dequantizer.result_shape), is_e5=is_e5)
-                            if use_tensorwise_fp8_matmul:
-                                module.scale.data = module.scale.to(dtype=scale_dtype)
-                    elif not module.sdnq_dequantizer.re_quantize_for_matmul:
-                        module.scale.t_()
-                        module.weight.t_()
+                if not module.sdnq_dequantizer.re_quantize_for_matmul:
+                    module.scale.t_()
+                    module.weight.t_()
                     if use_quantized_matmul:
                         module.weight.data = prepare_weight_for_matmul(module.weight)
+                    else:
+                        module.scale.data = module.scale.contiguous()
+                        module.weight.data = module.weight.contiguous()
                 if module.svd_up is not None:
                     module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), use_quantized_matmul)
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul

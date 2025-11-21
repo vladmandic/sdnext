@@ -4,7 +4,7 @@ from typing import List
 
 import torch
 
-from ...common import compile_func # noqa: TID252
+from ...common import compile_func, fp_mm_func # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
 
 from .forward import get_conv_args, process_conv_input
@@ -12,7 +12,7 @@ from ..linear.linear_fp8_tensorwise import quantize_fp_mm_input_tensorwise # noq
 from ..linear.forward import check_mats # noqa: TID252
 
 
-def conv_fp8_matmul_tensorwise(
+def conv_fp16_matmul(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     scale: torch.FloatTensor,
@@ -34,18 +34,17 @@ def conv_fp8_matmul_tensorwise(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    input, scale = quantize_fp_mm_input_tensorwise(input, scale)
+    input, scale = quantize_fp_mm_input_tensorwise(input, scale, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
-    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 
     if groups == 1:
-        result = torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype)
+        result = fp_mm_func(input, weight)
     else:
         weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
         input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
-            result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype))
+            result.append(fp_mm_func(input[:, i], weight[:, i]))
         result = torch.cat(result, dim=-1)
     if bias is not None:
         dequantize_symmetric_with_bias(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
@@ -61,15 +60,13 @@ def conv_fp8_matmul_tensorwise(
     return result
 
 
-def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTensor:
-    if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
+def quantized_conv_forward_fp16_matmul(self, input) -> torch.FloatTensor:
     if self.sdnq_dequantizer.re_quantize_for_matmul:
         weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
     else:
         weight, scale = self.weight, self.scale
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
-    return conv_fp8_matmul_tensorwise(
+    return conv_fp16_matmul(
         input, weight, scale,
         self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
@@ -81,4 +78,4 @@ def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTens
     )
 
 
-conv_fp8_matmul_tensorwise = compile_func(conv_fp8_matmul_tensorwise)
+conv_fp16_matmul = compile_func(conv_fp16_matmul)

@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from accelerate.utils import set_module_tensor_to_device
 
 from modules import devices, shared
-from .common import dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weights, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm
+from .common import dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int_symetric, pack_int_asymetric
 from .forward import get_forward_func
@@ -189,7 +189,7 @@ def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, module
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
     num_of_groups = 1
     is_conv_type = False
     is_conv_transpose_type = False
@@ -200,8 +200,19 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
     if torch_dtype is None:
         torch_dtype = weight.dtype
-    if dtype_dict[weights_dtype]["num_bits"] > 8:
-        use_quantized_matmul = False
+    if quantized_matmul_dtype is None:
+        if dtype_dict[weights_dtype]["is_integer"]:
+            quantized_matmul_dtype = "int8"
+        elif dtype_dict[weights_dtype]["num_bits"] == 8:
+            quantized_matmul_dtype = "float8_e4m3fn"
+        else:
+            quantized_matmul_dtype = "float16"
+
+    re_quantize_for_matmul = bool(
+        dtype_dict[weights_dtype]["is_unsigned"]
+        or dtype_dict[weights_dtype]["is_integer"] != dtype_dict[quantized_matmul_dtype]["is_integer"]
+        or dtype_dict[weights_dtype]["num_bits"] > dtype_dict[quantized_matmul_dtype]["num_bits"]
+    )
 
     if layer_class_name in conv_types:
         if dtype_dict[weights_dtype]["num_bits"] < 4:
@@ -211,9 +222,8 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         output_channel_size, channel_size = weight.shape[:2]
         if use_quantized_matmul:
             use_quantized_matmul = channel_size >= 32 and output_channel_size >= 32
-            if use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"]:
-                use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
-        if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
+            use_quantized_matmul = use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0
+        if use_quantized_matmul and not re_quantize_for_matmul and not dtype_dict[weights_dtype]["is_packed"]:
             result_shape = weight.shape
             weight = weight.flatten(1,-1)
             reduction_axes = -1
@@ -230,14 +240,10 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         try:
             output_channel_size, channel_size = weight.shape
         except Exception as e:
-            raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} weight_shape={weight.shape} weights_dtype={weights_dtype} unsupported") from e
+            raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} weight_shape={weight.shape} weights_dtype={weights_dtype} quantized_matmul_dtype={quantized_matmul_dtype} unsupported") from e
         if use_quantized_matmul:
             use_quantized_matmul = channel_size >= 32 and output_channel_size >= 32
-            if use_quantized_matmul:
-                if dtype_dict[weights_dtype]["is_integer"]:
-                    use_quantized_matmul = output_channel_size % 8 == 0 and channel_size % 8 == 0
-                else:
-                    use_quantized_matmul = output_channel_size % 16 == 0 and channel_size % 16 == 0
+            use_quantized_matmul = use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0
     else:
         if weight.ndim > 1:
             output_channel_size, channel_size = weight.shape[-2:]
@@ -259,14 +265,12 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         svd_up, svd_down = None, None
 
     if group_size == 0:
-        if use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6:
+        if use_quantized_matmul and not re_quantize_for_matmul and dtype_dict[weights_dtype]["num_bits"] >= 6:
             group_size = -1
         elif is_linear_type:
             group_size = 2 ** ((2 if svd_up is None else 3) + dtype_dict[weights_dtype]["num_bits"])
         else:
             group_size = 2 ** ((1 if svd_up is None else 2) + dtype_dict[weights_dtype]["num_bits"])
-    elif use_quantized_matmul and dtype_dict[weights_dtype]["num_bits"] == 8:
-        group_size = -1 # override user value, re-quantizing 8bit into 8bit is pointless
     elif group_size != -1 and not is_linear_type:
         group_size = max(group_size // 2, 1)
 
@@ -314,8 +318,12 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype)
     if (
         not dequantize_fp32
-        and not (use_quantized_matmul and not dtype_dict[weights_dtype]["is_integer"] and not use_tensorwise_fp8_matmul)
-        and not (weights_dtype == "uint16" and torch_dtype == torch.float16) # uint16 range is larger than fp16, fp16 will cause NaN on dequant
+        and dtype_dict[weights_dtype]["num_bits"] <= 8
+        and not (
+            use_quantized_matmul
+            and not dtype_dict[quantized_matmul_dtype]["is_integer"]
+            and (not use_tensorwise_fp8_matmul or dtype_dict[quantized_matmul_dtype]["num_bits"] == 16)
+        )
     ):
         scale = scale.to(dtype=torch_dtype)
         if zero_point is not None:
@@ -324,7 +332,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
             svd_up = svd_up.to(dtype=torch_dtype)
             svd_down = svd_down.to(dtype=torch_dtype)
 
-    re_quantize_for_matmul = (num_of_groups > 1 or zero_point is not None)
+    re_quantize_for_matmul = re_quantize_for_matmul or num_of_groups > 1
     if use_quantized_matmul and not re_quantize_for_matmul:
         scale.t_()
         weight.t_()
@@ -339,6 +347,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         original_stride=original_stride,
         quantized_weight_shape=weight.shape,
         weights_dtype=weights_dtype,
+        quantized_matmul_dtype=quantized_matmul_dtype,
         group_size=group_size,
         svd_rank=svd_rank,
         svd_steps=svd_steps,
@@ -356,11 +365,11 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     else:
         weight = weight.to(dtype=dtype_dict[weights_dtype]["torch_dtype"])
 
-    return weight, scale, zero_point, svd_up, svd_down, sdnq_dequantizer, use_quantized_matmul
+    return weight, scale, zero_point, svd_up, svd_down, sdnq_dequantizer
 
 
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in conv_transpose_types or layer_class_name in conv_types:
         if not quant_conv:
@@ -379,11 +388,11 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         layer.scale, layer.zero_point,
         layer.svd_up, layer.svd_down,
         layer.sdnq_dequantizer,
-        use_quantized_matmul,
     ) = sdnq_quantize_layer_weight(
         layer.weight,
         layer_class_name=layer_class_name,
         weights_dtype=weights_dtype,
+        quantized_matmul_dtype=quantized_matmul_dtype,
         torch_dtype=torch_dtype,
         group_size=group_size,
         svd_rank=svd_rank,
@@ -404,13 +413,13 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", torch_dtype=None, group_siz
         layer.svd_down = torch.nn.Parameter(layer.svd_down.to(return_device, non_blocking=non_blocking), requires_grad=False)
 
     layer = layer.to(return_device, non_blocking=non_blocking)
-    layer.forward = get_forward_func(layer_class_name, use_quantized_matmul, layer.sdnq_dequantizer.is_integer)
+    layer.forward = get_forward_func(layer_class_name, layer.sdnq_dequantizer.quantized_matmul_dtype, layer.sdnq_dequantizer.use_quantized_matmul)
     layer.forward = layer.forward.__get__(layer, layer.__class__)
     return layer
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name=""): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_stochastic_rounding=False, dequantize_fp32=False, non_blocking=False, quantization_device=None, return_device=None, modules_to_not_convert: List[str] = None, modules_dtype_dict: Dict[str, List[str]] = None, full_param_name=""): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model
@@ -434,6 +443,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
                 setattr(model, module_name, sdnq_quantize_layer(
                     module,
                     weights_dtype=get_minimum_dtype(weights_dtype, param_name, modules_dtype_dict),
+                    quantized_matmul_dtype=quantized_matmul_dtype,
                     torch_dtype=torch_dtype,
                     group_size=group_size,
                     svd_rank=svd_rank,
@@ -452,6 +462,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
         setattr(model, module_name, apply_sdnq_to_module(
                 module,
                 weights_dtype=weights_dtype,
+                quantized_matmul_dtype=quantized_matmul_dtype,
                 torch_dtype=torch_dtype,
                 group_size=group_size,
                 svd_rank=svd_rank,
@@ -476,6 +487,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", torch_dtype=None, group_si
 def sdnq_post_load_quant(
     model: torch.nn.Module,
     weights_dtype: str = "int8",
+    quantized_matmul_dtype: str = None,
     torch_dtype: torch.dtype = None,
     group_size: int = 0,
     svd_rank: int = 32,
@@ -507,6 +519,7 @@ def sdnq_post_load_quant(
     model = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,
+        quantized_matmul_dtype=quantized_matmul_dtype,
         torch_dtype=torch_dtype,
         group_size=group_size,
         svd_rank=svd_rank,
@@ -663,6 +676,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         layer = sdnq_quantize_layer(
             layer,
             weights_dtype=weights_dtype,
+            quantized_matmul_dtype=self.quantization_config.quantized_matmul_dtype,
             torch_dtype=torch_dtype,
             group_size=self.quantization_config.group_size,
             svd_rank=self.quantization_config.svd_rank,
@@ -712,7 +726,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             quantization_config_dict.pop("add_skip_keys", None)
             quantization_config_dict.pop("use_static_quantization", None)
             quantization_config_dict.pop("use_stochastic_rounding", None)
-            quantization_config_dict.pop("quantized_matmul_dtype", None)
             quantization_config_dict.pop("use_grad_ckpt", None)
             quantization_config_dict.pop("is_training", None)
             with init_empty_weights():
@@ -789,6 +802,10 @@ class SDNQConfig(QuantizationConfigMixin):
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization. Supported values are:
             ("int16", "int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint16", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float16", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
+        quantized_matmul_dtype (`str`, *optional*, defaults to `None`):
+            The target dtype for quantized matmul.
+            `None` will use "int8" with integer weight dtypes and "float8_e4m3fn" or "float16" with float weight dtypes.
+            Supported values are: ("int8", "float8_e4m3fn", "float16")
         group_size (`int`, *optional*, defaults to `0`):
             Used to decide how many elements of a tensor will share the same quantization group.
             group_size = 0 will automatically select a group size based on weights_dtype.
@@ -804,6 +821,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Enabling this option will use quantized INT8 or FP8 MatMul instead of BF16 / FP16.
         use_quantized_matmul_conv (`bool`, *optional*, defaults to `False`):
             Same as use_quantized_matmul_conv but for the convolutional layers with UNets like SDXL.
+        use_stochastic_rounding (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use stochastic rounding on the quantization step.
         dequantize_fp32 (`bool`, *optional*, defaults to `False`):
             Enabling this option will use FP32 on the dequantization step.
         non_blocking (`bool`, *optional*, defaults to `False`):
@@ -824,7 +843,7 @@ class SDNQConfig(QuantizationConfigMixin):
     def __init__( # pylint: disable=super-init-not-called
         self,
         weights_dtype: str = "int8",
-        quantized_matmul_dtype: str = "int8",
+        quantized_matmul_dtype: str = None,
         group_size: int = 0,
         svd_rank: int = 32,
         svd_steps: int = 8,
@@ -876,8 +895,10 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
-        if self.weights_dtype not in accepted_weights:
-            raise ValueError(f"SDNQ only support weights in {accepted_weights} but found {self.weights_dtype}")
+        if self.weights_dtype not in accepted_weight_dtypes:
+            raise ValueError(f"SDNQ only support weight dtypes in {accepted_weight_dtypes} but found {self.weights_dtype}")
+        if self.quantized_matmul_dtype is not None and self.quantized_matmul_dtype not in accepted_matmul_dtypes:
+            raise ValueError(f"SDNQ only support quantized matmul dtypes in {accepted_matmul_dtypes} but found {self.quantized_matmul_dtype}")
 
         if self.modules_to_not_convert is None:
             self.modules_to_not_convert = []

@@ -33,18 +33,23 @@ dtype_dict = {
     "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "sign": 1, "exponent": 5, "mantissa": 2, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False, "is_packed": False},
 }
 
-dtype_dict["fp8"] = dtype_dict["float8_e4m3fn"]
-dtype_dict["bool"] = dtype_dict["uint1"]
 if hasattr(torch, "float8_e4m3fnuz"):
     dtype_dict["float8_e4m3fnuz"] = {"min": -240, "max": 240, "num_bits": 8, "sign": 1, "exponent": 4, "mantissa": 3, "target_dtype": "fp8", "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
 if hasattr(torch, "float8_e5m2fnuz"):
     dtype_dict["float8_e5m2fnuz"] = {"min": -57344, "max": 57344, "num_bits": 8, "sign": 1, "exponent": 5, "mantissa": 2, "target_dtype": "fp8", "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
 
+dtype_dict["fp32"] = dtype_dict["float32"]
+dtype_dict["bf16"] = dtype_dict["bfloat16"]
+dtype_dict["fp16"] = dtype_dict["float16"]
+dtype_dict["fp8"] = dtype_dict["float8_e4m3fn"]
+dtype_dict["bool"] = dtype_dict["uint1"]
+
 linear_types = {"Linear"}
 conv_types = {"Conv1d", "Conv2d", "Conv3d"}
 conv_transpose_types = {"ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"}
 allowed_types = set.union(linear_types, conv_types, conv_transpose_types)
-accepted_weights = set(dtype_dict.keys())
+accepted_weight_dtypes = set(dtype_dict.keys())
+accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fnuz", "float16"}
 
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 is_rdna2 = bool(devices.backend == "rocm" and int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100)
@@ -75,6 +80,20 @@ if use_triton_mm:
         int_mm_func = torch._int_mm
 else:
     int_mm_func = torch._int_mm
+
+
+fp_mm_func = None
+if os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
+    try:
+        from .triton_mm import fp_mm
+        fp_mm_func = fp_mm
+    except ImportError:
+        fp_mm_func = None
+
+if fp_mm_func is None:
+    def fp_mm(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+        return torch.mm(x,y, out_dtype=torch.float32)
+    fp_mm_func = fp_mm
 
 
 if use_torch_compile:

@@ -5,23 +5,24 @@ from typing import List
 import torch
 
 from ...common import compile_func # noqa: TID252
-from ..linear.linear_fp8 import quantize_fp8_matmul_input # noqa: TID252
-from ..linear.forward import check_mats # noqa: TID252
+
 from .forward import get_conv_args, process_conv_input
+from ..linear.linear_fp8 import quantize_fp_mm_input # noqa: TID252
+from ..linear.forward import check_mats # noqa: TID252
 
 
 def conv_fp8_matmul(
     input: torch.FloatTensor,
     weight: torch.Tensor,
-    bias: torch.FloatTensor,
     scale: torch.FloatTensor,
-    svd_up: torch.FloatTensor,
-    svd_down: torch.FloatTensor,
     result_shape: torch.Size,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
     groups: int, stride: List[int],
     padding: List[int], dilation: List[int],
+    bias: torch.FloatTensor = None,
+    svd_up: torch.FloatTensor = None,
+    svd_down: torch.FloatTensor = None,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
@@ -29,7 +30,7 @@ def conv_fp8_matmul(
         input = input.flatten(0,-2)
         svd_bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    input, input_scale = quantize_fp8_matmul_input(input)
+    input, input_scale = quantize_fp_mm_input(input)
     input, weight = check_mats(input, weight)
 
     if groups == 1:
@@ -68,14 +69,20 @@ def conv_fp8_matmul(
 def quantized_conv_forward_fp8_matmul(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
         return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
+    if self.sdnq_dequantizer.re_quantize_for_matmul:
+        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
+    else:
+        weight, scale = self.weight, self.scale
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul(
-        input, self.weight, self.bias,
-        self.scale, self.svd_up, self.svd_down,
+        input, weight, scale,
         self.sdnq_dequantizer.result_shape,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
         self.groups, stride, padding, dilation,
+        bias=self.bias,
+        svd_up=self.svd_up,
+        svd_down=self.svd_down,
     )
 
 

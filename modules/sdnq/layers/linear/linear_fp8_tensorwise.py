@@ -5,13 +5,14 @@ from typing import Tuple
 import torch
 
 from ...common import compile_func # noqa: TID252
-from ...dequantizer import quantize_fp8, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from ...dequantizer import quantize_fp_mm, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+
 from .forward import check_mats
 
 
-def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.Tensor, torch.FloatTensor]:
+def quantize_fp_mm_input_tensorwise(input: torch.FloatTensor, scale: torch.FloatTensor, matmul_dtype: str = "float8_e4m3fn") -> Tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).to(dtype=scale.dtype)
-    input, input_scale = quantize_fp8(input, dim=-1)
+    input, input_scale = quantize_fp_mm(input, dim=-1, matmul_dtype=matmul_dtype)
     scale = torch.mul(input_scale, scale)
     if scale.dtype == torch.float16: # fp16 will overflow
         scale = scale.to(dtype=torch.float32)
@@ -21,10 +22,10 @@ def quantize_fp8_matmul_input_tensorwise(input: torch.FloatTensor, scale: torch.
 def fp8_matmul_tensorwise(
     input: torch.FloatTensor,
     weight: torch.Tensor,
-    bias: torch.FloatTensor,
     scale: torch.FloatTensor,
-    svd_up: torch.FloatTensor,
-    svd_down: torch.FloatTensor,
+    bias: torch.FloatTensor = None,
+    svd_up: torch.FloatTensor = None,
+    svd_down: torch.FloatTensor = None,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
@@ -35,7 +36,7 @@ def fp8_matmul_tensorwise(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
-    input, scale = quantize_fp8_matmul_input_tensorwise(input, scale)
+    input, scale = quantize_fp_mm_input_tensorwise(input, scale)
     input, weight = check_mats(input, weight)
     if bias is not None:
         return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, bias, dtype=return_dtype, result_shape=output_shape)
@@ -46,7 +47,11 @@ def fp8_matmul_tensorwise(
 def quantized_linear_forward_fp8_matmul_tensorwise(self, input: torch.FloatTensor) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[-1] < 32:
         return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
-    return fp8_matmul_tensorwise(input, self.weight, self.bias, self.scale, self.svd_up, self.svd_down)
+    if self.sdnq_dequantizer.re_quantize_for_matmul:
+        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
+    else:
+        weight, scale = self.weight, self.scale
+    return fp8_matmul_tensorwise(input, weight, scale, bias=self.bias, svd_up=self.svd_up, svd_down=self.svd_down)
 
 
 fp8_matmul_tensorwise = compile_func(fp8_matmul_tensorwise)
