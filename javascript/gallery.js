@@ -693,6 +693,10 @@ async function setOverlayAnimation() {
   document.head.append(busyAnimation);
 }
 
+/**
+ * Generate and display the overlay to announce cleanup is in progress.
+ * @returns {() => void} Function for clearing the overlay
+ */
 function showCleaningMsg() {
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement("div");
