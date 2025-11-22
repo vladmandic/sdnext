@@ -76,7 +76,7 @@ if use_triton_mm:
     try:
         from .triton_mm import int_mm
         int_mm_func = int_mm
-    except ImportError:
+    except Exception:
         int_mm_func = torch._int_mm
 else:
     int_mm_func = torch._int_mm
@@ -87,7 +87,7 @@ if os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}
     try:
         from .triton_mm import fp_mm
         fp_mm_func = fp_mm
-    except ImportError:
+    except Exception:
         fp_mm_func = None
 
 if fp_mm_func is None:
