@@ -142,33 +142,41 @@ def post_process_model(model):
     has_children = list(model.children())
     if not has_children:
         return model
-    for module in model.children():
+    for module_name, module in model.named_children():
         if hasattr(module, "sdnq_dequantizer"):
             if module.sdnq_dequantizer.use_quantized_matmul and not module.sdnq_dequantizer.re_quantize_for_matmul:
                 module.weight.data = prepare_weight_for_matmul(module.weight)
             if module.svd_up is not None:
                 module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up, module.svd_down, module.sdnq_dequantizer.use_quantized_matmul)
-        module = post_process_model(module)
+            setattr(model, module_name, module)
+        else:
+            setattr(model, module_name, post_process_model(module))
     return model
 
 
 def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
     has_children = list(model.children())
     if not has_children:
+        if dtype is not None and getattr(model, "dtype", torch.float32) != torch.float32:
+            model = model.to(dtype=dtype)
         return model
-    for module in model.children():
+    for module_name, module in model.named_children():
         if hasattr(module, "sdnq_dequantizer"):
-            if dtype is not None:
+            if dtype is not None and module.sdnq_dequantizer.result_dtype != torch.float32:
                 module.sdnq_dequantizer.result_dtype = dtype
 
-            current_scale_dtype = module.svd_up.dtype if module.svd_up is not None else module.scale.dtype
-            scale_dtype = torch.float32 if dequantize_fp32 is None and current_scale_dtype == torch.float32 else torch.float32 if dequantize_fp32 else module.sdnq_dequantizer.result_dtype
-            upcast_scale = bool(not use_tensorwise_fp8_matmul and module.sdnq_dequantizer.weights_dtype in {"float8_e4m3fn", "float8_e5m2"} and (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul)))
+            upcast_scale = bool(
+                dequantize_fp32
+                or dtype_dict[module.sdnq_dequantizer.weights_dtype]["num_bits"] > 8
+                or (
+                    (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul))
+                    and not dtype_dict[module.sdnq_dequantizerquantized_matmul_dtype]["is_integer"]
+                    and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizerquantized_matmul_dtype]["num_bits"] == 16)
+                )
+            )
+            scale_dtype = torch.float32 if upcast_scale or dequantize_fp32 or (dequantize_fp32 is None and module.scale.dtype == torch.float32) else module.sdnq_dequantizer.result_dtype
 
-            if upcast_scale:
-                module.scale.data = module.scale.to(dtype=torch.float32)
-            else:
-                module.scale.data = module.scale.to(dtype=scale_dtype)
+            module.scale.data = module.scale.to(dtype=scale_dtype)
             if module.zero_point is not None:
                 module.zero_point.data = module.zero_point.to(dtype=scale_dtype)
             if module.svd_up is not None:
@@ -187,7 +195,9 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                 if module.svd_up is not None:
                     module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), use_quantized_matmul)
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
-                module.forward = get_forward_func(module.__class__.__name__, use_quantized_matmul, dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_integer"], use_tensorwise_fp8_matmul)
+                module.forward = get_forward_func(module.__class__.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, module.sdnq_dequantizer.use_quantized_matmul)
                 module.forward = module.forward.__get__(module, module.__class__)
-        module = apply_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
+            setattr(model, module_name, module)
+        else:
+            setattr(model, module_name, apply_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))
     return model
