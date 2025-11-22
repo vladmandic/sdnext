@@ -15,7 +15,9 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
+  overlay: document.createElement("div"),
 };
+let cleaningOverlayIsReady = false;
 const thumbHashes = new Set();
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
@@ -569,6 +571,7 @@ async function thumbCacheCleanup() {
     return;
   }
 
+  showCleaningMsg(true);
   idbClean(thumbHashes)
     .then(delcount => {
       const t1 = performance.now();
@@ -579,6 +582,7 @@ async function thumbCacheCleanup() {
     })
     .finally(() => {
       idbIsCleaning = false;
+      showCleaningMsg(false);
     });
 }
 
@@ -615,6 +619,10 @@ async function fetchFilesHT(evt) {
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
+  if (!cleaningOverlayIsReady) {
+    initCleaningOverlay() // Can't call during initGallery because it'll attach to the wrong component for some reason
+      .then(() => {cleaningOverlayIsReady = true});
+  }
   if (idbIsCleaning) return;
   thumbHashes.clear(); // Only called here because fetchFilesHT isn't called directly
   el.files.innerHTML = '';
@@ -714,6 +722,33 @@ async function monitorGalleries() {
     const galleryObserver = new MutationObserver(galleryMutation);
     galleryObserver.observe(gallery, { childList: true, subtree: true, attributes: true });
   }
+}
+
+async function initCleaningOverlay() {
+  if (!el.folders) {
+    return;
+  }
+  const busyAnimation = document.createElement("style");
+  busyAnimation.textContent = ".idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:16px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite rotation}@keyframes rotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}"
+  document.head.append(busyAnimation);
+
+  el.folders.parentElement.style.position = "relative";
+
+  el.overlay = document.createElement("div");
+  el.overlay.style.cssText = "position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: none; align-items: center; justify-content: center;";
+  const msg = document.createElement("span");
+  msg.style.cssText = "display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-left: -30px; margin-right: 30px;";
+  msg.innerText = "Running thumbnail cleanup";
+
+  const anim = document.createElement("span");
+  anim.classList.add("idbBusyAnim");
+
+  el.overlay.append(msg, anim);
+  el.folders.parentElement.append(el.overlay);
+}
+
+function showCleaningMsg(state) {
+  el.overlay.style.display = state ? "flex" : "none";
 }
 
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
