@@ -102,7 +102,7 @@ async function idbCount() {
 async function idbClean(keepSet) {
   if (!db) return null;
   if (!keepSet instanceof Set) {
-    console.error("IndexedDB cleaning function must be given a Set() of hashes to keep");
+    throw new TypeError("IndexedDB cleaning function must be given a Set() of hashes to keep");
   };
   return new Promise((resolve, reject) => {
     let counter = 0;

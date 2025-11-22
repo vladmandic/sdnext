@@ -577,8 +577,8 @@ async function thumbCacheCleanup() {
       const t1 = performance.now();
       log(`Thumbnail DB cleanup: kept=${thumbHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
     })
-    .catch(() => {
-      log("Thumbnail DB cleanup: Cleanup failed");
+    .catch((err) => {
+      error("Thumbnail DB cleanup: Cleanup failed.", err.message);
     })
     .finally(() => {
       idbIsCleaning = false;
