@@ -131,7 +131,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'StableVideoDiffusion'
     elif 'prx-' in fn.lower():
         new_guess = 'PRX'
-    elif 'gemini-2.5-flash-image' in fn.lower():
+    elif 'gemini-' in fn.lower() and 'image' in fn.lower():
         new_guess = 'NanoBanana'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
