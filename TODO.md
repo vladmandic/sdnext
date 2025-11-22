@@ -76,6 +76,27 @@ TODO: *Prioritize*!
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 
+## Futureproofing
+
+Anything marked with **(!!!)** means a change *will* eventually be required.
+
+### General
+
+- Review/improve type-hinting and type checking
+  - A little easier to work with due to syntax changes in Python 3.10
+
+### Asyncio
+
+- **(!!!)** Policy system is deprecated and will be removed in **Python 3.16**
+  - [Python 3.14 removals - asyncio](https://docs.python.org/3.14/whatsnew/3.14.html#id10)
+  - https://docs.python.org/3.14/library/asyncio-policy.html
+  - Affected files:
+    - [`webui.py`](webui.py)
+    - [`cli/sdapi.py`](cli/sdapi.py)
+  - Migration:
+    - [asyncio.run](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.run)
+    - [asyncio.Runner](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.Runner)
+
 ## Code TODO
 
 > npm run todo
