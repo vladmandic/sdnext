@@ -7,6 +7,8 @@ let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
 let idbIsCleaning = false;
+let cleaningOverlayIsReady = false;
+const galleryHashes = new Set();
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -16,8 +18,6 @@ const el = {
   status: undefined,
   btnSend: undefined,
 };
-let cleaningOverlayIsReady = false;
-const galleryHashes = new Set();
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
@@ -554,35 +554,6 @@ async function gallerySort(btn) {
   updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
 }
 
-async function thumbCacheCleanup() {
-  if (idbIsCleaning) return;
-  await awaitForIDB();
-  idbIsCleaning = true;
-
-  const t0 = performance.now();
-  const cachedHashesCount = await idbCount()
-    .catch(() => 0);
-  if (cachedHashesCount < galleryHashes.size + 500) {
-    // Don't run when there aren't many excess entries
-    idbIsCleaning = false;
-    return;
-  }
-
-  const removeOverlay = showCleaningMsg();
-  idbClean(galleryHashes)
-    .then(delcount => {
-      const t1 = performance.now();
-      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
-    })
-    .catch((err) => {
-      error("Thumbnail DB cleanup: Cleanup failed.", err.message);
-    })
-    .finally(() => {
-      idbIsCleaning = false;
-      removeOverlay();
-    });
-}
-
 async function fetchFilesHT(evt) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
@@ -745,6 +716,35 @@ function showCleaningMsg() {
     parent.style.position = "";
     cleaningOverlay.remove();
   } 
+}
+
+async function thumbCacheCleanup() {
+  if (idbIsCleaning) return;
+  await awaitForIDB();
+  idbIsCleaning = true;
+
+  const t0 = performance.now();
+  const cachedHashesCount = await idbCount()
+    .catch(() => 0);
+  if (cachedHashesCount < galleryHashes.size + 500) {
+    // Don't run when there aren't many excess entries
+    idbIsCleaning = false;
+    return;
+  }
+
+  const removeOverlayFunc = showCleaningMsg();
+  idbClean(galleryHashes)
+    .then(delcount => {
+      const t1 = performance.now();
+      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+    })
+    .catch((err) => {
+      error("Thumbnail DB cleanup: Cleanup failed.", err.message);
+    })
+    .finally(() => {
+      removeOverlayFunc();
+      idbIsCleaning = false;
+    });
 }
 
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
