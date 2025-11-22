@@ -7,7 +7,6 @@ let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
 let idbIsCleaning = false;
-let cleaningOverlayIsReady = false;
 const galleryHashes = new Set();
 // Store separator states for the session
 const separatorStates = new Map();
@@ -587,10 +586,6 @@ async function fetchFilesHT(evt) {
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
-  if (!cleaningOverlayIsReady) {
-    setOverlayAnimation() // Can't call during initGallery because it'll attach to the wrong component for some reason
-      .then(() => {cleaningOverlayIsReady = true});
-  }
   if (idbIsCleaning) return;
   galleryHashes.clear(); // Only called here because fetchFilesHT isn't called directly
   el.files.innerHTML = '';
@@ -715,7 +710,7 @@ function showCleaningMsg() {
   return () => {
     parent.style.position = "";
     cleaningOverlay.remove();
-  } 
+  }
 }
 
 async function thumbCacheCleanup() {
@@ -757,6 +752,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+  setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
