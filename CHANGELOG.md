@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-16
+## Update for 2025-11-22
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-11-16
+### Highlights for 2025-11-22
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
 And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX** model  
@@ -15,7 +15,7 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-16
+### Details for 2025-11-22
 
 - **Models**
   - [Google Gemini 2.5 Flash Nano Banana](https://blog.google/products/gemini/gemini-nano-banana-examples/)  
@@ -34,7 +34,10 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
   - **lora**: separate fuse setting for native-vs-diffuser implementations  
   - **auth**: strong-enforce auth check on all api endpoints  
   - **amdgpu**: prefer rocm-on-windows over zluda  
+  - **amdgpu**: improve rocm-on-windows installer  
+  - **sdnq**: improve dequant logic  
 - **Internal**
+  - sdnq: multiple improvements to quantization and dequantization logic
   - torch: update to `torch==2.9.1` for *cuda, ipex, openvino, rocm* backends
   - attention: refactor attention handling  
   - scripts: remove obsolete video scripts  
@@ -45,7 +48,8 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
   - installer: reduce requirements  
   - installer: auto-restart on self-update  
   - server: set correct mime-types  
-  - sdnq: unconditional register on startup    
+  - sdnq: unconditional register on startup  
+  - python: start work on future-proofing for modern python versions, thanks @awsr
 - **Fixes**
   - xyz-grid: improve parsing of axis lists, thanks @awsr  
   - hires: strength save/load in metadata, thanks @awsr  
@@ -65,6 +69,7 @@ And a first cloud model with **Google's Nano Banana** plus new **Photoroom PRX**
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
   - auth: fix password being shown in clear text during login  
+  - firefox: remove obsolete checks, thanks @awsr
 
 ## Update for 2025-11-06
 
