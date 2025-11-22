@@ -271,8 +271,6 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
             group_size = 2 ** ((2 if svd_up is None else 3) + dtype_dict[weights_dtype]["num_bits"])
         else:
             group_size = 2 ** ((1 if svd_up is None else 2) + dtype_dict[weights_dtype]["num_bits"])
-    elif group_size != -1 and not is_linear_type:
-        group_size = max(group_size // 2, 1)
 
     if group_size > 0:
         if group_size >= channel_size:
