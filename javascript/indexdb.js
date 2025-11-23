@@ -75,6 +75,58 @@ async function put(record) {
   });
 }
 
+async function idbGetAllKeys() {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const request = db
+      .transaction("thumbs", "readonly")
+      .objectStore("thumbs")
+      .getAllKeys();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (evt) => reject(evt);
+  });
+}
+
+async function idbCount() {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const request = db
+      .transaction("thumbs", "readonly")
+      .objectStore("thumbs")
+      .count();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (evt) => reject(evt);
+  });
+}
+
+async function idbClean(keepSet) {
+  if (!db) return null;
+  if (!keepSet instanceof Set) {
+    throw new TypeError("IndexedDB cleaning function must be given a Set() of hashes to keep");
+  };
+  return new Promise((resolve, reject) => {
+    let counter = 0;
+    const request = db
+      .transaction("thumbs", "readwrite")
+      .objectStore("thumbs")
+      .openCursor();
+    request.onsuccess = (evt) => {
+      const cursor = evt.target.result;
+      if (cursor) {
+        if (!keepSet.has(cursor.key)) {
+          cursor.delete();
+          counter++;
+        }
+        cursor.continue();
+      }
+      else {
+        resolve(counter);
+      }
+    };
+    request.onerror = (evt) => reject(evt);
+  });
+}
+
 window.idbAdd = add;
 window.idbDel = del;
 window.idbGet = get;
