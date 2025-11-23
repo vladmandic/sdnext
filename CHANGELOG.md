@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-22
+## Update for 2025-11-23
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-11-22
+### Highlights for 2025-11-23
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
 And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
@@ -15,7 +15,7 @@ And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* pl
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-22
+### Details for 2025-11-23
 
 - **Models**
   - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/) 
@@ -36,6 +36,10 @@ And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* pl
   - **amdgpu**: prefer rocm-on-windows over zluda  
   - **amdgpu**: improve rocm-on-windows installer  
   - **sdnq**: improve dequant logic  
+- **API**
+  - `/control` endpoint is now fully compatible with scripts
+  - `/control` additional params to to control *xyz grid*  
+    see `cli/api-xyz.py` for simple example  
 - **Internal**
   - sdnq: multiple improvements to quantization and dequantization logic
   - torch: update to `torch==2.9.1` for *cuda, ipex, openvino, rocm* backends
@@ -51,6 +55,7 @@ And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* pl
   - sdnq: unconditional register on startup  
   - python: start work on future-proofing for modern python versions, thanks @awsr  
   - nunchaku: update to `1.0.2`  
+  - lint: add rules for run-on-windows  
 - **Fixes**
   - xyz-grid: improve parsing of axis lists, thanks @awsr  
   - hires: strength save/load in metadata, thanks @awsr  

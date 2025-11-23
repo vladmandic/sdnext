@@ -18,6 +18,21 @@ class ItemControl(BaseModel):
     override: str = Field(title="Override image", default=None, description="")
 
 
+class ItemXYZ(BaseModel):
+    x_type: str = Field(title="X axis values", default='')
+    x_values: str = Field(title="X axis values", default='')
+    y_type: str = Field(title="Y axis values", default='')
+    y_values: str = Field(title="Y axis values", default='')
+    z_type: str = Field(title="Z axis values", default='')
+    z_values: str = Field(title="Z axis values", default='')
+    draw_legend: bool = Field(title="Draw legend", default=True)
+    include_grid: bool = Field(title="Include grid", default=True)
+    include_subgrids: bool = Field(title="Include subgrids", default=False)
+    include_images: bool = Field(title="Include images", default=False)
+    include_time: bool = Field(title="Include time", default=False)
+    include_text: bool = Field(title="Include text", default=False)
+
+
 ReqControl = models.create_model_from_signature(
     func = run.control_run,
     model_name = "StableDiffusionProcessingControl",
@@ -31,6 +46,7 @@ ReqControl = models.create_model_from_signature(
         {"key": "ip_adapter", "type": Optional[List[models.ItemIPAdapter]], "default": None, "exclude": True},
         {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
         {"key": "control", "type": Optional[List[ItemControl]], "default": [], "exclude": True},
+        {"key": "xyz", "type": Optional[ItemXYZ], "default": None, "exclude": True},
         # {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
 )
@@ -54,13 +70,13 @@ class APIControl():
     def sanitize_args(self, args: dict):
         args = vars(args)
         args.pop('sampler_name', None)
-        args.pop('script_name', None)
-        args.pop('script_args', None) # will refeed them to the pipeline directly after initializing them
         args.pop('alwayson_scripts', None)
         args.pop('face', None)
         args.pop('face_id', None)
         args.pop('ip_adapter', None)
         args.pop('save_images', None)
+        args['override_script_name'] = args.pop('script_name', None)
+        args['override_script_args'] = args.pop('script_args', None)
         return args
 
     def sanitize_b64(self, request):
@@ -75,6 +91,8 @@ class APIControl():
                     sanitize_str(script_obj["args"])
         if hasattr(request, "script_args") and request.script_args:
             sanitize_str(request.script_args)
+        if hasattr(request, 'override_script_args') and request.override_script_args:
+            request.pop('override_script_args', None)
 
     def prepare_face_module(self, req):
         if hasattr(req, "face") and req.face and not req.script_name and (not req.alwayson_scripts or "face" not in req.alwayson_scripts.keys()):
@@ -96,6 +114,21 @@ class APIControl():
                 req.face.fs_cache
             ]
             del req.face
+
+    def prepare_xyz_grid(self, req):
+        if hasattr(req, "xyz") and req.xyz:
+            req.script_name = "xyz grid"
+            req.script_args = [
+                req.xyz.x_type, req.xyz.x_values, '',
+                req.xyz.y_type, req.xyz.y_values, '',
+                req.xyz.z_type, req.xyz.z_values, '',
+                False, # csv_mode
+                req.xyz.draw_legend,
+                False, # no_fixed_seeds
+                req.xyz.include_grid, req.xyz.include_subgrids, req.xyz.include_images,
+                req.xyz.include_time, req.xyz.include_text,
+            ]
+            del req.xyz
 
     def prepare_ip_adapter(self, request):
         if hasattr(request, "ip_adapter") and request.ip_adapter:
@@ -150,18 +183,22 @@ class APIControl():
         del req.control
 
     def post_control(self, req: ReqControl):
-        self.prepare_face_module(req)
         requested = req.control
+        self.prepare_face_module(req)
         self.prepare_control(req)
+        self.prepare_xyz_grid(req)
+
+        # prepare scripts
 
         # prepare args
-        args = req.copy(update={  # Override __init__ params
+        args = req.copy(update={ # Override __init__ params
             "sampler_index": processing_helpers.get_sampler_index(req.sampler_name),
             "is_generator": True,
             "inputs": [helpers.decode_base64_to_image(x) for x in req.inputs] if req.inputs else None,
             "inits": [helpers.decode_base64_to_image(x) for x in req.inits] if req.inits else None,
             "mask": helpers.decode_base64_to_image(req.mask) if req.mask else None,
         })
+
         args = self.sanitize_args(args)
         send_images = args.pop('send_images', True)
 
@@ -171,10 +208,13 @@ class APIControl():
             output_images = []
             output_processed = []
             output_info = ''
-            # TODO control: support scripts via api
-            # init script args, call scripts.script_control.run, call scripts.script_control.after
-            run.control_set({ 'do_not_save_grid': not req.save_images, 'do_not_save_samples': not req.save_images, **self.prepare_ip_adapter(req) })
+            run.control_set({
+                'do_not_save_grid': not req.save_images,
+                'do_not_save_samples': not req.save_images,
+                **self.prepare_ip_adapter(req),
+            })
             run.control_set(getattr(req, "extra", {}))
+            # run
             res = run.control_run(**args)
             for item in res:
                 if len(item) > 0 and (isinstance(item[0], list) or item[0] is None): # output_images

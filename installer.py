@@ -755,7 +755,7 @@ def install_rocm_zluda():
                 zluda_installer.load()
             except Exception as e:
                 log.warning(f'Failed to load ZLUDA: {e}')
-        else: # TODO install: switch to pytorch source when it becomes available
+        else: # TODO rocm: switch to pytorch source when it becomes available
             if device is None:
                 log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):

@@ -442,7 +442,7 @@ class ResGPU(BaseModel): # definition of http response
 
 # helper function
 
-def create_model_from_signature(func: Callable, model_name: str, base_model: Type[BaseModel] = BaseModel, additional_fields: List = [], exclude_fields: List[str] = []):
+def create_model_from_signature(func: Callable, model_name: str, base_model: Type[BaseModel] = BaseModel, additional_fields: List = [], exclude_fields: List[str] = []) -> type[BaseModel]:
     from PIL import Image
 
     class Config:

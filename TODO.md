@@ -101,7 +101,6 @@ Anything marked with **(!!!)** means a change *will* eventually be required.
 
 > npm run todo
  
-- control: support scripts via api
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
 - hypertile: vae breaks when using non-standard sizes

@@ -73,9 +73,9 @@ class FilenameGenerator:
         if seed is not None and int(seed) > 0:
             self.seed = seed
         elif p is not None and getattr(p, 'all_seeds', None) is not None and len(p.all_seeds) > 0:
-            self.seed = p.all_seeds[0] if int(p.all_seeds[0]) > 0 else 0
+            self.seed = p.all_seeds[0] if p.all_seeds[0] is not None and int(p.all_seeds[0]) > 0 else 0
         elif p is not None and getattr(p, 'seeds', None) is not None and len(p.seeds) > 0:
-            self.seed = p.seeds[0] if int(p.seeds[0]) > 0 else 0
+            self.seed = p.seeds[0] if p.seeds[0] is not None and int(p.seeds[0]) > 0 else 0
         else:
             self.seed = p.seed if p is not None and getattr(p, 'seed', 0) > 0 else 0
         if prompt is not None:

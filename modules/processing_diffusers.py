@@ -178,6 +178,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         else:
             taskid = shared.state.begin('Inference')
             output = shared.sd_model(**base_args)
+            output = None
             shared.state.end(taskid)
         if isinstance(output, dict):
             output = SimpleNamespace(**output)

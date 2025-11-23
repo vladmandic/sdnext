@@ -289,6 +289,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
                 extra: dict = {},
+                override_script_name: str = None,
+                override_script_args = [],
                 *input_script_args,
         ):
     global pipe, original_pipeline # pylint: disable=global-statement
@@ -589,10 +591,17 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         p.scripts = scripts_manager.scripts_control
                         p.script_args = input_script_args or []
                         if len(p.script_args) == 0:
-                            script_runner = scripts_manager.scripts_control
-                            if not script_runner.scripts:
-                                script_runner.initialize_scripts(False)
-                            p.script_args = script.init_default_script_args(script_runner)
+                            if not p.scripts:
+                                p.scripts.initialize_scripts(False)
+                            p.script_args = script.init_default_script_args(p.scripts)
+
+                        # init override scripts
+                        if override_script_name and override_script_args:
+                            selectable_scripts, selectable_script_idx = script.get_selectable_script(override_script_name, p.scripts)
+                            if selectable_scripts:
+                                for idx in range(len(override_script_args)):
+                                    p.script_args[selectable_scripts.args_from + idx] = override_script_args[idx]
+                                p.script_args[0] = selectable_script_idx + 1
 
                         # actual processing
                         processed: processing.Processed = None

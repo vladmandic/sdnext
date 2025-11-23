@@ -218,21 +218,31 @@ class Script(scripts_manager.Script):
                 opt.confirm(p, valslist)
             return valslist
 
+        def parse_axis(x_type, x_values, x_values_dropdown):
+            x_opt = None
+            if isinstance(x_type, str):
+                x_opt = [o for o in self.current_axis_options if o.label.lower() == x_type.lower()]
+                if len(x_opt) == 0:
+                    x_opt = [o for o in self.current_axis_options if x_type.lower() in o.label.lower()]
+                if len(x_opt) > 0:
+                    x_opt = x_opt[0]
+            else:
+                x_opt = self.current_axis_options[x_type]
+            if x_opt:
+                if x_opt.choices is not None and not csv_mode:
+                    x_values = list_to_csv_string(x_values_dropdown)
+                xs = process_axis(x_opt, x_values, x_values_dropdown)
+            else:
+                xs = []
+            return x_opt, xs
+
         try:
-            x_opt = self.current_axis_options[x_type]
-            if x_opt.choices is not None and not csv_mode:
-                x_values = list_to_csv_string(x_values_dropdown)
-            xs = process_axis(x_opt, x_values, x_values_dropdown)
-            y_opt = self.current_axis_options[y_type]
-            if y_opt.choices is not None and not csv_mode:
-                y_values = list_to_csv_string(y_values_dropdown)
-            ys = process_axis(y_opt, y_values, y_values_dropdown)
-            z_opt = self.current_axis_options[z_type]
-            if z_opt.choices is not None and not csv_mode:
-                z_values = list_to_csv_string(z_values_dropdown)
-            zs = process_axis(z_opt, z_values, z_values_dropdown)
+            x_opt, xs = parse_axis(x_type, x_values, x_values_dropdown)
+            y_opt, ys = parse_axis(y_type, y_values, y_values_dropdown)
+            z_opt, zs = parse_axis(z_type, z_values, z_values_dropdown)
         except Exception as e:
             shared.log.error(f"XYZ grid: invalid axis values {e}")
+            errors.display(e, 'xyz')
             return None
 
         Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
@@ -274,7 +284,7 @@ class Script(scripts_manager.Script):
         shared.state.update('Grid', total_steps, total_jobs * p.n_iter)
 
         image_cell_count = p.n_iter * p.batch_size
-        shared.log.info(f"XYZ grid: images={len(xs)*len(ys)*len(zs)*image_cell_count} grid={len(zs)} shape={len(xs)}x{len(ys)} cells={len(zs)} steps={total_steps}")
+        shared.log.info(f"XYZ grid start: images={len(xs)*len(ys)*len(zs)*image_cell_count} grid={len(zs)} shape={len(xs)}x{len(ys)} cells={len(zs)} steps={total_steps} csv={csv_mode} legend={draw_legend} grid={include_grid} subgrid={include_subgrids} images={include_images} time={include_time} text={include_text}")
         AxisInfo = namedtuple('AxisInfo', ['axis', 'values'])
         shared.state.xyz_plot_x = AxisInfo(x_opt, xs)
         shared.state.xyz_plot_y = AxisInfo(y_opt, ys)

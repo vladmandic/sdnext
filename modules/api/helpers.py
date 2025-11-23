@@ -70,6 +70,8 @@ def save_image(image, fn, ext):
             image = image.convert("RGB")
         elif image.mode == 'I;16':
             image = image.point(lambda p: p * 0.0038910505836576).convert("L")
+        elif image.mode == 'P':
+            image = image.convert("RGB")
         exif_bytes = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters or "", encoding="unicode") } })
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, exif=exif_bytes)
     elif image_format == 'WEBP':
