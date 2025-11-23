@@ -116,6 +116,8 @@
     "idbPut": "readonly",
     "idbDel": "readonly",
     "idbAdd": "readonly",
+    "idbCount": "readonly",
+    "idbClean": "readonly",
     "initChangelog": "readonly",
     "sendNotification": "readonly",
     "monitorConnection": "readonly"

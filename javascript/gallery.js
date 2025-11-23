@@ -21,7 +21,7 @@ const el = {
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
 async function awaitForIDB(num = 0) {
-  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50));
+  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
 }
 
 // HTML Elements
@@ -553,6 +553,59 @@ async function gallerySort(btn) {
   updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
 }
 
+/**
+ * Generate and display the overlay to announce cleanup is in progress.
+ * @returns {() => void} Function for clearing the overlay
+ */
+function showCleaningMsg() {
+  const parent = el.folders.parentElement;
+  const cleaningOverlay = document.createElement('div');
+  const msg = document.createElement('span');
+  const anim = document.createElement('span');
+
+  parent.style.position = 'relative';
+  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
+  msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-left: -30px; margin-right: 30px;';
+  msg.innerText = 'Running thumbnail cleanup';
+  anim.classList.add('idbBusyAnim');
+
+  cleaningOverlay.append(msg, anim);
+  parent.append(cleaningOverlay);
+  return () => {
+    parent.style.position = '';
+    cleaningOverlay.remove();
+  };
+}
+
+async function thumbCacheCleanup() {
+  if (idbIsCleaning) return;
+  await awaitForIDB();
+  idbIsCleaning = true;
+
+  const t0 = performance.now();
+  const cachedHashesCount = await idbCount()
+    .catch(() => 0);
+  if (cachedHashesCount < galleryHashes.size + 500) {
+    // Don't run when there aren't many excess entries
+    idbIsCleaning = false;
+    return;
+  }
+
+  const removeOverlayFunc = showCleaningMsg();
+  idbClean(galleryHashes)
+    .then((delcount) => {
+      const t1 = performance.now();
+      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+    })
+    .catch((err) => {
+      error('Thumbnail DB cleanup: Cleanup failed.', err.message);
+    })
+    .finally(() => {
+      removeOverlayFunc();
+      idbIsCleaning = false;
+    });
+}
+
 async function fetchFilesHT(evt) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
@@ -688,62 +741,9 @@ async function monitorGalleries() {
 }
 
 async function setOverlayAnimation() {
-  const busyAnimation = document.createElement("style");
-  busyAnimation.textContent = ".idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:16px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}"
+  const busyAnimation = document.createElement('style');
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:16px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
   document.head.append(busyAnimation);
-}
-
-/**
- * Generate and display the overlay to announce cleanup is in progress.
- * @returns {() => void} Function for clearing the overlay
- */
-function showCleaningMsg() {
-  const parent = el.folders.parentElement;
-  const cleaningOverlay = document.createElement("div");
-  const msg = document.createElement("span");
-  const anim = document.createElement("span");
-
-  parent.style.position = "relative";
-  cleaningOverlay.style.cssText = "position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;";
-  msg.style.cssText = "display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-left: -30px; margin-right: 30px;";
-  msg.innerText = "Running thumbnail cleanup";
-  anim.classList.add("idbBusyAnim");
-
-  cleaningOverlay.append(msg, anim);
-  parent.append(cleaningOverlay);
-  return () => {
-    parent.style.position = "";
-    cleaningOverlay.remove();
-  }
-}
-
-async function thumbCacheCleanup() {
-  if (idbIsCleaning) return;
-  await awaitForIDB();
-  idbIsCleaning = true;
-
-  const t0 = performance.now();
-  const cachedHashesCount = await idbCount()
-    .catch(() => 0);
-  if (cachedHashesCount < galleryHashes.size + 500) {
-    // Don't run when there aren't many excess entries
-    idbIsCleaning = false;
-    return;
-  }
-
-  const removeOverlayFunc = showCleaningMsg();
-  idbClean(galleryHashes)
-    .then(delcount => {
-      const t1 = performance.now();
-      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
-    })
-    .catch((err) => {
-      error("Thumbnail DB cleanup: Cleanup failed.", err.message);
-    })
-    .finally(() => {
-      removeOverlayFunc();
-      idbIsCleaning = false;
-    });
 }
 
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
