@@ -12,9 +12,6 @@
       "args": [
         "--uv",
         "--quick",
-        "--debug",
-        "--docs",
-        "--api-log",
         "--log", "vscode.log",
         "${command:pickArgs}"]
     }
