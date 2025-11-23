@@ -49,7 +49,8 @@ And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* pl
   - installer: auto-restart on self-update  
   - server: set correct mime-types  
   - sdnq: unconditional register on startup  
-  - python: start work on future-proofing for modern python versions, thanks @awsr
+  - python: start work on future-proofing for modern python versions, thanks @awsr  
+  - nunchaku: update to `1.0.2`  
 - **Fixes**
   - xyz-grid: improve parsing of axis lists, thanks @awsr  
   - hires: strength save/load in metadata, thanks @awsr  

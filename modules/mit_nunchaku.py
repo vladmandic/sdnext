@@ -4,7 +4,7 @@ from installer import log, pip
 from modules import devices
 
 
-ver = '1.0.1'
+nunchaku_ver = '1.0.2'
 ok = False
 
 
@@ -17,7 +17,7 @@ def check():
         import nunchaku.utils
         from nunchaku import __version__
         log.info(f'Nunchaku: path={nunchaku.__path__} version={__version__.__version__} precision={nunchaku.utils.get_precision()}')
-        if __version__.__version__ != ver:
+        if __version__.__version__ != nunchaku_ver:
             ok = False
             return False
         ok = True
@@ -50,13 +50,13 @@ def install_nunchaku():
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
             return False
         torch_ver = torch.__version__[:3]
-        if torch_ver not in ['2.5', '2.6', '2.7', '2.8', '2.9']:
+        if torch_ver not in ['2.5', '2.6', '2.7', '2.8', '2.9', '2.10']:
             log.error(f'Nunchaku: torch={torch.__version__} unsupported')
         suffix = 'x86_64' if arch == 'linux' else 'win_amd64'
         url = os.environ.get('NUNCHAKU_COMMAND', None)
         if url is None:
             arch = f'{arch}_' if arch == 'linux' else ''
-            url = f'https://huggingface.co/nunchaku-tech/nunchaku/resolve/main/nunchaku-{ver}'
+            url = f'https://huggingface.co/nunchaku-tech/nunchaku/resolve/main/nunchaku-{nunchaku_ver}'
             url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}{suffix}.whl'
         cmd = f'install --upgrade {url}'
         log.debug(f'Nunchaku: install="{url}"')
