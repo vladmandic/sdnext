@@ -20,6 +20,10 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
+async function awaitForIDB(num = 0) {
+  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50));
+}
+
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
@@ -328,10 +332,6 @@ class GalleryFile extends HTMLElement {
 // methods
 
 const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
-
-async function awaitForIDB(num = 0) {
-  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50));
-}
 
 async function getHash(str, algo = 'SHA-256') {
   try {
