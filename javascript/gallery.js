@@ -6,6 +6,8 @@ let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
+let idbIsCleaning = false;
+const galleryHashes = new Set();
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -17,6 +19,10 @@ const el = {
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+async function awaitForIDB(num = 0) {
+  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50));
+}
 
 // HTML Elements
 
@@ -182,7 +188,7 @@ async function addSeparators() {
 }
 
 async function delayFetchThumb(fn) {
-  while (outstanding > 16) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
+  await awaitForIDB(16);
   outstanding++;
   const ts = Date.now().toString();
   const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
@@ -231,6 +237,7 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    galleryHashes.add(this.hash);
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
     style.textContent = `
@@ -324,7 +331,7 @@ class GalleryFile extends HTMLElement {
 
 // methods
 
-const gallerySendImage = (_images) => [currentImage]; // invoked by gadio button
+const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
 
 async function getHash(str, algo = 'SHA-256') {
   try {
@@ -575,9 +582,12 @@ async function fetchFilesHT(evt) {
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
+  thumbCacheCleanup();
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
+  if (idbIsCleaning) return;
+  galleryHashes.clear(); // Only called here because fetchFilesHT isn't called directly
   el.files.innerHTML = '';
   if (!url) return;
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
@@ -626,6 +636,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
+    thumbCacheCleanup();
   };
   ws.onerror = (event) => {
     log('gallery ws error', event);
@@ -676,6 +687,65 @@ async function monitorGalleries() {
   }
 }
 
+async function setOverlayAnimation() {
+  const busyAnimation = document.createElement("style");
+  busyAnimation.textContent = ".idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:16px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}"
+  document.head.append(busyAnimation);
+}
+
+/**
+ * Generate and display the overlay to announce cleanup is in progress.
+ * @returns {() => void} Function for clearing the overlay
+ */
+function showCleaningMsg() {
+  const parent = el.folders.parentElement;
+  const cleaningOverlay = document.createElement("div");
+  const msg = document.createElement("span");
+  const anim = document.createElement("span");
+
+  parent.style.position = "relative";
+  cleaningOverlay.style.cssText = "position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;";
+  msg.style.cssText = "display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-left: -30px; margin-right: 30px;";
+  msg.innerText = "Running thumbnail cleanup";
+  anim.classList.add("idbBusyAnim");
+
+  cleaningOverlay.append(msg, anim);
+  parent.append(cleaningOverlay);
+  return () => {
+    parent.style.position = "";
+    cleaningOverlay.remove();
+  }
+}
+
+async function thumbCacheCleanup() {
+  if (idbIsCleaning) return;
+  await awaitForIDB();
+  idbIsCleaning = true;
+
+  const t0 = performance.now();
+  const cachedHashesCount = await idbCount()
+    .catch(() => 0);
+  if (cachedHashesCount < galleryHashes.size + 500) {
+    // Don't run when there aren't many excess entries
+    idbIsCleaning = false;
+    return;
+  }
+
+  const removeOverlayFunc = showCleaningMsg();
+  idbClean(galleryHashes)
+    .then(delcount => {
+      const t1 = performance.now();
+      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+    })
+    .catch((err) => {
+      error("Thumbnail DB cleanup: Cleanup failed.", err.message);
+    })
+    .finally(() => {
+      removeOverlayFunc();
+      idbIsCleaning = false;
+    });
+}
+
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
   log('initGallery');
   el.folders = gradioApp().getElementById('tab-gallery-folders');
@@ -686,6 +756,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+  setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
