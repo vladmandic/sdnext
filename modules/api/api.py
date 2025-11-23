@@ -137,7 +137,7 @@ class Api:
             if hasattr(self.app, 'tokens') and (self.app.tokens is not None):
                 if credentials.password in self.app.tokens.keys():
                     return True
-        shared.log.error(f'API authentication: user="{credentials.username}" password="{credentials.password}"')
+        shared.log.error(f'API authentication: user="{credentials.username}"')
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
     def get_session_start(self, req: Request, agent: Optional[str] = None):
