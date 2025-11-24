@@ -173,6 +173,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.yolo.ui('control')
 
             with gr.Row():
+                override_script_name = gr.State(value='', visible=False, elem_id='control_override_script_name')
+                override_script_args = gr.State(value='', visible=False, elem_id='control_override_script_args')
                 override_settings = ui_common.create_override_inputs('control')
 
             with gr.Row(variant='compact', elem_id="control_extra_networks", elem_classes=["extra_networks_root"], visible=False) as extra_networks_ui:
@@ -288,7 +290,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps,
                 refiner_start, refiner_prompt, refiner_negative,
                 video_skip_frames, video_type, video_duration, video_loop, video_pad, video_interpolate,
-                override_settings,
+                override_script_name, override_script_args, override_settings,
             ]
             output_fields = [
                 preview_process,

@@ -588,6 +588,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
                             sd_models.move_model(pipe.vae, devices.device)
 
+                        # init scripts
                         p.scripts = scripts_manager.scripts_control
                         p.script_args = input_script_args or []
                         if len(p.script_args) == 0:
@@ -596,7 +597,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                             p.script_args = script.init_default_script_args(p.scripts)
 
                         # init override scripts
-                        if override_script_name and override_script_args:
+                        if override_script_name and override_script_args and len(override_script_name) > 0:
                             selectable_scripts, selectable_script_idx = script.get_selectable_script(override_script_name, p.scripts)
                             if selectable_scripts:
                                 for idx in range(len(override_script_args)):
