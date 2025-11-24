@@ -284,7 +284,8 @@ class YoloRestorer(Detailer):
                 image = Image.fromarray(np_image)
                 continue
 
-            image = Image.fromarray(np_image)
+            if image is None:
+                image = Image.fromarray(np_image)
             items = self.predict(model, image)
 
             if len(items) == 0:
@@ -386,6 +387,7 @@ class YoloRestorer(Detailer):
                 pc.overlay_images = []
                 pc.recursion = True
 
+                # process
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
                 extra_networks.deactivate(pc, force=True)
@@ -393,7 +395,7 @@ class YoloRestorer(Detailer):
                 shared.state.end(jobid)
 
                 del pc.recursion
-                if pp is not None and pp.images is not None and len(pp.images) > 0:
+                if (pp is not None) and (pp.images is not None) and (len(pp.images) > 0):
                     image = pp.images[0] # update image to be reused for next item
                     if len(pp.images) > 1:
                         mask_all.append(pp.images[1])
