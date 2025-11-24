@@ -653,7 +653,10 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
             weights = weights[pos + 1:]
         prompt_embeds.append(torch.cat(provider_embed, dim=1))
         # negative prompt has no keywords
-        embed, ntokens = embedding_providers[i].get_embeddings_for_weighted_prompt_fragments(text_batch=[negatives[i]], fragment_weights_batch=[negative_weights[i]], device=device, should_return_tokens=True)
+        if shared.opts.diffusers_zeros_prompt_pad and len(negatives[i]) == 1 and negatives[i][0] in {"", " "}:
+            embed, ntokens = torch.zeros_like(embed), torch.zeros_like(ptokens)
+        else:
+            embed, ntokens = embedding_providers[i].get_embeddings_for_weighted_prompt_fragments(text_batch=[negatives[i]], fragment_weights_batch=[negative_weights[i]], device=device, should_return_tokens=True)
         negative_prompt_embeds.append(embed)
         debug(f'Prompt: unpadded={prompt_embeds[0].shape} TE{i+1} ptokens={torch.count_nonzero(ptokens)} ntokens={torch.count_nonzero(ntokens)} time={(time.time() - t0):.3f}')
     if SD3:
@@ -683,7 +686,10 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         else:
             try:
                 pooled_prompt_embeds = embedding_providers[-1].get_pooled_embeddings(texts=[prompt_2], device=device) if prompt_embeds[-1].shape[-1] > 768 else None
-                negative_pooled_prompt_embeds = embedding_providers[-1].get_pooled_embeddings(texts=[neg_prompt_2], device=device) if negative_prompt_embeds[-1].shape[-1] > 768 else None
+                if shared.opts.diffusers_zeros_prompt_pad and neg_prompt_2 in {"", " "}:
+                    negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds) if negative_prompt_embeds[-1].shape[-1] > 768 else None
+                else:
+                    negative_pooled_prompt_embeds = embedding_providers[-1].get_pooled_embeddings(texts=[neg_prompt_2], device=device) if negative_prompt_embeds[-1].shape[-1] > 768 else None
             except Exception:
                 pooled_prompt_embeds = None
                 negative_pooled_prompt_embeds = None
