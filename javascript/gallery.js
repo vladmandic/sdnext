@@ -565,7 +565,7 @@ function showCleaningMsg() {
 
   parent.style.position = 'relative';
   cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
-  msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-left: -30px; margin-right: 30px;';
+  msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
   msg.innerText = 'Running thumbnail cleanup';
   anim.classList.add('idbBusyAnim');
 
@@ -742,7 +742,7 @@ async function monitorGalleries() {
 
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:16px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:24px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
   document.head.append(busyAnimation);
 }
 
