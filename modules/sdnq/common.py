@@ -127,6 +127,7 @@ common_skip_keys = (
     ".img_out",
     ".vid_out",
     ".final_layer",
+    "multi_modal_projector",
     "time_text_embed",
     "patch_embedding",
     "patch_embed",

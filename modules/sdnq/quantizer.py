@@ -165,7 +165,11 @@ def add_module_skip_keys(model, modules_to_not_convert: List[str] = None, module
     if getattr(model, "_keep_in_fp32_modules", None) is not None:
         modules_to_not_convert.extend(model._keep_in_fp32_modules) # pylint: disable=protected-access
     if getattr(model, "_tied_weights_keys", None) is not None:
-        modules_to_not_convert.extend(model._tied_weights_keys) # pylint: disable=protected-access
+        if isinstance(model._tied_weights_keys, dict): # pylint: disable=protected-access
+            modules_to_not_convert.extend(model._tied_weights_keys.keys()) # pylint: disable=protected-access
+            modules_to_not_convert.extend(model._tied_weights_keys.values()) # pylint: disable=protected-access
+        else:
+            modules_to_not_convert.extend(model._tied_weights_keys) # pylint: disable=protected-access
 
     skip_key_list = module_skip_keys_dict.get(model.__class__.__name__, None)
     if skip_key_list is not None:
