@@ -309,11 +309,11 @@ function extraNetworksSearchButton(event) {
 }
 
 function extraNetworksFilterVersion(event) {
-  log('extraNetworksFilterVersion', event);
   const version = event.target.textContent.trim();
   const activeTab = getENActiveTab();
   const activePage = getENActivePage().toLowerCase();
   const cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
+  log('extraNetworksFilterVersion', version);
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';

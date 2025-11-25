@@ -357,7 +357,7 @@ class ExtraNetworksPage:
             htmls.append(self.create_html(item, tabname))
         self.html += ''.join(htmls)
         self.page_time = time.time()
-        self.html = f"""<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}{versions_html}</div><div id='~tabname_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"""
+        self.html = f"""<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}{versions_html}</div><div id='{tabname}_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"""
         shared.log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
         if len(self.missing_thumbs) > 0:
             threading.Thread(target=self.create_thumb).start()
