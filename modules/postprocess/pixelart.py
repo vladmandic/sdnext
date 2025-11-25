@@ -77,41 +77,55 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
     return new_image
 
 
-@devices.inference_context()
-def rgb_to_ycbcr_tensor(image: torch.ByteTensor) -> torch.FloatTensor:
-    if image.dtype != torch.float32:
-        img = image.to(torch.float32).div_(255)
-    else:
-        img = image / 255
-    y = (img[:,:,:,0] * 0.299).add_(img[:,:,:,1], alpha=0.587).add_(img[:,:,:,2], alpha=0.114)
-    cb = (img[:,:,:,0] * -0.168935).add_(img[:,:,:,1], alpha=-0.331665).add_(img[:,:,:,2], alpha=0.50059).add_(0.5)
-    cr = (img[:,:,:,0] * 0.499813).add_(img[:,:,:,1], alpha=-0.418531).add_(img[:,:,:,2], alpha=-0.081282).add_(0.5)
-    ycbcr = torch.add(-1, torch.stack([y,cb,cr], dim=1), alpha=2)
-    return ycbcr
+def get_dct_harmonics(N: int, device: torch.device) -> torch.FloatTensor:
+    k = torch.arange(N, dtype=torch.float32, device=device)
+    spatial = torch.add(1, k.unsqueeze(1), alpha=2)
+    spectral = k.unsqueeze(0) * (torch.pi / (2 * N))
+    return torch.cos(torch.mm(spatial, spectral))
 
 
-@devices.inference_context()
-def ycbcr_tensor_to_rgb(ycbcr: torch.FloatTensor) -> torch.ByteTensor:
-    ycbcr_img = ycbcr / 2
-    y = ycbcr_img[:,0,:,:].add_(0.5)
-    cb = ycbcr_img[:,1,:,:]
-    cr = ycbcr_img[:,2,:,:]
-
-    r = (cr * 1.402525).add_(y)
-    g = (cb * -0.343730).add_(cr, alpha=-0.714401).add_(y)
-    b = (cb * 1.769905).add_(cr, alpha=0.000013).add_(y)
-    rgb = torch.stack([r,g,b], dim=-1).mul_(255).round_().clamp_(0,255).to(torch.uint8)
-    return rgb
+def get_dct_norm(N: int, device: torch.device) -> torch.FloatTensor:
+    n = torch.ones((N, 1), dtype=torch.float32, device=device)
+    n[0, 0] = 1 / math.sqrt(2)
+    n = torch.mm(n, n.t())
+    return n
 
 
-@devices.inference_context()
-def encode_single_channel_dct_2d(img: torch.FloatTensor, block_size: int=16, norm: str='ortho') -> torch.FloatTensor:
+def dct_2d(x: torch.FloatTensor, norm: str="ortho") -> torch.FloatTensor:
+    x_shape = x.shape
+    N = x_shape[-1]
+    x = x.contiguous().view(-1, N, N)
+
+    h = get_dct_harmonics(N, x.device)
+    coeff = torch.matmul(torch.matmul(h.t(), x), (h * (2 / N)))
+    if norm == "ortho":
+        coeff = torch.mul(coeff, get_dct_norm(N, x.device))
+
+    coeff = coeff.view(x_shape)
+    return coeff
+
+
+def idct_2d(coeff: torch.FloatTensor, norm: str="ortho") -> torch.FloatTensor:
+    x_shape = coeff.shape
+    N = x_shape[-1]
+    coeff = coeff.contiguous().view(-1, N, N)
+
+    h = get_dct_harmonics(N, coeff.device)
+    if norm == "ortho":
+        coeff = torch.mul(coeff, get_dct_norm(N, coeff.device))
+    x = torch.matmul(torch.matmul((h * (2 / N)), coeff), h.t())
+
+    x = x.view(x_shape)
+    return x
+
+
+def encode_single_channel_dct_2d(img: torch.FloatTensor, block_size: int=16, norm: str="ortho") -> torch.FloatTensor:
     batch_size, height, width = img.shape
     h_blocks = int(height//block_size)
     w_blocks = int(width//block_size)
 
     # batch_size, h_blocks, w_blocks, block_size_h, block_size_w
-    dct_tensor = img.view(batch_size, h_blocks, block_size, w_blocks, block_size).transpose(2,3).to(torch.float32)
+    dct_tensor = img.view(batch_size, h_blocks, block_size, w_blocks, block_size).transpose(2,3).to(dtype=torch.float32)
     dct_tensor = dct_2d(dct_tensor, norm=norm)
 
     # batch_size, combined_block_size, h_blocks, w_blocks
@@ -119,8 +133,7 @@ def encode_single_channel_dct_2d(img: torch.FloatTensor, block_size: int=16, nor
     return dct_tensor
 
 
-@devices.inference_context()
-def decode_single_channel_dct_2d(img: torch.FloatTensor, norm: str='ortho') -> torch.FloatTensor:
+def decode_single_channel_dct_2d(img: torch.FloatTensor, norm: str="ortho") -> torch.FloatTensor:
     batch_size, combined_block_size, h_blocks, w_blocks = img.shape
     block_size = int(math.sqrt(combined_block_size))
     height = int(h_blocks*block_size)
@@ -132,8 +145,19 @@ def decode_single_channel_dct_2d(img: torch.FloatTensor, norm: str='ortho') -> t
     return img_tensor
 
 
-@devices.inference_context()
-def encode_jpeg_tensor(img: torch.FloatTensor, block_size: int=16, cbcr_downscale: int=2, norm: str='ortho') -> torch.FloatTensor:
+def rgb_to_ycbcr_tensor(image: torch.ByteTensor) -> torch.FloatTensor:
+    rgb_weights = torch.tensor([[0.002345098, -0.001323419, 0.003921569], [0.004603922, -0.00259815, -0.003283824], [0.000894118, 0.003921569, -0.000637744]], device=image.device)
+    ycbcr = torch.einsum("cv,...chw->...vhw", [rgb_weights, image.permute(0,3,1,2).to(dtype=torch.float32)])
+    ycbcr[:,0,:,:] = ycbcr[:,0,:,:].add(-1)
+    return ycbcr
+
+
+def ycbcr_tensor_to_rgb(ycbcr: torch.FloatTensor) -> torch.ByteTensor:
+    ycbcr_weights = torch.tensor([[127.5, 127.5, 127.5], [0, -43.877376465, 225.93], [178.755, -91.052376465, 0]], device=ycbcr.device)
+    return torch.einsum("cv,...chw->...vhw", [ycbcr_weights, ycbcr]).add(127.5).round().clamp(0,255).permute(0,2,3,1).to(dtype=torch.uint8)
+
+
+def encode_jpeg_tensor(img: torch.FloatTensor, block_size: int=16, cbcr_downscale: int=2, norm: str="ortho") -> torch.FloatTensor:
     img = img[:, :, :(img.shape[-2]//block_size)*block_size, :(img.shape[-1]//block_size)*block_size] # crop to a multiply of block_size
     cbcr_block_size = block_size//cbcr_downscale
     _, _, height, width = img.shape
@@ -145,8 +169,7 @@ def encode_jpeg_tensor(img: torch.FloatTensor, block_size: int=16, cbcr_downscal
     return torch.cat([y,cb,cr], dim=1)
 
 
-@devices.inference_context()
-def decode_jpeg_tensor(jpeg_img: torch.FloatTensor, block_size: int=16, cbcr_downscale: int=2, norm: str='ortho') -> torch.FloatTensor:
+def decode_jpeg_tensor(jpeg_img: torch.FloatTensor, block_size: int=16, cbcr_downscale: int=2, norm: str="ortho") -> torch.FloatTensor:
     _, _, h_blocks, w_blocks = jpeg_img.shape
     y_block_size = block_size*block_size
     cbcr_block_size = int((block_size//cbcr_downscale) ** 2)
@@ -217,7 +240,6 @@ class JPEGEncoder(ImageProcessingMixin, ConfigMixin):
         self.latents_mean = latents_mean
         super().__init__()
 
-    @devices.inference_context()
     def encode(self, images: PipelineImageInput, device: str="cpu") -> torch.FloatTensor:
         """
         Encode RGB 0-255 image to JPEG Latents.
@@ -243,7 +265,6 @@ class JPEGEncoder(ImageProcessingMixin, ConfigMixin):
 
         return latents
 
-    @devices.inference_context()
     def decode(self, latents: torch.FloatTensor, return_type: str="pil") -> PipelineImageInput:
         latents = latents.to(dtype=torch.float32)
         if self.latents_std is not None:
@@ -270,70 +291,3 @@ class JPEGEncoder(ImageProcessingMixin, ConfigMixin):
             return image_list
         else:
             raise RuntimeError(f"Invalid return_type! Given: {return_type} should be in ('pt', 'np', 'pil')")
-
-
-# dct functions are modified from https://github.com/zh217/torch-dct/blob/master/torch_dct/_dct.py (MIT license)
-
-@devices.inference_context()
-def dct(x, norm=None):
-    x_shape = x.shape
-    N = x_shape[-1]
-
-    x = x.contiguous().view(-1, N)
-    v = torch.cat([x[:, ::2], x[:, 1::2].flip([1])], dim=1)
-    Vc = torch.view_as_real(torch.fft.fft(v, dim=1))
-
-    k = - torch.arange(N, dtype=x.dtype, device=x.device)[None, :].mul_(math.pi / (2 * N))
-    W_r = torch.cos(k)
-    n_W_i = -torch.sin(k)
-
-    V = torch.addcmul((Vc[:, :, 0] * W_r), Vc[:, :, 1], n_W_i)
-    if norm == 'ortho':
-        V[:, 0].mul_(0.5 / math.sqrt(N))
-        V[:, 1:].mul_(0.5 / math.sqrt(N / 2))
-
-    V = V.view(x_shape).mul_(2)
-    return V
-
-
-@devices.inference_context()
-def idct(X, norm=None):
-    x_shape = X.shape
-    N = x_shape[-1]
-
-    X_v = X.contiguous().view(-1, N).div_(2)
-    if norm == 'ortho':
-        X_v[:, 0].mul_(math.sqrt(N) * 2)
-        X_v[:, 1:].mul_(math.sqrt(N / 2) * 2)
-
-    k = torch.arange(N, dtype=X.dtype, device=X.device)[None, :].mul_(math.pi / (2 * N))
-    W_r = torch.cos(k)
-    W_i = torch.sin(k)
-
-    V_t_i = torch.cat([X_v.new_zeros((X_v.shape[0], 1)), -(X_v.flip([1])[:, :-1])], dim=1)
-    V_r = torch.addcmul((X_v * W_r), V_t_i, -W_i)
-    V_i = torch.addcmul((X_v * W_i), V_t_i, W_r)
-
-    V = torch.cat([V_r.unsqueeze(2), V_i.unsqueeze(2)], dim=2)
-
-    v = torch.fft.irfft(torch.view_as_complex(V), n=V.shape[1], dim=1)
-    x = v.new_zeros(v.shape)
-    x[:, ::2] = v[:, :N - (N // 2)]
-    x[:, 1::2] = v.flip([1])[:, :N // 2]
-
-    x = x.view(x_shape)
-    return x
-
-
-@devices.inference_context()
-def dct_2d(x, norm=None):
-    X1 = dct(x, norm=norm).transpose_(-1, -2)
-    X2 = dct(X1, norm=norm).transpose_(-1, -2)
-    return X2
-
-
-@devices.inference_context()
-def idct_2d(X, norm=None):
-    x1 = idct(X, norm=norm).transpose_(-1, -2)
-    x2 = idct(x1, norm=norm).transpose_(-1, -2)
-    return x2
