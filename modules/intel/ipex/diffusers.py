@@ -23,11 +23,10 @@ class FluxPosEmbed(torch.nn.Module):
         self.axes_dim = axes_dim
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
-        n_axes = ids.shape[-1]
         cos_out = []
         sin_out = []
         pos = ids.to(dtype=torch.float32)
-        for i in range(n_axes):
+        for i in range(ids.shape[-1]):
             cos, sin = diffusers.models.embeddings.get_1d_rotary_pos_embed(
                 self.axes_dim[i],
                 pos[:, i],
@@ -121,6 +120,7 @@ def ipex_diffusers(device_supports_fp64=False):
         diffusers.models.embeddings.FluxPosEmbed = FluxPosEmbed
         diffusers.models.embeddings.apply_rotary_emb = apply_rotary_emb
         diffusers.models.transformers.transformer_flux.FluxPosEmbed = FluxPosEmbed
+        diffusers.models.transformers.transformer_flux2.Flux2PosEmbed = FluxPosEmbed
         diffusers.models.transformers.transformer_lumina2.apply_rotary_emb = apply_rotary_emb
         diffusers.models.transformers.transformer_hidream_image.rope = hidream_rope
         diffusers.models.transformers.transformer_chroma.FluxPosEmbed = FluxPosEmbed
