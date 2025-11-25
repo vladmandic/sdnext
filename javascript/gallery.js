@@ -7,6 +7,7 @@ let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
 let idbIsCleaning = false;
+let activeGalleryFolder = '';
 const galleryHashes = new Set();
 // Store separator states for the session
 const separatorStates = new Map();
@@ -592,10 +593,10 @@ async function thumbCacheCleanup() {
   }
 
   const removeOverlayFunc = showCleaningMsg();
-  idbClean(galleryHashes)
-    .then((delcount) => {
+  idbClean(galleryHashes, activeGalleryFolder)
+    .then((delcount, folder) => {
       const t1 = performance.now();
-      log(`Thumbnail DB cleanup: kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+      log(`Thumbnail DB cleanup: folder=${folder} kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
     })
     .catch((err) => {
       error('Thumbnail DB cleanup: Cleanup failed.', err.message);
@@ -632,6 +633,7 @@ async function fetchFilesHT(evt) {
   el.files.appendChild(fragment);
 
   const t1 = performance.now();
+  activeGalleryFolder = evt.target.name;
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
@@ -686,6 +688,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   ws.onclose = (event) => {
     el.files.appendChild(fragment);
     // gallerySort();
+    activeGalleryFolder = evt.target.name;
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();

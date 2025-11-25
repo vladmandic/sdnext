@@ -99,10 +99,13 @@ async function idbCount() {
   });
 }
 
-async function idbClean(keepSet) {
+async function idbClean(keepSet, folder = null) {
   if (!db) return null;
   if (!(keepSet instanceof Set)) {
     throw new TypeError('IndexedDB cleaning function must be given a Set() of hashes to keep');
+  }
+  if (folder === null) {
+    throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
   return new Promise((resolve, reject) => {
     let counter = 0;
@@ -113,13 +116,13 @@ async function idbClean(keepSet) {
     request.onsuccess = (evt) => {
       const cursor = evt.target.result;
       if (cursor) {
-        if (!keepSet.has(cursor.key)) {
+        if (folder === cursor.value.folder && !keepSet.has(cursor.key)) {
           cursor.delete();
           counter++;
         }
         cursor.continue();
       } else {
-        resolve(counter);
+        resolve(counter, folder);
       }
     };
     request.onerror = (evt) => reject(evt);
