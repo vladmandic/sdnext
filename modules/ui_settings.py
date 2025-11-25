@@ -100,7 +100,7 @@ def create_setting_component(key, is_quicksettings=False):
         except Exception as e:
             shared.log.error(f'Quicksetting: component={res} {e}')
         if dirty_indicator is not None:
-            dirty_indicator.click(fn=lambda: shared.opts.get_default(key), outputs=[res], show_progress=False)
+            dirty_indicator.click(fn=lambda: shared.opts.get_default(key), outputs=[res], show_progress='hidden')
         dirtyable_setting.__exit__()
 
     return res
@@ -113,7 +113,7 @@ def create_dirty_indicator(key, keys_to_reset, **kwargs):
 
     elements_to_reset = [shared.settings_components[_key] for _key in keys_to_reset if shared.settings_components[_key] is not None]
     indicator = gr.Button('', elem_classes="modification-indicator", elem_id=f"modification_indicator_{key}", **kwargs)
-    indicator.click(fn=get_default_values, outputs=elements_to_reset, show_progress=True)
+    indicator.click(fn=get_default_values, outputs=elements_to_reset, show_progress='full')
     return indicator
 
 
@@ -369,7 +369,7 @@ def create_quicksettings(interfaces):
                     fn=lambda value, k=k, progress=info.refresh is not None: run_settings_single(value, key=k, progress=progress),
                     inputs=[component],
                     outputs=[component, text_settings],
-                    show_progress=info.refresh is not None,
+                    show_progress='full' if info.refresh is not None else 'hidden',
                 )
 
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)

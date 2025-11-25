@@ -158,7 +158,7 @@ def connect_paste_params_buttons():
                 fn=send_image,
                 inputs=[binding.source_image_component],
                 outputs=[destination_image_component],
-                show_progress=False,
+                show_progress='hidden',
             )
 
         override_settings_component = binding.override_settings_component or paste_fields[binding.tabname]["override_settings_component"]
@@ -177,7 +177,7 @@ def connect_paste_params_buttons():
             _js=f"switch_to_{binding.tabname}",
             inputs=[],
             outputs=[],
-            show_progress=False,
+            show_progress='hidden',
         )
 
 
@@ -294,12 +294,12 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
         fn=paste_func,
         inputs=[input_comp],
         outputs=[x[0] for x in local_paste_fields],
-        show_progress=False,
+        show_progress='hidden',
     )
     button.click(
         fn=None,
         _js=f"recalculate_prompts_{tabname}",
         inputs=[],
         outputs=[],
-        show_progress=False,
+        show_progress='hidden',
     )

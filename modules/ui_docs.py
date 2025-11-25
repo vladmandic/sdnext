@@ -242,7 +242,7 @@ def create_ui_logs():
         _changelog_result = gr.HTML(elem_id="changelog_result")
 
     changelog_markdown = gr.Markdown('', elem_id="changelog_markdown")
-    get_changelog_btn.click(fn=get_changelog, outputs=[changelog_markdown], show_progress=True)
+    get_changelog_btn.click(fn=get_changelog, outputs=[changelog_markdown], show_progress='full')
 
 
 def create_ui_github():
@@ -254,9 +254,9 @@ def create_ui_github():
     with gr.Row():
         github_md_btn = gr.Button(value='html2md', elem_id="github_md_btn", visible=False)
         github_md = gr.Markdown(elem_id="github_md", value='', elem_classes="github-md")
-    github_search.submit(fn=search_github, inputs=[github_search], outputs=[github_result], show_progress=True)
-    github_search_btn.click(fn=search_github, inputs=[github_search], outputs=[github_result], show_progress=True)
-    github_md_btn.click(fn=get_github_page, _js='getGitHubWikiPage', inputs=[github_search], outputs=[github_md], show_progress=True)
+    github_search.submit(fn=search_github, inputs=[github_search], outputs=[github_result], show_progress='full')
+    github_search_btn.click(fn=search_github, inputs=[github_search], outputs=[github_result], show_progress='full')
+    github_md_btn.click(fn=get_github_page, _js='getGitHubWikiPage', inputs=[github_search], outputs=[github_md], show_progress='full')
 
 
 def create_ui_docs():
@@ -268,10 +268,10 @@ def create_ui_docs():
     with gr.Row():
         docs_md_btn = gr.Button(value='html2md', elem_id="docs_md_btn", visible=False)
         docs_md = gr.Markdown(elem_id="docs_md", value='', elem_classes="docs-md")
-    docs_search.submit(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress=False)
-    docs_search.change(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress=False)
-    docs_search_btn.click(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress=False)
-    docs_md_btn.click(fn=get_docs_page, _js='getDocsPage', inputs=[docs_search], outputs=[docs_md], show_progress=False)
+    docs_search.submit(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress='hidden')
+    docs_search.change(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress='hidden')
+    docs_search_btn.click(fn=search_docs, inputs=[docs_search], outputs=[docs_result], show_progress='hidden')
+    docs_md_btn.click(fn=get_docs_page, _js='getDocsPage', inputs=[docs_search], outputs=[docs_md], show_progress='hidden')
 
 
 def create_ui():
