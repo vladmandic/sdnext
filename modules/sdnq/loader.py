@@ -170,8 +170,8 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                 or dtype_dict[module.sdnq_dequantizer.weights_dtype]["num_bits"] > 8
                 or (
                     (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul))
-                    and not dtype_dict[module.sdnq_dequantizerquantized_matmul_dtype]["is_integer"]
-                    and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizerquantized_matmul_dtype]["num_bits"] == 16)
+                    and not dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["is_integer"]
+                    and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["num_bits"] == 16)
                 )
             )
             scale_dtype = torch.float32 if upcast_scale or dequantize_fp32 or (dequantize_fp32 is None and module.scale.dtype == torch.float32) else module.sdnq_dequantizer.result_dtype
