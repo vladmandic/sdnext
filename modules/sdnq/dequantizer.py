@@ -110,8 +110,7 @@ def re_quantize_int_mm(weight: torch.FloatTensor) -> Tuple[torch.Tensor, torch.F
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
     if use_contiguous_mm:
-        weight, scale = quantize_int_mm(weight.t(), dim=-0)
-        weight, scale = weight.contiguous(), scale.contiguous()
+        weight, scale = quantize_int_mm(weight.t().contiguous(), dim=0)
     else:
         weight, scale = quantize_int_mm(weight.contiguous(), dim=-1)
         weight, scale = weight.t_(), scale.t_()
