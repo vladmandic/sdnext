@@ -408,7 +408,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2':
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
     elif is_modular():
         steps = p.steps
@@ -431,7 +431,7 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
 
 def calculate_hires_steps(p):
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
     elif p.hr_second_pass_steps > 0:
         steps = (p.hr_second_pass_steps // p.denoising_strength) + 1
@@ -445,7 +445,7 @@ def calculate_hires_steps(p):
 
 def calculate_refiner_steps(p):
     cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls:
+    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
     elif "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
         if p.refiner_start > 0 and p.refiner_start < 1:
