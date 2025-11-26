@@ -973,6 +973,7 @@
     "preview": "black-forest-labs--FLUX.2-dev.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.2-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
+    "tags": "quantized",
     "extras": "",
     "size": 0,
     "date": "2025 November"
