@@ -157,6 +157,14 @@ module_skip_keys_dict = {
         ["scale_shift_table", "patch_embedding", "condition_embedder", "proj_out", "norm_out"],
         {}
     ],
+    "Lumina2Transformer2DModel": [
+        ["layers.0.norm1.linear.weight", "noise_refiner", "context_refiner", "time_caption_embed", "x_embedder", "norm_out"],
+        {}
+    ],
+    "ZImageTransformer2DModel": [
+        ["layers.0.adaLN_modulation.0.weight", "noise_refiner", "context_refiner", "t_embedder", "cap_embedder", "all_x_embedder", "all_final_layer"],
+        {}
+    ],
     "HunyuanImage3ForCausalMM": [
         ["lm_head", "patch_embed", "time_embed", "time_embed_2", "final_layer", "wte", "ln_f", "timestep_emb", "vae", "vision_aligner", "head", "post_layernorm", "embeddings"],
         {}
