@@ -419,8 +419,8 @@ def update_token_counter(text):
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-        has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
-        has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
+        has_bos_token = hasattr(shared.sd_model.tokenizer, 'bos_token_id') and shared.sd_model.tokenizer.bos_token_id is not None
+        has_eos_token = hasattr(shared.sd_model.tokenizer, 'eos_token_id') and shared.sd_model.tokenizer.eos_token_id is not None
         ids = shared.sd_model.tokenizer(prompt)
         ids = getattr(ids, 'input_ids', [])
         token_count = len(ids) - int(has_bos_token) - int(has_eos_token)

@@ -32,6 +32,8 @@ def get_model_type(pipe):
         model_type = 'auraflow'
     elif 'Chroma' in name:
         model_type = 'chroma'
+    elif "Flux2" in name:
+        model_type = 'f2'
     elif "Flux" in name or "Flex1" in name or "Flex2" in name:
         model_type = 'f1'
     elif "Lumina2" in name:

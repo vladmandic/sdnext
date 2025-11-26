@@ -92,6 +92,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'HiDream'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
+    elif 'flux.2' in fn.lower():
+        new_guess = 'FLUX2'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
         size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
         if size > 11000 and size < 16000:

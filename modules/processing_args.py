@@ -127,6 +127,8 @@ def task_specific_kwargs(p, model):
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
     if ('QwenImageEditPlusPipeline' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
+    if ('Flux2' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
+        task_args['image'] += p.init_control
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -204,7 +206,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     if (prompt_attention != 'fixed') and ('Onnx' not in model.__class__.__name__) and ('prompt' not in p.task_args) and (
         'StableDiffusion' in model.__class__.__name__ or
         'StableCascade' in model.__class__.__name__ or
-        'Flux' in model.__class__.__name__ or
+        ('Flux' in model.__class__.__name__ and 'Flux2' not in model.__class__.__name__) or
         'Chroma' in model.__class__.__name__ or
         'HiDreamImagePipeline' in model.__class__.__name__
     ):

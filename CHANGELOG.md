@@ -1,23 +1,29 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-23
+## Update for 2025-11-26
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-11-23
+### Highlights for 2025-11-26
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
-And a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
+New generation of **Flux.2** large image model and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-23
+### Details for 2025-11-26
 
 - **Models**
+  - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
+    **FLUX.2-Dev** is a brand new model from BFL and uses large 32B DiT together with Mistral 24B as text encoder  
+    model is available for text, image and edit tasks and can optionally use control input as second input image  
+    this is a very large model at ~100GB, so use of prequantized model at ~32GB is strongly advised
+    using prequant version and default offloading, model runs on GPUs with ~20GB  
+    *note*: model is [gated](https://vladmandic.github.io/sdnext-docs/Gated/)  
   - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/) 
     first cloud-based model directly supported in SD.Next UI  
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  

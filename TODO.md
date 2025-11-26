@@ -6,13 +6,10 @@
 
 ## Kanvas
 
-- server-side mask handling vs ui mask handling
-- implement different auto-masking options  
+- implement different llama remover  
 
 ## Internal
 
-- UI: New inpaint/outpaint interface  
-  [Kanvas](https://github.com/vladmandic/kanvas)  
 - Deploy: Create executable for SD.Next  
 - Feature: Integrate natural language image search  
   [ImageDB](https://github.com/vladmandic/imagedb)  
@@ -31,6 +28,7 @@
 
 ## Features
 
+- [Flux.2 TinyVAE](https://huggingface.co/fal/FLUX.2-Tiny-AutoEncoder)
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
 - [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
