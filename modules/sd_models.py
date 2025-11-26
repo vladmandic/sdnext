@@ -14,7 +14,7 @@ from modules import timer, paths, shared, shared_items, modelloader, devices, sc
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
-from modules.sd_offload import disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
+from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, patch_diffuser_config, convert_to_faketensors, read_state_dict, get_state_dict_from_checkpoint, apply_function_to_model # pylint: disable=unused-import
 
 
@@ -163,6 +163,15 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
     if shared.opts.opt_channelslast and hasattr(sd_model, 'unet'):
         shared.log.quiet(quiet, f'Setting {op}: channels-last=True')
         sd_model.unet.to(memory_format=torch.channels_last)
+
+    for module_name in get_module_names(sd_model):
+        module = getattr(sd_model, module_name, None)
+        if hasattr(module, "quantization_config") and getattr(module.quantization_config, "quant_method", None) == "sdnq":
+            if module.quantization_config.use_quantized_matmul != shared.opts.sdnq_use_quantized_matmul:
+                from sdnq.loader import apply_sdnq_options_to_model
+                shared.log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
+                module = apply_sdnq_options_to_model(module, use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul)
+                setattr(sd_model, module_name, module)
 
     if offload:
         set_diffuser_offload(sd_model, op, quiet)

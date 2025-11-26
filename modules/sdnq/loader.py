@@ -134,7 +134,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
     model = post_process_model(model)
     if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):
-        model = apply_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
+        model = apply_sdnq_options_to_model(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     return model
 
 
@@ -154,7 +154,7 @@ def post_process_model(model):
     return model
 
 
-def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
+def apply_sdnq_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
     has_children = list(model.children())
     if not has_children:
         if dtype is not None and getattr(model, "dtype", torch.float32) != torch.float32:
@@ -199,5 +199,5 @@ def apply_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bo
                 module.forward = module.forward.__get__(module, module.__class__)
             setattr(model, module_name, module)
         else:
-            setattr(model, module_name, apply_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))
+            setattr(model, module_name, apply_sdnq_options_to_model(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))
     return model
