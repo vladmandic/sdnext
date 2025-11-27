@@ -47,6 +47,7 @@ pipelines = {
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
