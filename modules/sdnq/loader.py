@@ -132,7 +132,6 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
     if isinstance(getattr(model, "_tied_weights_keys", None), dict):
         for key, value in model._tied_weights_keys.items():
-            print(key, value)
             if value in state_dict.keys() and key not in state_dict.keys():
                 state_dict[key] = state_dict[value]
     else:
