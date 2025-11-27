@@ -133,6 +133,11 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
     if model.__class__.__name__ in {"T5EncoderModel", "UMT5EncoderModel"} and "encoder.embed_tokens.weight" not in state_dict.keys():
         state_dict["encoder.embed_tokens.weight"] = state_dict["shared.weight"]
 
+    # Handle Qwen models with tied lm_head weights
+    if model.__class__.__name__ in {"Qwen3ForCausalLM"} and "lm_head.weight" not in state_dict.keys():
+        if "model.embed_tokens.weight" in state_dict.keys():
+            state_dict["lm_head.weight"] = state_dict["model.embed_tokens.weight"]
+
     model.load_state_dict(state_dict, assign=True)
     del state_dict
 
