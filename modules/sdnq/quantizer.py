@@ -731,7 +731,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             quantization_config_dict.pop("use_grad_ckpt", None)
             quantization_config_dict.pop("is_training", None)
             with init_empty_weights():
-                model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config_dict)
+                model = sdnq_post_load_quant(model, torch_dtype=self.torch_dtype, add_skip_keys=False, **quantization_config_dict)
 
         if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
