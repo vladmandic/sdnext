@@ -22,7 +22,19 @@ const el = {
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
 async function awaitForIDB(num = 0) {
-  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
+  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => { setTimeout(resolve, 50); });
+}
+
+async function awaitForGallery(folderName, num = 0) {
+  let timeout = 0;
+  const timeoutThreshold = 60; // 30 seconds (60*0.5)
+  while (galleryHashes.size < num && activeGalleryFolder === folderName && !idbIsCleaning && timeout++ < timeoutThreshold) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  if (timeout >= timeoutThreshold) {
+    throw new Error('Timed out waiting for gallery to populate');
+  }
+  if (idbIsCleaning) {
+    throw new Error('Another thread has already started cleaning the database');
+  }
 }
 
 // HTML Elements
@@ -555,8 +567,20 @@ async function gallerySort(btn) {
 }
 
 /**
+ * Function for updating the cleaning overlay message
+ * @callback updateMsgCallback
+ * @param {number} progressPercent - Value for completion progress percentage
+ * @returns {void}
+ */
+/**
+ * Function for removing the cleaning overlay
+ * @callback clearMsgCallback
+ * @returns {void}
+ */
+
+/**
  * Generate and display the overlay to announce cleanup is in progress.
- * @returns {() => void} Function for clearing the overlay
+ * @returns {[updateMsgCallback, clearMsgCallback]}
  */
 function showCleaningMsg() {
   const parent = el.folders.parentElement;
@@ -567,36 +591,54 @@ function showCleaningMsg() {
   parent.style.position = 'relative';
   cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
   msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
-  msg.innerText = 'Running thumbnail cleanup';
+  msg.innerText = 'Thumbnail cleanup (0%)';
   anim.classList.add('idbBusyAnim');
 
   cleaningOverlay.append(msg, anim);
   parent.append(cleaningOverlay);
-  return () => {
-    parent.style.position = '';
-    cleaningOverlay.remove();
-  };
+  return [
+    (pct) => {
+      msg.innerText = `Thumbnail cleanup (${pct}%)`;
+    },
+    () => {
+      parent.style.position = '';
+      cleaningOverlay.remove();
+    },
+  ];
 }
 
-async function thumbCacheCleanup() {
+/**
+ * IndexedDB thumbnail cache cleanup function
+ * @param {string} folder - Folder to clean
+ * @param {number} imgCount - Expected number of images in gallery
+ */
+async function thumbCacheCleanup(folder, imgCount) {
   if (idbIsCleaning) return;
   await awaitForIDB();
-  idbIsCleaning = true;
-
-  const t0 = performance.now();
-  const cachedHashesCount = await idbCount()
-    .catch(() => 0);
-  if (cachedHashesCount < galleryHashes.size + 500) {
-    // Don't run when there aren't many excess entries
-    idbIsCleaning = false;
+  try {
+    await awaitForGallery(folder, imgCount);
+  } catch (err) {
+    log('Thumbnail DB cleanup:', err.message);
     return;
   }
+  if (activeGalleryFolder !== folder || idbIsCleaning) return; // First check for other thread activity
 
-  const removeOverlayFunc = showCleaningMsg();
-  idbClean(galleryHashes, activeGalleryFolder)
-    .then((delcount, folder) => {
+  const t0 = performance.now();
+  const staticGalleryHashes = new Set(galleryHashes);
+  const cachedHashesCount = await idbCount(folder)
+    .catch(() => 0);
+  if (cachedHashesCount < staticGalleryHashes.size + 500) {
+    // Don't run when there aren't many excess entries
+    return;
+  }
+  if (activeGalleryFolder !== folder || idbIsCleaning) return; // Second check for other thread activity
+
+  idbIsCleaning = true;
+  const [updateCleaningMsg, removeOverlayFunc] = showCleaningMsg();
+  idbClean(staticGalleryHashes, folder, updateCleaningMsg)
+    .then((delcount) => {
       const t1 = performance.now();
-      log(`Thumbnail DB cleanup: folder=${folder} kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+      log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
     })
     .catch((err) => {
       error('Thumbnail DB cleanup: Cleanup failed.', err.message);
@@ -633,27 +675,25 @@ async function fetchFilesHT(evt) {
   el.files.appendChild(fragment);
 
   const t1 = performance.now();
-  activeGalleryFolder = evt.target.name;
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
-  addSeparators();
-  thumbCacheCleanup();
+  thumbCacheCleanup(evt.target.name, numFiles);
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
-  if (idbIsCleaning) return;
+  if (idbIsCleaning || !url) return;
   galleryHashes.clear(); // Only called here because fetchFilesHT isn't called directly
   el.files.innerHTML = '';
-  if (!url) return;
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
   let wsConnected = false;
   try {
     ws = new WebSocket(`${url}/sdapi/v1/browser/files`);
-    wsConnected = await wsConnect(ws);
+    wsConnected = await wsConnect(ws); // Warning. This changes "evt".
   } catch (err) {
     log('gallery: ws connect error', err);
     return;
   }
+  activeGalleryFolder = evt.target.name;
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   if (!wsConnected) {
     await fetchFilesHT(evt); // fallback to http
@@ -688,11 +728,10 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   ws.onclose = (event) => {
     el.files.appendChild(fragment);
     // gallerySort();
-    activeGalleryFolder = evt.target.name;
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
-    thumbCacheCleanup();
+    thumbCacheCleanup(evt.target.name, numFiles);
   };
   ws.onerror = (event) => {
     log('gallery ws error', event);
