@@ -35,5 +35,5 @@ def load_flux2(checkpoint_info, diffusers_load_config=None):
     sd_hijack_te.init_hijack(pipe)
     sd_hijack_vae.init_hijack(pipe)
 
-    devices.torch_gc()
+    devices.torch_gc(force=True, reason='load')
     return pipe

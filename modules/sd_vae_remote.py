@@ -21,6 +21,7 @@ hf_decode_endpoints['auraflow'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['z_image'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['lumina2'] = hf_decode_endpoints['f1']
 
 hf_encode_endpoints = {
@@ -35,6 +36,7 @@ hf_encode_endpoints['hunyuandit'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['auraflow'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['omnigen'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['h1'] = hf_encode_endpoints['f1']
+hf_encode_endpoints['z_image'] = hf_encode_endpoints['f1']
 hf_encode_endpoints['lumina2'] = hf_encode_endpoints['f1']
 
 dtypes = {
@@ -91,7 +93,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-            if model_type in {'f1', 'h1', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
+            if model_type in {'f1', 'h1', 'z_image', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:

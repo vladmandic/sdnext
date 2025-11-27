@@ -162,6 +162,17 @@
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
 
+  "Z-Image-Turbo": {
+    "path": "Tongyi-MAI/Z-Image-Turbo",
+    "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
+    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It offers sub-second inference latency on enterprise-grade H800 GPUs and fits comfortably within 16G VRAM consumer devices. It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
+    "tags": "distilled",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
+    "size": 20.3,
+    "date": "2025 November"
+  },
+
   "Qwen-Image": {
     "path": "Qwen/Qwen-Image",
     "preview": "Qwen--Qwen-Image.jpg",
@@ -1007,6 +1018,16 @@
     "date": "2025 October",
     "size": 23.55,
     "extras": ""
+  },
+  "Z-Image-Turbo sdnq-svd-uint4": {
+    "path": "Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32",
+    "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
+    "desc": "Quantization of Tongyi-MAI/Z-Image-Turbo using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
+    "size": 6.5,
+    "date": "2025 November"
   },
   "Qwen-Image sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
