@@ -168,7 +168,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
         module = getattr(sd_model, module_name, None)
         if hasattr(module, "quantization_config") and getattr(module.quantization_config, "quant_method", None) == "sdnq":
             if module.quantization_config.use_quantized_matmul != shared.opts.sdnq_use_quantized_matmul:
-                from sdnq.loader import apply_sdnq_options_to_model
+                from modules.sdnq.loader import apply_sdnq_options_to_model
                 shared.log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
                 module = apply_sdnq_options_to_model(module, use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul)
                 setattr(sd_model, module_name, module)
