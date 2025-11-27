@@ -117,7 +117,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         else:
             model = model_cls(**model_config)
 
-        model = sdnq_post_load_quant(model, add_skip_keys=False, **quantization_config)
+        model = sdnq_post_load_quant(model, torch_dtype=dtype, add_skip_keys=False, **quantization_config)
 
     key_mapping = getattr(model, "_checkpoint_conversion_mapping", None)
     files = []
