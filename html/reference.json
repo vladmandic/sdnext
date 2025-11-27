@@ -1021,7 +1021,7 @@
   },
   "Z-Image-Turbo sdnq-svd-uint4": {
     "path": "Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32",
-    "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
+    "preview": "Disty0--Z-Image-Turbo-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Tongyi-MAI/Z-Image-Turbo using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
