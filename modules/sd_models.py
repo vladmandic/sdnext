@@ -443,6 +443,10 @@ def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='
             from pipelines.model_prx import load_prx
             sd_model = load_prx(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Z-Image']:
+            from pipelines.model_z_image import load_z_image
+            sd_model = load_z_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
