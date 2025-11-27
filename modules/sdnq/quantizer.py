@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from accelerate.utils import set_module_tensor_to_device
 
 from modules import devices, shared
-from .common import dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int_symetric, pack_int_asymetric
 from .forward import get_forward_func
@@ -128,6 +128,25 @@ def check_param_name_in(param_name: str, param_list: List[str]) -> bool:
         ):
             return True
     return False
+
+
+def get_quant_args_from_config(quantization_config: Union["SDNQConfig", dict]) -> dict:
+    if isinstance(quantization_config, SDNQConfig):
+        quantization_config_dict = quantization_config.to_dict()
+    else:
+        quantization_config_dict = quantization_config.copy()
+    quantization_config_dict.pop("is_integer", None)
+    quantization_config_dict.pop("quant_method", None)
+    quantization_config_dict.pop("quantization_device", None)
+    quantization_config_dict.pop("return_device", None)
+    quantization_config_dict.pop("non_blocking", None)
+    quantization_config_dict.pop("add_skip_keys", None)
+    quantization_config_dict.pop("use_static_quantization", None)
+    quantization_config_dict.pop("use_stochastic_rounding", None)
+    quantization_config_dict.pop("use_grad_ckpt", None)
+    quantization_config_dict.pop("is_training", None)
+    quantization_config_dict.pop("sdnq_version", None)
+    return quantization_config_dict
 
 
 def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: Dict[str, List[str]]):
@@ -719,19 +738,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             self.quantization_config.non_blocking = False
             self.quantization_config.add_skip_keys = False
 
-            quantization_config_dict = self.quantization_config.to_dict()
-            quantization_config_dict.pop("is_integer", None)
-            quantization_config_dict.pop("quant_method", None)
-            quantization_config_dict.pop("quantization_device", None)
-            quantization_config_dict.pop("return_device", None)
-            quantization_config_dict.pop("non_blocking", None)
-            quantization_config_dict.pop("add_skip_keys", None)
-            quantization_config_dict.pop("use_static_quantization", None)
-            quantization_config_dict.pop("use_stochastic_rounding", None)
-            quantization_config_dict.pop("use_grad_ckpt", None)
-            quantization_config_dict.pop("is_training", None)
             with init_empty_weights():
-                model = sdnq_post_load_quant(model, torch_dtype=self.torch_dtype, add_skip_keys=False, **quantization_config_dict)
+                model = sdnq_post_load_quant(model, torch_dtype=self.torch_dtype, add_skip_keys=False, **get_quant_args_from_config(self.quantization_config))
 
         if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
@@ -890,8 +898,9 @@ class SDNQConfig(QuantizationConfigMixin):
         self.return_device = return_device
         self.modules_to_not_convert = modules_to_not_convert
         self.modules_dtype_dict = modules_dtype_dict
-        self.post_init()
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
+        self.sdnq_version = sdnq_version
+        self.post_init()
 
     def post_init(self):
         r"""

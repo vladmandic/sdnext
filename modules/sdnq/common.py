@@ -5,6 +5,7 @@ import torch
 
 from modules import shared, devices
 
+sdnq_version = "0.1.0"
 
 dtype_dict = {
     "int32": {"min": -2147483648, "max": 2147483647, "num_bits": 32, "sign": 1, "exponent": 0, "mantissa": 31, "target_dtype": torch.int32, "torch_dtype": torch.int32, "storage_dtype": torch.int32, "is_unsigned": False, "is_integer": True, "is_packed": False},
