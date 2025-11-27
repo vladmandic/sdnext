@@ -10,7 +10,8 @@ import logging
 import platform
 import subprocess
 import cProfile
-import importlib # pylint: disable=deprecated-module
+import importlib
+import importlib.util
 
 
 class Dot(dict): # dot notation access to dictionary attributes

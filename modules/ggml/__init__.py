@@ -10,7 +10,7 @@ def install_gguf():
     # https://github.com/ggerganov/llama.cpp/issues/9566
     from installer import install
     install('gguf', quiet=True)
-    import importlib
+    import importlib.metadata
     import gguf
     from modules import shared
     scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
