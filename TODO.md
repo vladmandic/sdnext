@@ -101,7 +101,7 @@ Anything marked with **(!!!)** means a change *will* eventually be required.
 
 - `onerror` deprecated and replaced with `onexc` in **Python 3.12**
 ``` python
-    def excRemoveReadonly(func, path, exc: Exception):
+    def excRemoveReadonly(func, path, exc: BaseException):
         import stat
         shared.log.debug(f'Exception during cleanup: {func} {path} {type(exc).__name__}')
         if func in (os.rmdir, os.remove, os.unlink) and isinstance(exc, PermissionError):
