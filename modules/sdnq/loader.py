@@ -195,7 +195,7 @@ def apply_sdnq_options_to_model(model, dtype: torch.dtype = None, dequantize_fp3
                 if module.svd_up is not None:
                     module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), use_quantized_matmul)
                 module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
-                module.forward = get_forward_func(module.__class__.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, module.sdnq_dequantizer.use_quantized_matmul)
+                module.forward = get_forward_func(module.__class__.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, use_quantized_matmul)
                 module.forward = module.forward.__get__(module, module.__class__)
             setattr(model, module_name, module)
         else:
