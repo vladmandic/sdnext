@@ -103,6 +103,10 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         quantization_config.pop("return_device", None)
         quantization_config.pop("non_blocking", None)
         quantization_config.pop("add_skip_keys", None)
+        quantization_config.pop("use_static_quantization", None)
+        quantization_config.pop("use_stochastic_rounding", None)
+        quantization_config.pop("use_grad_ckpt", None)
+        quantization_config.pop("is_training", None)
 
         if hasattr(model_cls, "load_config") and hasattr(model_cls, "from_config"):
             config = model_cls.load_config(model_path)
