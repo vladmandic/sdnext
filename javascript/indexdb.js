@@ -87,17 +87,21 @@ async function put(record) {
 async function idbGetAllKeys(index = null, query = null) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
-    let request;
-    const store = db
-      .transaction('thumbs', 'readonly')
-      .objectStore('thumbs');
-    if (index) {
-      request = store.index(index).getAllKeys(query);
-    } else {
-      request = store.getAllKeys(query);
+    try {
+      let request;
+      const transaction = db.transaction('thumbs', 'readonly');
+      const store = transaction.objectStore('thumbs');
+      if (index) {
+        request = store.index(index).getAllKeys(query);
+      } else {
+        request = store.getAllKeys(query);
+      }
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e);
+      transaction.onabort = (e) => reject(e);
+    } catch (err) {
+      reject(err);
     }
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = (evt) => reject(evt);
   });
 }
 
@@ -110,17 +114,21 @@ async function idbGetAllKeys(index = null, query = null) {
 async function idbCount(folder = null) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
-    let request;
-    const store = db
-      .transaction('thumbs', 'readonly')
-      .objectStore('thumbs');
-    if (folder) {
-      request = store.index('folder').count(folder);
-    } else {
-      request = store.count();
+    try {
+      let request;
+      const transaction = db.transaction('thumbs', 'readonly');
+      const store = transaction.objectStore('thumbs');
+      if (folder) {
+        request = store.index('folder').count(folder);
+      } else {
+        request = store.count();
+      }
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e);
+      transaction.onabort = (e) => reject(e);
+    } catch (err) {
+      reject(err);
     }
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = (evt) => reject(evt);
   });
 }
 
@@ -143,32 +151,35 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
   const totalRemovals = removals.size;
   let counter = 0;
   return new Promise((resolve, reject) => {
-    const folderIndex = db
-      .transaction('thumbs', 'readwrite')
-      .objectStore('thumbs')
-      .index('folder');
-    const request = folderIndex.openCursor(folder);
+    try {
+      const transaction = db.transaction('thumbs', 'readwrite');
+      const folderIndex = transaction.objectStore('thumbs').index('folder');
+      const request = folderIndex.openCursor(folder);
 
-    request.onsuccess = (evt) => {
-      const cursor = evt.target.result;
-      if (cursor) {
-        if (removals.has(cursor.primaryKey)) {
-          counter++;
-          cursor.delete();
-        }
-        if (counter === totalRemovals) {
-          resolve(counter); // Got lucky with element order and can stop early
-        } else {
-          if (counter % 100 === 0 && counter !== 0) {
-            msgCallback(Math.floor((counter / totalRemovals) * 100));
+      request.onsuccess = (evt) => {
+        const cursor = evt.target.result;
+        if (cursor) {
+          if (removals.has(cursor.primaryKey)) {
+            counter++;
+            cursor.delete();
           }
-          cursor.continue();
+          if (counter === totalRemovals) {
+            resolve(counter); // Got lucky with element order and can stop early
+          } else {
+            if (counter % 100 === 0 && counter !== 0) {
+              msgCallback(Math.floor((counter / totalRemovals) * 100));
+            }
+            cursor.continue();
+          }
+        } else {
+          resolve(counter);
         }
-      } else {
-        resolve(counter);
-      }
-    };
-    request.onerror = (evt) => reject(evt);
+      };
+      request.onerror = (e) => reject(e);
+      transaction.onabort = (e) => reject(e);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 

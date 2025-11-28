@@ -643,8 +643,12 @@ async function thumbCacheCleanup(folder, imgCount) {
       const t1 = performance.now();
       log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
     })
-    .catch((err) => {
-      error('Thumbnail DB cleanup: Cleanup failed.', err.message);
+    .catch((reason) => {
+      if (reason instanceof Error) {
+        error('Thumbnail DB cleanup: Cleanup failed.', reason.message);
+      } else {
+        log('Thumbnail DB cleanup:', reason);
+      }
     })
     .finally(() => {
       cb_clearMsg();
