@@ -116,7 +116,7 @@ def create_ui_size():
                 seed = gr.Number(label='Initial seed', value=-1, elem_id="video_seed", container=True)
                 random_seed = ToolButton(ui_symbols.random, elem_id="video_seed_random")
                 reuse_seed = ToolButton(ui_symbols.reuse, elem_id="video_seed_reuse")
-                random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
+                random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
     return width, height, frames, seed, reuse_seed
 
 
@@ -194,7 +194,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
         _js="submit_video",
         inputs=state_inputs + video_inputs,
         outputs=video_outputs,
-        show_progress=False,
+        show_progress='hidden',
     )
     generate.click(**video_dict)
     return [engine, model, steps, sampler_index]

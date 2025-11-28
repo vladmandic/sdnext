@@ -72,6 +72,6 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
         _js="submit_ltx",
         inputs=state_inputs + video_inputs,
         outputs=video_outputs,
-        show_progress=False,
+        show_progress='hidden',
     )
     generate.click(**video_dict)

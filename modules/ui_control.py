@@ -243,20 +243,20 @@ def create_ui(_blocks: gr.Blocks=None):
             for u in units:
                 controls.extend(u.controls)
             btn_update = gr.Button('Update', interactive=True, visible=False, elem_id='control_update')
-            btn_update.click(fn=get_units, inputs=controls, outputs=[], show_progress=False, queue=False)
+            btn_update.click(fn=get_units, inputs=controls, outputs=[], show_progress='hidden', queue=False)
 
             show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             show_preview.change(fn=lambda x: gr.update(visible=x), inputs=[show_preview], outputs=[column_preview])
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
-            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter], show_progress = False)
-            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter], show_progress = False)
+            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter], show_progress = 'hidden')
+            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter], show_progress = 'hidden')
 
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
                 inputs=[input_mode, input_image, init_image, input_type, input_video, input_batch, input_folder],
                 outputs=[output_tabs, preview_process, result_txt, width_before, height_before],
-                show_progress=False,
+                show_progress='hidden',
                 queue=False,
             )
 
@@ -305,7 +305,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 _js="submit_control",
                 inputs=[tabs_state, state, tabs_state] + input_fields + input_script_args,
                 outputs=output_fields,
-                show_progress=True,
+                show_progress='full',
             )
             prompt.submit(**control_dict)
             negative.submit(**control_dict)

@@ -203,7 +203,7 @@ def create_ui():
                     img2img_html_info,
                     img2img_html_log,
                 ],
-                show_progress=False,
+                show_progress='hidden',
             )
             img2img_prompt.submit(**img2img_dict)
             img2img_negative_prompt.submit(**img2img_dict)
@@ -229,8 +229,8 @@ def create_ui():
             )
             interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
 
-            img2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = False)
-            img2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = False)
+            img2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = 'hidden')
+            img2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = 'hidden')
 
             ui_extra_networks.setup_ui(extra_networks_ui_img2img, img2img_gallery)
             img2img_paste_fields = [

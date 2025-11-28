@@ -532,7 +532,7 @@ def create_ui():
                     _js="downloadCivitModel",
                     inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output],
                     outputs=[civitai_models_output],
-                    show_progress=True,
+                    show_progress='full',
                 )
 
             with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):

@@ -180,7 +180,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                     self.adapter.load(model_id)
                 else:
                     self.controls.append(model_id)
-                    model_id.change(fn=self.adapter.load, inputs=[model_id], outputs=[result_txt], show_progress=True)
+                    model_id.change(fn=self.adapter.load, inputs=[model_id], outputs=[result_txt], show_progress='full')
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=adapter_extra, inputs=extra_controls)
         elif self.type == 'controlnet':
@@ -189,8 +189,8 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                     self.controlnet.load(model_id)
                 else:
                     self.controls.append(model_id)
-                    model_id.change(fn=self.controlnet.load, inputs=[model_id], outputs=[result_txt], show_progress=True)
-                    model_id.change(fn=control_choices, inputs=[model_id], outputs=[control_mode, control_tile], show_progress=False)
+                    model_id.change(fn=self.controlnet.load, inputs=[model_id], outputs=[result_txt], show_progress='full')
+                    model_id.change(fn=control_choices, inputs=[model_id], outputs=[control_mode, control_tile], show_progress='hidden')
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnet_extra, inputs=extra_controls)
         elif self.type == 'xs':
@@ -199,7 +199,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                     self.controlnet.load(model_id)
                 else:
                     self.controls.append(model_id)
-                    model_id.change(fn=self.controlnet.load, inputs=[model_id, extra_controls[0]], outputs=[result_txt], show_progress=True)
+                    model_id.change(fn=self.controlnet.load, inputs=[model_id, extra_controls[0]], outputs=[result_txt], show_progress='full')
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnetxs_extra, inputs=extra_controls)
         elif self.type == 'lite':
@@ -208,7 +208,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                     self.controlnet.load(model_id)
                 else:
                     self.controls.append(model_id)
-                    model_id.change(fn=self.controlnet.load, inputs=[model_id], outputs=[result_txt], show_progress=True)
+                    model_id.change(fn=self.controlnet.load, inputs=[model_id], outputs=[result_txt], show_progress='full')
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnetxs_extra, inputs=extra_controls)
         elif self.type == 'reference':
@@ -229,7 +229,7 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
                 self.process.load(process_id)
             else:
                 self.controls.append(process_id)
-                process_id.change(fn=self.process.load, inputs=[process_id], outputs=[result_txt], show_progress=True)
+                process_id.change(fn=self.process.load, inputs=[process_id], outputs=[result_txt], show_progress='full')
         if reset_btn is not None:
             reset_btn.click(fn=self.reset, inputs=[], outputs=[enabled_cb, model_id, process_id, model_strength])
         if preview_btn is not None:

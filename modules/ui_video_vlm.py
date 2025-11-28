@@ -65,6 +65,6 @@ def create_ui(prompt_element:gr.Textbox, image_element:gr.Image):
             fn=enhance_prompt,
             inputs=[enable, model, image_element, prompt_element, system_prompt, nsfw],
             outputs=prompt_element,
-            show_progress=True,
+            show_progress='full',
         )
     return enable, model, system_prompt

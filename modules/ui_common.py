@@ -285,23 +285,23 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
             with gr.Group():
                 html_info = gr.HTML(elem_id=f'html_info_{tabname}', elem_classes="infotext", visible=False) # contains raw infotext as returned by wrapped call
                 html_info_formatted = gr.HTML(elem_id=f'html_info_formatted_{tabname}', elem_classes="infotext", visible=True) # contains html formatted infotext
-                html_info.change(fn=infotext_to_html, inputs=[html_info], outputs=[html_info_formatted], show_progress=False)
+                html_info.change(fn=infotext_to_html, inputs=[html_info], outputs=[html_info_formatted], show_progress='hidden')
                 html_log = gr.HTML(elem_id=f'html_log_{tabname}')
                 generation_info = gr.Textbox(visible=False, elem_id=f'generation_info_{tabname}')
                 generation_info_button = gr.Button(visible=False, elem_id=f"{tabname}_generation_info_button")
 
                 result_field = result_info or html_info_formatted
-                generation_info_button.click(fn=update_generation_info, show_progress=False,
+                generation_info_button.click(fn=update_generation_info, show_progress='hidden',
                     _js="(x, y, z) => [x, y, selected_gallery_index()]", # triggered on gallery change from js
                     inputs=[generation_info, html_info, html_info],
                     outputs=[html_info, result_field],
                 )
-                save.click(fn=call_queue.wrap_gradio_call(save_files), show_progress=False,
+                save.click(fn=call_queue.wrap_gradio_call(save_files), show_progress='hidden',
                     _js="(x, y, z, i) => [x, y, z, selected_gallery_index()]",
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[download_files, html_log],
                 )
-                delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress=False,
+                delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress='hidden',
                     _js="(x, y, i, j) => [x, y, ...selected_gallery_files()]",
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[result_gallery, html_log],
@@ -345,7 +345,7 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args = No
         return gr.update(**args)
 
     refresh_button = ui_components.ToolButton(value=ui_symbols.refresh, elem_id=elem_id, visible=visible)
-    refresh_button.click(fn=refresh, inputs=[], outputs=[refresh_component], show_progress=False)
+    refresh_button.click(fn=refresh, inputs=[], outputs=[refresh_component], show_progress='hidden')
     return refresh_button
 
 
@@ -374,7 +374,7 @@ def reuse_seed(seed_component: gr.Number, reuse_button: gr.Button, subseed:bool=
         shared.log.debug(f'Reuse seed: index={selected_gallery_index} seed={seed} subseed={subseed}')
         return seed
 
-    reuse_button.click(fn=reuse_click, _js="selected_gallery_index", inputs=[seed_component], outputs=[seed_component], show_progress=False)
+    reuse_button.click(fn=reuse_click, _js="selected_gallery_index", inputs=[seed_component], outputs=[seed_component], show_progress='hidden')
 
 
 def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_info: gr.Textbox, is_subseed, subseed_strength=None):
@@ -405,9 +405,9 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
             return [restore_seed, gr_show(False)]
     dummy_component = gr.Number(visible=False, value=0)
     if subseed_strength is None:
-        reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component])
+        reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress='hidden', inputs=[generation_info, dummy_component], outputs=[seed, dummy_component])
     else:
-        reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
+        reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress='hidden', inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
 def update_token_counter(text):

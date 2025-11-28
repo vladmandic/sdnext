@@ -8,4 +8,4 @@ def create_ui():
         _history_table = gr.HTML('', elem_id='history_table')
     with gr.Row():
         _history_timeline = gr.HTML('', elem_id='history_timeline')
-    btn_refresh.click(_js='refreshHistory', fn=None, inputs=[], outputs=[], show_progress=False)
+    btn_refresh.click(_js='refreshHistory', fn=None, inputs=[], outputs=[], show_progress='hidden')
