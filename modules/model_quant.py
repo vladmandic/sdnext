@@ -166,6 +166,11 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
     from modules import shared
     if allow and (shared.opts.sdnq_quantize_mode in {'pre', 'auto'}) and (module == 'any' or module in shared.opts.sdnq_quantize_weights):
         from modules.sdnq import SDNQConfig
+        from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
+
+        if shared.opts.sdnq_use_quantized_matmul and not sdnq_use_torch_compile:
+            shared.log.warning('SDNQ Quantized MatMul requires a working Triton install. Disabling Quantized MatMul.')
+            shared.opts.sdnq_use_quantized_matmul = False
 
         if weights_dtype is None:
             if module in {"TE", "LLM"} and shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}:
@@ -492,6 +497,11 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
     from modules import devices, shared, timer
     from modules.sdnq import sdnq_post_load_quant
+    from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
+
+    if shared.opts.sdnq_use_quantized_matmul and not sdnq_use_torch_compile:
+        shared.log.warning('SDNQ Quantized MatMul requires a working Triton install. Disabling Quantized MatMul.')
+        shared.opts.sdnq_use_quantized_matmul = False
 
     if weights_dtype is None:
         if (op is not None) and ("text_encoder" in op or op in {"TE", "LLM"}) and (shared.opts.sdnq_quantize_weights_mode_te not in {"Same as model", "default"}):

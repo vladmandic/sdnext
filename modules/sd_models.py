@@ -167,6 +167,10 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
     for module_name in get_module_names(sd_model):
         module = getattr(sd_model, module_name, None)
         if hasattr(module, "quantization_config") and getattr(module.quantization_config, "quant_method", None) == "sdnq":
+            from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
+            if shared.opts.sdnq_use_quantized_matmul and not sdnq_use_torch_compile:
+                shared.log.warning('SDNQ Quantized MatMul requires a working Triton install. Disabling Quantized MatMul.')
+                shared.opts.sdnq_use_quantized_matmul = False
             if module.quantization_config.use_quantized_matmul != shared.opts.sdnq_use_quantized_matmul:
                 from modules.sdnq.loader import apply_sdnq_options_to_model
                 shared.log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
