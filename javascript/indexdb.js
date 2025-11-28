@@ -101,6 +101,12 @@ async function idbGetAllKeys(index = null, query = null) {
   });
 }
 
+/**
+ * Get the number of entries in the IndexedDB thumbnail cache.
+ * @global
+ * @param {?string} folder - If specified, get the count for this gallery folder. Otherwise get the total count.
+ * @returns {Promise<number>}
+ */
 async function idbCount(folder = null) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
@@ -119,9 +125,11 @@ async function idbCount(folder = null) {
 }
 
 /**
+ * Cleanup function for IndexedDB thumbnail cache.
+ * @global
  * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder.
- * @param {string} folder - Folder name/path
- * @param {updateMsgCallback} msgCallback - Callback for updating progress display
+ * @param {string} folder - Folder name/path.
+ * @param {updateMsgCallback} msgCallback - Callback for updating the overlay message progress.
  */
 async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (!db) return null;
