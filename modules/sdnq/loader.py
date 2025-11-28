@@ -207,7 +207,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
 
 def apply_sdnq_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
     if use_quantized_matmul and not use_torch_compile:
-        raise ValueError("SDNQ Quantized MatMul requires a working Triton install.")
+        raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
     model = apply_sdnq_options_to_module(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     if hasattr(model, "quantization_config"):
         if use_quantized_matmul is not None:
