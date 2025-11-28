@@ -568,19 +568,19 @@ async function gallerySort(btn) {
 
 /**
  * Function for updating the cleaning overlay message
- * @callback updateMsgCallback
+ * @callback UpdateMsgCallback
  * @param {number} progressPercent - Value for completion progress percentage
  * @returns {void}
  */
 /**
  * Function for removing the cleaning overlay
- * @callback clearMsgCallback
+ * @callback ClearMsgCallback
  * @returns {void}
  */
 
 /**
  * Generate and display the overlay to announce cleanup is in progress.
- * @returns {[updateMsgCallback, clearMsgCallback]}
+ * @returns {[UpdateMsgCallback, ClearMsgCallback]}
  */
 function showCleaningMsg() {
   const parent = el.folders.parentElement;
@@ -608,14 +608,17 @@ function showCleaningMsg() {
 }
 
 /**
- * IndexedDB thumbnail cache cleanup function
+ * Handles calling the cleanup function for the thumbnail cache
  * @param {string} folder - Folder to clean
  * @param {number} imgCount - Expected number of images in gallery
  */
 async function thumbCacheCleanup(folder, imgCount) {
   if (idbIsCleaning) return;
-  await awaitForIDB();
   try {
+    if (typeof folder !== 'string' || typeof imgCount !== 'number') {
+      throw new Error('Function called with invalid arguments');
+    }
+    await awaitForIDB();
     await awaitForGallery(folder, imgCount);
   } catch (err) {
     log('Thumbnail DB cleanup:', err.message);
@@ -634,8 +637,8 @@ async function thumbCacheCleanup(folder, imgCount) {
   if (activeGalleryFolder !== folder || idbIsCleaning) return; // Second check for other thread activity
 
   idbIsCleaning = true;
-  const [updateCleaningMsg, removeOverlayFunc] = showCleaningMsg();
-  idbFolderCleanup(staticGalleryHashes, folder, updateCleaningMsg)
+  const [cb_updateMsg, cb_clearMsg] = showCleaningMsg();
+  idbFolderCleanup(staticGalleryHashes, folder, cb_updateMsg)
     .then((delcount) => {
       const t1 = performance.now();
       log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
@@ -644,7 +647,7 @@ async function thumbCacheCleanup(folder, imgCount) {
       error('Thumbnail DB cleanup: Cleanup failed.', err.message);
     })
     .finally(() => {
-      removeOverlayFunc();
+      cb_clearMsg();
       idbIsCleaning = false;
     });
 }

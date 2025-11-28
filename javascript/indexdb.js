@@ -129,7 +129,7 @@ async function idbCount(folder = null) {
  * @global
  * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder.
  * @param {string} folder - Folder name/path.
- * @param {updateMsgCallback} msgCallback - Callback for updating the overlay message progress.
+ * @param {UpdateMsgCallback} msgCallback - Callback for updating the overlay message progress.
  */
 async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (!db) return null;
