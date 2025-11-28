@@ -123,16 +123,15 @@ async function idbCount(folder = null) {
  * @param {string} folder - Folder name/path
  * @param {updateMsgCallback} msgCallback - Callback for updating progress display
  */
-async function idbClean(keepSet, folder, msgCallback) {
+async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (!db) return null;
   if (!(keepSet instanceof Set)) {
-    throw new TypeError('IndexedDB cleaning function must be given a Set() of hashes to keep');
+    throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
   }
-  if (!folder) {
+  if (!folder || typeof folder !== 'string') {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
-  const folderCached = new Set(await idbGetAllKeys('folder', folder));
-  const removals = folderCached.difference(keepSet);
+  const removals = (new Set(await idbGetAllKeys('folder', folder))).difference(keepSet);
   const totalRemovals = removals.size;
   let counter = 0;
   return new Promise((resolve, reject) => {

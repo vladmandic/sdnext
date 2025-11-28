@@ -635,7 +635,7 @@ async function thumbCacheCleanup(folder, imgCount) {
 
   idbIsCleaning = true;
   const [updateCleaningMsg, removeOverlayFunc] = showCleaningMsg();
-  idbClean(staticGalleryHashes, folder, updateCleaningMsg)
+  idbFolderCleanup(staticGalleryHashes, folder, updateCleaningMsg)
     .then((delcount) => {
       const t1 = performance.now();
       log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
