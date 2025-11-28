@@ -16,7 +16,7 @@ from accelerate import init_empty_weights
 from accelerate.utils import set_module_tensor_to_device
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, use_torch_compile
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int_symetric, pack_int_asymetric
 from .forward import get_forward_func
@@ -536,6 +536,25 @@ def sdnq_post_load_quant(
     if add_skip_keys:
         model, modules_to_not_convert, modules_dtype_dict = add_module_skip_keys(model, modules_to_not_convert, modules_dtype_dict)
 
+    quantization_config = SDNQConfig(
+        weights_dtype=weights_dtype,
+        group_size=group_size,
+        svd_rank=svd_rank,
+        svd_steps=svd_steps,
+        use_svd=use_svd,
+        quant_conv=quant_conv,
+        use_quantized_matmul=use_quantized_matmul,
+        use_quantized_matmul_conv=use_quantized_matmul_conv,
+        use_stochastic_rounding=use_stochastic_rounding,
+        dequantize_fp32=dequantize_fp32,
+        non_blocking=non_blocking,
+        add_skip_keys=add_skip_keys,
+        quantization_device=quantization_device,
+        return_device=return_device,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict,
+    )
+
     model.eval()
     model = apply_sdnq_to_module(
         model,
@@ -557,25 +576,8 @@ def sdnq_post_load_quant(
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
     )
-    model.quantization_config = SDNQConfig(
-        weights_dtype=weights_dtype,
-        group_size=group_size,
-        svd_rank=svd_rank,
-        svd_steps=svd_steps,
-        use_svd=use_svd,
-        quant_conv=quant_conv,
-        use_quantized_matmul=use_quantized_matmul,
-        use_quantized_matmul_conv=use_quantized_matmul_conv,
-        use_stochastic_rounding=use_stochastic_rounding,
-        dequantize_fp32=dequantize_fp32,
-        non_blocking=non_blocking,
-        add_skip_keys=add_skip_keys,
-        quantization_device=quantization_device,
-        return_device=return_device,
-        modules_to_not_convert=modules_to_not_convert,
-        modules_dtype_dict=modules_dtype_dict,
-    )
 
+    model.quantization_config = quantization_config
     if hasattr(model, "config"):
         try:
             model.config.quantization_config = model.quantization_config
@@ -906,6 +908,8 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
+        if self.use_quantized_matmul and not use_torch_compile:
+            raise ValueError("Quantized MatMul requires a working Triton install.")
         if self.weights_dtype not in accepted_weight_dtypes:
             raise ValueError(f"SDNQ only support weight dtypes in {accepted_weight_dtypes} but found {self.weights_dtype}")
         if self.quantized_matmul_dtype is not None and self.quantized_matmul_dtype not in accepted_matmul_dtypes:
