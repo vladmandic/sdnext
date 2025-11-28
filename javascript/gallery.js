@@ -677,6 +677,7 @@ async function fetchFilesHT(evt) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  addSeparators();
   thumbCacheCleanup(evt.target.name, numFiles);
 }
 
