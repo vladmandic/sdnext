@@ -136,7 +136,7 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (!(keepSet instanceof Set)) {
     throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
   }
-  if (!folder || typeof folder !== 'string') {
+  if (typeof folder !== 'string') {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
   const removals = (new Set(await idbGetAllKeys('folder', folder))).difference(keepSet);
