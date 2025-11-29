@@ -147,36 +147,25 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (typeof folder !== 'string') {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
-  const removals = (new Set(await idbGetAllKeys('folder', folder))).difference(keepSet);
+
+  let removals = new Set(await idbGetAllKeys('folder', folder));
+  removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
-  let counter = 0;
+
   return new Promise((resolve, reject) => {
     try {
       const transaction = db.transaction('thumbs', 'readwrite');
-      const folderIndex = transaction.objectStore('thumbs').index('folder');
-      const request = folderIndex.openCursor(folder);
+      const store = transaction.objectStore('thumbs');
 
-      request.onsuccess = (evt) => {
-        const cursor = evt.target.result;
-        if (cursor) {
-          if (removals.has(cursor.primaryKey)) {
-            counter++;
-            cursor.delete();
-          }
-          if (counter === totalRemovals) {
-            resolve(counter); // Got lucky with element order and can stop early
-          } else {
-            if (counter % 100 === 0 && counter !== 0) {
-              msgCallback(Math.floor((counter / totalRemovals) * 100));
-            }
-            cursor.continue();
-          }
-        } else {
-          resolve(counter);
+      removals = Array.from(removals);
+      for (let index = 0; index < totalRemovals; index++) {
+        const entry = removals[index];
+        store.delete(entry);
+        if (index % 100 === 0 && index !== 0) {
+          msgCallback(Math.floor((index / totalRemovals) * 100));
         }
-      };
-      request.onerror = (e) => reject(e);
-      transaction.onabort = (e) => reject(e);
+      }
+      resolve(totalRemovals);
     } catch (err) {
       reject(err);
     }
