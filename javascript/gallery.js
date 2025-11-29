@@ -629,7 +629,7 @@ async function thumbCacheCleanup(folder, imgCount) {
   const t0 = performance.now();
   const staticGalleryHashes = new Set(galleryHashes);
   const cachedHashesCount = await idbCount(folder)
-    .catch(() => 0);
+    .catch(() => Infinity); // Forces next check to fail if something went wrong
   if (cachedHashesCount < staticGalleryHashes.size + 500) {
     // Don't run when there aren't many excess entries
     return;
