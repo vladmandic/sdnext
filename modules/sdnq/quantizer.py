@@ -727,6 +727,12 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         self.torch_dtype = torch_dtype
         return torch_dtype
 
+    def update_dtype(self, dtype: torch.dtype = None) -> torch.dtype:
+        """
+        needed for transformers compatibilty, returns self.update_torch_dtype
+        """
+        return self.update_torch_dtype(dtype)
+
     def _process_model_before_weight_loading( # pylint: disable=arguments-differ
         self,
         model,
@@ -746,6 +752,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
                 self.quantization_config.modules_to_not_convert.extend(keep_in_fp32_modules)
+            if hasattr(self, "get_modules_to_not_convert") and hasattr(model, "tie_weights"):
+                self.quantization_config.modules_to_not_convert.extend(self.get_modules_to_not_convert(model, add_default_skips=True))
             model, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict = add_module_skip_keys(
                 model, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict
             )
@@ -798,6 +806,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     @property
     def is_trainable(self):
         return self.quantization_config.is_training
+
+    @property
+    def is_qat_trainable(self) -> bool:
+        return self.is_trainable()
 
     @property
     def is_compileable(self):
