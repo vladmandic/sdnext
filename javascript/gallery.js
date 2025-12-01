@@ -41,18 +41,20 @@ async function awaitForGallery(expectedSize, signal) {
 }
 
 function updateGalleryStyles() {
-  folderStylesheet.replaceSync(window.opts.theme_type
-    === 'Modern'
-    ? `.gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
+  if (opts.theme_type?.lower() === 'modern') {
+    folderStylesheet.replaceSync(`
+      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
       .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
       .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
       .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
-    `
-    : `
+    `);
+  } else {
+    folderStylesheet.replaceSync(`
       .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
       .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
       .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
     `);
+  }
   fileStylesheet.replaceSync(`
     .gallery-file {
       object-fit: contain;
