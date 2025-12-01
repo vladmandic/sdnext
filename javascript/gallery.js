@@ -22,7 +22,7 @@ const el = {
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
 async function awaitForIDB(num = 0, signal = null) {
-  const timeout = AbortSignal.timeout(30000);
+  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
   const combinedSignals = signal ? AbortSignal.any([timeout, signal]) : timeout;
   while (outstanding > num && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
 }
@@ -33,12 +33,9 @@ async function awaitForIDB(num = 0, signal = null) {
  * @param {AbortSignal} signal - AbortController signal
  */
 async function awaitForGallery(expectedSize, signal) {
-  const timeout = AbortSignal.timeout(60000);
+  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
   const combinedSignals = AbortSignal.any([timeout, signal]);
   while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
-  if (timeout.aborted) {
-    throw 'Timed out waiting for gallery to populate'; // eslint-disable-line no-throw-literal
-  }
 }
 
 // Classes
@@ -671,11 +668,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
     await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
-    if (err instanceof Error) {
-      error('Thumbnail DB cleanup:', err.message);
-    } else {
-      log('Thumbnail DB cleanup:', err);
-    }
+    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${controller.signal.aborted ? controller.signal.reason : 'timeout'}"`);
     return;
   }
 
