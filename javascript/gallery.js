@@ -271,13 +271,13 @@ async function delayFetchThumb(fn) {
 }
 
 class GalleryFile extends HTMLElement {
-  #gallerySignal;
+  #signal;
 
   constructor(folder, file, signal = undefined) {
     super();
     this.folder = folder;
     this.name = file;
-    this.#gallerySignal = signal;
+    this.#signal = signal;
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
@@ -371,10 +371,10 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (!this.#gallerySignal?.aborted) {
+    if (this.#signal && !this.#signal.aborted) {
       // Guard against accessing external context from a stale initialization
       galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
-      this.#gallerySignal = null; // Clean up reference to AbortSignal
+      this.#signal = null; // Clean up reference to AbortSignal
     }
     if (!ok) {
       return;
