@@ -9,6 +9,8 @@ let lastSort = 0;
 let lastSortName = 'None';
 const galleryHashes = new Set();
 let maintenanceController = new AbortController();
+const folderStylesheet = new CSSStyleSheet();
+const fileStylesheet = new CSSStyleSheet();
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -36,6 +38,32 @@ async function awaitForGallery(expectedSize, signal) {
   const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
   const combinedSignals = AbortSignal.any([timeout, signal]);
   while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+}
+
+function updateGalleryStyles() {
+  folderStylesheet.replaceSync((window.opts.theme_type
+    === 'Modern'
+    ? `.gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
+      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
+      .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
+      .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
+    `
+    : `
+      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
+      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
+      .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
+    `));
+  fileStylesheet.replaceSync(`
+    .gallery-file {
+      object-fit: contain;
+      cursor: pointer;
+      height: ${opts.extra_networks_card_size}px;
+      width: ${opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset'};
+    }
+    .gallery-file:hover {
+      filter: grayscale(100%);
+    }
+  `);
 }
 
 // Classes
@@ -95,32 +123,17 @@ class GalleryFolder extends HTMLElement {
     super();
     this.name = decodeURI(name);
     this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [folderStylesheet];
   }
 
   connectedCallback() {
-    const style = document.createElement('style'); // silly but necessasry since we're inside shadowdom
-    if (window.opts.theme_type === 'Modern') {
-      style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
-        .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-        .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
-        .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
-      `;
-    } else {
-      style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
-        .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-        .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
-      `;
-    }
-    this.shadow.appendChild(style);
     const div = document.createElement('div');
     div.className = 'gallery-folder';
     div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
-        if (folder.name === this.name) folder.shadow.children[1].classList.add('gallery-folder-selected');
-        else folder.shadow.children[1].classList.remove('gallery-folder-selected');
+        if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
+        else folder.shadow.firstElementChild.classList.remove('gallery-folder-selected');
       }
     });
     div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
@@ -286,6 +299,7 @@ class GalleryFile extends HTMLElement {
     this.height = 0;
     this.src = `${this.folder}/${this.name}`;
     this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [fileStylesheet];
   }
 
   async connectedCallback() {
@@ -304,20 +318,6 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const style = document.createElement('style');
-    const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
-    style.textContent = `
-      .gallery-file {
-        object-fit: contain;
-        cursor: pointer;
-        height: ${opts.extra_networks_card_size}px;
-        width: ${width};
-      }
-      .gallery-file:hover {
-        filter: grayscale(100%);
-      }
-    `;
-
     const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -395,7 +395,6 @@ class GalleryFile extends HTMLElement {
       this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
     }
 
-    this.shadow.appendChild(style);
     this.shadow.appendChild(img);
   }
 }
@@ -749,6 +748,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
 
   el.files.innerHTML = '';
+  updateGalleryStyles();
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
   let wsConnected = false;
   try {
@@ -862,6 +862,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+  updateGalleryStyles();
   setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
