@@ -64,9 +64,10 @@ class SimpleFunctionQueue {
     }
     if (config.signal.aborted) {
       debug(`${this.#id} Queue: Skipping addition to queue due to "${config.signal.reason}"`);
+      return;
     }
     this.#queue.push(config);
-    if (!this.busy) {
+    if (!this.#running) {
       this.#runNext();
     }
   }
