@@ -135,11 +135,11 @@ async function idbCount(folder = null) {
 /**
  * Cleanup function for IndexedDB thumbnail cache.
  * @global
- * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder.
- * @param {string} folder - Folder name/path.
- * @param {UpdateMsgCallback} msgCallback - Callback for updating the overlay message progress.
+ * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder
+ * @param {string} folder - Folder name/path
+ * @param {AbortSignal} signal - Signal from the AbortController for thumbCacheCleanup()
  */
-async function idbFolderCleanup(keepSet, folder, msgCallback) {
+async function idbFolderCleanup(keepSet, folder, signal) {
   if (!db) return null;
   if (!(keepSet instanceof Set)) {
     throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
@@ -151,24 +151,37 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
   let removals = new Set(await idbGetAllKeys('folder', folder));
   removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
-
+  if (signal.aborted) {
+    throw `Aborting. ${signal.reason}`; // eslint-disable-line no-throw-literal
+  }
   return new Promise((resolve, reject) => {
-    try {
-      const transaction = db.transaction('thumbs', 'readwrite');
-      const store = transaction.objectStore('thumbs');
-
-      removals = Array.from(removals);
-      for (let index = 0; index < totalRemovals; index++) {
-        const entry = removals[index];
-        store.delete(entry);
-        if (index % 100 === 0 && index !== 0) {
-          msgCallback(Math.floor((index / totalRemovals) * 100));
-        }
-      }
-      resolve(totalRemovals);
-    } catch (err) {
-      reject(err);
+    const transaction = db.transaction('thumbs', 'readwrite');
+    function abortTransaction() {
+      signal.removeEventListener('abort', abortTransaction);
+      transaction.abort();
     }
+    signal.addEventListener('abort', abortTransaction);
+
+    try {
+      const store = transaction.objectStore('thumbs');
+      removals.forEach((entry) => { store.delete(entry); });
+    } catch (err) {
+      error(err);
+      abortTransaction();
+    }
+
+    transaction.onabort = () => {
+      signal.removeEventListener('abort', abortTransaction);
+      reject(`Aborting. ${signal.reason}`); // eslint-disable-line prefer-promise-reject-errors
+    };
+    transaction.onerror = () => {
+      signal.removeEventListener('abort', abortTransaction);
+      reject(new Error('Database transaction error'));
+    };
+    transaction.oncomplete = async () => {
+      signal.removeEventListener('abort', abortTransaction);
+      resolve(totalRemovals);
+    };
   });
 }
 
