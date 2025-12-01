@@ -675,7 +675,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
   maintenanceQueue.enqueue({
     signal: controller.signal,
     callback: async () => {
-      debug(`Thumbnail DB cleanup: Checking if "${folder}" neads cleaning`);
+      log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
       const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
