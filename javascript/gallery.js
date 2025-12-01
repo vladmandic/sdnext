@@ -67,12 +67,10 @@ class SimpleFunctionQueue {
       return;
     }
     this.#queue.push(config);
-    if (!this.#running) {
-      this.#runNext();
-    }
+    this.#tryRunNext();
   }
 
-  async #runNext() {
+  async #tryRunNext() {
     if (this.#running || !this.#queue.length) return;
     try {
       const { signal, callback } = this.#queue.shift();
@@ -85,7 +83,7 @@ class SimpleFunctionQueue {
       error(`${this.#id} Queue:`, err);
     } finally {
       this.#running = false;
-      this.#runNext();
+      this.#tryRunNext();
     }
   }
 }
