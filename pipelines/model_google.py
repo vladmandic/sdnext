@@ -5,9 +5,9 @@ from installer import install, reload, log
 
 
 image_size_buckets = {
-    '1M': 1024*1024,
-    '2M': 2048*1024,
-    '4M': 4096*1024,
+    '1K': 1024*1024,
+    '2K': 2048*1024,
+    '4K': 4096*1024,
 }
 aspect_ratios_buckets = {
     '1:1': 1/1,
@@ -38,7 +38,7 @@ class GoogleNanoBananaPipeline():
         self.model = model_name
         self.client = None
         self.config = None
-        install('google-genai')
+        install('google-genai==1.52.0')
         install('pydantic==2.11.7', ignore=True, quiet=True)
         reload('pydantic', '2.11.7')
         log.debug(f'Load model: type=NanoBanana model="{model_name}"')
@@ -73,11 +73,16 @@ class GoogleNanoBananaPipeline():
             self.client = genai.Client(api_key=api_key, vertexai=False)
 
         image_size, aspect_ratio = get_size_buckets(width, height)
-        log.debug(f'Cloud: prompt={prompt} size={image_size} ar={aspect_ratio} image={image} model="{self.model}"')
+        if 'gemini-3' in self.model:
+            image_config=genai.types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
+        else:
+            image_config=genai.types.ImageConfig(aspect_ratio=aspect_ratio)
         self.config=genai.types.GenerateContentConfig(
             response_modalities=["IMAGE"],
-            image_config=genai.types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
+            image_config=image_config
         )
+        log.debug(f'Cloud: prompt={prompt} size={image_size} ar={aspect_ratio} image={image} model="{self.model}"')
+        log.debug(f'Cloud: config={self.config}')
 
         try:
             if image is not None:
@@ -103,3 +108,12 @@ class GoogleNanoBananaPipeline():
 def load_nanobanana(checkpoint_info, diffusers_load_config): # pylint: disable=unused-argument
     pipe = GoogleNanoBananaPipeline(model_name = checkpoint_info.filename)
     return pipe
+
+
+if __name__ == "__main__":
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    log.info('test')
+    model =GoogleNanoBananaPipeline('gemini-3-pro-image-preview')
+    img = model(['A beautiful landscape with mountains and a river'], 1024, 1024)
+    img.save('test.png')

@@ -301,6 +301,9 @@ def print_profile(profiler: cProfile.Profile, msg: str):
 
 
 def package_version(package):
+    global pkg_resources # pylint: disable=global-statement
+    if pkg_resources is None:
+        import pkg_resources # pylint: disable=redefined-outer-name
     try:
         return pkg_resources.get_distribution(package).version
     except Exception:
@@ -308,6 +311,9 @@ def package_version(package):
 
 
 def package_spec(package):
+    global pkg_resources # pylint: disable=global-statement
+    if pkg_resources is None:
+        import pkg_resources # pylint: disable=redefined-outer-name
     spec = pkg_resources.working_set.by_key.get(package, None) # more reliable than importlib
     if spec is None:
         spec = pkg_resources.working_set.by_key.get(package.lower(), None) # check name variations
