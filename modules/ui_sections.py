@@ -45,7 +45,7 @@ def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visibl
                 button_paste = gr.Button(value='Restore', variant='secondary', elem_id=f"{id_part}_paste") # symbols.paste
                 button_clear = gr.Button(value='Clear', variant='secondary', elem_id=f"{id_part}_clear_prompt_btn") # symbols.clear
                 button_extra = gr.Button(value='Networks', variant='secondary', elem_id=f"{id_part}_extra_networks_btn") # symbols.networks
-                button_clear.click(fn=lambda *x: ['', ''], inputs=[prompt, negative_prompt], outputs=[prompt, negative_prompt], show_progress=False)
+                button_clear.click(fn=lambda *x: ['', ''], inputs=[prompt, negative_prompt], outputs=[prompt, negative_prompt], show_progress='hidden')
             with gr.Row(elem_id=f"{id_part}_counters"):
                 token_counter = gr.HTML(value="<span>0/75</span>", elem_id=f"{id_part}_token_counter", elem_classes=["token-counter"], visible=False)
                 token_button = gr.Button(visible=False, elem_id=f"{id_part}_token_button")
@@ -57,9 +57,9 @@ def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visibl
                 styles_btn_select = ToolButton('Select', elem_id=f"{id_part}_styles_select", visible=False)
                 styles_btn_apply = ToolButton(ui_symbols.style_apply, elem_id=f"{id_part}_styles_apply", visible=True)
                 styles_btn_save = ToolButton(ui_symbols.style_save, elem_id=f"{id_part}_styles_save", visible=True)
-                styles_btn_select.click(_js="applyStyles", fn=parse_style, inputs=[styles], outputs=[styles], show_progress=False)
-                styles_btn_apply.click(fn=apply_styles, inputs=[prompt, negative_prompt, styles], outputs=[prompt, negative_prompt, styles], show_progress=False)
-                styles_btn_save.click(fn=lambda: None, _js='() => quickSaveStyle()', inputs=[], outputs=[], show_progress=False)
+                styles_btn_select.click(_js="applyStyles", fn=parse_style, inputs=[styles], outputs=[styles], show_progress='hidden')
+                styles_btn_apply.click(fn=apply_styles, inputs=[prompt, negative_prompt, styles], outputs=[prompt, negative_prompt, styles], show_progress='hidden')
+                styles_btn_save.click(fn=lambda: None, _js='() => quickSaveStyle()', inputs=[], outputs=[], show_progress='hidden')
     return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button
 
 
@@ -85,9 +85,9 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
     ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])
     for c in [ar_dropdown, width, height]:
-        c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress=False)
+        c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
     res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_btn_swap")
-    res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
+    res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
     return width, height
 
 
@@ -120,8 +120,8 @@ def create_seed_inputs(tab, reuse_visible=True, accordion=True, subseed_visible=
         with gr.Row(visible=seed_resize_visible):
             seed_resize_from_w = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from width", value=0, elem_id=f"{tab}_seed_resize_from_w")
             seed_resize_from_h = gr.Slider(minimum=0, maximum=4096, step=8, label="Resize seed from height", value=0, elem_id=f"{tab}_seed_resize_from_h")
-        random_seed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[seed])
-        random_subseed.click(fn=lambda: -1, show_progress=False, inputs=[], outputs=[subseed])
+        random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
+        random_subseed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[subseed])
     return seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w
 
 
@@ -351,17 +351,17 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                                 ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
                                 ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])
                                 for c in [ar_dropdown, width, height]:
-                                    c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress=False)
+                                    c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
                                 res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_size_swap")
-                                res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
+                                res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
                                 detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size")
                                 el = tab.split('_')[0]
-                                detect_image_size_btn.click(fn=lambda w, h, _: (w or gr.update(), h or gr.update()), _js=f'currentImageResolution{el}', inputs=[dummy_component, dummy_component, dummy_component], outputs=[width, height], show_progress=False)
+                                detect_image_size_btn.click(fn=lambda w, h, _: (w or gr.update(), h or gr.update()), _js=f'currentImageResolution{el}', inputs=[dummy_component, dummy_component, dummy_component], outputs=[width, height], show_progress='hidden')
                     with gr.Tab(label="Scale", id=1, elem_id=f"{tab}_scale_tab_scale") as tab_scale_by:
                         scale_by = gr.Slider(minimum=0.05, maximum=8.0, step=0.05, label=f"Scale{prefix}" if non_zero else "Resize scale", value=1.0, elem_id=f"{tab}_scale")
                     if images is not None:
                         for component in images:
-                            component.change(fn=lambda: None, _js="updateImg2imgResizeToTextAfterChangingImage", inputs=[], outputs=[], show_progress=False)
+                            component.change(fn=lambda: None, _js="updateImg2imgResizeToTextAfterChangingImage", inputs=[], outputs=[], show_progress='hidden')
             tab_scale_to.select(fn=lambda: 0, inputs=[], outputs=[selected_scale_tab])
             tab_scale_by.select(fn=lambda: 1, inputs=[], outputs=[selected_scale_tab])
             # resize_mode.change(fn=lambda x: gr.update(visible=x != 0), inputs=[resize_mode], outputs=[_resize_group])

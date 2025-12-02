@@ -33,7 +33,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
                     extras_upscaler_2 = gr.Dropdown(label='Refine upscaler', elem_id="extras_upscaler_2", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
                     extras_upscaler_2_visibility = gr.Slider(minimum=0.0, maximum=1.0, step=0.001, label="Blend strength", value=0.0, elem_id="extras_upscaler_2_visibility")
 
-            upscaling_res_switch_btn.click(lambda w, h: (h, w), inputs=[upscaling_resize_w, upscaling_resize_h], outputs=[upscaling_resize_w, upscaling_resize_h], show_progress=False)
+            upscaling_res_switch_btn.click(lambda w, h: (h, w), inputs=[upscaling_resize_w, upscaling_resize_h], outputs=[upscaling_resize_w, upscaling_resize_h], show_progress='hidden')
             tab_scale_by.select(fn=lambda: 0, inputs=[], outputs=[selected_tab])
             tab_scale_to.select(fn=lambda: 1, inputs=[], outputs=[selected_tab])
 
