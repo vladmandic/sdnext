@@ -1,10 +1,11 @@
+from enum import Enum
 import sys
 import time
 import copy
 import inspect
 import logging
+import os
 import os.path
-from enum import Enum
 import diffusers
 import diffusers.loaders.single_file_utils
 import torch
@@ -65,7 +66,6 @@ def set_huggingface_options():
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
-        import os
         log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
