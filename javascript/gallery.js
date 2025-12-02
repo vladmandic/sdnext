@@ -41,7 +41,7 @@ async function awaitForGallery(expectedSize, signal) {
 }
 
 function updateGalleryStyles() {
-  if (opts.theme_type?.lower() === 'modern') {
+  if (opts.theme_type?.toLowerCase() === 'modern') {
     folderStylesheet.replaceSync(`
       .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
       .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
@@ -108,7 +108,7 @@ class SimpleFunctionQueue {
         return;
       }
       this.#running = true;
-      if (callback.constructor.name.lower() === 'asyncfunction') {
+      if (callback.constructor.name.toLowerCase() === 'asyncfunction') {
         await callback();
       } else {
         callback();
