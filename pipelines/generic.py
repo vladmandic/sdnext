@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import diffusers
 import transformers
@@ -6,6 +7,15 @@ from modules import shared, devices, errors, sd_models, model_quant
 
 
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
+
+
+def _loader(component):
+    """Return loader type for log messages."""
+    if sys.platform != 'linux':
+        return 'default'
+    if component == 'diffusers':
+        return 'runai' if shared.opts.runai_streamer_diffusers else 'default'
+    return 'runai' if shared.opts.runai_streamer_transformers else 'default'
 
 
 def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None):
@@ -31,7 +41,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
 
         if local_file is not None and local_file.lower().endswith('.gguf'):
-            shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+            shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
             from modules import ggml
             ggml.install_gguf()
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
@@ -43,7 +53,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
             )
             transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
-            shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" args={load_args}')
+            shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
@@ -54,7 +64,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 **quant_args,
             )
         else:
-            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" args={load_args}')
+            shared.log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
             if 'sdnq-' in repo_id.lower():
                 quant_args = {}
             if dtype is not None:
@@ -115,7 +125,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
 
         # load from local file gguf
         if local_file is not None and local_file.lower().endswith('.gguf'):
-            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}"')
+            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")}')
             """
             from modules import ggml
             ggml.install_gguf()
@@ -132,7 +142,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
 
         # load from local file safetensors
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
-            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}"')
+            shared.log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")}')
             from modules import model_te
             text_encoder = model_te.load_t5(local_file)
             text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
@@ -143,7 +153,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 import nunchaku
                 repo_id = 'nunchaku-tech/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
                 cls_name = nunchaku.NunchakuT5EncoderModel
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant"')
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant" loader={_loader("transformers")}')
                 text_encoder = nunchaku.NunchakuT5EncoderModel.from_pretrained(
                     repo_id,
                     torch_dtype=dtype,
@@ -157,7 +167,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                     repo_id = 'Disty0/t5-xxl'
                     with open(os.path.join('configs', 'flux', 'text_encoder_2', 'config.json'), encoding='utf8') as f:
                         load_args['config'] = transformers.T5Config(**json.load(f))
-                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+                shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")} shared={shared.opts.te_shared_t5}')
                 text_encoder = cls_name.from_pretrained(
                     repo_id,
                     cache_dir=shared.opts.hfcache_dir,
@@ -170,7 +180,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
             else:
                 repo_id = 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers'
             subfolder = 'text_encoder'
-            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")} shared={shared.opts.te_shared_t5}')
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -181,7 +191,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         elif cls_name == transformers.Qwen2_5_VLForConditionalGeneration and allow_shared and shared.opts.te_shared_t5:
             repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
             subfolder = 'text_encoder'
-            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")} shared={shared.opts.te_shared_t5}')
             text_encoder = cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
@@ -192,7 +202,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
 
         # load from repo
         if text_encoder is None:
-            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" shared={shared.opts.te_shared_t5}')
+            shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")} shared={shared.opts.te_shared_t5}')
             if subfolder is not None:
                 load_args['subfolder'] = subfolder
             if variant is not None:
