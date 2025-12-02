@@ -292,11 +292,12 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
     return sd_model, checkpoint_info
 
 
-def load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op='model'):
+def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_config, op='model'):
     sd_model = None
     global allow_post_quant # pylint: disable=global-statement
     unload_model_weights(op=op)
     shared.sd_model = None
+    model_type = detected_model_type.removesuffix(' SDNQ')
     try:
         if model_type in ['Stable Cascade']:
             from pipelines.model_stablecascade import load_cascade_combined

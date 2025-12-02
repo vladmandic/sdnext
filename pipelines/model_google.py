@@ -82,7 +82,7 @@ class GoogleNanoBananaPipeline():
             image_config=image_config
         )
         log.debug(f'Cloud: prompt={prompt} size={image_size} ar={aspect_ratio} image={image} model="{self.model}"')
-        log.debug(f'Cloud: config={self.config}')
+        # log.debug(f'Cloud: config={self.config}')
 
         try:
             if image is not None:
