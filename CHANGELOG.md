@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-11-26
+## Update for 2025-12-02
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-11-26
+### Highlights for 2025-12-02
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
 New generation of **Flux.2** large image model and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
@@ -15,7 +15,7 @@ New generation of **Flux.2** large image model and a first cloud model with **Go
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-11-26
+### Details for 2025-12-02
 
 - **Models**
   - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
@@ -42,6 +42,7 @@ New generation of **Flux.2** large image model and a first cloud model with **Go
   - **amdgpu**: prefer rocm-on-windows over zluda  
   - **amdgpu**: improve rocm-on-windows installer  
   - **sdnq**: improve dequant logic  
+  - **gallery**: significant performance improvements, thanks @awsr  
 - **API**
   - `/control` endpoint is now fully compatible with scripts
   - `/control` additional params to to control *xyz grid*  
@@ -63,6 +64,8 @@ New generation of **Flux.2** large image model and a first cloud model with **Go
   - nunchaku: update to `1.0.2`  
   - lint: add rules for run-on-windows  
   - gallery: purge old thumbnails, thanks @awsr  
+- **Docs**
+  - update supported models table with VAE information, thanks @alerikaisattera
 - **Fixes**
   - xyz-grid: improve parsing of axis lists, thanks @awsr  
   - hires: strength save/load in metadata, thanks @awsr  
@@ -82,7 +85,9 @@ New generation of **Flux.2** large image model and a first cloud model with **Go
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
   - auth: fix password being shown in clear text during login  
-  - firefox: remove obsolete checks, thanks @awsr
+  - firefox: remove obsolete checks, thanks @awsr  
+  - runai streamer: cleanup logging, thanks @CalamitousFelicitousness  
+  - fix gradio event handlers, thanks @awsr  
 
 ## Update for 2025-11-06
 

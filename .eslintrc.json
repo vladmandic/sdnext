@@ -94,6 +94,7 @@
     "setFontSize": "readonly",
     "setTheme": "readonly",
     "registerDragDrop": "readonly",
+    "getToken": "readonly",
     "getENActiveTab": "readonly",
     "quickApplyStyle": "readonly",
     "quickSaveStyle": "readonly",

@@ -35,13 +35,19 @@ const error = async (...msg) => {
   // if (!txt.includes('asctime') && !txt.includes('xhr.')) xhrPost('/sdapi/v1/log', { error: txt }); // eslint-disable-line no-use-before-define
 };
 
-const xhrInternal = (xhrObj, data, handler = undefined, errorHandler = undefined, ignore = false, serverTimeout = opts.ui_request_timeout || 30000) => {
+const xhrInternal = async (xhrObj, data, handler = undefined, errorHandler = undefined, ignore = false, serverTimeout = opts.ui_request_timeout || 30000) => {
   const err = (msg) => {
     if (!ignore) {
       error(`${msg}: state=${xhrObj.readyState} status=${xhrObj.status} response=${xhrObj.responseText}`);
       if (errorHandler) errorHandler(xhrObj);
     }
   };
+
+  const { localUser, localToken } = await getToken();
+  if (localUser && localToken) {
+    const encoded = btoa(`${localUser}:${localToken}`);
+    xhrObj.setRequestHeader('Authorization', `Basic ${encoded}`);
+  }
 
   xhrObj.setRequestHeader('Content-Type', 'application/json');
   xhrObj.timeout = opts.ui_request_timeout || 30000;

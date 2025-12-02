@@ -1,8 +1,8 @@
 let user = null;
 let token = null;
 
-async function authFetch(url, options = {}) {
-  if (!token) {
+async function getToken() {
+  if (!token || !user) {
     const res = await fetch(`${window.subpath}/token`);
     if (res.ok) {
       const data = await res.json();
@@ -10,9 +10,14 @@ async function authFetch(url, options = {}) {
       token = data.token;
     }
   }
-  if (user && token) {
+  return { user, token };
+}
+
+async function authFetch(url, options = {}) {
+  const { localUser, localToken } = await getToken();
+  if (localUser && localToken) {
     if (!options.headers) options.headers = {};
-    const encoded = btoa(`${user}:${token}`);
+    const encoded = btoa(`${localUser}:${localToken}`);
     options.headers.Authorization = `Basic ${encoded}`;
   }
   const res = await fetch(url, options);
