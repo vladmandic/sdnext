@@ -39,6 +39,8 @@ force_models_diffusers = [ # forced always
     'flite',
     'cosmos',
     'chrono',
+    'z_image',
+    'f2',
     # video models
     'hunyuanvideo',
     'cogvideo',
