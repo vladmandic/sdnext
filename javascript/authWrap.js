@@ -8,18 +8,25 @@ async function getToken() {
       const data = await res.json();
       user = data.user;
       token = data.token;
+      log('getToken', user);
     }
   }
   return { user, token };
 }
 
 async function authFetch(url, options = {}) {
-  const { localUser, localToken } = await getToken();
-  if (localUser && localToken) {
+  await getToken();
+  if (user && token) {
     if (!options.headers) options.headers = {};
-    const encoded = btoa(`${localUser}:${localToken}`);
+    const encoded = btoa(`${user}:${token}`);
     options.headers.Authorization = `Basic ${encoded}`;
   }
-  const res = await fetch(url, options);
+  let res;
+  try {
+    res = await fetch(url, options);
+    if (!res.ok) error('fetch', { status: res.status, url, user, token });
+  } catch (err) {
+    error('fetch', { status: res.status, url, user, token, error: err });
+  }
   return res;
 }

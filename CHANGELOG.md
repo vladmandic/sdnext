@@ -9,7 +9,7 @@ Merge commit: `f903a36d9`
 ### Highlights for 2025-12-02
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
-New generation of **Flux.2** large image model and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
+New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
 
@@ -24,6 +24,10 @@ New generation of **Flux.2** large image model and a first cloud model with **Go
     this is a very large model at ~100GB, so use of prequantized model at ~32GB is strongly advised
     using prequant version and default offloading, model runs on GPUs with ~20GB  
     *note*: model is [gated](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Z-Image Turbo](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32)  
+    **Z-Image** is a powerful and highly efficient image generation model with 6B parameters and using Qwen-3 as text encoder  
+    unlike most of new models that are far larger, Z-Image architecture allows it to run with good performance even on mid-range hardware  
+    *note*: initial release is *Turbo* variant only with *Base* and *Edit* variants to follow  
   - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/) 
     first cloud-based model directly supported in SD.Next UI  
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  

@@ -43,9 +43,9 @@ const xhrInternal = async (xhrObj, data, handler = undefined, errorHandler = und
     }
   };
 
-  const { localUser, localToken } = await getToken();
-  if (localUser && localToken) {
-    const encoded = btoa(`${localUser}:${localToken}`);
+  const { user, token } = await getToken();
+  if (user && token) {
+    const encoded = btoa(`${user}:${token}`);
     xhrObj.setRequestHeader('Authorization', `Basic ${encoded}`);
   }
 
