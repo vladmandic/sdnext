@@ -105,8 +105,8 @@ class Script(scripts_manager.Script):
             checkbox_iterate_batch = gr.Checkbox(label="Use same seed", value=False, elem_id=self.elem_id("checkbox_iterate_batch"))
         prompt_txt = gr.Textbox(label="Prompts", lines=2, elem_id=self.elem_id("prompt_txt"), value='')
         file = gr.File(label="Upload prompts", type='binary', elem_id=self.elem_id("file"))
-        file.change(fn=load_prompt_file, inputs=[file], outputs=[file, prompt_txt, prompt_txt], show_progress=False)
-        prompt_txt.change(lambda tb: gr.update(lines=7) if ("\n" in tb) else gr.update(lines=2), inputs=[prompt_txt], outputs=[prompt_txt], show_progress=False)
+        file.change(fn=load_prompt_file, inputs=[file], outputs=[file, prompt_txt, prompt_txt], show_progress='hidden')
+        prompt_txt.change(lambda tb: gr.update(lines=7) if ("\n" in tb) else gr.update(lines=2), inputs=[prompt_txt], outputs=[prompt_txt], show_progress='hidden')
         return [checkbox_iterate, checkbox_iterate_batch, prompt_txt]
 
     def run(self, p, checkbox_iterate, checkbox_iterate_batch, prompt_txt: str): # pylint: disable=arguments-differ

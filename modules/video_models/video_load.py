@@ -1,10 +1,20 @@
 import os
+import sys
 import copy
 import time
 import transformers # pylint: disable=unused-import
 import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
+
+
+def _loader(component):
+    """Return loader type for log messages."""
+    if sys.platform != 'linux':
+        return 'default'
+    if component == 'diffusers':
+        return 'runai' if shared.opts.runai_streamer_diffusers else 'default'
+    return 'runai' if shared.opts.runai_streamer_transformers else 'default'
 
 
 loaded_model = None
@@ -60,7 +70,7 @@ def load_model(selected: models_def.Model):
             selected.te_folder = 'text_encoder'
             selected.te_revision = None
 
-        shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+        shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
         kwargs["text_encoder"] = selected.te_cls.from_pretrained(
             pretrained_model_name_or_path=selected.te or selected.repo,
             subfolder=selected.te_folder,
@@ -80,7 +90,7 @@ def load_model(selected: models_def.Model):
             if dit_folder is not None and dit_folder not in kwargs:
                 # get a new quant arg on every loop to prevent the quant config classes getting entangled
                 load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)}')
+                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
                 kwargs[dit_folder] = selected.dit_cls.from_pretrained(
                     pretrained_model_name_or_path=selected.dit or selected.repo,
                     subfolder=dit_folder,
@@ -91,7 +101,7 @@ def load_model(selected: models_def.Model):
                     **offline_args,
                 )
             else:
-                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} skip')
+                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
 
         if selected.dit_folder is None:
             selected.dit_folder = ['transformer']

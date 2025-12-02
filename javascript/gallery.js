@@ -1,4 +1,5 @@
 /* eslint-disable max-classes-per-file */
+/* eslint lines-between-class-members: ["error", "always", { "exceptAfterSingleLine": true }] */
 let ws;
 let url;
 let currentImage;
@@ -6,9 +7,10 @@ let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
-let idbIsCleaning = false;
-let activeGalleryFolder = '';
 const galleryHashes = new Set();
+let maintenanceController = new AbortController();
+const folderStylesheet = new CSSStyleSheet();
+const fileStylesheet = new CSSStyleSheet();
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -21,8 +23,103 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
-async function awaitForIDB(num = 0) {
-  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => setTimeout(resolve, 50)); // eslint-disable-line no-promise-executor-return
+async function awaitForIDB(num = 0, signal = null) {
+  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
+  const combinedSignals = signal ? AbortSignal.any([timeout, signal]) : timeout;
+  while (outstanding > num && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
+}
+
+/**
+ * Wait for gallery to finish populating
+ * @param {number} expectedSize - Expected gallery size
+ * @param {AbortSignal} signal - AbortController signal
+ */
+async function awaitForGallery(expectedSize, signal) {
+  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
+  const combinedSignals = AbortSignal.any([timeout, signal]);
+  while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+}
+
+function updateGalleryStyles() {
+  if (opts.theme_type?.toLowerCase() === 'modern') {
+    folderStylesheet.replaceSync(`
+      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
+      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
+      .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
+      .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
+    `);
+  } else {
+    folderStylesheet.replaceSync(`
+      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
+      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
+      .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
+    `);
+  }
+  fileStylesheet.replaceSync(`
+    .gallery-file {
+      object-fit: contain;
+      cursor: pointer;
+      height: ${opts.extra_networks_card_size}px;
+      width: ${opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset'};
+    }
+    .gallery-file:hover {
+      filter: grayscale(100%);
+    }
+  `);
+}
+
+// Classes
+
+/* This isn't as robust as the Web Locks API, but it will at least work if accessing a remote machine without HTTPS */
+class SimpleFunctionQueue {
+  #id;
+  #running;
+  #queue;
+
+  constructor(id) {
+    this.#id = id;
+    this.#running = false;
+    this.#queue = [];
+  }
+
+  /**
+   * @param {{
+   *  signal: AbortSignal,
+   *  callback: Function
+   * }} config
+   */
+  enqueue(config) {
+    if (!(config.signal instanceof AbortSignal) || typeof config.callback !== 'function') {
+      throw new Error('Invalid configuration. Object must contain an AbortSignal and a function');
+    }
+    if (config.signal.aborted) {
+      debug(`${this.#id} Queue: Skipping addition to queue due to "${config.signal.reason}"`);
+      return;
+    }
+    this.#queue.push(config);
+    this.#tryRunNext();
+  }
+
+  async #tryRunNext() {
+    if (this.#running || !this.#queue.length) return;
+    try {
+      const { signal, callback } = this.#queue.shift();
+      if (signal.aborted) {
+        return;
+      }
+      this.#running = true;
+      if (callback.constructor.name.toLowerCase() === 'asyncfunction') {
+        await callback();
+      } else {
+        callback();
+      }
+    } catch (err) {
+      error(`${this.#id} Queue:`, err);
+    } finally {
+      this.#running = false;
+      this.#tryRunNext();
+    }
+  }
 }
 
 // HTML Elements
@@ -32,32 +129,17 @@ class GalleryFolder extends HTMLElement {
     super();
     this.name = decodeURI(name);
     this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [folderStylesheet];
   }
 
   connectedCallback() {
-    const style = document.createElement('style'); // silly but necessasry since we're inside shadowdom
-    if (window.opts.theme_type === 'Modern') {
-      style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
-        .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-        .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
-        .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
-      `;
-    } else {
-      style.textContent = `
-        .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
-        .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-        .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
-      `;
-    }
-    this.shadow.appendChild(style);
     const div = document.createElement('div');
     div.className = 'gallery-folder';
     div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
-        if (folder.name === this.name) folder.shadow.children[1].classList.add('gallery-folder-selected');
-        else folder.shadow.children[1].classList.remove('gallery-folder-selected');
+        if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
+        else folder.shadow.firstElementChild.classList.remove('gallery-folder-selected');
       }
     });
     div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
@@ -208,10 +290,13 @@ async function delayFetchThumb(fn) {
 }
 
 class GalleryFile extends HTMLElement {
-  constructor(folder, file) {
+  #signal;
+
+  constructor(folder, file, signal = undefined) {
     super();
     this.folder = folder;
     this.name = file;
+    this.#signal = signal;
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
@@ -220,6 +305,7 @@ class GalleryFile extends HTMLElement {
     this.height = 0;
     this.src = `${this.folder}/${this.name}`;
     this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [fileStylesheet];
   }
 
   async connectedCallback() {
@@ -238,21 +324,6 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    galleryHashes.add(this.hash);
-    const style = document.createElement('style');
-    const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
-    style.textContent = `
-      .gallery-file {
-        object-fit: contain;
-        cursor: pointer;
-        height: ${opts.extra_networks_card_size}px;
-        width: ${width};
-      }
-      .gallery-file:hover {
-        filter: grayscale(100%);
-      }
-    `;
-
     const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -306,6 +377,11 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
+    if (this.#signal && !this.#signal.aborted) {
+      // Guard against accessing external context from a stale initialization
+      galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
+      this.#signal = null; // Clean up reference to AbortSignal
+    }
     if (!ok) {
       return;
     }
@@ -325,7 +401,6 @@ class GalleryFile extends HTMLElement {
       this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
     }
 
-    this.shadow.appendChild(style);
     this.shadow.appendChild(img);
   }
 }
@@ -555,8 +630,14 @@ async function gallerySort(btn) {
 }
 
 /**
+ * Function for removing the cleaning overlay
+ * @callback ClearMsgCallback
+ * @returns {void}
+ */
+
+/**
  * Generate and display the overlay to announce cleanup is in progress.
- * @returns {() => void} Function for clearing the overlay
+ * @returns {ClearMsgCallback}
  */
 function showCleaningMsg() {
   const parent = el.folders.parentElement;
@@ -567,47 +648,75 @@ function showCleaningMsg() {
   parent.style.position = 'relative';
   cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
   msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
-  msg.innerText = 'Running thumbnail cleanup';
+  msg.innerText = 'Thumbnail cleanup...';
   anim.classList.add('idbBusyAnim');
 
   cleaningOverlay.append(msg, anim);
   parent.append(cleaningOverlay);
-  return () => {
-    parent.style.position = '';
-    cleaningOverlay.remove();
-  };
+  return () => { cleaningOverlay.remove(); };
 }
 
-async function thumbCacheCleanup() {
-  if (idbIsCleaning) return;
-  await awaitForIDB();
-  idbIsCleaning = true;
+const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
 
-  const t0 = performance.now();
-  const cachedHashesCount = await idbCount()
-    .catch(() => 0);
-  if (cachedHashesCount < galleryHashes.size + 500) {
-    // Don't run when there aren't many excess entries
-    idbIsCleaning = false;
+/**
+ * Handles calling the cleanup function for the thumbnail cache
+ * @param {string} folder - Folder to clean
+ * @param {number} imgCount - Expected number of images in gallery
+ * @param {AbortController} controller - AbortController that's handling this task
+ */
+async function thumbCacheCleanup(folder, imgCount, controller) {
+  try {
+    if (typeof folder !== 'string' || typeof imgCount !== 'number') {
+      throw new Error('Function called with invalid arguments');
+    }
+    debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
+    await awaitForGallery(imgCount, controller.signal);
+  } catch (err) {
+    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${controller.signal.aborted ? controller.signal.reason : 'timeout'}"`);
     return;
   }
 
-  const removeOverlayFunc = showCleaningMsg();
-  idbClean(galleryHashes, activeGalleryFolder)
-    .then((delcount, folder) => {
-      const t1 = performance.now();
-      log(`Thumbnail DB cleanup: folder=${folder} kept=${galleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
-    })
-    .catch((err) => {
-      error('Thumbnail DB cleanup: Cleanup failed.', err.message);
-    })
-    .finally(() => {
-      removeOverlayFunc();
-      idbIsCleaning = false;
-    });
+  maintenanceQueue.enqueue({
+    signal: controller.signal,
+    callback: async () => {
+      log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
+      const t0 = performance.now();
+      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
+      const cachedHashesCount = await idbCount(folder)
+        .catch((e) => {
+          error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
+          return Infinity; // Forces next check to fail if something went wrong
+        });
+      if (cachedHashesCount < staticGalleryHashes.size + 500) {
+        // Don't run when there aren't many excess entries
+        return;
+      }
+
+      if (controller.signal.aborted) {
+        debug(`Thumbnail DB cleanup: Cancelling "${folder}" cleanup due to "${controller.signal.reason}"`);
+        return;
+      }
+      const cb_clearMsg = showCleaningMsg();
+      await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
+        .then((delcount) => {
+          const t1 = performance.now();
+          log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+        })
+        .catch((reason) => {
+          if (typeof reason === 'string' || (reason instanceof DOMException && reason.name === 'AbortError')) {
+            log('Thumbnail DB cleanup:', reason?.message || reason);
+          } else {
+            error('Thumbnail DB cleanup:', reason.message);
+          }
+        })
+        .finally(() => {
+          cb_clearMsg();
+        });
+    },
+  });
 }
 
-async function fetchFilesHT(evt) {
+async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
   updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
@@ -625,7 +734,7 @@ async function fetchFilesHT(evt) {
     const ext = fileName.split('.').pop().toLowerCase();
     if (SUPPORTED_EXTENSIONS.includes(ext)) {
       numFiles++;
-      const f = new GalleryFile(data[0], fileName);
+      const f = new GalleryFile(data[0], fileName, controller.signal);
       fragment.appendChild(f);
     }
   }
@@ -633,30 +742,33 @@ async function fetchFilesHT(evt) {
   el.files.appendChild(fragment);
 
   const t1 = performance.now();
-  activeGalleryFolder = evt.target.name;
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
-  thumbCacheCleanup();
+  thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
-  if (idbIsCleaning) return;
-  galleryHashes.clear(); // Only called here because fetchFilesHT isn't called directly
-  el.files.innerHTML = '';
   if (!url) return;
+  const controller = new AbortController(); // Only called here because fetchFilesHT isn't called directly
+  maintenanceController.abort('Gallery update'); // Abort previous controller
+  maintenanceController = controller; // Point to new controller for next time
+  galleryHashes.clear(); // Must happen AFTER the AbortController steps
+
+  el.files.innerHTML = '';
+  updateGalleryStyles();
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
   let wsConnected = false;
   try {
     ws = new WebSocket(`${url}/sdapi/v1/browser/files`);
-    wsConnected = await wsConnect(ws);
+    wsConnected = await wsConnect(ws); // Warning. This changes "evt".
   } catch (err) {
     log('gallery: ws connect error', err);
     return;
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   if (!wsConnected) {
-    await fetchFilesHT(evt); // fallback to http
+    await fetchFilesHT(evt, controller); // fallback to http
     return;
   }
   updateStatusWithSort(`Folder: ${evt.target.name}`);
@@ -674,7 +786,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
       const fileName = data[1];
       const ext = fileName.split('.').pop().toLowerCase();
       if (SUPPORTED_EXTENSIONS.includes(ext)) {
-        const file = new GalleryFile(data[0], fileName);
+        const file = new GalleryFile(data[0], fileName, controller.signal);
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % 100 === 0) {
@@ -688,11 +800,10 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   ws.onclose = (event) => {
     el.files.appendChild(fragment);
     // gallerySort();
-    activeGalleryFolder = evt.target.name;
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
-    thumbCacheCleanup();
+    thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
   ws.onerror = (event) => {
     log('gallery ws error', event);
@@ -759,6 +870,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+  updateGalleryStyles();
   setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');

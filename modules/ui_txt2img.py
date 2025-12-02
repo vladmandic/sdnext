@@ -77,7 +77,7 @@ def create_ui():
                     txt2img_html_info,
                     txt2img_html_log,
                 ],
-                show_progress=False,
+                show_progress='hidden',
             )
 
             txt2img_prompt.submit(**txt2img_dict)
@@ -160,7 +160,7 @@ def create_ui():
             txt2img_bindings = generation_parameters_copypaste.ParamBinding(paste_button=txt2img_paste, tabname="txt2img", source_text_component=txt2img_prompt, source_image_component=None)
             generation_parameters_copypaste.register_paste_params_button(txt2img_bindings)
 
-            txt2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = False)
-            txt2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = False)
+            txt2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_prompt], outputs=[txt2img_token_counter], show_progress = 'hidden')
+            txt2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[txt2img_negative_prompt], outputs=[txt2img_negative_token_counter], show_progress = 'hidden')
 
             ui_extra_networks.setup_ui(extra_networks_ui, txt2img_gallery)

@@ -115,6 +115,6 @@ def create_ui(prompt, negative, styles, _overrides, init_image, last_image, mp4_
         _js="submit_framepack",
         inputs=state_inputs + framepack_inputs,
         outputs=framepack_outputs,
-        show_progress=False,
+        show_progress='hidden',
     )
     generate.click(**framepack_dict)

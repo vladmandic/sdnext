@@ -38,7 +38,6 @@ async function initStartup() {
   await initAccordions();
   await initSettings();
   await initImageViewer();
-  await initGallery();
   await initiGenerationParams();
   await initChangelog();
   await setupControlUI();
@@ -46,6 +45,8 @@ async function initStartup() {
   // reconnect server session
   await reconnectUI();
   await waitForOpts();
+
+  await initGallery();
 
   log('mountURL', window.opts.subpath);
   if (window.opts.subpath?.length > 0) {
