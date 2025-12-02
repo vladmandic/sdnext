@@ -95,6 +95,24 @@ Anything marked with **(!!!)** means a change *will* eventually be required.
     - [asyncio.run](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.run)
     - [asyncio.Runner](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.Runner)
 
+### Shutil
+
+#### rmtree
+
+- `onerror` deprecated and replaced with `onexc` in **Python 3.12**
+``` python
+    def excRemoveReadonly(func, path, exc: BaseException):
+        import stat
+        shared.log.debug(f'Exception during cleanup: {func} {path} {type(exc).__name__}')
+        if func in (os.rmdir, os.remove, os.unlink) and isinstance(exc, PermissionError):
+            shared.log.debug(f'Retrying cleanup: {path}')
+            os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+            func(path)
+    # ...
+      try:
+          shutil.rmtree(found.path, ignore_errors=False, onexc=excRemoveReadonly)
+```
+
 ## Code TODO
 
 > npm run todo

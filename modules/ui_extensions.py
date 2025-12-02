@@ -191,10 +191,11 @@ def install_extension(extension_to_install, search_text, sort_column):
 
 
 def uninstall_extension(extension_path, search_text, sort_column):
-    def excRemoveReadonly(func, path, exc: Exception):
+    def errorRemoveReadonly(func, path, exc):
         import stat
-        shared.log.debug(f'Exception during cleanup: {func} {path} {type(exc).__name__}')
-        if func in (os.rmdir, os.remove, os.unlink) and isinstance(exc, PermissionError):
+        excvalue = exc[1]
+        shared.log.debug(f'Exception during cleanup: {func} {path} {excvalue.strerror}')
+        if func in (os.rmdir, os.remove, os.unlink) and excvalue.errno == errno.EACCES:
             shared.log.debug(f'Retrying cleanup: {path}')
             os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
             func(path)
@@ -203,7 +204,7 @@ def uninstall_extension(extension_path, search_text, sort_column):
     if len(found) > 0 and os.path.isdir(extension_path):
         found = found[0]
         try:
-            shutil.rmtree(found.path, ignore_errors=False, onexc=excRemoveReadonly)
+            shutil.rmtree(found.path, ignore_errors=False, onerror=errorRemoveReadonly) # pylint: disable=deprecated-argument
             # extensions.extensions = [extension for extension in extensions.extensions if os.path.abspath(found.path) != os.path.abspath(extension_path)]
         except Exception as e:
             shared.log.warning(f'Extension uninstall failed: {found.path} {e}')
