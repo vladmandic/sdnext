@@ -65,6 +65,8 @@ def set_huggingface_options():
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        import os
+        log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
@@ -629,8 +631,7 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     if shared.opts.runai_streamer_diffusers and (sys.platform == 'linux'):
         load_method = 'streamer'
         from installer import install
-        install('runai_model_streamer')
-        shared.log.trace(f'Loader: method={load_method} chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+        install('runai_model_streamer>=0.15.1')
     elif shared.opts.sd_parallel_load:
         load_method = 'threaded'
     else:
