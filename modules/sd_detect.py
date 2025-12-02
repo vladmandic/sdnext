@@ -145,6 +145,9 @@ def guess_by_name(fn, current_guess):
 def guess_by_diffusers(fn, current_guess):
     exclude_by_name = ['ostris/Flex.2-preview'] # pipeline may be misleading
     if not os.path.isdir(fn):
+        # Check if Hub ID indicates SDNQ pre-quantized model
+        if 'sdnq' in fn.lower():
+            return f'{current_guess} SDNQ', None
         return current_guess, None
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
