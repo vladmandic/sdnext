@@ -70,8 +70,8 @@ function updateGalleryStyles() {
 
 // Classes
 
+/* This isn't as robust as the Web Locks API, but it will at least work if accessing a remote machine without HTTPS */
 class SimpleFunctionQueue {
-  /* This isn't as robust as the Web Locks API, but it will at least work if accessing a remote machine without HTTPS */
   #id;
   #running;
   #queue;
@@ -108,7 +108,11 @@ class SimpleFunctionQueue {
         return;
       }
       this.#running = true;
-      await callback();
+      if (callback.constructor.name.lower() === 'asyncfunction') {
+        await callback();
+      } else {
+        callback();
+      }
     } catch (err) {
       error(`${this.#id} Queue:`, err);
     } finally {
