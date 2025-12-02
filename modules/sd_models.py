@@ -628,6 +628,16 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     allow_post_quant = False
     t0 = time.time()
 
+    # If path is a Hub ID (not a local directory), download it first
+    model_path = checkpoint_info.path
+    if not os.path.isdir(model_path):
+        from huggingface_hub import snapshot_download
+        model_path = snapshot_download(
+            repo_id=checkpoint_info.path,
+            cache_dir=shared.opts.diffusers_dir,
+        )
+        checkpoint_info.path = model_path
+
     if shared.opts.runai_streamer_diffusers and (sys.platform == 'linux'):
         load_method = 'streamer'
         from installer import install
@@ -637,18 +647,8 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     else:
         load_method = 'safetensors'
 
-    for module_name in os.listdir(checkpoint_info.path):
-        module_path = checkpoint_info.path
-        # Check if safetensors exist in diffusers_dir, if not try hfcache_dir
-        module_dir = os.path.join(checkpoint_info.path, module_name)
-        if os.path.isdir(module_dir):
-            safetensors_found = any(f.endswith('.safetensors') for f in os.listdir(module_dir))
-            if not safetensors_found:
-                hf_path = checkpoint_info.path.replace(shared.opts.diffusers_dir, shared.opts.hfcache_dir)
-                hf_module_dir = os.path.join(hf_path, module_name)
-                if os.path.isdir(hf_module_dir) and any(f.endswith('.safetensors') for f in os.listdir(hf_module_dir)):
-                    module_path = hf_path
-        module, name, t = load_sdnq_module(module_path, module_name, load_method=load_method)
+    for module_name in os.listdir(model_path):
+        module, name, t = load_sdnq_module(checkpoint_info.path, module_name, load_method=load_method)
         if module is not None:
             modules[name] = module
             shared.log.debug(f'Load {op}: module="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq method={load_method} time={t:.2f}')
