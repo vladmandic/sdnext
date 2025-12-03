@@ -289,6 +289,12 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 .gradio-dropdown .token {
   overflow-x: hidden;
   padding: var(--spacing-xs) !important;
+  font-family: 'NotoSans', var(--font);
+}
+
+.gradio-dropdown .wrap input,
+.gradio-dropdown input {
+  font-family: 'NotoSans', var(--font);
 }
 
 .gradio-html {
