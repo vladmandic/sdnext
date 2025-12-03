@@ -90,6 +90,8 @@ async function idbGetAllKeys(index = null, query = null) {
     try {
       let request;
       const transaction = db.transaction('thumbs', 'readonly');
+      transaction.onabort = (e) => reject(e);
+
       const store = transaction.objectStore('thumbs');
       if (index) {
         request = store.index(index).getAllKeys(query);
@@ -98,7 +100,6 @@ async function idbGetAllKeys(index = null, query = null) {
       }
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
-      transaction.onabort = (e) => reject(e);
     } catch (err) {
       reject(err);
     }
@@ -117,6 +118,8 @@ async function idbCount(folder = null) {
     try {
       let request;
       const transaction = db.transaction('thumbs', 'readonly');
+      transaction.onabort = (e) => reject(e);
+
       const store = transaction.objectStore('thumbs');
       if (folder) {
         request = store.index('folder').count(folder);
@@ -125,7 +128,6 @@ async function idbCount(folder = null) {
       }
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
-      transaction.onabort = (e) => reject(e);
     } catch (err) {
       reject(err);
     }
@@ -161,15 +163,6 @@ async function idbFolderCleanup(keepSet, folder, signal) {
       transaction.abort();
     }
     signal.addEventListener('abort', abortTransaction);
-
-    try {
-      const store = transaction.objectStore('thumbs');
-      removals.forEach((entry) => { store.delete(entry); });
-    } catch (err) {
-      error(err);
-      abortTransaction();
-    }
-
     transaction.onabort = () => {
       signal.removeEventListener('abort', abortTransaction);
       reject(`Aborting. ${signal.reason}`); // eslint-disable-line prefer-promise-reject-errors
@@ -182,6 +175,14 @@ async function idbFolderCleanup(keepSet, folder, signal) {
       signal.removeEventListener('abort', abortTransaction);
       resolve(totalRemovals);
     };
+
+    try {
+      const store = transaction.objectStore('thumbs');
+      removals.forEach((entry) => { store.delete(entry); });
+    } catch (err) {
+      error(err);
+      abortTransaction();
+    }
   });
 }
 

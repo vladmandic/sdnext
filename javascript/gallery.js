@@ -23,10 +23,14 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
-async function awaitForIDB(num = 0, signal = null) {
-  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
-  const combinedSignals = signal ? AbortSignal.any([timeout, signal]) : timeout;
-  while (outstanding > num && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
+/**
+ * Wait for the `outstanding` variable to be below the specified value
+ * @param {number} num - Threshold for `outstanding`
+ * @param {AbortSignal} signal - AbortController signal
+ */
+async function awaitForOutstanding(num, signal) {
+  while (outstanding > num && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
+  signal.throwIfAborted();
 }
 
 /**
@@ -35,9 +39,8 @@ async function awaitForIDB(num = 0, signal = null) {
  * @param {AbortSignal} signal - AbortController signal
  */
 async function awaitForGallery(expectedSize, signal) {
-  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
-  const combinedSignals = AbortSignal.any([timeout, signal]);
-  while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  while (galleryHashes.size < expectedSize && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  signal.throwIfAborted();
 }
 
 function updateGalleryStyles() {
@@ -270,29 +273,32 @@ async function addSeparators() {
   }
 }
 
-async function delayFetchThumb(fn) {
-  await awaitForIDB(16);
-  outstanding++;
-  const ts = Date.now().toString();
-  const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
-  if (!res.ok) {
-    error(`fetchThumb: ${res.statusText}`);
+async function delayFetchThumb(fn, signal) {
+  await awaitForOutstanding(16, signal);
+  try {
+    outstanding++;
+    const ts = Date.now().toString();
+    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
+    if (!res.ok) {
+      error(`fetchThumb: ${res.statusText}`);
+      return undefined;
+    }
+    const json = await res.json();
+    if (!res || !json || json.error || Object.keys(json).length === 0) {
+      if (json.error) error(`fetchThumb: ${json.error}`);
+      return undefined;
+    }
+    return json;
+  } finally {
     outstanding--;
-    return undefined;
   }
-  const json = await res.json();
-  outstanding--;
-  if (!res || !json || json.error || Object.keys(json).length === 0) {
-    if (json.error) error(`fetchThumb: ${json.error}`);
-    return undefined;
-  }
-  return json;
 }
 
 class GalleryFile extends HTMLElement {
+  /** @type {AbortSignal} */
   #signal;
 
-  constructor(folder, file, signal = undefined) {
+  constructor(folder, file, signal) {
     super();
     this.folder = folder;
     this.name = file;
@@ -324,7 +330,7 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash) : undefined;
+    const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
     img.loading = 'lazy';
@@ -348,7 +354,7 @@ class GalleryFile extends HTMLElement {
       this.mtime = new Date(cache.mtime);
     } else {
       try {
-        const json = await delayFetchThumb(this.src);
+        const json = await delayFetchThumb(this.src, this.#signal);
         if (!json) {
           ok = false;
         } else {
@@ -377,14 +383,13 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (this.#signal && !this.#signal.aborted) {
-      // Guard against accessing external context from a stale initialization
-      galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
-      this.#signal = null; // Clean up reference to AbortSignal
-    }
-    if (!ok) {
+    if (this.#signal.aborted) { // Do not change the operations order from here...
       return;
     }
+    galleryHashes.add(this.hash);
+    if (!ok) {
+      return;
+    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
     img.onclick = () => {
       currentImage = this.src;
       el.btnSend.click();
@@ -637,21 +642,29 @@ async function gallerySort(btn) {
 
 /**
  * Generate and display the overlay to announce cleanup is in progress.
+ * @param {number} count - Number of entries being cleaned up
  * @returns {ClearMsgCallback}
  */
-function showCleaningMsg() {
+function showCleaningMsg(count) {
+  // Rendering performance isn't a priority since this doesn't run often
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement('div');
-  const msg = document.createElement('span');
+  const msgDiv = document.createElement('div');
+  const msgText = document.createElement('div');
+  const msgInfo = document.createElement('div');
   const anim = document.createElement('span');
 
   parent.style.position = 'relative';
   cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
-  msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
-  msg.innerText = 'Thumbnail cleanup...';
+  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
+  msgText.style.cssText = 'font-size: 1.2em';
+  msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
+  msgText.innerText = 'Thumbnail cleanup...';
+  msgInfo.innerText = `Found ${count} old entries`;
   anim.classList.add('idbBusyAnim');
 
-  cleaningOverlay.append(msg, anim);
+  msgDiv.append(msgText, msgInfo);
+  cleaningOverlay.append(msgDiv, anim);
   parent.append(cleaningOverlay);
   return () => { cleaningOverlay.remove(); };
 }
@@ -672,7 +685,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
     await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
-    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${controller.signal.aborted ? controller.signal.reason : 'timeout'}"`);
+    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${err}"`);
     return;
   }
 
@@ -687,7 +700,8 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
-      if (cachedHashesCount < staticGalleryHashes.size + 500) {
+      const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
+      if (cleanupCount < 500 || !Number.isFinite(cleanupCount)) {
         // Don't run when there aren't many excess entries
         return;
       }
@@ -696,7 +710,8 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         debug(`Thumbnail DB cleanup: Cancelling "${folder}" cleanup due to "${controller.signal.reason}"`);
         return;
       }
-      const cb_clearMsg = showCleaningMsg();
+      const cb_clearMsg = showCleaningMsg(cleanupCount);
+      const tRun = Date.now(); // Doesn't need high resolution
       await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
@@ -709,7 +724,11 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
             error('Thumbnail DB cleanup:', reason.message);
           }
         })
-        .finally(() => {
+        .finally(async () => {
+          // Ensure at least enough time to see that it's a message and not the UI breaking/flickering
+          await new Promise((resolve) => {
+            setTimeout(resolve, Math.min(1000, Math.max(1000 - (Date.now() - tRun), 0))); // Total display time of at least 1 second
+          });
           cb_clearMsg();
         });
     },
