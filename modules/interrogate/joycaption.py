@@ -67,7 +67,7 @@ def predict(question: str, image, vqa_model: str = None) -> str:
     if llava_model is None:
         shared.log.info(f'Interrogate: type=vlm model="JoyCaption" {str(opts)}')
 
-        processor = AutoProcessor.from_pretrained(opts.repo)
+        processor = AutoProcessor.from_pretrained(opts.repo, max_pixels=1024*1024)
         quant_args = model_quant.create_config(module='LLM')
         llava_model = LlavaForConditionalGeneration.from_pretrained(
             opts.repo,
@@ -105,6 +105,7 @@ def predict(question: str, image, vqa_model: str = None) -> str:
         )[0]
         generate_ids = generate_ids[inputs['input_ids'].shape[1]:] # Trim off the prompt
         caption = processor.tokenizer.decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False) # Decode the caption
-    sd_models.move_model(llava_model, devices.cpu, force=True)
+    if shared.opts.interrogate_offload:
+        sd_models.move_model(llava_model, devices.cpu, force=True)
     caption = caption.replace('\n\n', '\n').strip()
     return caption
