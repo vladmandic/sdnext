@@ -711,6 +711,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
+      const tRun = Date.now(); // Doesn't need high resolution
       await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
@@ -723,7 +724,11 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
             error('Thumbnail DB cleanup:', reason.message);
           }
         })
-        .finally(() => {
+        .finally(async () => {
+          // Ensure at least enough time to see that it's a message and not the UI breaking/flickering
+          await new Promise((resolve) => {
+            setTimeout(resolve, Math.min(1000, Math.max(1000 - (Date.now() - tRun), 0))); // Total display time of at least 1 second
+          });
           cb_clearMsg();
         });
     },
