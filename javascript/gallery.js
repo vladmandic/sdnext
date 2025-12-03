@@ -23,10 +23,14 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
-async function awaitForIDB(num = 0, signal = null) {
-  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
-  const combinedSignals = signal ? AbortSignal.any([timeout, signal]) : timeout;
-  while (outstanding > num && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
+/**
+ * Wait for the `outstanding` variable to be below the specified value
+ * @param {number} num - Threshold for `outstanding`
+ * @param {AbortSignal} signal - AbortController signal
+ */
+async function awaitForOutstanding(num, signal) {
+  while (outstanding > num && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 50); });
+  signal.throwIfAborted();
 }
 
 /**
@@ -35,9 +39,8 @@ async function awaitForIDB(num = 0, signal = null) {
  * @param {AbortSignal} signal - AbortController signal
  */
 async function awaitForGallery(expectedSize, signal) {
-  const timeout = AbortSignal.timeout(180000); // Failsafe to ensure no memory leaks
-  const combinedSignals = AbortSignal.any([timeout, signal]);
-  while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  while (galleryHashes.size < expectedSize && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  signal.throwIfAborted();
 }
 
 function updateGalleryStyles() {
@@ -270,29 +273,32 @@ async function addSeparators() {
   }
 }
 
-async function delayFetchThumb(fn) {
-  await awaitForIDB(16);
-  outstanding++;
-  const ts = Date.now().toString();
-  const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
-  if (!res.ok) {
-    error(`fetchThumb: ${res.statusText}`);
+async function delayFetchThumb(fn, signal) {
+  await awaitForOutstanding(16, signal);
+  try {
+    outstanding++;
+    const ts = Date.now().toString();
+    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
+    if (!res.ok) {
+      error(`fetchThumb: ${res.statusText}`);
+      return undefined;
+    }
+    const json = await res.json();
+    if (!res || !json || json.error || Object.keys(json).length === 0) {
+      if (json.error) error(`fetchThumb: ${json.error}`);
+      return undefined;
+    }
+    return json;
+  } finally {
     outstanding--;
-    return undefined;
   }
-  const json = await res.json();
-  outstanding--;
-  if (!res || !json || json.error || Object.keys(json).length === 0) {
-    if (json.error) error(`fetchThumb: ${json.error}`);
-    return undefined;
-  }
-  return json;
 }
 
 class GalleryFile extends HTMLElement {
+  /** @type {AbortSignal} */
   #signal;
 
-  constructor(folder, file, signal = undefined) {
+  constructor(folder, file, signal) {
     super();
     this.folder = folder;
     this.name = file;
@@ -324,7 +330,7 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash) : undefined;
+    const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
     img.loading = 'lazy';
@@ -348,7 +354,7 @@ class GalleryFile extends HTMLElement {
       this.mtime = new Date(cache.mtime);
     } else {
       try {
-        const json = await delayFetchThumb(this.src);
+        const json = await delayFetchThumb(this.src, this.#signal);
         if (!json) {
           ok = false;
         } else {
@@ -377,14 +383,13 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (this.#signal && !this.#signal.aborted) {
-      // Guard against accessing external context from a stale initialization
-      galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
-      this.#signal = null; // Clean up reference to AbortSignal
-    }
-    if (!ok) {
+    if (this.#signal.aborted) { // Do not change the operations order from here...
       return;
     }
+    galleryHashes.add(this.hash);
+    if (!ok) {
+      return;
+    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
     img.onclick = () => {
       currentImage = this.src;
       el.btnSend.click();
