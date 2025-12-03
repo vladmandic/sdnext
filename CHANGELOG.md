@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-02
+## Update for 2025-12-03
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-12-02
+### Highlights for 2025-12-03
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces img2img, inpaint and outpaint controls  
 New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
@@ -15,7 +15,7 @@ New generation of **Flux.2** large image model, new **Z-Image** model that is cr
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-12-02
+### Details for 2025-12-03
 
 - **Models**
   - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
@@ -68,6 +68,7 @@ New generation of **Flux.2** large image model, new **Z-Image** model that is cr
   - nunchaku: update to `1.0.2`  
   - lint: add rules for run-on-windows  
   - gallery: purge old thumbnails, thanks @awsr  
+  - caption: vqa improvements, thanks @CalamitousFelicitousness  
 - **Docs**
   - update supported models table with VAE information, thanks @alerikaisattera
 - **Fixes**

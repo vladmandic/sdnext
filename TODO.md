@@ -40,6 +40,7 @@
 
 TODO: *Prioritize*!
 
+- [Kandinsky 5 Pro and Lite](https://github.com/huggingface/diffusers/pull/12664)
 - [HunyuanVideo-1.5](https://github.com/huggingface/diffusers/pull/12696)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
 - [Bria FIBO](https://huggingface.co/briaai/FIBO)
