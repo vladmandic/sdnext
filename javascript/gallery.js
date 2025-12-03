@@ -642,21 +642,29 @@ async function gallerySort(btn) {
 
 /**
  * Generate and display the overlay to announce cleanup is in progress.
+ * @param {number} count - Number of entries being cleaned up
  * @returns {ClearMsgCallback}
  */
-function showCleaningMsg() {
+function showCleaningMsg(count) {
+  // Rendering performance isn't a priority since this doesn't run often
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement('div');
-  const msg = document.createElement('span');
+  const msgDiv = document.createElement('div');
+  const msgText = document.createElement('div');
+  const msgInfo = document.createElement('div');
   const anim = document.createElement('span');
 
   parent.style.position = 'relative';
   cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
-  msg.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
-  msg.innerText = 'Thumbnail cleanup...';
+  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
+  msgText.style.cssText = 'font-size: 1.2em';
+  msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
+  msgText.innerText = 'Thumbnail cleanup...';
+  msgInfo.innerText = `Found ${count} old entries`;
   anim.classList.add('idbBusyAnim');
 
-  cleaningOverlay.append(msg, anim);
+  msgDiv.append(msgText, msgInfo);
+  cleaningOverlay.append(msgDiv, anim);
   parent.append(cleaningOverlay);
   return () => { cleaningOverlay.remove(); };
 }
@@ -677,7 +685,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
     await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
-    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${controller.signal.aborted ? controller.signal.reason : 'timeout'}"`);
+    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${err}"`);
     return;
   }
 
@@ -692,7 +700,8 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
-      if (cachedHashesCount < staticGalleryHashes.size + 500) {
+      const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
+      if (cleanupCount < 500 || !Number.isFinite(cleanupCount)) {
         // Don't run when there aren't many excess entries
         return;
       }
@@ -701,7 +710,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         debug(`Thumbnail DB cleanup: Cancelling "${folder}" cleanup due to "${controller.signal.reason}"`);
         return;
       }
-      const cb_clearMsg = showCleaningMsg();
+      const cb_clearMsg = showCleaningMsg(cleanupCount);
       await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
