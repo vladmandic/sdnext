@@ -1111,11 +1111,16 @@ def moondream(question: str, image: Image.Image, repo: str = None, model_name: s
             response = model.caption(image, length="normal")['caption']
         elif question == 'MORE DETAILED CAPTION':
             response = model.caption(image, length="long")['caption']
+        elif question.lower().startswith('point at '):
+            target = question[9:]
+            result = model.point(image, target)
+            response = str(result)
+        elif question.lower().startswith('detect '):
+            target = question[7:]
+            result = model.detect(image, target)
+            response = str(result)
         else:
             response = model.answer_question(encoded, question, processor)['answer']
-        # model.detect(image, "face")
-        # model.point(image, "person")
-        # model.detect_gaze(image)
     return response
 
 
