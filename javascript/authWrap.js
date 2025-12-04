@@ -1,8 +1,8 @@
-let user = null;
-let token = null;
+let user;
+let token;
 
 async function getToken() {
-  if (!token || !user) {
+  if (token === undefined || user === undefined) {
     const res = await fetch(`${window.subpath}/token`);
     if (res.ok) {
       const data = await res.json();
