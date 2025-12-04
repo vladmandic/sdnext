@@ -11,6 +11,7 @@ const galleryHashes = new Set();
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
 const fileStylesheet = new CSSStyleSheet();
+const iconStopwatch = String.fromCodePoint(9201);
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -46,16 +47,50 @@ async function awaitForGallery(expectedSize, signal) {
 function updateGalleryStyles() {
   if (opts.theme_type?.toLowerCase() === 'modern') {
     folderStylesheet.replaceSync(`
-      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
-      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-      .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
-      .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
+      .gallery-folder {
+        cursor: pointer;
+        padding: 8px 6px 8px 6px;
+        background-color: var(--sd-button-normal-color);
+        border-radius: var(--sd-border-radius);
+        text-align: left;
+        direction: rtl; /* Used to overflow the beginning instead of the end */
+        min-width: 12em;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .gallery-folder:hover {
+        background-color: var(--button-primary-background-fill-hover);
+      }
+      .gallery-folder-selected {
+        background-color: var(--sd-button-selected-color);
+        color: var(--sd-button-selected-text-color);
+      }
+      .gallery-folder-icon {
+        font-size: 1.2em;
+        color: var(--sd-button-icon-color);
+        margin-right: 1em;
+        filter: drop-shadow(1px 1px 2px black);
+        float: left;
+      }
     `);
   } else {
     folderStylesheet.replaceSync(`
-      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
-      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-      .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
+      .gallery-folder {
+        cursor: pointer;
+        padding: 8px 6px 8px 6px;
+        max-width: 200px;
+        overflow-x: hidden;
+        text-wrap: nowrap;
+        text-overflow: ellipsis;
+      }
+      .gallery-folder:hover {
+        background-color: var(--button-primary-background-fill-hover);
+      }
+      .gallery-folder-selected {
+        background-color: var(--button-primary-background-fill);
+      }
     `);
   }
   fileStylesheet.replaceSync(`
@@ -131,6 +166,7 @@ class GalleryFolder extends HTMLElement {
   constructor(name) {
     super();
     this.name = decodeURI(name);
+    this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
   }
@@ -139,6 +175,7 @@ class GalleryFolder extends HTMLElement {
     const div = document.createElement('div');
     div.className = 'gallery-folder';
     div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
+    div.title = this.name;
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
         if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
@@ -427,10 +464,68 @@ async function getHash(str, algo = 'SHA-256') {
   }
 }
 
-// Helper function to update status with sort mode
-function updateStatusWithSort(message) {
-  const sortIndicator = `Sort: ${lastSortName} | `;
-  el.status.innerText = sortIndicator + message;
+/**
+ * Helper function to update status with sort mode
+ * @param  {...string|[string, string]} messages - Each can be either a string to use as-is, or an array of a string label and value
+ * @returns {void}
+ */
+function updateStatusWithSort(...messages) {
+  if (!el.status) return;
+  messages.unshift(['Sort', lastSortName]);
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < messages.length; i++) {
+    const div = document.createElement('div');
+    if (Array.isArray(messages[i])) {
+      const [text1, text2] = messages[i];
+      const tDiv1 = document.createElement('div');
+      tDiv1.innerText = `${text1}:`;
+      const tDiv2 = document.createElement('div');
+      tDiv2.innerText = text2;
+      tDiv2.title = text2;
+      div.append(tDiv1, tDiv2);
+    } else {
+      const tDiv1 = document.createElement('div');
+      tDiv1.innerText = messages[i];
+      div.append(tDiv1);
+    }
+    fragment.append(div);
+  }
+  if (el.status.hasChildNodes()) el.status.innerHTML = '';
+  el.status.append(fragment);
+}
+
+async function injectGalleryStatusCSS() {
+  const style = document.createElement('style');
+  style.textContent = `
+  #tab-gallery-status {
+    display: inline-flex;
+    flex-flow: row wrap;
+    justify-content: ${opts.theme_type?.toLowerCase() === 'modern' ? 'flex-start' : 'flex-end'};
+  }
+  #tab-gallery-status > div {
+    display: flex;
+    max-width: 100%;
+    white-space: nowrap;
+    & div {
+      &:first-child {
+        flex-shrink: 0;
+        margin-right: 4px;
+      }
+      &:last-child:not(:first-child) {
+        flex-shrink: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+      }
+    }
+  }
+  #tab-gallery-status > div:not(:last-child)::after {
+    content: '|';
+    margin-inline: 6px;
+  }`;
+  document.head.append(style);
 }
 
 async function wsConnect(socket, timeout = 5000) {
@@ -478,7 +573,7 @@ async function gallerySearch() {
         f.style.display = (!dirPath || isOpen) ? 'unset' : 'none';
       });
 
-      updateStatusWithSort(`Filter | Cleared | ${allFiles.length.toLocaleString()} images`);
+      updateStatusWithSort('Filter', 'Cleared', ['Images', allFiles.length.toLocaleString()]);
       return;
     }
 
@@ -536,7 +631,7 @@ async function gallerySearch() {
     }
 
     const t1 = performance.now();
-    updateStatusWithSort(`Filter | ${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   }, 250);
 }
 
@@ -555,7 +650,6 @@ async function gallerySort(btn) {
   const arr = Array.from(el.files.children).filter((node) => node.name); // filter out separators
   if (arr.length === 0) return; // no files to sort
   if (btn) lastSort = btn.charCodeAt(0);
-  lastSortName = 'None';
   const fragment = document.createDocumentFragment();
   switch (lastSort) {
     case 61789: // name asc
@@ -607,6 +701,7 @@ async function gallerySort(btn) {
         .forEach((node) => fragment.appendChild(node));
       break;
     default:
+      lastSortName = 'None';
       break;
   }
   if (fragment.children.length === 0) return;
@@ -631,7 +726,7 @@ async function gallerySort(btn) {
 
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
-  updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
 }
 
 /**
@@ -655,8 +750,8 @@ function showCleaningMsg(count) {
   const anim = document.createElement('span');
 
   parent.style.position = 'relative';
-  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
-  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
+  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap;';
+  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px;';
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
@@ -738,12 +833,12 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
+  updateStatusWithSort(['Folder', evt.target.name], 'in-progress');
   let numFiles = 0;
 
   const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(`Folder: ${evt.target.name} | failed: ${res?.statusText}`);
+    updateStatusWithSort(['Folder', evt.target.name], ['Failed', res?.statusText || 'No response']);
     return;
   }
   const jsonData = await res.json();
@@ -762,7 +857,7 @@ async function fetchFilesHT(evt, controller) {
 
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-  updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
@@ -790,7 +885,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     await fetchFilesHT(evt, controller); // fallback to http
     return;
   }
-  updateStatusWithSort(`Folder: ${evt.target.name}`);
+  updateStatusWithSort(['Folder', evt.target.name]);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -809,7 +904,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % 100 === 0) {
-          updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], 'in-progress', `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -820,7 +915,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
@@ -875,7 +970,7 @@ async function monitorGalleries() {
 
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:24px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
   document.head.append(busyAnimation);
 }
 
@@ -890,6 +985,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     return;
   }
   updateGalleryStyles();
+  injectGalleryStatusCSS();
   setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
