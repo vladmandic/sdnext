@@ -104,6 +104,7 @@ vlm_prompts_florence = [
 vlm_prompts_moondream = [
     "Point at...",
     "Detect all...",
+    "Detect Gaze",
 ]
 
 # Mapping from friendly names to internal tokens/commands
@@ -124,6 +125,7 @@ vlm_prompt_mapping = {
     "Mixed Caption+": "<MIXED_CAPTION_PLUS>",
     "Point at...": "POINT_MODE",
     "Detect all...": "DETECT_MODE",
+    "Detect Gaze": "DETECT_GAZE",
 }
 
 # Placeholder hints for prompt field based on selected question
@@ -144,6 +146,7 @@ vlm_prompt_placeholders = {
     "Mixed Caption+": "Optional: add specific instructions",
     "Point at...": "Enter objects to locate, e.g., 'the red car' or 'all the eyes'",
     "Detect all...": "Enter object type to detect, e.g., 'cars' or 'faces'",
+    "Detect Gaze": "No input needed - auto-detects face and gaze direction",
 }
 
 # Legacy list for backwards compatibility
@@ -1085,8 +1088,9 @@ def pix(question: str, image: Image.Image, repo: str = None, model_name: str = N
     return response
 
 
-def moondream(question: str, image: Image.Image, repo: str = None, model_name: str = None):
+def moondream(question: str, image: Image.Image, repo: str = None, model_name: str = None, thinking_mode: bool = False):
     global processor, model, loaded # pylint: disable=global-statement
+    debug(f'VQA interrogate: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
     if model is None or loaded != repo:
         shared.log.debug(f'Interrogate load: vlm="{repo}"')
         model = None
@@ -1111,16 +1115,73 @@ def moondream(question: str, image: Image.Image, repo: str = None, model_name: s
             response = model.caption(image, length="normal")['caption']
         elif question == 'MORE DETAILED CAPTION':
             response = model.caption(image, length="long")['caption']
-        elif question.lower().startswith('point at '):
-            target = question[9:]
+        elif question.lower().startswith('point at ') or question == 'POINT_MODE':
+            target = question[9:].strip() if question.lower().startswith('point at ') else ''
+            if not target:
+                return ("Please specify an object to locate", None)
+            debug(f'VQA interrogate: handler=moondream method=point target="{target}"')
             result = model.point(image, target)
-            response = str(result)
-        elif question.lower().startswith('detect '):
-            target = question[7:]
+            debug(f'VQA interrogate: handler=moondream point_raw_result={result}')
+            # Parse points: {'points': [{'x': 0.5, 'y': 0.5}, ...]}
+            if isinstance(result, dict) and 'points' in result:
+                points = [(p['x'], p['y']) for p in result['points'] if 'x' in p and 'y' in p]
+                if points:
+                    if len(points) == 1:
+                        text = f"Found at: ({points[0][0]:.3f}, {points[0][1]:.3f})"
+                    else:
+                        lines = [f"Found {len(points)} instances:"]
+                        for i, (x, y) in enumerate(points, 1):
+                            lines.append(f"  {i}. ({x:.3f}, {y:.3f})")
+                        text = '\n'.join(lines)
+                    return (text, {'points': points})
+            return ("Object not found", None)
+        elif question.lower().startswith('detect ') or question == 'DETECT_MODE':
+            target = question[7:].strip() if question.lower().startswith('detect ') else ''
+            if not target:
+                return ("Please specify an object to detect", None)
+            debug(f'VQA interrogate: handler=moondream method=detect target="{target}"')
             result = model.detect(image, target)
-            response = str(result)
+            debug(f'VQA interrogate: handler=moondream detect_raw_result={result}')
+            # Parse objects: {'objects': [{'x_min': .1, 'y_min': .2, 'x_max': .5, 'y_max': .8}, ...]}
+            if isinstance(result, dict) and 'objects' in result:
+                detections = []
+                for obj in result['objects']:
+                    if all(k in obj for k in ['x_min', 'y_min', 'x_max', 'y_max']):
+                        detections.append({
+                            'bbox': [obj['x_min'], obj['y_min'], obj['x_max'], obj['y_max']],
+                            'label': target
+                        })
+                if detections:
+                    lines = [f"{d['label']}: [{d['bbox'][0]:.3f}, {d['bbox'][1]:.3f}, {d['bbox'][2]:.3f}, {d['bbox'][3]:.3f}]" for d in detections]
+                    return ('\n'.join(lines), {'detections': detections})
+            return ("No objects detected", None)
+        elif question == 'DETECT_GAZE' or question.lower() == 'detect gaze':
+            debug('VQA interrogate: handler=moondream method=detect_gaze')
+            # First detect faces to get eye regions
+            faces = model.detect(image, "face")
+            debug(f'VQA interrogate: handler=moondream detect_gaze faces={faces}')
+            if faces.get('objects'):
+                face = faces['objects'][0]  # Use first face
+                eye_x = (face['x_min'] + face['x_max']) / 2
+                eye_y = face['y_min'] + (face['y_max'] - face['y_min']) * 0.3  # Approximate eye level
+                result = model.detect_gaze(image, eye=(eye_x, eye_y))
+                debug(f'VQA interrogate: handler=moondream detect_gaze result={result}')
+                if result.get('gaze'):
+                    gaze = result['gaze']
+                    text = f"Gaze direction: ({gaze['x']:.3f}, {gaze['y']:.3f})"
+                    return (text, {'gaze': [(gaze['x'], gaze['y'])]})
+            return ("No face/gaze detected", None)
         else:
-            response = model.answer_question(encoded, question, processor)['answer']
+            debug(f'VQA interrogate: handler=moondream method=query question="{question}" reasoning={thinking_mode}')
+            result = model.query(image, question, reasoning=thinking_mode)
+            response = result['answer']
+            debug(f'VQA interrogate: handler=moondream query_result keys={list(result.keys()) if isinstance(result, dict) else "not dict"}')
+            if thinking_mode and 'reasoning' in result:
+                reasoning_text = result['reasoning'].get('text', '') if isinstance(result['reasoning'], dict) else str(result['reasoning'])
+                debug(f'VQA interrogate: handler=moondream reasoning_text="{reasoning_text[:100]}..."')
+                if shared.opts.interrogate_vlm_keep_thinking:
+                    response = f"Reasoning:\n{reasoning_text}\nAnswer:\n{response}"
+                # When keep_thinking is False, just use the answer (reasoning is discarded)
     return response
 
 
@@ -1304,7 +1365,7 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
             answer = moondream3.predict(question, image, vqa_model, model_name, thinking_mode=thinking_mode)
         elif 'moondream2' in vqa_model.lower():
             handler = 'moondream'
-            answer = moondream(question, image, vqa_model, model_name)
+            answer = moondream(question, image, vqa_model, model_name, thinking_mode)
         elif 'florence' in vqa_model.lower():
             handler = 'florence'
             answer = florence(question, image, vqa_model, None, model_name)
