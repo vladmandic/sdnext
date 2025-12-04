@@ -46,16 +46,46 @@ async function awaitForGallery(expectedSize, signal) {
 function updateGalleryStyles() {
   if (opts.theme_type?.toLowerCase() === 'modern') {
     folderStylesheet.replaceSync(`
-      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; background-color: var(--sd-button-normal-color); border-radius: var(--sd-border-radius); text-align: left; min-width: 12em;}
-      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-      .gallery-folder-selected { background-color: var(--sd-button-selected-color); color: var(--sd-button-selected-text-color); }
-      .gallery-folder-icon { font-size: 1.2em; color: var(--sd-button-icon-color); margin-right: 1em; filter: drop-shadow(1px 1px 2px black); float: left; }
+      .gallery-folder {
+        cursor: pointer;
+        padding: 8px 6px 8px 6px;
+        background-color: var(--sd-button-normal-color);
+        border-radius: var(--sd-border-radius);
+        text-align: left;
+        direction: rtl; /* Used to overflow the beginning instead of the end */
+        min-width: 12em;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .gallery-folder:hover {
+        background-color: var(--button-primary-background-fill-hover);
+      }
+      .gallery-folder-selected {
+        background-color: var(--sd-button-selected-color);
+        color: var(--sd-button-selected-text-color);
+      }
+      .gallery-folder-icon {
+        font-size: 1.2em;
+        color: var(--sd-button-icon-color);
+        margin-right: 1em;
+        filter: drop-shadow(1px 1px 2px black);
+        float: left;
+      }
     `);
   } else {
     folderStylesheet.replaceSync(`
-      .gallery-folder { cursor: pointer; padding: 8px 6px 8px 6px; }
-      .gallery-folder:hover { background-color: var(--button-primary-background-fill-hover); }
-      .gallery-folder-selected { background-color: var(--button-primary-background-fill); }
+      .gallery-folder {
+        cursor: pointer;
+        padding: 8px 6px 8px 6px;
+      }
+      .gallery-folder:hover {
+        background-color: var(--button-primary-background-fill-hover);
+      }
+      .gallery-folder-selected {
+        background-color: var(--button-primary-background-fill);
+      }
     `);
   }
   fileStylesheet.replaceSync(`
@@ -139,6 +169,7 @@ class GalleryFolder extends HTMLElement {
     const div = document.createElement('div');
     div.className = 'gallery-folder';
     div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
+    div.title = this.name;
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
         if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
