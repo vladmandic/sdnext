@@ -80,6 +80,10 @@ function updateGalleryStyles() {
       .gallery-folder {
         cursor: pointer;
         padding: 8px 6px 8px 6px;
+        max-width: 200px;
+        overflow-x: hidden;
+        text-wrap: nowrap;
+        text-overflow: ellipsis;
       }
       .gallery-folder:hover {
         background-color: var(--button-primary-background-fill-hover);
