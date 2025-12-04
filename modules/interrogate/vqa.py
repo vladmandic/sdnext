@@ -218,6 +218,68 @@ def is_thinking_model(model_name: str) -> bool:
     return any(indicator in model_lower for indicator in thinking_indicators)
 
 
+def load_model(model_name: str = None):
+    """Pre-load VLM model into memory without running inference."""
+    global processor, model, loaded, quant_args  # pylint: disable=global-statement
+    model_name = model_name or shared.opts.interrogate_vlm_model
+    if model_name not in vlm_models:
+        shared.log.error(f'VQA load: unknown model="{model_name}"')
+        return
+    repo = vlm_models.get(model_name)
+    if model is not None and loaded == repo:
+        shared.log.debug(f'VQA load: model="{model_name}" already loaded')
+        sd_models.move_model(model, devices.device)
+        return
+
+    shared.log.debug(f'VQA load: model="{model_name}" repo="{repo}"')
+    quant_args = model_quant.create_config(module='LLM')
+
+    # Determine model class based on repo
+    if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
+        cls = transformers.Qwen3VLForConditionalGeneration
+    elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo or 'MiMo-VL' in repo:
+        cls = transformers.Qwen2_5_VLForConditionalGeneration
+    elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
+        cls = transformers.Qwen2VLForConditionalGeneration
+    elif 'gemma' in repo.lower() and 'pali' not in repo.lower():
+        cls = transformers.Gemma3ForConditionalGeneration
+    elif 'smol' in repo.lower():
+        cls = transformers.AutoModelForVision2Seq
+    elif 'florence' in repo.lower():
+        cls = transformers.Florence2ForConditionalGeneration
+    else:
+        cls = transformers.AutoModelForCausalLM
+
+    model = cls.from_pretrained(
+        repo,
+        trust_remote_code=True,
+        torch_dtype=devices.dtype,
+        cache_dir=shared.opts.hfcache_dir,
+        **quant_args,
+    )
+    processor = transformers.AutoProcessor.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+    if 'LLM' in shared.opts.cuda_compile:
+        model = sd_models_compile.compile_torch(model)
+    loaded = repo
+    sd_models.move_model(model, devices.device)
+    devices.torch_gc()
+    shared.log.info(f'VQA load: model="{model_name}" class={cls.__name__} loaded')
+
+
+def unload_model():
+    """Unload VLM model from memory."""
+    global model, processor, loaded  # pylint: disable=global-statement
+    if model is not None:
+        shared.log.debug(f'VQA unload: model="{loaded}"')
+        sd_models.move_model(model, devices.cpu, force=True)
+        model = None
+        processor = None
+        loaded = None
+        devices.torch_gc(force=True, reason='vqa unload')
+    else:
+        shared.log.debug('VQA unload: no model loaded')
+
+
 def truncate_b64_in_conversation(conversation, front_chars=50, tail_chars=50, threshold=200):
     """
     Deep copy a conversation structure and truncate long base64 image strings for logging.
@@ -518,7 +580,7 @@ def qwen(
     # Add prefill for all models (only if provided)
     prefill_value = vlm_prefill if prefill is None else prefill
     prefill_text = prefill_value.strip()
-    
+
     # Thinking models emit their own <think> tags via the chat template
     # Use manual toggle OR auto-detection based on model name
     is_thinking = is_thinking_model(model_name)
@@ -590,7 +652,7 @@ def qwen(
             while '</think>' in text:
                 start = text.find('<think>')
                 end = text.find('</think>')
-                
+
                 if start != -1 and start < end:
                     # Standard <think>...content...</think> block
                     text = text[:start] + text[end+8:]
@@ -718,7 +780,7 @@ def gemma(
     response = processor.decode(generation, skip_special_tokens=True)
     if debug_enabled:
         debug(f'VQA interrogate: handler=gemma response_before_clean="{response}"')
-    
+
     # Clean up thinking tags (if any remain)
     if shared.opts.interrogate_vlm_keep_thinking:
         response = response.replace('<think>', 'Reasoning:\n').replace('</think>', '\nAnswer:')
@@ -732,7 +794,7 @@ def gemma(
             else:
                 text = text[end+8:]
         response = text
-        
+
     return response
 
 
@@ -906,7 +968,7 @@ def smol(
     response = processor.batch_decode(output_ids,skip_special_tokens=True)
     if debug_enabled:
         debug(f'VQA interrogate: handler=smol response_before_clean="{response}"')
-        
+
     # Clean up thinking tags
     if len(response) > 0:
         text = response[0]
@@ -921,7 +983,7 @@ def smol(
                 else:
                     text = text[end+8:]
         response[0] = text
-        
+
     return response
 
 
@@ -1071,11 +1133,11 @@ def florence(question: str, image: Image.Image, repo: str = None, revision: str 
     cache_key = repo
     effective_revision = revision
     repo_name = repo
-    
+
     if repo and '@' in repo:
         repo_name, revision_from_repo = repo.split('@')
         effective_revision = revision_from_repo
-        
+
     if model is None or loaded != cache_key:
         shared.log.debug(f'Interrogate load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
         transformers.dynamic_module_utils.get_imports = get_imports

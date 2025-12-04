@@ -74,6 +74,9 @@ def create_ui():
                         vlm_prompt = gr.Textbox(label="Prompt", placeholder=vqa.get_prompt_placeholder(initial_prompts[0] if initial_prompts else "Use Prompt"), lines=2, elem_id='vlm_prompt')
                     with gr.Row(elem_id='interrogate_buttons_query'):
                         vlm_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='vlm_model')
+                    with gr.Row():
+                        vlm_load_btn = gr.Button(value='Load', elem_id='vlm_load', variant='secondary')
+                        vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary')
                     with gr.Accordion(label='Advanced options', open=False, visible=True):
                         with gr.Row():
                             vlm_max_tokens = gr.Slider(label='VLM max tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
@@ -176,6 +179,10 @@ def create_ui():
     # Dynamic UI updates based on selected model and task
     vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
     vlm_question.change(fn=update_vlm_prompt_placeholder, inputs=[vlm_question], outputs=[vlm_prompt])
+
+    # Load/Unload model buttons
+    vlm_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
+    vlm_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))
