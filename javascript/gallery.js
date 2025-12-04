@@ -586,7 +586,6 @@ async function gallerySort(btn) {
   const arr = Array.from(el.files.children).filter((node) => node.name); // filter out separators
   if (arr.length === 0) return; // no files to sort
   if (btn) lastSort = btn.charCodeAt(0);
-  lastSortName = 'None';
   const fragment = document.createDocumentFragment();
   switch (lastSort) {
     case 61789: // name asc
@@ -638,6 +637,7 @@ async function gallerySort(btn) {
         .forEach((node) => fragment.appendChild(node));
       break;
     default:
+      lastSortName = 'None';
       break;
   }
   if (fragment.children.length === 0) return;
