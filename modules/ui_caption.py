@@ -15,6 +15,20 @@ def vlm_caption_wrapper(question, system_prompt, prompt, image, model_name, pref
     return result, gr.update(visible=False)
 
 
+def update_vlm_prompts_for_model(model_name):
+    """Update the task dropdown choices based on selected model."""
+    from modules.interrogate import vqa
+    prompts = vqa.get_prompts_for_model(model_name)
+    return gr.update(choices=prompts, value=prompts[0] if prompts else "Use Prompt")
+
+
+def update_vlm_prompt_placeholder(question):
+    """Update the prompt field placeholder based on selected task."""
+    from modules.interrogate import vqa
+    placeholder = vqa.get_prompt_placeholder(question)
+    return gr.update(placeholder=placeholder)
+
+
 def update_vlm_params(*args):
     vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking = args
     shared.opts.interrogate_vlm_max_length = int(vlm_max_tokens)
@@ -50,14 +64,16 @@ def create_ui():
             with gr.Tabs(elem_id="mode_caption"):
                 with gr.Tab("VLM Caption", elem_id="tab_vlm_caption"):
                     from modules.interrogate import vqa
+                    current_vlm_model = shared.opts.interrogate_vlm_model or vqa.vlm_default
+                    initial_prompts = vqa.get_prompts_for_model(current_vlm_model)
                     with gr.Row():
                         vlm_system = gr.Textbox(label="System prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
                     with gr.Row():
-                        vlm_question = gr.Dropdown(label="Predefined question", allow_custom_value=False, choices=vqa.vlm_prompts, value=vqa.vlm_prompts[2], elem_id='vlm_question')
+                        vlm_question = gr.Dropdown(label="Task", allow_custom_value=False, choices=initial_prompts, value=initial_prompts[0] if initial_prompts else "Use Prompt", elem_id='vlm_question')
                     with gr.Row():
-                        vlm_prompt = gr.Textbox(label="Prompt", placeholder="optionally enter custom prompt", lines=2, elem_id='vlm_prompt')
+                        vlm_prompt = gr.Textbox(label="Prompt", placeholder=vqa.get_prompt_placeholder(initial_prompts[0] if initial_prompts else "Use Prompt"), lines=2, elem_id='vlm_prompt')
                     with gr.Row(elem_id='interrogate_buttons_query'):
-                        vlm_model = gr.Dropdown(list(vqa.vlm_models), value=vqa.vlm_default, label='VLM Model', elem_id='vlm_model')
+                        vlm_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='vlm_model')
                     with gr.Accordion(label='Advanced options', open=False, visible=True):
                         with gr.Row():
                             vlm_max_tokens = gr.Slider(label='VLM max tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
@@ -156,6 +172,10 @@ def create_ui():
     btn_clip_interrogate_batch.click(fn=openclip.interrogate_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
     btn_vlm_caption.click(fn=vlm_caption_wrapper, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode], outputs=[prompt, output_image])
     btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+
+    # Dynamic UI updates based on selected model and task
+    vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
+    vlm_question.change(fn=update_vlm_prompt_placeholder, inputs=[vlm_question], outputs=[vlm_prompt])
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))
