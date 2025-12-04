@@ -52,8 +52,8 @@ vlm_models = {
     "MiaoshouAI PromptGen 2.0 Large": "Disty0/Florence-2-large-PromptGen-v2.0", # 1.5GB
     "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
-    "Moondream 2": "vikhyatk/moondream2", # 3.7GB
-    "Moondream 3 Preview": "moondream/moondream3-preview", # 9.3GB (gated)
+    f"Moondream 2 {ui_symbols.reasoning}": "vikhyatk/moondream2", # 3.7GB
+    f"Moondream 3 Preview {ui_symbols.reasoning}": "moondream/moondream3-preview", # 9.3GB (gated)
     "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
     "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
     "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
@@ -216,6 +216,8 @@ def is_thinking_model(model_name: str) -> bool:
         'thinking',  # Qwen3-VL-*-Thinking models
         'moondream3',  # Moondream 3 supports thinking
         'moondream 3',
+        'moondream2',  # Moondream 2 supports reasoning mode
+        'moondream 2',
         'mimo',
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
@@ -348,7 +350,7 @@ def clean(response, question, prefill=None):
              r_text = response['reasoning']
              if isinstance(r_text, dict) and 'text' in r_text:
                  r_text = r_text['text']
-             text_response += f"Reasoning:\n{r_text}\nAnswer:\n"
+             text_response += f"Reasoning:\n{r_text}\n\nAnswer:\n"
 
         if 'answer' in response:
             text_response += response['answer']
@@ -376,7 +378,7 @@ def clean(response, question, prefill=None):
     while any(s in response for s in strip):
         for s in strip:
             response = response.replace(s, '')
-    response = response.replace('\n\n', '\n').replace('  ', ' ').replace('*  ', '- ').strip()
+    response = response.replace('  ', ' ').replace('*  ', '- ').strip()
 
     # Handle prefill retention/removal
     if shared.opts.interrogate_vlm_keep_prefill:
@@ -585,9 +587,8 @@ def qwen(
     prefill_text = prefill_value.strip()
 
     # Thinking models emit their own <think> tags via the chat template
-    # Use manual toggle OR auto-detection based on model name
+    # Only models with thinking capability can use thinking mode
     is_thinking = is_thinking_model(model_name)
-    use_thinking = thinking_mode or is_thinking
 
     # Standardize prefill
     prefill_value = vlm_prefill if prefill is None else prefill
@@ -647,10 +648,15 @@ def qwen(
     if debug_enabled:
         debug(f'VQA interrogate: handler=qwen response_before_clean="{response}"')
     # Clean up thinking tags
+    # Note: <think> is in the prompt, not the response - only </think> appears in generated output
     if len(response) > 0:
         text = response[0]
         if shared.opts.interrogate_vlm_keep_thinking:
-            text = text.replace('<think>', 'Reasoning:\n').replace('</think>', '\nAnswer:')
+            # Handle case where <think> is in prompt (not response) but </think> is in response
+            if '</think>' in text and '<think>' not in text:
+                text = 'Reasoning:\n' + text.replace('</think>', '\n\nAnswer:')
+            else:
+                text = text.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:')
         else:
             while '</think>' in text:
                 start = text.find('<think>')
@@ -786,7 +792,7 @@ def gemma(
 
     # Clean up thinking tags (if any remain)
     if shared.opts.interrogate_vlm_keep_thinking:
-        response = response.replace('<think>', 'Reasoning:\n').replace('</think>', '\nAnswer:')
+        response = response.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:')
     else:
         text = response
         while '</think>' in text:
@@ -976,7 +982,7 @@ def smol(
     if len(response) > 0:
         text = response[0]
         if shared.opts.interrogate_vlm_keep_thinking:
-            text = text.replace('<think>', 'Reasoning:\n').replace('</think>', '\nAnswer:')
+            text = text.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:')
         else:
             while '</think>' in text:
                 start = text.find('<think>')
@@ -1107,7 +1113,6 @@ def moondream(question: str, image: Image.Image, repo: str = None, model_name: s
         devices.torch_gc()
     sd_models.move_model(model, devices.device)
     question = question.replace('<', '').replace('>', '').replace('_', ' ')
-    encoded = model.encode_image(image)
     with devices.inference_context():
         if question == 'CAPTION':
             response = model.caption(image, length="short")['caption']
@@ -1180,7 +1185,7 @@ def moondream(question: str, image: Image.Image, repo: str = None, model_name: s
                 reasoning_text = result['reasoning'].get('text', '') if isinstance(result['reasoning'], dict) else str(result['reasoning'])
                 debug(f'VQA interrogate: handler=moondream reasoning_text="{reasoning_text[:100]}..."')
                 if shared.opts.interrogate_vlm_keep_thinking:
-                    response = f"Reasoning:\n{reasoning_text}\nAnswer:\n{response}"
+                    response = f"Reasoning:\n{reasoning_text}\n\nAnswer:\n{response}"
                 # When keep_thinking is False, just use the answer (reasoning is discarded)
     return response
 
