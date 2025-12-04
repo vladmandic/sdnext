@@ -161,6 +161,7 @@ class GalleryFolder extends HTMLElement {
   constructor(name) {
     super();
     this.name = decodeURI(name);
+    this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
   }
