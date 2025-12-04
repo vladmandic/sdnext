@@ -100,7 +100,7 @@ def post_vqa(req: models.ReqVQA):
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
     from modules.interrogate import vqa
-    answer = vqa.interrogate(req.question, req.system, '', image, req.model)
+    answer, _ = vqa.interrogate(req.question, req.system, '', image, req.model)
     return models.ResVQA(answer=answer)
 
 def post_unload_checkpoint():
