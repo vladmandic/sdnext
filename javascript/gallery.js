@@ -498,8 +498,9 @@ async function injectGalleryStatusCSS() {
   const style = document.createElement('style');
   style.textContent = `
   #tab-gallery-status {
+    display: inline-flex;
     flex-flow: row wrap;
-    justify-content: flex-start;
+    justify-content: ${opts.theme_type?.toLowerCase() === 'modern' ? 'flex-start' : 'flex-end'};
   }
   #tab-gallery-status > div {
     display: flex;
@@ -749,8 +750,8 @@ function showCleaningMsg(count) {
   const anim = document.createElement('span');
 
   parent.style.position = 'relative';
-  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center;';
-  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px; margin-right: 16px;';
+  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap;';
+  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px;';
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
@@ -969,7 +970,7 @@ async function monitorGalleries() {
 
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:24px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
   document.head.append(busyAnimation);
 }
 
