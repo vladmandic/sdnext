@@ -11,6 +11,7 @@ const galleryHashes = new Set();
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
 const fileStylesheet = new CSSStyleSheet();
+const iconStopwatch = String.fromCodePoint(9201);
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -459,10 +460,67 @@ async function getHash(str, algo = 'SHA-256') {
   }
 }
 
-// Helper function to update status with sort mode
-function updateStatusWithSort(message) {
-  const sortIndicator = `Sort: ${lastSortName} | `;
-  el.status.innerText = sortIndicator + message;
+/**
+ * Helper function to update status with sort mode
+ * @param  {...string|[string, string]} messages - Each can be either a string to use as-is, or an array of a string label and value
+ * @returns {void}
+ */
+function updateStatusWithSort(...messages) {
+  if (!el.status) return;
+  messages.unshift(['Sort', lastSortName]);
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < messages.length; i++) {
+    const div = document.createElement('div');
+    if (Array.isArray(messages[i])) {
+      const [text1, text2] = messages[i];
+      const tDiv1 = document.createElement('div');
+      tDiv1.innerText = `${text1}:`;
+      const tDiv2 = document.createElement('div');
+      tDiv2.innerText = text2;
+      tDiv2.title = text2;
+      div.append(tDiv1, tDiv2);
+    } else {
+      const tDiv1 = document.createElement('div');
+      tDiv1.innerText = messages[i];
+      div.append(tDiv1);
+    }
+    fragment.append(div);
+  }
+  if (el.status.hasChildNodes()) el.status.innerHTML = '';
+  el.status.append(fragment);
+}
+
+async function injectGalleryStatusCSS() {
+  const style = document.createElement('style');
+  style.textContent = `
+  #tab-gallery-status {
+    flex-flow: row wrap;
+    justify-content: flex-start;
+  }
+  #tab-gallery-status > div {
+    display: flex;
+    max-width: 100%;
+    white-space: nowrap;
+    & div {
+      &:first-child {
+        flex-shrink: 0;
+        margin-right: 4px;
+      }
+      &:last-child:not(:first-child) {
+        flex-shrink: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+      }
+    }
+  }
+  #tab-gallery-status > div:not(:last-child)::after {
+    content: '|';
+    margin-inline: 6px;
+  }`;
+  document.head.append(style);
 }
 
 async function wsConnect(socket, timeout = 5000) {
@@ -510,7 +568,7 @@ async function gallerySearch() {
         f.style.display = (!dirPath || isOpen) ? 'unset' : 'none';
       });
 
-      updateStatusWithSort(`Filter | Cleared | ${allFiles.length.toLocaleString()} images`);
+      updateStatusWithSort('Filter', 'Cleared', ['Images', allFiles.length.toLocaleString()]);
       return;
     }
 
@@ -568,7 +626,7 @@ async function gallerySearch() {
     }
 
     const t1 = performance.now();
-    updateStatusWithSort(`Filter | ${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   }, 250);
 }
 
@@ -663,7 +721,7 @@ async function gallerySort(btn) {
 
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
-  updateStatusWithSort(`${arr.length.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
 }
 
 /**
@@ -770,12 +828,12 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
+  updateStatusWithSort(['Folder', evt.target.name], 'in-progress');
   let numFiles = 0;
 
   const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(`Folder: ${evt.target.name} | failed: ${res?.statusText}`);
+    updateStatusWithSort(['Folder', evt.target.name], ['Failed', res?.statusText || 'No response']);
     return;
   }
   const jsonData = await res.json();
@@ -794,7 +852,7 @@ async function fetchFilesHT(evt, controller) {
 
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-  updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
@@ -822,7 +880,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     await fetchFilesHT(evt, controller); // fallback to http
     return;
   }
-  updateStatusWithSort(`Folder: ${evt.target.name}`);
+  updateStatusWithSort(['Folder', evt.target.name]);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -841,7 +899,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % 100 === 0) {
-          updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | in-progress | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], 'in-progress', `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -852,7 +910,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
@@ -922,6 +980,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     return;
   }
   updateGalleryStyles();
+  injectGalleryStatusCSS();
   setOverlayAnimation();
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
