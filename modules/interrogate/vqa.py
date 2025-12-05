@@ -9,7 +9,7 @@ import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
 from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile, ui_symbols
-from modules.interrogate import vqa_draw
+from modules.interrogate import vqa_detection
 
 
 # Debug logging - function-based to avoid circular import
@@ -417,10 +417,28 @@ class VQA:
             self._load_sa2(repo)
         elif 'fastvlm' in repo_lower:
             self._load_fastvlm(repo)
+        elif 'moondream3' in repo_lower:
+            from modules.interrogate import moondream3
+            moondream3.load_model(repo)
+            shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+            return
+        elif 'joytag' in repo_lower:
+            from modules.interrogate import joytag
+            joytag.load()
+            shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+            return
+        elif 'joycaption' in repo_lower:
+            from modules.interrogate import joycaption
+            joycaption.load(repo)
+            shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+            return
+        elif 'deepseek' in repo_lower:
+            from modules.interrogate import deepseek
+            deepseek.load(repo)
+            shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+            return
         else:
-            # Models with external handlers (moondream3, joytag, joycaption, deepseek)
-            # don't support pre-loading through this method
-            shared.log.warning(f'VQA load: no pre-loader for model="{model_name}" (external handler)')
+            shared.log.warning(f'VQA load: no pre-loader for model="{model_name}"')
             return
 
         sd_models.move_model(self.model, devices.device)
@@ -1066,19 +1084,10 @@ class VQA:
                 debug(f'VQA interrogate: handler=moondream method=point target="{target}"')
                 result = self.model.point(image, target)
                 debug(f'VQA interrogate: handler=moondream point_raw_result={result}')
-                # Parse points: {'points': [{'x': 0.5, 'y': 0.5}, ...]}
-                if isinstance(result, dict) and 'points' in result:
-                    points = [(p['x'], p['y']) for p in result['points'] if 'x' in p and 'y' in p]
-                    if points:
-                        if len(points) == 1:
-                            text = f"Found at: ({points[0][0]:.3f}, {points[0][1]:.3f})"
-                        else:
-                            lines = [f"Found {len(points)} instances:"]
-                            for i, (x, y) in enumerate(points, 1):
-                                lines.append(f"  {i}. ({x:.3f}, {y:.3f})")
-                            text = '\n'.join(lines)
-                        self.last_detection_data = {'points': points}
-                        return text
+                points = vqa_detection.parse_points(result)
+                if points:
+                    self.last_detection_data = {'points': points}
+                    return vqa_detection.format_points_text(points)
                 return "Object not found"
             elif question.lower().startswith('detect ') or question == 'DETECT_MODE':
                 target = question[7:].strip() if question.lower().startswith('detect ') else ''
@@ -1087,36 +1096,23 @@ class VQA:
                 debug(f'VQA interrogate: handler=moondream method=detect target="{target}"')
                 result = self.model.detect(image, target)
                 debug(f'VQA interrogate: handler=moondream detect_raw_result={result}')
-                # Parse objects: {'objects': [{'x_min': .1, 'y_min': .2, 'x_max': .5, 'y_max': .8}, ...]}
-                if isinstance(result, dict) and 'objects' in result:
-                    detections = []
-                    for obj in result['objects']:
-                        if all(k in obj for k in ['x_min', 'y_min', 'x_max', 'y_max']):
-                            detections.append({
-                                'bbox': [obj['x_min'], obj['y_min'], obj['x_max'], obj['y_max']],
-                                'label': target
-                            })
-                    if detections:
-                        lines = [f"{d['label']}: [{d['bbox'][0]:.3f}, {d['bbox'][1]:.3f}, {d['bbox'][2]:.3f}, {d['bbox'][3]:.3f}]" for d in detections]
-                        self.last_detection_data = {'detections': detections}
-                        return '\n'.join(lines)
+                detections = vqa_detection.parse_detections(result, target)
+                if detections:
+                    self.last_detection_data = {'detections': detections}
+                    return vqa_detection.format_detections_text(detections, include_confidence=False)
                 return "No objects detected"
             elif question == 'DETECT_GAZE' or question.lower() == 'detect gaze':
                 debug('VQA interrogate: handler=moondream method=detect_gaze')
-                # First detect faces to get eye regions
                 faces = self.model.detect(image, "face")
                 debug(f'VQA interrogate: handler=moondream detect_gaze faces={faces}')
                 if faces.get('objects'):
-                    face = faces['objects'][0]  # Use first face
-                    eye_x = (face['x_min'] + face['x_max']) / 2
-                    eye_y = face['y_min'] + (face['y_max'] - face['y_min']) * 0.3  # Approximate eye level
+                    eye_x, eye_y = vqa_detection.calculate_eye_position(faces['objects'][0])
                     result = self.model.detect_gaze(image, eye=(eye_x, eye_y))
                     debug(f'VQA interrogate: handler=moondream detect_gaze result={result}')
                     if result.get('gaze'):
                         gaze = result['gaze']
-                        text = f"Gaze direction: ({gaze['x']:.3f}, {gaze['y']:.3f})"
                         self.last_detection_data = {'points': [(gaze['x'], gaze['y'])]}
-                        return text
+                        return f"Gaze direction: ({gaze['x']:.3f}, {gaze['y']:.3f})"
                 return "No face/gaze detected"
             else:
                 debug(f'VQA interrogate: handler=moondream method=query question="{question}" reasoning={thinking_mode}')
@@ -1360,7 +1356,7 @@ class VQA:
             detections = self.last_detection_data.get('detections', None)
             points = self.last_detection_data.get('points', None)
             if detections or points:
-                self.last_annotated_image = vqa_draw.draw_bounding_boxes(image, detections or [], points)
+                self.last_annotated_image = vqa_detection.draw_bounding_boxes(image, detections or [], points)
                 debug(f'VQA interrogate: handler={handler} created annotated image detections={len(detections) if detections else 0} points={len(points) if points else 0}')
 
         debug(f'VQA interrogate: handler={handler} response_after_clean="{answer}" has_annotation={self.last_annotated_image is not None}')

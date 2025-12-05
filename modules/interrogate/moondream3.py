@@ -8,6 +8,7 @@ import torch
 import transformers
 from PIL import Image
 from modules import shared, devices, sd_models
+from modules.interrogate import vqa_detection
 
 
 # Debug logging - function-based to avoid circular import
@@ -219,32 +220,14 @@ def point(image: Image.Image, object_name: str, repo: str):
     with devices.inference_context():
         result = model.point(image, object_name)
 
-    # Debug: Log the actual result to understand the format
     debug(f'VQA interrogate: handler=moondream3 point_raw_result="{result}" type={type(result)}')
     if isinstance(result, dict):
         debug(f'VQA interrogate: handler=moondream3 point_raw_result_keys={list(result.keys())}')
 
-    # Parse and validate coordinates
-    # Handle dict format: {'points': [{'x': 0.733, 'y': 0.442}, {'x': 0.5, 'y': 0.6}, ...]}
-    if isinstance(result, dict) and 'points' in result:
-        points_list = result['points']
-        if points_list and len(points_list) > 0:
-            coordinates = []
-            for point_data in points_list:  # Iterate ALL points
-                if 'x' in point_data and 'y' in point_data:
-                    x = max(0.0, min(1.0, float(point_data['x'])))
-                    y = max(0.0, min(1.0, float(point_data['y'])))
-                    coordinates.append((x, y))
-            if coordinates:
-                debug(f'VQA interrogate: handler=moondream3 point_result={len(coordinates)} points found')
-                return coordinates
-    # Fallback: try simple list/tuple format [x, y] (for compatibility)
-    elif isinstance(result, (list, tuple)) and len(result) == 2:
-        x, y = result
-        x = max(0.0, min(1.0, float(x)))
-        y = max(0.0, min(1.0, float(y)))
-        debug('VQA interrogate: handler=moondream3 point_result=1 point found')
-        return [(x, y)]  # Return as list for consistency
+    points = vqa_detection.parse_points(result)
+    if points:
+        debug(f'VQA interrogate: handler=moondream3 point_result={len(points)} points found')
+        return points
 
     debug('VQA interrogate: handler=moondream3 point_result=not found')
     return None
@@ -274,31 +257,11 @@ def detect(image: Image.Image, object_name: str, repo: str, max_objects: int = 1
     with devices.inference_context():
         result = model.detect(image, object_name)
 
-    # Debug: Log the actual result to understand the format
     debug(f'VQA interrogate: handler=moondream3 detect_raw_result="{result}" type={type(result)}')
     if isinstance(result, dict):
         debug(f'VQA interrogate: handler=moondream3 detect_raw_result_keys={list(result.keys())}')
 
-    # Parse detections
-    # Expected format: {'objects': [{'x_min': 0.1, 'y_min': 0.2, 'x_max': 0.5, 'y_max': 0.8}, ...]}
-    detections = []
-
-    if isinstance(result, dict) and 'objects' in result:
-        objects = result['objects'][:max_objects]  # Limit to max_objects
-        for i, obj in enumerate(objects):
-            if all(k in obj for k in ['x_min', 'y_min', 'x_max', 'y_max']):
-                bbox = [
-                    max(0.0, min(1.0, float(obj['x_min']))),
-                    max(0.0, min(1.0, float(obj['y_min']))),
-                    max(0.0, min(1.0, float(obj['x_max']))),
-                    max(0.0, min(1.0, float(obj['y_max'])))
-                ]
-                detections.append({
-                    'bbox': bbox,
-                    'label': object_name,
-                    'confidence': obj.get('confidence', 1.0)  # Default confidence if not provided
-                })
-
+    detections = vqa_detection.parse_detections(result, object_name, max_objects)
     debug(f'VQA interrogate: handler=moondream3 detect_result={len(detections)} objects found')
     return detections
 
@@ -376,55 +339,33 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         elif mode == 'point':
             # Extract object name from question - case insensitive, preserve object names
             object_name = question
-            # Remove trigger phrases (case-insensitive)
             for phrase in ['point at', 'where is', 'locate', 'find']:
                 object_name = re.sub(rf'\b{phrase}\b', '', object_name, flags=re.IGNORECASE)
-            # Remove punctuation and extra whitespace
             object_name = re.sub(r'[?.!,]', '', object_name).strip()
-            # Remove leading "the" only
             object_name = re.sub(r'^\s*the\s+', '', object_name, flags=re.IGNORECASE)
             debug(f'VQA interrogate: handler=moondream3 point_extracted_object="{object_name}"')
             result = point(image, object_name, repo)
             if result:
-                # Handle multiple instances - return text and store points for drawing
-                if len(result) == 1:
-                    text = f"Found at coordinates: ({result[0][0]:.3f}, {result[0][1]:.3f})"
-                else:
-                    # Multiple instances found - format with count
-                    lines = [f"Found {len(result)} instances:"]
-                    for i, (x, y) in enumerate(result, 1):
-                        lines.append(f"  {i}. ({x:.3f}, {y:.3f})")
-                    text = '\n'.join(lines)
-                # Store detection data on VQA singleton for annotation
                 from modules.interrogate import vqa
                 vqa.get_instance().last_detection_data = {'points': result}
-                return text
+                return vqa_detection.format_points_text(result)
             return "Object not found"
         elif mode == 'detect':
             # Extract object name from question - case insensitive
             object_name = question
-            # Remove trigger phrases (case-insensitive)
             for phrase in ['detect', 'find all', 'bounding box', 'bbox', 'find']:
                 object_name = re.sub(rf'\b{phrase}\b', '', object_name, flags=re.IGNORECASE)
-            # Remove punctuation and extra whitespace
             object_name = re.sub(r'[?.!,]', '', object_name).strip()
-            # Remove leading "the" only
             object_name = re.sub(r'^\s*the\s+', '', object_name, flags=re.IGNORECASE)
-            # Remove "and" and get first object (model detects one type at a time)
             if ' and ' in object_name.lower():
                 object_name = re.split(r'\s+and\s+', object_name, flags=re.IGNORECASE)[0].strip()
             debug(f'VQA interrogate: handler=moondream3 detect_extracted_object="{object_name}"')
 
             results = detect(image, object_name, repo, max_objects=kwargs.get('max_objects', 10))
-            # Format as string for display and store detections for drawing
             if results:
-                lines = [f"{det['label']}: [{det['bbox'][0]:.3f}, {det['bbox'][1]:.3f}, {det['bbox'][2]:.3f}, {det['bbox'][3]:.3f}] (confidence: {det['confidence']:.2f})"
-                        for det in results]
-                text = '\n'.join(lines)
-                # Store detection data on VQA singleton for annotation
                 from modules.interrogate import vqa
                 vqa.get_instance().last_detection_data = {'detections': results}
-                return text
+                return vqa_detection.format_detections_text(results)
             return "No objects detected"
         else:  # mode == 'query'
             if len(question) < 2:
@@ -447,3 +388,17 @@ def clear_cache():
     image_cache.clear()
     debug(f'VQA interrogate: handler=moondream3 cleared image cache cache_size_was={cache_size}')
     shared.log.debug(f'Moondream3: Cleared image cache ({cache_size} entries)')
+
+
+def unload():
+    """Release Moondream 3 model from GPU/memory."""
+    global moondream3_model, loaded  # pylint: disable=global-statement
+    if moondream3_model is not None:
+        shared.log.debug(f'Moondream3 unload: model="{loaded}"')
+        sd_models.move_model(moondream3_model, devices.cpu, force=True)
+        moondream3_model = None
+        loaded = None
+        clear_cache()
+        devices.torch_gc(force=True)
+    else:
+        shared.log.debug('Moondream3 unload: no model loaded')
