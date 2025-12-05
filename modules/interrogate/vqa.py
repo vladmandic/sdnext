@@ -100,10 +100,14 @@ vlm_prompts_florence = [
     "Mixed Caption+",
 ]
 
-# Moondream specific prompts (only shown for Moondream models)
+# Moondream specific prompts (shared by Moondream 2 and 3)
 vlm_prompts_moondream = [
     "Point at...",
     "Detect all...",
+]
+
+# Moondream 2 only prompts (gaze detection not available in Moondream 3)
+vlm_prompts_moondream2 = [
     "Detect Gaze",
 ]
 
@@ -150,7 +154,7 @@ vlm_prompt_placeholders = {
 }
 
 # Legacy list for backwards compatibility
-vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_moondream
+vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_moondream + vlm_prompts_moondream2
 
 vlm_prefill = 'Answer: the image shows'
 
@@ -166,9 +170,12 @@ def get_prompts_for_model(model_name: str) -> list:
     if 'florence' in model_lower or 'promptgen' in model_lower:
         return vlm_prompts_common + vlm_prompts_florence
 
-    # Check for Moondream models
+    # Check for Moondream models (Moondream 2 has gaze detection, Moondream 3 does not)
     if 'moondream' in model_lower:
-        return vlm_prompts_common + vlm_prompts_moondream
+        if 'moondream3' in model_lower or 'moondream 3' in model_lower:
+            return vlm_prompts_common + vlm_prompts_moondream
+        else:  # Moondream 2 includes gaze detection
+            return vlm_prompts_common + vlm_prompts_moondream + vlm_prompts_moondream2
 
     # Default: common prompts only
     return vlm_prompts_common
@@ -224,7 +231,7 @@ def is_thinking_model(model_name: str) -> bool:
 
 
 def load_model(model_name: str = None):
-    """Pre-load VLM model into memory without running inference."""
+    """Pre-load VLM model into memory."""
     global processor, model, loaded, quant_args  # pylint: disable=global-statement
     model_name = model_name or shared.opts.interrogate_vlm_model
     if model_name not in vlm_models:
@@ -582,7 +589,7 @@ def qwen(
             ],
         }
     ]
-    # Add prefill for all models (only if provided)
+    # Add prefill if provided)
     prefill_value = vlm_prefill if prefill is None else prefill
     prefill_text = prefill_value.strip()
 
@@ -725,7 +732,7 @@ def gemma(
         {"role": "system", "content": system_content},
         {"role": "user", "content": user_content},
     ]
-    # Add prefill for all models (only if provided)
+    # Add prefill if provided)
     prefill_value = vlm_prefill if prefill is None else prefill
     prefill_text = prefill_value.strip()
     use_prefill = len(prefill_text) > 0
@@ -928,7 +935,7 @@ def smol(
             ],
         }
     ]
-    # Add prefill for all models (only if provided)
+    # Add prefill if provided)
     prefill_value = vlm_prefill if prefill is None else prefill
     prefill_text = prefill_value.strip()
     use_prefill = len(prefill_text) > 0
