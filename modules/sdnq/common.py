@@ -161,7 +161,7 @@ module_skip_keys_dict = {
         {}
     ],
     "LongCatVideoTransformer3DModel": [
-        ["blocks.0.adaLN_modulation.1.weight", "condition_embedder", "t_embedder", "y_embedder", "final_layer"],
+        ["blocks.0.adaLN_modulation.1.weight", "x_embedder", "t_embedder", "y_embedder", "final_layer"],
         {}
     ],
     "Lumina2Transformer2DModel": [
