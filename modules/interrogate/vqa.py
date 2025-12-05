@@ -965,7 +965,6 @@ def smol(
         else:
             text_prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
     except (TypeError, ValueError) as e:
-        # Fallback for models that don't support continue_final_message or for mismatched kwargs
         debug(f'VQA interrogate: handler=smol chat_template fallback add_generation_prompt=True: {e}')
         text_prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
     if use_prefill and use_thinking:
@@ -1319,8 +1318,11 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
 
     # Convert friendly prompt names to internal tokens/commands
     if question == "Use Prompt":
-        # Use content from Prompt field directly
-        question = prompt if (prompt is not None and len(prompt) > 0) else ""
+        # Use content from Prompt field directly - requires user input
+        if not prompt or len(prompt.strip()) < 2:
+            shared.log.error(f'VQA interrogate: model="{model_name}" error="Please enter a prompt"')
+            return ('Error: Please enter a question or instruction in the Prompt field.', None)
+        question = prompt
     elif question in vlm_prompt_mapping:
         # Check if this is a mode that requires user input (Point/Detect)
         raw_mapping = vlm_prompt_mapping.get(question)
@@ -1332,10 +1334,6 @@ def interrogate(question:str='', system_prompt:str=None, prompt:str=None, image:
         # Convert friendly name to internal token (handles Point/Detect prefix)
         question = get_internal_prompt(question, prompt)
     # else: question is already an internal token or custom text
-
-    # Fallback for empty questions
-    if len(question) < 2:
-        question = "Describe the image."
 
     """
     if shared.sd_loaded:
