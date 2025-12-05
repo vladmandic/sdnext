@@ -320,7 +320,7 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         **kwargs: Additional parameters (max_objects for detect, etc.)
 
     Returns:
-        Response string or tuple (text, annotated_image) for detect/point modes
+        Response string (detection data stored on VQA singleton instance.last_detection_data)
         (or generator if stream=True for query/caption modes)
     """
     debug(f'VQA interrogate: handler=moondream3 model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None} mode={mode} stream={stream}')
@@ -386,7 +386,7 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
             debug(f'VQA interrogate: handler=moondream3 point_extracted_object="{object_name}"')
             result = point(image, object_name, repo)
             if result:
-                # Handle multiple instances - return text and points for drawing
+                # Handle multiple instances - return text and store points for drawing
                 if len(result) == 1:
                     text = f"Found at coordinates: ({result[0][0]:.3f}, {result[0][1]:.3f})"
                 else:
@@ -395,8 +395,11 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
                     for i, (x, y) in enumerate(result, 1):
                         lines.append(f"  {i}. ({x:.3f}, {y:.3f})")
                     text = '\n'.join(lines)
-                return (text, {'points': result})  # Return text and points data
-            return ("Object not found", None)
+                # Store detection data on VQA singleton for annotation
+                from modules.interrogate import vqa
+                vqa.get_instance().last_detection_data = {'points': result}
+                return text
+            return "Object not found"
         elif mode == 'detect':
             # Extract object name from question - case insensitive
             object_name = question
@@ -413,13 +416,16 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
             debug(f'VQA interrogate: handler=moondream3 detect_extracted_object="{object_name}"')
 
             results = detect(image, object_name, repo, max_objects=kwargs.get('max_objects', 10))
-            # Format as string for display and return detections for drawing
+            # Format as string for display and store detections for drawing
             if results:
                 lines = [f"{det['label']}: [{det['bbox'][0]:.3f}, {det['bbox'][1]:.3f}, {det['bbox'][2]:.3f}, {det['bbox'][3]:.3f}] (confidence: {det['confidence']:.2f})"
                         for det in results]
                 text = '\n'.join(lines)
-                return (text, {'detections': results})  # Return text and detection data
-            return ("No objects detected", None)
+                # Store detection data on VQA singleton for annotation
+                from modules.interrogate import vqa
+                vqa.get_instance().last_detection_data = {'detections': results}
+                return text
+            return "No objects detected"
         else:  # mode == 'query'
             if len(question) < 2:
                 question = "Describe this image."

@@ -4,15 +4,13 @@ from modules.interrogate import openclip
 
 
 def vlm_caption_wrapper(question, system_prompt, prompt, image, model_name, prefill, thinking_mode):
-    """Wrapper to handle tuple returns from vqa.interrogate with annotated images."""
+    """Wrapper for vqa.interrogate that handles annotated image display."""
     from modules.interrogate import vqa
-    result = vqa.interrogate(question, system_prompt, prompt, image, model_name, prefill, thinking_mode)
-    if isinstance(result, tuple):
-        text, annotated_image = result
-        if annotated_image is not None:
-            return text, gr.update(value=annotated_image, visible=True)
-        return text, gr.update(visible=False)
-    return result, gr.update(visible=False)
+    answer = vqa.interrogate(question, system_prompt, prompt, image, model_name, prefill, thinking_mode)
+    annotated_image = vqa.get_last_annotated_image()
+    if annotated_image is not None:
+        return answer, gr.update(value=annotated_image, visible=True)
+    return answer, gr.update(visible=False)
 
 
 def update_vlm_prompts_for_model(model_name):
