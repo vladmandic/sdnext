@@ -117,6 +117,8 @@ common_skip_keys = (
     ".context_embedder",
     ".condition_embedder",
     ".x_embedder",
+    ".t_embedder",
+    ".y_embedder",
     ".emb_in",
     ".txt_in",
     ".img_in",
@@ -139,7 +141,7 @@ common_skip_keys = (
 
 module_skip_keys_dict = {
     "FluxTransformer2DModel": [
-        ["single_transformer_blocks.0.norm.linear.weight", "time_text_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
+        ["single_transformer_blocks.0.norm.linear.weight", "time_text_embed", "time_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
         {}
     ],
     "Flux2Transformer2DModel": [
@@ -156,6 +158,10 @@ module_skip_keys_dict = {
     ],
     "WanTransformer3DModel": [
         ["scale_shift_table", "patch_embedding", "condition_embedder", "proj_out", "norm_out"],
+        {}
+    ],
+    "LongCatVideoTransformer3DModel": [
+        ["blocks.0.adaLN_modulation.1.weight", "condition_embedder", "t_embedder", "y_embedder", "final_layer"],
         {}
     ],
     "Lumina2Transformer2DModel": [
@@ -188,6 +194,7 @@ module_skip_keys_dict = {
     ],
 }
 
+module_skip_keys_dict["LongCatImageTransformer2DModel"] = module_skip_keys_dict["FluxTransformer2DModel"]
 module_skip_keys_dict["ChronoEditTransformer3DModel"] = module_skip_keys_dict["WanTransformer3DModel"]
 module_skip_keys_dict["Gemma3nForConditionalGeneration"] = module_skip_keys_dict["Gemma3nForCausalLM"]
 module_skip_keys_dict["HfMoondream"] = module_skip_keys_dict["MoondreamModel"]
