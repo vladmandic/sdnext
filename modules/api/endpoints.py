@@ -28,8 +28,12 @@ def get_controlnets(model_type: Optional[str] = None):
     from modules.control.units.controlnet import api_list_models
     return api_list_models(model_type)
 
+def get_restorers():
+    return [{"name":x.name(), "path": getattr(x, "cmd_dir", None)} for x in shared.face_restorers]
+
 def get_detailers():
-    return [{"name":x.name(), "cmd_dir": getattr(x, "cmd_dir", None)} for x in shared.detailers]
+    shared.yolo.enumerate()
+    return [{"name": k, "path": v} for k, v in shared.yolo.list.items()]
 
 def get_prompt_styles():
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
@@ -91,7 +95,7 @@ def post_interrogate(req: models.ReqInterrogate):
         if not req.analyze:
             return models.ResInterrogate(caption=caption)
         else:
-            medium, artist, movement, trending, flavor = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
+            medium, artist, movement, trending, flavor, _ = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
             return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
 
 def post_vqa(req: models.ReqVQA):

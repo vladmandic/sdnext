@@ -115,7 +115,7 @@ class ItemHypernetwork(BaseModel):
 
 class ItemDetailer(BaseModel):
     name: str = Field(title="Name")
-    cmd_dir: Optional[str] = Field(title="Path")
+    path: Optional[str] = Field(title="Path")
 
 class ItemGAN(BaseModel):
     name: str = Field(title="Name")

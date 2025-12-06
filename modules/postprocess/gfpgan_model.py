@@ -102,6 +102,8 @@ def setup_model(dirname):
         gfpgan_constructor = gfpgan.GFPGANer
 
         class FaceRestorerGFPGAN(modules.detailer.Detailer):
+            cmd_dir = model_path
+
             def name(self):
                 return "GFPGAN"
 

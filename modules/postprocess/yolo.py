@@ -48,6 +48,7 @@ class YoloRestorer(Detailer):
         self.models = {} # cache loaded models
         self.list = {}
         self.ui_mode = True
+        self.cmd_dir = shared.opts.yolo_dir
         self.enumerate()
 
     def name(self):
