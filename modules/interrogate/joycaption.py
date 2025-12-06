@@ -57,26 +57,43 @@ llava_model: LlavaForConditionalGeneration = None
 opts = JoyOptions()
 
 
-@torch.no_grad()
-def predict(question: str, image, vqa_model: str = None) -> str:
-    global llava_model, processor # pylint: disable=global-statement
-    opts.max_new_tokens = shared.opts.interrogate_vlm_max_length
-    if vqa_model is not None and opts.repo != vqa_model:
-        opts.repo = vqa_model
+def load(repo: str = None):
+    """Load JoyCaption model."""
+    global llava_model, processor  # pylint: disable=global-statement
+    repo = repo or opts.repo
+    if llava_model is None or opts.repo != repo:
+        opts.repo = repo
         llava_model = None
-    if llava_model is None:
         shared.log.info(f'Interrogate: type=vlm model="JoyCaption" {str(opts)}')
-
-        processor = AutoProcessor.from_pretrained(opts.repo, max_pixels=1024*1024)
+        processor = AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
         quant_args = model_quant.create_config(module='LLM')
         llava_model = LlavaForConditionalGeneration.from_pretrained(
-            opts.repo,
+            repo,
             torch_dtype=devices.dtype,
-            device_map="auto",
             cache_dir=shared.opts.hfcache_dir,
             **quant_args,
         )
         llava_model.eval()
+    sd_models.move_model(llava_model, devices.device)
+
+
+def unload():
+    """Release JoyCaption model from GPU/memory."""
+    global llava_model, processor  # pylint: disable=global-statement
+    if llava_model is not None:
+        shared.log.debug(f'JoyCaption unload: model="{opts.repo}"')
+        sd_models.move_model(llava_model, devices.cpu, force=True)
+        llava_model = None
+        processor = None
+        devices.torch_gc(force=True)
+    else:
+        shared.log.debug('JoyCaption unload: no model loaded')
+
+
+@torch.no_grad()
+def predict(question: str, image, vqa_model: str = None) -> str:
+    opts.max_new_tokens = shared.opts.interrogate_vlm_max_length
+    load(vqa_model)
 
     if len(question) < 2:
         question = "Describe the image."
@@ -86,9 +103,8 @@ def predict(question: str, image, vqa_model: str = None) -> str:
         { "role": "user", "content": question },
     ]
     convo_string = processor.apply_chat_template(convo, tokenize=False, add_generation_prompt=True)
-    inputs = processor(text=[convo_string], images=[image], return_tensors="pt").to(devices.device) # Process the inputs
+    inputs = processor(text=[convo_string], images=[image], return_tensors="pt").to(devices.device)
     inputs['pixel_values'] = inputs['pixel_values'].to(devices.dtype)
-    sd_models.move_model(llava_model, devices.device)
     with devices.inference_context():
         generate_ids = llava_model.generate( # Generate the captions
             **inputs,
