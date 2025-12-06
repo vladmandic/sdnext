@@ -41,7 +41,7 @@ def get_settings():
 
 
 def load_model(repo: str):
-    """Load and compile Moondream 3 model."""
+    """Load Moondream 3 model."""
     global moondream3_model, loaded  # pylint: disable=global-statement
 
     if moondream3_model is None or loaded != repo:
@@ -56,9 +56,15 @@ def load_model(repo: str):
         )
 
         moondream3_model.eval()
-        if 'LLM' in shared.opts.cuda_compile:
-            debug('VQA interrogate: handler=moondream3 compiling model for fast decoding')
-            moondream3_model.compile()  # Critical for fast decoding per moondream3 docs
+
+        # Initialize KV caches before moving to device (they're lazy by default)
+        if hasattr(moondream3_model, '_setup_caches'):
+            moondream3_model._setup_caches()
+
+        # Disable flex_attention decoding (can cause hangs due to torch.compile)
+        if hasattr(moondream3_model, 'model') and hasattr(moondream3_model.model, 'use_flex_decoding'):
+            moondream3_model.model.use_flex_decoding = False
+
         loaded = repo
         devices.torch_gc()
 
