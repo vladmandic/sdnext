@@ -592,6 +592,29 @@ def sdnq_post_load_quant(
     return model
 
 
+class SDNQQuantize():
+    def __init__(self, hf_quantizer):
+        self.hf_quantizer = hf_quantizer
+
+    def convert(
+        self,
+        input_dict: dict[str, list[torch.Tensor]],
+        model: torch.nn.Module | None = None,
+        full_layer_name: str | None = None,
+        missing_keys: list[str] | None = None,
+        **kwargs,
+    ) -> dict[str, torch.FloatTensor]:
+        _module_name, value = tuple(input_dict.items())[0]
+        value = value[0]
+        self.hf_quantizer.create_quantized_param(model, value, full_layer_name, value.device)
+        missing_keys.discard(full_layer_name)
+        return {}
+
+    @property
+    def reverse_op(self):
+        raise NotImplementedError
+
+
 class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     r"""
     Diffusers and Transformers Quantizer for SDNQ
@@ -715,6 +738,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             return_device=return_device,
             param_name=param_name,
         )
+        layer._is_hf_initialized = True
+
+    def get_quantize_ops(self):
+        return SDNQQuantize(self)
 
     def adjust_max_memory(self, max_memory: Dict[str, Union[int, str]]) -> Dict[str, Union[int, str]]:
         max_memory = {key: val * 0.80 for key, val in max_memory.items()}
