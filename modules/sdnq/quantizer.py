@@ -793,6 +793,9 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         model.quantization_method = QuantizationMethod.SDNQ
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
+        if self.pre_quantized:
+            from .loader import post_process_model
+            model = post_process_model(model)
         if self.quantization_config.is_training:
             from .training import convert_sdnq_model_to_training
             model = convert_sdnq_model_to_training(

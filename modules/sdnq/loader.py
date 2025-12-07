@@ -146,9 +146,13 @@ def post_process_model(model):
         return model
     for module_name, module in model.named_children():
         if hasattr(module, "sdnq_dequantizer"):
+            module.weight.requires_grad_(False)
             if module.sdnq_dequantizer.use_quantized_matmul and not module.sdnq_dequantizer.re_quantize_for_matmul:
                 module.weight.data = prepare_weight_for_matmul(module.weight)
+            if module.zero_point is not None:
+                module.zero_point.requires_grad_(False)
             if module.svd_up is not None:
+                module.svd_up, module.svd_down = module.svd_up.requires_grad_(False), module.svd_down.requires_grad_(False)
                 module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up, module.svd_down, module.sdnq_dequantizer.use_quantized_matmul)
             setattr(model, module_name, module)
         else:
