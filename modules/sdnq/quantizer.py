@@ -396,11 +396,10 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
             return layer
         use_quantized_matmul = use_quantized_matmul_conv
 
-    layer.weight.requires_grad = False
+    layer.weight.requires_grad_(False)
     if return_device is None:
         return_device = layer.weight.device
-    if quantization_device is None:
-        quantization_device = layer.weight.device
+    if quantization_device is not None:
         layer.weight.data = layer.weight.to(quantization_device, non_blocking=non_blocking)
 
     (
