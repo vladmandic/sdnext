@@ -150,7 +150,7 @@
     "desc": "FLUX.2 generates high-quality images while maintaining character and style consistency across multiple reference images, following structured prompts, reading and writing complex text, adhering to brand guidelines, and reliably handling lighting, layouts, and logos.",
     "skip": true,
     "extras": "",
-    "size": 0,
+    "size": 104.74,
     "date": "2025 November"
   },
   "Tencent FLUX.1 Dev SRPO": {
@@ -981,12 +981,12 @@
   },
   "FLUX.2 Dev sdnq-svd-uint4": {
     "path": "Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32",
-    "preview": "black-forest-labs--FLUX.2-dev.jpg",
+    "preview": "Disty0--FLUX.2-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.2-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
     "extras": "",
-    "size": 0,
+    "size": 31.58,
     "date": "2025 November"
   },
   "Chroma1-HD sdnq-svd-uint4": {
