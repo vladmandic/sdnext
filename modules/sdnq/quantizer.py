@@ -13,7 +13,6 @@ from diffusers.quantizers.quantization_config import QuantizationConfigMixin
 
 from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
-from accelerate.utils import set_module_tensor_to_device
 
 from modules import devices, shared
 from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, use_torch_compile
@@ -599,16 +598,17 @@ class SDNQQuantize():
     def convert(
         self,
         input_dict: dict[str, list[torch.Tensor]],
-        model: torch.nn.Module | None = None,
-        full_layer_name: str | None = None,
-        missing_keys: list[str] | None = None,
+        model: torch.nn.Module = None,
+        full_layer_name: str = None,
+        missing_keys: list[str] = None,
         **kwargs,
     ) -> dict[str, torch.FloatTensor]:
         _module_name, value = tuple(input_dict.items())[0]
         value = value[0]
         self.hf_quantizer.create_quantized_param(model, value, full_layer_name, value.device)
-        missing_keys.discard(full_layer_name)
-        return {}
+        param, name = get_module_from_name(model, full_layer_name)
+        param = getattr(param, name)
+        return {full_layer_name: param}
 
     @property
     def reverse_op(self):
@@ -631,11 +631,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         model,
         param_value: "torch.Tensor",
         param_name: str,
-        return_true: bool = True,
         *args, **kwargs, # pylint: disable=unused-argument,keyword-arg-before-vararg
     ):
-        if return_true:
-            return True
         if self.pre_quantized:
             layer, _tensor_name = get_module_from_name(model, param_name)
             if hasattr(layer, "sdnq_dequantizer"):
@@ -672,15 +669,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         target_device: torch.device,
         *args, **kwargs, # pylint: disable=unused-argument
     ):
-        if not self.check_if_quantized_param(model, param_value, param_name, return_true=False):
-            # safetensors is unable to release the cpu memory without this
-            if devices.same_device(param_value.device, target_device):
-                param_value = param_value.clone()
-            else:
-                param_value = param_value.to(target_device)
-            set_module_tensor_to_device(model, param_name, target_device, param_value, param_value.dtype)
-            return
-
         if self.pre_quantized:
             layer, tensor_name = get_module_from_name(model, param_name)
             if param_value is not None:
@@ -698,6 +686,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                     _, param_value = prepare_svd_for_matmul(None, param_value, layer.sdnq_dequantizer.use_quantized_matmul)
 
                 param_value = torch.nn.Parameter(param_value, requires_grad=False)
+                param_value._is_hf_initialized = True # pylint: disable=protected-access
             setattr(layer, tensor_name, param_value)
             return
 
@@ -738,7 +727,14 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             return_device=return_device,
             param_name=param_name,
         )
-        layer._is_hf_initialized = True
+
+        layer.weight._is_hf_initialized = True # pylint: disable=protected-access
+        layer.scale._is_hf_initialized = True # pylint: disable=protected-access
+        if layer.zero_point is not None:
+            layer.zero_point._is_hf_initialized = True # pylint: disable=protected-access
+        if layer.svd_up is not None:
+            layer.svd_up._is_hf_initialized = True # pylint: disable=protected-access
+            layer.svd_down._is_hf_initialized = True # pylint: disable=protected-access
 
     def get_quantize_ops(self):
         return SDNQQuantize(self)
