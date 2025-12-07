@@ -790,6 +790,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             except Exception:
                 pass
         model.quantization_config = self.quantization_config
+        model.quantization_method = QuantizationMethod.SDNQ
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument
         if self.quantization_config.is_training:
