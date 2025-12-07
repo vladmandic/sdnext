@@ -92,7 +92,7 @@ def register_api(app: FastAPI): # register api
                 'width': width,
                 'height': height,
                 'size': stat_size,
-                'mtime': stat_mtime.timestamp(),
+                'mtime': stat_mtime.timestamp() * 1000, # JS timestamps use milliseconds
             }
             return content
         except Exception as e:
@@ -119,7 +119,7 @@ def register_api(app: FastAPI): # register api
                 'width': width,
                 'height': height,
                 'size': stat_size,
-                'mtime': stat_mtime.timestamp(),
+                'mtime': stat_mtime.timestamp() * 1000, # JS timestamps use milliseconds
             }
             return content
         except Exception as e:
