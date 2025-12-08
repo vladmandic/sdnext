@@ -3,7 +3,7 @@ import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, use_torch_compile
+from .common import dtype_dict, use_tensorwise_fp8_matmul, check_torch_compile
 from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul, get_quant_args_from_config
 from .forward import get_forward_func
 from .file_loader import load_files
@@ -212,7 +212,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
 
 
 def apply_sdnq_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
-    if use_quantized_matmul and not use_torch_compile:
+    if use_quantized_matmul and not check_torch_compile():
         raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
     model = apply_sdnq_options_to_module(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     if hasattr(model, "quantization_config"):

@@ -15,7 +15,7 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, use_torch_compile
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int_symetric, pack_int_asymetric
 from .forward import get_forward_func
@@ -946,7 +946,7 @@ class SDNQConfig(QuantizationConfigMixin):
         r"""
         Safety checker that arguments are correct
         """
-        if self.use_quantized_matmul and not use_torch_compile:
+        if self.use_quantized_matmul and not check_torch_compile():
             raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
         if self.weights_dtype not in accepted_weight_dtypes:
             raise ValueError(f"SDNQ only support weight dtypes in {accepted_weight_dtypes} but found {self.weights_dtype}")

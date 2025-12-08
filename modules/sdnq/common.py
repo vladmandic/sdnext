@@ -53,11 +53,10 @@ accepted_weight_dtypes = set(dtype_dict.keys())
 accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fnuz", "float16"}
 
 is_rdna2 = bool(devices.backend == "rocm" and int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100)
-startup_use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
+use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
-@property
-def use_torch_compile(): # dynamo can be disabled after startup
-    return startup_use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
+def check_torch_compile(): # dynamo can be disabled after startup
+    return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
 
 
 if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
