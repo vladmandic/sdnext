@@ -18,32 +18,31 @@ from modules import shared, devices, paths, sd_models
 # model_path = "deepseek-ai/deepseek-vl2-small"
 vl_gpt = None
 vl_chat_processor = None
+loaded_repo = None
 
 
 class fake_attrdict():
-    class AttrDict(dict): # dot notation access to dictionary attributes
+    class AttrDict(dict):  # dot notation access to dictionary attributes
         __getattr__ = dict.get
         __setattr__ = dict.__setitem__
         __delattr__ = dict.__delitem__
 
-# def fake_is_flash_attn_2_available():
-#     return False
 
-
-def predict(question, image, repo):
-    global vl_gpt, vl_chat_processor # pylint: disable=global-statement
+def load(repo: str):
+    """Load DeepSeek VL2 model (experimental)."""
+    global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
     if not shared.cmd_opts.experimental:
         shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
-        return ''
+        return False
     folder = os.path.join(paths.script_path, 'repositories', 'deepseek-vl2')
     if not os.path.exists(folder):
         shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
-        return ''
-    if vl_gpt is None:
+        return False
+    if vl_gpt is None or loaded_repo != repo:
         sys.modules['attrdict'] = fake_attrdict
         from transformers.models.llama import modeling_llama
         modeling_llama.LlamaFlashAttention2 = modeling_llama.LlamaAttention
-        _deekseek_vl = importlib.import_module('repositories.deepseek-vl2.deepseek_vl2')
+        importlib.import_module('repositories.deepseek-vl2.deepseek_vl2')
         deekseek_vl_models = importlib.import_module('repositories.deepseek-vl2.deepseek_vl2.models')
         vl_chat_processor = deekseek_vl_models.DeepseekVLV2Processor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
         vl_gpt = AutoModelForCausalLM.from_pretrained(
@@ -51,7 +50,31 @@ def predict(question, image, repo):
             trust_remote_code=True,
             cache_dir=shared.opts.hfcache_dir,
         )
-        vl_gpt = vl_gpt.to(device=devices.device, dtype=devices.dtype).eval()
+        vl_gpt.to(dtype=devices.dtype)
+        vl_gpt.eval()
+        loaded_repo = repo
+        shared.log.info(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}"')
+    sd_models.move_model(vl_gpt, devices.device)
+    return True
+
+
+def unload():
+    """Release DeepSeek VL2 model from GPU/memory."""
+    global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
+    if vl_gpt is not None:
+        shared.log.debug(f'DeepSeek unload: model="{loaded_repo}"')
+        sd_models.move_model(vl_gpt, devices.cpu, force=True)
+        vl_gpt = None
+        vl_chat_processor = None
+        loaded_repo = None
+        devices.torch_gc(force=True)
+    else:
+        shared.log.debug('DeepSeek unload: no model loaded')
+
+
+def predict(question, image, repo):
+    if not load(repo):
+        return ''
 
     if len(question) < 2:
         question = "Describe the image."
