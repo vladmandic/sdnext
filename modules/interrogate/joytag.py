@@ -16,7 +16,7 @@ import torchvision.transforms.functional as TVF
 import einops
 from einops.layers.torch import Rearrange
 import huggingface_hub
-from modules import shared, devices
+from modules import shared, devices, sd_models
 
 
 model = None
@@ -1034,22 +1034,39 @@ def prepare_image(image: Image.Image, target_size: int) -> torch.Tensor:
     return image_tensor
 
 
-def predict(image: Image.Image):
-    global model, tags # pylint: disable=global-statement
+def load():
+    """Load JoyTag model."""
+    global model, tags  # pylint: disable=global-statement
     if model is None:
         folder = huggingface_hub.snapshot_download(MODEL_REPO, cache_dir=shared.opts.hfcache_dir)
         model = VisionModel.load_model(folder)
-        model = model.to(device=devices.device, dtype=devices.dtype)
+        model.to(dtype=devices.dtype)
         model.eval()
         with open(os.path.join(folder, 'top_tags.txt'), 'r', encoding='utf8') as f:
             tags = [line.strip() for line in f.readlines() if line.strip()]
-        shared.log.info(f'Interrogate: type=vlm model="JoyCaption" repo="{MODEL_REPO}" tags={len(tags)}')
+        shared.log.info(f'Interrogate: type=vlm model="JoyTag" repo="{MODEL_REPO}" tags={len(tags)}')
+    sd_models.move_model(model, devices.device)
+
+
+def unload():
+    """Release JoyTag model from GPU/memory."""
+    global model, tags  # pylint: disable=global-statement
+    if model is not None:
+        shared.log.debug('JoyTag unload')
+        sd_models.move_model(model, devices.cpu, force=True)
+        model = None
+        tags = None
+        devices.torch_gc(force=True)
+    else:
+        shared.log.debug('JoyTag unload: no model loaded')
+
+
+def predict(image: Image.Image):
+    load()
     image_tensor = prepare_image(image, model.image_size).unsqueeze(0).to(device=devices.device, dtype=devices.dtype)
-    model = model.to(devices.device)
     with devices.inference_context():
-        preds = model({ 'image': image_tensor })
+        preds = model({'image': image_tensor})
         tag_preds = preds['tags'].sigmoid().cpu()
-    model = model.to(devices.cpu)
     scores = {tags[i]: tag_preds[0][i] for i in range(len(tags))}
     if shared.opts.interrogate_score:
         predicted_tags = [f'{tag}:{score:.2f}' for tag, score in scores.items() if score > THRESHOLD]
