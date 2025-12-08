@@ -4,7 +4,6 @@
 # Architecture: Mixture-of-Experts (9B total params, 2B active)
 import os
 import re
-import torch
 import transformers
 from PIL import Image
 from modules import shared, devices, sd_models
@@ -59,7 +58,7 @@ def load_model(repo: str):
 
         # Initialize KV caches before moving to device (they're lazy by default)
         if hasattr(moondream3_model, '_setup_caches'):
-            moondream3_model._setup_caches()
+            moondream3_model._setup_caches() # pylint: disable=protected-access
 
         # Disable flex_attention decoding (can cause hangs due to torch.compile)
         if hasattr(moondream3_model, 'model') and hasattr(moondream3_model.model, 'use_flex_decoding'):
@@ -389,7 +388,6 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
 
 def clear_cache():
     """Clear image encoding cache."""
-    global image_cache  # pylint: disable=global-statement
     cache_size = len(image_cache)
     image_cache.clear()
     debug(f'VQA interrogate: handler=moondream3 cleared image cache cache_size_was={cache_size}')
