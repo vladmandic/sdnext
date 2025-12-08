@@ -73,6 +73,7 @@ def unload():
 
 
 def predict(question, image, repo):
+    global vl_gpt # pylint: disable=global-statement
     if not load(repo):
         return ''
 

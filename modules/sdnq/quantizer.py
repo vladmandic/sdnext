@@ -599,8 +599,8 @@ class SDNQQuantize():
         input_dict: dict[str, list[torch.Tensor]],
         model: torch.nn.Module = None,
         full_layer_name: str = None,
-        missing_keys: list[str] = None,
-        **kwargs,
+        missing_keys: list[str] = None, # pylint: disable=unused-argument
+        **kwargs, # pylint: disable=unused-argument
     ) -> dict[str, torch.FloatTensor]:
         _module_name, value = tuple(input_dict.items())[0]
         value = value[0]

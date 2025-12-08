@@ -286,10 +286,10 @@ def clean(response, question, prefill=None):
     elif isinstance(response, dict):
         text_response = ""
         if 'reasoning' in response and shared.opts.interrogate_vlm_keep_thinking:
-             r_text = response['reasoning']
-             if isinstance(r_text, dict) and 'text' in r_text:
-                 r_text = r_text['text']
-             text_response += f"Reasoning:\n{r_text}\n\nAnswer:\n"
+            r_text = response['reasoning']
+            if isinstance(r_text, dict) and 'text' in r_text:
+                r_text = r_text['text']
+            text_response += f"Reasoning:\n{r_text}\n\nAnswer:\n"
 
         if 'answer' in response:
             text_response += response['answer']
@@ -771,7 +771,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_paligemma(repo)
         sd_models.move_model(self.model, devices.device)
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
@@ -801,7 +801,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _ovis(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _ovis(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         try:
             import flash_attn  # pylint: disable=unused-import
         except Exception:
@@ -956,7 +956,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _git(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _git(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_git(repo)
         sd_models.move_model(self.model, devices.device)
         pixel_values = self.processor(images=image, return_tensors="pt").pixel_values
@@ -986,7 +986,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _blip(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _blip(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_blip(repo)
         sd_models.move_model(self.model, devices.device)
         inputs = self.processor(image, question, return_tensors="pt")
@@ -1010,7 +1010,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_vilt(repo)
         sd_models.move_model(self.model, devices.device)
         inputs = self.processor(image, question, return_tensors="pt")
@@ -1036,7 +1036,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _pix(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _pix(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_pix(repo)
         sd_models.move_model(self.model, devices.device)
         if len(question) > 0:
@@ -1164,7 +1164,7 @@ class VQA:
             self.model.eval()
             devices.torch_gc()
 
-    def _florence(self, question: str, image: Image.Image, repo: str, revision: str = None, model_name: str = None):
+    def _florence(self, question: str, image: Image.Image, repo: str, revision: str = None, model_name: str = None): # pylint: disable=unused-argument
         self._load_florence(repo, revision)
         sd_models.move_model(self.model, devices.device)
         if question.startswith('<'):
@@ -1203,7 +1203,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_sa2(repo)
         sd_models.move_model(self.model, devices.device)
         if question.startswith('<'):
