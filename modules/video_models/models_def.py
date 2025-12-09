@@ -10,6 +10,7 @@ class Model():
     name: str
     url: str = ''
     repo: str = None
+    custom: str = None
     repo_cls: classmethod = None
     repo_revision: str = None
     dit: str = None
@@ -480,6 +481,22 @@ try:
                 te_cls=getattr(transformers, 'Qwen2_5_VLForConditionalGeneration', None),
                 dit_cls=getattr(diffusers, 'Kandinsky5Transformer3DModel', None)),
         ],
+        'Google Veo': [
+            Model(name='Google Veo 3.1 T2V',
+                url='https://gemini.google/overview/video-generation/',
+                repo='veo-3.1-generate-preview',
+                custom='GoogleVeoVideoPipeline',
+                repo_cls=None,
+                te_cls=None,
+                dit_cls=None),
+            Model(name='Google Veo 3.1 I2V',
+                url='https://gemini.google/overview/video-generation/',
+                repo='veo-3.1-generate-preview',
+                custom='GoogleVeoVideoPipeline',
+                repo_cls=None,
+                te_cls=None,
+                dit_cls=None),
+        ],
     }
     t1 = time.time()
     errors = 0
@@ -488,11 +505,14 @@ try:
         for m in model:
             if m.name == 'None':
                 continue
+            """
             if (m.repo_cls is None) or (m.dit_cls is None) or (m.te_cls is None):
                 log.error(f'Video: pipeline="{m.name}" not available')
                 errors += 1
             else:
                 total += 1
+            """
+            total += 1
     log.info(f'Networks: type="video" engines={len(models)} models={total} errors={errors} time={t1 - t0:.2f}')
 except Exception as e:
     models = {}

@@ -3,7 +3,7 @@ from modules import shared
 
 
 def apply_teacache_patch(cls):
-    if shared.opts.teacache_enabled:
+    if shared.opts.teacache_enabled and cls is not None:
         from modules import teacache
         shared.log.debug(f'Transformers cache: type=teacache patch=forward cls={cls.__name__}')
         if cls.__name__ == 'LTXVideoTransformer3DModel':

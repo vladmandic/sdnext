@@ -9,6 +9,8 @@ vae_type = None
 def set_vae_params(p):
     global vae_type # pylint: disable=global-statement
     vae_type = p.vae_type
+    if not hasattr(shared.sd_model, 'vae'):
+        return
     if hasattr(shared.sd_model.vae, 'enable_slicing'):
         shared.sd_model.vae.enable_slicing()
     if p.frames > p.vae_tile_frames:

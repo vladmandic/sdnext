@@ -79,7 +79,7 @@ def get_model_type(pipe):
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
-    elif 'HunyuanVideo15':
+    elif 'HunyuanVideo15' in name:
         model_type = 'hunyuanvideo15'
     elif 'HunyuanVideoPipeline' in name or 'HunyuanSkyreels' in name:
         model_type = 'hunyuanvideo'
@@ -101,6 +101,8 @@ def get_model_type(pipe):
     elif 'HunyuanImage' in name:
         model_type = 'hunyuanimage'
     # cloud models
+    elif 'GoogleVeo' in name:
+        model_type = 'veo3'
     elif 'NanoBanana' in name:
         model_type = 'nanobanana'
     else:

@@ -9,8 +9,10 @@ Merge commit: `f903a36d9`
 ### Highlights for 2025-12-09
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features  
-New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz, new **Kandinsky 5 Lite** image model and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro*, new **Photoroom PRX** model  
-Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models, plus a lot of internal improvements and fixes  
+New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz, new **Kandinsky 5 Lite** image model and new **Photoroom PRX** model  
+And first cloud models with **Google Nano Banana** *2.5 Flash and 3.0 Pro* and **Google Veo** *3.1* video model  
+Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models  
+Plus a lot of internal improvements and fixes  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
 
@@ -42,6 +44,8 @@ Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models, plus a l
     distilled variants provide faster generation with slightly reduced quality  
   - [Kandinsky 5.0 Pro Video](https://huggingface.co/kandinskylab/Kandinsky-5.0-T2V-Pro-sft-5s-Diffusers) in T2V and I2V variants  
     larger 19B (and more powerful version) of previously released Lite 2B models  
+  - [Google Veo 3.1](https://gemini.google/us/overview/video-generation/) for T2V and I2V workflows  
+    *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
 - **Kanvas**: new module for native canvas-based image manipulation  
   kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
   see [docs](https://vladmandic.github.io/sdnext-docs/Kanvas/) for details  

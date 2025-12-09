@@ -24,6 +24,12 @@ aspect_ratios_buckets = {
 }
 
 
+def google_requirements():
+    install('google-genai==1.52.0')
+    install('pydantic==2.11.7', ignore=True, quiet=True)
+    reload('pydantic', '2.11.7')
+
+
 def get_size_buckets(width: int, height: int) -> str:
     aspect_ratio = width / height
     closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
@@ -38,9 +44,7 @@ class GoogleNanoBananaPipeline():
         self.model = model_name
         self.client = None
         self.config = None
-        install('google-genai==1.52.0')
-        install('pydantic==2.11.7', ignore=True, quiet=True)
-        reload('pydantic', '2.11.7')
+        google_requirements()
         log.debug(f'Load model: type=NanoBanana model="{model_name}"')
 
     def txt2img(self, prompt):
@@ -81,7 +85,7 @@ class GoogleNanoBananaPipeline():
             response_modalities=["IMAGE"],
             image_config=image_config
         )
-        log.debug(f'Cloud: prompt={prompt} size={image_size} ar={aspect_ratio} image={image} model="{self.model}"')
+        log.debug(f'Cloud: prompt="{prompt}" size={image_size} ar={aspect_ratio} image={image} model="{self.model}"')
         # log.debug(f'Cloud: config={self.config}')
 
         try:
@@ -114,6 +118,6 @@ if __name__ == "__main__":
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     log.info('test')
-    model =GoogleNanoBananaPipeline('gemini-3-pro-image-preview')
+    model = GoogleNanoBananaPipeline('gemini-3-pro-image-preview')
     img = model(['A beautiful landscape with mountains and a river'], 1024, 1024)
     img.save('test.png')

@@ -20,15 +20,26 @@ def _loader(component):
 loaded_model = None
 
 
+def load_custom(model_name: str):
+    shared.log.debug(f'Video load: module=pipe repo="{model_name}" cls=Custom')
+    if 'veo-3.1' in model_name:
+        from modules.video_models.google_veo import load_veo
+        pipe = load_veo(model_name)
+        return pipe
+    return None
+
+
 def load_model(selected: models_def.Model):
-    if selected is None or selected.te_cls is None or selected.dit_cls is None:
+    if selected is None or selected.repo is None:
         return ''
     global loaded_model # pylint: disable=global-statement
     if not shared.sd_loaded:
         loaded_model = None
     if loaded_model == selected.name:
         return ''
-    sd_models.unload_model_weights()
+    if shared.sd_loaded:
+        sd_models.unload_model_weights()
+
     t0 = time.time()
     jobid = shared.state.begin('Load model')
 
@@ -46,88 +57,98 @@ def load_model(selected: models_def.Model):
     kwargs = video_overrides.load_override(selected, **offline_args)
 
     # text encoder
-    try:
-        load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
+    if selected.te_cls is not None:
+        try:
+            load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
 
-        # loader deduplication of text-encoder models
-        if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_t5:
-            selected.te = 'Disty0/t5-xxl'
-            selected.te_folder = ''
-            selected.te_revision = None
-        if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
-            if 'SDNQ' in selected.name:
-                selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
-            else:
-                selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
-            selected.te_folder = 'text_encoder'
-            selected.te_revision = None
-        if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
-            selected.te = 'hunyuanvideo-community/HunyuanVideo'
-            selected.te_folder = 'text_encoder'
-            selected.te_revision = None
-        if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_t5:
-            selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
-            selected.te_folder = 'text_encoder'
-            selected.te_revision = None
+            # loader deduplication of text-encoder models
+            if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_t5:
+                selected.te = 'Disty0/t5-xxl'
+                selected.te_folder = ''
+                selected.te_revision = None
+            if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
+                if 'SDNQ' in selected.name:
+                    selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
+                else:
+                    selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+                selected.te_folder = 'text_encoder'
+                selected.te_revision = None
+            if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
+                selected.te = 'hunyuanvideo-community/HunyuanVideo'
+                selected.te_folder = 'text_encoder'
+                selected.te_revision = None
+            if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_t5:
+                selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
+                selected.te_folder = 'text_encoder'
+                selected.te_revision = None
 
-        shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
-        kwargs["text_encoder"] = selected.te_cls.from_pretrained(
-            pretrained_model_name_or_path=selected.te or selected.repo,
-            subfolder=selected.te_folder,
-            revision=selected.te_revision or selected.repo_revision,
-            cache_dir=shared.opts.hfcache_dir,
-            **load_args,
-            **quant_args,
-            **offline_args,
-        )
-    except Exception as e:
-        shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
-        errors.display(e, 'video')
+            shared.log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
+            kwargs["text_encoder"] = selected.te_cls.from_pretrained(
+                pretrained_model_name_or_path=selected.te or selected.repo,
+                subfolder=selected.te_folder,
+                revision=selected.te_revision or selected.repo_revision,
+                cache_dir=shared.opts.hfcache_dir,
+                **load_args,
+                **quant_args,
+                **offline_args,
+            )
+        except Exception as e:
+            shared.log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
+            errors.display(e, 'video')
 
     # transformer
-    try:
-        def load_dit_folder(dit_folder):
-            if dit_folder is not None and dit_folder not in kwargs:
-                # get a new quant arg on every loop to prevent the quant config classes getting entangled
-                load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
-                kwargs[dit_folder] = selected.dit_cls.from_pretrained(
-                    pretrained_model_name_or_path=selected.dit or selected.repo,
-                    subfolder=dit_folder,
-                    revision=selected.dit_revision or selected.repo_revision,
-                    cache_dir=shared.opts.hfcache_dir,
-                    **load_args,
-                    **quant_args,
-                    **offline_args,
-                )
-            else:
-                shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
+    if selected.dit_cls is not None:
+        try:
+            def load_dit_folder(dit_folder):
+                if dit_folder is not None and dit_folder not in kwargs:
+                    # get a new quant arg on every loop to prevent the quant config classes getting entangled
+                    load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
+                    shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
+                    kwargs[dit_folder] = selected.dit_cls.from_pretrained(
+                        pretrained_model_name_or_path=selected.dit or selected.repo,
+                        subfolder=dit_folder,
+                        revision=selected.dit_revision or selected.repo_revision,
+                        cache_dir=shared.opts.hfcache_dir,
+                        **load_args,
+                        **quant_args,
+                        **offline_args,
+                    )
+                else:
+                    shared.log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
 
-        if selected.dit_folder is None:
-            selected.dit_folder = ['transformer']
-        if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
-            for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
-                load_dit_folder(dit_folder)
-        else:
-            load_dit_folder(selected.dit_folder)
-    except Exception as e:
-        shared.log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
-        errors.display(e, 'video')
+            if selected.dit_folder is None:
+                selected.dit_folder = ['transformer']
+            if isinstance(selected.dit_folder, list) or isinstance(selected.dit_folder, tuple):
+                for dit_folder in selected.dit_folder: # wan a14b has transformer and transformer_2
+                    load_dit_folder(dit_folder)
+            else:
+                load_dit_folder(selected.dit_folder)
+        except Exception as e:
+            shared.log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
+            errors.display(e, 'video')
 
     # model
     try:
-        shared.log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
-        shared.sd_model = selected.repo_cls.from_pretrained(
-            pretrained_model_name_or_path=selected.repo,
-            revision=selected.repo_revision,
-            cache_dir=shared.opts.hfcache_dir,
-            torch_dtype=devices.dtype,
-            **kwargs,
-            **offline_args,
-        )
+        if selected.repo_cls is None:
+            shared.sd_model = load_custom(selected.repo)
+        else:
+            shared.log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
+            shared.sd_model = selected.repo_cls.from_pretrained(
+                pretrained_model_name_or_path=selected.repo,
+                revision=selected.repo_revision,
+                cache_dir=shared.opts.hfcache_dir,
+                torch_dtype=devices.dtype,
+                **kwargs,
+                **offline_args,
+            )
     except Exception as e:
         shared.log.error(f'video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__} {e}')
         errors.display(e, 'video')
+
+    if shared.sd_model is None:
+        msg = f'Video load: model="{selected.name}" failed'
+        shared.log.error(msg)
+        return msg
 
     t1 = time.time()
     if shared.sd_model.__class__.__name__.startswith("LTX"):
@@ -138,7 +159,7 @@ def load_model(selected: models_def.Model):
     sd_models.set_diffuser_options(shared.sd_model, offload=False)
 
     decode, text, image, slicing, tiling, framewise = False, False, False, False, False, False
-    if selected.vae_hijack and hasattr(shared.sd_model.vae, 'decode'):
+    if selected.vae_hijack and hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'decode'):
         sd_hijack_vae.init_hijack(shared.sd_model)
         decode = True
     if selected.te_hijack and hasattr(shared.sd_model, 'encode_prompt'):

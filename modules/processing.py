@@ -31,7 +31,7 @@ processed = None # last known processed results
 
 
 class Processed:
-    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments=""):
+    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None):
         self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
 
         self.prompt = p.prompt or ''
@@ -40,6 +40,7 @@ class Processed:
         self.negative_prompt = self.negative_prompt if type(self.negative_prompt) != list else self.negative_prompt[0]
         self.styles = p.styles
 
+        self.bytes = binary
         self.images = images_list
         self.width = p.width if hasattr(p, 'width') else (self.images[0].width if len(self.images) > 0 else 0)
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
@@ -275,6 +276,8 @@ def process_init(p: StableDiffusionProcessing):
 def process_samples(p: StableDiffusionProcessing, samples):
     out_images = []
     out_infotexts = []
+    if not isinstance(samples, list):
+        return samples, []
     for i, sample in enumerate(samples):
         debug(f'Processing result: index={i+1}/{len(samples)}')
         p.batch_index = i
@@ -394,6 +397,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     comments = {}
     infotexts = []
     output_images = []
+    output_binary = None
 
     process_init(p)
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -471,11 +475,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 p.scripts.postprocess_batch_list(p, batch_params, batch_number=n)
                 samples = batch_params.images
 
-            batch_images, batch_infotexts = process_samples(p, samples)
-            for batch_image, batch_infotext in zip(batch_images, batch_infotexts):
-                if batch_image is not None and batch_image not in output_images:
-                    output_images.append(batch_image)
-                    infotexts.append(batch_infotext)
+            if hasattr(samples, 'bytes') and samples.bytes is not None:
+                output_binary = samples.bytes
+            else:
+                batch_images, batch_infotexts = process_samples(p, samples)
+                for batch_image, batch_infotext in zip(batch_images, batch_infotexts):
+                    if batch_image is not None and batch_image not in output_images:
+                        output_images.append(batch_image)
+                        infotexts.append(batch_infotext)
 
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
@@ -508,6 +515,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     results = get_processed(
         p,
         images_list=output_images,
+        binary=output_binary,
         seed=p.all_seeds[0],
         info=infotexts[0] if len(infotexts) > 0 else '',
         comments="\n".join(comments),

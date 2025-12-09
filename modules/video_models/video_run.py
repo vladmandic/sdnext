@@ -109,7 +109,7 @@ def generate(*args, **kwargs):
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
     shared.opts.data['schedulers_shift'] = sampler_shift
-    if hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
+    if hasattr(shared.sd_model, 'scheduler') and hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
         if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
             shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
             shared.sd_model.scheduler.register_to_config(use_dynamic_shifting = dynamic_shift)
@@ -146,15 +146,18 @@ def generate(*args, **kwargs):
     # done
     if err:
         return video_utils.queue_err(err)
-    if processed is None or len(processed.images) == 0:
+    if processed is None or (len(processed.images) == 0 and processed.bytes is None):
         return video_utils.queue_err('processing failed')
     shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 
-    # video_file = images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate) # legacy video save from list of images
-    pixels = video_save.images_to_tensor(processed.images)
+    if hasattr(processed, 'images') and processed.images is not None:
+        pixels = video_save.images_to_tensor(processed.images)
+    else:
+        pixels = None
     _num_frames, video_file = video_save.save_video(
         p=p,
         pixels=pixels,
+        binary=processed.bytes,
         mp4_fps=mp4_fps,
         mp4_codec=mp4_codec,
         mp4_opt=mp4_opt,

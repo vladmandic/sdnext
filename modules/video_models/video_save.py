@@ -107,7 +107,8 @@ def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='li
 
 def save_video(
         p:processing.StableDiffusionProcessingVideo,
-        pixels:torch.Tensor,
+        pixels:torch.Tensor=None,
+        binary:bytes=None,
         mp4_fps:int=24,
         mp4_codec:str='libx264',
         mp4_opt:str='',
@@ -121,6 +122,23 @@ def save_video(
         pbar=None, # progress bar for video
     ):
     output_video = None
+
+    if binary is not None:
+        output_filename = get_video_filename(p)
+        output_video = f'{output_filename}.{mp4_ext}'
+        try:
+            try:
+                with open(output_video, 'wb') as f:
+                    f.write(binary)
+                shared.log.info(f'Video output: file="{output_video}" size={len(binary)}')
+                shared.state.outputs(output_video)
+            except Exception as e:
+                shared.log.error(f'Video output: file="{output_video}" {e}')
+        except Exception as e:
+            shared.log.error(f'Video output: file="{output_video}" write error {e}')
+            errors.display(e, 'video')
+        return 0, output_video
+
     if pixels is None:
         return 0, output_video
     if not torch.is_tensor(pixels):

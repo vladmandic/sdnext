@@ -782,7 +782,7 @@
   "Kandinsky 5.0 T2I Lite": {
     "path": "kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers",
     "desc": "Kandinsky 5.0 Image Lite is a 6B image generation models 1K resulution, high visual quality and strong text-writing",
-    "preview": "kandinskylab--Kandinsky-5.0-T2I-Lite-sft-Diffusers.jpg",
+    "preview": "kandinsky-community--kandinsky-3.jpg",
     "skip": true,
     "size": 33.20,
     "date": "2025 November"
@@ -790,7 +790,7 @@
   "Kandinsky 5.0 I2I Lite": {
     "path": "kandinskylab/Kandinsky-5.0-I2I-Lite-sft-Diffusers",
     "desc": "Kandinsky 5.0 Image Lite is a 6B image editing models 1K resulution, high visual quality and strong text-writing",
-    "preview": "kandinskylab--Kandinsky-5.0-I2I-Lite-sft-Diffusers.jpg",
+    "preview": "kandinsky-community--kandinsky-3.jpg",
     "skip": true,
     "size": 33.20,
     "date": "2025 November"

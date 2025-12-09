@@ -435,6 +435,9 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
 def process_decode(p: processing.StableDiffusionProcessing, output):
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
     if output is not None:
+        if hasattr(output, 'bytes') and output.bytes is not None:
+            shared.log.debug(f'Generated: bytes={len(output.bytes)}')
+            return output
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             shared.log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
@@ -508,6 +511,8 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
         for m in video_models[family]:
             if m.repo_cls is not None:
                 models_cls.append(m.repo_cls.__name__)
+            if m.custom is not None:
+                models_cls.append(m.custom)
     is_video_model = shared.sd_model.__class__.__name__ in models_cls
     override_video_pipelines = ['WanPipeline', 'WanImageToVideoPipeline', 'WanVACEPipeline']
     is_video_pipeline = ('video' in p.__class__.__name__.lower()) or (shared.sd_model.__class__.__name__ in override_video_pipelines)
@@ -569,7 +574,7 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         images, _index=shared.history.selected
         output = SimpleNamespace(images=images)
 
-    if (output is None or len(output.images) == 0) and has_images:
+    if (output is None or (hasattr(output, 'images') and len(output.images) == 0)) and has_images:
         if output is not None:
             shared.log.debug('Processing: using input as base output')
             output.images = p.init_images
