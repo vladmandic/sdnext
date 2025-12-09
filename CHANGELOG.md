@@ -1,22 +1,23 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-08
+## Update for 2025-12-09
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-12-08
+### Highlights for 2025-12-09
 
-New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features   
-New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro* plus new **Photoroom PRX** model  
+New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features  
+New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro*, new **Photoroom PRX** model  
+Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models, plus a lot of internal improvements and fixes  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-12-08
-
+### Details for 2025-12-09
+  
 - **Models**
   - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
     **FLUX.2-Dev** is a brand new model from BFL and uses large 32B DiT together with Mistral 24B as text encoder  
@@ -33,6 +34,11 @@ New generation of **Flux.2** large image model, new **Z-Image** model that is cr
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
   - [Photoroom PRX 1024 Beta](https://huggingface.co/Photoroom/prx-1024-t2i-beta)  
     PRX (Photoroom Experimental) is a small 1.3B parameter t2i model trained entirely from scratch, it uses T5-Gemma text-encoder  
+  - [HunyuanVideo 1.5](https://huggingface.co/tencent/HunyuanVideo-1.5) in T2V and I2V variants, both standard and distilled and both 720p and 480p resolutions  
+    **HunyuanVideo 1.5** improves upon previous 1.0 version with better quality and higher resolution outputs, it uses Qwen2.5-VL text-encoder  
+    distilled variants provide faster generation with slightly reduced quality  
+  - [Kandinsky 5.0 Pro Video](https://huggingface.co/kandinskylab/Kandinsky-5.0-T2V-Pro-sft-5s-Diffusers) in T2V and I2V variants  
+    larger 19B (and more powerful version) of previously released Lite 2B models  
 - **Kanvas**: new module for native canvas-based image manipulation  
   kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
   see [docs](https://vladmandic.github.io/sdnext-docs/Kanvas/) for details  

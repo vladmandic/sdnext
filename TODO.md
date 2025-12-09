@@ -4,12 +4,9 @@
 
 - <https://github.com/users/vladmandic/projects>
 
-## Kanvas
-
-- Reimplement llama remover  
-
 ## Internal
 
+- Reimplement llama remover for kanvas
 - Deploy: Create executable for SD.Next  
 - Feature: Integrate natural language image search  
   [ImageDB](https://github.com/vladmandic/imagedb)  
@@ -35,13 +32,13 @@
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
+- [Sonic Inpaint](https://github.com/ubc-vision/sonic)
 
 ### New models / Pipelines
 
 TODO: *Prioritize*!
 
-- [Kandinsky 5 Pro and Lite](https://github.com/huggingface/diffusers/pull/12664)
-- [HunyuanVideo-1.5](https://github.com/huggingface/diffusers/pull/12696)
+- [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
 - [Bria FIBO](https://huggingface.co/briaai/FIBO)
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
