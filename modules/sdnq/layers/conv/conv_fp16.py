@@ -35,6 +35,7 @@ def conv_fp16_matmul(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     input, scale = quantize_fp_mm_input_tensorwise(input, scale, matmul_dtype="float16")
+    weight = weight.to(dtype=torch.float16) # fp8 weights
     input, weight = check_mats(input, weight)
 
     if groups == 1:

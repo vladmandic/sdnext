@@ -46,23 +46,15 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
         scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
-        quantized_weight = torch.sub(weight, zero_point)
-        scale_inplace = True
+        quantized_weight = torch.sub(weight, zero_point).div_(scale)
     else:
         scale = get_scale_symmetric(weight, reduction_axes, weights_dtype)
-        quantized_weight = weight
-        scale_inplace = False
+        quantized_weight = torch.div(weight, scale)
         zero_point = None
 
-    is_integer = dtype_dict[weights_dtype]["is_integer"]
-    if use_stochastic_rounding and is_integer: # this case can be fused with addcdiv_
-        quantized_weight = torch.normal(0, 0.1, weight.shape, device=weight.device, dtype=weight.dtype).addcdiv_(quantized_weight, scale)
-    elif scale_inplace:
-        quantized_weight.div_(scale)
-    else:
-        quantized_weight = torch.div(quantized_weight, scale)
-
-    if is_integer:
+    if dtype_dict[weights_dtype]["is_integer"]:
+        if use_stochastic_rounding:
+            quantized_weight.add_(torch.randn_like(quantized_weight), alpha=0.1)
         quantized_weight.round_()
     else:
         if use_stochastic_rounding:
