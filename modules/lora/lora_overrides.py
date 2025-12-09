@@ -29,6 +29,8 @@ force_models_diffusers = [ # forced always
     # 'sd3',
     'sc',
     'h1',
+    'kandinsky5',
+    'kandinsky3',
     'kandinsky',
     'hunyuandit',
     'hunyuanimage',
@@ -43,6 +45,7 @@ force_models_diffusers = [ # forced always
     'f2',
     # video models
     'hunyuanvideo',
+    'hunyuanvideo15'
     'cogvideo',
     'wanai',
     'chrono',

@@ -22,6 +22,10 @@ def get_model_type(pipe):
         model_type = 'sd' # instaflow is compatible with sd
     elif "AnimateDiffPipeline" in name:
         model_type = 'sd' # animatediff is compatible with sd
+    elif "Kandinsky5" in name:
+        model_type = 'kandinsky5'
+    elif "Kandinsky3" in name:
+        model_type = 'kandinsky3'
     elif "Kandinsky" in name:
         model_type = 'kandinsky'
     elif "HunyuanDiT" in name:
@@ -75,6 +79,8 @@ def get_model_type(pipe):
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'
+    elif 'HunyuanVideo15':
+        model_type = 'hunyuanvideo15'
     elif 'HunyuanVideoPipeline' in name or 'HunyuanSkyreels' in name:
         model_type = 'hunyuanvideo'
     elif 'LTX' in name:

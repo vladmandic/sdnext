@@ -770,7 +770,7 @@
     "size": 5.15,
     "date": "2023 July"
   },
-  "Kandinsky 3": {
+  "Kandinsky 3.0": {
     "path": "kandinsky-community/kandinsky-3",
     "desc": "Kandinsky 3.0 is an open-source text-to-image diffusion model built upon the Kandinsky2-x model family. In comparison to its predecessors, Kandinsky 3.0 incorporates more data and specifically related to Russian culture, which allows to generate pictures related to Russin culture. Furthermore, enhancements have been made to the text understanding and visual quality of the model, achieved by increasing the size of the text encoder and Diffusion U-Net models, respectively.",
     "preview": "kandinsky-community--kandinsky-3.jpg",
@@ -778,6 +778,22 @@
     "extras": "sampler: Default",
     "size": 27.72,
     "date": "2023 November"
+  },
+  "Kandinsky 5.0 T2I Lite": {
+    "path": "kandinskylab/Kandinsky-5.0-T2I-Lite-sft-Diffusers",
+    "desc": "Kandinsky 5.0 Image Lite is a 6B image generation models 1K resulution, high visual quality and strong text-writing",
+    "preview": "kandinskylab--Kandinsky-5.0-T2I-Lite-sft-Diffusers.jpg",
+    "skip": true,
+    "size": 33.20,
+    "date": "2025 November"
+  },
+  "Kandinsky 5.0 I2I Lite": {
+    "path": "kandinskylab/Kandinsky-5.0-I2I-Lite-sft-Diffusers",
+    "desc": "Kandinsky 5.0 Image Lite is a 6B image editing models 1K resulution, high visual quality and strong text-writing",
+    "preview": "kandinskylab--Kandinsky-5.0-I2I-Lite-sft-Diffusers.jpg",
+    "skip": true,
+    "size": 33.20,
+    "date": "2025 November"
   },
 
   "Playground v1": {
