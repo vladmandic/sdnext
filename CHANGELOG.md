@@ -9,7 +9,7 @@ Merge commit: `f903a36d9`
 ### Highlights for 2025-12-09
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features  
-New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro*, new **Photoroom PRX** model  
+New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz, new **Kandinsky 5 Lite** image model and a first cloud model with **Google's Nano Banana** *2.5 Flash and 3.0 Pro*, new **Photoroom PRX** model  
 Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models, plus a lot of internal improvements and fixes  
 
 ![Screenshot](https://github.com/user-attachments/assets/54b25586-b611-4d70-a28f-ee3360944034)
@@ -29,11 +29,14 @@ Also new are **HunyuanVideo 1.5** and **Kandinsky 5 Pro** video models, plus a l
     **Z-Image** is a powerful and highly efficient image generation model with 6B parameters and using Qwen-3 as text encoder  
     unlike most of new models that are far larger, Z-Image architecture allows it to run with good performance even on mid-range hardware  
     *note*: initial release is *Turbo* variant only with *Base* and *Edit* variants to follow  
+  - [Kandinsky 5.0 Lite]() is a new 6B model using Qwen-2.5 as text encoder  
+    it comes in text-to-image and image-edit variants  
   - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/) 
     first cloud-based model directly supported in SD.Next UI  
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
   - [Photoroom PRX 1024 Beta](https://huggingface.co/Photoroom/prx-1024-t2i-beta)  
     PRX (Photoroom Experimental) is a small 1.3B parameter t2i model trained entirely from scratch, it uses T5-Gemma text-encoder  
+- **Video**  
   - [HunyuanVideo 1.5](https://huggingface.co/tencent/HunyuanVideo-1.5) in T2V and I2V variants, both standard and distilled and both 720p and 480p resolutions  
     **HunyuanVideo 1.5** improves upon previous 1.0 version with better quality and higher resolution outputs, it uses Qwen2.5-VL text-encoder  
     distilled variants provide faster generation with slightly reduced quality  
