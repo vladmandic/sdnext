@@ -327,7 +327,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         else:
             group_size = -1
 
-    weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype)
+    weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype, use_stochastic_rounding=use_stochastic_rounding)
     if (
         not dequantize_fp32
         and dtype_dict[weights_dtype]["num_bits"] <= 8
