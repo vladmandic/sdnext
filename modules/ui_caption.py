@@ -66,7 +66,7 @@ def create_ui():
                     current_vlm_model = shared.opts.interrogate_vlm_model or vqa.vlm_default
                     initial_prompts = vqa.get_prompts_for_model(current_vlm_model)
                     with gr.Row():
-                        vlm_system = gr.Textbox(label="System prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
+                        vlm_system = gr.Textbox(label="System Prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
                     with gr.Row():
                         vlm_question = gr.Dropdown(label="Task", allow_custom_value=False, choices=initial_prompts, value=initial_prompts[0] if initial_prompts else "Use Prompt", elem_id='vlm_question')
                     with gr.Row():
@@ -76,16 +76,16 @@ def create_ui():
                     with gr.Row():
                         vlm_load_btn = gr.Button(value='Load', elem_id='vlm_load', variant='secondary')
                         vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary')
-                    with gr.Accordion(label='Advanced options', open=False, visible=True):
+                    with gr.Accordion(label='VLM: Advanced Options', open=False, visible=True):
                         with gr.Row():
-                            vlm_max_tokens = gr.Slider(label='VLM max tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
-                            vlm_num_beams = gr.Slider(label='VLM num beams', value=shared.opts.interrogate_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams')
+                            vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
+                            vlm_num_beams = gr.Slider(label='VLM Num Beams', value=shared.opts.interrogate_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams')
                             vlm_temperature = gr.Slider(label='VLM Temperature', value=shared.opts.interrogate_vlm_temperature, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_temperature')
                         with gr.Row():
                             vlm_top_k = gr.Slider(label='Top-K', value=shared.opts.interrogate_vlm_top_k, minimum=0, maximum=99, step=1, elem_id='vlm_top_k')
                             vlm_top_p = gr.Slider(label='Top-P', value=shared.opts.interrogate_vlm_top_p, minimum=0.0, maximum=1.0, step=0.01, elem_id='vlm_top_p')
                         with gr.Row():
-                            vlm_do_sample = gr.Checkbox(label='Use sample', value=shared.opts.interrogate_vlm_do_sample, elem_id='vlm_do_sample')
+                            vlm_do_sample = gr.Checkbox(label='Use Samplers', value=shared.opts.interrogate_vlm_do_sample, elem_id='vlm_do_sample')
                             vlm_thinking_mode = gr.Checkbox(label='Thinking Mode', value=shared.opts.interrogate_vlm_thinking_mode, elem_id='vlm_thinking_mode')
                         with gr.Row():
                             vlm_keep_thinking = gr.Checkbox(label='Keep Thinking Trace', value=shared.opts.interrogate_vlm_keep_thinking, elem_id='vlm_keep_thinking')
@@ -101,7 +101,7 @@ def create_ui():
                         vlm_keep_prefill.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
                         vlm_keep_thinking.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
                         vlm_thinking_mode.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                    with gr.Accordion(label='Batch caption', open=False, visible=True):
+                    with gr.Accordion(label='VLM: Batch Caption', open=False, visible=True):
                         with gr.Row():
                             vlm_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='vlm_batch_files')
                         with gr.Row():
@@ -109,30 +109,30 @@ def create_ui():
                         with gr.Row():
                             vlm_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='vlm_batch_str')
                         with gr.Row():
-                            vlm_save_output = gr.Checkbox(label='Save caption files', value=True, elem_id="vlm_save_output")
-                            vlm_save_append = gr.Checkbox(label='Append caption files', value=False, elem_id="vlm_save_append")
+                            vlm_save_output = gr.Checkbox(label='Save Caption Files', value=True, elem_id="vlm_save_output")
+                            vlm_save_append = gr.Checkbox(label='Append Caption Files', value=False, elem_id="vlm_save_append")
                             vlm_folder_recursive = gr.Checkbox(label='Recursive', value=False, elem_id="vlm_folder_recursive")
                         with gr.Row(elem_id='interrogate_buttons_batch'):
-                            btn_vlm_caption_batch = gr.Button("Batch caption", variant='primary', elem_id="btn_vlm_caption_batch")
+                            btn_vlm_caption_batch = gr.Button("Batch Caption", variant='primary', elem_id="btn_vlm_caption_batch")
                     with gr.Row():
                         btn_vlm_caption = gr.Button("Caption", variant='primary', elem_id="btn_vlm_caption")
                 with gr.Tab("CLiP Interrogate", elem_id='tab_clip_interrogate'):
                     with gr.Row():
-                        clip_model = gr.Dropdown([], value=shared.opts.interrogate_clip_model, label='CLiP model', elem_id='clip_clip_model')
+                        clip_model = gr.Dropdown([], value=shared.opts.interrogate_clip_model, label='CLiP Model', elem_id='clip_clip_model')
                         ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
-                        blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.interrogate_blip_model, label='Caption model', elem_id='btN_clip_blip_model')
+                        blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.interrogate_blip_model, label='Caption Model', elem_id='btN_clip_blip_model')
                         clip_mode = gr.Dropdown(openclip.caption_types, label='Mode', value='fast', elem_id='clip_clip_mode')
-                    with gr.Accordion(label='Advanced options', open=False, visible=True):
+                    with gr.Accordion(label='CLiP: Advanced Options', open=False, visible=True):
                         with gr.Row():
-                            clip_min_length = gr.Slider(label='Min length', value=shared.opts.interrogate_clip_min_length, minimum=8, maximum=75, step=1, elem_id='clip_caption_min_length')
-                            clip_max_length = gr.Slider(label='Max length', value=shared.opts.interrogate_clip_max_length, minimum=16, maximum=1024, step=1, elem_id='clip_caption_max_length')
-                            clip_chunk_size = gr.Slider(label='Chunk size', value=shared.opts.interrogate_clip_chunk_size, minimum=256, maximum=4096, step=8, elem_id='clip_chunk_size')
+                            clip_min_length = gr.Slider(label='clip: min length', value=shared.opts.interrogate_clip_min_length, minimum=8, maximum=75, step=1, elem_id='clip_caption_min_length')
+                            clip_max_length = gr.Slider(label='clip: max length', value=shared.opts.interrogate_clip_max_length, minimum=16, maximum=1024, step=1, elem_id='clip_caption_max_length')
+                            clip_chunk_size = gr.Slider(label='clip: chunk size', value=shared.opts.interrogate_clip_chunk_size, minimum=256, maximum=4096, step=8, elem_id='clip_chunk_size')
                         with gr.Row():
-                            clip_min_flavors = gr.Slider(label='Min flavors', value=shared.opts.interrogate_clip_min_flavors, minimum=1, maximum=16, step=1, elem_id='clip_min_flavors')
-                            clip_max_flavors = gr.Slider(label='Max flavors', value=shared.opts.interrogate_clip_max_flavors, minimum=1, maximum=64, step=1, elem_id='clip_max_flavors')
-                            clip_flavor_count = gr.Slider(label='Intermediates', value=shared.opts.interrogate_clip_flavor_count, minimum=256, maximum=4096, step=8, elem_id='clip_flavor_intermediate_count')
+                            clip_min_flavors = gr.Slider(label='clip: min flavors', value=shared.opts.interrogate_clip_min_flavors, minimum=1, maximum=16, step=1, elem_id='clip_min_flavors')
+                            clip_max_flavors = gr.Slider(label='clip: max flavors', value=shared.opts.interrogate_clip_max_flavors, minimum=1, maximum=64, step=1, elem_id='clip_max_flavors')
+                            clip_flavor_count = gr.Slider(label='clip: intermediates', value=shared.opts.interrogate_clip_flavor_count, minimum=256, maximum=4096, step=8, elem_id='clip_flavor_intermediate_count')
                         with gr.Row():
-                            clip_num_beams = gr.Slider(label='CLiP num beams', value=shared.opts.interrogate_clip_num_beams, minimum=1, maximum=16, step=1, elem_id='clip_num_beams')
+                            clip_num_beams = gr.Slider(label='clip: num beams', value=shared.opts.interrogate_clip_num_beams, minimum=1, maximum=16, step=1, elem_id='clip_num_beams')
                         clip_min_length.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_max_length.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_chunk_size.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
@@ -140,7 +140,7 @@ def create_ui():
                         clip_max_flavors.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_flavor_count.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_num_beams.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                    with gr.Accordion(label='Batch interogate', open=False, visible=True):
+                    with gr.Accordion(label='CLiP: Batch Interrogate', open=False, visible=True):
                         with gr.Row():
                             clip_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='clip_batch_files')
                         with gr.Row():
@@ -148,11 +148,11 @@ def create_ui():
                         with gr.Row():
                             clip_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='clip_batch_str')
                         with gr.Row():
-                            clip_save_output = gr.Checkbox(label='Save caption files', value=True, elem_id="clip_save_output")
-                            clip_save_append = gr.Checkbox(label='Append caption files', value=False, elem_id="clip_save_append")
+                            clip_save_output = gr.Checkbox(label='Save Caption Files', value=True, elem_id="clip_save_output")
+                            clip_save_append = gr.Checkbox(label='Append Caption Files', value=False, elem_id="clip_save_append")
                             clip_folder_recursive = gr.Checkbox(label='Recursive', value=False, elem_id="clip_folder_recursive")
                         with gr.Row():
-                            btn_clip_interrogate_batch = gr.Button("Batch interrogate", variant='primary', elem_id="btn_clip_interrogate_batch")
+                            btn_clip_interrogate_batch = gr.Button("Batch Interrogate", variant='primary', elem_id="btn_clip_interrogate_batch")
                     with gr.Row():
                         btn_clip_interrogate_img = gr.Button("Interrogate", variant='primary', elem_id="btn_clip_interrogate_img")
                         btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
@@ -167,11 +167,12 @@ def create_ui():
                 movement = gr.Label(elem_id="interrogate_label_movement", label="Movement", num_top_classes=5, visible=False)
                 trending = gr.Label(elem_id="interrogate_label_trending", label="Trending", num_top_classes=5, visible=False)
                 flavor = gr.Label(elem_id="interrogate_label_flavor", label="Flavor", num_top_classes=5, visible=False)
+                clip_labels_text = gr.Textbox(elem_id="interrogate_clip_labels_text", label="CLIP Analysis", lines=15, interactive=False, visible=False, show_label=False)
             with gr.Row(elem_id='copy_buttons_interrogate'):
                 copy_interrogate_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras"])
 
     btn_clip_interrogate_img.click(openclip.interrogate_image, inputs=[image, clip_model, blip_model, clip_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_clip_analyze_img.click(openclip.analyze_image, inputs=[image, clip_model, blip_model], outputs=[medium, artist, movement, trending, flavor]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_clip_analyze_img.click(openclip.analyze_image, inputs=[image, clip_model, blip_model], outputs=[medium, artist, movement, trending, flavor, clip_labels_text]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
     btn_clip_interrogate_batch.click(fn=openclip.interrogate_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
     btn_vlm_caption.click(fn=vlm_caption_wrapper, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode], outputs=[prompt, output_image])
     btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
