@@ -18,7 +18,7 @@
   {"id":"","label":"🔍","localized":"","reload":"","hint":"Search"},
   {"id":"","label":"🖌️","localized":"","reload":"","hint":"LaMa remove selected object from image"},
   {"id":"","label":"🖼️","localized":"","reload":"","hint":"Show preview"},
-  {"id":"","label":"♻","localized":"","reload":"","hint":"Interrogate image"},
+  {"id":"","label":"","localized":"","reload":"","hint":"Interrogate image"},
   {"id":"","label":"⁜","localized":"","reload":"","hint":"Cycle image fit method"},
   {"id":"","label":"↶","localized":"","reload":"","hint":"Apply selected style to prompt"},
   {"id":"","label":"↷","localized":"","reload":"","hint":"Save current prompt to style"},
