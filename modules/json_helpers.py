@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+from typing import overload, Literal
 import fasteners
 import orjson
 from installer import log
@@ -10,7 +11,13 @@ from installer import log
 locking_available = True # used by file read/write locking
 
 
-def readfile(filename, silent=False, lock=False):
+@overload
+def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
+
+@overload
+def readfile(filename: str, silent: bool = False, lock: bool = False, *, dict_only: Literal[True]) -> dict: ...
+
+def readfile(filename: str, silent=False, lock=False, *, dict_only=False) -> dict | list:
     global locking_available # pylint: disable=global-statement
     data = {}
     lock_file = None
@@ -51,6 +58,11 @@ def readfile(filename, silent=False, lock=False):
             os.remove(f"{filename}.lock")
     except Exception:
         locking_available = False
+    if isinstance(data, list) and dict_only:
+        data0 = data[0]
+        if isinstance(data0, dict):
+            return data0
+        return {}
     return data
 
 

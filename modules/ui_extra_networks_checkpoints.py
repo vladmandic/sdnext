@@ -40,7 +40,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             shared.log.debug(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable}')
             return []
         count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0 }
-        shared.reference_models = readfile(os.path.join('html', 'reference.json'))
+        shared.reference_models = readfile(os.path.join('html', 'reference.json'), dict_only=True)
         for k, v in shared.reference_models.items():
             count['total'] += 1
             url = v['path']

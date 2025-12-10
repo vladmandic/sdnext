@@ -23,7 +23,7 @@ class Upscaler:
     def __init__(self, create_dirs=True):
         global models # pylint: disable=global-statement
         if models is None:
-            models = shared.readfile('html/upscalers.json')
+            models = shared.readfile('html/upscalers.json', dict_only=True)
         self.mod_pad_h = None
         self.tile_size = shared.opts.upscaler_tile_size
         self.tile_pad = shared.opts.upscaler_tile_overlap

@@ -52,7 +52,7 @@ def load_unet(model, repo_id:str=None):
 
     config_file = os.path.splitext(unet_dict[shared.opts.sd_unet])[0] + '.json'
     if os.path.exists(config_file):
-        config = shared.readfile(config_file)
+        config = shared.readfile(config_file, dict_only=True)
     else:
         config = None
         config_file = 'default'
