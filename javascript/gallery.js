@@ -367,14 +367,14 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const cache = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
+    const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
     img.loading = 'lazy';
     img.onload = async () => {
       img.title += `\nResolution: ${this.width} x ${this.height}`;
       this.title = img.title;
-      if (!cache && opts.browser_cache) {
+      if (!cachedData && opts.browser_cache) {
         if ((this.width === 0) || (this.height === 0)) { // fetch thumb failed so we use actual image
           this.width = img.naturalWidth;
           this.height = img.naturalHeight;
@@ -382,13 +382,13 @@ class GalleryFile extends HTMLElement {
       }
     };
     let ok = true;
-    if (cache && cache.img) {
-      img.src = cache.img;
-      this.exif = cache.exif;
-      this.width = cache.width;
-      this.height = cache.height;
-      this.size = cache.size;
-      this.mtime = new Date(cache.mtime);
+    if (cachedData?.img) {
+      img.src = cachedData.img;
+      this.exif = cachedData.exif;
+      this.width = cachedData.width;
+      this.height = cachedData.height;
+      this.size = cachedData.size;
+      this.mtime = new Date(cachedData.mtime);
     } else {
       try {
         const json = await delayFetchThumb(this.src, this.#signal);
@@ -401,20 +401,22 @@ class GalleryFile extends HTMLElement {
           this.height = json.height;
           this.size = json.size;
           this.mtime = new Date(json.mtime);
-          await idbAdd({
-            hash: this.hash,
-            folder: this.folder,
-            file: this.name,
-            size: this.size,
-            mtime: this.mtime,
-            width: this.width,
-            height: this.height,
-            src: this.src,
-            exif: this.exif,
-            img: img.src,
-            // exif: await getExif(img), // alternative client-side exif
-            // img: await createThumb(img), // alternative client-side thumb
-          });
+          if (opts.browser_cache) {
+            await idbAdd({
+              hash: this.hash,
+              folder: this.folder,
+              file: this.name,
+              size: this.size,
+              mtime: this.mtime,
+              width: this.width,
+              height: this.height,
+              src: this.src,
+              exif: this.exif,
+              img: img.src,
+              // exif: await getExif(img), // alternative client-side exif
+              // img: await createThumb(img), // alternative client-side thumb
+            });
+          }
         }
       } catch (err) { // thumb fetch failed so assign actual image
         img.src = `file=${this.src}`;
@@ -773,6 +775,7 @@ const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
  * @param {AbortController} controller - AbortController that's handling this task
  */
 async function thumbCacheCleanup(folder, imgCount, controller) {
+  if (!opts.browser_cache) return;
   try {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
