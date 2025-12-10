@@ -84,6 +84,7 @@ Plus a lot of internal improvements and fixes
   - `/detailers` new endpoint to list available detailers, both built-in and any custom downloaded  
   - `/face-restorers` expanded to list model folders  
 - **Internal**
+  - python: set 3.10 as minimum supported version  
   - sdnq: multiple improvements to quantization and dequantization logic
   - torch: update to `torch==2.9.1` for *cuda, ipex, openvino, rocm* backends
   - attention: refactor attention handling  

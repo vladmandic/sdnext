@@ -588,12 +588,18 @@ def get_platform():
 # check python version
 def check_python(supported_minors=[], experimental_minors=[], reason=None):
     if supported_minors is None or len(supported_minors) == 0:
-        supported_minors = [9, 10, 11, 12]
+        supported_minors = [10, 11, 12]
         experimental_minors = [13]
     t_start = time.time()
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    if int(sys.version_info.minor) == 12:
+        os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
+    if int(sys.version_info.minor) == 10:
+        log.warning(f"Python: version={platform.python_version()} is not actively supported")
+    if int(sys.version_info.minor) == 9:
+        log.error(f"Python: version={platform.python_version()} is end-of-life")
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
@@ -603,12 +609,6 @@ def check_python(supported_minors=[], experimental_minors=[], reason=None):
                 log.error(reason)
             if not args.ignore and not args.experimental:
                 sys.exit(1)
-    if int(sys.version_info.minor) == 12:
-        os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
-    if int(sys.version_info.minor) == 10:
-        log.warning(f"Python: version={platform.python_version()} is not actively supported")
-    if int(sys.version_info.minor) == 9:
-        log.warning(f"Python: version={platform.python_version()} is end-of-life")
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
