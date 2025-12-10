@@ -62,6 +62,22 @@ def get_model_repo_from_display(display_name: str) -> str:
     return result.strip()
 
 
+def keep_think_block_open(text_prompt: str) -> str:
+    """Remove closing </think> so model can continue reasoning with prefill."""
+    think_open = "<think>"
+    think_close = "</think>"
+    last_open = text_prompt.rfind(think_open)
+    if last_open == -1:
+        return text_prompt
+    close_index = text_prompt.find(think_close, last_open)
+    if close_index == -1:
+        return text_prompt
+    end_close = close_index + len(think_close)
+    while end_close < len(text_prompt) and text_prompt[end_close] in ' \t\r\n':
+        end_close += 1
+    return text_prompt[:close_index] + text_prompt[end_close:]
+
+
 @dataclass
 class Options:
     img2img = [
@@ -273,33 +289,64 @@ class Script(scripts_manager.Script):
         devices.torch_gc()
         shared.log.debug('Prompt enhance: model unloaded')
 
-    def clean(self, response):
+    def clean(self, response, keep_thinking=False, prefill_text='', keep_prefill=False):
+        # Handle thinking tags FIRST (before generic tag removal)
+        if '<think>' in response or '</think>' in response:
+            if keep_thinking:
+                # Format: handle partial tags (</think> without <think> means thinking was in prompt)
+                if '</think>' in response and '<think>' not in response:
+                    response = 'Reasoning:\n' + response.replace('</think>', '\n\nAnswer:\n')
+                else:
+                    response = response.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:\n')
+            else:
+                # Strip all thinking content
+                response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
+                response = response.replace('</think>', '')  # Handle orphaned closing tags
+
         # remove special characters
-        response = response.replace('"', '').replace("'", "").replace('“', '').replace('”', '').replace('**', '')
+        response = response.replace('"', '').replace("'", "").replace('"', '').replace('"', '').replace('**', '')
         # remove repeating characters
         response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
 
-        # remove comments between brackets
+        # remove comments between brackets (but not Reasoning:/Answer: which we may have added)
         response = re.sub(r'<.*?>', '', response)
-        response = re.sub(r'\[.*?\]', '', response) # Fixed regex for brackets
-        response = re.sub(r'\/.*?\/', '', response) # Fixed regex for slashes
+        response = re.sub(r'\[.*?\]', '', response)
+        response = re.sub(r'\/.*?\/', '', response)
 
         # remove llm commentary
         removed = ''
         if response.startswith('Prompt'):
             removed, response = response.split('Prompt', maxsplit=1)
         if 0 <= response.find(':') < self.options.max_delim_index:
-            removed, response = response.split(':', maxsplit=1)
+            # Don't split on "Reasoning:" or "Answer:" if we're keeping thinking
+            colon_pos = response.find(':')
+            prefix_text = response[:colon_pos].strip()
+            if not keep_thinking or (prefix_text not in ['Reasoning', 'Answer']):
+                removed, response = response.split(':', maxsplit=1)
         if 0 <= response.find('---') < self.options.max_delim_index:
             response, removed = response.split('---', maxsplit=1)
         if len(removed) > 0:
             debug_log(f'Prompt enhance: max={self.options.max_delim_index} removed="{removed}"')
 
         # remove bullets and lists
-        lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()] # Fixed regex
+        lines = [re.sub(r'^(\s*[-*]|\s*\d+)\s+', '', line).strip() for line in response.splitlines()]
         response = '\n'.join(lines)
 
         response = response.strip()
+
+        # Handle prefill retention/removal
+        prefill_text = (prefill_text or '').strip()
+        if prefill_text:
+            if keep_prefill:
+                # Add prefill if it's missing from the cleaned response
+                if not response.startswith(prefill_text):
+                    sep = '' if (not response or response[0] in '.,!?;:') else ' '
+                    response = f'{prefill_text}{sep}{response}'
+            else:
+                # Remove prefill if it's present in the cleaned response
+                if response.startswith(prefill_text):
+                    response = response[len(prefill_text):].strip()
+
         return response
 
     def post(self, response, prefix, suffix, networks):
@@ -320,7 +367,7 @@ class Script(scripts_manager.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True):
+    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True, prefill:str='', keep_prefill:bool=False, keep_thinking:bool=False):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
@@ -439,17 +486,72 @@ class Script(scripts_manager.Script):
                     ] },
                 ]
 
+        # Handle prefill - add as assistant message if provided
+        prefill_text = (prefill or '').strip()
+        use_prefill = len(prefill_text) > 0
+        if use_prefill:
+            if self.tokenizer.is_processor:
+                # Processor-style (multimodal) format
+                chat_template.append({
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": prefill_text}]
+                })
+            else:
+                # Tokenizer-style format
+                chat_template.append({
+                    "role": "assistant",
+                    "content": prefill_text
+                })
+
         t0 = time.time()
         self.busy = True
         try:
-            inputs = self.tokenizer.apply_chat_template(
-                chat_template,
-                add_generation_prompt=True,
-                enable_thinking=thinking,
-                tokenize=True,
-                return_dict=True,
-                return_tensors="pt",
-            ).to(devices.device).to(devices.dtype)
+            if use_prefill:
+                # With prefill: don't add generation prompt, continue the assistant message
+                try:
+                    inputs = self.tokenizer.apply_chat_template(
+                        chat_template,
+                        add_generation_prompt=False,
+                        continue_final_message=True,
+                        enable_thinking=thinking,
+                        tokenize=True,
+                        return_dict=True,
+                        return_tensors="pt",
+                    ).to(devices.device).to(devices.dtype)
+                except TypeError:
+                    # Fallback if continue_final_message not supported
+                    inputs = self.tokenizer.apply_chat_template(
+                        chat_template,
+                        add_generation_prompt=True,
+                        enable_thinking=thinking,
+                        tokenize=True,
+                        return_dict=True,
+                        return_tensors="pt",
+                    ).to(devices.device).to(devices.dtype)
+            else:
+                # Without prefill: standard generation prompt
+                inputs = self.tokenizer.apply_chat_template(
+                    chat_template,
+                    add_generation_prompt=True,
+                    enable_thinking=thinking,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt",
+                ).to(devices.device).to(devices.dtype)
+
+            # Handle thinking + prefill combination
+            if use_prefill and thinking:
+                # Get text version to apply keep_think_block_open, then re-tokenize
+                text_prompt = self.tokenizer.apply_chat_template(
+                    chat_template,
+                    add_generation_prompt=False if use_prefill else True,
+                    continue_final_message=use_prefill,
+                    enable_thinking=thinking,
+                    tokenize=False,
+                )
+                text_prompt = keep_think_block_open(text_prompt)
+                inputs = self.tokenizer(text_prompt, return_tensors="pt").to(devices.device).to(devices.dtype)
+
             input_len = inputs['input_ids'].shape[1]
         except Exception as e:
             shared.log.error(f'Prompt enhance tokenize: {e}')
@@ -490,9 +592,9 @@ class Script(scripts_manager.Script):
             response = response[0]
         is_censored =  self.censored(response)
         if not is_censored:
-            response = self.clean(response)
+            response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}') # Added check for outputs
+        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
         if debug_enabled:
             shared.log.trace(f'Prompt enhance: prompt="{prompt_text}"')
             shared.log.trace(f'Prompt enhance: response="{response}"')
@@ -502,7 +604,7 @@ class Script(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking):
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -517,6 +619,9 @@ class Script(scripts_manager.Script):
             thinking=thinking_mode,
             nsfw=nsfw_mode,
             use_vision=use_vision,
+            prefill=prefill_text,
+            keep_prefill=keep_prefill,
+            keep_thinking=keep_thinking,
         )
         if apply_prompt:
             return [response, response]
@@ -583,6 +688,11 @@ class Script(scripts_manager.Script):
                     with gr.Row():
                         nsfw_mode = gr.Checkbox(label='NSFW allowed', value=True, interactive=True)
                         thinking_mode = gr.Checkbox(label='Thinking mode', value=False, interactive=True)
+                    with gr.Row():
+                        keep_thinking = gr.Checkbox(label='Keep Thinking Trace', value=False, interactive=True)
+                        keep_prefill = gr.Checkbox(label='Keep Prefill', value=False, interactive=True)
+                    with gr.Row():
+                        prefill_text = gr.Textbox(label='Prefill text', value='', placeholder='Optional: pre-fill start of model response', interactive=True, lines=1)
                     gr.HTML('<br>')
                 with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'): # Corrected elem_id reference
                     with gr.Row():
@@ -603,8 +713,8 @@ class Script(scripts_manager.Script):
                 self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision]
+            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -615,7 +725,7 @@ class Script(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -640,6 +750,9 @@ class Script(scripts_manager.Script):
             thinking=thinking_mode,
             nsfw=nsfw_mode,
             use_vision=use_vision,
+            prefill=prefill_text,
+            keep_prefill=keep_prefill,
+            keep_thinking=keep_thinking,
         )
         timer.process.record('prompt')
         p.extra_generation_params['LLM'] = llm_model
