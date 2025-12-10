@@ -419,12 +419,20 @@ def update_token_counter(text):
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-        has_bos_token = hasattr(shared.sd_model.tokenizer, 'bos_token_id') and shared.sd_model.tokenizer.bos_token_id is not None
-        has_eos_token = hasattr(shared.sd_model.tokenizer, 'eos_token_id') and shared.sd_model.tokenizer.eos_token_id is not None
-        ids = shared.sd_model.tokenizer(prompt)
-        ids = getattr(ids, 'input_ids', [])
+        tokenizer = shared.sd_model.tokenizer
+        # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
+        if hasattr(tokenizer, 'tokenizer') and tokenizer.tokenizer is not None:
+            tokenizer = tokenizer.tokenizer
+        has_bos_token = hasattr(tokenizer, 'bos_token_id') and tokenizer.bos_token_id is not None
+        has_eos_token = hasattr(tokenizer, 'eos_token_id') and tokenizer.eos_token_id is not None
+        try:
+            ids = tokenizer(prompt)
+            ids = getattr(ids, 'input_ids', [])
+        except Exception:
+            ids = []
         token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-        max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
+        model_max_length = getattr(tokenizer, 'model_max_length', 0)
+        max_length = model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
     return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)
