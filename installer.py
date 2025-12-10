@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import TypeVar, List, Optional
 import os
 import sys
 import json
@@ -19,6 +19,7 @@ class Dot(dict): # dot notation access to dictionary attributes
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+T = TypeVar("T")
 
 version = {
     'app': 'sd.next',
@@ -93,20 +94,26 @@ def get_console():
 def get_log():
     return log
 
+def parse_str_bool_like(val: str | T) -> bool | T:
+    if isinstance(val, str):
+        if val.strip().lower() in ("0", "false"):
+            return False
+        return True
+    return val
 
 def install_traceback(suppress: list = []):
     from rich.traceback import install as traceback_install
     from rich.pretty import install as pretty_install
     traceback_install(
         console=console,
-        extra_lines=os.environ.get('SD_TRACELINES', 1),
-        max_frames=os.environ.get('SD_TRACEFRAMES', 16),
-        width=os.environ.get('SD_TRACEWIDTH', console.width),
-        word_wrap=os.environ.get('SD_TRACEWRAP', False),
-        indent_guides=os.environ.get('SD_TRACEINDENT', False),
-        show_locals=os.environ.get('SD_TRACELOCALS', False),
-        locals_hide_dunder=os.environ.get('SD_TRACEDUNDER', True),
-        locals_hide_sunder=os.environ.get('SD_TRACESUNDER', None),
+        extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
+        max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
+        width=int(os.environ.get("SD_TRACEWIDTH", console.width if console else 100)), # Using traceback default of 100 as fallback
+        word_wrap=parse_str_bool_like(os.environ.get("SD_TRACEWRAP", False)),
+        indent_guides=parse_str_bool_like(os.environ.get("SD_TRACEINDENT", False)),
+        show_locals=parse_str_bool_like(os.environ.get("SD_TRACELOCALS", False)),
+        locals_hide_dunder=parse_str_bool_like(os.environ.get("SD_TRACEDUNDER", True)),
+        locals_hide_sunder=parse_str_bool_like(os.environ.get("SD_TRACESUNDER", None)),
         suppress=suppress,
     )
     pretty_install(console=console)
