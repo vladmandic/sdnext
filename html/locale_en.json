@@ -38,7 +38,7 @@
   {"id":"","label":"VLM: Batch Caption","localized":"Batch Caption","reload":"","hint":"Process multiple images in a batch using VLM."},
   {"id":"","label":"CLiP: Advanced Options","localized":"Advanced Options","reload":"","hint":"Advanced configuration options for CLiP interrogation."},
   {"id":"","label":"CLiP: Batch Interrogate","localized":"Batch Interrogate","reload":"","hint":"Process multiple images in a batch using CLiP."},
-  {"id":"","label":"Task","localized":"","reload":"","hint":"Changes which task the model will perform. Regular text prompts can be used when the default option <b>Use Prompt</b> is selected.<br>When other options are selected, see the hint text inside an empty <b>Prompt</b> field for guidance."},
+  {"id":"","label":"Task","localized":"","reload":"","hint":"Changes which task the model will perform. Regular text prompts can be used when the task is set to <b>Use Prompt</b>.<br>When other options are selected, see the hint text inside an empty <b>Prompt</b> field for guidance."},
   {"id":"","label":"Prefill text","localized":"","reload":"","hint":"Pre-fills the start of the model's response to guide its output format or content by forcing it to continue the prefill text.<br>Prefill is filtered out and does not appear in the final response.<br><br>Leave empty to let the model generate its own response from scratch."},
   {"id":"","label":"Start","localized":"","reload":"","hint":"Start"},
   {"id":"","label":"End","localized":"","reload":"","hint":"End"},

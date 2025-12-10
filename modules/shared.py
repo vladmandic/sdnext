@@ -502,7 +502,7 @@ options_templates.update(options_section(('saving-images', "Image Options"), {
     "font_color": OptionInfo("#FFFFFF", "Font color", gr.ColorPicker, {}),
 
     "image_sep_browser": OptionInfo("<h2>Image Gallery</h2>", "", gr.HTML),
-    "browser_cache": OptionInfo(True, "Use image gallery cache [STRONGLY recommended]"),
+    "browser_cache": OptionInfo(True, "Use image gallery cache"),
     "browser_folders": OptionInfo("", "Additional image browser folders"),
     "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails"),
     "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
@@ -643,7 +643,7 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
 }))
 
 options_templates.update(options_section(('interrogate', "Interrogate"), {
-    "interrogate_default_type": OptionInfo("OpenCLiP", "Default type", gr.Radio, {"choices": ["OpenCLiP", "VLM", "DeepBooru"]}),
+    "interrogate_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["OpenCLiP", "VLM", "DeepBooru"]}),
     "interrogate_offload": OptionInfo(True, "Offload models "),
     "interrogate_score": OptionInfo(False, "Include scores in results when available"),
 

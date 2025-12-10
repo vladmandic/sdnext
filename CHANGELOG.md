@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-09
+## Update for 2025-12-10
 
 ### TBD
 
 Merge commit: `f903a36d9`
 
-### Highlights for 2025-12-09
+### Highlights for 2025-12-10
 
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features  
 New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz, new **Kandinsky 5 Lite** image model and new **Photoroom PRX** model  
@@ -18,8 +18,8 @@ Plus a lot of internal improvements and fixes
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-12-09
-  
+### Details for 2025-12-10
+
 - **Models**
   - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
     **FLUX.2-Dev** is a brand new model from BFL and uses large 32B DiT together with Mistral 24B as text encoder  
@@ -50,23 +50,23 @@ Plus a lot of internal improvements and fixes
   kanvas is a full replacement for *img2img, inpaint and outpaint* controls  
   see [docs](https://vladmandic.github.io/sdnext-docs/Kanvas/) for details  
   *experimental*: report any feedback in master [issue](https://github.com/vladmandic/sdnext/issues/4358)  
-- **Captioning** and **VQA: visual query analyzer**  
+- **Captioning** and **VQA: Visual Question & Answer**  
   massive update to both features and supported models, thanks @CalamitousFelicitousness  
-  models:
+  models:  
   - additional `mooondream-2` features  
   - support for `moondream-3-preview`  
   - support for `qwen3-vl` with thinking  
   - additional `gemma-3-vl` finetunes  
   - support for `XiaomiMiMo`  
-  features:  
+  ui:  
   - ability to annotate actual image, not just generate captions/answers  
     e.g. actualy mark detected regions/points  
+  features:  
   - ui indicator of model capabilities  
   - support for *prefill* style of prompting/answering  
   - support for *reasoning* mode for supported models  
     with option to output answer-only or reasoning-process   
   - additional debug logging  
-
 - **Other Features**
   - **wildcards**: allow recursive inline wildcards using curly braces syntax  
   - **sdnq**: simplify pre-quantization saved config  
@@ -99,6 +99,7 @@ Plus a lot of internal improvements and fixes
   - python: start work on future-proofing for modern python versions, thanks @awsr  
   - nunchaku: update to `1.0.2`  
   - lint: add rules for run-on-windows  
+  - gallery: setting to enable/disable client-side caching, thanks @awsr  
   - gallery: faster thumbnail generation, thanks @awsr  
   - gallery: purge old thumbnails, thanks @awsr  
 - **Docs**

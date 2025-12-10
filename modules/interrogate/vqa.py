@@ -359,7 +359,6 @@ class VQA:
         self.processor = None
         self.model = None
         self.loaded: str = None
-        self.quant_args = None
         self.last_annotated_image = None
         self.last_detection_data = None
 
@@ -386,7 +385,6 @@ class VQA:
             shared.log.error(f'VQA load: unknown model="{model_name}"')
             return
 
-        self.quant_args = model_quant.create_config(module='LLM')
         shared.log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
 
         # Dispatch to appropriate loader (same logic as interrogate)
@@ -448,6 +446,7 @@ class VQA:
         """Load FastVLM model and tokenizer."""
         if self.model is None or self.loaded != repo:
             shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            quant_args = model_quant.create_config(module='LLM')
             self.model = None
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
@@ -455,7 +454,7 @@ class VQA:
                 torch_dtype=devices.dtype,
                 trust_remote_code=True,
                 cache_dir=shared.opts.hfcache_dir,
-                **self.quant_args,
+                **quant_args,
             )
             self.loaded = repo
             devices.torch_gc()
@@ -502,11 +501,12 @@ class VQA:
                 cls_name = transformers.Qwen2VLForConditionalGeneration
             else:
                 cls_name = transformers.AutoModelForCausalLM
+            quant_args = model_quant.create_config(module='LLM')
             self.model = cls_name.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
-                **self.quant_args,
+                **quant_args,
             )
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
@@ -638,11 +638,12 @@ class VQA:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
             else:
                 cls = transformers.Gemma3ForConditionalGeneration
+            quant_args = model_quant.create_config(module='LLM')
             self.model = cls.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
-                **self.quant_args,
+                **quant_args,
             )
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model)
@@ -839,11 +840,12 @@ class VQA:
         if self.model is None or self.loaded != repo:
             shared.log.debug(f'Interrogate load: vlm="{repo}"')
             self.model = None
+            quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.AutoModelForVision2Seq.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
-                **self.quant_args,
+                **quant_args,
             )
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
@@ -1150,13 +1152,14 @@ class VQA:
             shared.log.debug(f'Interrogate load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
             transformers.dynamic_module_utils.get_imports = get_imports
             self.model = None
+            quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.Florence2ForConditionalGeneration.from_pretrained(
                 repo_name,
                 dtype=torch.bfloat16,
                 revision=effective_revision,
                 torch_dtype=devices.dtype,
                 cache_dir=shared.opts.hfcache_dir,
-                **self.quant_args,
+                **quant_args,
             )
             self.processor = transformers.AutoProcessor.from_pretrained(repo_name, max_pixels=1024*1024, trust_remote_code=True, revision=effective_revision, cache_dir=shared.opts.hfcache_dir)
             transformers.dynamic_module_utils.get_imports = _get_imports
@@ -1230,7 +1233,6 @@ class VQA:
         self.last_detection_data = None
         jobid = shared.state.begin('Interrogate LLM')
         t0 = time.time()
-        self.quant_args = model_quant.create_config(module='LLM')
         model_name = model_name or shared.opts.interrogate_vlm_model
         prefill = vlm_prefill if prefill is None else prefill  # Use provided prefill when specified
         if isinstance(image, list):

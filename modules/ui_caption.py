@@ -3,6 +3,8 @@ from modules import shared, ui_common, generation_parameters_copypaste
 from modules.interrogate import openclip
 
 
+default_task = "Short Caption"
+
 def vlm_caption_wrapper(question, system_prompt, prompt, image, model_name, prefill, thinking_mode):
     """Wrapper for vqa.interrogate that handles annotated image display."""
     from modules.interrogate import vqa
@@ -17,7 +19,7 @@ def update_vlm_prompts_for_model(model_name):
     """Update the task dropdown choices based on selected model."""
     from modules.interrogate import vqa
     prompts = vqa.get_prompts_for_model(model_name)
-    return gr.update(choices=prompts, value=prompts[0] if prompts else "Use Prompt")
+    return gr.update(choices=prompts, value=prompts[0] if prompts else default_task)
 
 
 def update_vlm_prompt_placeholder(question):
@@ -68,9 +70,9 @@ def create_ui():
                     with gr.Row():
                         vlm_system = gr.Textbox(label="System Prompt", value=vqa.vlm_system, lines=1, elem_id='vlm_system')
                     with gr.Row():
-                        vlm_question = gr.Dropdown(label="Task", allow_custom_value=False, choices=initial_prompts, value=initial_prompts[0] if initial_prompts else "Use Prompt", elem_id='vlm_question')
+                        vlm_question = gr.Dropdown(label="Task", allow_custom_value=False, choices=initial_prompts, value=default_task, elem_id='vlm_question')
                     with gr.Row():
-                        vlm_prompt = gr.Textbox(label="Prompt", placeholder=vqa.get_prompt_placeholder(initial_prompts[0] if initial_prompts else "Use Prompt"), lines=2, elem_id='vlm_prompt')
+                        vlm_prompt = gr.Textbox(label="Prompt", placeholder=vqa.get_prompt_placeholder(initial_prompts[0]), lines=2, elem_id='vlm_prompt')
                     with gr.Row(elem_id='interrogate_buttons_query'):
                         vlm_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='vlm_model')
                     with gr.Row():
