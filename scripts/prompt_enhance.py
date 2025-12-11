@@ -10,6 +10,7 @@ import transformers
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
+from modules import ui_control_helpers
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -265,7 +266,7 @@ class Script(scripts_manager.Script):
             if debug_enabled:
                 modules = sd_modules.get_model_stats(self.llm) + sd_modules.get_model_stats(self.tokenizer)
                 for m in modules:
-                    shared.log.trace(f'Prompt enhance: {m}')
+                    debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
             shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
@@ -384,6 +385,7 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
+        debug_log(f'Prompt enhance: model="{model}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
@@ -406,8 +408,15 @@ class Script(scripts_manager.Script):
                 current_image = image
             if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
                 current_image = None
+            # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
+            if current_image is None and ui_control_helpers.input_source is not None:
+                if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
+                    current_image = ui_control_helpers.input_source[0]
+                elif isinstance(ui_control_helpers.input_source, Image.Image):
+                    current_image = ui_control_helpers.input_source
         except Exception:
             current_image = None
+        debug_log(f'Prompt enhance: current_image={current_image is not None} size={f"{current_image.width}x{current_image.height}" if current_image else "N/A"}')
 
         # Resize large images to match VQA performance (Qwen3-VL performance is sensitive to resolution)
         # Create a copy to avoid modifying the original image used by img2img
@@ -503,6 +512,7 @@ class Script(scripts_manager.Script):
                     "content": prefill_text
                 })
 
+        debug_log(f'Prompt enhance: chat_template roles={[msg["role"] for msg in chat_template]} use_prefill={use_prefill}')
         t0 = time.time()
         self.busy = True
         try:
@@ -553,6 +563,7 @@ class Script(scripts_manager.Script):
                 inputs = self.tokenizer(text_prompt, return_tensors="pt").to(devices.device).to(devices.dtype)
 
             input_len = inputs['input_ids'].shape[1]
+            debug_log(f'Prompt enhance: input_len={input_len} sample={sample} temp={temperature} penalty={penalty} max_tokens={tokens}')
         except Exception as e:
             shared.log.error(f'Prompt enhance tokenize: {e}')
             errors.display(e, 'Prompt enhance')
@@ -573,7 +584,7 @@ class Script(scripts_manager.Script):
                     devices.torch_gc()
             if debug_enabled:
                 raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-                shared.log.trace(f'Prompt enhance: raw="{raw_response}"')
+                debug_log(f'Prompt enhance: raw="{raw_response}"')
             outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
                 outputs_cropped,
@@ -595,9 +606,8 @@ class Script(scripts_manager.Script):
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
         shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
-        if debug_enabled:
-            shared.log.trace(f'Prompt enhance: prompt="{prompt_text}"')
-            shared.log.trace(f'Prompt enhance: response="{response}"')
+        debug_log(f'Prompt enhance: prompt="{prompt_text}"')
+        debug_log(f'Prompt enhance: response="{response}"')
         self.busy = False
         if is_censored:
             shared.log.warning(f'Prompt enhance: censored response="{response}"')
