@@ -116,7 +116,8 @@ class NetworkOnDisk:
         if self.filename is not None:
             fn = os.path.splitext(self.filename)[0] + '.txt'
             if os.path.exists(fn):
-                return shared.readfile(fn, silent=True)
+                with open(fn, "r") as file:
+                    return file.read()
         return None
 
     def get_alias(self):
