@@ -1,11 +1,12 @@
+from __future__ import annotations
 import io
 import os
 import sys
 import time
 import contextlib
 from enum import Enum
+from typing import TYPE_CHECKING, TypeGuard
 import gradio as gr
-import diffusers
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
 from modules.shared_defaults import get_default_modes
@@ -23,6 +24,11 @@ import modules.styles
 import modules.paths as paths
 from installer import log, print_dict, console, get_version # pylint: disable=unused-import
 
+if TYPE_CHECKING:
+    # Behavior modified by __future__.annotations
+    from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+    from ui_extra_networks import ExtraNetworksPage
+
 
 class Backend(Enum):
     ORIGINAL = 1
@@ -30,7 +36,7 @@ class Backend(Enum):
 
 
 errors.install([gr])
-demo: gr.Blocks = None
+demo: gr.Blocks | None = None
 api = None
 url = 'https://github.com/vladmandic/sdnext'
 cmd_opts = cmd_args.parse_args()
@@ -44,7 +50,7 @@ detailers = []
 face_restorers = []
 yolo = None
 tab_names = []
-extra_networks = []
+extra_networks: list[ExtraNetworksPage] = []
 options_templates = {}
 hypernetworks = {}
 settings_components = {}
@@ -890,8 +896,8 @@ def restore_defaults(restart=True):
 
 
 # startup def of shared.sd_model before its redefined in modeldata
-sd_model: diffusers.DiffusionPipeline = None # dummy and overwritten by class
-sd_refiner: diffusers.DiffusionPipeline = None # dummy and overwritten by class
+sd_model: DiffusionPipeline | None = None # dummy and overwritten by class
+sd_refiner: DiffusionPipeline | None = None # dummy and overwritten by class
 sd_model_type: str = '' # dummy and overwritten by class
 sd_refiner_type: str = '' # dummy and overwritten by class
 sd_loaded: bool = False # dummy and overwritten by class
