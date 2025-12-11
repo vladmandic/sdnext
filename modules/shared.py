@@ -834,7 +834,7 @@ log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.g
 
 profiler = None
 prompt_styles = modules.styles.StyleDatabase(opts)
-reference_models = readfile(os.path.join('html', 'reference.json')) if opts.extra_network_reference_enable else {}
+reference_models = readfile(os.path.join('html', 'reference.json'), dict_only=True) if opts.extra_network_reference_enable else {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
 devices.args = cmd_opts
 devices.opts = opts
