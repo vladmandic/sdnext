@@ -26,7 +26,7 @@ from installer import log, print_dict, console, get_version # pylint: disable=un
 
 if TYPE_CHECKING:
     # Behavior modified by __future__.annotations
-    from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+    from diffusers import DiffusionPipeline
     from ui_extra_networks import ExtraNetworksPage
 
 
