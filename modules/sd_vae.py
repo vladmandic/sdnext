@@ -128,13 +128,13 @@ def apply_vae_config(model_file, vae_file, sd_model):
     def get_vae_config():
         config_file = os.path.join(paths.sd_configs_path, os.path.splitext(os.path.basename(model_file))[0] + '_vae.json')
         if config_file is not None and os.path.exists(config_file):
-            return shared.readfile(config_file)
+            return shared.readfile(config_file, dict_only=True)
         config_file = os.path.join(paths.sd_configs_path, os.path.splitext(os.path.basename(vae_file))[0] + '.json') if vae_file else None
         if config_file is not None and os.path.exists(config_file):
-            return shared.readfile(config_file)
+            return shared.readfile(config_file, dict_only=True)
         config_file = os.path.join(paths.sd_configs_path, shared.sd_model_type, 'vae', 'config.json')
         if config_file is not None and os.path.exists(config_file):
-            return shared.readfile(config_file)
+            return shared.readfile(config_file, dict_only=True)
         return {}
 
     if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'config'):

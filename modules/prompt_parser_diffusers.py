@@ -410,7 +410,7 @@ def get_tokens(pipe, msg, prompt):
                 fn = os.path.join(fn, 'vocab.json')
             else:
                 fn = os.path.join(fn, 'tokenizer', 'vocab.json')
-            token_dict = shared.readfile(fn, silent=True)
+            token_dict = shared.readfile(fn, silent=True, dict_only=True)
             added_tokens = getattr(tokenizer, 'added_tokens_decoder', {})
             for k, v in added_tokens.items():
                 token_dict[str(v)] = k
