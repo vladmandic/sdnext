@@ -20,8 +20,15 @@ class Dot(dict): # dot notation access to dictionary attributes
     __delattr__ = dict.__delitem__
 
 
+version = {
+    'app': 'sd.next',
+    'updated': 'unknown',
+    'commit': 'unknown',
+    'branch': 'unknown',
+    'url': 'unknown',
+    'kanvas': 'unknown',
+}
 pkg_resources, setuptools, distutils = None, None, None # defined via ensure_base_requirements
-version = { 'app': 'sd.next', 'updated': 'unknown', 'commit': 'unknown', 'branch': 'unknown', 'url': 'unknown', 'kanvas': 'unknown' }
 current_branch = None
 log = logging.getLogger("sd")
 console = None
