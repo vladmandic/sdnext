@@ -1,13 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-10
+## Update for 2025-12-11
 
-### TBD
+### Highlights for 2025-12-11
 
-Merge commit: `f903a36d9`
-
-### Highlights for 2025-12-10
-
+*What's new?*  
 New native [kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/) module for image manipulation that fully replaces *img2img*, *inpaint* and *outpaint* controls, massive update to **Captioning/VQA** models and features  
 New generation of **Flux.2** large image model, new **Z-Image** model that is creating a lot of buzz, new **Kandinsky 5 Lite** image model and new **Photoroom PRX** model  
 And first cloud models with **Google Nano Banana** *2.5 Flash and 3.0 Pro* and **Google Veo** *3.1* video model  
@@ -18,7 +15,7 @@ Plus a lot of internal improvements and fixes
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-12-10
+### Details for 2025-12-11
 
 - **Models**
   - [Black Forest Labs FLUX.2 Dev](https://bfl.ai/blog/flux-2) and prequantized variation [SDNQ-SVD-Uint4](https://huggingface.co/Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32)  
@@ -126,7 +123,7 @@ Plus a lot of internal improvements and fixes
   - auth: fix password being shown in clear text during login  
   - firefox: remove obsolete checks, thanks @awsr  
   - runai streamer: cleanup logging, thanks @CalamitousFelicitousness  
-  - fix gradio event handlers, thanks @awsr  
+  - gradio: event handlers, thanks @awsr  
 
 ## Update for 2025-11-06
 
