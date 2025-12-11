@@ -263,7 +263,7 @@ def mount_subpath(app):
 
 def start_ui():
     log.debug('UI start sequence')
-    log.debug(f'UI image support: kanvas={version["kanvas"]}')
+    log.debug(f'UI image support: kanvas={version.get("kanvas", "unknown")}')
     modules.script_callbacks.before_ui_callback()
     timer.startup.record("before-ui")
     shared.demo = modules.ui.create_ui(timer.startup)
