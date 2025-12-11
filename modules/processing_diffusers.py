@@ -477,6 +477,8 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
                     height = height,
                     frames = frames,
                 )
+                if not isinstance(results, list):
+                    results = list(results)
         elif hasattr(output, 'images'):
             results = output.images
         else:
