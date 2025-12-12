@@ -62,7 +62,7 @@ def load_hidream(checkpoint_info, diffusers_load_config=None):
             transformer.max_seq = 4608
     else:
         shared.log.error(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" not recognized')
-        return False
+        return None
 
     pipe = cls.from_pretrained(
         repo_id,
