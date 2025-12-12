@@ -2,6 +2,7 @@
 Modified from Triton MatMul example.
 PyTorch torch._int_mm is broken on backward pass with Nvidia.
 AMD RDNA2 doesn't support torch._int_mm, so we use int_mm via Triton.
+PyTorch doesn't support FP32 output type with FP16 MM so we use Triton for it too.
 """
 
 import torch
@@ -13,47 +14,47 @@ import triton.language as tl
 def get_autotune_config():
     if triton.runtime.driver.active.get_current_target().backend == "cuda":
         return [
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=3, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=5, num_warps=2),
-            triton.Config({'BLOCK_SIZE_M':  32, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=5, num_warps=2),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2),
+            triton.Config({"BLOCK_SIZE_M":  32, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2),
             #
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=3, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 256, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=3, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M': 256, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
         ]
     else:
         return [
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=2),
-            triton.Config({'BLOCK_SIZE_M':  32, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  32, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=2),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=2),
+            triton.Config({"BLOCK_SIZE_M":  32, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=2),
             #
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M':  64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N':  32, 'BLOCK_SIZE_K':  64, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
-            triton.Config({'BLOCK_SIZE_M': 256, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=8),
-            triton.Config({'BLOCK_SIZE_M': 256, 'BLOCK_SIZE_N':  64, 'BLOCK_SIZE_K': 128, 'GROUP_SIZE_M': 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
+            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
+            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
         ]
 
 
-@triton.autotune(configs=get_autotune_config(), key=['M', 'N', 'K', 'stride_bk'])
+@triton.autotune(configs=get_autotune_config(), key=["M", "N", "K", "stride_bk"])
 @triton.jit
 def int_mm_kernel(
     a_ptr, b_ptr, c_ptr,
@@ -111,7 +112,7 @@ def int_mm(a, b):
     K, N = b.shape
     c = torch.empty((M, N), device=a.device, dtype=torch.int32)
     def grid(META):
-        return (triton.cdiv(M, META['BLOCK_SIZE_M']) * triton.cdiv(N, META['BLOCK_SIZE_N']), )
+        return (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]), )
     int_mm_kernel[grid](
         a, b, c,
         M, N, K,
@@ -122,7 +123,7 @@ def int_mm(a, b):
     return c
 
 
-@triton.autotune(configs=get_autotune_config(), key=['M', 'N', 'K', 'stride_bk'])
+@triton.autotune(configs=get_autotune_config(), key=["M", "N", "K", "stride_bk"])
 @triton.jit
 def fp_mm_kernel(
     a_ptr, b_ptr, c_ptr,
@@ -180,7 +181,7 @@ def fp_mm(a, b):
     K, N = b.shape
     c = torch.empty((M, N), device=a.device, dtype=torch.float32)
     def grid(META):
-        return (triton.cdiv(M, META['BLOCK_SIZE_M']) * triton.cdiv(N, META['BLOCK_SIZE_N']), )
+        return (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]), )
     fp_mm_kernel[grid](
         a, b, c,
         M, N, K,
