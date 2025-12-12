@@ -1,5 +1,10 @@
 # Change Log for SD.Next
 
+## Update for 2025-12-12
+
+- Google models support for both Dev and Vertex access methods  
+  see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
+
 ## Update for 2025-12-11
 
 ### Highlights for 2025-12-11
