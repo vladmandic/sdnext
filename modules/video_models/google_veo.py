@@ -69,17 +69,38 @@ class GoogleVeoVideoPipeline():
             image=genai.types.Image(image_bytes=image_bytes.getvalue(), mime_type='image/jpeg'),
         )
 
+    def get_args(self):
+        from modules.shared import opts
+        api_key = os.getenv("GOOGLE_API_KEY") or opts.google_api_key
+        vertex_credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if (api_key is None or len(api_key) == 0) and (vertex_credentials is None or len(vertex_credentials) == 0):
+            log.error(f'Cloud: model="{self.model}" API key not provided')
+            return None
+        use_vertexai = (os.getenv("GOOGLE_GENAI_USE_VERTEXAI") is not None) or opts.google_use_vertexai
+        project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or opts.google_project_id
+        location_id = os.getenv("GOOGLE_CLOUD_LOCATION") or opts.google_location_id
+        args = {
+            'api_key': api_key,
+            'vertexai': use_vertexai,
+            'project': project_id if len(project_id) > 0 else None,
+            'location': location_id if len(location_id) > 0 else None,
+        }
+        args_copy = args.copy()
+        args_copy['api_key'] = '...' + args_copy['api_key'][-4:] # last 4 chars
+        args_copy['credentials'] = vertex_credentials
+        log.debug(f'Cloud: model="{self.model}" args={args_copy}')
+        return args
+
     def __call__(self, prompt: list[str], width: int, height: int, image: Image.Image = None, num_frames: int = 4*24):
         from google import genai
 
         if isinstance(prompt, list) and len(prompt) > 0:
             prompt = prompt[0]
         if self.client is None:
-            api_key = os.getenv("GOOGLE_API_KEY", None)
-            if api_key is None:
-                log.error(f'Cloud: model="{self.model}" GOOGLE_API_KEY environment variable not set')
+            args = self.get_args()
+            if args is None:
                 return None
-            self.client = genai.Client(api_key=api_key, vertexai=False)
+            self.client = genai.Client(**args)
 
         resolution, aspect_ratio = get_size_buckets(width, height)
         duration = num_frames // 24

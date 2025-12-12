@@ -164,6 +164,11 @@ options_templates.update(options_section(('sd', "Model Loading"), {
 options_templates.update(options_section(('model_options', "Model Options"), {
     "model_modular_sep": OptionInfo("<h2>Modular Pipelines</h2>", "", gr.HTML),
     "model_modular_enable": OptionInfo(False, "Enable modular pipelines (experimental)"),
+    "model_google_sep": OptionInfo("<h2>Google GenAI</h2>", "", gr.HTML),
+    "google_use_vertexai": OptionInfo(False, "Google cloud use VertexAI endpoints"),
+    "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox),
+    "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox),
+    "google_location_id": OptionInfo("", "Google Cloud location ID", gr.Textbox),
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
