@@ -185,6 +185,8 @@ def process_base(p: processing.StableDiffusionProcessing):
             output = SimpleNamespace(images=output)
         if isinstance(output, Image.Image):
             output = SimpleNamespace(images=[output])
+        if hasattr(output, 'image'):
+            output.images = output.image
         if hasattr(output, 'images'):
             shared.history.add(output.images, info=processing.create_infotext(p), ops=p.ops)
         timer.process.record('pipeline')
