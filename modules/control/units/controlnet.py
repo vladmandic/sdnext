@@ -1,12 +1,14 @@
 import os
 import time
 import threading
-from typing import Union
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
+from typing import TYPE_CHECKING
 from modules.control.units import detect
 from modules.shared import log, opts, cmd_opts, state, listdir
 from modules import errors, sd_models, devices, model_quant
-from modules.processing import StableDiffusionProcessingControl
+
+if TYPE_CHECKING:
+    from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
+    from modules.processing import StableDiffusionProcessingControl
 
 
 what = 'ControlNet'
@@ -159,7 +161,7 @@ def find_models():
 find_models()
 
 
-def api_list_models(model_type: str = None):
+def api_list_models(model_type: str | None = None):
     import modules.shared
     model_type = model_type or modules.shared.sd_model_type
     model_list = []
@@ -403,10 +405,10 @@ class ControlNet():
 
 class ControlNetPipeline():
     def __init__(self,
-                 controlnet: Union[ControlNetModel, list[ControlNetModel]],
-                 pipeline: Union[StableDiffusionXLPipeline, StableDiffusionPipeline, FluxPipeline, StableDiffusion3Pipeline],
+                 controlnet: ControlNetModel | list[ControlNetModel],
+                 pipeline: StableDiffusionXLPipeline | StableDiffusionPipeline | FluxPipeline | StableDiffusion3Pipeline,
                  dtype = None,
-                 p: StableDiffusionProcessingControl = None, # pylint: disable=unused-argument
+                 p: StableDiffusionProcessingControl | None = None, # pylint: disable=unused-argument
                 ):
         t0 = time.time()
         self.orig_pipeline = pipeline
