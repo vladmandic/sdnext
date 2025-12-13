@@ -13,7 +13,7 @@ import huggingface_hub as hf
 from installer import log
 from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
 from modules.memstats import memory_stats
-from modules.modeldata import model_data
+from core import modeldata
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, patch_diffuser_config, convert_to_faketensors, read_state_dict, get_state_dict_from_checkpoint, apply_function_to_model # pylint: disable=unused-import
@@ -757,17 +757,17 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         shared.opts.data['sd_model_checkpoint'] = "stabilityai/stable-diffusion-xl-base-1.0"
 
     if (op == 'model' or op == 'dict'):
-        if (model_data.sd_model is not None) and (checkpoint_info is not None) and (getattr(model_data.sd_model, 'sd_checkpoint_info', None) is not None) and (checkpoint_info.hash == model_data.sd_model.sd_checkpoint_info.hash): # trying to load the same model
+        if (modeldata.sd_model is not None) and (checkpoint_info is not None) and (getattr(modeldata.sd_model, 'sd_checkpoint_info', None) is not None) and (checkpoint_info.hash == modeldata.sd_model.sd_checkpoint_info.hash): # trying to load the same model
             return
     else:
-        if (model_data.sd_refiner is not None) and (checkpoint_info is not None) and (getattr(model_data.sd_refiner, 'sd_checkpoint_info', None) is not None) and (checkpoint_info.hash == model_data.sd_refiner.sd_checkpoint_info.hash): # trying to load the same model
+        if (modeldata.sd_refiner is not None) and (checkpoint_info is not None) and (getattr(modeldata.sd_refiner, 'sd_checkpoint_info', None) is not None) and (checkpoint_info.hash == modeldata.sd_refiner.sd_checkpoint_info.hash): # trying to load the same model
             return
 
     sd_model = None
     try:
         # initial load only
         if sd_model is None:
-            if shared.cmd_opts.ckpt is not None and os.path.isdir(shared.cmd_opts.ckpt) and model_data.initial:
+            if shared.cmd_opts.ckpt is not None and os.path.isdir(shared.cmd_opts.ckpt) and modeldata.initial:
                 sd_model, checkpoint_info = load_diffuser_initial(diffusers_load_config, op)
 
         # unload current model
@@ -841,9 +841,9 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         timer.load.record("load")
 
         if op == 'refiner':
-            model_data.sd_refiner = sd_model
+            modeldata.sd_refiner = sd_model
         else:
-            model_data.sd_model = sd_model
+            modeldata.sd_model = sd_model
 
         reload_text_encoder(initial=True) # must be before embeddings
         timer.load.record("te")
@@ -1256,7 +1256,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
         return None
     jobid = shared.state.begin('Load model')
     if sd_model is None:
-        sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
+        sd_model = modeldata.sd_model if op == 'model' or op == 'dict' else modeldata.sd_refiner
     if sd_model is None:  # previous model load failed
         current_checkpoint_info = None
     else:
@@ -1277,10 +1277,10 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
         shared.state.end(jobid)
         if op == 'model':
             shared.opts.data["sd_model_checkpoint"] = checkpoint_info.title
-            return model_data.sd_model
+            return modeldata.sd_model
         else:
             shared.opts.data["sd_model_refiner"] = checkpoint_info.title
-            return model_data.sd_refiner
+            return modeldata.sd_refiner
     shared.state.end(jobid)
     return None # should not be here
 
@@ -1305,19 +1305,19 @@ def unload_model_weights(op='model'):
         shared.compiled_model_state.compiled_cache.clear()
         shared.compiled_model_state.req_cache.clear()
         shared.compiled_model_state.partitioned_modules.clear()
-    if (op == 'model' or op == 'dict') and model_data.sd_model:
+    if (op == 'model' or op == 'dict') and modeldata.sd_model:
         shared.log.debug(f'Current {op}: {memory_stats()}')
         if not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
-            disable_offload(model_data.sd_model)
-            move_model(model_data.sd_model, 'meta')
-        model_data.sd_model = None
+            disable_offload(modeldata.sd_model)
+            move_model(modeldata.sd_model, 'meta')
+        modeldata.sd_model = None
         devices.torch_gc(force=True, reason='unload')
         shared.log.debug(f'Unload {op}: {memory_stats()} fn={fn}')
-    elif (op == 'refiner') and model_data.sd_refiner:
+    elif (op == 'refiner') and modeldata.sd_refiner:
         shared.log.debug(f'Current {op}: {memory_stats()}')
-        disable_offload(model_data.sd_refiner)
-        move_model(model_data.sd_refiner, 'meta')
-        model_data.sd_refiner = None
+        disable_offload(modeldata.sd_refiner)
+        move_model(modeldata.sd_refiner, 'meta')
+        modeldata.sd_refiner = None
         devices.torch_gc(force=True, reason='unload')
         shared.log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 

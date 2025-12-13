@@ -121,8 +121,8 @@ def post_reload_checkpoint(force:bool=False):
     return {}
 
 def post_lock_checkpoint(lock:bool=False):
-    from modules import modeldata
-    modeldata.model_data.locked = lock
+    from core import modeldata
+    modeldata.locked = lock
     return {}
 
 def get_checkpoint():
