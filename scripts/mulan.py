@@ -63,14 +63,14 @@ class Script(scripts_manager.Script):
         if not selected_encoder or selected_encoder == 'None':
             return None
         # create pipeline
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'MuLan: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
+            shared.log.error(f'MuLan: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return None
 
         adapter_path = None
-        if shared.sd_model_type == 'sd':
+        if MODELDATA.sd_model_type == 'sd':
             adapter_path = 'mulanai/mulan-lang-adapter::sd15_aesthetic.pth'
-        if shared.sd_model_type == 'sdxl':
+        if MODELDATA.sd_model_type == 'sdxl':
             adapter_path = 'mulanai/mulan-lang-adapter::sdxl_aesthetic.pth'
         if adapter_path is None:
             return None
@@ -81,7 +81,7 @@ class Script(scripts_manager.Script):
         import mulankit
 
         # backup pipeline and params
-        orig_pipeline = shared.sd_model
+        orig_pipeline = MODELDATA.sd_model
         orig_prompt_attention = shared.opts.prompt_attention
 
         # mulan only works with single image, single prompt and in fixed attention
@@ -95,8 +95,8 @@ class Script(scripts_manager.Script):
             p.prompt = p.negative_prompt[0]
         p.task_args['negative_prompt'] = p.negative_prompt
 
-        if pipe_type != ('sd15' if shared.sd_model_type == 'sd' else 'sdxl'):
-            pipe_type = 'sd15' if shared.sd_model_type == 'sd' else 'sdxl'
+        if pipe_type != ('sd15' if MODELDATA.sd_model_type == 'sd' else 'sdxl'):
+            pipe_type = 'sd15' if MODELDATA.sd_model_type == 'sd' else 'sdxl'
             adapter = None
         if text_encoder is None or tokenizer is None or text_encoder_path != selected_encoder:
             text_encoder_path = selected_encoder
@@ -104,7 +104,7 @@ class Script(scripts_manager.Script):
             text_encoder = None
             tokenizer = None
             devices.torch_gc(force=True)
-            text_encoder, tokenizer = mulankit.api.load_internvl(text_encoder_path, text_encoder, tokenizer, torch_dtype=shared.sd_model.text_encoder.dtype)
+            text_encoder, tokenizer = mulankit.api.load_internvl(text_encoder_path, text_encoder, tokenizer, torch_dtype=MODELDATA.sd_model.text_encoder.dtype)
             devices.torch_gc(force=True)
         if adapter is None:
             shared.log.debug(f'MuLan loading: adapter="{adapter_path}"')
@@ -113,17 +113,17 @@ class Script(scripts_manager.Script):
             adapter = mulankit.api.load_adapter(adapter_path, type=pipe_type)
             devices.torch_gc(force=True)
 
-        if not getattr(shared.sd_model, 'mulan', False):
+        if not getattr(MODELDATA.sd_model, 'mulan', False):
             shared.log.info(f'MuLan apply: adapter="{adapter_path}" encoder="{text_encoder_path}"')
             # mulankit.setup(force_sdxl_zero_empty_prompt=False, force_sdxl_zero_pool_prompt=False)
-            shared.sd_model = mulankit.transform(shared.sd_model,
+            MODELDATA.sd_model = mulankit.transform(MODELDATA.sd_model,
                 adapter=adapter,
                 adapter_path=adapter_path,
                 text_encoder=text_encoder,
                 text_encoder_path=text_encoder_path,
                 pipe_type=pipe_type,
                 replace=False)
-            shared.sd_model.mulan = True
+            MODELDATA.sd_model.mulan = True
             devices.torch_gc(force=True)
 
         processing.fix_seed(p)
@@ -131,5 +131,5 @@ class Script(scripts_manager.Script):
 
         # restore pipeline and params
         shared.opts.data['prompt_attention'] = orig_prompt_attention
-        shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = orig_pipeline
         return processed

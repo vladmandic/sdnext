@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import torch
 import huggingface_hub as hf
+from core import MODELDATA
 from modules import shared, processing, sd_models, devices
 
 
@@ -11,7 +12,7 @@ original_pipeline = None
 def restore_pipeline():
     global original_pipeline # pylint: disable=global-statement
     if original_pipeline is not None:
-        shared.sd_model = original_pipeline
+        MODELDATA.sd_model = original_pipeline
         original_pipeline = None
 
 
@@ -28,7 +29,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
         shared.log.warning('PhotoMaker: no trigger word')
         return None
 
-    c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
+    c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
     if c != 'StableDiffusionXLPipeline':
         shared.log.warning(f'PhotoMaker invalid base model: current={c} required=StableDiffusionXLPipeline')
         return None
@@ -37,9 +38,9 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     if p.all_prompts is None or len(p.all_prompts) == 0:
         processing.process_init(p)
         p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
-    trigger_ids = shared.sd_model.tokenizer.encode(trigger) + shared.sd_model.tokenizer_2.encode(trigger)
-    prompt_ids1 = shared.sd_model.tokenizer.encode(p.all_prompts[0])
-    prompt_ids2 = shared.sd_model.tokenizer_2.encode(p.all_prompts[0])
+    trigger_ids = MODELDATA.sd_model.tokenizer.encode(trigger) + MODELDATA.sd_model.tokenizer_2.encode(trigger)
+    prompt_ids1 = MODELDATA.sd_model.tokenizer.encode(p.all_prompts[0])
+    prompt_ids2 = MODELDATA.sd_model.tokenizer_2.encode(p.all_prompts[0])
     for t in trigger_ids:
         if prompt_ids1.count(t) != 1:
             shared.log.error(f'PhotoMaker: trigger word not matched in prompt: {trigger} ids={trigger_ids} prompt={p.all_prompts[0]} ids={prompt_ids1}')
@@ -49,13 +50,13 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
             return None
 
     # create new pipeline
-    original_pipeline = shared.sd_model # backup current pipeline definition
+    original_pipeline = MODELDATA.sd_model # backup current pipeline definition
     # orig_pipeline = shared.sd_model # backup current pipeline definition
-    shared.sd_model = sd_models.switch_pipe(PhotoMakerStableDiffusionXLPipeline, shared.sd_model)
-    shared.sd_model.restore_pipeline = restore_pipeline
+    MODELDATA.sd_model = sd_models.switch_pipe(PhotoMakerStableDiffusionXLPipeline, MODELDATA.sd_model)
+    MODELDATA.sd_model.restore_pipeline = restore_pipeline
     # sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline) # copy options from original pipeline
-    sd_models.set_diffuser_options(shared.sd_model) # set all model options such as fp16, offload, etc.
-    sd_models.apply_balanced_offload(shared.sd_model) # apply balanced offload
+    sd_models.set_diffuser_options(MODELDATA.sd_model) # set all model options such as fp16, offload, etc.
+    sd_models.apply_balanced_offload(MODELDATA.sd_model) # apply balanced offload
 
     orig_prompt_attention = shared.opts.prompt_attention
     shared.opts.data['prompt_attention'] = 'fixed' # otherwise need to deal with class_tokens_mask
@@ -73,7 +74,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     shared.log.debug(f'PhotoMaker: model="{model}" uri="{repo_id}/{fn}" images={len(input_images)} trigger={trigger} args={p.task_args}')
 
     # load photomaker adapter
-    shared.sd_model.load_photomaker_adapter(
+    MODELDATA.sd_model.load_photomaker_adapter(
         photomaker_path,
         trigger_word=trigger,
         weight_name='photomaker-v2.bin' if is_v2 else 'photomaker-v1.bin',
@@ -81,7 +82,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
         device=devices.device,
         cache_dir=shared.opts.hfcache_dir,
     )
-    shared.sd_model.set_adapters(["photomaker"], adapter_weights=[strength])
+    MODELDATA.sd_model.set_adapters(["photomaker"], adapter_weights=[strength])
 
     # analyze faces
     if is_v2:
@@ -98,7 +99,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     p.extra_generation_params['PhotoMaker'] = f'{strength}'
 
     # unload photomaker adapter
-    shared.sd_model.unload_lora_weights()
+    MODELDATA.sd_model.unload_lora_weights()
 
     # restore original pipeline
     shared.opts.data['prompt_attention'] = orig_prompt_attention

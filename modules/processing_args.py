@@ -57,7 +57,7 @@ def task_specific_kwargs(p, model):
                 'height': vae_scale_factor * math.ceil(p.height / vae_scale_factor),
             }
     elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
-        if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
+        if MODELDATA.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in sd_models.i2i_pipes:
                 pass
             else:
@@ -99,7 +99,7 @@ def task_specific_kwargs(p, model):
             'strength': p.denoising_strength,
         }
     elif (task_type == sd_models.DiffusersTaskType.INPAINTING or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
-        if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
+        if MODELDATA.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
             if model_cls in [sd_models.i2i_pipes]:
                 pass
             else:
@@ -131,7 +131,7 @@ def task_specific_kwargs(p, model):
         task_args['image'] += p.init_control
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
-        init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
+        init_latents = [processing_vae.vae_encode(image, model=MODELDATA.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
         init_latent = torch.stack(init_latents, dim=0).to(shared.device)
         init_noise = p.denoising_strength * processing.create_random_tensors(init_latent.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
         init_latent = (1 - p.denoising_strength) * init_latent + init_noise
@@ -177,7 +177,7 @@ def get_params(model):
 
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:typing.Optional[list]=None, negative_prompts_2:typing.Optional[list]=None, prompt_attention:typing.Optional[str]=None, desc:typing.Optional[str]='', **kwargs):
     t0 = time.time()
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
     argsid = shared.state.begin('Params')
     apply_circular(p.tiling, model)
     args = {}

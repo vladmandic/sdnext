@@ -52,8 +52,8 @@ class Script(scripts_manager.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, eta = 0.0, momentum = 0.0, threshold = 0.0): # pylint: disable=arguments-differ
         supported_model_list = ['sd', 'sdxl', 'sc']
-        if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'APG: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list:
+            shared.log.warning(f'APG: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
         from modules import apg
         apg.eta = getattr(p, 'apg_eta', eta) # use values set by xyz grid or via ui
@@ -61,16 +61,16 @@ class Script(scripts_manager.Script):
         apg.threshold = getattr(p, 'apg_threshold', threshold)
         apg.buffer = apg.MomentumBuffer(apg.momentum) # recreate buffer
         # pipelines with call to apg.normalized_guidance instead of default
-        if shared.sd_model_type == "sd":
-            self.orig_pipe = shared.sd_model
-            shared.sd_model = sd_models.switch_pipe(apg.StableDiffusionPipelineAPG, shared.sd_model)
-        if shared.sd_model_type == "sdxl":
-            self.orig_pipe = shared.sd_model
-            shared.sd_model = sd_models.switch_pipe(apg.StableDiffusionXLPipelineAPG, shared.sd_model)
-        elif shared.sd_model_type == "sc":
-            self.orig_pipe = shared.sd_model.prior_pipe
-            shared.sd_model.prior_pipe = sd_models.switch_pipe(apg.StableCascadePriorPipelineAPG, shared.sd_model.prior_pipe)
-        shared.log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type == "sd":
+            self.orig_pipe = MODELDATA.sd_model
+            MODELDATA.sd_model = sd_models.switch_pipe(apg.StableDiffusionPipelineAPG, MODELDATA.sd_model)
+        if MODELDATA.sd_model_type == "sdxl":
+            self.orig_pipe = MODELDATA.sd_model
+            MODELDATA.sd_model = sd_models.switch_pipe(apg.StableDiffusionXLPipelineAPG, MODELDATA.sd_model)
+        elif MODELDATA.sd_model_type == "sc":
+            self.orig_pipe = MODELDATA.sd_model.prior_pipe
+            MODELDATA.sd_model.prior_pipe = sd_models.switch_pipe(apg.StableCascadePriorPipelineAPG, MODELDATA.sd_model.prior_pipe)
+        shared.log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={MODELDATA.sd_model.__class__.__name__}')
         p.extra_generation_params["APG"] = f'ETA={apg.eta} Momentum={apg.momentum} Threshold={apg.threshold}'
         # processed = processing.process_images(p)
         return None
@@ -80,10 +80,10 @@ class Script(scripts_manager.Script):
         if self.orig_pipe is None:
             return processed
         # restore pipeline
-        if shared.sd_model_type == "sdxl" or shared.sd_model_type == "sd":
-            shared.sd_model = self.orig_pipe
-        elif shared.sd_model_type == "sc":
-            shared.sd_model.prior_pipe = self.orig_pipe
+        if MODELDATA.sd_model_type == "sdxl" or MODELDATA.sd_model_type == "sd":
+            MODELDATA.sd_model = self.orig_pipe
+        elif MODELDATA.sd_model_type == "sc":
+            MODELDATA.sd_model.prior_pipe = self.orig_pipe
         apg.buffer = None
         self.orig_pipe = None
         return processed

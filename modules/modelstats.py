@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import torch
+from core import MODELDATA
 from modules import shared, sd_models
 
 
@@ -75,10 +76,10 @@ class Model():
 
     def __init__(self, name):
         self.name = name
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             return
-        self.cls = shared.sd_model.__class__.__name__
-        self.type = shared.sd_model_type
+        self.cls = MODELDATA.sd_model.__class__.__name__
+        self.type = MODELDATA.sd_model_type
         self.info = sd_models.get_closest_checkpoint_match(name)
         if self.info is not None:
             self.name = self.info.name or self.name
@@ -91,20 +92,20 @@ class Model():
 
 
 def analyze():
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         return None
     model = Model(shared.opts.sd_model_checkpoint)
     if model.cls == '':
         return model
-    if hasattr(shared.sd_model, '_internal_dict'):
-        keys = shared.sd_model._internal_dict.keys() # pylint: disable=protected-access
+    if hasattr(MODELDATA.sd_model, '_internal_dict'):
+        keys = MODELDATA.sd_model._internal_dict.keys() # pylint: disable=protected-access
     else:
-        keys = sd_models.get_signature(shared.sd_model).keys()
+        keys = sd_models.get_signature(MODELDATA.sd_model).keys()
     model.modules.clear()
     for k in keys: # pylint: disable=protected-access
         if k.startswith('_'):
             continue
-        component = getattr(shared.sd_model, k, None)
+        component = getattr(MODELDATA.sd_model, k, None)
         module = Module(k, component)
         model.modules.append(module)
     shared.log.debug(f'Analyzed: {model}')

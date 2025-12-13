@@ -11,7 +11,7 @@ applied_layers: list[str] = []
 
 def network_activate(include=[], exclude=[]):
     t0 = time.time()
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
     if shared.opts.diffusers_offload_mode == "sequential":
         sd_models.disable_offload(sd_model)
         sd_models.move_model(sd_model, device=devices.cpu)
@@ -80,7 +80,7 @@ def network_deactivate(include=[], exclude=[]):
     if len(l.previously_loaded_networks) == 0:
         return
     t0 = time.time()
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
     if shared.opts.diffusers_offload_mode == "sequential":
         sd_models.disable_offload(sd_model)
         sd_models.move_model(sd_model, device=devices.cpu)

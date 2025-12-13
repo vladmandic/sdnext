@@ -241,9 +241,9 @@ class YoloRestorer(Detailer):
         if np_image is None or p.detailer_active >= p.batch_size * p.n_iter:
             return np_image
 
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
-        if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
-            shared.log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
+        MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.INPAINTING)
+        if (sd_models.get_diffusers_task(MODELDATA.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (MODELDATA.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
+            shared.log.error(f'Detailer: model="{MODELDATA.sd_model.__class__.__name__}" not compatible')
             return np_image
 
         models = []
@@ -338,15 +338,15 @@ class YoloRestorer(Detailer):
                 shared.log.debug(f'Detailer: model="{name}" strength=0 skip')
                 return np_image
             control_pipeline = None
-            orig_class = shared.sd_model.__class__
+            orig_class = MODELDATA.sd_model.__class__
             if getattr(p, 'is_control', False):
                 from modules.control import run
-                control_pipeline = shared.sd_model
+                control_pipeline = MODELDATA.sd_model
                 run.restore_pipeline()
 
             p = processing_class.switch_class(p, processing.StableDiffusionProcessingImg2Img, args)
-            if hasattr(shared.sd_model, 'restore_pipeline'):
-                shared.sd_model.restore_pipeline()
+            if hasattr(MODELDATA.sd_model, 'restore_pipeline'):
+                MODELDATA.sd_model.restore_pipeline()
             p.detailer_active += 1 # set flag to avoid recursion
 
             if p.steps < 1:
@@ -375,7 +375,7 @@ class YoloRestorer(Detailer):
                 if item.mask is None:
                     continue
                 pc.keep_prompts = True
-                shared.sd_model.fail_on_switch_error = True
+                MODELDATA.sd_model.fail_on_switch_error = True
                 pc.prompt = prompt_lines[i*len(items)+j]
                 pc.negative_prompt = negative_lines[i*len(items)+j]
                 pc.prompts = [pc.prompt]
@@ -392,7 +392,7 @@ class YoloRestorer(Detailer):
                 jobid = shared.state.begin('Detailer')
                 pp = processing.process_images_inner(pc)
                 extra_networks.deactivate(pc, force=True)
-                shared.sd_model.fail_on_switch_error = False
+                MODELDATA.sd_model.fail_on_switch_error = False
                 shared.state.end(jobid)
 
                 del pc.recursion
@@ -406,9 +406,9 @@ class YoloRestorer(Detailer):
 
             # restore pipeline
             if control_pipeline is not None:
-                shared.sd_model = control_pipeline
+                MODELDATA.sd_model = control_pipeline
             else:
-                shared.sd_model.__class__ = orig_class
+                MODELDATA.sd_model.__class__ = orig_class
             p = processing_class.switch_class(p, orig_cls, orig_p)
             p.init_images = orig_p.get('init_images', None)
             p.image_mask = orig_p.get('image_mask', None)

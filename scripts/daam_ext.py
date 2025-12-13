@@ -1,6 +1,7 @@
 # https://github.com/genforce/ctrl-x
 
 import gradio as gr
+from core import MODELDATA
 from installer import install
 from modules import shared, scripts_manager, processing
 
@@ -24,8 +25,8 @@ class Script(scripts_manager.Script):
         return append_images, colormap
 
     def run(self, p: processing.StableDiffusionProcessing, append_images, colormap): # pylint: disable=arguments-differ
-        c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
-        if shared.sd_model_type != 'sdxl':
+        c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
+        if MODELDATA.sd_model_type != 'sdxl':
             shared.log.warning(f'DAAM: pipeline={c} required=StableDiffusionXLPipeline')
             return None
 
@@ -37,7 +38,7 @@ class Script(scripts_manager.Script):
         shared.opts.data['prompt_attention'] = 'fixed'
 
         # process
-        with daam.trace(shared.sd_model) as tc:
+        with daam.trace(MODELDATA.sd_model) as tc:
             processed: processing.Processed = processing.process_images(p)
             global_heat_map = tc.compute_global_heat_map()
             shared.log.info(f'DAAM: prompt="{global_heat_map.prompt}" heatmaps={global_heat_map.heat_maps.shape}')

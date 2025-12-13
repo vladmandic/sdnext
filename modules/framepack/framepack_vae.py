@@ -70,7 +70,7 @@ def vae_decode_remote(latents):
 
 def vae_decode_full(latents):
     with devices.inference_context():
-        vae = shared.sd_model.vae
+        vae = MODELDATA.sd_model.vae
         latents = (latents / vae.config.scaling_factor).to(device=devices.device, dtype=devices.dtype)
         images = vae.decode(latents).sample
     return images
@@ -93,7 +93,7 @@ def vae_decode(latents, vae_type):
 
 def vae_encode(image):
     with devices.inference_context():
-        vae = shared.sd_model.vae
+        vae = MODELDATA.sd_model.vae
         latents = vae.encode(image.to(device=devices.device, dtype=devices.dtype)).latent_dist.sample()
         latents = latents * vae.config.scaling_factor
     return latents

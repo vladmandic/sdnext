@@ -51,7 +51,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     from modules import devices, shared, errors, modelloader
     tensors = []
     content = 0
-    model_type = model_type or shared.sd_model_type
+    model_type = model_type or MODELDATA.sd_model_type
     url = hf_decode_endpoints.get(model_type, None)
     if url is None:
         shared.log.error(f'Decode: type="remote" type={model_type} unsuppported')
@@ -96,9 +96,9 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
             if model_type in {'f1', 'h1', 'z_image', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
-            if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:
-                params['scaling_factor'] = shared.sd_model.vae.config.get("scaling_factor", None)
-                params['shift_factor'] = shared.sd_model.vae.config.get("shift_factor", None)
+            if MODELDATA.sd_model.vae is not None and MODELDATA.sd_model.vae.config is not None:
+                params['scaling_factor'] = MODELDATA.sd_model.vae.config.get("scaling_factor", None)
+                params['shift_factor'] = MODELDATA.sd_model.vae.config.get("shift_factor", None)
             response = requests.post(
                 url=url,
                 headers=headers,
@@ -134,7 +134,7 @@ def remote_encode(images: List[Image.Image], model_type: str = None) -> torch.Te
     if not shared.opts.remote_vae_encode:
         return images
     tensors = []
-    model_type = model_type or shared.sd_model_type
+    model_type = model_type or MODELDATA.sd_model_type
     url = hf_encode_endpoints.get(model_type, None)
     if url is None:
         shared.log.error(f'Decode: type="remote" type={model_type} unsuppported')
@@ -149,8 +149,8 @@ def remote_encode(images: List[Image.Image], model_type: str = None) -> torch.Te
             init_latent = remote_utils.remote_encode(
                 endpoint=url,
                 image=init_image,
-                scaling_factor = shared.sd_model.vae.config.get("scaling_factor", None),
-                shift_factor = shared.sd_model.vae.config.get("shift_factor", None),
+                scaling_factor = MODELDATA.sd_model.vae.config.get("scaling_factor", None),
+                shift_factor = MODELDATA.sd_model.vae.config.get("shift_factor", None),
             )
             tensors.append(init_latent)
         except Exception as e:

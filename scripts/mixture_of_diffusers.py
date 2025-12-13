@@ -77,8 +77,8 @@ class Script(scripts_manager.Script):
         return False
 
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ, unused-argument
-        if shared.sd_model_type not in supported_models:
-            shared.log.warning(f'MoD: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_models}')
+        if MODELDATA.sd_model_type not in supported_models:
+            shared.log.warning(f'MoD: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_models}')
             return None
         if not self.check_dependencies():
             return None
@@ -86,7 +86,7 @@ class Script(scripts_manager.Script):
         if max(x_tiles, y_tiles) <= 1:
             return None
         from scripts.mod import StableDiffusionXLTilingPipeline # pylint: disable=no-name-in-module
-        self.orig_pipe = shared.sd_model
+        self.orig_pipe = MODELDATA.sd_model
         self.orig_attn = shared.opts.prompt_attention
 
         p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
@@ -110,16 +110,16 @@ class Script(scripts_manager.Script):
         shared.opts.prompt_attention = 'fixed'
         shared.log.info(f'MoD: xtiles={x_tiles} ytiles={y_tiles} xoverlap={p.task_args["tile_col_overlap"]} yoverlap={p.task_args["tile_row_overlap"]} xsize={p.task_args["tile_width"]} ysize={p.task_args["tile_height"]}')
 
-        shared.sd_model = sd_models.switch_pipe(StableDiffusionXLTilingPipeline, shared.sd_model)
-        sd_models.set_diffuser_options(shared.sd_model)
-        sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLTilingPipeline, MODELDATA.sd_model)
+        sd_models.set_diffuser_options(MODELDATA.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         return None
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=arguments-differ, unused-argument
         if self.orig_pipe is None:
             return processed
-        if shared.sd_model_type == "sdxl":
-            shared.sd_model = self.orig_pipe
+        if MODELDATA.sd_model_type == "sdxl":
+            MODELDATA.sd_model = self.orig_pipe
         if self.orig_attn is not None:
             shared.opts.prompt_attention = self.orig_attn
         self.orig_pipe = None

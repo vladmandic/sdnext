@@ -1,5 +1,6 @@
 from typing import Optional
 from fastapi.exceptions import HTTPException
+from core import MODELDATA
 from modules import shared
 from modules.api import models, helpers
 
@@ -39,7 +40,7 @@ def get_prompt_styles():
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
 
 def get_embeddings():
-    db = getattr(shared.sd_model, 'embedding_db', None) if shared.sd_loaded else None
+    db = getattr(MODELDATA.sd_model, 'embedding_db', None) if MODELDATA.sd_loaded else None
     if db is None:
         return models.ResEmbeddings(loaded=[], skipped=[])
     return models.ResEmbeddings(loaded=list(db.word_embeddings.keys()), skipped=list(db.skipped_embeddings.keys()))
@@ -121,28 +122,28 @@ def post_reload_checkpoint(force:bool=False):
     return {}
 
 def post_lock_checkpoint(lock:bool=False):
-    from core import modeldata
-    modeldata.locked = lock
+    from core import MODELDATA
+    MODELDATA.locked = lock
     return {}
 
 def get_checkpoint():
-    if not shared.sd_loaded or shared.sd_model is None:
+    if not MODELDATA.sd_loaded or MODELDATA.sd_model is None:
         checkpoint = {
             'type': None,
             'class': None,
         }
     else:
         checkpoint = {
-            'type': shared.sd_model_type,
-            'class': shared.sd_model.__class__.__name__,
+            'type': MODELDATA.sd_model_type,
+            'class': MODELDATA.sd_model.__class__.__name__,
         }
-        if hasattr(shared.sd_model, 'sd_model_checkpoint'):
-            checkpoint['checkpoint'] = shared.sd_model.sd_model_checkpoint
-        if hasattr(shared.sd_model, 'sd_checkpoint_info'):
-            checkpoint['title'] = shared.sd_model.sd_checkpoint_info.title
-            checkpoint['name'] = shared.sd_model.sd_checkpoint_info.name
-            checkpoint['filename'] = shared.sd_model.sd_checkpoint_info.filename
-            checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
+        if hasattr(MODELDATA.sd_model, 'sd_model_checkpoint'):
+            checkpoint['checkpoint'] = MODELDATA.sd_model.sd_model_checkpoint
+        if hasattr(MODELDATA.sd_model, 'sd_checkpoint_info'):
+            checkpoint['title'] = MODELDATA.sd_model.sd_checkpoint_info.title
+            checkpoint['name'] = MODELDATA.sd_model.sd_checkpoint_info.name
+            checkpoint['filename'] = MODELDATA.sd_model.sd_checkpoint_info.filename
+            checkpoint['hash'] = MODELDATA.sd_model.sd_checkpoint_info.shorthash
     return checkpoint
 
 def set_checkpoint(sd_model_checkpoint: str, dtype:str=None, force:bool=False):

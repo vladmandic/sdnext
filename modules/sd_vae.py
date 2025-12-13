@@ -1,6 +1,7 @@
 import os
 import glob
 import torch
+from core import MODELDATA
 from modules import shared, errors, paths, devices, sd_models, sd_detect
 
 
@@ -19,12 +20,12 @@ vae_scale_override = {
 
 
 def get_vae_scale_factor(model=None):
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         vae_scale_factor = 8
         return vae_scale_factor
     patch_size = 1
     if model is None:
-        model = shared.sd_model
+        model = MODELDATA.sd_model
     if model is None:
         vae_scale_factor = 8
     elif model.__class__.__name__ in vae_scale_override:
@@ -132,7 +133,7 @@ def apply_vae_config(model_file, vae_file, sd_model):
         config_file = os.path.join(paths.sd_configs_path, os.path.splitext(os.path.basename(vae_file))[0] + '.json') if vae_file else None
         if config_file is not None and os.path.exists(config_file):
             return shared.readfile(config_file)
-        config_file = os.path.join(paths.sd_configs_path, shared.sd_model_type, 'vae', 'config.json')
+        config_file = os.path.join(paths.sd_configs_path, MODELDATA.sd_model_type, 'vae', 'config.json')
         if config_file is not None and os.path.exists(config_file):
             return shared.readfile(config_file)
         return {}
@@ -178,7 +179,7 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
                 vae = diffusers.AutoencoderTiny.from_single_file(vae_file, **diffusers_load_config)
             else:
                 vae = diffusers.AutoencoderKL.from_single_file(vae_file, **diffusers_load_config)
-                if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
+                if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and MODELDATA.sd_model_type == 'sdxl':
                     vae.config.scaling_factor = 0.13025
                     shared.log.debug('Setting model: component=VAE fix scaling factor')
             vae = vae.to(devices.dtype_vae)
@@ -202,7 +203,7 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
 
 def reload_vae_weights(sd_model=None, vae_file=unspecified):
     if not sd_model:
-        sd_model = shared.sd_model
+        sd_model = MODELDATA.sd_model
     if sd_model is None:
         return None
     global checkpoint_info # pylint: disable=global-statement

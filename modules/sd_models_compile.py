@@ -1,6 +1,7 @@
 import time
 import logging
 import torch
+from core import MODELDATA
 from modules import shared, devices, sd_models, errors
 from installer import setup_logging
 
@@ -320,11 +321,11 @@ def openvino_post_compile(op="base"): # delete unet after OpenVINO compile
     if shared.opts.cuda_compile_backend == "openvino_fx" and 'Model' in shared.opts.cuda_compile:
         if shared.compiled_model_state.first_pass and op == "base":
             shared.compiled_model_state.first_pass = False
-            if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "unet"):
-                shared.sd_model.unet.apply(sd_models.convert_to_faketensors)
+            if not shared.opts.openvino_disable_memory_cleanup and hasattr(MODELDATA.sd_model, "unet"):
+                MODELDATA.sd_model.unet.apply(sd_models.convert_to_faketensors)
                 devices.torch_gc(force=True)
         if shared.compiled_model_state.first_pass_refiner and op == "refiner":
             shared.compiled_model_state.first_pass_refiner = False
-            if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_refiner, "unet"):
-                shared.sd_refiner.unet.apply(sd_models.convert_to_faketensors)
+            if not shared.opts.openvino_disable_memory_cleanup and hasattr(MODELDATA.sd_refiner, "unet"):
+                MODELDATA.sd_refiner.unet.apply(sd_models.convert_to_faketensors)
                 devices.torch_gc(force=True)

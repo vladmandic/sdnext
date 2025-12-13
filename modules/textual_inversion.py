@@ -3,6 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
+from core import MODELDATA
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
@@ -76,7 +77,7 @@ def get_text_encoders():
     Select all text encoder and tokenizer pairs from known pipelines, and index them based on the dimensionality of
     their embedding layers.
     """
-    pipe = shared.sd_model
+    pipe = MODELDATA.sd_model
     te_names = ["text_encoder", "text_encoder_2", "text_encoder_3"]
     tokenizers_names = ["tokenizer", "tokenizer_2", "tokenizer_3"]
     text_encoders = []
@@ -259,7 +260,7 @@ class EmbeddingDatabase:
         Bundled embeddings are automatically set to overwrite previous embeddings.
         """
         overwrite = bool(data)
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             return
         if not shared.opts.diffusers_enable_embed:
             return
@@ -295,14 +296,14 @@ class EmbeddingDatabase:
             if embedding.name not in self.skipped_embeddings:
                 try:
                     insert_vectors(embedding, tokenizers, text_encoders, hiddensizes)
-                    self.register_embedding(embedding, shared.sd_model)
+                    self.register_embedding(embedding, MODELDATA.sd_model)
                 except Exception as e:
                     shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
                     errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
         return
 
     def load_from_dir(self, embdir):
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             shared.log.info('Skipping embeddings load: model not loaded')
             return
         if not os.path.isdir(embdir.path):
@@ -311,9 +312,9 @@ class EmbeddingDatabase:
         self.load_diffusers_embedding(file_paths)
 
     def load_textual_inversion_embeddings(self, force_reload=False):
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             return
-        if shared.sd_model_type not in supported_models:
+        if MODELDATA.sd_model_type not in supported_models:
             return
         t0 = time.time()
         if not force_reload:

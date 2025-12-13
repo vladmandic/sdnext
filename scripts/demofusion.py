@@ -14,6 +14,7 @@ from diffusers.schedulers import KarrasDiffusionSchedulers
 from diffusers.utils import is_accelerate_available, is_accelerate_version
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices
 
 
@@ -1243,7 +1244,7 @@ class Script(scripts_manager.Script):
         return [cosine_scale_1, cosine_scale_2, cosine_scale_3, sigma, view_batch_size, stride, multi_decoder]
 
     def run(self, p: processing.StableDiffusionProcessing, cosine_scale_1, cosine_scale_2, cosine_scale_3, sigma, view_batch_size, stride, multi_decoder): # pylint: disable=arguments-differ
-        c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
+        c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
         if c != 'StableDiffusionXLPipeline':
             shared.log.warning(f'DemoFusion: pipeline={c} required=StableDiffusionXLPipeline')
             return None
@@ -1257,21 +1258,21 @@ class Script(scripts_manager.Script):
         p.task_args['output_type'] = 'np'
         p.task_args['low_vram'] = True
         shared.log.debug(f'DemoFusion: {p.task_args}')
-        old_pipe = shared.sd_model
+        old_pipe = MODELDATA.sd_model
         new_pipe = DemoFusionSDXLPipeline(
-            vae = shared.sd_model.vae,
-            text_encoder=shared.sd_model.text_encoder,
-            text_encoder_2=shared.sd_model.text_encoder_2,
-            tokenizer=shared.sd_model.tokenizer,
-            tokenizer_2=shared.sd_model.tokenizer_2,
-            unet=shared.sd_model.unet,
-            scheduler=shared.sd_model.scheduler,
+            vae = MODELDATA.sd_model.vae,
+            text_encoder=MODELDATA.sd_model.text_encoder,
+            text_encoder_2=MODELDATA.sd_model.text_encoder_2,
+            tokenizer=MODELDATA.sd_model.tokenizer,
+            tokenizer_2=MODELDATA.sd_model.tokenizer_2,
+            unet=MODELDATA.sd_model.unet,
+            scheduler=MODELDATA.sd_model.scheduler,
             force_zeros_for_empty_prompt=shared.opts.diffusers_force_zeros,
         )
-        shared.sd_model = new_pipe
-        sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-        sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
-        shared.log.debug(f'DemoFusion create: pipeline={shared.sd_model.__class__.__name__}')
+        MODELDATA.sd_model = new_pipe
+        sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
+        sd_models.set_diffuser_options(MODELDATA.sd_model, vae=None, op='model')
+        shared.log.debug(f'DemoFusion create: pipeline={MODELDATA.sd_model.__class__.__name__}')
         processed = processing.process_images(p)
-        shared.sd_model = old_pipe
+        MODELDATA.sd_model = old_pipe
         return processed

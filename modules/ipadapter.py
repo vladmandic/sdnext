@@ -11,6 +11,7 @@ import json
 from PIL import Image
 import diffusers
 import transformers
+from core import MODELDATA
 from modules import processing, shared, devices, sd_models, errors, model_quant
 
 
@@ -55,13 +56,13 @@ ADAPTERS_ALL = { **ADAPTERS_SD15, **ADAPTERS_SDXL, **ADAPTERS_SD3, **ADAPTERS_F1
 
 def get_adapters():
     global ADAPTERS # pylint: disable=global-statement
-    if shared.sd_model_type == 'sd':
+    if MODELDATA.sd_model_type == 'sd':
         ADAPTERS = ADAPTERS_SD15
-    elif shared.sd_model_type == 'sdxl':
+    elif MODELDATA.sd_model_type == 'sdxl':
         ADAPTERS = ADAPTERS_SDXL
-    elif shared.sd_model_type == 'sd3':
+    elif MODELDATA.sd_model_type == 'sd3':
         ADAPTERS = ADAPTERS_SD3
-    elif shared.sd_model_type == 'f1':
+    elif MODELDATA.sd_model_type == 'f1':
         ADAPTERS = ADAPTERS_F1
     else:
         ADAPTERS = ADAPTERS_NONE
@@ -73,7 +74,7 @@ def get_images(input_images):
     if input_images is None or len(input_images) == 0:
         shared.log.error('IP adapter: no init images')
         return None
-    if shared.sd_model_type not in ['sd', 'sdxl', 'sd3', 'f1']:
+    if MODELDATA.sd_model_type not in ['sd', 'sdxl', 'sd3', 'f1']:
         shared.log.error('IP adapter: base model not supported')
         return None
     if isinstance(input_images, str):
@@ -132,7 +133,7 @@ def crop_images(images, crops):
                     shared.log.error(f'IP adapter: failed to crop image: source={len(images[i])} faces={len(cropped)}')
     except Exception as e:
         shared.log.error(f'IP adapter: failed to crop image: {e}')
-    if shared.sd_model_type == 'sd3' and len(images) == 1:
+    if MODELDATA.sd_model_type == 'sd3' and len(images) == 1:
         return images[0]
     return images
 
@@ -166,20 +167,20 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
         # which clip to use
         clip_repo = CLIP_ID
         if 'ViT' not in adapter_name: # defaults per model
-            clip_subfolder = 'models/image_encoder' if shared.sd_model_type == 'sd' else 'sdxl_models/image_encoder'
+            clip_subfolder = 'models/image_encoder' if MODELDATA.sd_model_type == 'sd' else 'sdxl_models/image_encoder'
         if 'ViT-H' in adapter_name:
             clip_subfolder = 'models/image_encoder' # this is vit-h
         elif 'ViT-G' in adapter_name:
             clip_subfolder = 'sdxl_models/image_encoder' # this is vit-g
         else:
-            if shared.sd_model_type == 'sd':
+            if MODELDATA.sd_model_type == 'sd':
                 clip_subfolder = 'models/image_encoder'
-            elif shared.sd_model_type == 'sdxl':
+            elif MODELDATA.sd_model_type == 'sdxl':
                 clip_subfolder = 'sdxl_models/image_encoder'
-            elif shared.sd_model_type == 'sd3':
+            elif MODELDATA.sd_model_type == 'sd3':
                 clip_repo = SIGLIP_ID
                 clip_subfolder = None
-            elif shared.sd_model_type == 'f1':
+            elif MODELDATA.sd_model_type == 'f1':
                 clip_repo = OPEN_ID
                 clip_subfolder = None
             else:
@@ -191,7 +192,7 @@ def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[st
         jobid = shared.state.begin('Load encoder')
         try:
             offline_config = { 'local_files_only': True } if shared.opts.offline_mode else {}
-            if shared.sd_model_type == 'sd3':
+            if MODELDATA.sd_model_type == 'sd3':
                 image_encoder = transformers.SiglipVisionModel.from_pretrained(clip_repo, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
             else:
                 if clip_subfolder is None:
@@ -222,7 +223,7 @@ def load_feature_extractor(pipe):
         try:
             jobid = shared.state.begin('Load extractor')
             offline_config = { 'local_files_only': True } if shared.opts.offline_mode else {}
-            if shared.sd_model_type == 'sd3':
+            if MODELDATA.sd_model_type == 'sd3':
                 feature_extractor = transformers.SiglipImageProcessor.from_pretrained(SIGLIP_ID, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
             else:
                 feature_extractor = transformers.CLIPImageProcessor()
@@ -302,8 +303,8 @@ def apply(pipe, p: processing.StableDiffusionProcessing, adapter_names=[], adapt
         if hasattr(p, 'ip_adapter_images'):
             del p.ip_adapter_images
         return False
-    if shared.sd_model_type not in ['sd', 'sdxl', 'sd3', 'f1']:
-        shared.log.error(f'IP adapter: model={shared.sd_model_type} class={pipe.__class__.__name__} not supported')
+    if MODELDATA.sd_model_type not in ['sd', 'sdxl', 'sd3', 'f1']:
+        shared.log.error(f'IP adapter: model={MODELDATA.sd_model_type} class={pipe.__class__.__name__} not supported')
         return False
 
     adapter_images, adapter_masks, adapter_scales, adapter_crops, adapter_starts, adapter_ends = parse_params(p, adapters, adapter_scales, adapter_crops, adapter_starts, adapter_ends, adapter_images)

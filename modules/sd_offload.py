@@ -2,11 +2,13 @@ import os
 import re
 import sys
 import time
+from typing import TYPE_CHECKING
 import inspect
 import torch
 import accelerate.hooks
 import accelerate.utils.modeling
 from installer import log
+from core import MODELDATA
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
 
@@ -105,8 +107,8 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
 
     if shared.opts.diffusers_offload_mode == "none":
-        if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
-            shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
+        if MODELDATA.sd_model_type in offload_warn or 'video' in MODELDATA.sd_model_type:
+            shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={MODELDATA.sd_model.__class__.__name__} large model')
         else:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
         if hasattr(sd_model, 'maybe_free_model_hooks'):
@@ -209,7 +211,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         if hasattr(module, 'nets') and any(hasattr(n, "offload_never") for n in module.nets):
             return False
-        if shared.sd_model_type.lower() in [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload)]:
+        if MODELDATA.sd_model_type.lower() in [m.lower().strip() for m in re.split(r'[ ,]+', shared.opts.models_not_to_offload)]:
             return False
         return True
 
@@ -274,8 +276,10 @@ class OffloadHook(accelerate.hooks.ModelHook):
 
 def get_pipe_variants(pipe=None):
     if pipe is None:
-        if shared.sd_loaded:
-            pipe = shared.sd_model
+        if MODELDATA.sd_loaded:
+            pipe = MODELDATA.sd_model
+            if TYPE_CHECKING:
+                assert pipe is not None
         else:
             return [pipe]
     variants = [pipe]
@@ -292,8 +296,10 @@ def get_module_names(pipe=None, exclude=None):
     if exclude is None:
         exclude = []
     if pipe is None:
-        if shared.sd_loaded:
-            pipe = shared.sd_model
+        if MODELDATA.sd_loaded:
+            pipe = MODELDATA.sd_model
+            if TYPE_CHECKING:
+                assert pipe is not None
         else:
             return []
     if hasattr(pipe, "_internal_dict"):
@@ -397,7 +403,7 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
     if device_map and max_memory:
         module.balanced_offload_device_map = device_map
         module.balanced_offload_max_memory = max_memory
-    module.offload_post = shared.sd_model_type in offload_post and module_name.startswith("text_encoder")
+    module.offload_post = MODELDATA.sd_model_type in offload_post and module_name.startswith("text_encoder")
     if shared.opts.layerwise_quantization or getattr(module, 'quantization_method', None) == 'LayerWise':
         model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/readded
     devices.torch_gc(fast=True, force=True, reason='offload')
@@ -418,9 +424,9 @@ def apply_balanced_offload(sd_model=None, exclude=None, force=False):
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model
     if sd_model is None:
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             return sd_model
-        sd_model = shared.sd_model
+        sd_model = MODELDATA.sd_model
     if sd_model is None:
         return sd_model
     if exclude is None:

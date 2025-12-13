@@ -47,23 +47,23 @@ class Script(scripts_manager.Script):
         if mode is None or mode == 'None':
             return None
         # backup pipeline and params
-        orig_pipeline = shared.sd_model
+        orig_pipeline = MODELDATA.sd_model
         orig_dtype = devices.dtype
         orig_prompt_attention = shared.opts.prompt_attention
         # create pipeline
-        if shared.sd_model_type != 'sd':
-            shared.log.error(f'Regional prompting: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type != 'sd':
+            shared.log.error(f'Regional prompting: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return None
 
         pipeline_utils.DiffusionPipeline.register_modules = hijack_register_modules
         prompt_parser_diffusers.EmbeddingsProvider._encode_token_ids_to_embeddings = prompt_parser_diffusers.orig_encode_token_ids_to_embeddings # pylint: disable=protected-access
 
-        shared.sd_model = sd_models.switch_pipe('regional_prompting_stable_diffusion', shared.sd_model)
-        if shared.sd_model.__class__.__name__ != 'RegionalPromptingStableDiffusionPipeline': # switch failed
-            shared.log.error(f'Regional prompting: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
-            shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = sd_models.switch_pipe('regional_prompting_stable_diffusion', MODELDATA.sd_model)
+        if MODELDATA.sd_model.__class__.__name__ != 'RegionalPromptingStableDiffusionPipeline': # switch failed
+            shared.log.error(f'Regional prompting: not a tiling pipeline: {MODELDATA.sd_model.__class__.__name__}')
+            MODELDATA.sd_model = orig_pipeline
             return None
-        sd_models.set_diffuser_options(shared.sd_model)
+        sd_models.set_diffuser_options(MODELDATA.sd_model)
         shared.opts.data['prompt_attention'] = 'fixed' # this pipeline is not compatible with embeds
         processing.fix_seed(p)
         # set pipeline specific params, note that standard params are applied when applicable
@@ -88,6 +88,6 @@ class Script(scripts_manager.Script):
         # restore pipeline and params
         prompt_parser_diffusers.EmbeddingsProvider._encode_token_ids_to_embeddings = prompt_parser_diffusers.compel_hijack # pylint: disable=protected-access
         shared.opts.data['prompt_attention'] = orig_prompt_attention
-        shared.sd_model = orig_pipeline
-        shared.sd_model.to(orig_dtype)
+        MODELDATA.sd_model = orig_pipeline
+        MODELDATA.sd_model.to(orig_dtype)
         return processed

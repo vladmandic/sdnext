@@ -2,6 +2,7 @@ from typing import Union
 import os
 import time
 import concurrent
+from core import MODELDATA
 from modules import shared, errors, sd_models, sd_models_compile, files_cache
 from modules.lora import network, lora_overrides, lora_convert, lora_diffusers
 from modules.lora import lora_common as l
@@ -20,8 +21,8 @@ exclude_errors = [
 
 def lora_dump(lora, dct):
     import tempfile
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
-    ty = shared.sd_model_type
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
+    ty = MODELDATA.sd_model_type
     cn = sd_model.__class__.__name__
     shared.log.trace(f'LoRA dump: type={ty} model={cn} fn="{lora}"')
     bn = os.path.splitext(os.path.basename(lora))[0]
@@ -40,10 +41,10 @@ def lora_dump(lora, dct):
 
 
 def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[network.Network, None]:
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         return None
 
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
     cached = lora_cache.get(name, None)
     if l.debug:
         shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
@@ -52,9 +53,9 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[netw
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    if shared.sd_model_type in ['f1', 'chroma']: # if kohya flux lora, convert state_dict
+    if MODELDATA.sd_model_type in ['f1', 'chroma']: # if kohya flux lora, convert state_dict
         state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
-    if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
+    if MODELDATA.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
         try:
             state_dict = lora_convert._convert_kohya_sd3_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
         except ValueError: # EAFP for diffusers PEFT keys
@@ -137,7 +138,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> Union[netw
 
 
 def maybe_recompile_model(names, te_multipliers):
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
     recompile_model = False
     skip_lora_load = False
     if shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled:
@@ -157,14 +158,14 @@ def maybe_recompile_model(names, te_multipliers):
             recompile_model = True
             shared.compiled_model_state.lora_model = []
     if recompile_model:
-        current_task = sd_models.get_diffusers_task(shared.sd_model)
+        current_task = sd_models.get_diffusers_task(MODELDATA.sd_model)
         shared.log.debug(f'Compile: task={current_task} force model reload')
         backup_cuda_compile = shared.opts.cuda_compile
         backup_scheduler = getattr(sd_model, "scheduler", None)
         sd_models.unload_model_weights(op='model')
         shared.opts.cuda_compile = []
         sd_models.reload_model_weights(op='model')
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, current_task)
+        MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, current_task)
         shared.opts.cuda_compile = backup_cuda_compile
         if backup_scheduler is not None:
             sd_model.scheduler = backup_scheduler
@@ -234,7 +235,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
     networks_on_disk = gather_networks(names)
     failed_to_load_networks = []
     recompile_model, skip_lora_load = maybe_recompile_model(names, te_multipliers)
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
 
     l.loaded_networks.clear()
     lora_diffusers.diffuser_loaded.clear()

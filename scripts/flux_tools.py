@@ -57,8 +57,8 @@ class Script(scripts_manager.Script):
         t0 = time.time()
         if tool == 'Redux':
             supported_model_list = ['f1']
-            if shared.sd_model_type not in supported_model_list:
-                shared.log.warning(f'{title}: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            if MODELDATA.sd_model_type not in supported_model_list:
+                shared.log.warning(f'{title}: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
                 return None
             # pipe_prior_redux = FluxPriorReduxPipeline.from_pretrained("black-forest-labs/FLUX.1-Redux-dev", revision="refs/pr/8", torch_dtype=torch.bfloat16).to("cuda")
             shared.log.debug(f'{title}: tool={tool} prompt={prompt}')
@@ -71,8 +71,8 @@ class Script(scripts_manager.Script):
                 ).to(devices.device)
             if prompt > 0:
                 shared.log.info(f'{title}: tool={tool} load text encoder')
-                redux_pipe.tokenizer, redux_pipe.tokenizer_2 = shared.sd_model.tokenizer, shared.sd_model.tokenizer_2
-                redux_pipe.text_encoder, redux_pipe.text_encoder_2 = shared.sd_model.text_encoder, shared.sd_model.text_encoder_2
+                redux_pipe.tokenizer, redux_pipe.tokenizer_2 = MODELDATA.sd_model.tokenizer, MODELDATA.sd_model.tokenizer_2
+                redux_pipe.text_encoder, redux_pipe.text_encoder_2 = MODELDATA.sd_model.text_encoder, MODELDATA.sd_model.text_encoder_2
             sd_models.apply_balanced_offload(redux_pipe)
             redux_output = redux_pipe(
                 image=image,
@@ -96,7 +96,7 @@ class Script(scripts_manager.Script):
             if p.image_mask is None:
                 shared.log.error(f'{title}: tool={tool} no image_mask')
                 return None
-            if shared.sd_model.__class__.__name__ != 'FluxFillPipeline':
+            if MODELDATA.sd_model.__class__.__name__ != 'FluxFillPipeline':
                 shared.opts.data["sd_model_checkpoint"] = "black-forest-labs/FLUX.1-Fill-dev"
                 sd_models.reload_model_weights(op='model', revision="refs/pr/4")
             p.task_args['image'] = image
@@ -106,7 +106,7 @@ class Script(scripts_manager.Script):
             # pipe = diffusers.FluxControlPipeline.from_pretrained("black-forest-labs/FLUX.1-Canny-dev", torch_dtype=torch.bfloat16, revision="refs/pr/1").to("cuda")
             install('controlnet-aux')
             install('timm==0.9.16')
-            if shared.sd_model.__class__.__name__ != 'FluxControlPipeline' or 'Canny' not in shared.opts.sd_model_checkpoint:
+            if MODELDATA.sd_model.__class__.__name__ != 'FluxControlPipeline' or 'Canny' not in shared.opts.sd_model_checkpoint:
                 shared.opts.data["sd_model_checkpoint"] = "black-forest-labs/FLUX.1-Canny-dev"
                 sd_models.reload_model_weights(op='model', revision="refs/pr/1")
             if processor_canny is None:
@@ -127,7 +127,7 @@ class Script(scripts_manager.Script):
         if tool == 'Depth':
             # pipe = diffusers.FluxControlPipeline.from_pretrained("black-forest-labs/FLUX.1-Depth-dev", torch_dtype=torch.bfloat16, revision="refs/pr/1").to("cuda")
             install('git+https://github.com/huggingface/image_gen_aux.git', 'image_gen_aux')
-            if shared.sd_model.__class__.__name__ != 'FluxControlPipeline' or 'Depth' not in shared.opts.sd_model_checkpoint:
+            if MODELDATA.sd_model.__class__.__name__ != 'FluxControlPipeline' or 'Depth' not in shared.opts.sd_model_checkpoint:
                 shared.opts.data["sd_model_checkpoint"] = "black-forest-labs/FLUX.1-Depth-dev"
                 sd_models.reload_model_weights(op='model', revision="refs/pr/1")
             if processor_depth is None:

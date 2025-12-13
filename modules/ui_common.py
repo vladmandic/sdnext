@@ -5,6 +5,7 @@ import shutil
 import platform
 import subprocess
 import gradio as gr
+from core import MODELDATA
 from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 
 
@@ -418,8 +419,8 @@ def update_token_counter(text):
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
-    if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-        tokenizer = shared.sd_model.tokenizer
+    if MODELDATA.sd_loaded and hasattr(MODELDATA.sd_model, 'tokenizer') and MODELDATA.sd_model.tokenizer is not None:
+        tokenizer = MODELDATA.sd_model.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
         if hasattr(tokenizer, 'tokenizer') and tokenizer.tokenizer is not None:
             tokenizer = tokenizer.tokenizer

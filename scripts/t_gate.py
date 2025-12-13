@@ -26,20 +26,20 @@ class Script(scripts_manager.Script):
             return None
         install('tgate')
         import tgate
-        if shared.sd_model_type == 'sd':
+        if MODELDATA.sd_model_type == 'sd':
             cls = tgate.TgateSDLoader
-        elif shared.sd_model_type == 'sdxl':
+        elif MODELDATA.sd_model_type == 'sdxl':
             cls = tgate.TgateSDXLLoader
         else:
-            shared.log.warning(f'T-Gate: pipeline={shared.sd_model_type} required=sd or sdxl')
+            shared.log.warning(f'T-Gate: pipeline={MODELDATA.sd_model_type} required=sd or sdxl')
             return None
-        old_pipe = shared.sd_model
-        shared.sd_model = cls(shared.sd_model, gate_step=p.gate_step)
-        sd_models.copy_diffuser_options(shared.sd_model, old_pipe)
-        sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-        sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
-        shared.log.debug(f'T-Gate: pipeline={shared.sd_model.__class__.__name__} steps={p.gate_step}')
+        old_pipe = MODELDATA.sd_model
+        MODELDATA.sd_model = cls(MODELDATA.sd_model, gate_step=p.gate_step)
+        sd_models.copy_diffuser_options(MODELDATA.sd_model, old_pipe)
+        sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
+        sd_models.set_diffuser_options(MODELDATA.sd_model, vae=None, op='model')
+        shared.log.debug(f'T-Gate: pipeline={MODELDATA.sd_model.__class__.__name__} steps={p.gate_step}')
         processed = processing.process_images(p)
-        shared.sd_model = old_pipe
-        del shared.sd_model.tgate
+        MODELDATA.sd_model = old_pipe
+        del MODELDATA.sd_model.tgate
         return processed

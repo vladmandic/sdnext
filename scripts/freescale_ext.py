@@ -49,8 +49,8 @@ class Script(scripts_manager.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, cosine_scale, override_sampler, cosine_scale_bg, dilate_tau, s1_enable, s1_scale, s1_restart, s2_enable, s2_scale, s2_restart, s3_enable, s3_scale, s3_restart, s4_enable, s4_scale, s4_restart): # pylint: disable=arguments-differ
         supported_model_list = ['sdxl']
-        if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'FreeScale: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list:
+            shared.log.warning(f'FreeScale: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
 
         if self.is_img2img:
@@ -59,7 +59,7 @@ class Script(scripts_manager.Script):
                 return None
 
         from scripts.freescale import StableDiffusionXLFreeScale, StableDiffusionXLFreeScaleImg2Img
-        self.orig_pipe = shared.sd_model
+        self.orig_pipe = MODELDATA.sd_model
         self.orig_slice = shared.opts.diffusers_vae_slicing
         self.orig_tile = shared.opts.diffusers_vae_tiling
 
@@ -105,11 +105,11 @@ class Script(scripts_manager.Script):
             return None
 
         if not self.is_img2img:
-            shared.sd_model = sd_models.switch_pipe(StableDiffusionXLFreeScale, shared.sd_model)
+            MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLFreeScale, MODELDATA.sd_model)
         else:
-            shared.sd_model = sd_models.switch_pipe(StableDiffusionXLFreeScaleImg2Img, shared.sd_model)
-        shared.sd_model.enable_vae_slicing()
-        shared.sd_model.enable_vae_tiling()
+            MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLFreeScaleImg2Img, MODELDATA.sd_model)
+        MODELDATA.sd_model.enable_vae_slicing()
+        MODELDATA.sd_model.enable_vae_tiling()
 
         shared.log.info(f'FreeScale: mode={"txt" if not self.is_img2img else "img"} cosine={cosine_scale} bg={cosine_scale_bg} tau={dilate_tau} scales={scales} resolutions={resolutions_list} steps={restart_steps} sampler={p.sampler_name}')
         resolutions = ','.join([f'{x[0]}x{x[1]}' for x in resolutions_list])
@@ -120,11 +120,11 @@ class Script(scripts_manager.Script):
         if self.orig_pipe is None:
             return processed
         # restore pipeline
-        if shared.sd_model_type == "sdxl":
-            shared.sd_model = self.orig_pipe
+        if MODELDATA.sd_model_type == "sdxl":
+            MODELDATA.sd_model = self.orig_pipe
         self.orig_pipe = None
         if not self.orig_slice:
-            shared.sd_model.disable_vae_slicing()
+            MODELDATA.sd_model.disable_vae_slicing()
         if not self.orig_tile:
-            shared.sd_model.disable_vae_tiling()
+            MODELDATA.sd_model.disable_vae_tiling()
         return processed

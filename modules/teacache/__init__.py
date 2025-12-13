@@ -14,20 +14,20 @@ def apply_teacache(p):
     from modules import shared
     if not shared.opts.teacache_enabled:
         return
-    if not any(shared.sd_model.__class__.__name__.startswith(x) for x in supported_models):
+    if not any(MODELDATA.sd_model.__class__.__name__.startswith(x) for x in supported_models):
         return
-    if not hasattr(shared.sd_model, 'transformer'):
+    if not hasattr(MODELDATA.sd_model, 'transformer'):
         return
-    shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
-    shared.sd_model.transformer.__class__.cnt = 0
-    shared.sd_model.transformer.__class__.num_steps = p.steps
-    shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
-    shared.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
-    shared.sd_model.transformer.__class__.previous_modulated_input = None
-    shared.sd_model.transformer.__class__.previous_residual = None
-    if shared.sd_model.__class__.__name__.startswith('HiDream'):
-        shared.sd_model.transformer.__class__.ret_steps = p.steps * 0.1
-    if shared.sd_model.__class__.__name__.startswith('Lumina2'):
-        shared.sd_model.transformer.__class__.cache = {}
-        shared.sd_model.transformer.__class__.uncond_seq_len = None
-    shared.log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')
+    MODELDATA.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
+    MODELDATA.sd_model.transformer.__class__.cnt = 0
+    MODELDATA.sd_model.transformer.__class__.num_steps = p.steps
+    MODELDATA.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
+    MODELDATA.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
+    MODELDATA.sd_model.transformer.__class__.previous_modulated_input = None
+    MODELDATA.sd_model.transformer.__class__.previous_residual = None
+    if MODELDATA.sd_model.__class__.__name__.startswith('HiDream'):
+        MODELDATA.sd_model.transformer.__class__.ret_steps = p.steps * 0.1
+    if MODELDATA.sd_model.__class__.__name__.startswith('Lumina2'):
+        MODELDATA.sd_model.transformer.__class__.cache = {}
+        MODELDATA.sd_model.transformer.__class__.uncond_seq_len = None
+    shared.log.info(f'Transformers cache: type=teacache cls={MODELDATA.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')

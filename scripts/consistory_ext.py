@@ -67,29 +67,29 @@ class Script(scripts_manager.Script):
     def create_model(self):
         diffusers.models.embeddings.PositionNet = diffusers.models.embeddings.GLIGENTextBoundingboxProjection # patch as renamed in https://github.com/huggingface/diffusers/pull/6244/files
         import scripts.consistory as cs
-        if shared.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
+        if MODELDATA.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
             shared.log.debug('ConsiStory init')
             t0 = time.time()
-            state_dict = shared.sd_model.unet.state_dict() # save existing unet
-            shared.sd_model = sd_models.switch_pipe(cs.ConsistoryExtendAttnSDXLPipeline, shared.sd_model)
-            shared.sd_model.unet = cs.ConsistorySDXLUNet2DConditionModel.from_config(shared.sd_model.unet.config)
-            shared.sd_model.unet.load_state_dict(state_dict) # now load it into new class
-            shared.sd_model.unet.to(dtype=devices.dtype)
+            state_dict = MODELDATA.sd_model.unet.state_dict() # save existing unet
+            MODELDATA.sd_model = sd_models.switch_pipe(cs.ConsistoryExtendAttnSDXLPipeline, MODELDATA.sd_model)
+            MODELDATA.sd_model.unet = cs.ConsistorySDXLUNet2DConditionModel.from_config(MODELDATA.sd_model.unet.config)
+            MODELDATA.sd_model.unet.load_state_dict(state_dict) # now load it into new class
+            MODELDATA.sd_model.unet.to(dtype=devices.dtype)
             state_dict = None
             # sd_models.set_diffuser_options(shared.sd_model)
-            sd_models.move_model(shared.sd_model, devices.device)
-            sd_models.move_model(shared.sd_model.unet, devices.device)
+            sd_models.move_model(MODELDATA.sd_model, devices.device)
+            sd_models.move_model(MODELDATA.sd_model.unet, devices.device)
             t1 = time.time()
-            shared.log.debug(f'ConsiStory load: model={shared.sd_model.__class__.__name__} time={t1-t0:.2f}')
+            shared.log.debug(f'ConsiStory load: model={MODELDATA.sd_model.__class__.__name__} time={t1-t0:.2f}')
         devices.torch_gc(force=True)
 
     def set_args(self, p: processing.StableDiffusionProcessing, *args):
         subject, concepts, prompts, dropout, sampler, steps, same, queries, sdsa, freeu, freeu_preset, alpha, injection = args # pylint: disable=unused-variable
         processing.fix_seed(p)
         if sampler:
-            shared.sd_model.scheduler = diffusers.DDIMScheduler.from_config(shared.sd_model.scheduler.config)
+            MODELDATA.sd_model.scheduler = diffusers.DDIMScheduler.from_config(MODELDATA.sd_model.scheduler.config)
         else:
-            sd_samplers.create_sampler(p.sampler_name, shared.sd_model)
+            sd_samplers.create_sampler(p.sampler_name, MODELDATA.sd_model)
         if freeu:
             try:
                 freeu_preset = [float(f.strip()) for f in freeu_preset.split(',')]
@@ -97,7 +97,7 @@ class Script(scripts_manager.Script):
                 freeu_preset = []
                 shared.log.warning(f'ConsiStory: freeu="{freeu_preset}" invalid')
             if len(freeu) == 4:
-                shared.sd_model.enable_freeu(s1=freeu[0], s2=freeu[0], b1=freeu[0], b2=freeu[0])
+                MODELDATA.sd_model.enable_freeu(s1=freeu[0], s2=freeu[0], b1=freeu[0], b2=freeu[0])
         steps = 50 if steps else p.steps
         if injection:
             try:
@@ -124,7 +124,7 @@ class Script(scripts_manager.Script):
         for i, prompt in enumerate(prompts):
             if subject not in prompt:
                 prompts[i] = f'{subject} {prompt}'
-        shared.log.debug(f'ConsiStory args: sampler={shared.sd_model.scheduler.__class__.__name__} steps={steps} sdsa={sdsa} queries={queries} same={same} dropout={dropout} freeu={freeu_preset if freeu else None} alpha={alpha if injection else None}')
+        shared.log.debug(f'ConsiStory args: sampler={MODELDATA.sd_model.scheduler.__class__.__name__} steps={steps} sdsa={sdsa} queries={queries} same={same} dropout={dropout} freeu={freeu_preset if freeu else None} alpha={alpha if injection else None}')
         return concepts, anchors, prompts, alpha, steps, seed
 
     def create_anchors(self, anchors, concepts, seed, steps, dropout, same, queries, sdsa, injection, alpha):
@@ -137,7 +137,7 @@ class Script(scripts_manager.Script):
         with devices.inference_context():
             try:
                 images, self.anchor_cache_first_stage, self.anchor_cache_second_stage = cs.run_anchor_generation(
-                    story_pipeline=shared.sd_model,
+                    story_pipeline=MODELDATA.sd_model,
                     prompts=anchors,
                     concept_token=concepts,
                     seed=seed,
@@ -166,7 +166,7 @@ class Script(scripts_manager.Script):
         with devices.inference_context():
             try:
                 images = cs.run_extra_generation(
-                    story_pipeline=shared.sd_model,
+                    story_pipeline=MODELDATA.sd_model,
                     prompts=[prompt],
                     concept_token=concepts,
                     anchor_cache_first_stage=self.anchor_cache_first_stage,
@@ -191,8 +191,8 @@ class Script(scripts_manager.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
         supported_model_list = ['sdxl']
-        if shared.sd_model_type not in supported_model_list and shared.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
-            shared.log.warning(f'ConsiStory: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list and MODELDATA.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
+            shared.log.warning(f'ConsiStory: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
 
         subject, concepts, prompts, dropout, sampler, steps, same, queries, sdsa, freeu, _freeu_preset, alpha, injection = args # pylint: disable=unused-variable
@@ -209,7 +209,7 @@ class Script(scripts_manager.Script):
             for image in extra_out_images:
                 images.append(image)
 
-        shared.sd_model.disable_freeu()
+        MODELDATA.sd_model.disable_freeu()
         processed = processing.get_processed(p, images)
         return processed
 

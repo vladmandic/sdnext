@@ -102,7 +102,7 @@ class APIGenerate():
         args = self.sanitize_args(populate)
         send_images = args.pop('send_images', True)
         with self.queue_lock:
-            p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
+            p = StableDiffusionProcessingTxt2Img(sd_model=MODELDATA.sd_model, **args)
             self.prepare_ip_adapter(txt2imgreq, p)
             p.scripts = script_runner
             p.outpath_grids = shared.opts.outdir_grids or shared.opts.outdir_txt2img_grids
@@ -153,7 +153,7 @@ class APIGenerate():
         args = self.sanitize_args(populate)
         send_images = args.pop('send_images', True)
         with self.queue_lock:
-            p = StableDiffusionProcessingImg2Img(sd_model=shared.sd_model, **args)
+            p = StableDiffusionProcessingImg2Img(sd_model=MODELDATA.sd_model, **args)
             self.prepare_ip_adapter(img2imgreq, p)
             p.init_images = [helpers.decode_base64_to_image(x) for x in init_images]
             p.scripts = script_runner

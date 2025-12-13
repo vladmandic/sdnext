@@ -3,11 +3,11 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
+from core import MODELDATA
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer, face_restoration
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import StableDiffusionProcessing, StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, StableDiffusionProcessingControl, StableDiffusionProcessingVideo # pylint: disable=unused-import
 from modules.processing_info import create_infotext
-from core import modeldata
 
 
 opt_C = 4
@@ -32,7 +32,7 @@ processed = None # last known processed results
 
 class Processed:
     def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None):
-        self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if modeldata.sd_model is not None else ''
+        self.sd_model_hash = getattr(MODELDATA.sd_model, 'sd_model_hash', '') if MODELDATA.sd_model is not None else ''
 
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
@@ -491,9 +491,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 break
 
         if not p.xyz:
-            if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
-                shared.sd_model.restore_pipeline()
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+            if hasattr(MODELDATA.sd_model, 'restore_pipeline') and (MODELDATA.sd_model.restore_pipeline is not None):
+                MODELDATA.sd_model.restore_pipeline()
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
 
         t1 = time.time()
 

@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from PIL import Image
 from blendmodes.blend import blendLayers, BlendType
+from core import MODELDATA
 from modules import shared, devices, images, sd_models, sd_samplers, sd_vae, sd_hijack_hypertile, processing_vae, timer
 from modules.api import helpers
 
@@ -18,15 +19,15 @@ debug_steps('Trace: STEPS')
 
 
 def is_modular():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.MODULAR
+    return sd_models.get_diffusers_task(MODELDATA.sd_model) == sd_models.DiffusersTaskType.MODULAR
 
 
 def is_txt2img():
-    return sd_models.get_diffusers_task(shared.sd_model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
+    return sd_models.get_diffusers_task(MODELDATA.sd_model) == sd_models.DiffusersTaskType.TEXT_2_IMAGE
 
 
 def is_refiner_enabled(p):
-    return p.enable_hr and (p.refiner_steps > 0) and (p.refiner_start > 0) and (p.refiner_start < 1) and (shared.sd_refiner is not None)
+    return p.enable_hr and (p.refiner_steps > 0) and (p.refiner_start > 0) and (p.refiner_start < 1) and (MODELDATA.sd_refiner is not None)
 
 
 def setup_color_correction(image):
@@ -82,7 +83,7 @@ def create_binary_mask(image):
 
 def images_tensor_to_samples(image, approximation=None, model=None): # pylint: disable=unused-argument
     if model is None:
-        model = shared.sd_model
+        model = MODELDATA.sd_model
     model.first_stage_model.to(devices.dtype_vae)
     image = image.to(shared.device, dtype=devices.dtype_vae)
     image = image * 2 - 1
@@ -269,11 +270,11 @@ def validate_sample(tensor):
         nans = np.isnan(sample).sum()
         cast = np.nan_to_num(sample)
         cast = cast.astype(np.uint8)
-        vae = shared.sd_model.vae.dtype if hasattr(shared.sd_model, 'vae') else None
-        upcast = getattr(shared.sd_model.vae.config, 'force_upcast', None) if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'config') else None
+        vae = MODELDATA.sd_model.vae.dtype if hasattr(MODELDATA.sd_model, 'vae') else None
+        upcast = getattr(MODELDATA.sd_model.vae.config, 'force_upcast', None) if hasattr(MODELDATA.sd_model, 'vae') and hasattr(MODELDATA.sd_model.vae, 'config') else None
         shared.log.error(f'Decode: sample={sample.shape} invalid={nans} dtype={dtype} vae={vae} upcast={upcast} failed to validate')
         if upcast is not None and not upcast:
-            setattr(shared.sd_model.vae.config, 'force_upcast', True) # noqa: B010
+            setattr(MODELDATA.sd_model.vae.config, 'force_upcast', True) # noqa: B010
             shared.log.info('Decode: set upcast=True and attempt to retry operation')
     t1 = time.time()
     timer.process.add('validate', t1 - t0)
@@ -346,7 +347,7 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
                 for i in range(len(latents)):
                     if not torch.is_tensor(latents[i]):
                         shared.log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
-                        latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
+                        latents[i] = processing_vae.vae_encode(image=latents[i], model=MODELDATA.sd_model, vae_type=p.vae_type)
                     latents = torch.cat(latents, dim=0)
             except Exception as e:
                 shared.log.error(f'Hires: prepare latents: {e}')
@@ -355,7 +356,7 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
             shared.log.warning(f'Hires: input={type(latents)} not tensor')
         resized = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
     else:
-        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
+        decoded = processing_vae.vae_decode(latents=latents, model=MODELDATA.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
         resized = []
         for image in decoded:
             resize = images.resize_image(p.hr_resize_mode, image, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
@@ -407,7 +408,7 @@ def fix_prompts(p, prompts, negative_prompts, prompts_2, negative_prompts_2):
 def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
-    cls = shared.sd_model.__class__.__name__
+    cls = MODELDATA.sd_model.__class__.__name__
     if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
     elif is_modular():
@@ -415,22 +416,22 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     elif not is_txt2img():
         if cls in sd_models.i2i_pipes:
             steps = p.steps
-        elif use_denoise_start and (shared.sd_model_type == 'sdxl'):
+        elif use_denoise_start and (MODELDATA.sd_model_type == 'sdxl'):
             steps = p.steps // (1 - p.refiner_start)
         elif p.denoising_strength > 0:
             steps = (p.steps // p.denoising_strength) + 1
         else:
             steps = p.steps
-    elif use_refiner_start and shared.sd_model_type == 'sdxl':
+    elif use_refiner_start and MODELDATA.sd_model_type == 'sdxl':
         steps = (p.steps // p.refiner_start) + 1
     else:
         steps = p.steps
-    debug_steps(f'Steps: type=base input={p.steps} output={steps} task={sd_models.get_diffusers_task(shared.sd_model)} refiner={use_refiner_start} denoise={p.denoising_strength} model={shared.sd_model_type}')
+    debug_steps(f'Steps: type=base input={p.steps} output={steps} task={sd_models.get_diffusers_task(MODELDATA.sd_model)} refiner={use_refiner_start} denoise={p.denoising_strength} model={MODELDATA.sd_model_type}')
     return max(1, int(steps))
 
 
 def calculate_hires_steps(p):
-    cls = shared.sd_model.__class__.__name__
+    cls = MODELDATA.sd_model.__class__.__name__
     if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
     elif p.hr_second_pass_steps > 0:
@@ -439,15 +440,15 @@ def calculate_hires_steps(p):
         steps = (p.steps // p.denoising_strength) + 1
     else:
         steps = 0
-    debug_steps(f'Steps: type=hires input={p.hr_second_pass_steps} output={steps} denoise={p.denoising_strength} model={shared.sd_model_type}')
+    debug_steps(f'Steps: type=hires input={p.hr_second_pass_steps} output={steps} denoise={p.denoising_strength} model={MODELDATA.sd_model_type}')
     return max(1, int(steps))
 
 
 def calculate_refiner_steps(p):
-    cls = shared.sd_model.__class__.__name__
+    cls = MODELDATA.sd_model.__class__.__name__
     if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
         steps = p.steps
-    elif "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
+    elif "StableDiffusionXL" in MODELDATA.sd_refiner.__class__.__name__:
         if p.refiner_start > 0 and p.refiner_start < 1:
             steps = (p.refiner_steps // (1 - p.refiner_start) // 2) + 1
         elif p.denoising_strength > 0:
@@ -484,12 +485,12 @@ def set_latents(p):
         return args[0] # just return image to skip re-processing it
 
     from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion import retrieve_timesteps
-    image = shared.sd_model.image_processor.preprocess(p.init_images) # resize to mod8, normalize, transpose, to tensor
-    timesteps, steps = retrieve_timesteps(shared.sd_model.scheduler, p.steps, devices.device)
-    timesteps, steps = shared.sd_model.get_timesteps(steps, p.denoising_strength, devices.device)
+    image = MODELDATA.sd_model.image_processor.preprocess(p.init_images) # resize to mod8, normalize, transpose, to tensor
+    timesteps, steps = retrieve_timesteps(MODELDATA.sd_model.scheduler, p.steps, devices.device)
+    timesteps, steps = MODELDATA.sd_model.get_timesteps(steps, p.denoising_strength, devices.device)
     timestep = timesteps[:1].repeat(p.batch_size) # need to determine level of added noise
-    latents = shared.sd_model.prepare_latents(image, timestep, batch_size=p.batch_size, num_images_per_prompt=1, dtype=devices.dtype, device=devices.device, generator=get_generator(p))
-    shared.sd_model.prepare_latents = dummy_prepare_latents # stop diffusers processing latents again
+    latents = MODELDATA.sd_model.prepare_latents(image, timestep, batch_size=p.batch_size, num_images_per_prompt=1, dtype=devices.dtype, device=devices.device, generator=get_generator(p))
+    MODELDATA.sd_model.prepare_latents = dummy_prepare_latents # stop diffusers processing latents again
     return latents
 
 
@@ -518,7 +519,7 @@ def save_intermediate(p, latents, suffix):
     for i in range(len(latents)):
         from modules.processing import create_infotext
         info=create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, [], iteration=p.iteration, position_in_batch=i)
-        decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, output_type='pil', vae_type=p.vae_type, width=p.width, height=p.height)
+        decoded = processing_vae.vae_decode(latents=latents, model=MODELDATA.sd_model, output_type='pil', vae_type=p.vae_type, width=p.width, height=p.height)
         for j in range(len(decoded)):
             images.save_image(decoded[j], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix=suffix)
 

@@ -1,5 +1,6 @@
 import os
 from installer import install
+from core import MODELDATA
 from modules import shared
 
 
@@ -45,7 +46,7 @@ def apply_cache_dit(pipe):
             cache_config=cache_config,
             calibrator_config=calibrator_config,
         )
-        shared.sd_model.has_cache_dit = True
+        MODELDATA.sd_model.has_cache_dit = True
     except Exception as e:
         shared.log.error(f'Cache-DiT: {e}')
         return

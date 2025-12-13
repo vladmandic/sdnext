@@ -388,7 +388,7 @@ class StableDiffusionProcessing:
 
     @property
     def sd_model(self):
-        return shared.sd_model
+        return MODELDATA.sd_model
 
     @property
     def scripts(self):
@@ -442,7 +442,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
         super().__init__(**kwargs)
 
     def init(self, all_prompts=None, all_seeds=None, all_subseeds=None):
-        shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        MODELDATA.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         self.width = self.width or 1024
         self.height = self.height or 1024
         if all_prompts is not None:
@@ -484,9 +484,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             if self.height is None or self.height == 0:
                 self.height = int(vae_scale_factor * (self.init_images[0].height * self.scale_by // vae_scale_factor))
         if (getattr(self, 'image_mask', None) is not None) and ((len(self.image_mask) > 0) if isinstance(self.image_mask, list) else True):
-            shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.INPAINTING)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.INPAINTING)
         elif (getattr(self, 'init_images', None) is not None) and ((len(self.init_images) > 0) if isinstance(self.init_images, list) else True):
-            shared.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(self.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
 
         if all_prompts is not None:
             self.all_prompts = all_prompts
@@ -603,7 +603,7 @@ def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None
             if k in possible:
                 kwargs[k] = v
     if new_class == StableDiffusionProcessingTxt2Img:
-        sd_models.clean_diffuser_pipe(shared.sd_model)
+        sd_models.clean_diffuser_pipe(MODELDATA.sd_model)
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     debug(f"Switching class: {p.__class__.__name__} -> {new_class.__name__} fn={fn}") # pylint: disable=protected-access
     p.__class__ = new_class

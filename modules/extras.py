@@ -7,6 +7,7 @@ from PIL import Image
 import torch
 import gradio as gr
 import safetensors.torch
+from core import MODELDATA
 from modules.merging import merge, merge_utils, modules_sdxl
 from modules import shared, images, sd_models, sd_vae, sd_samplers, devices
 
@@ -252,9 +253,9 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
     yield msg("modules merge complete")
     if modules_sdxl.pipeline is not None:
         checkpoint_info = sd_models.CheckpointInfo(filename='None')
-        shared.sd_model = modules_sdxl.pipeline
-        sd_models.set_defaults(shared.sd_model, checkpoint_info)
-        sd_models.set_diffuser_options(shared.sd_model, offload=False)
-        sd_models.set_diffuser_offload(shared.sd_model)
+        MODELDATA.sd_model = modules_sdxl.pipeline
+        sd_models.set_defaults(MODELDATA.sd_model, checkpoint_info)
+        sd_models.set_diffuser_options(MODELDATA.sd_model, offload=False)
+        sd_models.set_diffuser_offload(MODELDATA.sd_model)
         yield msg("pipeline loaded")
     shared.state.end(jobid)

@@ -25,16 +25,16 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, enabled, scale_factor, timestep, block_num): # pylint: disable=arguments-differ
         if not enabled:
             return None
-        if shared.sd_model_type != 'sd':
-            shared.log.warning(f'Kohya Hires Fix: pipeline={shared.sd_model_type} required=sd')
+        if MODELDATA.sd_model_type != 'sd':
+            shared.log.warning(f'Kohya Hires Fix: pipeline={MODELDATA.sd_model_type} required=sd')
             return None
-        old_pipe = shared.sd_model
+        old_pipe = MODELDATA.sd_model
         high_res_fix = [{'timestep': timestep, 'scale_factor': scale_factor, 'block_num': block_num}]
-        shared.sd_model = diffusers.StableDiffusionPipeline.from_pipe(shared.sd_model, **{ 'custom_pipeline': 'kohya_hires_fix', 'high_res_fix': high_res_fix })
-        sd_models.copy_diffuser_options(shared.sd_model, old_pipe)
-        sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-        sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
-        shared.log.debug(f'Kohya Hires Fix: pipeline={shared.sd_model.__class__.__name__} args={high_res_fix}')
+        MODELDATA.sd_model = diffusers.StableDiffusionPipeline.from_pipe(MODELDATA.sd_model, **{ 'custom_pipeline': 'kohya_hires_fix', 'high_res_fix': high_res_fix })
+        sd_models.copy_diffuser_options(MODELDATA.sd_model, old_pipe)
+        sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
+        sd_models.set_diffuser_options(MODELDATA.sd_model, vae=None, op='model')
+        shared.log.debug(f'Kohya Hires Fix: pipeline={MODELDATA.sd_model.__class__.__name__} args={high_res_fix}')
         processed = processing.process_images(p)
-        shared.sd_model = old_pipe
+        MODELDATA.sd_model = old_pipe
         return processed

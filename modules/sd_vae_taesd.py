@@ -52,7 +52,7 @@ def warn_once(msg, variant=None):
 
 def get_model(model_type = 'decoder', variant = None):
     global prev_cls, prev_type, prev_model, prev_warnings # pylint: disable=global-statement
-    model_cls = shared.sd_model_type
+    model_cls = MODELDATA.sd_model_type
     if model_cls is None or model_cls == 'none':
         return None, variant
     elif model_cls in {'ldm', 'pixartalpha'}:
@@ -64,7 +64,7 @@ def get_model(model_type = 'decoder', variant = None):
     elif model_cls in {'wanai', 'qwen', 'chrono'}:
         variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+        warn_once(f'cls={MODELDATA.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
         return None, variant
     variant = variant or shared.opts.taesd_variant
     folder = os.path.join(paths.models_path, "TAESD")
@@ -114,7 +114,7 @@ def get_model(model_type = 'decoder', variant = None):
         if (model_cls == prev_cls) and (model_type == prev_type) and (variant == prev_model) and (cfg['model'] is not None):
             return cfg['model'], variant
         if cfg is None:
-            warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+            warn_once(f'cls={MODELDATA.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
             return None, variant
         repo = cfg['repo']
         prev_cls = model_cls
@@ -131,9 +131,9 @@ def get_model(model_type = 'decoder', variant = None):
         CQYAN_MODELS[variant][model_cls]['model'] = vae
         return vae, variant
     elif variant is None:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} variant is none', variant=variant)
+        warn_once(f'cls={MODELDATA.sd_model.__class__.__name__} type={model_cls} variant is none', variant=variant)
     else:
-        warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
+        warn_once(f'cls={MODELDATA.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
     return None, variant
 
 

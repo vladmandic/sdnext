@@ -50,8 +50,8 @@ def load_model(model: str, cls: str, repo: str, dataframes: list):
     if model == 'Current':
         for k, v in kwargs.items():
             debug_log(f'Model replace component={k}')
-            setattr(shared.sd_model, k, v)
-        sd_models.set_diffuser_options(shared.sd_model)
+            setattr(MODELDATA.sd_model, k, v)
+        sd_models.set_diffuser_options(MODELDATA.sd_model)
         return f'Model load: name="{model}" cls={cls.__name__} repo="{repo}" preload={kwargs.keys()}'
     else:
         try:
@@ -67,10 +67,10 @@ def load_model(model: str, cls: str, repo: str, dataframes: list):
             return f'Model load failed: {e}'
         if pipe is not None:
             shared.log.info(f'Model load: name="{model}" cls={cls.__name__} repo="{repo}" instance={pipe.__class__.__name__}')
-            shared.sd_model = pipe
-            shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(repo)
-            shared.sd_model.sd_model_hash = None
-            sd_models.set_diffuser_options(shared.sd_model)
+            MODELDATA.sd_model = pipe
+            MODELDATA.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(repo)
+            MODELDATA.sd_model.sd_model_hash = None
+            sd_models.set_diffuser_options(MODELDATA.sd_model)
             return f'Model load: name="{model}" cls={cls.__name__} repo="{repo}" preload={kwargs.keys()}'
     return 'Model load: no model'
 
@@ -228,7 +228,7 @@ def create_ui(gr_status, gr_file):
 
     def get_model(model):
         if model == 'Current':
-            cls = shared.sd_model.__class__
+            cls = MODELDATA.sd_model.__class__
         else:
             cls = shared_items.pipelines.get(model, None)
         if cls is None:

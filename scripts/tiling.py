@@ -48,17 +48,17 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, tilex:bool=False, numx:int=1, tiley:bool=False, numy:int=1): # pylint: disable=arguments-differ, unused-argument
         global modex, modey # pylint: disable=global-statement
         supported_model_list = ['sd', 'sdxl']
-        if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'Tiling: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list:
+            shared.log.warning(f'Tiling: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
         if not tilex and not tiley:
             return None
-        self.orig_pipe = shared.sd_model
+        self.orig_pipe = MODELDATA.sd_model
 
         modex = tilex
         modey = tiley
         self.conv_layers.clear()
-        targets = [shared.sd_model.vae, shared.sd_model.text_encoder, shared.sd_model.unet]
+        targets = [MODELDATA.sd_model.vae, MODELDATA.sd_model.text_encoder, MODELDATA.sd_model.unet]
         for target in targets:
             for module in target.modules():
                 if isinstance(module, torch.nn.Conv2d):
@@ -81,8 +81,8 @@ class Script(scripts_manager.Script):
                 cl._conv_forward = cl._orig_conv_forward # pylint: disable=protected-access
         if self.orig_pipe is None:
             return processed
-        if shared.sd_model_type == "sdxl":
-            shared.sd_model = self.orig_pipe
+        if MODELDATA.sd_model_type == "sdxl":
+            MODELDATA.sd_model = self.orig_pipe
         self.orig_pipe = None
         self.conv_layers.clear()
         if not hasattr(processed, 'images') or processed.images is None:

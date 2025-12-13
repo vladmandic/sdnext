@@ -1,4 +1,5 @@
 import gradio as gr
+from core import MODELDATA
 from modules import shared, scripts_manager, sd_models
 
 
@@ -12,13 +13,13 @@ class Script(scripts_manager.Script):
 
     def apply(self):
         from scripts import layerdiffuse # pylint: disable=no-name-in-module
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             shared.log.error('LayerDiffuse: model not loaded')
             return self.is_active()
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'LayerDiffuse: incorrect base model: class={shared.sd_model.__class__.__name__} type={shared.sd_model_type}')
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
+            shared.log.error(f'LayerDiffuse: incorrect base model: class={MODELDATA.sd_model.__class__.__name__} type={MODELDATA.sd_model_type}')
             return self.is_active()
-        if hasattr(shared.sd_model, 'layerdiffusion'):
+        if hasattr(MODELDATA.sd_model, 'layerdiffusion'):
             shared.log.warning('LayerDiffuse: already applied')
             return self.is_active()
         layerdiffuse.apply_layerdiffuse()
@@ -29,11 +30,11 @@ class Script(scripts_manager.Script):
         return self.is_active()
 
     def is_active(self):
-        if not shared.sd_loaded:
+        if not MODELDATA.sd_loaded:
             return '<div style="color: darkred">LayerDiffuse: model not loaded</div><br>'
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
             return '<div style="color: darkred">LayerDiffuse: incorrect base model</div><br>'
-        if hasattr(shared.sd_model, 'layerdiffusion'):
+        if hasattr(MODELDATA.sd_model, 'layerdiffusion'):
             return '<div style="color: darkgreen">LayerDiffuse: active</div><br>'
         return '<div style="color: darkgray">LayerDiffuse: inactive</div><br>'
 

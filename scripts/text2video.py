@@ -86,7 +86,7 @@ class Script(scripts_manager.Script):
             shared.log.error('Text2Video: invalid number of frames')
             return None
 
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         shared.log.debug(f'Text2Video: args={p.task_args}')
         processed = processing.process_images(p)
 

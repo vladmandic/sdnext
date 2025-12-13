@@ -57,8 +57,8 @@ class Script(scripts_manager.Script):
         return hdr, ldr
 
     def run(self, p, hdr_range, save_hdr, is_tonemap, gamma, scale, saturation): # pylint: disable=arguments-differ
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'HDR: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
+            shared.log.error(f'HDR: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return None
         p.extra_generation_params = {
             "HDR range": hdr_range,

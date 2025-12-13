@@ -40,14 +40,14 @@ def run_tiling(p: processing.StableDiffusionProcessing, input_image: Image.Image
     shared.log.debug(f'Control Tile: scale={sx}x{sy} resize={"fixed" if sx==sy else "context"} control={control_upscaled} init={init_upscaled} time={t1-t0:.3f}')
 
     # stop processing from restoring pipeline on each iteration
-    orig_restore_pipeline = getattr(shared.sd_model, 'restore_pipeline', None)
-    shared.sd_model.restore_pipeline = None
+    orig_restore_pipeline = getattr(MODELDATA.sd_model, 'restore_pipeline', None)
+    MODELDATA.sd_model.restore_pipeline = None
 
     # run tiling
     for x in range(sx):
         for y in range(sy):
             shared.log.info(f'Control Tile: tile={x+1}-{sx}/{y+1}-{sy} target={control_upscaled}')
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
             p.init_images = None
             p.task_args['control_mode'] = p.control_mode
             p.task_args['strength'] = p.denoising_strength
@@ -66,9 +66,9 @@ def run_tiling(p: processing.StableDiffusionProcessing, input_image: Image.Image
     processed.images = [control_upscaled]
     processed.info = processed.infotext(p, 0)
     processed.infotexts = [processed.info]
-    shared.sd_model.restore_pipeline = orig_restore_pipeline
-    if hasattr(shared.sd_model, 'restore_pipeline') and shared.sd_model.restore_pipeline is not None:
-        shared.sd_model.restore_pipeline()
+    MODELDATA.sd_model.restore_pipeline = orig_restore_pipeline
+    if hasattr(MODELDATA.sd_model, 'restore_pipeline') and MODELDATA.sd_model.restore_pipeline is not None:
+        MODELDATA.sd_model.restore_pipeline()
     t2 = time.time()
     shared.log.debug(f'Control Tile: image={control_upscaled} time={t2-t0:.3f}')
     return processed

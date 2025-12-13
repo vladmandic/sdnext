@@ -59,7 +59,7 @@ def run_ltx(task_id,
         if ok:
             shared.log.info(e)
         else:
-            shared.log.error(f'Video: cls={shared.sd_model.__class__.__name__} op=base {e}')
+            shared.log.error(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=base {e}')
             errors.display(e, 'LTX')
         if p is not None:
             extra_networks.deactivate(p)
@@ -80,9 +80,9 @@ def run_ltx(task_id,
         yield None, 'LTX: Loading...'
         engine = 'LTX Video'
         load_model(engine, model)
-        debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init model="{model}"')
-        if not shared.sd_model.__class__.__name__.startswith("LTX"):
-            yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX model', ok=True)
+        debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=init model="{model}"')
+        if not MODELDATA.sd_model.__class__.__name__.startswith("LTX"):
+            yield from abort(f'Video: cls={MODELDATA.sd_model.__class__.__name__} selected model is not LTX model', ok=True)
             return
 
         videojob = shared.state.begin('Video', task_id=task_id)
@@ -121,12 +121,12 @@ def run_ltx(task_id,
 
         prompt, negative, networks = get_prompts(prompt, negative, styles)
         sampler_name = processing.get_sampler_name(sampler_index)
-        sd_samplers.create_sampler(sampler_name, shared.sd_model)
-        shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init styles={styles} networks={networks} sampler={shared.sd_model.scheduler.__class__.__name__}')
+        sd_samplers.create_sampler(sampler_name, MODELDATA.sd_model)
+        shared.log.debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=init styles={styles} networks={networks} sampler={MODELDATA.sd_model.scheduler.__class__.__name__}')
         extra_networks.activate(p, networks)
 
         t0 = time.time()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
         t1 = time.time()
         base_args = {
             "prompt": prompt,
@@ -140,13 +140,13 @@ def run_ltx(task_id,
             "callback_on_step_end": diffusers_callback,
             "output_type": "latent",
         }
-        shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=base {base_args}')
+        shared.log.debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=base {base_args}')
         if len(conditions) > 0:
             base_args["conditions"] = conditions
         yield None, 'LTX: Generate in progress...'
         samplejob = shared.state.begin('Sample')
         try:
-            latents = shared.sd_model(**base_args).frames[0]
+            latents = MODELDATA.sd_model(**base_args).frames[0]
         except AssertionError as e:
             yield from abort(e, ok=True, p=p)
             return
@@ -154,7 +154,7 @@ def run_ltx(task_id,
             yield from abort(e, ok=False, p=p)
             return
         t2 = time.time()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
         t3 = time.time()
         timer.process.add('offload', t1 - t0)
         timer.process.add('base', t2 - t1)
@@ -175,7 +175,7 @@ def run_ltx(task_id,
             }
             if latents.ndim == 4:
                 latents = latents.unsqueeze(0) # add batch dimension
-            shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=upsample latents={latents.shape} {upscale_args}')
+            shared.log.debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=upsample latents={latents.shape} {upscale_args}')
             yield None, 'LTX: Upsample in progress...'
             try:
                 upsampled_latents = upsample_pipe(latents=latents, **upscale_args).frames[0]
@@ -196,7 +196,7 @@ def run_ltx(task_id,
         if refine_enable:
             t7 = time.time()
             refinejob = shared.state.begin('Refine')
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
             refine_args = {
                 "prompt": prompt,
                 "negative_prompt": negative,
@@ -212,12 +212,12 @@ def run_ltx(task_id,
             }
             if latents.ndim == 4:
                 latents = latents.unsqueeze(0) # add batch dimension
-            shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=refine latents={latents.shape} {refine_args}')
+            shared.log.debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} op=refine latents={latents.shape} {refine_args}')
             if len(conditions) > 0:
                 refine_args["conditions"] = conditions
             yield None, 'LTX: Refine in progress...'
             try:
-                refined_latents = shared.sd_model(latents=latents, **refine_args).frames[0]
+                refined_latents = MODELDATA.sd_model(latents=latents, **refine_args).frames[0]
             except AssertionError as e:
                 yield from abort(e, ok=True, p=p)
                 return
@@ -226,7 +226,7 @@ def run_ltx(task_id,
                 return
             latents = refined_latents
             t8 = time.time()
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
             t9 = time.time()
             timer.process.add('refine', t8 - t7)
             timer.process.add('offload', t9 - t8)
@@ -244,7 +244,7 @@ def run_ltx(task_id,
             yield from abort(e, ok=False, p=p)
             return
         t10 = time.time()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
         t11 = time.time()
         timer.process.add('offload', t11 - t10)
 

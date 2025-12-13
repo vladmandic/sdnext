@@ -224,7 +224,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
         except Exception as e:
             shared.log.warning(f'Network load: {e}')
             if 'The size of tensor' in str(e):
-                shared.log.error(f'Network load: type=LoRA model={shared.sd_model.__class__.__name__} incompatible lora shape')
+                shared.log.error(f'Network load: type=LoRA model={MODELDATA.sd_model.__class__.__name__} incompatible lora shape')
                 new_weight = model_weights
             else:
                 new_weight = model_weights + lora_weights # try without device cast

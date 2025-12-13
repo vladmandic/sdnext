@@ -60,9 +60,9 @@ def set_prompt_template(prompt, system_prompt:str=None, optimized_prompt:bool=Tr
         )
         system_prompt = system_prefix + system_desc
     # system_prompt = DEFAULT_PROMPT_TEMPLATE["template"]
-    inputs = shared.sd_model.tokenizer(system_prompt, max_length=256, truncation=True, return_tensors="pt", return_length=True, return_overflowing_tokens=False, return_attention_mask=False)
-    tokens_system = inputs['length'].item() - int(shared.sd_model.tokenizer.bos_token_id is not None) - int(shared.sd_model.tokenizer.eos_token_id is not None)
-    inputs = shared.sd_model.tokenizer(prompt, max_length=256, truncation=True, return_tensors="pt", return_length=True, return_overflowing_tokens=False, return_attention_mask=False)
+    inputs = MODELDATA.sd_model.tokenizer(system_prompt, max_length=256, truncation=True, return_tensors="pt", return_length=True, return_overflowing_tokens=False, return_attention_mask=False)
+    tokens_system = inputs['length'].item() - int(MODELDATA.sd_model.tokenizer.bos_token_id is not None) - int(MODELDATA.sd_model.tokenizer.eos_token_id is not None)
+    inputs = MODELDATA.sd_model.tokenizer(prompt, max_length=256, truncation=True, return_tensors="pt", return_length=True, return_overflowing_tokens=False, return_attention_mask=False)
     hunyuan.DEFAULT_PROMPT_TEMPLATE = {
         "template": (
             f"<|start_header_id|>system<|end_header_id|>{system_prompt}\n<|eot_id|>"
@@ -70,5 +70,5 @@ def set_prompt_template(prompt, system_prompt:str=None, optimized_prompt:bool=Tr
         ),
         "crop_start": tokens_system,
     }
-    tokens_user = inputs['length'].item() - int(shared.sd_model.tokenizer.bos_token_id is not None) - int(shared.sd_model.tokenizer.eos_token_id is not None)
+    tokens_user = inputs['length'].item() - int(MODELDATA.sd_model.tokenizer.bos_token_id is not None) - int(MODELDATA.sd_model.tokenizer.eos_token_id is not None)
     shared.log.trace(f'FramePack prompt: system={tokens_system} user={tokens_user} optimized={optimized_prompt} unmodified={unmodified_prompt} mode={mode}')

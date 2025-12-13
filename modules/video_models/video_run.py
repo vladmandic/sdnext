@@ -1,6 +1,7 @@
 import os
 import copy
 import time
+from core import MODELDATA
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
 from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_prompt
 
@@ -15,19 +16,19 @@ def generate(*args, **kwargs):
     # videojob = shared.state.begin('Video')
     found = [model.name for model in models_def.models.get(engine, [])]
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0] if len(found) > 0 else None
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         debug('Video: model not yet loaded')
         video_load.load_model(selected)
     if selected.name != video_load.loaded_model:
         debug('Video: force reload')
         video_load.load_model(selected)
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         debug('Video: model still not loaded')
         return video_utils.queue_err('model not loaded')
     debug(f'Video generate: task={task_id} args={args} kwargs={kwargs}')
 
     p = processing.StableDiffusionProcessingVideo(
-        sd_model=shared.sd_model,
+        sd_model=MODELDATA.sd_model,
         video_engine=engine,
         video_model=model,
         prompt=prompt,
@@ -89,7 +90,7 @@ def generate(*args, **kwargs):
         shared.log.warning(f'Video: unknown model type "{model}"')
 
     # cleanup memory
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
     devices.torch_gc(force=True, reason='video')
 
     prompt = video_prompt.prepare_prompt(p, init_image, prompt, vlm_enhance, vlm_model, vlm_system_prompt)
@@ -109,26 +110,26 @@ def generate(*args, **kwargs):
     orig_sampler_shift = shared.opts.schedulers_shift
     shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
     shared.opts.data['schedulers_shift'] = sampler_shift
-    if hasattr(shared.sd_model, 'scheduler') and hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
-        if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
-            shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
-            shared.sd_model.scheduler.register_to_config(use_dynamic_shifting = dynamic_shift)
-        if hasattr(shared.sd_model.scheduler.config, 'flow_shift') and sampler_shift >= 0:
-            shared.sd_model.scheduler.config.flow_shift = sampler_shift
-            shared.sd_model.scheduler.register_to_config(flow_shift = sampler_shift)
-        shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler)
+    if hasattr(MODELDATA.sd_model, 'scheduler') and hasattr(MODELDATA.sd_model.scheduler, 'config') and hasattr(MODELDATA.sd_model.scheduler, 'register_to_config'):
+        if hasattr(MODELDATA.sd_model.scheduler.config, 'use_dynamic_shifting'):
+            MODELDATA.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
+            MODELDATA.sd_model.scheduler.register_to_config(use_dynamic_shifting = dynamic_shift)
+        if hasattr(MODELDATA.sd_model.scheduler.config, 'flow_shift') and sampler_shift >= 0:
+            MODELDATA.sd_model.scheduler.config.flow_shift = sampler_shift
+            MODELDATA.sd_model.scheduler.register_to_config(flow_shift = sampler_shift)
+        MODELDATA.sd_model.default_scheduler = copy.deepcopy(MODELDATA.sd_model.scheduler)
 
     video_overrides.set_overrides(p, selected)
     debug(f'Video: task_args={p.task_args}')
 
     if p.vae_type == 'Upscale':
         video_load.load_upscale_vae()
-    elif hasattr(shared.sd_model, 'orig_vae'):
-        shared.sd_model.vae = shared.sd_model.orig_vae
+    elif hasattr(MODELDATA.sd_model, 'orig_vae'):
+        MODELDATA.sd_model.vae = MODELDATA.sd_model.orig_vae
 
     # run processing
     shared.state.disable_preview = True
-    shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
+    shared.log.debug(f'Video: cls={MODELDATA.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
     err = None
     t0 = time.time()
     processed = None
@@ -148,7 +149,7 @@ def generate(*args, **kwargs):
         return video_utils.queue_err(err)
     if processed is None or (len(processed.images) == 0 and processed.bytes is None):
         return video_utils.queue_err('processing failed')
-    shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
+    shared.log.info(f'Video: name="{selected.name}" cls={MODELDATA.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 
     if hasattr(processed, 'images') and processed.images is not None:
         pixels = video_save.images_to_tensor(processed.images)

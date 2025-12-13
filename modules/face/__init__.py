@@ -111,7 +111,7 @@ class Script(scripts_manager.Script):
         if input_images is None or len(input_images) == 0:
             shared.log.error('Face: no init images')
             return None
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
             shared.log.error('Face: base model not supported')
             return None
 
@@ -126,7 +126,7 @@ class Script(scripts_manager.Script):
                 input_images[i] = Image.open(image['name'])
 
         processed = None
-        self.original_pipeline = shared.sd_model
+        self.original_pipeline = MODELDATA.sd_model
         self.original_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'
         if mode == 'FaceID': # faceid runs as ipadapter in its own pipeline
@@ -174,7 +174,7 @@ class Script(scripts_manager.Script):
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
         if self.original_pipeline is not None:
-            shared.sd_model = self.original_pipeline
+            MODELDATA.sd_model = self.original_pipeline
             self.original_pipeline = None
         if self.original_prompt_attention is not None:
             shared.opts.data['prompt_attention'] = self.original_prompt_attention

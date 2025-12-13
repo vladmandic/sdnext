@@ -402,8 +402,8 @@ class Script(scripts_manager.Script):
                 include_text=include_text,
             )
 
-        if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
-            shared.sd_model.restore_pipeline()
+        if hasattr(MODELDATA.sd_model, 'restore_pipeline') and (MODELDATA.sd_model.restore_pipeline is not None):
+            MODELDATA.sd_model.restore_pipeline()
 
         if not processed.images:
             active = False

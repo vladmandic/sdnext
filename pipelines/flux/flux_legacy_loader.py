@@ -219,7 +219,7 @@ def load_flux(checkpoint_info, diffusers_load_config): # triggered by opts.sd_ch
 
     # unload current model
     sd_models.unload_model_weights()
-    shared.sd_model = None
+    MODELDATA.sd_model = None
     devices.torch_gc(force=True, reason='load')
 
     if shared.opts.teacache_enabled:

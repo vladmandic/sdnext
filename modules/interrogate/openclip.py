@@ -4,6 +4,7 @@ import threading
 import re
 import gradio as gr
 from PIL import Image
+from core import MODELDATA
 from modules import devices, paths, shared, errors, sd_models
 
 
@@ -137,9 +138,9 @@ def interrogate(image, mode, caption=None):
 def interrogate_image(image, clip_model, blip_model, mode):
     jobid = shared.state.begin('Interrogate CLiP')
     try:
-        if shared.sd_loaded:
+        if MODELDATA.sd_loaded:
             from modules.sd_models import apply_balanced_offload # prevent circular import
-            apply_balanced_offload(shared.sd_model)
+            apply_balanced_offload(MODELDATA.sd_model)
         load_interrogator(clip_model, blip_model)
         image = image.convert('RGB')
         prompt = interrogate(image, mode)

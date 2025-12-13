@@ -207,43 +207,43 @@ def preprocess_image(
             if 'strength' in possible:
                 p.task_args['strength'] = p.denoising_strength
             p.init_images = [init_image] * len(active_model)
-        if hasattr(shared.sd_model, 'controlnet') and hasattr(p.task_args, 'control_image') and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
+        if hasattr(MODELDATA.sd_model, 'controlnet') and hasattr(p.task_args, 'control_image') and len(p.task_args['control_image']) > 1 and (MODELDATA.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
             p.task_args['control_image'] = [[x] for x in p.task_args['control_image']]
             p.task_args['control_mode'] = [[x] for x in p.task_args['control_mode']]
 
     # determine txt2img, img2img, inpaint pipeline
     if unit_type == 'reference' and has_models: # special case
         p.is_control = True
-        shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+        MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
     elif not has_models: # run in txt2img/img2img/inpaint mode
         if input_mask is not None:
             p.task_args['strength'] = p.denoising_strength
             p.image_mask = input_mask
             p.init_images = input_image if isinstance(input_image, list) else [input_image]
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.INPAINTING)
         elif processed_image is not None:
             p.init_images = processed_image if isinstance(processed_image, list) else [processed_image]
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
         else:
             p.init_hr(p.scale_by, p.resize_name, force=True)
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
     elif has_models: # actual control
         p.is_control = True
         if input_mask is not None:
             p.task_args['strength'] = p.denoising_strength
             p.image_mask = input_mask
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING) # only controlnet supports inpaint
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.INPAINTING) # only controlnet supports inpaint
         if hasattr(p, 'init_images') and p.init_images is not None:
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE) # only controlnet supports img2img
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE) # only controlnet supports img2img
         else:
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
             if hasattr(p, 'init_images') and p.init_images is not None and 'image' in possible:
                 p.task_args['image'] = p.init_images # need to set explicitly for txt2img
                 p.init_images = None
         if unit_type == 'lite':
             if input_type == 0:
-                shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
-                shared.sd_model.no_task_switch = True
+                MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
+                MODELDATA.sd_model.no_task_switch = True
             elif input_type == 1:
                 p.init_images = [input_image]
             elif input_type == 2:

@@ -176,7 +176,7 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         transformer.eval()
         sd_models.move_model(transformer, devices.cpu)
 
-        shared.sd_model = FramepackHunyuanVideoPipeline(
+        MODELDATA.sd_model = FramepackHunyuanVideoPipeline(
             text_encoder=text_encoder,
             tokenizer=tokenizer,
             text_encoder_2=text_encoder_2,
@@ -187,15 +187,15 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
             transformer=transformer,
             scheduler=None,
         )
-        shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(dit_repo) # pylint: disable=attribute-defined-outside-init
-        shared.sd_model.sd_model_checkpoint = dit_repo # pylint: disable=attribute-defined-outside-init
+        MODELDATA.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(dit_repo) # pylint: disable=attribute-defined-outside-init
+        MODELDATA.sd_model.sd_model_checkpoint = dit_repo # pylint: disable=attribute-defined-outside-init
 
-        shared.sd_model = model_quant.do_post_load_quant(shared.sd_model, allow=False)
+        MODELDATA.sd_model = model_quant.do_post_load_quant(MODELDATA.sd_model, allow=False)
         t1 = time.time()
 
         diffusers.loaders.peft._SET_ADAPTER_SCALE_FN_MAPPING['HunyuanVideoTransformer3DModelPacked'] = lambda model_cls, weights: weights # pylint: disable=protected-access
-        shared.log.info(f'FramePack load: model={shared.sd_model.__class__.__name__} variant="{variant}" type={shared.sd_model_type} time={t1-t0:.2f}')
-        sd_models.apply_balanced_offload(shared.sd_model)
+        shared.log.info(f'FramePack load: model={MODELDATA.sd_model.__class__.__name__} variant="{variant}" type={MODELDATA.sd_model_type} time={t1-t0:.2f}')
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         devices.torch_gc(force=True, reason='load')
 
     except Exception as e:

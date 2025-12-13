@@ -1,5 +1,6 @@
 import gradio as gr
 from diffusers.pipelines import StableDiffusionPipeline, StableDiffusionXLPipeline # pylint: disable=unused-import
+from core import MODELDATA
 from modules import shared, scripts_manager, processing, sd_models, devices
 
 """
@@ -86,28 +87,28 @@ class Script(scripts_manager.Script):
     # Run pipeline
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
         # prepare pipeline
-        c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
+        c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
         if c != pipeline_base:
             shared.log.warning(f'{title}: pipeline={c} required={pipeline_base}')
             return None
-        orig_pipeline = shared.sd_model # backup current pipeline definition
-        shared.sd_model = pipeline_class( # create new pipeline using currently loaded model which is always in `shared.sd_model`
+        orig_pipeline = MODELDATA.sd_model # backup current pipeline definition
+        MODELDATA.sd_model = pipeline_class( # create new pipeline using currently loaded model which is always in `shared.sd_model`
             # different pipelines may need different init params, so you may need to change this
             # to see init params, see pipeline_class.__init__ method
             # if init params are incorrect you will also see a runtime error with unrecognized or missing params
             # for example:
             # > TypeError: StableDiffusionPipeline.__init__() missing 2 required positional arguments: 'safety_checker' and 'feature_extractor'
-            vae = shared.sd_model.vae,
-            text_encoder=shared.sd_model.text_encoder,
-            tokenizer=shared.sd_model.tokenizer,
-            unet=shared.sd_model.unet,
-            scheduler=shared.sd_model.scheduler,
-            safety_checker=shared.sd_model.safety_checker,
-            feature_extractor=shared.sd_model.feature_extractor,
+            vae = MODELDATA.sd_model.vae,
+            text_encoder=MODELDATA.sd_model.text_encoder,
+            tokenizer=MODELDATA.sd_model.tokenizer,
+            unet=MODELDATA.sd_model.unet,
+            scheduler=MODELDATA.sd_model.scheduler,
+            safety_checker=MODELDATA.sd_model.safety_checker,
+            feature_extractor=MODELDATA.sd_model.feature_extractor,
         )
-        sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline) # copy options from original pipeline
-        sd_models.set_diffuser_options(shared.sd_model) # set all model options such as fp16, offload, etc.
-        sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
+        sd_models.copy_diffuser_options(MODELDATA.sd_model, orig_pipeline) # copy options from original pipeline
+        sd_models.set_diffuser_options(MODELDATA.sd_model) # set all model options such as fp16, offload, etc.
+        sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
 
         # if pipeline also needs a specific type, you can set it here, but not commonly needed
         # shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
@@ -134,5 +135,5 @@ class Script(scripts_manager.Script):
         # you dont need to handle saving, metadata, etc - sdnext will do it for you
 
         # restore original pipeline
-        shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = orig_pipeline
         return processed

@@ -147,7 +147,7 @@ class InfUFluxPipeline:
         self.infu_flux_version = infu_flux_version
         self.model_version = model_version
         # Load controlnet
-        shared.log.debug(f'InfiniteYou: cls={shared.sd_model.__class__.__name__} loading')
+        shared.log.debug(f'InfiniteYou: cls={MODELDATA.sd_model.__class__.__name__} loading')
         local_path = snapshot_download(repo_id='ByteDance/InfiniteYou', cache_dir=shared.opts.hfcache_dir)
         infiniteyou_path = os.path.join(local_path, f'infu_flux_{infu_flux_version}', model_version)
         infusenet_path = os.path.join(infiniteyou_path, 'InfuseNetModel')

@@ -3,6 +3,7 @@ import cv2
 import torch
 import numpy as np
 import huggingface_hub as hf
+from core import MODELDATA
 from modules import shared, processing, sd_models, devices
 
 
@@ -21,7 +22,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         shared.log.warning('InstantID: no input images')
         return None
 
-    c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
+    c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
     if c not in ['StableDiffusionXLPipeline', 'StableDiffusionXLInstantIDPipeline']:
         shared.log.warning(f'InstantID invalid base model: current={c} required=StableDiffusionXLPipeline')
         return None
@@ -44,23 +45,23 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         sd_models.move_model(controlnet_model, devices.device)
 
     # create new pipeline
-    orig_pipeline = shared.sd_model # backup current pipeline definition
-    shared.sd_model = StableDiffusionXLInstantIDPipeline(
-        vae = shared.sd_model.vae,
-        text_encoder=shared.sd_model.text_encoder,
-        text_encoder_2=shared.sd_model.text_encoder_2,
-        tokenizer=shared.sd_model.tokenizer,
-        tokenizer_2=shared.sd_model.tokenizer_2,
-        unet=shared.sd_model.unet,
-        scheduler=shared.sd_model.scheduler,
+    orig_pipeline = MODELDATA.sd_model # backup current pipeline definition
+    MODELDATA.sd_model = StableDiffusionXLInstantIDPipeline(
+        vae = MODELDATA.sd_model.vae,
+        text_encoder=MODELDATA.sd_model.text_encoder,
+        text_encoder_2=MODELDATA.sd_model.text_encoder_2,
+        tokenizer=MODELDATA.sd_model.tokenizer,
+        tokenizer_2=MODELDATA.sd_model.tokenizer_2,
+        unet=MODELDATA.sd_model.unet,
+        scheduler=MODELDATA.sd_model.scheduler,
         controlnet=controlnet_model,
         force_zeros_for_empty_prompt=shared.opts.diffusers_force_zeros,
     )
-    sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline) # copy options from original pipeline
-    sd_models.set_diffuser_options(shared.sd_model) # set all model options such as fp16, offload, etc.
-    shared.sd_model.load_ip_adapter_instantid(face_adapter, scale=strength)
-    shared.sd_model.set_ip_adapter_scale(strength)
-    sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
+    sd_models.copy_diffuser_options(MODELDATA.sd_model, orig_pipeline) # copy options from original pipeline
+    sd_models.set_diffuser_options(MODELDATA.sd_model) # set all model options such as fp16, offload, etc.
+    MODELDATA.sd_model.load_ip_adapter_instantid(face_adapter, scale=strength)
+    MODELDATA.sd_model.set_ip_adapter_scale(strength)
+    sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
 
     # pipeline specific args
     if p.all_prompts is None or len(p.all_prompts) == 0:
@@ -79,7 +80,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
 
     # run processing
     processed: processing.Processed = processing.process_images(p)
-    shared.sd_model.set_ip_adapter_scale(0)
+    MODELDATA.sd_model.set_ip_adapter_scale(0)
     p.extra_generation_params['InstantID'] = f'{strength}/{conditioning}'
 
     if not cache:
@@ -88,5 +89,5 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
 
     # restore original pipeline
     shared.opts.data['prompt_attention'] = orig_prompt_attention
-    shared.sd_model = orig_pipeline
+    MODELDATA.sd_model = orig_pipeline
     return processed

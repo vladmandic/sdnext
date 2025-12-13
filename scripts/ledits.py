@@ -36,26 +36,26 @@ class Script(scripts_manager.Script):
         if image is None or len(image) == 0:
             shared.log.error('LEdits: no init_images')
             return None
-        if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'LEdits: invalid model type: {shared.sd_model_type}')
+        if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl':
+            shared.log.error(f'LEdits: invalid model type: {MODELDATA.sd_model_type}')
             return None
 
-        orig_pipeline = shared.sd_model
+        orig_pipeline = MODELDATA.sd_model
         orig_offload = shared.opts.diffusers_model_cpu_offload
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['diffusers_model_cpu_offload'] = False
         shared.opts.data['prompt_attention'] = 'fixed'
         # shared.sd_model.maybe_free_model_hooks() # ledits is not compatible with offloading
         # shared.sd_model.has_accelerate = False
-        sd_models.move_model(shared.sd_model, devices.device, force=True)
-        if shared.sd_model_type == 'sd':
-            shared.sd_model = sd_models.switch_pipe(diffusers.LEditsPPPipelineStableDiffusion, shared.sd_model)
-        elif shared.sd_model_type == 'sdxl':
-            shared.sd_model = sd_models.switch_pipe(diffusers.LEditsPPPipelineStableDiffusionXL, shared.sd_model)
+        sd_models.move_model(MODELDATA.sd_model, devices.device, force=True)
+        if MODELDATA.sd_model_type == 'sd':
+            MODELDATA.sd_model = sd_models.switch_pipe(diffusers.LEditsPPPipelineStableDiffusion, MODELDATA.sd_model)
+        elif MODELDATA.sd_model_type == 'sdxl':
+            MODELDATA.sd_model = sd_models.switch_pipe(diffusers.LEditsPPPipelineStableDiffusionXL, MODELDATA.sd_model)
         if str(devices.dtype) == 'torch.float16':
-            shared.sd_model.vae.config.force_upcast = False # not compatible
+            MODELDATA.sd_model.vae.config.force_upcast = False # not compatible
 
-        shared.sd_model.scheduler = diffusers.DPMSolverMultistepScheduler.from_config(shared.sd_model.scheduler.config, algorithm_type="sde-dpmsolver++", solver_order=2) # ledits is very picky
+        MODELDATA.sd_model.scheduler = diffusers.DPMSolverMultistepScheduler.from_config(MODELDATA.sd_model.scheduler.config, algorithm_type="sde-dpmsolver++", solver_order=2) # ledits is very picky
         p.sampler_name = 'Default'
         p.init() # run init early to take care of resizing
 
@@ -68,7 +68,7 @@ class Script(scripts_manager.Script):
             'generator': None, # not supported
         }
         shared.log.info(f'LEdits invert: {invert_args}')
-        _output = shared.sd_model.invert(**invert_args)
+        _output = MODELDATA.sd_model.invert(**invert_args)
         p.task_args = {
             'editing_prompt': [],
             'reverse_editing_direction': [],
@@ -95,7 +95,7 @@ class Script(scripts_manager.Script):
         processed = processing.process_images(p)
 
         # restore pipeline
-        shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = orig_pipeline
         shared.opts.data['prompt_attention'] = orig_prompt_attention
         shared.opts.data['diffusers_model_cpu_offload'] = orig_offload
         return processed

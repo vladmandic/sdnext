@@ -1,5 +1,6 @@
 import os
 from installer import git_commit
+from core import MODELDATA
 from modules import shared, sd_samplers_common, sd_vae, generation_parameters_copypaste
 from modules.processing_class import StableDiffusionProcessing
 
@@ -18,7 +19,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if p is None:
         shared.log.warning('Processing info: no data')
         return ''
-    if not hasattr(shared.sd_model, 'sd_checkpoint_info'):
+    if not hasattr(MODELDATA.sd_model, 'sd_checkpoint_info'):
         return ''
     if index is None:
         index = position_in_batch + iteration * p.batch_size
@@ -61,19 +62,19 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Version": git_commit,
         "Parser": shared.opts.prompt_attention if shared.opts.prompt_attention != 'native' else None,
         "Comment": comment,
-        "Pipeline": shared.sd_model.__class__.__name__,
+        "Pipeline": MODELDATA.sd_model.__class__.__name__,
         "TE": None if (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default') else shared.opts.sd_text_encoder,
         "UNet": None if (shared.opts.sd_unet is None or shared.opts.sd_unet == 'Default') else shared.opts.sd_unet,
         "Operations": '; '.join(ops).replace('"', '') if len(p.ops) > 0 else 'none',
     }
     if shared.opts.add_model_name_to_info:
-        if getattr(shared.sd_model, 'sd_checkpoint_info', None) is not None:
-            args["Model"] = shared.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
+        if getattr(MODELDATA.sd_model, 'sd_checkpoint_info', None) is not None:
+            args["Model"] = MODELDATA.sd_model.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
     if shared.opts.add_model_hash_to_info:
         if getattr(p, 'sd_model_hash', None) is not None:
             args["Model hash"] = p.sd_model_hash
-        elif getattr(shared.sd_model, 'sd_model_hash', None) is not None:
-            args["Model hash"] = shared.sd_model.sd_model_hash
+        elif getattr(MODELDATA.sd_model, 'sd_model_hash', None) is not None:
+            args["Model hash"] = MODELDATA.sd_model.sd_model_hash
     if p.vae_type == 'Full':
         args["VAE"] = (None if not shared.opts.add_model_name_to_info or sd_vae.loaded_vae_file is None else os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0])
     elif p.vae_type == 'Tiny':
@@ -110,7 +111,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
             args["Hires CFG scale"] = p.image_cfg_scale
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr
-        args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not shared.sd_refiner) or (not shared.sd_refiner.sd_checkpoint_info.model_name) else shared.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
+        args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not MODELDATA.sd_refiner) or (not MODELDATA.sd_refiner.sd_checkpoint_info.model_name) else MODELDATA.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
         args['Hires CFG scale'] = p.image_cfg_scale
         args['Refiner steps'] = p.refiner_steps
         args['Refiner start'] = p.refiner_start
@@ -155,8 +156,8 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['ToMe'] = shared.opts.tome_ratio if shared.opts.tome_ratio != 0 else None
     else:
         args['ToDo'] = shared.opts.todo_ratio if shared.opts.todo_ratio != 0 else None
-    if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
-        args['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)
+    if hasattr(MODELDATA.sd_model, 'embedding_db') and len(MODELDATA.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
+        args['Embeddings'] = ', '.join(MODELDATA.sd_model.embedding_db.embeddings_used)
 
     # samplers
     if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
@@ -178,7 +179,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args['Sampler dynamic shift'] = shared.opts.schedulers_dynamic_shift if shared.opts.schedulers_dynamic_shift != shared.opts.data_labels.get('schedulers_dynamic_shift').default else None
 
     # model specific
-    if shared.sd_model_type == 'h1':
+    if MODELDATA.sd_model_type == 'h1':
         args['LLM'] =  None if shared.opts.model_h1_llama_repo == 'Default' else shared.opts.model_h1_llama_repo
 
     args.update(p.extra_generation_params)

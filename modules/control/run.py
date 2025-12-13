@@ -33,11 +33,11 @@ def restore_pipeline():
     global pipe, instance # pylint: disable=global-statement
     if instance is not None and hasattr(instance, 'restore'):
         instance.restore()
-    if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
+    if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != MODELDATA.sd_model.__class__.__name__):
         if debug:
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            shared.log.trace(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
-        shared.sd_model = original_pipeline
+            shared.log.trace(f'Control restored pipeline: class={MODELDATA.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
+        MODELDATA.sd_model = original_pipeline
     pipe = None
     instance = None
     devices.torch_gc()
@@ -50,7 +50,7 @@ def terminate(msg):
 
 
 def is_unified_model():
-    return shared.sd_model.__class__.__name__ in unified_models
+    return MODELDATA.sd_model.__class__.__name__ in unified_models
 
 
 def has_inputs(inputs):
@@ -82,13 +82,13 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
     if unit_type == 't2i adapter' and has_models:
         p.extra_generation_params["Control type"] = 'T2I-Adapter'
         p.task_args['adapter_conditioning_scale'] = control_conditioning
-        instance = t2iadapter.AdapterPipeline(selected_models, shared.sd_model)
+        instance = t2iadapter.AdapterPipeline(selected_models, MODELDATA.sd_model)
         pipe = instance.pipeline
         if inits is not None:
             shared.log.warning('Control: T2I-Adapter does not support separate init image')
     elif unit_type == 'controlnet' and has_models:
         p.extra_generation_params["Control type"] = 'ControlNet'
-        if shared.sd_model_type == 'f1':
+        if MODELDATA.sd_model_type == 'f1':
             p.task_args['controlnet_conditioning_scale'] = control_conditioning if isinstance(control_conditioning, list) else [control_conditioning]
         else:
             p.task_args['controlnet_conditioning_scale'] = control_conditioning
@@ -96,23 +96,23 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['control_guidance_end'] = control_guidance_end
         p.task_args['guess_mode'] = p.guess_mode
         if not is_unified_model():
-            instance = controlnet.ControlNetPipeline(selected_models, shared.sd_model, p=p)
+            instance = controlnet.ControlNetPipeline(selected_models, MODELDATA.sd_model, p=p)
             pipe = instance.pipeline
         else:
-            pipe = shared.sd_model
+            pipe = MODELDATA.sd_model
     elif unit_type == 'xs' and has_models:
         p.extra_generation_params["Control type"] = 'ControlNet-XS'
         p.controlnet_conditioning_scale = control_conditioning
         p.control_guidance_start = control_guidance_start
         p.control_guidance_end = control_guidance_end
-        instance = xs.ControlNetXSPipeline(selected_models, shared.sd_model)
+        instance = xs.ControlNetXSPipeline(selected_models, MODELDATA.sd_model)
         pipe = instance.pipeline
         if inits is not None:
             shared.log.warning('Control: ControlNet-XS does not support separate init image')
     elif unit_type == 'lite' and has_models:
         p.extra_generation_params["Control type"] = 'ControlLLLite'
         p.controlnet_conditioning_scale = control_conditioning
-        instance = lite.ControlLLitePipeline(shared.sd_model)
+        instance = lite.ControlLLitePipeline(MODELDATA.sd_model)
         pipe = instance.pipeline
         if inits is not None:
             shared.log.warning('Control: ControlLLLite does not support separate init image')
@@ -124,17 +124,17 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         p.task_args['attention_auto_machine_weight'] = p.query_weight
         p.task_args['gn_auto_machine_weight'] = p.adain_weight
         p.task_args['style_fidelity'] = p.fidelity
-        instance = reference.ReferencePipeline(shared.sd_model)
+        instance = reference.ReferencePipeline(MODELDATA.sd_model)
         pipe = instance.pipeline
         if inits is not None:
             shared.log.warning('Control: ControlNet-XS does not support separate init image')
     else: # run in txt2img/img2img mode
         if len(active_strength) > 0:
             p.strength = active_strength[0]
-        pipe = shared.sd_model
+        pipe = MODELDATA.sd_model
         instance = None
-    if (pipe is not None) and (pipe.__class__.__name__ != shared.sd_model.__class__.__name__):
-        sd_models.copy_diffuser_options(pipe, shared.sd_model) # copy options from original pipeline
+    if (pipe is not None) and (pipe.__class__.__name__ != MODELDATA.sd_model.__class__.__name__):
+        sd_models.copy_diffuser_options(pipe, MODELDATA.sd_model) # copy options from original pipeline
     debug_log(f'Control: run type={unit_type} models={has_models} pipe={pipe.__class__.__name__ if pipe is not None else None}')
     return pipe
 
@@ -436,7 +436,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         setattr(p, k, v)
     p_extra_args = {}
 
-    if shared.sd_model is None:
+    if MODELDATA.sd_model is None:
         shared.log.warning('Aborted: op=control model not loaded')
         return [], '', '', 'Error: model not loaded'
 
@@ -464,13 +464,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     # set pipeline
     if pipe is None:
         return [], '', '', 'Pipeline not set'
-    elif pipe.__class__.__name__ != shared.sd_model.__class__.__name__:
-        original_pipeline = shared.sd_model
-        shared.sd_model = pipe
-        sd_models.move_model(shared.sd_model, shared.device)
+    elif pipe.__class__.__name__ != MODELDATA.sd_model.__class__.__name__:
+        original_pipeline = MODELDATA.sd_model
+        MODELDATA.sd_model = pipe
+        sd_models.move_model(MODELDATA.sd_model, shared.device)
         debug_log(f'Control device={devices.device} dtype={devices.dtype}')
-        sd_models.copy_diffuser_options(shared.sd_model, original_pipeline) # copy options from original pipeline
-        sd_models.set_diffuser_options(shared.sd_model)
+        sd_models.copy_diffuser_options(MODELDATA.sd_model, original_pipeline) # copy options from original pipeline
+        sd_models.set_diffuser_options(MODELDATA.sd_model)
     else:
         original_pipeline = None
 
@@ -512,7 +512,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
                     pipe.restore_pipeline = restore_pipeline
-                    shared.sd_model.restore_pipeline = restore_pipeline
+                    MODELDATA.sd_model.restore_pipeline = restore_pipeline
                     debug_log(f'Control Control image: {i + 1} of {len(inputs)}')
                     if shared.state.skipped:
                         shared.state.skipped = False
@@ -557,7 +557,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
                     # final check
                     if has_models:
-                        if shared.sd_model.__class__.__name__ not in unified_models:
+                        if MODELDATA.sd_model.__class__.__name__ not in unified_models:
                             if unit_type in ['controlnet', 't2i adapter', 'lite', 'xs'] \
                                 and p.task_args.get('image', None) is None \
                                 and p.task_args.get('control_image', None) is None \

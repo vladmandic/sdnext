@@ -8,9 +8,9 @@ loaded_model: str = None
 
 
 def get_bucket(size: int):
-    if not hasattr(shared.sd_model, 'vae_temporal_compression_ratio'):
+    if not hasattr(MODELDATA.sd_model, 'vae_temporal_compression_ratio'):
         return int(size) - (int(size) % 16)
-    return int(size) - (int(size) % shared.sd_model.vae_temporal_compression_ratio)
+    return int(size) - (int(size) % MODELDATA.sd_model.vae_temporal_compression_ratio)
 
 
 def get_frames(frames: int):
@@ -23,7 +23,7 @@ def load_model(engine: str, model: str):
         return
     if model is None or model == '' or model=='None':
         loaded_model = None
-        shared.sd_model = None
+        MODELDATA.sd_model = None
         return
     t0 = time.time()
     from modules.video_models import models_def, video_load
@@ -32,7 +32,7 @@ def load_model(engine: str, model: str):
     video_load.load_model(selected)
     loaded_model = model
     t1 = time.time()
-    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+    MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
     t2 = time.time()
     timer.process.add('load', t1 - t0)
     timer.process.add('offload', t2 - t1)
@@ -45,7 +45,7 @@ def load_upsample(upsample_pipe, upsample_repo_id):
         shared.log.info(f'Video load: cls={LTXLatentUpsamplePipeline.__class__.__name__} repo="{upsample_repo_id}"')
         upsample_pipe = LTXLatentUpsamplePipeline.from_pretrained(
             upsample_repo_id,
-            vae=shared.sd_model.vae,
+            vae=MODELDATA.sd_model.vae,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
@@ -113,23 +113,23 @@ def get_generator(seed):
 
 def vae_decode(latents, decode_timestep, seed):
     t0 = time.time()
-    shared.log.debug(f'Video: cls={shared.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep}')
+    shared.log.debug(f'Video: cls={MODELDATA.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep}')
     from diffusers.utils.torch_utils import randn_tensor
-    latents = shared.sd_model._denormalize_latents( # pylint: disable=protected-access
+    latents = MODELDATA.sd_model._denormalize_latents( # pylint: disable=protected-access
         latents,
-        shared.sd_model.vae.latents_mean,
-        shared.sd_model.vae.latents_std,
-        shared.sd_model.vae.config.scaling_factor
+        MODELDATA.sd_model.vae.latents_mean,
+        MODELDATA.sd_model.vae.latents_std,
+        MODELDATA.sd_model.vae.config.scaling_factor
     )
     latents = latents.to(device=devices.device, dtype=devices.dtype)
-    if not shared.sd_model.vae.config.timestep_conditioning:
+    if not MODELDATA.sd_model.vae.config.timestep_conditioning:
         timestep = None
     else:
         noise = randn_tensor(latents.shape, generator=get_generator(seed), device=devices.device, dtype=devices.dtype)
         timestep = torch.tensor([decode_timestep], device=devices.device, dtype=latents.dtype)
         noise_scale = torch.tensor([decode_timestep], device=devices.device, dtype=devices.dtype)[:, None, None, None, None]
         latents = (1 - noise_scale) * latents + noise_scale * noise
-    frames = shared.sd_model.vae.decode(latents, timestep, return_dict=False)[0] # n, c, f, h, w
+    frames = MODELDATA.sd_model.vae.decode(latents, timestep, return_dict=False)[0] # n, c, f, h, w
     # frames = frames.squeeze(0) if frames.ndim == 5 else frames
     # frames = frames.permute(1, 2, 3, 0)
     # frames = shared.sd_model.video_processor.postprocess_video(frames, output_type='pil')

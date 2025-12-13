@@ -2,6 +2,7 @@ from typing import List
 import os
 import re
 import numpy as np
+from core import MODELDATA
 from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
 from modules import extra_networks, shared, sd_models
@@ -133,10 +134,10 @@ def parse(p, params_list, step=0):
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
 
-        if len(lora_module) == 0 and shared.sd_loaded:
-            if hasattr(shared.sd_model, 'transformer') and (shared.sd_model.transformer is not None) and hasattr(shared.sd_model, 'transformer_2') and (shared.sd_model.transformer_2 is None):
+        if len(lora_module) == 0 and MODELDATA.sd_loaded:
+            if hasattr(MODELDATA.sd_model, 'transformer') and (MODELDATA.sd_model.transformer is not None) and hasattr(MODELDATA.sd_model, 'transformer_2') and (MODELDATA.sd_model.transformer_2 is None):
                 lora_module.append('transformer')
-            if hasattr(shared.sd_model, 'transformer') and (shared.sd_model.transformer is None) and hasattr(shared.sd_model, 'transformer_2') and (shared.sd_model.transformer_2 is not None):
+            if hasattr(MODELDATA.sd_model, 'transformer') and (MODELDATA.sd_model.transformer is None) and hasattr(MODELDATA.sd_model, 'transformer_2') and (MODELDATA.sd_model.transformer_2 is not None):
                 lora_module.append('transformer_2')
 
         lora_modules.append(lora_module)
@@ -145,14 +146,14 @@ def parse(p, params_list, step=0):
 
 
 def unload_diffusers():
-    if hasattr(shared.sd_model, "unfuse_lora"):
+    if hasattr(MODELDATA.sd_model, "unfuse_lora"):
         try:
-            shared.sd_model.unfuse_lora()
+            MODELDATA.sd_model.unfuse_lora()
         except Exception:
             pass
-    if hasattr(shared.sd_model, "unload_lora_weights"):
+    if hasattr(MODELDATA.sd_model, "unload_lora_weights"):
         try:
-            shared.sd_model.unload_lora_weights() # fails for non-CLIP models
+            MODELDATA.sd_model.unload_lora_weights() # fails for non-CLIP models
         except Exception:
             pass
 
@@ -171,7 +172,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
     def changed(self, requested: List[str], include: List[str], exclude: List[str]):
         if shared.opts.lora_force_reload:
             return True
-        sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
+        sd_model = MODELDATA.sd_model.pipe if hasattr(MODELDATA.sd_model, 'pipe') else MODELDATA.sd_model
         if not hasattr(sd_model, 'loaded_loras'):
             sd_model.loaded_loras = {}
         if include is None or len(include) == 0:
@@ -212,7 +213,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if len(exclude) == 0:
                 jobid = shared.state.begin('LoRA')
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load only on first call
-                sd_models.set_diffuser_offload(shared.sd_model, op="model")
+                sd_models.set_diffuser_offload(MODELDATA.sd_model, op="model")
                 shared.state.end(jobid)
         elif load_method == 'nunchaku':
             from modules.lora import lora_nunchaku

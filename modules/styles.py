@@ -154,9 +154,9 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
 
 
 def get_reference_style():
-    if getattr(shared.sd_model, 'sd_checkpoint_info', None) is None:
+    if getattr(MODELDATA.sd_model, 'sd_checkpoint_info', None) is None:
         return None
-    name = shared.sd_model.sd_checkpoint_info.name
+    name = MODELDATA.sd_model.sd_checkpoint_info.name
     name = name.replace('\\', '/').replace('Diffusers/', '')
     for k, v in shared.reference_models.items():
         model_file = os.path.splitext(v.get('path', '').split('@')[0])[0].replace('huggingface/', '')

@@ -11,9 +11,9 @@ adapter_id = "ostris/16ch-VAE-Adapters"
 
 
 def load_vae(pipe):
-    if shared.sd_model_type == 'sd':
+    if MODELDATA.sd_model_type == 'sd':
         adapter_file = "16ch-VAE-Adapter-SD15-alpha.safetensors"
-    elif shared.sd_model_type == 'sdxl':
+    elif MODELDATA.sd_model_type == 'sdxl':
         adapter_file = "16ch-VAE-Adapter-SDXL-alpha_v02.safetensors"
     else:
         shared.log.error('VAE: type=osiris unsupported model type')

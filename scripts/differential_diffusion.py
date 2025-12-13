@@ -1909,8 +1909,8 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessingImg2Img, enabled, strength, invert, model, image): # pylint: disable=arguments-differ
         if not enabled:
             return
-        if shared.sd_model_type not in ['sdxl', 'sd', 'f1']:
-            shared.log.error(f'Differential-diffusion: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type not in ['sdxl', 'sd', 'f1']:
+            shared.log.error(f'Differential-diffusion: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return
         if not hasattr(p, 'init_images') or len(p.init_images) == 0:
             shared.log.error('Differential-diffusion: no input images')
@@ -1921,53 +1921,53 @@ class Script(scripts_manager.Script):
             shared.log.error('Differential-diffusion: no image map')
             return
 
-        orig_pipeline = shared.sd_model
+        orig_pipeline = MODELDATA.sd_model
         pipe = None
         try:
             # shared.sd_model = diffusers.StableDiffusionPipeline.from_pipe(shared.sd_model, **{ 'custom_pipeline': 'kohya_hires_fix', 'high_res_fix': high_res_fix })
             # from examples.community.pipeline_stable_diffusion_xl_differential_img2img import StableDiffusionXLDifferentialImg2ImgPipeline
             diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["StableDiffusionXLDiffImg2ImgPipeline"] = StableDiffusionXLDiffImg2ImgPipeline
             diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["StableDiffusionDiffImg2ImgPipeline"] = StableDiffusionDiffImg2ImgPipeline
-            if shared.sd_model_type == 'sdxl':
+            if MODELDATA.sd_model_type == 'sdxl':
                 pipe = StableDiffusionXLDiffImg2ImgPipeline(
-                    text_encoder=shared.sd_model.text_encoder,
-                    text_encoder_2=shared.sd_model.text_encoder_2,
-                    tokenizer=shared.sd_model.tokenizer,
-                    tokenizer_2=shared.sd_model.tokenizer_2,
-                    unet=shared.sd_model.unet,
-                    vae=shared.sd_model.vae,
-                    scheduler=shared.sd_model.scheduler,
+                    text_encoder=MODELDATA.sd_model.text_encoder,
+                    text_encoder_2=MODELDATA.sd_model.text_encoder_2,
+                    tokenizer=MODELDATA.sd_model.tokenizer,
+                    tokenizer_2=MODELDATA.sd_model.tokenizer_2,
+                    unet=MODELDATA.sd_model.unet,
+                    vae=MODELDATA.sd_model.vae,
+                    scheduler=MODELDATA.sd_model.scheduler,
                 )
-            elif shared.sd_model_type == 'sd':
+            elif MODELDATA.sd_model_type == 'sd':
                 pipe = StableDiffusionDiffImg2ImgPipeline(
-                    text_encoder=shared.sd_model.text_encoder,
-                    tokenizer=shared.sd_model.tokenizer,
-                    unet=shared.sd_model.unet,
-                    vae=shared.sd_model.vae,
-                    scheduler=shared.sd_model.scheduler,
-                    feature_extractor=getattr(shared.sd_model, 'feature_extractor', None),
+                    text_encoder=MODELDATA.sd_model.text_encoder,
+                    tokenizer=MODELDATA.sd_model.tokenizer,
+                    unet=MODELDATA.sd_model.unet,
+                    vae=MODELDATA.sd_model.vae,
+                    scheduler=MODELDATA.sd_model.scheduler,
+                    feature_extractor=getattr(MODELDATA.sd_model, 'feature_extractor', None),
                     safety_checker=None,
                     requires_safety_checker=False,
                 )
-            elif shared.sd_model_type == 'f1':
-                pipe = diffusers.StableDiffusionPipeline.from_pipe(shared.sd_model, **{ 'custom_pipeline': 'pipeline_flux_differential_img2img' })
+            elif MODELDATA.sd_model_type == 'f1':
+                pipe = diffusers.StableDiffusionPipeline.from_pipe(MODELDATA.sd_model, **{ 'custom_pipeline': 'pipeline_flux_differential_img2img' })
                 diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["FluxDifferentialImg2ImgPipeline"] = pipe.__class__
-            sd_models.copy_diffuser_options(pipe, shared.sd_model)
+            sd_models.copy_diffuser_options(pipe, MODELDATA.sd_model)
             sd_models.set_diffuser_options(pipe)
             p.task_args['image'] = image_init
             p.task_args['map'] = image_map
-            if shared.sd_model_type == 'sdxl':
+            if MODELDATA.sd_model_type == 'sdxl':
                 p.task_args['original_image'] = image_init
             if p.batch_size > 1:
                 shared.log.warning(f'Differential-diffusion: batch-size={p.batch_size} parallel processing not supported')
                 p.batch_size = 1
             shared.log.debug(f'Differential-diffusion: pipeline={pipe.__class__.__name__} strength={strength} model={model} auto={image is None}')
-            shared.sd_model = pipe
+            MODELDATA.sd_model = pipe
             sd_models.move_model(pipe.vae, devices.device, force=True)
         except Exception as e:
             shared.log.error(f'Differential-diffusion: pipeline creation failed: {e}')
             errors.display(e, 'Differential-diffusion: pipeline creation failed')
-            shared.sd_model = orig_pipeline
+            MODELDATA.sd_model = orig_pipeline
 
         # run pipeline
         processed: processing.Processed = processing.process_images(p) # runs processing using main loop
@@ -1978,6 +1978,6 @@ class Script(scripts_manager.Script):
 
         # restore pipeline and params
         pipe = None
-        shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = orig_pipeline
         devices.torch_gc()
         return processed

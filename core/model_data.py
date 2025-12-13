@@ -2,13 +2,14 @@ from __future__ import annotations
 import os
 import sys
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 from modules import shared, errors
 
 if TYPE_CHECKING:
     from diffusers import DiffusionPipeline
 
 
+@final
 class ModelData:
     def __init__(self):
         self._sd_model: DiffusionPipeline | None = None
@@ -20,14 +21,17 @@ class ModelData:
         self.locked = True
         self.lock = threading.Lock()
 
+    @final
     @property
     def sd_loaded(self):
         return self._sd_model is not None
 
+    @final
     @property
     def sd_loaded_refiner(self):
         return self._sd_refiner is not None
 
+    @final
     @property
     def sd_model(self):
         if not self.sd_loaded:
@@ -50,12 +54,14 @@ class ModelData:
                     self._sd_model = None
         return self._sd_model
 
+    @final
     @sd_model.setter
     def sd_model(self, value):
         if not self.locked:
             self._sd_model = value
             self._sd_model_type = ModelData.get_model_type(value)
 
+    @final
     @property
     def sd_refiner(self):
         if not self.sd_loaded_refiner and (shared.opts.sd_model_refiner != 'None') and (not self.lock.locked()):
@@ -70,18 +76,21 @@ class ModelData:
                     self._sd_refiner = None
         return self._sd_refiner
 
+    @final
     @sd_refiner.setter
     def sd_refiner(self, value):
         if not self.locked:
             self._sd_refiner = value
             self._sd_refiner_type = ModelData.get_model_type(value)
 
+    @final
     @property
     def sd_model_type(self):
         if self._sd_model is None:
             return "none"
         return self._sd_model_type
 
+    @final
     @property
     def sd_refiner_type(self):
         try:
@@ -91,6 +100,7 @@ class ModelData:
         except Exception:
             return "unknown"
 
+    @final
     @staticmethod
     def get_model_type(pipe: DiffusionPipeline):
         name = pipe.__class__.__name__

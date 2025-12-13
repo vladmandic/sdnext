@@ -15,9 +15,9 @@ loaded_vae = None
 
 def repa_load(latents):
     global loaded_cls, loaded_vae # pylint: disable=global-statement
-    config = models.get(shared.sd_model_type, None)
+    config = models.get(MODELDATA.sd_model_type, None)
     if config is None:
-        shared.log.error(f'Decode: type="repa" model={shared.sd_model_type} not supported')
+        shared.log.error(f'Decode: type="repa" model={MODELDATA.sd_model_type} not supported')
         return latents
 
     cls = getattr(diffusers, config['cls'])

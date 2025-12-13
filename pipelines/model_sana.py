@@ -21,7 +21,7 @@ def load_quants(kwargs, repo_id, cache_dir):
     return kwargs
 
 
-def load_sana(checkpoint_info, kwargs=None):
+def load_sana(checkpoint_info, kwargs=None) -> diffusers.SanaPipeline | diffusers.SanaSprintPipeline: # Not sure why the typing isn't being picked up by pyright
     if kwargs is None:
         kwargs = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)

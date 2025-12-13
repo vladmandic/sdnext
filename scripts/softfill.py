@@ -1629,8 +1629,8 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessingImg2Img, enabled, noise, strength): # pylint: disable=arguments-differ
         if not enabled:
             return
-        if shared.sd_model_type not in ['sdxl']:
-            shared.log.error(f'SoftFill: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type not in ['sdxl']:
+            shared.log.error(f'SoftFill: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return
         if not hasattr(p, 'init_images') or len(p.init_images) == 0:
             shared.log.error('SoftFill: no input image')
@@ -1648,14 +1648,14 @@ class Script(scripts_manager.Script):
             shared.log.error(f'SoftFill: {e}')
             return
 
-        self.orig_pipeline = shared.sd_model
+        self.orig_pipeline = MODELDATA.sd_model
         try:
-            shared.sd_model = sd_models.switch_pipe(StableDiffusionXLSoftFillPipeline, shared.sd_model)
-            if shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude:
-                sd_models.pipe_switch_task_exclude.append(shared.sd_model.__class__.__name__)
+            MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLSoftFillPipeline, MODELDATA.sd_model)
+            if MODELDATA.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude:
+                sd_models.pipe_switch_task_exclude.append(MODELDATA.sd_model.__class__.__name__)
         except Exception as e:
             shared.log.error(f'SoftFill: {e}')
-            shared.sd_model = self.orig_pipeline
+            MODELDATA.sd_model = self.orig_pipeline
             self.orig_pipeline = None
             return
 
@@ -1663,9 +1663,9 @@ class Script(scripts_manager.Script):
         p.task_args['strength'] = strength
         p.task_args['image'] = p.init_images[0]
         p.task_args['mask'] = p.mask
-        shared.log.info(f'SoftFill: cls={shared.sd_model.__class__.__name__} {p.task_args}')
+        shared.log.info(f'SoftFill: cls={MODELDATA.sd_model.__class__.__name__} {p.task_args}')
 
     def after(self, p: processing.StableDiffusionProcessingImg2Img, *args, **kwargs): # pylint: disable=unused-argument
         if self.orig_pipeline is not None:
-            shared.sd_model = self.orig_pipeline
+            MODELDATA.sd_model = self.orig_pipeline
             self.orig_pipeline = None

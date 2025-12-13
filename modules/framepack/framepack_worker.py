@@ -68,14 +68,14 @@ def worker(
     videojob = shared.state.begin('Video')
     shared.state.job_count = 1
 
-    text_encoder = shared.sd_model.text_encoder
-    text_encoder_2 = shared.sd_model.text_encoder_2
-    tokenizer = shared.sd_model.tokenizer
-    tokenizer_2 = shared.sd_model.tokenizer_2
-    feature_extractor = shared.sd_model.feature_extractor
-    image_encoder = shared.sd_model.image_processor
-    transformer = shared.sd_model.transformer
-    sd_models.apply_balanced_offload(shared.sd_model)
+    text_encoder = MODELDATA.sd_model.text_encoder
+    text_encoder_2 = MODELDATA.sd_model.text_encoder_2
+    tokenizer = MODELDATA.sd_model.tokenizer
+    tokenizer_2 = MODELDATA.sd_model.tokenizer_2
+    feature_extractor = MODELDATA.sd_model.feature_extractor
+    image_encoder = MODELDATA.sd_model.image_processor
+    transformer = MODELDATA.sd_model.transformer
+    sd_models.apply_balanced_offload(MODELDATA.sd_model)
     pbar = rp.Progress(rp.TextColumn('[cyan]Video'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
     task = pbar.add_task('starting', total=steps * len(latent_paddings))
     t_last = time.time()
@@ -90,7 +90,7 @@ def worker(
         # shared.log.debug(f'FramePack: section={i} prompt="{prompt}"')
         shared.state.textinfo = 'Text encode'
         stream.output_queue.push(('progress', (None, 'Text encoding...')))
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         framepack_hijack.set_prompt_template(prompt, system_prompt, optimized_prompt, unmodified_prompt)
         llama_vec, clip_l_pooler = hunyuan.encode_prompt_conds(prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2)
         metadata['comment'] = prompt
@@ -100,7 +100,7 @@ def worker(
             llama_vec_n, clip_l_pooler_n = torch.zeros_like(llama_vec), torch.zeros_like(clip_l_pooler)
         llama_vec, llama_attention_mask = utils.crop_or_pad_yield_mask(llama_vec, length=512)
         llama_vec_n, llama_attention_mask_n = utils.crop_or_pad_yield_mask(llama_vec_n, length=512)
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         timer.process.add('prompt', time.time()-t0)
         shared.state.end(jobid)
         return llama_vec, llama_vec_n, llama_attention_mask, llama_attention_mask_n, clip_l_pooler, clip_l_pooler_n
@@ -112,7 +112,7 @@ def worker(
         t0 = time.time()
         torch.manual_seed(seed)
         stream.output_queue.push(('progress', (None, 'VAE encoding...')))
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         if input_image is not None:
             input_image_pt = torch.from_numpy(input_image).float() / 127.5 - 1
             input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
@@ -126,7 +126,7 @@ def worker(
             end_latent = framepack_vae.vae_encode(end_image_pt)
         else:
             end_latent = None
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         timer.process.add('encode', time.time()-t0)
         shared.state.end(jobid)
         return start_latent, end_latent
@@ -137,7 +137,7 @@ def worker(
         t0 = time.time()
         shared.state.textinfo = 'Vision encode'
         stream.output_queue.push(('progress', (None, 'Vision encoding...')))
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         # siglip doesn't work with offload
         sd_models.move_model(feature_extractor, devices.device, force=True)
         sd_models.move_model(image_encoder, devices.device, force=True)
@@ -150,7 +150,7 @@ def worker(
             end_image_encoder_last_hidden_state = end_image_encoder_output.last_hidden_state
             image_encoder_last_hidden_state = (image_encoder_last_hidden_state * start_weight) + (end_image_encoder_last_hidden_state * end_weight) / (start_weight + end_weight) # use weighted approach
         image_encoder_last_hidden_state = image_encoder_last_hidden_state * vision_weight
-        sd_models.apply_balanced_offload(shared.sd_model)
+        sd_models.apply_balanced_offload(MODELDATA.sd_model)
         timer.process.add('vision', time.time()-t0)
         return image_encoder_last_hidden_state
 
@@ -239,7 +239,7 @@ def worker(
                         clean_latents_post = (clean_latents_post * start_weight / len(latent_paddings)) + (end_weight * end_latent.to(history_latents)) / (start_weight/len(latent_paddings) + end_weight) # pylint: disable=possibly-used-before-assignment
                         clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
 
-                sd_models.apply_balanced_offload(shared.sd_model)
+                sd_models.apply_balanced_offload(MODELDATA.sd_model)
                 transformer.initialize_teacache(enable_teacache=use_teacache, num_steps=steps, rel_l1_thresh=shared.opts.teacache_thresh)
 
                 t_sample = time.time()
@@ -285,7 +285,7 @@ def worker(
                     history_latents = torch.cat([generated_latents.to(history_latents), history_latents], dim=2)
                     real_history_latents = history_latents[:, :, :total_generated_latent_frames, :, :]
 
-                sd_models.apply_balanced_offload(shared.sd_model)
+                sd_models.apply_balanced_offload(MODELDATA.sd_model)
                 timer.process.add('sample', time.time()-t_sample)
                 shared.state.end(sammplejob)
 
@@ -302,7 +302,7 @@ def worker(
                         section_latent_frames = (latent_window_size * 2 + 1) if is_last_section else (latent_window_size * 2)
                         current_pixels = framepack_vae.vae_decode(real_history_latents[:, :, :section_latent_frames], vae_type=vae_type).cpu()
                         history_pixels = utils.soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
-                sd_models.apply_balanced_offload(shared.sd_model)
+                sd_models.apply_balanced_offload(MODELDATA.sd_model)
                 timer.process.add('vae', time.time()-t_vae)
 
                 if is_last_section:
@@ -332,7 +332,7 @@ def worker(
         shared.log.error(f'FramePack: {e}')
         errors.display(e, 'FramePack')
 
-    sd_models.apply_balanced_offload(shared.sd_model)
+    sd_models.apply_balanced_offload(MODELDATA.sd_model)
     stream.output_queue.push(('end', None))
     t1 = time.time()
     shared.log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')

@@ -60,16 +60,16 @@ def single_sample_to_image(sample, approximation=None):
                     pass
             x_sample = sd_vae_taesd.decode(sample)
             # x_sample = (1.0 + x_sample) / 2.0 # preview requires smaller range
-        elif shared.sd_model_type == 'sc' and approximation != 3:
+        elif MODELDATA.sd_model_type == 'sc' and approximation != 3:
             x_sample = sd_vae_stablecascade.decode(sample)
         elif approximation == 0: # Simple
             x_sample = sd_vae_approx.cheap_approximation(sample) * 0.5 + 0.5
         elif approximation == 1: # Approximate
             x_sample = sd_vae_approx.nn_approximation(sample) * 0.5 + 0.5
-            if shared.sd_model_type == "sdxl":
+            if MODELDATA.sd_model_type == "sdxl":
                 x_sample = x_sample[[2, 1, 0], :, :] # BGR to RGB
         elif approximation == 3: # Full VAE
-            x_sample = processing.decode_first_stage(shared.sd_model, sample.unsqueeze(0))[0]
+            x_sample = processing.decode_first_stage(MODELDATA.sd_model, sample.unsqueeze(0))[0]
         else:
             warn_once(f"Unknown latent decode type: {approximation}")
             return Image.new(mode="RGB", size=(512, 512))
@@ -110,7 +110,7 @@ def images_tensor_to_samples(image, approximation=None, model=None):
         x_latent = sd_vae_taesd.encode(image)
     else:
         if model is None:
-            model = shared.sd_model
+            model = MODELDATA.sd_model
         model.first_stage_model.to(devices.dtype_vae)
         image = image.to(shared.device, dtype=devices.dtype_vae)
         image = image * 2 - 1

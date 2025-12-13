@@ -1,4 +1,5 @@
 import gradio as gr
+from core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models
 
 
@@ -21,7 +22,7 @@ class Script(scripts_manager.Script):
         return [source_subject, target_subject, prompt_strength]
 
     def run(self, p: processing.StableDiffusionProcessing, source_subject, target_subject, prompt_strength): # pylint: disable=arguments-differ, unused-argument
-        c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
+        c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
         if c != 'BlipDiffusionPipeline':
             shared.log.error(f'BLIP: model selected={c} required=BLIPDiffusion')
             return None
@@ -34,7 +35,7 @@ class Script(scripts_manager.Script):
             p.task_args['target_subject_category'] = [target_subject]
             p.task_args['output_type'] = 'pil'
             shared.log.debug(f'BLIP Diffusion: args={p.task_args}')
-            shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
+            MODELDATA.sd_model = sd_models.set_diffuser_pipe(MODELDATA.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
             processed = processing.process_images(p)
             return processed
         else:

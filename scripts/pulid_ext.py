@@ -139,8 +139,8 @@ class Script(scripts_manager.Script):
             return None
 
         supported_model_list = ['sdxl', 'f1']
-        if shared.sd_model_type not in supported_model_list:
-            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list:
+            shared.log.error(f'PuLID: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
         if self.pulid is None:
             self.dependencies()
@@ -176,13 +176,13 @@ class Script(scripts_manager.Script):
         restore = getattr(p, 'pulid_restore', restore)
         p.pulid_restore = restore
 
-        if shared.sd_model_type == 'sdxl' and not hasattr(shared.sd_model, 'pipe'):
+        if MODELDATA.sd_model_type == 'sdxl' and not hasattr(MODELDATA.sd_model, 'pipe'):
             try:
                 stdout = io.StringIO()
                 ctx = contextlib.nullcontext() if debug else contextlib.redirect_stdout(stdout)
                 with ctx:
-                    shared.sd_model = self.pulid.StableDiffusionXLPuLIDPipeline(
-                        pipe=shared.sd_model,
+                    MODELDATA.sd_model = self.pulid.StableDiffusionXLPuLIDPipeline(
+                        pipe=MODELDATA.sd_model,
                         device=devices.device,
                         dtype=devices.dtype,
                         providers=devices.onnx,
@@ -191,64 +191,64 @@ class Script(scripts_manager.Script):
                         sdp=sdp,
                         cache_dir=shared.opts.hfcache_dir,
                     )
-                shared.sd_model.no_recurse = True
-                sd_models.copy_diffuser_options(shared.sd_model, shared.sd_model.pipe)
-                sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
-                sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
+                MODELDATA.sd_model.no_recurse = True
+                sd_models.copy_diffuser_options(MODELDATA.sd_model, MODELDATA.sd_model.pipe)
+                sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
+                sd_models.set_diffuser_options(MODELDATA.sd_model, vae=None, op='model')
                 # shared.sd_model.hack_unet_attn_layers(shared.sd_model.pipe.unet) # reapply attention layers
                 devices.torch_gc()
             except Exception as e:
                 shared.log.error(f'PuLID: failed to create pipeline: {e}')
                 errors.display(e, 'PuLID')
                 return None
-        elif shared.sd_model_type == 'f1':
-            shared.sd_model = self.pulid.apply_flux(shared.sd_model)
+        elif MODELDATA.sd_model_type == 'f1':
+            MODELDATA.sd_model = self.pulid.apply_flux(MODELDATA.sd_model)
 
-        if shared.sd_model_type == 'sdxl':
+        if MODELDATA.sd_model_type == 'sdxl':
             processed = self.run_sdxl(p, images, strength, zero, sampler, ortho, restore, offload, version)
-        elif shared.sd_model_type == 'f1':
+        elif MODELDATA.sd_model_type == 'f1':
             processed = self.run_flux(p, images, strength)
         else:
-            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            shared.log.error(f'PuLID: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             processed = None
         return processed
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
         _strength, _zero, _sampler, _ortho, _gallery, restore, _offload, _version = args
-        if shared.sd_model_type == "sdxl" and hasattr(shared.sd_model, 'pipe'):
+        if MODELDATA.sd_model_type == "sdxl" and hasattr(MODELDATA.sd_model, 'pipe'):
             restore = getattr(p, 'pulid_restore', restore)
             if restore:
-                if hasattr(shared.sd_model, 'app'):
-                    shared.sd_model.app = None
-                    shared.sd_model.ip_adapter = None
-                    shared.sd_model.face_helper = None
-                    shared.sd_model.clip_vision_model = None
-                    shared.sd_model.handler_ante = None
-                shared.sd_model = shared.sd_model.pipe
+                if hasattr(MODELDATA.sd_model, 'app'):
+                    MODELDATA.sd_model.app = None
+                    MODELDATA.sd_model.ip_adapter = None
+                    MODELDATA.sd_model.face_helper = None
+                    MODELDATA.sd_model.clip_vision_model = None
+                    MODELDATA.sd_model.handler_ante = None
+                MODELDATA.sd_model = MODELDATA.sd_model.pipe
                 devices.torch_gc(force=True, reason='pulid')
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
-        if shared.sd_model_type == "f1":
+            shared.log.debug(f'PuLID complete: class={MODELDATA.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
+        if MODELDATA.sd_model_type == "f1":
             restore = getattr(p, 'pulid_restore', restore)
             if restore:
-                shared.sd_model = self.pulid.unapply_flux(shared.sd_model)
+                MODELDATA.sd_model = self.pulid.unapply_flux(MODELDATA.sd_model)
                 devices.torch_gc(force=True, reason='pulid')
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} pipe={"restore" if restore else "cache"}')
+            shared.log.debug(f'PuLID complete: class={MODELDATA.sd_model.__class__.__name__} pipe={"restore" if restore else "cache"}')
         return processed
 
     def run_sdxl(self, p: processing.StableDiffusionProcessing, images: list, strength: float, zero: int, sampler: str, ortho: str, restore: bool, offload: bool, version: str):
         sampler_fn = getattr(self.pulid.sampling, f'sample_{sampler}', None)
         if sampler_fn is None:
             sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
-        shared.sd_model.sampler = sampler_fn
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
+        MODELDATA.sd_model.sampler = sampler_fn
+        shared.log.info(f'PuLID: class={MODELDATA.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
         self.pulid.attention.NUM_ZERO = zero
         self.pulid.attention.ORTHO = ortho == 'v1'
         self.pulid.attention.ORTHO_v2 = ortho == 'v2'
-        shared.sd_model.debug_img_list = []
+        MODELDATA.sd_model.debug_img_list = []
 
         # get id embedding used for attention
         t0 = time.time()
-        uncond_id_embedding, id_embedding = shared.sd_model.get_id_embedding(images)
+        uncond_id_embedding, id_embedding = MODELDATA.sd_model.get_id_embedding(images)
         if offload:
             devices.torch_gc()
         t1 = time.time()
@@ -263,7 +263,7 @@ class Script(scripts_manager.Script):
             shared.prompt_styles.apply_styles_to_extra(p)
             p.styles = []
             with devices.inference_context():
-                output = shared.sd_model(
+                output = MODELDATA.sd_model(
                     prompt=p.prompt,
                     negative_prompt=p.negative_prompt,
                     width=p.width,
@@ -296,7 +296,7 @@ class Script(scripts_manager.Script):
         image = Image.fromarray(images[0]) # takes single pil image
         p.task_args['id_image'] = image
         p.task_args['id_weight'] = strength
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} strength={strength} image={image}')
+        shared.log.info(f'PuLID: class={MODELDATA.sd_model.__class__.__name__} strength={strength} image={image}')
         p.extra_generation_params["PuLID"] = f'Strength={strength}'
 
         processed: processing.Processed = processing.process_images(p) # runs processing using main loop

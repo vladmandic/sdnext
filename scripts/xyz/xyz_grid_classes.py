@@ -180,7 +180,7 @@ class SharedSettingsStackHelper():
             sd_models.reload_text_encoder()
         if self.sd_unet != shared.opts.sd_unet:
             shared.opts.data["sd_unet"] = self.sd_unet
-            sd_unet.load_unet(shared.sd_model)
+            sd_unet.load_unet(MODELDATA.sd_model)
         if self.sdnq_quant_mode != shared.opts.sdnq_quantize_weights_mode:
             shared.opts.data["sdnq_quantize_weights_mode"] = self.sdnq_quant_mode
             sd_models.reload_model_weights(op='model')

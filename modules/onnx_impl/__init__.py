@@ -2,6 +2,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import diffusers
+from core import MODELDATA
 from installer import log, installed, install
 
 
@@ -153,8 +154,8 @@ class VAE(TorchCompatibleModule):
 
 def check_parameters_changed(p, refiner_enabled: bool):
     from modules import shared, sd_models
-    if shared.sd_model.__class__.__name__ == "OnnxRawPipeline" or not shared.sd_model.__class__.__name__.startswith("Onnx"):
-        return shared.sd_model
+    if MODELDATA.sd_model.__class__.__name__ == "OnnxRawPipeline" or not MODELDATA.sd_model.__class__.__name__.startswith("Onnx"):
+        return MODELDATA.sd_model
     compile_height = p.height
     compile_width = p.width
     if (shared.compiled_model_state is None or
@@ -172,24 +173,24 @@ def check_parameters_changed(p, refiner_enabled: bool):
     shared.compiled_model_state.height = compile_height
     shared.compiled_model_state.width = compile_width
     shared.compiled_model_state.batch_size = p.batch_size
-    return shared.sd_model
+    return MODELDATA.sd_model
 
 
 def preprocess_pipeline(p):
     from modules import shared, sd_models
     if "ONNX" not in shared.opts.diffusers_pipeline:
         shared.log.warning(f"Unsupported pipeline for 'olive-ai' compile backend: {shared.opts.diffusers_pipeline}. You should select one of the ONNX pipelines.")
-        return shared.sd_model
-    if hasattr(shared.sd_model, "preprocess"):
-        shared.sd_model = shared.sd_model.preprocess(p)
-    if hasattr(shared.sd_refiner, "preprocess"):
+        return MODELDATA.sd_model
+    if hasattr(MODELDATA.sd_model, "preprocess"):
+        MODELDATA.sd_model = MODELDATA.sd_model.preprocess(p)
+    if hasattr(MODELDATA.sd_refiner, "preprocess"):
         if shared.opts.onnx_unload_base:
             sd_models.unload_model_weights(op='model')
-        shared.sd_refiner = shared.sd_refiner.preprocess(p)
+        MODELDATA.sd_refiner = MODELDATA.sd_refiner.preprocess(p)
         if shared.opts.onnx_unload_base:
             sd_models.reload_model_weights(op='model')
-            shared.sd_model = shared.sd_model.preprocess(p)
-    return shared.sd_model
+            MODELDATA.sd_model = MODELDATA.sd_model.preprocess(p)
+    return MODELDATA.sd_model
 
 
 def ORTPipelinePart_to(self, *args, **kwargs):

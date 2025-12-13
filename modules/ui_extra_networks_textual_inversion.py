@@ -1,7 +1,7 @@
 import json
 import os
 from modules import shared, ui_extra_networks, files_cache, modelstats
-from core import modeldata
+from core import MODELDATA
 from modules.textual_inversion import Embedding
 
 
@@ -12,10 +12,10 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
         self.embeddings = []
 
     def refresh(self):
-        if modeldata.sd_model is None:
+        if MODELDATA.sd_model is None:
             return
-        if hasattr(modeldata.sd_model, 'embedding_db'):
-            modeldata.sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)
+        if hasattr(MODELDATA.sd_model, 'embedding_db'):
+            MODELDATA.sd_model.embedding_db.load_textual_inversion_embeddings(force_reload=True)
 
     def create_item(self, embedding: Embedding):
         record = None
@@ -43,15 +43,15 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
         return record
 
     def list_items(self):
-        if modeldata.sd_model is None:
+        if MODELDATA.sd_model is None:
             candidates = list(files_cache.list_files(shared.opts.embeddings_dir, ext_filter=['.pt', '.safetensors'], recursive=files_cache.not_hidden))
             self.embeddings = [
                 Embedding(vec=0, name=os.path.basename(embedding_path), filename=embedding_path)
                 for embedding_path
                 in candidates
             ]
-        elif hasattr(modeldata.sd_model, 'embedding_db'):
-            self.embeddings = list(modeldata.sd_model.embedding_db.word_embeddings.values())
+        elif hasattr(MODELDATA.sd_model, 'embedding_db'):
+            self.embeddings = list(MODELDATA.sd_model.embedding_db.word_embeddings.values())
         else:
             self.embeddings = []
         self.embeddings = sorted(self.embeddings, key=lambda emb: emb.filename)

@@ -44,8 +44,8 @@ def dont_quant():
     from modules import shared
     models_list = re.split(r'[ ,]+', shared.opts.models_not_to_quant)
     models_list = [m.lower().strip() for m in models_list]
-    if shared.sd_model_type.lower() in models_list:
-        shared.log.debug(f'Quantization: model={shared.sd_model_type} skip')
+    if MODELDATA.sd_model_type.lower() in models_list:
+        shared.log.debug(f'Quantization: model={MODELDATA.sd_model_type} skip')
         return True
     return False
 

@@ -89,12 +89,12 @@ def face_id(
             else:
                 shared.log.debug(f'FaceID cached: model={model} file="{ip_ckpt}"')
 
-            if "XL Plus" in model and shared.sd_model_type == 'sd':
+            if "XL Plus" in model and MODELDATA.sd_model_type == 'sd':
                 image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
                 original_load_ip_adapter = IPAdapterFaceIDPlusXL.load_ip_adapter
                 IPAdapterFaceIDPlusXL.load_ip_adapter = hijack_load_ip_adapter
                 faceid_model = IPAdapterFaceIDPlusXL(
-                    sd_pipe=shared.sd_model,
+                    sd_pipe=MODELDATA.sd_model,
                     image_encoder_path=image_encoder_path,
                     ip_ckpt=model_path,
                     lora_rank=128,
@@ -102,23 +102,23 @@ def face_id(
                     device=devices.device,
                     torch_dtype=devices.dtype,
                 )
-            elif "XL" in model and shared.sd_model_type == 'sdxl':
+            elif "XL" in model and MODELDATA.sd_model_type == 'sdxl':
                 original_load_ip_adapter = IPAdapterFaceIDXL.load_ip_adapter
                 IPAdapterFaceIDXL.load_ip_adapter = hijack_load_ip_adapter
                 faceid_model = IPAdapterFaceIDXL(
-                    sd_pipe=shared.sd_model,
+                    sd_pipe=MODELDATA.sd_model,
                     ip_ckpt=model_path,
                     lora_rank=128,
                     num_tokens=4,
                     device=devices.device,
                     torch_dtype=devices.dtype,
                 )
-            elif "Plus" in model and shared.sd_model_type == 'sd':
+            elif "Plus" in model and MODELDATA.sd_model_type == 'sd':
                 original_load_ip_adapter = IPAdapterFaceIDPlus.load_ip_adapter
                 IPAdapterFaceIDPlus.load_ip_adapter = hijack_load_ip_adapter
                 image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
                 faceid_model = IPAdapterFaceIDPlus(
-                    sd_pipe=shared.sd_model,
+                    sd_pipe=MODELDATA.sd_model,
                     image_encoder_path=image_encoder_path,
                     ip_ckpt=model_path,
                     lora_rank=128,
@@ -126,22 +126,22 @@ def face_id(
                     device=devices.device,
                     torch_dtype=devices.dtype,
                 )
-            elif "Portrait" in model and shared.sd_model_type == 'sd':
+            elif "Portrait" in model and MODELDATA.sd_model_type == 'sd':
                 original_load_ip_adapter = IPAdapterFaceIDPortrait.load_ip_adapter
                 IPAdapterFaceIDPortrait.load_ip_adapter = hijack_load_ip_adapter
                 faceid_model = IPAdapterFaceIDPortrait(
-                    sd_pipe=shared.sd_model,
+                    sd_pipe=MODELDATA.sd_model,
                     ip_ckpt=model_path,
                     num_tokens=16,
                     n_cond=5,
                     device=devices.device,
                     torch_dtype=devices.dtype,
                 )
-            elif "Base" in model and shared.sd_model_type == 'sd':
+            elif "Base" in model and MODELDATA.sd_model_type == 'sd':
                 original_load_ip_adapter = IPAdapterFaceID.load_ip_adapter
                 IPAdapterFaceID.load_ip_adapter = hijack_load_ip_adapter
                 faceid_model = IPAdapterFaceID(
-                    sd_pipe=shared.sd_model,
+                    sd_pipe=MODELDATA.sd_model,
                     ip_ckpt=model_path,
                     lora_rank=128,
                     num_tokens=4,
@@ -149,11 +149,11 @@ def face_id(
                     torch_dtype=devices.dtype,
                 )
             else:
-                shared.log.error(f'FaceID model not supported: model="{model}" class={shared.sd_model.__class__.__name__}')
+                shared.log.error(f'FaceID model not supported: model="{model}" class={MODELDATA.sd_model.__class__.__name__}')
                 return None
 
             if override:
-                shared.sd_model.scheduler = diffusers.DDIMScheduler(
+                MODELDATA.sd_model.scheduler = diffusers.DDIMScheduler(
                     num_train_timesteps=1000,
                     beta_start=0.00085,
                     beta_end=0.012,

@@ -181,7 +181,7 @@ def img2img(id_task: str, state: str, mode: int,
 
     debug(f'img2img: {id_task}')
 
-    if shared.sd_model is None:
+    if MODELDATA.sd_model is None:
         shared.log.warning('Aborted: op=img model not loaded')
         return [], '', '', 'Error: model not loaded'
 
@@ -238,7 +238,7 @@ def img2img(id_task: str, state: str, mode: int,
             height = int(image.height * scale_by)
 
     p = processing.StableDiffusionProcessingImg2Img(
-        sd_model=shared.sd_model,
+        sd_model=MODELDATA.sd_model,
         outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_img2img_samples,
         outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_img2img_grids,
         prompt=prompt,

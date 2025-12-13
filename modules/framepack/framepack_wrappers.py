@@ -94,7 +94,7 @@ def prepare_prompts(p, init_image, prompt:str, section_prompt:str, num_sections:
 
 def load_model(variant, attention):
     global loaded_variant # pylint: disable=global-statement
-    if (shared.sd_model_type != 'hunyuanvideo') or (loaded_variant != variant):
+    if (MODELDATA.sd_model_type != 'hunyuanvideo') or (loaded_variant != variant):
         yield gr.update(), gr.update(), 'Verifying FramePack'
         framepack_install.install_requirements(attention)
         # framepack_install.git_clone(git_repo=git_repo, git_dir=git_dir, tmp_dir=tmp_dir)
@@ -135,7 +135,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
         progress.start_task(task_id)
 
         yield from load_model(variant, attention)
-        if shared.sd_model_type != 'hunyuanvideo':
+        if MODELDATA.sd_model_type != 'hunyuanvideo':
             progress.finish_task(task_id)
             yield gr.update(), gr.update(), 'Model load failed'
             return
@@ -158,7 +158,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
             end_image = prepare_image(end_image, resolution)
         w, h, _c = init_image.shape
         p = processing.StableDiffusionProcessingVideo(
-            sd_model=shared.sd_model,
+            sd_model=MODELDATA.sd_model,
             prompt=prompt,
             negative_prompt=negative_prompt,
             styles=styles,

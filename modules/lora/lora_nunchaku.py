@@ -15,8 +15,8 @@ def load_nunchaku(names, strengths):
     is_changed = loras != previously_loaded
     if not is_changed:
         return False
-    if not hasattr(shared.sd_model, 'transformer') or not hasattr(shared.sd_model.transformer, 'update_lora_params'):
-        shared.log.error(f'Network load: type=LoRA method=nunchaku model={shared.sd_model.__class__.__name__} unsupported')
+    if not hasattr(MODELDATA.sd_model, 'transformer') or not hasattr(MODELDATA.sd_model.transformer, 'update_lora_params'):
+        shared.log.error(f'Network load: type=LoRA method=nunchaku model={MODELDATA.sd_model.__class__.__name__} unsupported')
         return False
 
     previously_loaded = loras
@@ -24,7 +24,7 @@ def load_nunchaku(names, strengths):
         t0 = time.time()
         from nunchaku.lora.flux.compose import compose_lora
         composed_lora = compose_lora(loras)
-        shared.sd_model.transformer.update_lora_params(composed_lora)
+        MODELDATA.sd_model.transformer.update_lora_params(composed_lora)
         lora_common.loaded_networks = [n[0] for n in networks] # used by infotext
         t1 = time.time()
         lora_common.timer.load = t1 - t0

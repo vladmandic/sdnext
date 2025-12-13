@@ -6,6 +6,7 @@ import contextlib
 from enum import Enum
 import gradio as gr
 import diffusers
+from core import MODELDATA
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
 from modules.shared_defaults import get_default_modes
@@ -881,14 +882,3 @@ def restore_defaults(restart=True):
         log.info('Restoring server defaults')
         os.remove(cmd_opts.config)
     restart_server(restart)
-
-
-# startup def of shared.sd_model before its redefined in modeldata
-sd_model: diffusers.DiffusionPipeline = None # dummy and overwritten by class
-sd_refiner: diffusers.DiffusionPipeline = None # dummy and overwritten by class
-sd_model_type: str = '' # dummy and overwritten by class
-sd_refiner_type: str = '' # dummy and overwritten by class
-sd_loaded: bool = False # dummy and overwritten by class
-
-from modules.modeldata import Shared # pylint: disable=ungrouped-imports
-sys.modules[__name__].__class__ = Shared

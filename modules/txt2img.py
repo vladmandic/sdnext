@@ -28,7 +28,7 @@ def txt2img(id_task, state,
 
     debug(f'txt2img: {id_task}')
 
-    if shared.sd_model is None:
+    if MODELDATA.sd_model is None:
         shared.log.warning('Aborted: op=txt model not loaded')
         return [], '', '', 'Error: model not loaded'
 
@@ -40,7 +40,7 @@ def txt2img(id_task, state,
         hr_sampler_index = sampler_index
 
     p = processing.StableDiffusionProcessingTxt2Img(
-        sd_model=shared.sd_model,
+        sd_model=MODELDATA.sd_model,
         outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples,
         outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_txt2img_grids,
         prompt=prompt,

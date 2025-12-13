@@ -5,7 +5,7 @@ from modules import shared, processing
 
 
 def apply(pipe, p: processing.StableDiffusionProcessing):
-    if shared.sd_model_type != "sd3" or not shared.opts.ras_enable:
+    if MODELDATA.sd_model_type != "sd3" or not shared.opts.ras_enable:
         return
     from .ras_manager import MANAGER
     from .ras_scheduler import RASFlowMatchEulerDiscreteScheduler

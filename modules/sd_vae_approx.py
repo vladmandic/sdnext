@@ -60,7 +60,7 @@ def nn_approximation(sample): # Approximate NN
 
 def cheap_approximation(sample): # Approximate simple
     # https://discuss.huggingface.co/t/decoding-latents-to-rgb-without-upscaling/23204/2
-    if shared.sd_model_type == "sdxl":
+    if MODELDATA.sd_model_type == "sdxl":
         simple_weights = torch.tensor([
             [0.4543,-0.2868, 0.1566,-0.4748],
             [0.5008, 0.0952, 0.2155,-0.3268],

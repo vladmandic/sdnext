@@ -13,7 +13,7 @@ import modules.loader
 import modules.hashes
 
 from installer import log, git_commit, custom_excepthook, version
-from core import modeldata
+from core import MODELDATA
 from modules import timer, paths, shared, extensions, gr_tempdir, modelloader
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.devices
@@ -152,14 +152,14 @@ def initialize():
 
 
 def load_model():
-    modeldata.locked = False
+    MODELDATA.locked = False
     autoload = shared.opts.sd_checkpoint_autoload or shared.cmd_opts.ckpt is not None
     log.info(f'Model: autoload={autoload} selected="{shared.opts.sd_model_checkpoint}"')
     if autoload:
         jobid = shared.state.begin('Load model')
-        thread_model = Thread(target=lambda: shared.sd_model)
+        thread_model = Thread(target=lambda: MODELDATA.sd_model)
         thread_model.start()
-        thread_refiner = Thread(target=lambda: shared.sd_refiner)
+        thread_refiner = Thread(target=lambda: MODELDATA.sd_refiner)
         thread_refiner.start()
         thread_model.join()
         thread_refiner.join()
@@ -168,7 +168,7 @@ def load_model():
     shared.opts.onchange("sd_model_checkpoint", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='model')), call=False)
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
-    shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
+    shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(MODELDATA.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
     shared.opts.onchange("temp_dir", gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")

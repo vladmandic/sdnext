@@ -165,7 +165,7 @@ def set_clip(pipe):
     if loaded_te == shared.opts.sd_text_encoder:
         return
     from modules.sd_models import move_model
-    if 'vit-l' in shared.opts.sd_text_encoder.lower() and hasattr(shared.sd_model, 'text_encoder') and shared.sd_model.text_encoder.__class__.__name__ == 'CLIPTextModel':
+    if 'vit-l' in shared.opts.sd_text_encoder.lower() and hasattr(MODELDATA.sd_model, 'text_encoder') and MODELDATA.sd_model.text_encoder.__class__.__name__ == 'CLIPTextModel':
         try:
             te = load_vit_l()
         except Exception as e:
@@ -180,7 +180,7 @@ def set_clip(pipe):
             modules.prompt_parser_diffusers.cache.clear()
             move_model(pipe.text_encoder, devices.device)
             devices.torch_gc()
-    if 'vit-g' in shared.opts.sd_text_encoder.lower() and hasattr(shared.sd_model, 'text_encoder_2') and shared.sd_model.text_encoder_2.__class__.__name__ == 'CLIPTextModelWithProjection':
+    if 'vit-g' in shared.opts.sd_text_encoder.lower() and hasattr(MODELDATA.sd_model, 'text_encoder_2') and MODELDATA.sd_model.text_encoder_2.__class__.__name__ == 'CLIPTextModelWithProjection':
         try:
             te = load_vit_g()
         except Exception as e:

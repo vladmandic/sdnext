@@ -60,13 +60,13 @@ class Script(scripts_manager.Script):
 
     def run(self, p: processing.StableDiffusionProcessing, image, prompt, scheduler, shared_opts, shared_score_scale, shared_score_shift, only_self_level): # pylint: disable=arguments-differ
         global handler, zts, orig_prompt_attention # pylint: disable=global-statement
-        if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'SA: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+        if MODELDATA.sd_model_type not in supported_model_list:
+            shared.log.warning(f'SA: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_model_list}')
             return None
 
         from scripts.style_aligned import sa_handler, inversion # pylint: disable=no-name-in-module
 
-        handler = sa_handler.Handler(shared.sd_model)
+        handler = sa_handler.Handler(MODELDATA.sd_model)
         sa_args = sa_handler.StyleAlignedArgs(
             share_group_norm='group_norm' in shared_opts,
             share_layer_norm='layer_norm' in shared_opts,
@@ -82,15 +82,15 @@ class Script(scripts_manager.Script):
         handler.register(sa_args)
 
         if scheduler:
-            shared.sd_model.scheduler = diffusers.DDIMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", clip_sample=False, set_alpha_to_one=False)
+            MODELDATA.sd_model.scheduler = diffusers.DDIMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", clip_sample=False, set_alpha_to_one=False)
             p.sampler_name = 'None'
 
         if image is not None and zts is None:
             shared.log.info(f'SA: inversion image={image} prompt="{prompt}"')
             image = image.resize((1024, 1024))
             x0 = np.array(image).astype(np.float32) / 255.0
-            shared.sd_model.scheduler = diffusers.DDIMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", clip_sample=False, set_alpha_to_one=False)
-            zts = inversion.ddim_inversion(shared.sd_model, x0, prompt, num_inference_steps=50, guidance_scale=2)
+            MODELDATA.sd_model.scheduler = diffusers.DDIMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", clip_sample=False, set_alpha_to_one=False)
+            zts = inversion.ddim_inversion(MODELDATA.sd_model, x0, prompt, num_inference_steps=50, guidance_scale=2)
 
         p.prompt = p.prompt.splitlines()
         p.batch_size = len(p.prompt)

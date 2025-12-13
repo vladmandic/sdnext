@@ -2,6 +2,7 @@ import os
 import gradio as gr
 import diffusers
 from safetensors.torch import load_file
+from core import MODELDATA
 from modules import scripts_manager, processing, shared, devices, sd_models
 
 
@@ -41,29 +42,29 @@ orig_pipe = None # original sd_model pipeline
 
 
 def set_adapter(adapter_name: str = 'None'):
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         return
     global motion_adapter, loaded_adapter, orig_pipe # pylint: disable=global-statement
     # adapter_name = name if name is not None and isinstance(name, str) else loaded_adapter
-    if adapter_name is None or adapter_name == 'None' or not shared.sd_loaded:
+    if adapter_name is None or adapter_name == 'None' or not MODELDATA.sd_loaded:
         motion_adapter = None
         loaded_adapter = None
         if orig_pipe is not None:
             shared.log.debug(f'AnimateDiff restore pipeline: adapter="{loaded_adapter}"')
-            shared.sd_model = orig_pipe
+            MODELDATA.sd_model = orig_pipe
             orig_pipe = None
         return
-    if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl' and not (shared.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or shared.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
-        shared.log.warning(f'AnimateDiff: unsupported model type: {shared.sd_model.__class__.__name__}')
+    if MODELDATA.sd_model_type != 'sd' and MODELDATA.sd_model_type != 'sdxl' and not (MODELDATA.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or MODELDATA.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
+        shared.log.warning(f'AnimateDiff: unsupported model type: {MODELDATA.sd_model.__class__.__name__}')
         return
-    if motion_adapter is not None and loaded_adapter == adapter_name and (shared.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or shared.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
+    if motion_adapter is not None and loaded_adapter == adapter_name and (MODELDATA.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or MODELDATA.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
         shared.log.debug(f'AnimateDiff: adapter="{adapter_name}" cached')
         return
-    if getattr(shared.sd_model, 'image_encoder', None) is not None:
+    if getattr(MODELDATA.sd_model, 'image_encoder', None) is not None:
         shared.log.debug('AnimateDiff: unloading IP adapter')
         # shared.sd_model.image_encoder = None
         # shared.sd_model.unet.set_default_attn_processor()
-        shared.sd_model.unet.config.encoder_hid_dim_type = None
+        MODELDATA.sd_model.unet.config.encoder_hid_dim_type = None
     if adapter_name.endswith('.ckpt') or adapter_name.endswith('.safetensors'):
         import huggingface_hub as hf
         folder, filename = os.path.split(adapter_name)
@@ -74,9 +75,9 @@ def set_adapter(adapter_name: str = 'None'):
         if adapter_name.endswith('.safetensors'):
             motion_adapter = diffusers.MotionAdapter().to(shared.device, devices.dtype)
             motion_adapter.load_state_dict(load_file(adapter_name))
-        elif shared.sd_model_type == 'sd':
+        elif MODELDATA.sd_model_type == 'sd':
             motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None)
-        elif shared.sd_model_type == 'sdxl':
+        elif MODELDATA.sd_model_type == 'sdxl':
             motion_adapter = diffusers.MotionAdapter.from_pretrained(adapter_name, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype, low_cpu_mem_usage=False, device_map=None, variant='fp16')
         sd_models.move_model(motion_adapter, devices.device) # move pipeline to device
         sd_models.set_diffuser_options(motion_adapter, vae=None, op='adapter')
@@ -90,28 +91,28 @@ def set_adapter(adapter_name: str = 'None'):
             sd_models.reload_model_weights(force=True)
             shared.opts.sdnq_quantize_weights = prev_opts
 
-        if shared.sd_model_type == 'sd':
+        if MODELDATA.sd_model_type == 'sd':
             new_pipe = diffusers.AnimateDiffPipeline(
-                vae=shared.sd_model.vae,
-                text_encoder=shared.sd_model.text_encoder,
-                tokenizer=shared.sd_model.tokenizer,
-                unet=shared.sd_model.unet,
-                scheduler=shared.sd_model.scheduler,
-                feature_extractor=getattr(shared.sd_model, 'feature_extractor', None),
-                image_encoder=getattr(shared.sd_model, 'image_encoder', None),
+                vae=MODELDATA.sd_model.vae,
+                text_encoder=MODELDATA.sd_model.text_encoder,
+                tokenizer=MODELDATA.sd_model.tokenizer,
+                unet=MODELDATA.sd_model.unet,
+                scheduler=MODELDATA.sd_model.scheduler,
+                feature_extractor=getattr(MODELDATA.sd_model, 'feature_extractor', None),
+                image_encoder=getattr(MODELDATA.sd_model, 'image_encoder', None),
                 motion_adapter=motion_adapter,
             )
-        elif shared.sd_model_type == 'sdxl':
+        elif MODELDATA.sd_model_type == 'sdxl':
             new_pipe = diffusers.AnimateDiffSDXLPipeline(
-                vae=shared.sd_model.vae,
-                text_encoder=shared.sd_model.text_encoder,
-                text_encoder_2=shared.sd_model.text_encoder_2,
-                tokenizer=shared.sd_model.tokenizer,
-                tokenizer_2=shared.sd_model.tokenizer_2,
-                unet=shared.sd_model.unet,
-                scheduler=shared.sd_model.scheduler,
-                feature_extractor=getattr(shared.sd_model, 'feature_extractor', None),
-                image_encoder=getattr(shared.sd_model, 'image_encoder', None),
+                vae=MODELDATA.sd_model.vae,
+                text_encoder=MODELDATA.sd_model.text_encoder,
+                text_encoder_2=MODELDATA.sd_model.text_encoder_2,
+                tokenizer=MODELDATA.sd_model.tokenizer,
+                tokenizer_2=MODELDATA.sd_model.tokenizer_2,
+                unet=MODELDATA.sd_model.unet,
+                scheduler=MODELDATA.sd_model.scheduler,
+                feature_extractor=getattr(MODELDATA.sd_model, 'feature_extractor', None),
+                image_encoder=getattr(MODELDATA.sd_model, 'image_encoder', None),
                 motion_adapter=motion_adapter,
             )
 
@@ -120,12 +121,12 @@ def set_adapter(adapter_name: str = 'None'):
             loaded_adapter = None
             shared.log.error(f'AnimateDiff load error: adapter="{adapter_name}"')
             return
-        orig_pipe = shared.sd_model
-        shared.sd_model = new_pipe
-        sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
+        orig_pipe = MODELDATA.sd_model
+        MODELDATA.sd_model = new_pipe
+        sd_models.move_model(MODELDATA.sd_model, devices.device) # move pipeline to device
         sd_models.copy_diffuser_options(new_pipe, orig_pipe)
-        sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
-        sd_models.move_model(shared.sd_model.unet, devices.device) # move pipeline to device
+        sd_models.set_diffuser_options(MODELDATA.sd_model, vae=None, op='model')
+        sd_models.move_model(MODELDATA.sd_model.unet, devices.device) # move pipeline to device
         shared.log.debug(f'AnimateDiff: adapter="{loaded_adapter}"')
     except Exception as e:
         motion_adapter = None
@@ -139,10 +140,10 @@ def set_scheduler(p, model, override: bool = False):
     if override:
         p.sampler_name = 'Default'
         if 'LCM' in model:
-            shared.sd_model.scheduler = diffusers.LCMScheduler.from_config(shared.sd_model.scheduler.config)
+            MODELDATA.sd_model.scheduler = diffusers.LCMScheduler.from_config(MODELDATA.sd_model.scheduler.config)
         else:
-            shared.sd_model.scheduler = diffusers.DDIMScheduler.from_config(shared.sd_model.scheduler.config)
-    shared.log.debug(f'AnimateDiff: scheduler={shared.sd_model.scheduler.__class__.__name__}')
+            MODELDATA.sd_model.scheduler = diffusers.DDIMScheduler.from_config(MODELDATA.sd_model.scheduler.config)
+    shared.log.debug(f'AnimateDiff: scheduler={MODELDATA.sd_model.scheduler.__class__.__name__}')
 
 
 def set_prompt(p):
@@ -169,17 +170,17 @@ def set_lora(p, lora, strength):
         if lora.endswith('.safetensors'):
             fn = os.path.basename(lora)
             lora = lora.replace(f'/{fn}', '')
-            shared.sd_model.load_lora_weights(lora, weight_name=fn, adapter_name=lora)
+            MODELDATA.sd_model.load_lora_weights(lora, weight_name=fn, adapter_name=lora)
         else:
-            shared.sd_model.load_lora_weights(lora, adapter_name=lora)
-        shared.sd_model.set_adapters([lora], adapter_weights=[strength])
+            MODELDATA.sd_model.load_lora_weights(lora, adapter_name=lora)
+        MODELDATA.sd_model.set_adapters([lora], adapter_weights=[strength])
         p.extra_generation_params['AnimateDiff Lora'] = f'{lora}:{strength}'
 
 
 def set_free_init(method, iters, order, spatial, temporal):
-    if hasattr(shared.sd_model, 'enable_free_init') and method != 'none':
+    if hasattr(MODELDATA.sd_model, 'enable_free_init') and method != 'none':
         shared.log.debug(f'AnimateDiff free init: method={method} iters={iters} order={order} spatial={spatial} temporal={temporal}')
-        shared.sd_model.enable_free_init(
+        MODELDATA.sd_model.enable_free_init(
             num_iters=iters,
             use_fast_sampling=False,
             method=method,
@@ -192,9 +193,9 @@ def set_free_init(method, iters, order, spatial, temporal):
 def set_free_noise(frames):
     context_length = 16
     context_stride = 4
-    if frames >= context_length and hasattr(shared.sd_model, 'enable_free_noise'):
+    if frames >= context_length and hasattr(MODELDATA.sd_model, 'enable_free_noise'):
         shared.log.debug(f'AnimateDiff free noise: frames={frames} context={context_length} stride={context_stride}')
-        shared.sd_model.enable_free_noise(context_length=context_length, context_stride=context_stride)
+        MODELDATA.sd_model.enable_free_noise(context_length=context_length, context_stride=context_stride)
 
 
 class Script(scripts_manager.Script):

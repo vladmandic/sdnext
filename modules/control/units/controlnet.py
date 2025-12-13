@@ -2,6 +2,7 @@ import os
 import time
 import threading
 from typing import TYPE_CHECKING
+from core import MODELDATA
 from modules.control.units import detect
 from modules.shared import log, opts, cmd_opts, state, listdir
 from modules import errors, sd_models, devices, model_quant
@@ -163,7 +164,7 @@ find_models()
 
 def api_list_models(model_type: str | None = None):
     import modules.shared
-    model_type = model_type or modules.shared.sd_model_type
+    model_type = model_type or modules.MODELDATA.sd_model_type
     model_list = []
     if model_type == 'sd' or model_type == 'all':
         model_list += list(predefined_sd15)
@@ -187,19 +188,19 @@ def list_models(refresh=False):
     if not refresh and len(models) > 0:
         return models
     models = {}
-    if modules.shared.sd_model_type == 'none':
+    if modules.MODELDATA.sd_model_type == 'none':
         models = ['None']
-    elif modules.shared.sd_model_type == 'sdxl':
+    elif modules.MODELDATA.sd_model_type == 'sdxl':
         models = ['None'] + list(predefined_sdxl) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'sd':
+    elif modules.MODELDATA.sd_model_type == 'sd':
         models = ['None'] + list(predefined_sd15) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'f1':
+    elif modules.MODELDATA.sd_model_type == 'f1':
         models = ['None'] + list(predefined_f1) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'sd3':
+    elif modules.MODELDATA.sd_model_type == 'sd3':
         models = ['None'] + list(predefined_sd3) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'qwen':
+    elif modules.MODELDATA.sd_model_type == 'qwen':
         models = ['None'] + list(predefined_qwen) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'hunyuandit':
+    elif modules.MODELDATA.sd_model_type == 'hunyuandit':
         models = ['None'] + list(predefined_hunyuandit) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
@@ -238,12 +239,12 @@ class ControlNet():
 
     def get_class(self, model_id:str=''):
         from modules import shared
-        if shared.sd_model_type == 'none':
-            _load = shared.sd_model # trigger a load
-        if shared.sd_model_type == 'sd':
+        if MODELDATA.sd_model_type == 'none':
+            _load = MODELDATA.sd_model # trigger a load
+        if MODELDATA.sd_model_type == 'sd':
             from diffusers import ControlNetModel as cls # pylint: disable=reimported
             config = 'lllyasviel/control_v11p_sd15_canny'
-        elif shared.sd_model_type == 'sdxl':
+        elif MODELDATA.sd_model_type == 'sdxl':
             if 'union' in model_id.lower():
                 from diffusers import ControlNetUnionModel as cls
                 config = 'xinsir/controlnet-union-sdxl-1.0'
@@ -253,20 +254,20 @@ class ControlNet():
             else:
                 from diffusers import ControlNetModel as cls # pylint: disable=reimported # sdxl shares same model class
                 config = 'Eugeoter/noob-sdxl-controlnet-canny'
-        elif shared.sd_model_type == 'f1':
+        elif MODELDATA.sd_model_type == 'f1':
             from diffusers import FluxControlNetModel as cls
             config = 'InstantX/FLUX.1-dev-Controlnet-Union'
-        elif shared.sd_model_type == 'sd3':
+        elif MODELDATA.sd_model_type == 'sd3':
             from diffusers import SD3ControlNetModel as cls
             config = 'InstantX/SD3-Controlnet-Canny'
-        elif shared.sd_model_type == 'qwen':
+        elif MODELDATA.sd_model_type == 'qwen':
             from diffusers import QwenImageControlNetModel as cls
             config = 'InstantX/Qwen-Image-ControlNet-Union'
-        elif shared.sd_model_type == 'hunyuandit':
+        elif MODELDATA.sd_model_type == 'hunyuandit':
             from diffusers import HunyuanDiT2DControlNetModel as cls
             config = 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Canny'
         else:
-            log.error(f'Control {what}: type={shared.sd_model_type} unsupported model')
+            log.error(f'Control {what}: type={MODELDATA.sd_model_type} unsupported model')
             return None, None
         return cls, config
 

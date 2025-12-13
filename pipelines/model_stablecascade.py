@@ -191,7 +191,7 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
         callback_on_step_end=None,
         callback_on_step_end_tensor_inputs=["latents"],
     ):
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
         # 0. Define commonly used variables
         guidance_scale = guidance_scale or 0.0
         self.guidance_scale = guidance_scale
@@ -323,7 +323,7 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
 
         if output_type != "latent":
             if shared.opts.diffusers_offload_mode == "balanced":
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
             else:
                 self.maybe_free_model_hooks()
             # 10. Scale and decode the image latents with vq-vae
@@ -334,7 +334,7 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
             elif output_type == "pil":
                 images = images.permute(0, 2, 3, 1).cpu().float().numpy()  # float() as bfloat16-> numpy doesnt work
                 images = self.numpy_to_pil(images)
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
         else:
             images = latents
 

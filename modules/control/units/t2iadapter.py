@@ -53,11 +53,11 @@ def list_models(refresh=False):
     if not refresh and len(models) > 0:
         return models
     models = {}
-    if modules.shared.sd_model_type == 'none':
+    if modules.MODELDATA.sd_model_type == 'none':
         models = ['None']
-    elif modules.shared.sd_model_type == 'sdxl':
+    elif modules.MODELDATA.sd_model_type == 'sdxl':
         models = ['None'] + sorted(predefined_sdxl)
-    elif modules.shared.sd_model_type == 'sd':
+    elif modules.MODELDATA.sd_model_type == 'sd':
         models = ['None'] + sorted(predefined_sd15)
     else:
         log.warning(f'Control {what} model list failed: unknown model type')

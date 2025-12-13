@@ -20,13 +20,13 @@ def verify_insightface():
 
 def load_infiniteyou(model: str):
     from scripts.infiniteyou import InfUFluxPipeline
-    shared.sd_model = InfUFluxPipeline(
-        pipe=shared.sd_model,
+    MODELDATA.sd_model = InfUFluxPipeline(
+        pipe=MODELDATA.sd_model,
         model_version=model,
     )
-    sd_models.copy_diffuser_options(shared.sd_model, orig_pipeline)
+    sd_models.copy_diffuser_options(MODELDATA.sd_model, orig_pipeline)
     sd_models.clear_caches(full=True)
-    sd_models.set_diffuser_options(shared.sd_model)
+    sd_models.set_diffuser_options(MODELDATA.sd_model)
 
 
 class Script(scripts_manager.Script):
@@ -75,19 +75,19 @@ class Script(scripts_manager.Script):
         if id_image is None:
             shared.log.error(f'{prefix}: no init_images')
             return None
-        if shared.sd_model_type != 'f1':
-            shared.log.error(f'{prefix}: invalid model type: {shared.sd_model_type}')
+        if MODELDATA.sd_model_type != 'f1':
+            shared.log.error(f'{prefix}: invalid model type: {MODELDATA.sd_model_type}')
             return None
         if scale <= 0:
             return None
 
         global orig_pipeline, orig_prompt_attention # pylint: disable=global-statement
-        orig_pipeline = shared.sd_model
-        if shared.sd_model.__class__.__name__ != 'InfUFluxPipeline':
+        orig_pipeline = MODELDATA.sd_model
+        if MODELDATA.sd_model.__class__.__name__ != 'InfUFluxPipeline':
             verify_insightface()
             load_infiniteyou(model)
             devices.torch_gc()
-            shared.log.info(f'{prefix}: cls={shared.sd_model.__class__.__name__} loaded')
+            shared.log.info(f'{prefix}: cls={MODELDATA.sd_model.__class__.__name__} loaded')
 
         processing.fix_seed(p)
         p.task_args['id_image'] = id_image
@@ -117,5 +117,5 @@ class Script(scripts_manager.Script):
             orig_prompt_attention = None
         if restore and orig_pipeline is not None:
             shared.log.info(f'{prefix}: restoring pipeline')
-            shared.sd_model = orig_pipeline
+            MODELDATA.sd_model = orig_pipeline
             orig_pipeline = None

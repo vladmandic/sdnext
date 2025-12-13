@@ -6,6 +6,7 @@ import torch
 from safetensors.torch import save_file
 import gradio as gr
 from rich import progress as rp
+from core import MODELDATA
 from modules import shared, devices
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call
@@ -70,11 +71,11 @@ class SVDHandler:
 
 
 def loaded_lora():
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         return ""
     loaded = set()
-    if hasattr(shared.sd_model, 'unet'):
-        for _name, module in shared.sd_model.unet.named_modules():
+    if hasattr(MODELDATA.sd_model, 'unet'):
+        for _name, module in MODELDATA.sd_model.unet.named_modules():
             current = getattr(module, "network_current_names", None)
             if current is not None:
                 current = [item[0] for item in current]
@@ -98,25 +99,25 @@ def make_meta(fn, maxrank, rank_ratio):
         "model_spec.base_lora": json.dumps(loaded_lora()),
         "model_spec.config": f"maxrank={maxrank} rank_ratio={rank_ratio}",
     }
-    if shared.sd_model_type == "sdxl":
+    if MODELDATA.sd_model_type == "sdxl":
         meta["model_spec.architecture"] = "stable-diffusion-xl-v1-base/lora" # sai standard
         meta["ss_base_model_version"] = "sdxl_base_v1-0" # kohya standard
-    elif shared.sd_model_type == "sd":
+    elif MODELDATA.sd_model_type == "sd":
         meta["model_spec.architecture"] = "stable-diffusion-v1/lora"
         meta["ss_base_model_version"] = "sd_v1"
-    elif shared.sd_model_type == "f1":
+    elif MODELDATA.sd_model_type == "f1":
         meta["model_spec.architecture"] = "flux-1-dev/lora"
         meta["ss_base_model_version"] = "flux1"
-    elif shared.sd_model_type == "chroma":
+    elif MODELDATA.sd_model_type == "chroma":
         meta["model_spec.architecture"] = "chroma/lora"
         meta["ss_base_model_version"] = "chroma"
-    elif shared.sd_model_type == "sc":
+    elif MODELDATA.sd_model_type == "sc":
         meta["model_spec.architecture"] = "stable-cascade-v1-prior/lora"
     return meta
 
 
 def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
-    if not shared.sd_loaded:
+    if not MODELDATA.sd_loaded:
         msg = "LoRA extract: model not loaded"
         shared.log.warning(msg)
         yield msg
@@ -139,15 +140,15 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
 
     with rp.Progress(rp.TextColumn('[cyan]LoRA extract'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console) as progress:
 
-        if 'te' in modules and getattr(shared.sd_model, 'text_encoder', None) is not None:
-            modules = shared.sd_model.text_encoder.named_modules()
+        if 'te' in modules and getattr(MODELDATA.sd_model, 'text_encoder', None) is not None:
+            modules = MODELDATA.sd_model.text_encoder.named_modules()
             task = progress.add_task(description="te1 decompose", total=len(list(modules)))
-            for name, module in shared.sd_model.text_encoder.named_modules():
+            for name, module in MODELDATA.sd_model.text_encoder.named_modules():
                 progress.update(task, advance=1)
                 weights_backup = getattr(module, "network_weights_backup", None)
                 if weights_backup is None or getattr(module, "network_current_names", None) is None:
                     continue
-                prefix = "lora_te1_" if hasattr(shared.sd_model, 'text_encoder_2') else "lora_te_"
+                prefix = "lora_te1_" if hasattr(MODELDATA.sd_model, 'text_encoder_2') else "lora_te_"
                 module.svdhandler = SVDHandler(maxrank, rank_ratio)
                 module.svdhandler.network_name = prefix + name.replace(".", "_")
                 with devices.inference_context():
@@ -155,10 +156,10 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             progress.remove_task(task)
         t1 = time.time()
 
-        if 'te' in modules and getattr(shared.sd_model, 'text_encoder_2', None) is not None:
-            modules = shared.sd_model.text_encoder_2.named_modules()
+        if 'te' in modules and getattr(MODELDATA.sd_model, 'text_encoder_2', None) is not None:
+            modules = MODELDATA.sd_model.text_encoder_2.named_modules()
             task = progress.add_task(description="te2 decompose", total=len(list(modules)))
-            for name, module in shared.sd_model.text_encoder_2.named_modules():
+            for name, module in MODELDATA.sd_model.text_encoder_2.named_modules():
                 progress.update(task, advance=1)
                 weights_backup = getattr(module, "network_weights_backup", None)
                 if weights_backup is None or getattr(module, "network_current_names", None) is None:
@@ -170,10 +171,10 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             progress.remove_task(task)
         t2 = time.time()
 
-        if 'unet' in modules and getattr(shared.sd_model, 'unet', None) is not None:
-            modules = shared.sd_model.unet.named_modules()
+        if 'unet' in modules and getattr(MODELDATA.sd_model, 'unet', None) is not None:
+            modules = MODELDATA.sd_model.unet.named_modules()
             task = progress.add_task(description="unet decompose", total=len(list(modules)))
-            for name, module in shared.sd_model.unet.named_modules():
+            for name, module in MODELDATA.sd_model.unet.named_modules():
                 progress.update(task, advance=1)
                 weights_backup = getattr(module, "network_weights_backup", None)
                 if weights_backup is None or getattr(module, "network_current_names", None) is None:
@@ -200,7 +201,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
 
         lora_state_dict = {}
         for sub in ['text_encoder', 'text_encoder_2', 'unet', 'transformer']:
-            submodel = getattr(shared.sd_model, sub, None)
+            submodel = getattr(MODELDATA.sd_model, sub, None)
             if submodel is not None:
                 modules = submodel.named_modules()
                 task = progress.add_task(description=f"{sub} exctract", total=len(list(modules)))

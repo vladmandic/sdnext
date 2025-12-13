@@ -5,6 +5,7 @@ Additional params for StableVideoDiffusion
 import os
 import torch
 import gradio as gr
+from core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, images, modelloader
 
 
@@ -43,9 +44,9 @@ class Script(scripts_manager.Script):
         return [model, num_frames, override_resolution, min_guidance_scale, max_guidance_scale, decode_chunk_size, motion_bucket_id, noise_aug_strength, video_type, duration, gif_loop, mp4_pad, mp4_interpolate]
 
     def _encode_image(self, image: torch.Tensor, device, num_videos_per_prompt, do_classifier_free_guidance):
-        image = image.to(device=device, dtype=shared.sd_model.vae.dtype)
+        image = image.to(device=device, dtype=MODELDATA.sd_model.vae.dtype)
         shared.log.debug(f'Video encode: type=svd input={image.shape} dtype={image.dtype} device={image.device}')
-        image_latents = shared.sd_model.vae.encode(image).latent_dist.mode()
+        image_latents = MODELDATA.sd_model.vae.encode(image).latent_dist.mode()
         image_latents = image_latents.repeat(num_videos_per_prompt, 1, 1, 1)
         if do_classifier_free_guidance:
             negative_image_latents = torch.zeros_like(image_latents)
@@ -55,12 +56,12 @@ class Script(scripts_manager.Script):
     def _decode_latents(self, latents: torch.Tensor, num_frames: int, decode_chunk_size: int = 14):
         shared.log.debug(f'Video decode: type=svd input={latents.shape} dtype={latents.dtype} device={latents.device} chunk={decode_chunk_size} frames={num_frames}')
         latents = latents.flatten(0, 1)
-        latents = 1 / shared.sd_model.vae.config.scaling_factor * latents
+        latents = 1 / MODELDATA.sd_model.vae.config.scaling_factor * latents
         frames = []
         for i in range(0, latents.shape[0], decode_chunk_size):
             num_frames_in = latents[i : i + decode_chunk_size].shape[0]
             decode_kwargs = { "num_frames": num_frames_in }
-            frame = shared.sd_model.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs).sample
+            frame = MODELDATA.sd_model.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs).sample
             frames.append(frame)
         frames = torch.cat(frames, dim=0)
         frames = frames.reshape(-1, num_frames, *frames.shape[1:]).permute(0, 2, 1, 3, 4)
@@ -82,14 +83,14 @@ class Script(scripts_manager.Script):
         if has_checkpoint is None:
             shared.log.error(f'SVD: no checkpoint for {model_name}')
             modelloader.load_reference(model_path, variant='fp16')
-        c = shared.sd_model.__class__.__name__
-        model_loaded = shared.sd_model.sd_checkpoint_info.model_name if shared.sd_loaded else None
+        c = MODELDATA.sd_model.__class__.__name__
+        model_loaded = MODELDATA.sd_model.sd_checkpoint_info.model_name if MODELDATA.sd_loaded else None
         if model_name != model_loaded or c != 'StableVideoDiffusionPipeline':
             from diffusers import StableVideoDiffusionPipeline # pylint: disable=unused-import
             shared.opts.sd_model_checkpoint = model_path
             sd_models.reload_model_weights()
-            shared.sd_model._encode_vae_image = self._encode_image # pylint: disable=protected-access
-            shared.sd_model.decode_latents = self._decode_latents # pylint: disable=protected-access
+            MODELDATA.sd_model._encode_vae_image = self._encode_image # pylint: disable=protected-access
+            MODELDATA.sd_model.decode_latents = self._decode_latents # pylint: disable=protected-access
 
         # set params
         if override_resolution:

@@ -16,9 +16,9 @@ def create_latents(image, p, dtype=None, device=None):
     if image is None:
         return image
     elif isinstance(image, Image.Image):
-        latents = vae_encode(image, model=shared.sd_model, vae_type=p.vae_type)
+        latents = vae_encode(image, model=MODELDATA.sd_model, vae_type=p.vae_type)
     elif isinstance(image, list):
-        latents = [vae_encode(i, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for i in image]
+        latents = [vae_encode(i, model=MODELDATA.sd_model, vae_type=p.vae_type).squeeze(dim=0) for i in image]
         latents = torch.stack(latents, dim=0).to(shared.device)
     else:
         shared.log.warning(f'Latents: input type: {type(image)} {image}')
@@ -46,7 +46,7 @@ def full_vqgan_decode(latents, model):
         base_device = sd_models.move_base(model, devices.cpu)
 
     if shared.opts.diffusers_offload_mode == "balanced":
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
     elif shared.opts.diffusers_offload_mode != "sequential":
         sd_models.move_model(model.vqgan, devices.device)
 
@@ -68,12 +68,12 @@ def full_vqgan_decode(latents, model):
     # delete vae after OpenVINO compile
     if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
         shared.compiled_model_state.first_pass_vae = False
-        if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vqgan"):
+        if not shared.opts.openvino_disable_memory_cleanup and hasattr(MODELDATA.sd_model, "vqgan"):
             model.vqgan.apply(sd_models.convert_to_faketensors)
             devices.torch_gc(force=True)
 
     if shared.opts.diffusers_offload_mode == "balanced":
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+        MODELDATA.sd_model = sd_models.apply_balanced_offload(MODELDATA.sd_model)
     elif shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and base_device is not None:
         sd_models.move_base(model, base_device)
     t1 = time.time()
@@ -163,7 +163,7 @@ def full_vae_decode(latents, model):
     # delete vae after OpenVINO compile
     if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
         shared.compiled_model_state.first_pass_vae = False
-        if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vae"):
+        if not shared.opts.openvino_disable_memory_cleanup and hasattr(MODELDATA.sd_model, "vae"):
             model.vae.apply(sd_models.convert_to_faketensors)
             devices.torch_gc(force=True)
 
@@ -269,7 +269,7 @@ def vae_postprocess(tensor, model, output_type='np'):
 
 def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, height=None, frames=None):
     t0 = time.time()
-    model = model or shared.sd_model
+    model = model or MODELDATA.sd_model
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if latents is None or not torch.is_tensor(latents): # already decoded
@@ -341,7 +341,7 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     tensor = f.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
     if vae_type == 'Full':
         tensor = tensor * 2 - 1
-        latents = full_vae_encode(image=tensor, model=shared.sd_model)
+        latents = full_vae_encode(image=tensor, model=MODELDATA.sd_model)
     else:
         latents = taesd_vae_encode(image=tensor)
     devices.torch_gc()
@@ -356,7 +356,7 @@ def reprocess(gallery):
     if latent is None or gallery is None:
         return None
     shared.log.info(f'Reprocessing: latent={latent.shape}')
-    reprocessed = vae_decode(latent, shared.sd_model, output_type='pil')
+    reprocessed = vae_decode(latent, MODELDATA.sd_model, output_type='pil')
     outputs = []
     for i0, i1 in zip(gallery, reprocessed):
         if isinstance(i1, np.ndarray):

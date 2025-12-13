@@ -53,21 +53,21 @@ class Script(scripts_manager.Script):
             shared.log.error(f'Mixture tiling prompt count mismatch: prompts={len(prompts)} required={x_size * y_size}')
             return None
         # backup pipeline and params
-        orig_pipeline = shared.sd_model
+        orig_pipeline = MODELDATA.sd_model
         orig_dtype = devices.dtype
         orig_prompt_attention = shared.opts.prompt_attention
         # create pipeline
-        if shared.sd_model_type != 'sd':
-            shared.log.error(f'Mixture tiling: incorrect base model: {shared.sd_model.__class__.__name__}')
+        if MODELDATA.sd_model_type != 'sd':
+            shared.log.error(f'Mixture tiling: incorrect base model: {MODELDATA.sd_model.__class__.__name__}')
             return None
-        shared.sd_model = sd_models.switch_pipe('mixture_tiling', shared.sd_model)
-        if shared.sd_model.__class__.__name__ != 'StableDiffusionTilingPipeline': # switch failed
-            shared.log.error(f'Mixture tiling: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
-            shared.sd_model = orig_pipeline
+        MODELDATA.sd_model = sd_models.switch_pipe('mixture_tiling', MODELDATA.sd_model)
+        if MODELDATA.sd_model.__class__.__name__ != 'StableDiffusionTilingPipeline': # switch failed
+            shared.log.error(f'Mixture tiling: not a tiling pipeline: {MODELDATA.sd_model.__class__.__name__}')
+            MODELDATA.sd_model = orig_pipeline
             return None
-        sd_models.set_diffuser_options(shared.sd_model)
+        sd_models.set_diffuser_options(MODELDATA.sd_model)
         shared.opts.data['prompt_attention'] = 'fixed' # this pipeline is not compatible with embeds
-        shared.sd_model.to(torch.float32) # this pipeline unet is not compatible with fp16
+        MODELDATA.sd_model.to(torch.float32) # this pipeline unet is not compatible with fp16
         processing.fix_seed(p)
         # set pipeline specific params, note that standard params are applied when applicable
         y_prompts = []
@@ -88,6 +88,6 @@ class Script(scripts_manager.Script):
         processed: processing.Processed = processing.process_images(p) # runs processing using main loop
         # restore pipeline and params
         shared.opts.data['prompt_attention'] = orig_prompt_attention
-        shared.sd_model = orig_pipeline
-        shared.sd_model.to(orig_dtype)
+        MODELDATA.sd_model = orig_pipeline
+        MODELDATA.sd_model.to(orig_dtype)
         return processed

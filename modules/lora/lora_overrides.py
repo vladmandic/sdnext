@@ -64,13 +64,13 @@ fuse_ignore = [
 
 
 def get_method(shorthash=''):
-    use_diffusers = shared.opts.lora_force_diffusers or (shared.sd_model_type in force_models_diffusers) or (shared.sd_model.__class__.__name__ in force_classes_diffusers)
+    use_diffusers = shared.opts.lora_force_diffusers or (MODELDATA.sd_model_type in force_models_diffusers) or (MODELDATA.sd_model.__class__.__name__ in force_classes_diffusers)
     if shared.opts.lora_maybe_diffusers and len(shorthash) > 4:
         use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in maybe_diffusers)
     if shared.opts.lora_force_diffusers and len(shorthash) > 4:
         use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in force_diffusers)
-    nunchaku_dit = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
-    nunchaku_unet = hasattr(shared.sd_model, 'unet') and 'Nunchaku' in shared.sd_model.unet.__class__.__name__
+    nunchaku_dit = hasattr(MODELDATA.sd_model, 'transformer') and 'Nunchaku' in MODELDATA.sd_model.transformer.__class__.__name__
+    nunchaku_unet = hasattr(MODELDATA.sd_model, 'unet') and 'Nunchaku' in MODELDATA.sd_model.unet.__class__.__name__
     use_nunchaku = nunchaku_dit or nunchaku_unet
     if use_nunchaku:
         return 'nunchaku'
@@ -81,12 +81,12 @@ def get_method(shorthash=''):
 
 
 def disable_fuse():
-    if hasattr(shared.sd_model, 'quantization_config'):
+    if hasattr(MODELDATA.sd_model, 'quantization_config'):
         return True
-    if hasattr(shared.sd_model, 'transformer') and hasattr(shared.sd_model.transformer, 'quantization_config'):
+    if hasattr(MODELDATA.sd_model, 'transformer') and hasattr(MODELDATA.sd_model.transformer, 'quantization_config'):
         return True
-    if hasattr(shared.sd_model, 'transformer_2') and hasattr(shared.sd_model.transformer_2, 'quantization_config'):
+    if hasattr(MODELDATA.sd_model, 'transformer_2') and hasattr(MODELDATA.sd_model.transformer_2, 'quantization_config'):
         return True
-    if hasattr(shared.sd_model, '_lora_partial'):
+    if hasattr(MODELDATA.sd_model, '_lora_partial'):
         return True
-    return shared.sd_model_type in fuse_ignore
+    return MODELDATA.sd_model_type in fuse_ignore

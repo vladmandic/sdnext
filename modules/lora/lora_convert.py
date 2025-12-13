@@ -107,7 +107,7 @@ def make_unet_conversion_map() -> Dict[str, str]:
 
 class KeyConvert:
     def __init__(self):
-        self.is_sdxl = True if shared.sd_model_type == "sdxl" else False
+        self.is_sdxl = True if MODELDATA.sd_model_type == "sdxl" else False
         self.UNET_CONVERSION_MAP = make_unet_conversion_map()
         self.LORA_PREFIX_UNET = "lora_unet_"
         self.LORA_PREFIX_TEXT_ENCODER = "lora_te_"
@@ -128,11 +128,11 @@ class KeyConvert:
             key = key.replace(map_key, self.UNET_CONVERSION_MAP[map_key]).replace("oft", "lora") # pylint: disable=unsubscriptable-object
         if "lycoris" in key and "transformer" in key:
             key = key.replace("lycoris", "lora_transformer")
-        sd_module = shared.sd_model.network_layer_mapping.get(key, None)
+        sd_module = MODELDATA.sd_model.network_layer_mapping.get(key, None)
         if sd_module is None:
-            sd_module = shared.sd_model.network_layer_mapping.get(key.replace("guidance", "timestep"), None)  # FLUX1 fix
+            sd_module = MODELDATA.sd_model.network_layer_mapping.get(key.replace("guidance", "timestep"), None)  # FLUX1 fix
         if debug and sd_module is None:
-            raise RuntimeError(f"LoRA key not found in network_layer_mapping: key={key} mapping={shared.sd_model.network_layer_mapping.keys()}")
+            raise RuntimeError(f"LoRA key not found in network_layer_mapping: key={key} mapping={MODELDATA.sd_model.network_layer_mapping.keys()}")
         return key, sd_module
 
 
@@ -478,7 +478,7 @@ def _convert_kohya_sd3_lora_to_diffusers(state_dict):
 def assign_network_names_to_compvis_modules(sd_model):
     if sd_model is None:
         return
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)  # wrapped model compatiblility
+    sd_model = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)  # wrapped model compatiblility
     network_layer_mapping = {}
     if hasattr(sd_model, 'text_encoder') and sd_model.text_encoder is not None:
         for name, module in sd_model.text_encoder.named_modules():
@@ -500,7 +500,7 @@ def assign_network_names_to_compvis_modules(sd_model):
         for name, module in sd_model.transformer.named_modules():
             network_name = "lora_transformer_" + name.replace(".", "_")
             network_layer_mapping[network_name] = module
-            if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":
+            if "norm" in network_name and "linear" not in network_name and MODELDATA.sd_model_type != "sd3":
                 continue
             module.network_layer_name = network_name
-    shared.sd_model.network_layer_mapping = network_layer_mapping
+    MODELDATA.sd_model.network_layer_mapping = network_layer_mapping

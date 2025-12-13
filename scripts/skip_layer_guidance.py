@@ -57,7 +57,7 @@ class Script(scripts_manager.Script):
 
 
     def run(self, p: processing.StableDiffusionProcessing, layers: str = '', scale: float = 1.0, start: float = 1.0, stop: float = 1.0): # pylint: disable=arguments-differ, unused-argument
-        if shared.sd_model_type != 'sd3':
+        if MODELDATA.sd_model_type != 'sd3':
             return
         p.task_args['skip_layer_guidance_scale'] = float(scale)
         p.task_args['skip_layer_guidance_start'] = float(start)

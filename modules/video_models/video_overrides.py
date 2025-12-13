@@ -33,10 +33,10 @@ def load_override(selected: Model, **load_args):
 
 
 def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model):
-    cls = shared.sd_model.__class__.__name__
+    cls = MODELDATA.sd_model.__class__.__name__
     # Allegro
     if selected.name == 'Allegro T2V':
-        shared.sd_model.vae.enable_tiling()
+        MODELDATA.sd_model.vae.enable_tiling()
     # Latte
     if selected.name == 'Latte 1 T2V':
         p.task_args['enable_temporal_attentions'] = True
@@ -63,11 +63,11 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
             p.task_args['reference_images'] = p.init_images
     # WAN 2.2-5B
     if 'WAN 2.2 5B' in selected.name:
-        shared.sd_model.vae.disable_tiling()
+        MODELDATA.sd_model.vae.disable_tiling()
     # Kandinsky 5
     if 'Kandinsky 5.0 Lite 5s' in selected.name:
         # p.task_args['time_length'] = 5
         pass
     if 'Kandinsky 5.0 Lite 10s' in selected.name:
         # p.task_args['time_length'] = 10
-        shared.sd_model.transformer.set_attention_backend("flex")
+        MODELDATA.sd_model.transformer.set_attention_backend("flex")

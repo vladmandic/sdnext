@@ -2,6 +2,7 @@
 
 import gradio as gr
 from diffusers import StableDiffusionXLPipeline
+from core import MODELDATA
 from modules import shared, scripts_manager, processing, processing_helpers, sd_models, devices
 
 
@@ -34,12 +35,12 @@ class Script(scripts_manager.Script):
         return struct_prompt, struct_strength, struct_guidance, struct_image, appear_prompt, appear_strength, appear_guidance, appear_image
 
     def restore(self):
-        del shared.sd_model.restore_pipeline
-        shared.sd_model = sd_models.switch_pipe(StableDiffusionXLPipeline, shared.sd_model, force=True)
+        del MODELDATA.sd_model.restore_pipeline
+        MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLPipeline, MODELDATA.sd_model, force=True)
 
     def run(self, p: processing.StableDiffusionProcessing, struct_prompt, struct_strength, struct_guidance, struct_image, appear_prompt, appear_strength, appear_guidance, appear_image): # pylint: disable=arguments-differ
-        c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
-        if shared.sd_model_type != 'sdxl':
+        c = MODELDATA.sd_model.__class__.__name__ if MODELDATA.sd_loaded else ''
+        if MODELDATA.sd_model_type != 'sdxl':
             shared.log.warning(f'Ctrl-X: pipeline={c} required=StableDiffusionXLPipeline')
             return None
 
@@ -50,20 +51,20 @@ class Script(scripts_manager.Script):
 
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'
-        shared.sd_model = sd_models.switch_pipe(CtrlXStableDiffusionXLPipeline, shared.sd_model)
-        shared.sd_model.restore_pipeline = self.restore
+        MODELDATA.sd_model = sd_models.switch_pipe(CtrlXStableDiffusionXLPipeline, MODELDATA.sd_model)
+        MODELDATA.sd_model.restore_pipeline = self.restore
 
         # calculate ctrx+x schedule
         if p.sampler_name not in ['DDIM', 'Euler', 'Euler a', 'DPM++ 1S', 'DDPM', 'Euler SGM', 'LCM', 'TCD']:
             shared.log.warning(f'Ctrl-X: sampler={p.sampler_name} override="Euler a" supported=[Euler, Euler a, Euler SGM, DDIM, DDPM, , LCM, TCD]')
             p.sampler_name = 'Euler a'
-        processing_helpers.update_sampler(p, shared.sd_model)
-        shared.sd_model.scheduler.set_timesteps(p.steps, device=devices.device)
-        timesteps = shared.sd_model.scheduler.timesteps
+        processing_helpers.update_sampler(p, MODELDATA.sd_model)
+        MODELDATA.sd_model.scheduler.set_timesteps(p.steps, device=devices.device)
+        timesteps = MODELDATA.sd_model.scheduler.timesteps
         control_config = get_control_config(structure_schedule=struct_strength, appearance_schedule=appear_strength)
         config = yaml.safe_load(control_config)
         register_control(
-            model=shared.sd_model,
+            model=MODELDATA.sd_model,
             timesteps=timesteps,
             control_schedule=config['control_schedule'],
             control_target=config['control_target'],
@@ -93,5 +94,5 @@ class Script(scripts_manager.Script):
 
         # restore and return
         shared.opts.data['prompt_attention'] = orig_prompt_attention
-        shared.sd_model = sd_models.switch_pipe(StableDiffusionXLPipeline, shared.sd_model, force=True)
+        MODELDATA.sd_model = sd_models.switch_pipe(StableDiffusionXLPipeline, MODELDATA.sd_model, force=True)
         return processed

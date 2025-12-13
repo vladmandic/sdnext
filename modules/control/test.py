@@ -74,7 +74,7 @@ def test_controlnets(prompt, negative, image):
                 shared.log.error(f'ControlNet load failed: id="{model_id}"')
                 continue
             shared.log.info(f'Testing ControlNet: {model_id}')
-            pipe = controlnet.ControlNetPipeline(controlnet=controlnet.model, pipeline=shared.sd_model)
+            pipe = controlnet.ControlNetPipeline(controlnet=controlnet.model, pipeline=MODELDATA.sd_model)
             pipe.pipeline.to(device=devices.device, dtype=devices.dtype)
             sd_models.set_diffuser_options(pipe)
             try:
@@ -125,7 +125,7 @@ def test_adapters(prompt, negative, image):
                 shared.log.error(f'Adapter load failed: id="{model_id}"')
                 continue
             shared.log.info(f'Testing Adapter: {model_id}')
-            pipe = t2iadapter.AdapterPipeline(adapter=adapter.model, pipeline=shared.sd_model)
+            pipe = t2iadapter.AdapterPipeline(adapter=adapter.model, pipeline=MODELDATA.sd_model)
             pipe.pipeline.to(device=devices.device, dtype=devices.dtype)
             sd_models.set_diffuser_options(pipe)
             image = image.convert('L') if 'Canny' in model_id or 'Sketch' in model_id else image.convert('RGB')
@@ -177,7 +177,7 @@ def test_xs(prompt, negative, image):
                 shared.log.error(f'ControlNet-XS load failed: id="{model_id}"')
                 continue
             shared.log.info(f'Testing ControlNet-XS: {model_id}')
-            pipe = xs.ControlNetXSPipeline(controlnet=xs.model, pipeline=shared.sd_model)
+            pipe = xs.ControlNetXSPipeline(controlnet=xs.model, pipeline=MODELDATA.sd_model)
             pipe.pipeline.to(device=devices.device, dtype=devices.dtype)
             sd_models.set_diffuser_options(pipe)
             try:
@@ -228,7 +228,7 @@ def test_lite(prompt, negative, image):
                 shared.log.error(f'Control-LLite load failed: id="{model_id}"')
                 continue
             shared.log.info(f'Testing ControlNet-XS: {model_id}')
-            pipe = lite.ControlLLitePipeline(pipeline=shared.sd_model)
+            pipe = lite.ControlLLitePipeline(pipeline=MODELDATA.sd_model)
             pipe.apply(controlnet=lite.model, image=image, conditioning=1.0)
             pipe.pipeline.to(device=devices.device, dtype=devices.dtype)
             sd_models.set_diffuser_options(pipe)

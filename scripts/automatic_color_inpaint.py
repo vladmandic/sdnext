@@ -88,8 +88,8 @@ class Script(scripts_manager.Script):
 
     # Run pipeline
     def run(self, p: processing.StableDiffusionProcessing, *args):  # pylint: disable=arguments-differ
-        if shared.sd_model_type not in supported_models:
-            shared.log.warning(f'MoD: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_models}')
+        if MODELDATA.sd_model_type not in supported_models:
+            shared.log.warning(f'MoD: class={MODELDATA.sd_model.__class__.__name__} model={MODELDATA.sd_model_type} required={supported_models}')
             return None
         if not hasattr(p, 'init_images') or p.init_images is None or len(p.init_images) == 0:
             return None

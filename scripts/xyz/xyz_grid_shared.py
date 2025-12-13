@@ -171,7 +171,7 @@ def apply_checkpoint(p, x, xs):
     if info is None:
         shared.log.warning(f"XYZ grid: apply checkpoint unknown checkpoint: {x}")
     else:
-        sd_models.reload_model_weights(shared.sd_model, info)
+        sd_models.reload_model_weights(MODELDATA.sd_model, info)
         p.override_settings['sd_model_checkpoint'] = info.name
     shared.log.debug(f'XYZ grid apply checkpoint: "{x}"')
 
@@ -185,7 +185,7 @@ def apply_refiner(p, x, xs):
     if info is None:
         shared.log.warning(f"XYZ grid: apply refiner unknown checkpoint: {x}")
     else:
-        sd_models.reload_model_weights(shared.sd_refiner, info)
+        sd_models.reload_model_weights(MODELDATA.sd_refiner, info)
         p.override_settings['sd_model_refiner'] = info.name
     shared.log.debug(f'XYZ grid apply refiner: "{x}"')
 
@@ -197,7 +197,7 @@ def apply_unet(p, x, xs):
         return
     p.override_settings['sd_unet'] = x
     shared.opts.data['sd_unet'] = x
-    sd_unet.load_unet(shared.sd_model)
+    sd_unet.load_unet(MODELDATA.sd_model)
     shared.log.debug(f'XYZ grid apply unet: "{x}"')
 
 
@@ -221,7 +221,7 @@ def find_vae(name: str):
 
 
 def apply_vae(p, x, xs):
-    sd_vae.reload_vae_weights(shared.sd_model, vae_file=find_vae(x))
+    sd_vae.reload_vae_weights(MODELDATA.sd_model, vae_file=find_vae(x))
     shared.log.debug(f'XYZ grid apply VAE: "{x}"')
 
 
@@ -342,7 +342,7 @@ def apply_control(field):
             pipe = run.set_pipe(p, has_models, unit.type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end)
             _processed_image, _blended_image = processor.preprocess_image(p, pipe, input_image=init_images[0], unit_type=unit.type, active_process=active_process, active_model=active_model, selected_models=selected_models, has_models=has_models)
             if pipe is not None:
-                shared.sd_model = pipe
+                MODELDATA.sd_model = pipe
         elif field == 'control_start':
             shared.log.debug(f'XYZ grid apply control: {field}={x}')
             p.task_args['control_guidance_start'] = float(x)

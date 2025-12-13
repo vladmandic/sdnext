@@ -231,7 +231,7 @@ class DiffusionSampler:
         if len(timesteps) == 0:
             if 'sigma_schedule' in self.config:
                 self.config['sigma_schedule'] = shared.opts.schedulers_sigma if shared.opts.schedulers_sigma != 'default' else None
-            if shared.opts.schedulers_sigma == 'default' and shared.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
+            if shared.opts.schedulers_sigma == 'default' and MODELDATA.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
             elif shared.opts.schedulers_sigma == 'betas' and 'use_beta_sigmas' in self.config:
                 self.config['use_beta_sigmas'] = True

@@ -6,6 +6,7 @@ from collections import OrderedDict
 import torch
 from compel.embeddings_provider import BaseTextualInversionManager, EmbeddingsProvider
 from transformers import PreTrainedTokenizer
+from core import MODELDATA
 from modules import shared, prompt_parser, devices, sd_models
 from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1, get_weighted_text_embeddings_chroma
 
@@ -21,7 +22,7 @@ embedder = None
 
 
 def prompt_compatible(pipe = None):
-    pipe = pipe or shared.sd_model
+    pipe = pipe or MODELDATA.sd_model
     if (
         'StableDiffusion' not in pipe.__class__.__name__ and
         'DemoFusion' not in pipe.__class__.__name__ and
@@ -36,8 +37,8 @@ def prompt_compatible(pipe = None):
 
 
 def prepare_model(pipe = None):
-    pipe = pipe or shared.sd_model
-    if not hasattr(pipe, "text_encoder") and hasattr(shared.sd_model, "pipe"):
+    pipe = pipe or MODELDATA.sd_model
+    if not hasattr(pipe, "text_encoder") and hasattr(MODELDATA.sd_model, "pipe"):
         pipe = pipe.pipe
     if not hasattr(pipe, "text_encoder"):
         return None
@@ -396,15 +397,15 @@ def get_prompt_schedule(prompt, steps):
 def get_tokens(pipe, msg, prompt):
     global token_dict, token_type # pylint: disable=global-statement
     token_count = 0
-    if shared.sd_loaded and hasattr(pipe, 'tokenizer') and pipe.tokenizer is not None:
+    if MODELDATA.sd_loaded and hasattr(pipe, 'tokenizer') and pipe.tokenizer is not None:
         tokenizer = pipe.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
         if hasattr(tokenizer, 'tokenizer') and tokenizer.tokenizer is not None:
             tokenizer = tokenizer.tokenizer
         prompt = prompt.replace(' BOS ', ' !!!!!!!! ').replace(' EOS ', ' !!!!!!! ')
         debug(f'Prompt tokenizer: type={msg} prompt="{prompt}"')
-        if token_dict is None or token_type != shared.sd_model_type:
-            token_type = shared.sd_model_type
+        if token_dict is None or token_type != MODELDATA.sd_model_type:
+            token_type = MODELDATA.sd_model_type
             fn = getattr(tokenizer, 'name_or_path', '')
             if fn.endswith('tokenizer'):
                 fn = os.path.join(fn, 'vocab.json')
