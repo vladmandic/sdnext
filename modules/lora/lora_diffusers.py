@@ -1,18 +1,21 @@
+from __future__ import annotations
 from typing import Union
 import os
 import time
-import diffusers
+from typing import TYPE_CHECKING
 from sdnext_core import MODELDATA
 from modules import shared, errors
 from modules.lora import network
 from modules.lora import lora_common as l
 
+if TYPE_CHECKING:
+    from diffusers import ModelMixin
 
 diffuser_loaded = []
 diffuser_scales = []
 
 
-def load_per_module(sd_model: diffusers.DiffusionPipeline, filename: str, adapter_name: str, lora_modules: list[str]):
+def load_per_module(sd_model: ModelMixin, filename: str, adapter_name: str, lora_modules: list[str]):
     shared.log.debug(f'LoRA load: modules={lora_modules}')
     try:
         state_dict = sd_model.lora_state_dict(filename)
@@ -54,7 +57,7 @@ def load_per_module(sd_model: diffusers.DiffusionPipeline, filename: str, adapte
 def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale:float=shared.opts.extra_networks_default_multiplier, lora_module=None) -> Union[network.Network, None]:
     t0 = time.time()
     name = name.replace(".", "_")
-    sd_model: diffusers.DiffusionPipeline = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
+    sd_model: ModelMixin = getattr(MODELDATA.sd_model, "pipe", MODELDATA.sd_model)
     shared.log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers scale={lora_scale} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
     if not hasattr(sd_model, 'load_lora_weights'):
         shared.log.error(f'Network load: type=LoRA class={sd_model.__class__} does not implement load lora')
