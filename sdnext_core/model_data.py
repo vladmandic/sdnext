@@ -95,7 +95,7 @@ class ModelData:
 
     @final
     @staticmethod
-    def get_model_type(pipe: DiffusionPipeline):
+    def get_model_type(pipe: ModelMixin):
         name = pipe.__class__.__name__
         if not shared.native:
             model_type = 'ldm'
