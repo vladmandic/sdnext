@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, final
 from modules import shared, errors
 
 if TYPE_CHECKING:
-    from diffusers import DiffusionPipeline
+    from diffusers import ModelMixin
 
 
 @final
 class ModelData:
     def __init__(self):
-        self._sd_model: DiffusionPipeline | None = None
+        self._sd_model: ModelMixin | None = None
         self._sd_model_type = "none"
-        self._sd_refiner: DiffusionPipeline | None = None
+        self._sd_refiner: ModelMixin | None = None
         self._sd_refiner_type = "none"
         self.sd_dict = 'None'
         self.initial = True
