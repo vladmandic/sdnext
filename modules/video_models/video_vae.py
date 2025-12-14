@@ -1,4 +1,5 @@
 import os
+from sdnext_core import MODELDATA
 from modules import shared, devices
 
 

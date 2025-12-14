@@ -3,6 +3,7 @@
 
 import gradio as gr
 from diffusers.pipelines import pipeline_utils
+from sdnext_core import MODELDATA
 from modules import shared, devices, scripts_manager, processing, sd_models, prompt_parser_diffusers
 
 

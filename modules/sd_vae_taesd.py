@@ -9,6 +9,7 @@ import time
 import threading
 from PIL import Image
 import torch
+from sdnext_core import MODELDATA
 from modules import devices, paths, shared
 
 

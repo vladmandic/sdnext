@@ -1,6 +1,7 @@
 import os
 import torch
 import diffusers
+from sdnext_core import MODELDATA
 from modules import shared, processing
 from modules.video_models.models_def import Model
 

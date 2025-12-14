@@ -5,6 +5,7 @@
 import os
 import time
 import threading
+from sdnext_core import MODELDATA
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks
 from modules.video_models.video_save import save_video
 from modules.video_models.video_utils import check_av

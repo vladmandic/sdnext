@@ -6,6 +6,7 @@ from diffusers.models.lora import LoRACompatibleConv
 from torch import Tensor
 from torch.nn import functional as F
 from torch.nn.modules.utils import _pair
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared
 
 

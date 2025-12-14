@@ -3,6 +3,7 @@ import itertools # SBM Batch frames
 import numpy as np
 import filetype
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageChops, UnidentifiedImageError
+from sdnext_core import MODELDATA
 from modules import scripts_manager, shared, processing, images, errors
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html

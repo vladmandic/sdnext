@@ -1845,6 +1845,7 @@ import gradio as gr
 import diffusers
 from PIL import Image, ImageEnhance, ImageOps # pylint: disable=reimported
 from torchvision import transforms
+from sdnext_core import MODELDATA
 from modules import errors, shared, devices, scripts_manager, processing, sd_models, images
 
 

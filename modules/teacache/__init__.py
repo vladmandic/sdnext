@@ -11,6 +11,7 @@ supported_models = ['Flux', 'Chroma', 'CogVideoX', 'Mochi', 'LTX', 'HiDream', 'L
 
 
 def apply_teacache(p):
+    from sdnext_core import MODELDATA
     from modules import shared
     if not shared.opts.teacache_enabled:
         return

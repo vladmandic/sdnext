@@ -1,6 +1,7 @@
 import gradio as gr
 from PIL import Image
 import numpy as np
+from sdnext_core import MODELDATA
 from modules import shared, scripts_manager, processing, masking
 
 """

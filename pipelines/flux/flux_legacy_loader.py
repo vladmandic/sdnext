@@ -5,6 +5,7 @@ import diffusers
 import transformers
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
+from sdnext_core import MODELDATA
 from modules import shared, errors, devices, sd_models, sd_unet, model_te, model_quant, sd_hijack_te
 
 

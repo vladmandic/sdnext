@@ -3,6 +3,7 @@
 import time
 import gradio as gr
 import diffusers
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, devices, sd_models
 from installer import install
 

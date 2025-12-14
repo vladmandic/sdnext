@@ -12,6 +12,7 @@ ported to modules/consistory
 import time
 import gradio as gr
 import diffusers
+from sdnext_core import MODELDATA
 from modules import scripts_manager, devices, errors, processing, shared, sd_models, sd_samplers
 
 

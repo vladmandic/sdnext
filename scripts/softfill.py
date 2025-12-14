@@ -1604,6 +1604,7 @@ class StableDiffusionXLSoftFillPipeline(
 
 import gradio as gr
 from installer import install
+from sdnext_core import MODELDATA
 from modules import shared, scripts_manager, processing, sd_models
 
 

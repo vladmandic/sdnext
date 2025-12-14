@@ -6,6 +6,7 @@ import numpy as np
 import diffusers
 import huggingface_hub as hf
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import processing, shared, devices, extra_networks, sd_hijack_freeu, script_callbacks, ipadapter, token_merge
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 

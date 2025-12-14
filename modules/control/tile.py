@@ -1,5 +1,6 @@
 import time
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import shared, processing, images, sd_models, sd_vae
 
 

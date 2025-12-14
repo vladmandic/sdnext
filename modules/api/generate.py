@@ -1,5 +1,6 @@
 from threading import Lock
 from fastapi.responses import JSONResponse
+from sdnext_core import MODELDATA
 from modules import errors, shared, scripts_manager, ui
 from modules.api import models, script, helpers
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images

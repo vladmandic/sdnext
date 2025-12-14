@@ -24,6 +24,7 @@ Examples:
 """
 
 import gradio as gr
+from sdnext_core import MODELDATA
 from modules import shared, scripts_manager, processing, devices
 
 

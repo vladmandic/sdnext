@@ -1,4 +1,5 @@
 import time
+from sdnext_core import MODELDATA
 from modules import shared, errors
 from modules.lora import lora_load, lora_common
 

@@ -1,6 +1,7 @@
 # Original: https://github.com/megvii-research/HiDiffusion
 
 import time
+from sdnext_core import MODELDATA
 from modules import shared
 from modules.hidiffusion import hidiffusion
 

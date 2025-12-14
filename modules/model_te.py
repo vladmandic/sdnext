@@ -3,6 +3,7 @@ import json
 import torch
 import transformers
 from safetensors.torch import load_file
+from sdnext_core import MODELDATA
 from modules import shared, devices, files_cache, errors, model_quant
 
 

@@ -4,6 +4,7 @@ import time
 import contextlib
 import gradio as gr
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import shared, devices, errors, scripts_manager, processing, processing_helpers, sd_models
 
 

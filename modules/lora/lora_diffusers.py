@@ -2,6 +2,7 @@ from typing import Union
 import os
 import time
 import diffusers
+from sdnext_core import MODELDATA
 from modules import shared, errors
 from modules.lora import network
 from modules.lora import lora_common as l

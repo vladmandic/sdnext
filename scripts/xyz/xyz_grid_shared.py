@@ -2,6 +2,7 @@
 
 import os
 import re
+from sdnext_core import MODELDATA
 from modules import shared, processing, sd_samplers, sd_models, sd_vae, sd_unet
 
 

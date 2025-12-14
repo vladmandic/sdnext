@@ -2,6 +2,7 @@ import gradio as gr
 import torch
 import numpy as np
 import diffusers
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, devices
 
 

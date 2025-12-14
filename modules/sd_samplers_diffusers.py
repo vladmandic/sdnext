@@ -3,6 +3,7 @@ import re
 import copy
 import inspect
 import diffusers
+from sdnext_core import MODELDATA
 from modules import shared, errors
 from modules.sd_samplers_common import SamplerData, flow_models
 

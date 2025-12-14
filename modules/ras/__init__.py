@@ -1,6 +1,7 @@
 # source <https://github.com/Trojaner/RAS_Simplified>
 # original: <https://github.com/microsoft/RAS>
 
+from sdnext_core import MODELDATA
 from modules import shared, processing
 
 

@@ -3,6 +3,7 @@ import re
 import time
 import torch
 import diffusers.models.lora
+from sdnext_core import MODELDATA
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 

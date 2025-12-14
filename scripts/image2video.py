@@ -1,6 +1,7 @@
 import torch
 import gradio as gr
 import diffusers
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, images, sd_models, devices
 
 

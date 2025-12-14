@@ -2,6 +2,7 @@ import gradio as gr
 import torch
 import diffusers
 from huggingface_hub import hf_hub_download
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices, ipadapter
 
 

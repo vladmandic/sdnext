@@ -1,5 +1,6 @@
 import math
 from PIL import Image, ImageChops, ImageDraw
+from sdnext_core import MODELDATA
 from modules import shared, errors, images
 
 

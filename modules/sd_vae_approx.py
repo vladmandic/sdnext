@@ -1,6 +1,7 @@
 import os
 import torch
 from torch import nn
+from sdnext_core import MODELDATA
 from modules import devices, paths, shared
 
 

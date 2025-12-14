@@ -6,6 +6,7 @@ import csv
 import json
 import time
 import random
+from sdnext_core import MODELDATA
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 
 

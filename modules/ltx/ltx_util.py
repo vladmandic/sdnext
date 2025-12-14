@@ -1,6 +1,7 @@
 import time
 import torch
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import devices, shared, sd_models, timer, extra_networks
 
 

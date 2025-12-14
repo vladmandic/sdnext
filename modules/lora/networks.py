@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 import time
 import rich.progress as rp
+from sdnext_core import MODELDATA
 from modules.lora import lora_common as l
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models

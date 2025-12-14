@@ -7,6 +7,7 @@ encoder: `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`=3.94GB
 import os
 import importlib
 import gradio as gr
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices
 
 

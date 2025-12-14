@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import gradio as gr
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import images, processing, shared, scripts_manager
 from modules.processing import get_processed
 from modules.shared import opts, state

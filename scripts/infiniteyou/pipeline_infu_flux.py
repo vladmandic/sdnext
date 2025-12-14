@@ -27,6 +27,7 @@ from insightface.app import FaceAnalysis
 from insightface.utils import face_align
 from PIL import Image
 
+from sdnext_core import MODELDATA
 from modules import shared, devices, model_quant
 from .pipeline_flux_infusenet import FluxInfuseNetPipeline
 from .resampler import Resampler

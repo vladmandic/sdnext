@@ -30,6 +30,7 @@ def set_progress_bar_config():
 
 
 def set_prompt_template(prompt, system_prompt:str=None, optimized_prompt:bool=True, unmodified_prompt:bool=False):
+    from sdnext_core import MODELDATA
     from modules import shared
     from modules.framepack.pipeline import hunyuan
     mode = 'unknown'

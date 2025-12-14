@@ -3,6 +3,7 @@ import sys
 from typing import List, Union
 import cv2
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules.control import util # helper functions
 from modules.control import unit # control units
 from modules.control import processors # image preprocessors

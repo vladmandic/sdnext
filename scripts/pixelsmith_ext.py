@@ -1,5 +1,6 @@
 import gradio as gr
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices, images
 
 

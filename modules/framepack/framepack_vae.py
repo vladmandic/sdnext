@@ -1,5 +1,6 @@
 import torch
 import einops
+from sdnext_core import MODELDATA
 from modules import shared, devices
 
 

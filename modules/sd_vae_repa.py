@@ -1,4 +1,5 @@
 import diffusers
+from sdnext_core import MODELDATA
 from modules import shared
 
 

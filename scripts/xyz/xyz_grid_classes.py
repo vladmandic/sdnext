@@ -40,6 +40,7 @@ from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, u
     format_nothing,
     str_permutations,
  )
+from sdnext_core import MODELDATA
 from modules import shared, shared_items, sd_samplers, ipadapter, sd_models, sd_vae, sd_unet
 from modules.control.units import controlnet, t2iadapter
 from modules.control import processor

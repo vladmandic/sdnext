@@ -3,6 +3,7 @@ import os
 import time
 import torch
 import numpy as np
+from sdnext_core import MODELDATA
 from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
 
 

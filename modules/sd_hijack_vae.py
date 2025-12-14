@@ -1,6 +1,7 @@
 import os
 import time
 import torch
+from sdnext_core import MODELDATA
 from modules import shared, sd_models, devices, timer, errors
 
 

@@ -1,4 +1,5 @@
 import os
+from sdnext_core import MODELDATA
 from modules import shared, processing, scripts_manager
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html

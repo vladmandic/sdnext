@@ -6,7 +6,6 @@ import contextlib
 from enum import Enum
 import gradio as gr
 import diffusers
-from sdnext_core import MODELDATA
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
 from modules.shared_defaults import get_default_modes

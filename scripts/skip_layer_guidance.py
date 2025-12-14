@@ -1,5 +1,6 @@
 import sys
 import gradio as gr
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared
 
 

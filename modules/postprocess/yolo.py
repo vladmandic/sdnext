@@ -6,6 +6,7 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
+from sdnext_core import MODELDATA
 from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
 from modules.detailer import Detailer
 

@@ -3,6 +3,7 @@ import torch
 import diffusers
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
+from sdnext_core import MODELDATA
 from modules import shared, devices
 
 

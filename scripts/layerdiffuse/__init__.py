@@ -2,6 +2,7 @@
 
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
+from sdnext_core import MODELDATA
 from modules import shared, errors, devices
 from .layerdiffuse_model import TransparentVAEDecoder
 from .layerdiffuse_loader import load_lora_to_unet, merge_delta_weights_into_unet

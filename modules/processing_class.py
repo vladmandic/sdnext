@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageOps
+from sdnext_core import MODELDATA
 from modules import shared, images, scripts_manager, masking, sd_models, sd_vae, processing_helpers
 
 

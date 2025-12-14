@@ -6,6 +6,7 @@ import json
 import time
 import diffusers
 import transformers
+from sdnext_core import MODELDATA
 from installer import installed, install, log, setup_logging
 
 

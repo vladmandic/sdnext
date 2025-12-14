@@ -5,6 +5,7 @@ import json
 import torch
 import requests
 from PIL import Image
+from sdnext_core import MODELDATA
 from safetensors.torch import _tobytes
 
 

@@ -8,6 +8,7 @@ from itertools import permutations
 from PIL import Image
 import numpy as np
 import gradio as gr
+from sdnext_core import MODELDATA
 from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, restore_comma, re_range, re_plain_comma # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module

@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import gradio as gr
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm
 from modules.video_models.video_utils import check_av
 from modules.framepack import framepack_install # pylint: disable=wrong-import-order

@@ -3,7 +3,7 @@ import re
 import bisect
 from typing import Dict
 import torch
-from modules import shared
+from sdnext_core import MODELDATA
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None

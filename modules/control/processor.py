@@ -3,6 +3,7 @@ import time
 import hashlib
 import numpy as np
 from PIL import Image
+from sdnext_core import MODELDATA
 from modules.processing_class import StableDiffusionProcessingControl
 from modules import shared, images, masking, sd_models
 from modules.timer import process as process_timer

@@ -1,6 +1,7 @@
 from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
 import gradio as gr
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices
 
 

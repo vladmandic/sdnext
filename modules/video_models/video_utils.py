@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from PIL import Image
+from sdnext_core import MODELDATA
 from installer import install
 from modules import shared, sd_models, timer, errors, devices
 

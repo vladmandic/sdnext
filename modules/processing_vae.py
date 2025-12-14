@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import torch
+from sdnext_core import MODELDATA
 from modules import shared, devices, sd_models, sd_vae, sd_vae_taesd, errors
 
 
