@@ -3,6 +3,7 @@ import time
 from typing import Union
 import threading
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
+from sdnext_core import MODELDATA
 from modules.shared import log, opts, listdir
 from modules import errors, sd_models
 from modules.control.units.xs_model import ControlNetXSModel
@@ -45,11 +46,11 @@ def list_models(refresh=False):
     if not refresh and len(models) > 0:
         return models
     models = {}
-    if modules.MODELDATA.sd_model_type == 'none':
+    if MODELDATA.sd_model_type == 'none':
         models = ['None']
-    elif modules.MODELDATA.sd_model_type == 'sdxl':
+    elif MODELDATA.sd_model_type == 'sdxl':
         models = ['None'] + sorted(predefined_sdxl) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'sd':
+    elif MODELDATA.sd_model_type == 'sd':
         models = ['None'] + sorted(predefined_sd15) + sorted(find_models())
     else:
         log.error(f'Control {what} model list failed: unknown model type')

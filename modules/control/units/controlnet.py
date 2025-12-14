@@ -161,7 +161,7 @@ find_models()
 
 def api_list_models(model_type: str | None = None):
     import modules.shared
-    model_type = model_type or modules.MODELDATA.sd_model_type
+    model_type = model_type or MODELDATA.sd_model_type
     model_list = []
     if model_type == 'sd' or model_type == 'all':
         model_list += list(predefined_sd15)
@@ -185,19 +185,19 @@ def list_models(refresh=False):
     if not refresh and len(models) > 0:
         return models
     models = {}
-    if modules.MODELDATA.sd_model_type == 'none':
+    if MODELDATA.sd_model_type == 'none':
         models = ['None']
-    elif modules.MODELDATA.sd_model_type == 'sdxl':
+    elif MODELDATA.sd_model_type == 'sdxl':
         models = ['None'] + list(predefined_sdxl) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'sd':
+    elif MODELDATA.sd_model_type == 'sd':
         models = ['None'] + list(predefined_sd15) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'f1':
+    elif MODELDATA.sd_model_type == 'f1':
         models = ['None'] + list(predefined_f1) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'sd3':
+    elif MODELDATA.sd_model_type == 'sd3':
         models = ['None'] + list(predefined_sd3) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'qwen':
+    elif MODELDATA.sd_model_type == 'qwen':
         models = ['None'] + list(predefined_qwen) + sorted(find_models())
-    elif modules.MODELDATA.sd_model_type == 'hunyuandit':
+    elif MODELDATA.sd_model_type == 'hunyuandit':
         models = ['None'] + list(predefined_hunyuandit) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
