@@ -2,13 +2,13 @@ import os
 import time
 import threading
 from typing import TYPE_CHECKING
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
 from sdnext_core import MODELDATA
 from modules.control.units import detect
 from modules.shared import log, opts, cmd_opts, state, listdir
 from modules import errors, sd_models, devices, model_quant
 
 if TYPE_CHECKING:
-    from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline, StableDiffusion3Pipeline, ControlNetModel
     from modules.processing import StableDiffusionProcessingControl
 
 
