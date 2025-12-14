@@ -1,6 +1,6 @@
 import os
 from installer import git_commit
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, sd_samplers_common, sd_vae, generation_parameters_copypaste
 from modules.processing_class import StableDiffusionProcessing
 

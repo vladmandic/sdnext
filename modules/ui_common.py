@@ -5,7 +5,7 @@ import shutil
 import platform
 import subprocess
 import gradio as gr
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 
 

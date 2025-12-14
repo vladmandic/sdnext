@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 import torch
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, sd_models
 
 

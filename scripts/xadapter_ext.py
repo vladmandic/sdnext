@@ -4,7 +4,7 @@ import torch
 import diffusers
 import gradio as gr
 import huggingface_hub as hf
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import errors, shared, devices, scripts_manager, processing, sd_models, sd_samplers
 
 

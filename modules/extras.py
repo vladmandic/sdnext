@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 import gradio as gr
 import safetensors.torch
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules.merging import merge, merge_utils, modules_sdxl
 from modules import shared, images, sd_models, sd_vae, sd_samplers, devices
 

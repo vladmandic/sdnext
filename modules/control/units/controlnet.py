@@ -2,7 +2,7 @@ import os
 import time
 import threading
 from typing import TYPE_CHECKING
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules.control.units import detect
 from modules.shared import log, opts, cmd_opts, state, listdir
 from modules import errors, sd_models, devices, model_quant

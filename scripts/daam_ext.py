@@ -1,7 +1,7 @@
 # https://github.com/genforce/ctrl-x
 
 import gradio as gr
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from installer import install
 from modules import shared, scripts_manager, processing
 

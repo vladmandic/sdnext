@@ -1,6 +1,6 @@
 import os
 import diffusers
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, errors
 
 

@@ -6,7 +6,7 @@ from collections import OrderedDict
 import torch
 from compel.embeddings_provider import BaseTextualInversionManager, EmbeddingsProvider
 from transformers import PreTrainedTokenizer
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, prompt_parser, devices, sd_models
 from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get_weighted_text_embeddings_sdxl_2p, get_weighted_text_embeddings_sd3, get_weighted_text_embeddings_flux1, get_weighted_text_embeddings_chroma
 

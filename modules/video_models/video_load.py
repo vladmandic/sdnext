@@ -4,7 +4,7 @@ import copy
 import time
 import transformers # pylint: disable=unused-import
 import diffusers
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.video_models import models_def, video_utils, video_overrides, video_cache
 

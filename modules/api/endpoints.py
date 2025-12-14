@@ -1,6 +1,6 @@
 from typing import Optional
 from fastapi.exceptions import HTTPException
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared
 from modules.api import models, helpers
 
@@ -122,7 +122,7 @@ def post_reload_checkpoint(force:bool=False):
     return {}
 
 def post_lock_checkpoint(lock:bool=False):
-    from core import MODELDATA
+    from sdnext_core import MODELDATA
     MODELDATA.locked = lock
     return {}
 

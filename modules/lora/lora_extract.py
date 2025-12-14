@@ -6,7 +6,7 @@ import torch
 from safetensors.torch import save_file
 import gradio as gr
 from rich import progress as rp
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, devices
 from modules.ui_common import create_refresh_button
 from modules.call_queue import wrap_gradio_gpu_call

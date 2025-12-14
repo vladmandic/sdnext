@@ -1,7 +1,7 @@
 import json
 import os
 from modules import shared, ui_extra_networks, files_cache, modelstats
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules.textual_inversion import Embedding
 
 

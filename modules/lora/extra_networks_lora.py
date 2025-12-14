@@ -2,7 +2,7 @@ from typing import List
 import os
 import re
 import numpy as np
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
 from modules import extra_networks, shared, sd_models

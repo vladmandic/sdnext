@@ -1,7 +1,7 @@
 import time
 import logging
 import torch
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, devices, sd_models, errors
 from installer import setup_logging
 

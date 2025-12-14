@@ -11,7 +11,7 @@ import json
 from PIL import Image
 import diffusers
 import transformers
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import processing, shared, devices, sd_models, errors, model_quant
 
 

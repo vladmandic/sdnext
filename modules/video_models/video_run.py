@@ -1,7 +1,7 @@
 import os
 import copy
 import time
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
 from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_prompt
 

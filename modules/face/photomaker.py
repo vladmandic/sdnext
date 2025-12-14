@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import torch
 import huggingface_hub as hf
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, processing, sd_models, devices
 
 

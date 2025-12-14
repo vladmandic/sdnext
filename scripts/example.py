@@ -1,6 +1,6 @@
 import gradio as gr
 from diffusers.pipelines import StableDiffusionPipeline, StableDiffusionXLPipeline # pylint: disable=unused-import
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, scripts_manager, processing, sd_models, devices
 
 """

@@ -1,6 +1,6 @@
 import os
 from installer import install
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared
 
 

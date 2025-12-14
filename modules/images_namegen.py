@@ -7,7 +7,7 @@ import string
 import hashlib
 import datetime
 from pathlib import Path
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, errors
 
 

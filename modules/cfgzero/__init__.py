@@ -1,6 +1,6 @@
 # reference: <https://github.com/WeichenFan/CFG-Zero-star>
 
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, processing, sd_models
 
 

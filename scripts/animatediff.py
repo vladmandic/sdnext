@@ -2,7 +2,7 @@ import os
 import gradio as gr
 import diffusers
 from safetensors.torch import load_file
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, devices, sd_models
 
 

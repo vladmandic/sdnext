@@ -13,7 +13,7 @@ import modules.loader
 import modules.hashes
 
 from installer import log, git_commit, custom_excepthook, version
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import timer, paths, shared, extensions, gr_tempdir, modelloader
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.devices

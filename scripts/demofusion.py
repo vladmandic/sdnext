@@ -14,7 +14,7 @@ from diffusers.schedulers import KarrasDiffusionSchedulers
 from diffusers.utils import is_accelerate_available, is_accelerate_version
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import scripts_manager, processing, shared, sd_models, devices
 
 

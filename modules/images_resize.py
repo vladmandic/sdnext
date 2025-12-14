@@ -4,7 +4,7 @@ import time
 import numpy as np
 import torch
 from PIL import Image
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, upscaler
 
 

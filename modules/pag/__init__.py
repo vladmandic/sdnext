@@ -1,5 +1,5 @@
 from diffusers.pipelines import StableDiffusionPipeline, StableDiffusionXLPipeline # pylint: disable=unused-import
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, processing, sd_models
 from modules.pag.pipe_sd import StableDiffusionPAGPipeline
 from modules.pag.pipe_sdxl import StableDiffusionXLPAGPipeline

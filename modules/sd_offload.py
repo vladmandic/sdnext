@@ -8,7 +8,7 @@ import torch
 import accelerate.hooks
 import accelerate.utils.modeling
 from installer import log
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, devices, errors, model_quant
 from modules.timer import process as process_timer
 

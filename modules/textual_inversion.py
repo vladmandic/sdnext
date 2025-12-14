@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 

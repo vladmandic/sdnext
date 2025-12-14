@@ -11,7 +11,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from installer import log
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
 from modules.memstats import memory_stats
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import

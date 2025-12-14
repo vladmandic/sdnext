@@ -1,7 +1,7 @@
 import os
 import glob
 import torch
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, errors, paths, devices, sd_models, sd_detect
 
 

@@ -4,7 +4,7 @@ import threading
 import re
 import gradio as gr
 from PIL import Image
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import devices, paths, shared, errors, sd_models
 
 

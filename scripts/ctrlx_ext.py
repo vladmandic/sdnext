@@ -2,7 +2,7 @@
 
 import gradio as gr
 from diffusers import StableDiffusionXLPipeline
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from modules import shared, scripts_manager, processing, processing_helpers, sd_models, devices
 
 

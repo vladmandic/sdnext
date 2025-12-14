@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import diffusers
-from core import MODELDATA
+from sdnext_core import MODELDATA
 from installer import log, installed, install
 
 
