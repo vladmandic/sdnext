@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 class ModelData:
     def __init__(self):
         self._sd_model: DiffusionPipeline | None = None
-        self._sd_model_type = ""
+        self._sd_model_type = "none"
         self._sd_refiner: DiffusionPipeline | None = None
-        self._sd_refiner_type = ""
+        self._sd_refiner_type = "none"
         self.sd_dict = 'None'
         self.initial = True
         self.locked = True
