@@ -59,7 +59,7 @@ class ModelData:
     def sd_model(self, value):
         if not self.locked:
             self._sd_model = value
-            self._sd_model_type = ModelData.get_model_type(value)
+            self._sd_model_type = "none" if value is None else ModelData.get_model_type(value)
 
     @final
     @property
@@ -81,24 +81,17 @@ class ModelData:
     def sd_refiner(self, value):
         if not self.locked:
             self._sd_refiner = value
-            self._sd_refiner_type = ModelData.get_model_type(value)
+            self._sd_refiner_type = "none" if value is None else ModelData.get_model_type(value)
 
     @final
     @property
     def sd_model_type(self):
-        if self._sd_model is None:
-            return "none"
         return self._sd_model_type
 
     @final
     @property
     def sd_refiner_type(self):
-        try:
-            if self._sd_refiner is None:
-                return "none"
-            return self._sd_refiner_type
-        except Exception:
-            return "unknown"
+        return self._sd_refiner_type
 
     @final
     @staticmethod
