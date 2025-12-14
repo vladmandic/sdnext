@@ -32,7 +32,7 @@ processed = None # last known processed results
 
 class Processed:
     def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None):
-        self.sd_model_hash = getattr(MODELDATA.sd_model, 'sd_model_hash', '') if MODELDATA.sd_model is not None else ''
+        self.sd_model_hash = getattr(MODELDATA.sd_model, 'sd_model_hash', '') if MODELDATA._sd_model is not None else ''
 
         self.prompt = p.prompt or ''
         self.negative_prompt = p.negative_prompt or ''
