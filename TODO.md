@@ -6,7 +6,7 @@
 
 ## Internal
 
-- Reimplement llama remover for kanvas
+- Reimplement `llama` remover for kanvas
 - Deploy: Create executable for SD.Next  
 - Feature: Integrate natural language image search  
   [ImageDB](https://github.com/vladmandic/imagedb)  
@@ -22,6 +22,8 @@
 - Video tab: add full API support  
 - Control tab: add overrides handling  
 - Engine: TensorRT acceleration
+- Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
+- Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
 ## Features
 
@@ -74,11 +76,6 @@ TODO: *Prioritize*!
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 
-### General
-
-- Review/improve type-hinting and type checking
-  - A little easier to work with due to syntax changes in Python 3.10
-
 ### Asyncio
 
 - Policy system is deprecated and will be removed in **Python 3.16**
@@ -90,8 +87,6 @@ TODO: *Prioritize*!
   - Migration:
     - [asyncio.run](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.run)
     - [asyncio.Runner](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.Runner)
-
-### Shutil
 
 #### rmtree
 
