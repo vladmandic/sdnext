@@ -22,6 +22,8 @@
 - Video tab: add full API support  
 - Control tab: add overrides handling  
 - Engine: TensorRT acceleration
+- Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
+- Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
 ## Features
 
