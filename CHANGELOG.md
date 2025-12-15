@@ -1,9 +1,18 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-12
+## Update for 2025-12-15
 
-- Google models support for both Dev and Vertex access methods  
-  see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
+- **Features**
+  - Google models support for both *Dev* and *Vertex* access methods  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
+- **Internal**
+  - update nightlies to `rocm==7.1`  
+  - mark `python==3.9` as deprecated  
+- **Wiki**  
+  - update models page, thanks @alerikaisattera  
+- **Fixes**  
+  - generate forever fix loop checks, thanks @awsr  
+  - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
 
 ## Update for 2025-12-11
 
