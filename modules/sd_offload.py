@@ -213,6 +213,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         return True
 
+    @torch.compiler.disable
     def pre_forward(self, module, *args, **kwargs):
         _id = id(module)
 
@@ -261,6 +262,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.last_pre = _id
         return args, kwargs
 
+    @torch.compiler.disable
     def post_forward(self, module, output):
         if self.last_post != id(module):
             self.last_post = id(module)
