@@ -19,6 +19,7 @@
 - **Fixes**  
   - generate forever fix loop checks, thanks @awsr  
   - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
+  - torch.compile skip offloading steps  
 
 ## Update for 2025-12-11
 
