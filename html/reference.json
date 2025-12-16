@@ -314,6 +314,25 @@
     "date": "2025 July"
   },
 
+  "Meituan LongCat Image": {
+    "path": "meituan-longcat/LongCat-Image",
+    "preview": "meituan-longcat--LongCat-Image.jpg",
+    "desc": "Pioneering open-source and bilingual (Chinese-English) foundation model for image generation, designed to address core challenges in multilingual text rendering, photorealism, deployment efficiency, and developer accessibility prevalent in current leading models.",
+    "skip": true,
+    "extras": "",
+    "size": 27.30,
+    "date": "2025 December"
+  },
+  "Meituan LongCat Image-Edit": {
+    "path": "meituan-longcat/LongCat-Image-Edit",
+    "preview": "meituan-longcat--LongCat-Image-Edit.jpg",
+    "desc": "Pioneering open-source and bilingual (Chinese-English) foundation model for image generation, designed to address core challenges in multilingual text rendering, photorealism, deployment efficiency, and developer accessibility prevalent in current leading models.",
+    "skip": true,
+    "extras": "",
+    "size": 27.30,
+    "date": "2025 December"
+  },
+
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",
     "preview": "ostris--Flex.2-preview.jpg",

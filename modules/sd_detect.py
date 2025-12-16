@@ -139,6 +139,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'NanoBanana'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
         new_guess = 'Z-Image'
+    elif 'longcat-image' in fn.lower():
+        new_guess = 'LongCat'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess

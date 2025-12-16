@@ -1,7 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-15
+## Update for 2025-12-16
 
+- **Models**
+  - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
+    LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
 - **Features**
   - Google models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  

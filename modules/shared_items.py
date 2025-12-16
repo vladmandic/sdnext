@@ -48,6 +48,7 @@ pipelines = {
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
+    'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'Monetico': getattr(diffusers, 'DiffusionPipeline', None),

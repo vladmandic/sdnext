@@ -43,6 +43,7 @@ force_models_diffusers = [ # forced always
     'chrono',
     'z_image',
     'f2',
+    'longcat',
     # video models
     'hunyuanvideo',
     'hunyuanvideo15'
