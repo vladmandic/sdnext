@@ -8,6 +8,9 @@
 - **Features**
   - Google models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
+  - Z-Image support loading transformer file-tunes in safetensors format  
+    as with any transformers/unet finetunes, place them then `models/unet`  
+    and use **UNET Model** to load safetensors file as they are not complete models  
 - **Internal**
   - update nightlies to `rocm==7.1`  
   - mark `python==3.9` as deprecated  
