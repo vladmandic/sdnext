@@ -631,7 +631,7 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
 
     "postprocessing_sep_detailer": OptionInfo("<h2>Detailer</h2>", "", gr.HTML),
     "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),
-    "detailer_augment": OptionInfo(True, "Detailer use model augment"),
+    "detailer_augment": OptionInfo(False, "Detailer use model augment"),
 
     "postprocessing_sep_seedvt": OptionInfo("<h2>SeedVT</h2>", "", gr.HTML),
     "seedvt_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
@@ -807,6 +807,7 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
     "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),
     "detailer_save": OptionInfo(False, "Include detection results", gr.Checkbox, {"visible": False}),
+    "detailer_seg": OptionInfo(False, "Use segmentation", gr.Checkbox, {"visible": False}),
 }))
 
 

@@ -18,6 +18,9 @@ predefined = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/main>
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/person_yolov8n-seg.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/eyes-v1.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/eyes-full-v1.pt',
+    'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-eyes-seg.pt',
+    'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-face-1024-seg-8n.pt',
+    'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/anzhc-head-seg-8n.pt',
     'https://huggingface.co/netrunner-exe/Face-Upscalers-onnx/resolve/main/codeformer.fp16.onnx',
     'https://huggingface.co/netrunner-exe/Face-Upscalers-onnx/resolve/main/restoreformer.fp16.onnx',
     'https://huggingface.co/netrunner-exe/Face-Upscalers-onnx/resolve/main/GFPGANv1.4.fp16.onnx',
@@ -136,25 +139,45 @@ class YoloRestorer(Detailer):
             boxes = prediction.boxes.xyxy.detach().int().cpu().numpy() if prediction.boxes is not None else []
             scores = prediction.boxes.conf.detach().float().cpu().numpy() if prediction.boxes is not None else []
             classes = prediction.boxes.cls.detach().float().cpu().numpy() if prediction.boxes is not None else []
-            for score, box, cls in zip(scores, boxes, classes):
+            masks = prediction.masks.data.cpu().float().numpy() if prediction.masks is not None else []
+            if len(masks) < len(classes):
+                masks = len(classes) * [None]
+            for score, box, cls, seg in zip(scores, boxes, classes, masks):
+                if seg is not None:
+                    try:
+                        seg = (255 * seg).astype(np.uint8)
+                        seg = Image.fromarray(seg).resize(image.size).convert('L')
+                    except:
+                        seg = None
                 cls = int(cls)
                 label = prediction.names[cls] if cls < len(prediction.names) else f'cls{cls}'
                 if len(desired) > 0 and label.lower() not in desired:
                     continue
                 box = box.tolist()
-                mask_image = None
                 w, h = box[2] - box[0], box[3] - box[1]
                 x_size, y_size = w/image.width, h/image.height
                 min_size = shared.opts.detailer_min_size if shared.opts.detailer_min_size >= 0 and shared.opts.detailer_min_size <= 1 else 0
                 max_size = shared.opts.detailer_max_size if shared.opts.detailer_max_size >= 0 and shared.opts.detailer_max_size <= 1 else 1
                 if x_size >= min_size and y_size >=min_size and x_size <= max_size and y_size <= max_size:
                     if mask:
-                        mask_image = image.copy()
-                        mask_image = Image.new('L', image.size, 0)
-                        draw = ImageDraw.Draw(mask_image)
-                        draw.rectangle(box, fill="white", outline=None, width=0)
+                        if shared.opts.detailer_seg and seg is not None:
+                            masked = seg
+                        else:
+                            masked = Image.new('L', image.size, 0)
+                            draw = ImageDraw.Draw(masked)
+                            draw.rectangle(box, fill="white", outline=None, width=0)
                         cropped = image.crop(box)
-                        res = YoloResult(cls=cls, label=label, score=round(score, 2), box=box, mask=mask_image, item=cropped, width=w, height=h, args=args)
+                        res = YoloResult(
+                            cls=cls,
+                            label=label,
+                            score=round(score, 2),
+                            box=box,
+                            mask=masked,
+                            item=cropped,
+                            width=w,
+                            height=h,
+                            args=args,
+                        )
                         result.append(res)
                 if len(result) >= shared.opts.detailer_max:
                     break
@@ -382,7 +405,7 @@ class YoloRestorer(Detailer):
                 pc.negative_prompts = [pc.negative_prompt]
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts)
                 extra_networks.activate(pc, pc.network_data)
-                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} prompt="{pc.prompt}"')
+                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} seg={shared.opts.detailer_seg} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
@@ -437,7 +460,7 @@ class YoloRestorer(Detailer):
             return gr.update(visible=False), gr.update(visible=True, value=value), gr.update(visible=False)
 
     def ui(self, tab: str):
-        def ui_settings_change(merge, detailers, text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort):
+        def ui_settings_change(merge, detailers, text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg):
             shared.opts.detailer_merge = merge
             shared.opts.detailer_models = detailers
             shared.opts.detailer_args = text if not self.ui_mode else ''
@@ -453,15 +476,18 @@ class YoloRestorer(Detailer):
             shared.opts.detailer_sigma_adjust_max = renoise_end
             shared.opts.detailer_save = save
             shared.opts.detailer_sort = sort
+            shared.opts.detailer_seg = seg
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(shared.config_filename, silent=True)
-            shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort}')
+            shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
             if not self.ui_mode:
                 shared.log.debug(f'Detailer expert: {text}')
 
         with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"]):
             with gr.Row():
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
+            with gr.Row():
+                seg = gr.Checkbox(label="Use segmentation", elem_id=f"{tab}_detailer_seg", value=shared.opts.detailer_seg, visible=True)
                 save = gr.Checkbox(label="Include detection results", elem_id=f"{tab}_detailer_save", value=shared.opts.detailer_save, visible=True)
             with gr.Row():
                 merge = gr.Checkbox(label="Merge detailers", elem_id=f"{tab}_detailer_merge", value=shared.opts.detailer_merge, visible=True)
@@ -499,20 +525,21 @@ class YoloRestorer(Detailer):
                 renoise_value = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Renoise', value=shared.opts.detailer_sigma_adjust, elem_id=f"{tab}_detailer_renoise")
                 renoise_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Renoise end', value=shared.opts.detailer_sigma_adjust_max, elem_id=f"{tab}_detailer_renoise_end")
 
-            merge.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            detailers.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            detailers_text.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            classes.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            padding.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            blur.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            min_confidence.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            max_detected.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            min_size.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            max_size.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            iou.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            resolution.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            save.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
-            sort.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort], outputs=[])
+            merge.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            detailers.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            detailers_text.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            classes.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            padding.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            blur.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            min_confidence.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            max_detected.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            min_size.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            max_size.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            iou.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            resolution.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            save.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            sort.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            seg.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             return enabled, prompt, negative, steps, strength, resolution
 
 

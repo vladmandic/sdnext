@@ -6,11 +6,15 @@
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
     LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
 - **Features**
-  - Google models support for both *Dev* and *Vertex* access methods  
+  - Google **Gemini** and **Veo** models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
-  - Z-Image support loading transformer file-tunes in safetensors format  
+  - **Z-Image** support loading transformer file-tunes in safetensors format  
     as with any transformers/unet finetunes, place them then `models/unet`  
     and use **UNET Model** to load safetensors file as they are not complete models  
+  - **Detailer** support for segmentation models  
+    some detection models can produce exact segmentation mask and not just box  
+    to enable, set `use segmentation` option  
+    added segmentation models: *anzhc-eyes-seg*, *anzhc-face-1024-seg-8n*, *anzhc-head-seg-8n*  
 - **Internal**
   - update nightlies to `rocm==7.1`  
   - mark `python==3.9` as deprecated  
