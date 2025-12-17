@@ -382,27 +382,27 @@ def create_html(search_text, sort_column):
         if ext.get('status', None) is None or type(ext['status']) == str: # old format
             ext['status'] = 0
         if ext['url'] is None or ext['url'] == '':
-            status = f"<span style='cursor:pointer;color:#00C0FD' title='Local'>{ui_symbols.bullet}</span>"
+            status = f"<div style='cursor:help;width:1em;' title='Local'>{ui_symbols.svg_bullet.color('#00C0FD')}</div>"
         elif ext['status'] > 0:
             if ext['status'] == 1:
-                status = f"<span style='cursor:pointer;color:#00FD9C ' title='Verified'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Verified'>{ui_symbols.svg_bullet.color('#00FD9C')}</div>"
             elif ext['status'] == 2:
-                status = f"<span style='cursor:pointer;color:#FFC300' title='Supported only with backend:Original'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Supported only with backend: Original'>{ui_symbols.svg_bullet.color('#FFC300')}</div>"
             elif ext['status'] == 3:
-                status = f"<span style='cursor:pointer;color:#FFC300' title='Supported only with backend:Diffusers'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Supported only with backend: Diffusers'>{ui_symbols.svg_bullet.color('#FFC300')}</div>"
             elif ext['status'] == 4:
-                status = f"<span style='cursor:pointer;color:#4E22FF' title=\"{ext.get('note', 'custom value')}\">{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title=\"{html.escape(ext.get('note', 'custom value'))}\">{ui_symbols.svg_bullet.color('#4E22FF')}</div>"
             elif ext['status'] == 5:
-                status = f"<span style='cursor:pointer;color:#CE0000' title='Not supported'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Not supported'>{ui_symbols.svg_bullet.color('#CE0000')}</div>"
             elif ext['status'] == 6:
-                status = f"<span style='cursor:pointer;color:#AEAEAE' title='Just discovered'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Just discovered'>{ui_symbols.svg_bullet.color('#AEAEAE')}</div>"
             else:
-                status = f"<span style='cursor:pointer;color:#008EBC' title='Unknown status'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Unknown status'>{ui_symbols.svg_bullet.color('#008EBC')}</div>"
         else:
             if updated < datetime.timestamp(datetime.now() - timedelta(6*30)):
-                status = f"<span style='cursor:pointer;color:#C000CF' title='Unmaintained'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='Unmaintained'>{ui_symbols.svg_bullet.color('#C000CF')}</div>"
             else:
-                status = f"<span style='cursor:pointer;color:#7C7C7C' title='No info'>{ui_symbols.bullet}</span>"
+                status = f"<div style='cursor:help;width:1em;' title='No info'>{ui_symbols.svg_bullet.color('#7C7C7C')}</div>"
 
         code += f"""
             <tr style="display: {visible}">
