@@ -132,7 +132,7 @@ def atomically_save_image():
         save_queue.task_done()
 
 
-save_queue = queue.Queue()
+save_queue: queue.Queue[tuple[Image.Image, str, str, script_callbacks.ImageSaveParams, str, str | None, bool]] = queue.Queue()
 save_thread = threading.Thread(target=atomically_save_image, daemon=True)
 save_thread.start()
 
