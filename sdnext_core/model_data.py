@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING, final
 from modules import shared, errors
 
 if TYPE_CHECKING:
-    from diffusers import ModelMixin
+    from diffusers import DiffusionPipeline
 
 
 @final
 class ModelData:
     def __init__(self):
-        self._sd_model: ModelMixin | None = None
+        self._sd_model: DiffusionPipeline | None = None
         self._sd_model_type = "none"
-        self._sd_refiner: ModelMixin | None = None
+        self._sd_refiner: DiffusionPipeline | None = None
         self._sd_refiner_type = "none"
         self.sd_dict = 'None'
         self.initial = True
@@ -95,7 +95,7 @@ class ModelData:
 
     @final
     @staticmethod
-    def get_model_type(pipe: ModelMixin):
+    def get_model_type(pipe: DiffusionPipeline):
         name = pipe.__class__.__name__
         if not shared.native:
             model_type = 'ldm'

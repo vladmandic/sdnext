@@ -1249,7 +1249,7 @@ def reload_text_encoder(initial=False):
     apply_balanced_offload(MODELDATA._sd_model)
 
 
-def reload_model_weights(sd_model: diffusers.ModelMixin | None = None, info=None, op='model', force=False, revision=None):
+def reload_model_weights(sd_model: diffusers.DiffusionPipeline | None = None, info=None, op='model', force=False, revision=None):
     checkpoint_info = info or select_checkpoint(op=op) # are we selecting model or dictionary
     if checkpoint_info is None:
         unload_model_weights(op=op)
