@@ -886,3 +886,11 @@ def restore_defaults(restart=True):
         log.info('Restoring server defaults')
         os.remove(cmd_opts.config)
     restart_server(restart)
+
+__compat = ["sd_model", "sd_refiner", "sd_model_type", "sd_refiner_type", "sd_loaded"]
+
+def __getattr__(name: str): # Runs when attribute/variable does not exist
+    if name in __compat:
+        from sdnext_core import MODELDATA
+        return MODELDATA.__getattribute__(name)
+    raise AttributeError(f"Module {__name__} has no attribute {name}")
