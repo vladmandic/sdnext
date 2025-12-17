@@ -120,9 +120,9 @@ def atomically_save_image():
             if not fn.endswith('.json'):
                 fn += '.json'
             entries = shared.readfile(fn, silent=True)
-            idx = len(list(entries))
-            if idx == 0:
+            if not isinstance(entries, list):
                 entries = []
+            idx = len(entries)
             entry = { 'id': idx, 'filename': filename, 'time': datetime.datetime.now().isoformat(), 'info': exifinfo }
             entries.append(entry)
             shared.writefile(entries, fn, mode='w', silent=True)
