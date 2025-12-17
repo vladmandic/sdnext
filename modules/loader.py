@@ -94,9 +94,9 @@ timer.startup.record("torch")
 
 try:
     import bitsandbytes # pylint: disable=W0611,C0411
+    _bnb = True
 except Exception:
-    from diffusers.utils import import_utils
-    import_utils._bitsandbytes_available = False # pylint: disable=protected-access
+    _bnb = False
 timer.startup.record("bnb")
 
 import transformers # pylint: disable=W0611,C0411
@@ -134,6 +134,7 @@ try:
     import diffusers.utils.import_utils # pylint: disable=W0611,C0411
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
+    diffusers.utils.import_utils._bitsandbytes_available = _bnb # pylint: disable=protected-access
 
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411

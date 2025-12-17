@@ -240,18 +240,30 @@ class YoloRestorer(Detailer):
         )
         return [merged]
 
-    def draw_boxes(self, image: Image.Image, items: list[YoloResult]) -> Image.Image:
-        if isinstance(image, Image.Image):
-            draw = ImageDraw.Draw(image)
-        else:
+    def draw_masks(self, image: Image.Image, items: list[YoloResult]) -> Image.Image:
+        if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
-            draw = ImageDraw.Draw(image)
-        font = images.get_font(16)
+        image = image.convert('RGBA')
+        size = min(image.width, image.height) // 32
+        font = images.get_font(size)
+        color = (0, 190, 190)
         shared.log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
-            draw.rectangle(item.box, outline="#00C8C8", width=3)
-            draw.text((item.box[0]+4, item.box[1]+4), f'{i+1} {item.label} {item.score:.2f}', fill="black", font=font)
-            draw.text((item.box[0]+2, item.box[1]+2), f'{i+1} {item.label} {item.score:.2f}', fill="white", font=font)
+            if shared.opts.detailer_seg and item.mask is not None:
+                mask = item.mask.convert('L')
+            else:
+                mask = Image.new('L', image.size, 0)
+                draw_mask = ImageDraw.Draw(mask)
+                draw_mask.rectangle(item.box, fill="white", outline=None, width=0)
+            alpha = mask.point(lambda p: int(p * 0.5))
+            overlay = Image.new("RGBA", image.size, color + (0,))
+            overlay.putalpha(alpha)
+            image = Image.alpha_composite(image, overlay)
+
+            draw_text = ImageDraw.Draw(image)
+            draw_text.text((item.box[0] + 2, item.box[1] - size - 2), f'{i+1} {item.label} {item.score:.2f}', fill="black", font=font)
+            draw_text.text((item.box[0] + 0, item.box[1] - size - 4), f'{i+1} {item.label} {item.score:.2f}', fill="white", font=font)
+        image = image.convert("RGB")
         return np.array(image)
 
     def restore(self, np_image, p: processing.StableDiffusionProcessing = None):
@@ -392,7 +404,7 @@ class YoloRestorer(Detailer):
             if shared.opts.detailer_sort:
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
             if shared.opts.detailer_save:
-                annotated = self.draw_boxes(annotated, items)
+                annotated = self.draw_masks(annotated, items)
 
             for j, item in enumerate(items):
                 if item.mask is None:
@@ -405,7 +417,7 @@ class YoloRestorer(Detailer):
                 pc.negative_prompts = [pc.negative_prompt]
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts)
                 extra_networks.activate(pc, pc.network_data)
-                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label} score={item.score:.2f} seg={shared.opts.detailer_seg} prompt="{pc.prompt}"')
+                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={shared.opts.detailer_seg} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []

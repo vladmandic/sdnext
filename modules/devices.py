@@ -390,7 +390,7 @@ def test_triton(early: bool = False):
             def test_triton_func(a,b,c):
                 return a * b + c
             test_triton_func = torch.compile(test_triton_func, fullgraph=True)
-            test_triton_func(torch.randn(32, device=device), torch.randn(32, device=device), torch.randn(32, device=device))
+            test_triton_func(torch.randn(16, device=device), torch.randn(16, device=device), torch.randn(16, device=device))
             triton_ok = True
         else:
             triton_ok = False
