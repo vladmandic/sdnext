@@ -767,7 +767,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
     try:
         # initial load only
         if sd_model is None:
-            if shared.cmd_opts.ckpt is not None and os.path.isdir(shared.cmd_opts.ckpt) and MODELDATA.initial:
+            if MODELDATA.initial and shared.cmd_opts.ckpt is not None and os.path.isdir(shared.cmd_opts.ckpt):
                 sd_model, checkpoint_info = load_diffuser_initial(diffusers_load_config, op)
 
         # unload current model
