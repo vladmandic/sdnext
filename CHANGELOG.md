@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-16
+## Update for 2025-12-17
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -18,6 +18,7 @@
 - **Internal**
   - update nightlies to `rocm==7.1`  
   - mark `python==3.9` as deprecated  
+  - extensions improved status indicators, thanks @awsr  
 - **Wiki**  
   - update models page, thanks @alerikaisattera  
 - **Fixes**  
