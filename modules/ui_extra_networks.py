@@ -8,6 +8,7 @@ import html
 import base64
 import urllib.parse
 import threading
+from typing import TYPE_CHECKING
 from types import SimpleNamespace
 from pathlib import Path
 from html.parser import HTMLParser
@@ -440,7 +441,7 @@ class ExtraNetworksPage:
     def update_all_previews(self, items):
         global preview_map # pylint: disable=global-statement
         if preview_map is None:
-            preview_map = shared.readfile('html/previews.json', silent=True)
+            preview_map = shared.readfile('html/previews.json', silent=True, as_type="dict")
         t0 = time.time()
         reference_path = os.path.abspath(os.path.join('models', 'Reference'))
         possible_paths = list(set([os.path.dirname(item['filename']) for item in items] + [reference_path]))
@@ -520,12 +521,10 @@ class ExtraNetworksPage:
             t0 = time.time()
             fn = os.path.splitext(path)[0] + '.json'
             if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True)
+                data = shared.readfile(fn, silent=True, as_type="dict")
             fn = os.path.join(path, 'model_index.json')
             if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True)
-            if type(data) is list:
-                data = data[0]
+                data = shared.readfile(fn, silent=True, as_type="dict")
             t1 = time.time()
             self.info_time += t1-t0
         return data
@@ -862,13 +861,15 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
 
         if is_valid:
+            if TYPE_CHECKING:
+                assert item is not None # Part of the definition of "is_valid"
             stat_size, stat_mtime = modelstats.stat(item.filename)
             if hasattr(item, 'size') and item.size > 0:
                 stat_size = item.size
             if hasattr(item, 'mtime') and item.mtime is not None:
                 stat_mtime = item.mtime
             desc = item.description
-            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
+            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True, as_type="dict")
             if 'modelVersions' in fullinfo: # sanitize massive objects
                 fullinfo['modelVersions'] = []
             info = fullinfo

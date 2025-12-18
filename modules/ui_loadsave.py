@@ -118,7 +118,7 @@ class UiLoadsave:
 
     def read_from_file(self):
         from modules.shared import readfile
-        return readfile(self.filename)
+        return readfile(self.filename, as_type="dict")
 
     def write_to_file(self, current_ui_settings):
         from modules.shared import writefile

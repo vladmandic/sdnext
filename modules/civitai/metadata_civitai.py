@@ -77,7 +77,7 @@ def civit_update_metadata(raw:bool=False):
                 model.id = d['modelId']
                 download_civit_meta(model.fn, model.id)
                 fn = os.path.splitext(item['filename'])[0] + '.json'
-                model.meta = readfile(fn, silent=True)
+                model.meta = readfile(fn, silent=True, as_type="dict")
                 model.name = model.meta.get('name', model.name)
                 model.versions = len(model.meta.get('modelVersions', []))
         versions = model.meta.get('modelVersions', [])

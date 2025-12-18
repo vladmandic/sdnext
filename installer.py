@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import overload, List, Optional
 import os
 import sys
 import json
@@ -18,7 +18,6 @@ class Dot(dict): # dot notation access to dictionary attributes
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
 
 version = {
     'app': 'sd.next',
@@ -94,19 +93,35 @@ def get_log():
     return log
 
 
+@overload
+def str_to_bool(val: str | bool) -> bool: ...
+@overload
+def str_to_bool(val: None) -> None: ...
+def str_to_bool(val: str | bool | None) -> bool | None:
+    if isinstance(val, str):
+        if val.strip() and val.strip().lower() in ("1", "true"):
+            return True
+        return False
+    return val
+
+
 def install_traceback(suppress: list = []):
     from rich.traceback import install as traceback_install
     from rich.pretty import install as pretty_install
+
+    width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
+    if width is not None:
+        width = int(width)
     traceback_install(
         console=console,
-        extra_lines=os.environ.get('SD_TRACELINES', 1),
-        max_frames=os.environ.get('SD_TRACEFRAMES', 16),
-        width=os.environ.get('SD_TRACEWIDTH', console.width),
-        word_wrap=os.environ.get('SD_TRACEWRAP', False),
-        indent_guides=os.environ.get('SD_TRACEINDENT', False),
-        show_locals=os.environ.get('SD_TRACELOCALS', False),
-        locals_hide_dunder=os.environ.get('SD_TRACEDUNDER', True),
-        locals_hide_sunder=os.environ.get('SD_TRACESUNDER', None),
+        extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
+        max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
+        width=width,
+        word_wrap=str_to_bool(os.environ.get("SD_TRACEWRAP", False)),
+        indent_guides=str_to_bool(os.environ.get("SD_TRACEINDENT", False)),
+        show_locals=str_to_bool(os.environ.get("SD_TRACELOCALS", False)),
+        locals_hide_dunder=str_to_bool(os.environ.get("SD_TRACEDUNDER", True)),
+        locals_hide_sunder=str_to_bool(os.environ.get("SD_TRACESUNDER", None)),
         suppress=suppress,
     )
     pretty_install(console=console)

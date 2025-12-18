@@ -608,9 +608,9 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
     quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
     model_config_path = os.path.join(fn, module_name, 'config.json')
     if os.path.exists(quantization_config_path):
-        quantization_config = shared.readfile(quantization_config_path, silent=True)
+        quantization_config = shared.readfile(quantization_config_path, silent=True, as_type="dict")
     elif os.path.exists(model_config_path):
-        quantization_config = shared.readfile(model_config_path, silent=True).get("quantization_config", None)
+        quantization_config = shared.readfile(model_config_path, silent=True, as_type="dict").get("quantization_config", None)
     if quantization_config is None:
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)

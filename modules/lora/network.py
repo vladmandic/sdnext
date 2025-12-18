@@ -107,9 +107,7 @@ class NetworkOnDisk:
         if self.filename is not None:
             fn = os.path.splitext(self.filename)[0] + '.json'
             if os.path.exists(fn):
-                data = shared.readfile(fn, silent=True)
-                if type(data) is list:
-                    data = data[0]
+                data = shared.readfile(fn, silent=True, as_type="dict")
         return data
 
     def get_desc(self):
@@ -118,7 +116,8 @@ class NetworkOnDisk:
         if self.filename is not None:
             fn = os.path.splitext(self.filename)[0] + '.txt'
             if os.path.exists(fn):
-                return shared.readfile(fn, silent=True)
+                with open(fn, "r") as file:
+                    return file.read()
         return None
 
     def get_alias(self):
