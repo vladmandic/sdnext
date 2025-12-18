@@ -94,12 +94,10 @@ def get_log():
 
 
 @overload
-def parse_str_to_bool(val: str) -> bool: ...
+def str_to_bool(val: str | bool) -> bool: ...
 @overload
-def parse_str_to_bool(val: int) -> int: ...
-@overload
-def parse_str_to_bool(val: None) -> None: ...
-def parse_str_to_bool(val: str | int | None) -> bool | int | None:
+def str_to_bool(val: None) -> None: ...
+def str_to_bool(val: str | bool | None) -> bool | None:
     if isinstance(val, str):
         if val.strip() and val.strip().lower() in ("1", "true"):
             return True
@@ -110,16 +108,20 @@ def parse_str_to_bool(val: str | int | None) -> bool | int | None:
 def install_traceback(suppress: list = []):
     from rich.traceback import install as traceback_install
     from rich.pretty import install as pretty_install
+
+    width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
+    if width is not None:
+        width = int(width)
     traceback_install(
         console=console,
         extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
         max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
-        width=int(os.environ.get("SD_TRACEWIDTH", console.width if console else 100)), # 100 is the rich.traceback default if not set
-        word_wrap=parse_str_to_bool(os.environ.get("SD_TRACEWRAP", "False")),
-        indent_guides=parse_str_to_bool(os.environ.get("SD_TRACEINDENT", "False")),
-        show_locals=parse_str_to_bool(os.environ.get("SD_TRACELOCALS", "False")),
-        locals_hide_dunder=parse_str_to_bool(os.environ.get("SD_TRACEDUNDER", "True")),
-        locals_hide_sunder=parse_str_to_bool(os.environ.get("SD_TRACESUNDER", None)),
+        width=width,
+        word_wrap=str_to_bool(os.environ.get("SD_TRACEWRAP", False)),
+        indent_guides=str_to_bool(os.environ.get("SD_TRACEINDENT", False)),
+        show_locals=str_to_bool(os.environ.get("SD_TRACELOCALS", False)),
+        locals_hide_dunder=str_to_bool(os.environ.get("SD_TRACEDUNDER", True)),
+        locals_hide_sunder=str_to_bool(os.environ.get("SD_TRACESUNDER", None)),
         suppress=suppress,
     )
     pretty_install(console=console)
