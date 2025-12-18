@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-17
+## Update for 2025-12-18
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -19,12 +19,14 @@
   - update nightlies to `rocm==7.1`  
   - mark `python==3.9` as deprecated  
   - extensions improved status indicators, thanks @awsr  
+  - additional type-safety checks, thanks @awsr  
 - **Wiki**  
   - update models page, thanks @alerikaisattera  
 - **Fixes**  
   - generate forever fix loop checks, thanks @awsr  
   - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
   - torch.compile skip offloading steps  
+  - kanvas css with standardui  
 
 ## Update for 2025-12-11
 
