@@ -5,7 +5,7 @@ import sys
 import time
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, TypeGuard
+from typing import TYPE_CHECKING
 import gradio as gr
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
