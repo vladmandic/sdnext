@@ -163,7 +163,7 @@ class Options():
             log.debug(f'Settings: fn="{filename}" created')
             self.save(filename)
             return
-        self.data = readfile(filename, lock=True, dict_only=True)
+        self.data = readfile(filename, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings').split(',')]
         unknown_settings = []

@@ -440,7 +440,7 @@ class ExtraNetworksPage:
     def update_all_previews(self, items):
         global preview_map # pylint: disable=global-statement
         if preview_map is None:
-            preview_map = shared.readfile('html/previews.json', silent=True, dict_only=True)
+            preview_map = shared.readfile('html/previews.json', silent=True, as_type="dict")
         t0 = time.time()
         reference_path = os.path.abspath(os.path.join('models', 'Reference'))
         possible_paths = list(set([os.path.dirname(item['filename']) for item in items] + [reference_path]))
@@ -520,10 +520,10 @@ class ExtraNetworksPage:
             t0 = time.time()
             fn = os.path.splitext(path)[0] + '.json'
             if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True, dict_only=True)
+                data = shared.readfile(fn, silent=True, as_type="dict")
             fn = os.path.join(path, 'model_index.json')
             if not data and os.path.exists(fn):
-                data = shared.readfile(fn, silent=True, dict_only=True)
+                data = shared.readfile(fn, silent=True, as_type="dict")
             t1 = time.time()
             self.info_time += t1-t0
         return data
@@ -866,7 +866,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if hasattr(item, 'mtime') and item.mtime is not None:
                 stat_mtime = item.mtime
             desc = item.description
-            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True, dict_only=True)
+            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True, as_type="dict")
             if 'modelVersions' in fullinfo: # sanitize massive objects
                 fullinfo['modelVersions'] = []
             info = fullinfo

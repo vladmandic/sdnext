@@ -12,7 +12,7 @@ progress_ok = True
 def init_cache():
     global cache_data # pylint: disable=global-statement
     if cache_data is None:
-        cache_data = {} if not os.path.isfile(cache_filename) else shared.readfile(cache_filename, lock=True, dict_only=True)
+        cache_data = {} if not os.path.isfile(cache_filename) else shared.readfile(cache_filename, lock=True, as_type="dict")
 
 
 def dump_cache():
@@ -22,7 +22,7 @@ def dump_cache():
 def cache(subsection):
     global cache_data # pylint: disable=global-statement
     if cache_data is None:
-        cache_data = {} if not os.path.isfile(cache_filename) else shared.readfile(cache_filename, lock=True, dict_only=True)
+        cache_data = {} if not os.path.isfile(cache_filename) else shared.readfile(cache_filename, lock=True, as_type="dict")
     s = cache_data.get(subsection, {})
     cache_data[subsection] = s
     return s

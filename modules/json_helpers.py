@@ -12,12 +12,12 @@ locking_available = True # used by file read/write locking
 
 
 @overload
-def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
-
+def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type: Literal["dict"]) -> dict: ...
 @overload
-def readfile(filename: str, silent: bool = False, lock: bool = False, *, dict_only: Literal[True]) -> dict: ...
-
-def readfile(filename: str, silent=False, lock=False, *, dict_only=False) -> dict | list:
+def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type: Literal["list"]) -> list: ...
+@overload
+def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
+def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
     global locking_available # pylint: disable=global-statement
     data = {}
     lock_file = None
@@ -58,11 +58,13 @@ def readfile(filename: str, silent=False, lock=False, *, dict_only=False) -> dic
             os.remove(f"{filename}.lock")
     except Exception:
         locking_available = False
-    if isinstance(data, list) and dict_only:
+    if isinstance(data, list) and as_type == "dict":
         data0 = data[0]
         if isinstance(data0, dict):
             return data0
         return {}
+    if isinstance(data, dict) and as_type == "list":
+        return [data]
     return data
 
 

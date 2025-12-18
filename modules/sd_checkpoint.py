@@ -329,7 +329,7 @@ def select_checkpoint(op='model', sd_model_checkpoint=None):
 def init_metadata():
     global sd_metadata # pylint: disable=global-statement
     if sd_metadata is None:
-        sd_metadata = shared.readfile(sd_metadata_file, lock=True, dict_only=True) if os.path.isfile(sd_metadata_file) else {}
+        sd_metadata = shared.readfile(sd_metadata_file, lock=True, as_type="dict") if os.path.isfile(sd_metadata_file) else {}
 
 
 def extract_thumbnail(filename, data):
@@ -349,7 +349,7 @@ def extract_thumbnail(filename, data):
 def read_metadata_from_safetensors(filename):
     global sd_metadata # pylint: disable=global-statement
     if sd_metadata is None:
-        sd_metadata = shared.readfile(sd_metadata_file, lock=True, dict_only=True) if os.path.isfile(sd_metadata_file) else {}
+        sd_metadata = shared.readfile(sd_metadata_file, lock=True, as_type="dict") if os.path.isfile(sd_metadata_file) else {}
     res = sd_metadata.get(filename, None)
     if res is not None:
         return res
