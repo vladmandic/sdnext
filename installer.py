@@ -1,4 +1,4 @@
-from typing import overload, cast, TypeVar, List, Optional
+from typing import overload, List, Optional
 import os
 import sys
 import json
@@ -18,8 +18,6 @@ class Dot(dict): # dot notation access to dictionary attributes
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
-T = TypeVar("T")
 
 version = {
     'app': 'sd.next',
@@ -98,12 +96,14 @@ def get_log():
 @overload
 def parse_str_to_bool(val: str) -> bool: ...
 @overload
-def parse_str_to_bool(val: T) -> T: ...
-def parse_str_to_bool(val: str | T) -> bool | T:
+def parse_str_to_bool(val: int) -> int: ...
+@overload
+def parse_str_to_bool(val: None) -> None: ...
+def parse_str_to_bool(val: str | int | None) -> bool | int | None:
     if isinstance(val, str):
-        if val.strip().lower() in ("0", "false"):
-            return False
-        return True
+        if val.strip() and val.strip().lower() in ("1", "true"):
+            return True
+        return False
     return val
 
 
@@ -119,7 +119,7 @@ def install_traceback(suppress: list = []):
         indent_guides=parse_str_to_bool(os.environ.get("SD_TRACEINDENT", "False")),
         show_locals=parse_str_to_bool(os.environ.get("SD_TRACELOCALS", "False")),
         locals_hide_dunder=parse_str_to_bool(os.environ.get("SD_TRACEDUNDER", "True")),
-        locals_hide_sunder=cast("bool | None", parse_str_to_bool(os.environ.get("SD_TRACESUNDER", None))),
+        locals_hide_sunder=parse_str_to_bool(os.environ.get("SD_TRACESUNDER", None)),
         suppress=suppress,
     )
     pretty_install(console=console)
