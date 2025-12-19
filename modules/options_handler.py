@@ -1,12 +1,16 @@
+from __future__ import annotations
 import os
 import json
 import threading
-from typing import Callable
+from typing import TYPE_CHECKING
 from modules import cmd_args, errors
 from modules.json_helpers import readfile, writefile
 from modules.options import OptionInfo, LegacyOption
 from installer import log
 
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
