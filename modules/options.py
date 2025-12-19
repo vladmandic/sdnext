@@ -1,8 +1,9 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from installer import log
 
 
-def options_section(section_identifier, options_dict):
+def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo]):
     for v in options_dict.values():
         v.section = section_identifier
     return options_dict
