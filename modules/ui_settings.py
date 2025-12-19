@@ -84,7 +84,7 @@ def create_setting_component(key, is_quicksettings=False):
             with gr.Row():
                 res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
                 ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
-    elif info.folder is not None:
+    elif info.folder:
         with gr.Row():
             res = comp(label=info.label, value=fun(), elem_id=elem_id, elem_classes="folder-selector", **args)
     else:

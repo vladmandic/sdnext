@@ -19,7 +19,7 @@ class OptionInfo:
             onchange=None,
             section=None,
             refresh=None,
-            folder=None,
+            folder=False,
             submit=None,
             comment_before='',
             comment_after='',
