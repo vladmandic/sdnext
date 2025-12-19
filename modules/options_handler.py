@@ -1,6 +1,7 @@
 import os
 import json
 import threading
+from typing import Callable
 from modules import cmd_args, errors
 from modules.json_helpers import readfile, writefile
 from modules.options import OptionInfo, LegacyOption
@@ -167,7 +168,7 @@ class Options():
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings').split(',')]
         unknown_settings = []
         for k, v in self.data.items():
-            info: OptionInfo = self.data_labels.get(k, None)
+            info: OptionInfo | None = self.data_labels.get(k, None)
             if info is not None:
                 if not info.validate(k, v):
                     self.data[k] = info.default
@@ -179,7 +180,7 @@ class Options():
         if len(unknown_settings) > 0:
             log.warning(f"Setting validation: unknown={unknown_settings}")
 
-    def onchange(self, key, func, call=True):
+    def onchange(self, key, func: Callable, call=True):
         item = self.data_labels.get(key)
         item.onchange = func
         if call:
