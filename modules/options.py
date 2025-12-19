@@ -1,8 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from installer import log
 
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
     for v in options_dict.values():
         v.section = section_identifier
@@ -16,9 +19,9 @@ class OptionInfo:
             label="",
             component=None,
             component_args=None,
-            onchange=None,
             section=None,
             refresh=None,
+            onchange: Callable | None = None,
             folder=False,
             submit=None,
             comment_before='',
