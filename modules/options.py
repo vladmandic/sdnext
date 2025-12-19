@@ -7,6 +7,7 @@ from installer import log
 if TYPE_CHECKING:
     from collections.abc import Callable
 def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
+    """Set the `section` value for all OptionInfo/LegacyOption items"""
     for v in options_dict.values():
         v.section = section_identifier
     return options_dict
