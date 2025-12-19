@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from installer import log
 
 
-def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo]):
+def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
     for v in options_dict.values():
         v.section = section_identifier
     return options_dict
@@ -107,6 +107,11 @@ class OptionInfo:
             args = args()
         choices = args.get("choices", [])
         return f'OptionInfo: label="{self.label}" section="{self.section}" component="{self.component}" default="{self.default}" refresh="{self.refresh is not None}" change="{self.onchange is not None}" args={args} choices={choices}'
+
+
+class LegacyOption(OptionInfo):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 @dataclass

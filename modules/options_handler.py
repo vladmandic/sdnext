@@ -1,13 +1,10 @@
 import os
 import json
 import threading
-from typing import TYPE_CHECKING
 from modules import cmd_args, errors
 from modules.json_helpers import readfile, writefile
-from modules.shared_legacy import LegacyOption
+from modules.options import OptionInfo, LegacyOption
 from installer import log
-if TYPE_CHECKING:
-    from modules.options import OptionInfo
 
 
 cmd_opts = cmd_args.parse_args()
@@ -21,7 +18,9 @@ class Options():
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
-    def __init__(self, options_templates:dict={}, restricted_opts:dict={}):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None):
+        if restricted_opts is None:
+            restricted_opts = set()
         self.data_labels = options_templates
         self.restricted_opts = restricted_opts
         self.data = {k: v.default for k, v in self.data_labels.items()}

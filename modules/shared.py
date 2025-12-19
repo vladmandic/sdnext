@@ -18,7 +18,7 @@ from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-im
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
 from modules.ui_components import DropdownEditable
-from modules.options import OptionInfo, options_section
+from modules.options import OptionInfo, LegacyOption, options_section
 import modules.memmon
 import modules.styles
 import modules.paths as paths
@@ -51,7 +51,7 @@ face_restorers = []
 yolo = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
-options_templates = {}
+options_templates: dict[str, OptionInfo | LegacyOption] = {}
 hypernetworks = {}
 settings_components = {}
 restricted_opts = {
