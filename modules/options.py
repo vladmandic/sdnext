@@ -7,6 +7,7 @@ from installer import log
 if TYPE_CHECKING:
     from collections.abc import Callable
     from gradio.components import Component
+    from modules.shared_legacy import LegacyOption
     from modules.ui_components import DropdownEditable
 
 
@@ -115,11 +116,6 @@ class OptionInfo:
             args = args()
         choices = args.get("choices", [])
         return f'OptionInfo: label="{self.label}" section="{self.section}" component="{self.component}" default="{self.default}" refresh="{self.refresh is not None}" change="{self.onchange is not None}" args={args} choices={choices}'
-
-
-class LegacyOption(OptionInfo):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 @dataclass

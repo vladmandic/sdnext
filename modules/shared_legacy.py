@@ -1,7 +1,12 @@
 import os
 import gradio as gr
 from modules import paths
-from modules.options import LegacyOption, options_section
+from modules.options import OptionInfo, options_section
+
+
+class LegacyOption(OptionInfo):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 legacy_options = options_section(('legacy_options', "Legacy options"), {
