@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from installer import log
 
 
@@ -16,7 +16,7 @@ def options_section(section_identifier: tuple[str, str], options_dict: dict[str,
 class OptionInfo:
     def __init__(
             self,
-            default=None,
+            default: Any | None = None,
             label="",
             component=None,
             component_args=None,
