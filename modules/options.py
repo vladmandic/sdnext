@@ -5,7 +5,11 @@ from installer import log
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
+    from gradio.components import Component
+    from modules.ui_components import DropdownEditable
+
+
 def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
     """Set the `section` value for all OptionInfo/LegacyOption items"""
     for v in options_dict.values():
@@ -18,11 +22,11 @@ class OptionInfo:
             self,
             default: Any | None = None,
             label="",
-            component=None,
-            component_args=None,
-            section=None,
-            refresh=None,
+            component: type[Component] | type[DropdownEditable] | None = None,
+            component_args: Mapping | Callable[..., Mapping] | None = None,
             onchange: Callable | None = None,
+            section: tuple[str, ...] | None = None,
+            refresh: Callable | None = None,
             folder=False,
             submit=None,
             comment_before='',
@@ -45,7 +49,7 @@ class OptionInfo:
         self.exclude = ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder']
         self.dynamic = callable(component_args)
         args = {} if self.dynamic else (component_args or {}) # executing callable here is too expensive
-        self.visible = args.get('visible', True) and len(self.label) > 2
+        self.visible = args.get('visible', True) and len(self.label) > 2  # type: ignore - Type checking only sees the value of self.dynamic, not the `callable` check
 
     def needs_reload_ui(self):
         return self
