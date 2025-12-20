@@ -18,7 +18,7 @@ from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-im
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
 from modules.ui_components import DropdownEditable
-from modules.options import OptionInfo, LegacyOption, options_section
+from modules.options import OptionInfo, options_section
 import modules.memmon
 import modules.styles
 import modules.paths as paths
@@ -27,7 +27,8 @@ from installer import log, print_dict, console, get_version # pylint: disable=un
 if TYPE_CHECKING:
     # Behavior modified by __future__.annotations
     from diffusers import DiffusionPipeline
-    from ui_extra_networks import ExtraNetworksPage
+    from modules.shared_legacy import LegacyOption
+    from modules.ui_extra_networks import ExtraNetworksPage
 
 
 class Backend(Enum):
