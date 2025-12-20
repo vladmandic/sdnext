@@ -5,7 +5,7 @@ from installer import log
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
     from gradio.components import Component
     from modules.ui_components import DropdownEditable
 
@@ -23,7 +23,7 @@ class OptionInfo:
             default: Any | None = None,
             label="",
             component: type[Component] | type[DropdownEditable] | None = None,
-            component_args: Mapping | Callable[..., Mapping] | None = None,
+            component_args: dict | Callable[..., dict] | None = None,
             onchange: Callable | None = None,
             section: tuple[str, ...] | None = None,
             refresh: Callable | None = None,
