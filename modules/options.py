@@ -1,8 +1,18 @@
+from __future__ import annotations
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 from installer import log
 
 
-def options_section(section_identifier, options_dict):
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from gradio.components import Component
+    from modules.shared_legacy import LegacyOption
+    from modules.ui_components import DropdownEditable
+
+
+def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
+    """Set the `section` value for all OptionInfo/LegacyOption items"""
     for v in options_dict.values():
         v.section = section_identifier
     return options_dict
@@ -11,14 +21,14 @@ def options_section(section_identifier, options_dict):
 class OptionInfo:
     def __init__(
             self,
-            default=None,
+            default: Any | None = None,
             label="",
-            component=None,
-            component_args=None,
-            onchange=None,
-            section=None,
-            refresh=None,
-            folder=None,
+            component: type[Component] | type[DropdownEditable] | None = None,
+            component_args: dict | Callable[..., dict] | None = None,
+            onchange: Callable | None = None,
+            section: tuple[str, ...] | None = None,
+            refresh: Callable | None = None,
+            folder=False,
             submit=None,
             comment_before='',
             comment_after='',
@@ -40,7 +50,7 @@ class OptionInfo:
         self.exclude = ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder']
         self.dynamic = callable(component_args)
         args = {} if self.dynamic else (component_args or {}) # executing callable here is too expensive
-        self.visible = args.get('visible', True) and len(self.label) > 2
+        self.visible = args.get('visible', True) and len(self.label) > 2  # type: ignore - Type checking only sees the value of self.dynamic, not the `callable` check
 
     def needs_reload_ui(self):
         return self

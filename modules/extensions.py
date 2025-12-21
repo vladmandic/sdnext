@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from datetime import datetime
 import git
@@ -5,7 +6,7 @@ from modules import shared, errors
 from modules.paths import extensions_dir, extensions_builtin_dir
 
 
-extensions = []
+extensions: list[Extension] = []
 if not os.path.exists(extensions_dir):
     os.makedirs(extensions_dir)
 
