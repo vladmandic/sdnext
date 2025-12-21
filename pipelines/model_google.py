@@ -121,7 +121,7 @@ class GoogleNanoBananaPipeline():
         image = None
         if getattr(response, 'prompt_feedback', None) is not None:
             log.error(f'Cloud: model="{self.model}" {response.prompt_feedback}')
-        if not hasattr(response, 'candidates') or (response.candidates is None) or (len(response.candidates) == 0):
+        if not hasattr(response, 'candidates') or (response.candidates is None) or (len(response.candidates) == 0) or (response.candidates[0].content is None) or (len(response.candidates[0].content.parts) == 0):
             log.error(f'Cloud: model="{self.model}" no images received')
             return None
         for part in response.candidates[0].content.parts:
