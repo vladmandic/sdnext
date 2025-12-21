@@ -27,7 +27,8 @@ from installer import log, print_dict, console, get_version # pylint: disable=un
 if TYPE_CHECKING:
     # Behavior modified by __future__.annotations
     from diffusers import DiffusionPipeline
-    from ui_extra_networks import ExtraNetworksPage
+    from modules.shared_legacy import LegacyOption
+    from modules.ui_extra_networks import ExtraNetworksPage
 
 
 class Backend(Enum):
@@ -51,7 +52,7 @@ face_restorers = []
 yolo = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
-options_templates = {}
+options_templates: dict[str, OptionInfo | LegacyOption] = {}
 hypernetworks = {}
 settings_components = {}
 restricted_opts = {

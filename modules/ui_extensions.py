@@ -29,8 +29,8 @@ sort_ordering = {
 }
 
 
-def get_installed(ext) -> extensions.Extension:
-    installed: extensions.Extension = [e for e in extensions.extensions if (e.remote or '').startswith(ext['url'].replace('.git', ''))]
+def get_installed(ext):
+    installed = [e for e in extensions.extensions if (e.remote or '').startswith(ext['url'].replace('.git', ''))]
     return installed[0] if len(installed) > 0 else None
 
 
