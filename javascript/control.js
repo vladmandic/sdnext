@@ -3,7 +3,11 @@ function controlInputMode(inputMode, ...args) {
   if (updateEl) updateEl.click();
   const tab = gradioApp().querySelector('#control-tab-input button.selected');
   if (!tab) return ['Image', ...args];
-  let inputTab = tab.innerText;
+  // let inputTab = tab.innerText;
+  const tabs = Array.from(gradioApp().querySelectorAll('#control-tab-input button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'))
+  const tabNames = ['Image', 'Video', 'Batch', 'Folder'];
+  let inputTab = tabNames[tabIdx] || 'Image';
   log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof Kanvas });
   if ((inputTab === 'Image') && (typeof 'Kanvas' !== 'undefined')) {
     inputTab = 'Kanvas';

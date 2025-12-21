@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-18
+## Update for 2025-12-21
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -27,6 +27,7 @@
   - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
   - torch.compile skip offloading steps  
   - kanvas css with standardui  
+  - control input media with non-english locales  
 
 ## Update for 2025-12-11
 
