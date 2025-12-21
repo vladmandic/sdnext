@@ -32,6 +32,7 @@ PyWavelets
 pi-heif
 
 # versioned
+fastapi==0.124.4
 rich==14.1.0
 safetensors==0.7.0
 tensordict==0.8.3
