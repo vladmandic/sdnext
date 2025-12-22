@@ -136,11 +136,12 @@ class GoogleVeoVideoPipeline():
             log.error(f'Cloud video: model="{self.model}" {operation} {e}')
             return None
 
-        if operation is None or operation.response is None or operation.response.generated_videos is None or len(operation.response.generated_videos) == 0:
+        try:
+            response: genai.types.GeneratedVideo = operation.response.generated_videos[0]
+        except Exception:
             log.error(f'Cloud video: model="{self.model}" no response {operation}')
             return None
         try:
-            response: genai.types.GeneratedVideo = operation.response.generated_videos[0]
             self.client.files.download(file=response.video)
             video_bytes = response.video.video_bytes
             return { 'bytes': video_bytes, 'images': [] }

@@ -147,7 +147,7 @@ class YoloRestorer(Detailer):
                     try:
                         seg = (255 * seg).astype(np.uint8)
                         seg = Image.fromarray(seg).resize(image.size).convert('L')
-                    except:
+                    except Exception:
                         seg = None
                 cls = int(cls)
                 label = prediction.names[cls] if cls < len(prediction.names) else f'cls{cls}'

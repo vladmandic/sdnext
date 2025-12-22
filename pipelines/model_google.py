@@ -1,5 +1,6 @@
 import io
 import os
+import time
 from PIL import Image
 from installer import install, reload, log
 
@@ -110,10 +111,17 @@ class GoogleNanoBananaPipeline():
         # log.debug(f'Cloud: config={self.config}')
 
         try:
+            t0 = time.time()
             if image is not None:
                 response = self.img2img(prompt, image)
             else:
                 response = self.txt2img(prompt)
+            t1 = time.time()
+            try:
+                tokens = response.usage_metadata.total_token_count
+            except Exception:
+                tokens = 0
+            log.debug(f'Cloud: model="{self.model}" tokens={tokens} time={(t1 - t0):.2f}')
         except Exception as e:
             log.error(f'Cloud: model="{self.model}" {e}')
             return None
@@ -121,10 +129,16 @@ class GoogleNanoBananaPipeline():
         image = None
         if getattr(response, 'prompt_feedback', None) is not None:
             log.error(f'Cloud: model="{self.model}" {response.prompt_feedback}')
-        if not hasattr(response, 'candidates') or (response.candidates is None) or (len(response.candidates) == 0) or (response.candidates[0].content is None) or (len(response.candidates[0].content.parts) == 0):
+
+        parts = []
+        try:
+            for candidate in response.candidates:
+                parts.extend(candidate.content.parts)
+        except Exception:
             log.error(f'Cloud: model="{self.model}" no images received')
             return None
-        for part in response.candidates[0].content.parts:
+
+        for part in parts:
             if part.inline_data is not None:
                 image = Image.open(io.BytesIO(part.inline_data.data))
         return image

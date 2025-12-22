@@ -72,6 +72,7 @@ select = [
 ignore = [
   "B006",   # Do not use mutable data structures for argument defaults
   "B008",   # Do not perform function call in argument defaults
+  "B905",   # Strict zip() usage
   "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
   "C408",   # Unnecessary `dict` call
   "I001",   # Import block is un-sorted or un-formatted

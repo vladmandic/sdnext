@@ -116,7 +116,7 @@ class NetworkOnDisk:
         if self.filename is not None:
             fn = os.path.splitext(self.filename)[0] + '.txt'
             if os.path.exists(fn):
-                with open(fn, "r") as file:
+                with open(fn, "r", encoding="utf-8") as file:
                     return file.read()
         return None
 

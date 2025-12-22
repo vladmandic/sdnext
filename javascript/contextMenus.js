@@ -109,7 +109,7 @@ const generateForever = (genbuttonid) => {
         busy = outerButton?.classList.contains('generate') && outerButton?.classList.contains('active');
       }
       return busy;
-    }
+    };
     log('generateForever: start');
     if (!isBusy()) genbutton.click();
     window.generateOnRepeatInterval = setInterval(() => {
