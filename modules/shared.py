@@ -185,6 +185,8 @@ options_templates.update(options_section(('model_options', "Model Options"), {
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
     "model_chrono_sep": OptionInfo("<h2>ChronoEdit</h2>", "", gr.HTML),
     "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
+    "model_qwen_layer_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
+    "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {

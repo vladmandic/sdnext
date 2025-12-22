@@ -200,6 +200,15 @@
     "size": 56.1,
     "date": "2025 September"
   },
+  "Qwen-Image-Layered": {
+    "path": "Qwen/Qwen-Image-Layered",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers",
+    "skip": true,
+    "extras": "",
+    "size": 53.7,
+    "date": "2025 December"
+  },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "vladmandic--Qwen-Lightning.jpg",

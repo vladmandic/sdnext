@@ -1,10 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-21
+## Update for 2025-12-22
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
     LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
+  - [Qwen Image Layered](https://huggingface.co/Qwen/Qwen-Image-Layered)  
+    Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  
+    *note*: set number of desired output layers in *settings -> model options*  
 - **Features**
   - Google **Gemini** and **Veo** models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
