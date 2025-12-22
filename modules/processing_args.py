@@ -128,7 +128,7 @@ def task_specific_kwargs(p, model):
     if ('QwenImageEditPlusPipeline' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
     if ('QwenImageLayeredPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images[0]
+        task_args['image'] = p.init_images[0].convert('RGBA')
     if ('Flux2' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):

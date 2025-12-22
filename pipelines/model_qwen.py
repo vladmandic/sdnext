@@ -76,8 +76,9 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     }
     if 'Layered' in repo_id:
         pipe.task_args['use_en_prompt'] = True
-        pipe.task_args['cfg_normalize'] = True
+        pipe.task_args['cfg_normalize'] = False
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
+        pipe.task_args['resolution'] = 640
 
     del text_encoder
     del transformer
