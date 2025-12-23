@@ -188,7 +188,7 @@ module_skip_keys_dict = {
         {}
     ],
     "ZImageTransformer2DModel": [
-        ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "all_x_embedder", "all_final_layer"],
+        ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "siglip_embedder", "all_x_embedder", "all_final_layer"],
         {}
     ],
     "HunyuanImage3ForCausalMM": [
