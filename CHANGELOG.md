@@ -5,7 +5,7 @@
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
     LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
-  - [Qwen Image Layered](https://huggingface.co/Qwen/Qwen-Image-Layered)  
+  - [Qwen Image Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants 
     Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  
     *note*: set number of desired output layers in *settings -> model options*  
 - **Features**

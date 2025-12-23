@@ -1103,6 +1103,16 @@
     "size": 16.10,
     "extras": ""
   },
+  "Qwen-Image-Layered sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Layered-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Layered using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 December",
+    "size": 16.10,
+    "extras": ""
+  },
   "nVidia ChronoEdit sdnq-svd-uint4": {
     "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
     "preview": "Disty0--ChronoEdit-14B-SDNQ-uint4-svd-r32.jpg",
