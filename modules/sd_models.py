@@ -184,6 +184,23 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
 
 
 def move_model(model, device=None, force=False):
+    def set_execution_device(module, device):
+        if device == torch.device('cpu'):
+            return
+        if hasattr(module, "_hf_hook") and hasattr(module._hf_hook, "execution_device"): # pylint: disable=protected-access
+            try:
+                """
+                for k, v in module.named_parameters(recurse=True):
+                    if v.device == torch.device('meta'):
+                        from accelerate.utils import set_module_tensor_to_device
+                        set_module_tensor_to_device(module, k, device, tied_params_map=module._hf_hook.tied_params_map)
+                """
+                module._hf_hook.execution_device = device # pylint: disable=protected-access
+                # module._hf_hook.offload = True
+            except Exception as e:
+                if os.environ.get('SD_MOVE_DEBUG', None):
+                    shared.log.error(f'Model move execution device: device={device} {e}')
+
     if model is None or device is None:
         return
 
@@ -204,20 +221,20 @@ def move_model(model, device=None, force=False):
             if not isinstance(m, torch.nn.Module) or name in model._exclude_from_cpu_offload: # pylint: disable=protected-access
                 continue
             for module in m.modules():
-                if (hasattr(module, "_hf_hook") and hasattr(module._hf_hook, "execution_device") and module._hf_hook.execution_device is not None): # pylint: disable=protected-access
-                    try:
-                        module._hf_hook.execution_device = device # pylint: disable=protected-access
-                    except Exception as e:
-                        if os.environ.get('SD_MOVE_DEBUG', None):
-                            shared.log.error(f'Model move execution device: device={device} {e}')
+                set_execution_device(module, device)
+    # set_execution_device(model, device)
+
     if getattr(model, 'has_accelerate', False) and not force:
         return
     if hasattr(model, "device") and devices.normalize_device(model.device) == devices.normalize_device(device) and not force:
         return
+
     try:
         t0 = time.time()
         try:
-            if hasattr(model, 'to'):
+            if model.device == torch.device('meta'):
+                set_execution_device(model, device)
+            elif hasattr(model, 'to'):
                 model.to(device)
             if hasattr(model, "prior_pipe"):
                 model.prior_pipe.to(device)

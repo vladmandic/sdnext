@@ -237,6 +237,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             embeds = prompt_parser_diffusers.embedder('prompt_embeds')
             if embeds is None:
                 shared.log.warning('Prompt parser encode: empty prompt embeds')
+                prompt_parser_diffusers.embedder = None
+                args['prompt'] = prompts
+            elif embeds.device == torch.device('meta'):
+                shared.log.warning('Prompt parser encode: embeds on meta device')
+                prompt_parser_diffusers.embedder = None
                 args['prompt'] = prompts
             else:
                 args['prompt_embeds'] = embeds
@@ -273,6 +278,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 args['negative_prompt'] = negative_prompts[0]
             else:
                 args['negative_prompt'] = negative_prompts
+
     if 'complex_human_instruction' in possible:
         chi = shared.opts.te_complex_human_instruction
         p.extra_generation_params["CHI"] = chi

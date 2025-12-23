@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-22
+## Update for 2025-12-23
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -31,6 +31,7 @@
   - torch.compile skip offloading steps  
   - kanvas css with standardui  
   - control input media with non-english locales  
+  - handle embeds when on meta device  
 
 ## Update for 2025-12-11
 
