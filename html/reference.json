@@ -200,6 +200,15 @@
     "size": 56.1,
     "date": "2025 September"
   },
+  "Qwen-Image-Edit-2511": {
+    "path": "Qwen/Qwen-Image-Edit-2511",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability.",
+    "skip": true,
+    "extras": "",
+    "size": 56.1,
+    "date": "2025 December"
+  },
   "Qwen-Image-Layered": {
     "path": "Qwen/Qwen-Image-Layered",
     "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
@@ -1100,6 +1109,16 @@
     "skip": true,
     "tags": "quantized",
     "date": "2025 October",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Qwen-Image-Edit-2511 sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit-2511 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 December",
     "size": 16.10,
     "extras": ""
   },

@@ -21,7 +21,7 @@
 - UI: Lite vs Expert mode  
 - Video tab: add full API support  
 - Control tab: add overrides handling  
-- Engine: TensorRT acceleration
+- Engine: `TensorRT` acceleration
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
@@ -40,6 +40,7 @@
 
 TODO: *Prioritize*!
 
+- [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
 - [Bria FIBO](https://huggingface.co/briaai/FIBO)

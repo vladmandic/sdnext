@@ -15,7 +15,7 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
     shared.log.debug(f'Load model: type=Qwen model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    if '2509' in repo_id :
+    if '2509' in repo_id or '2511' in repo_id:
         cls_name = diffusers.QwenImageEditPlusPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageEditPlusPipeline

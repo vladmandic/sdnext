@@ -1,11 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-23
+## Update for 2025-12-24
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
     LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
-  - [Qwen Image Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants 
+  - [Qwen-Image-Edit 2511](Qwen/Qwen-Image-Edit-2511) in *base* and *pre-quantized* variants  
+    Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability  
+  - [Qwen-Image-Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants 
     Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  
     *note*: set number of desired output layers in *settings -> model options*  
 - **Features**
@@ -23,8 +25,9 @@
   - mark `python==3.9` as deprecated  
   - extensions improved status indicators, thanks @awsr  
   - additional type-safety checks, thanks @awsr  
-- **Wiki**  
+- **Wiki/Docs/Illustrations**  
   - update models page, thanks @alerikaisattera  
+  - update reference models samples, thanks @liutyi  
 - **Fixes**  
   - generate forever fix loop checks, thanks @awsr  
   - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
