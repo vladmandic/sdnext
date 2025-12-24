@@ -111,6 +111,11 @@ predefined_hunyuandit = {
     "HunyuanDiT Pose": 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Pose',
     "HunyuanDiT Depth": 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Depth',
 }
+predefined_zimage = {
+    "Z-Image-Turbo Union 1.0": 'hlky/Z-Image-Turbo-Fun-Controlnet-Union',
+    "Z-Image-Turbo Union 2.0": 'hlky/Z-Image-Turbo-Fun-Controlnet-Union-2.0',
+    "Z-Image-Turbo Union 2.1": 'hlky/Z-Image-Turbo-Fun-Controlnet-Union-2.1',
+}
 
 variants = {
     'NoobAI Canny XL': 'fp16',
@@ -137,6 +142,7 @@ all_models.update(predefined_f1)
 all_models.update(predefined_sd3)
 all_models.update(predefined_qwen)
 all_models.update(predefined_hunyuandit)
+all_models.update(predefined_zimage)
 cache_dir = 'models/control/controlnet'
 load_lock = threading.Lock()
 
@@ -175,6 +181,8 @@ def api_list_models(model_type: str = None):
         model_list += list(predefined_qwen)
     if model_type == 'hunyuandit' or model_type == 'all':
         model_list += list(predefined_hunyuandit)
+    if model_type == 'z_image':
+        model_list == list(predefined_zimage)
     model_list += sorted(find_models())
     return model_list
 
@@ -199,9 +207,11 @@ def list_models(refresh=False):
         models = ['None'] + list(predefined_qwen) + sorted(find_models())
     elif modules.shared.sd_model_type == 'hunyuandit':
         models = ['None'] + list(predefined_hunyuandit) + sorted(find_models())
+    elif modules.shared.sd_model_type == 'z_image':
+        models = ['None'] + list(predefined_zimage) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
-        models = ['None'] + sorted(predefined_sd15) + sorted(predefined_sdxl) + sorted(predefined_f1) + sorted(predefined_sd3) + sorted(find_models())
+        models = ['None'] + list(all_models) + sorted(find_models())
     debug_log(f'Control list {what}: path={cache_dir} models={models}')
     return models
 
@@ -263,6 +273,14 @@ class ControlNet():
         elif shared.sd_model_type == 'hunyuandit':
             from diffusers import HunyuanDiT2DControlNetModel as cls
             config = 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Canny'
+        elif shared.sd_model_type == 'z_image':
+            from diffusers import ZImageControlNetModel as cls
+            if '2.0' in model_id:
+                config = 'hlky/Z-Image-Turbo-Fun-Controlnet-Union-2.0'
+            elif '2.1' in model_id:
+                config = 'hlky/Z-Image-Turbo-Fun-Controlnet-Union-2.1'
+            else:
+                config = 'hlky/Z-Image-Turbo-Fun-Controlnet-Union'
         else:
             log.error(f'Control {what}: type={shared.sd_model_type} unsupported model')
             return None, None
@@ -506,6 +524,16 @@ class ControlNetPipeline():
                 scheduler=pipeline.scheduler,
                 safety_checker=None,
                 feature_extractor=None,
+                controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
+            )
+        elif detect.is_zimage(pipeline) and len(controlnets) > 0:
+            from diffusers import ZImageControlNetPipeline
+            self.pipeline = ZImageControlNetPipeline(
+                vae=pipeline.vae,
+                text_encoder=pipeline.text_encoder,
+                tokenizer=pipeline.tokenizer,
+                transformer=pipeline.transformer,
+                scheduler=pipeline.scheduler,
                 controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
             )
         elif len(loras) > 0:

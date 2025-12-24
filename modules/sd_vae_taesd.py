@@ -156,8 +156,8 @@ def decode(latents):
                     image = vae.decode(tensor, return_dict=False)[0]
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
                 t1 = time.time()
-                if (t1 - t0) > 1.0 and not first_run:
-                    shared.log.warning(f'Decode: type="taesd" variant="{variant}" time{t1 - t0:.2f}')
+                if (t1 - t0) > 3.0 and not first_run:
+                    shared.log.warning(f'Decode: type="taesd" variant="{variant}" long decode time={t1 - t0:.2f}')
                 first_run = False
                 return image
         except Exception as e:

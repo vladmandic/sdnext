@@ -16,6 +16,8 @@
   - **Z-Image** support loading transformer file-tunes in safetensors format  
     as with any transformers/unet finetunes, place them then `models/unet`  
     and use **UNET Model** to load safetensors file as they are not complete models  
+  - **Z-Image** support for **ControlNet Union**  
+    includes 1.0, 2.0 and 2.1 variants  
   - **Detailer** support for segmentation models  
     some detection models can produce exact segmentation mask and not just box  
     to enable, set `use segmentation` option  
