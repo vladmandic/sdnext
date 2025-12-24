@@ -414,7 +414,7 @@ def update_token_counter(text):
     token_count = 0
     max_length = 75
     if shared.state.job_count > 0:
-        shared.log.info('Tokenizer busy')
+        shared.log.debug('Tokenizer busy')
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)

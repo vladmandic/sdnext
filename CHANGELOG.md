@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Known issues
+
+- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
+- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
+- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
+
 ## Update for 2025-12-24
 
 - **Models**
@@ -13,10 +19,10 @@
 - **Features**
   - Google **Gemini** and **Veo** models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
-  - **Z-Image** support loading transformer file-tunes in safetensors format  
+  - **Z-Image Turbo** support loading transformer file-tunes in safetensors format  
     as with any transformers/unet finetunes, place them then `models/unet`  
     and use **UNET Model** to load safetensors file as they are not complete models  
-  - **Z-Image** support for **ControlNet Union**  
+  - **Z-Image Turbo** support for **ControlNet Union**  
     includes 1.0, 2.0 and 2.1 variants  
   - **Detailer** support for segmentation models  
     some detection models can produce exact segmentation mask and not just box  

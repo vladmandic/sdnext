@@ -462,7 +462,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         args['max_area'] = args['width'] * args['height']
 
     # handle implicit controlnet
-    if 'control_image' in possible and 'control_image' not in args and 'image' in args:
+    if ('control_image' in possible) and ('control_image' not in args) and ('image' in args):
         if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.MODULAR:
             debug_log('Process: set control image')
             args['control_image'] = args['image']

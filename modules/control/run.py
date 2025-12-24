@@ -182,7 +182,7 @@ def check_active(p, unit_type, units):
                 p.is_tile = p.is_tile or 'tile' in u.mode.lower()
                 p.control_tile = u.tile
                 p.extra_generation_params["Control mode"] = u.mode
-            shared.log.debug(f'Control ControlNet unit: i={num_units} process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
+            shared.log.debug(f'Control unit: i={num_units} type=ControlNet process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
         elif unit_type == 'xs' and u.controlnet.model is not None:
             active_process.append(u.process)
             active_model.append(u.controlnet)
@@ -190,13 +190,13 @@ def check_active(p, unit_type, units):
             active_start.append(float(u.start))
             active_end.append(float(u.end))
             active_units.append(u)
-            shared.log.debug(f'Control ControlNet-XS unit: i={num_units} process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            shared.log.debug(f'Control unit: i={num_units} type=ControlNetXS process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'lite' and u.controlnet.model is not None:
             active_process.append(u.process)
             active_model.append(u.controlnet)
             active_strength.append(float(u.strength))
             active_units.append(u)
-            shared.log.debug(f'Control ControlLLite unit: i={num_units} process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            shared.log.debug(f'Control unit: i={num_units} type=ControlLLite process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'reference':
             p.override = u.override
             p.attention = u.attention
@@ -209,7 +209,7 @@ def check_active(p, unit_type, units):
             if u.process.processor_id is not None:
                 active_process.append(u.process)
                 active_units.append(u)
-                shared.log.debug(f'Control process unit: i={num_units} process={u.process.processor_id}')
+                shared.log.debug(f'Control unit: i={num_units} type=Process process={u.process.processor_id}')
             active_strength.append(float(u.strength))
     debug_log(f'Control active: process={len(active_process)} model={len(active_model)}')
     return active_process, active_model, active_strength, active_start, active_end, active_units
@@ -654,7 +654,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
             debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
-        shared.log.error(f'Control pipeline failed: type={unit_type} units={len(active_model)} error={e}')
+        shared.log.error(f'Control: type={unit_type} units={len(active_model)} {e}')
         errors.display(e, 'Control')
 
     if len(output_images) == 0:
