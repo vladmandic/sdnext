@@ -182,7 +182,7 @@ def api_list_models(model_type: str = None):
     if model_type == 'hunyuandit' or model_type == 'all':
         model_list += list(predefined_hunyuandit)
     if model_type == 'z_image':
-        model_list == list(predefined_zimage)
+        model_list += list(predefined_zimage)
     model_list += sorted(find_models())
     return model_list
 

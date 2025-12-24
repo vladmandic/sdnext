@@ -46,7 +46,9 @@ function forceLogin() {
     })
       .then(async (res) => {
         const json = await res.json();
-        const txt = `${res.status}: ${res.statusText} - ${json.detail}`;
+        let txt = ''
+        if (res.status === 200) txt = 'login verified'
+        else txt = `${res.status}: ${res.statusText} - ${json.detail}`;
         status.textContent = txt;
         console.log('login', txt);
         if (res.status === 200) location.reload();
