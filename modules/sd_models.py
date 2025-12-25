@@ -1071,11 +1071,13 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
-    new_pipe.task_args = getattr(orig_pipe, 'task_args', None)
     new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
     new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
     new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
     add_noise_pred_to_diffusers_callback(new_pipe)
+    if getattr(new_pipe, 'task_args', None) is None:
+        new_pipe.task_args = {}
+        new_pipe.task_args.update(getattr(orig_pipe, 'task_args', {}))
     if new_pipe.has_accelerate:
         set_accelerate(new_pipe)
 

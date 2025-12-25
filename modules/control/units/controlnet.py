@@ -536,7 +536,7 @@ class ControlNetPipeline():
                 scheduler=pipeline.scheduler,
                 controlnet=controlnets[0] if isinstance(controlnets, list) else controlnets, # can be a list
             )
-            self.pipeline.task_args['guidance_scale'] = 0
+            self.pipeline.task_args = { 'guidance_scale': 1 }
         elif len(loras) > 0:
             self.pipeline = pipeline
             for lora in loras:

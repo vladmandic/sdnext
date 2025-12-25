@@ -238,8 +238,8 @@ def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
                     torch.cuda.synchronize()
                     torch.cuda.empty_cache() # cuda gc
                     torch.cuda.ipc_collect()
-            except Exception:
-                pass
+            except Exception as e:
+                log.error(f'GC: {e}')
     else:
         return gpu, ram
     t1 = time.time()

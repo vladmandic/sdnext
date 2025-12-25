@@ -7,7 +7,7 @@
 - kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
 - peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
 
-## Update for 2025-12-24
+## Update for 2025-12-25
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -44,6 +44,7 @@
   - kanvas css with standardui  
   - control input media with non-english locales  
   - handle embeds when on meta device  
+  - improve offloading when model has manual modules  
 
 ## Update for 2025-12-11
 

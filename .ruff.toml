@@ -82,6 +82,7 @@ ignore = [
   "E731",   # Do not assign a `lambda` expression, use a `def`
   "E741",   # Ambiguous variable name
   "F401",   # Imported by unused
+  "EXE001", # file with shebang is not marked executable
   "NPY002", # replace legacy random
   "RUF005", # Consider iterable unpacking
   "RUF008", # Do not use mutable default values for dataclass
