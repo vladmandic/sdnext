@@ -38,7 +38,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'z_image', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'z_image', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen', 'longcat']
 
 
 def warn_once(msg, variant=None):
@@ -59,7 +59,7 @@ def get_model(model_type = 'decoder', variant = None):
         model_cls = 'sd'
     elif model_cls in {'pixartsigma', 'hunyuandit', 'omnigen', 'auraflow'}:
         model_cls = 'sdxl'
-    elif model_cls in {'h1', 'z_image', 'lumina2', 'chroma'}:
+    elif model_cls in {'h1', 'z_image', 'lumina2', 'chroma', 'longcat'}:
         model_cls = 'f1'
     elif model_cls in {'wanai', 'qwen', 'chrono'}:
         variant = variant or 'TAE WanVideo'
@@ -156,8 +156,8 @@ def decode(latents):
                     image = vae.decode(tensor, return_dict=False)[0]
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
                 t1 = time.time()
-                if (t1 - t0) > 1.0 and not first_run:
-                    shared.log.warning(f'Decode: type="taesd" variant="{variant}" time{t1 - t0:.2f}')
+                if (t1 - t0) > 3.0 and not first_run:
+                    shared.log.warning(f'Decode: type="taesd" variant="{variant}" long decode time={t1 - t0:.2f}')
                 first_run = False
                 return image
         except Exception as e:

@@ -1,11 +1,12 @@
+from __future__ import annotations
 import io
 import os
 import sys
 import time
 import contextlib
 from enum import Enum
+from typing import TYPE_CHECKING
 import gradio as gr
-import diffusers
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
 from modules.shared_defaults import get_default_modes
@@ -23,6 +24,12 @@ import modules.styles
 import modules.paths as paths
 from installer import log, print_dict, console, get_version # pylint: disable=unused-import
 
+if TYPE_CHECKING:
+    # Behavior modified by __future__.annotations
+    from diffusers import DiffusionPipeline
+    from modules.shared_legacy import LegacyOption
+    from modules.ui_extra_networks import ExtraNetworksPage
+
 
 class Backend(Enum):
     ORIGINAL = 1
@@ -30,7 +37,7 @@ class Backend(Enum):
 
 
 errors.install([gr])
-demo: gr.Blocks = None
+demo: gr.Blocks | None = None
 api = None
 url = 'https://github.com/vladmandic/sdnext'
 cmd_opts = cmd_args.parse_args()
@@ -44,8 +51,8 @@ detailers = []
 face_restorers = []
 yolo = None
 tab_names = []
-extra_networks = []
-options_templates = {}
+extra_networks: list[ExtraNetworksPage] = []
+options_templates: dict[str, OptionInfo | LegacyOption] = {}
 hypernetworks = {}
 settings_components = {}
 restricted_opts = {
@@ -164,6 +171,11 @@ options_templates.update(options_section(('sd', "Model Loading"), {
 options_templates.update(options_section(('model_options', "Model Options"), {
     "model_modular_sep": OptionInfo("<h2>Modular Pipelines</h2>", "", gr.HTML),
     "model_modular_enable": OptionInfo(False, "Enable modular pipelines (experimental)"),
+    "model_google_sep": OptionInfo("<h2>Google GenAI</h2>", "", gr.HTML),
+    "google_use_vertexai": OptionInfo(False, "Google cloud use VertexAI endpoints"),
+    "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox),
+    "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox),
+    "google_location_id": OptionInfo("", "Google Cloud location ID", gr.Textbox),
     "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
     "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
     "model_h1_sep": OptionInfo("<h2>HiDream</h2>", "", gr.HTML),
@@ -173,6 +185,8 @@ options_templates.update(options_section(('model_options', "Model Options"), {
     "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
     "model_chrono_sep": OptionInfo("<h2>ChronoEdit</h2>", "", gr.HTML),
     "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
+    "model_qwen_layer_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
+    "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
 }))
 
 options_templates.update(options_section(('offload', "Model Offloading"), {
@@ -626,7 +640,7 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
 
     "postprocessing_sep_detailer": OptionInfo("<h2>Detailer</h2>", "", gr.HTML),
     "detailer_unload": OptionInfo(False, "Move detailer model to CPU when complete"),
-    "detailer_augment": OptionInfo(True, "Detailer use model augment"),
+    "detailer_augment": OptionInfo(False, "Detailer use model augment"),
 
     "postprocessing_sep_seedvt": OptionInfo("<h2>SeedVT</h2>", "", gr.HTML),
     "seedvt_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
@@ -802,6 +816,7 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
     "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),
     "detailer_save": OptionInfo(False, "Include detection results", gr.Checkbox, {"visible": False}),
+    "detailer_seg": OptionInfo(False, "Use segmentation", gr.Checkbox, {"visible": False}),
 }))
 
 
@@ -822,7 +837,7 @@ log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.g
 
 profiler = None
 prompt_styles = modules.styles.StyleDatabase(opts)
-reference_models = readfile(os.path.join('html', 'reference.json')) if opts.extra_network_reference_enable else {}
+reference_models = readfile(os.path.join('html', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
 devices.args = cmd_opts
 devices.opts = opts
@@ -884,8 +899,8 @@ def restore_defaults(restart=True):
 
 
 # startup def of shared.sd_model before its redefined in modeldata
-sd_model: diffusers.DiffusionPipeline = None # dummy and overwritten by class
-sd_refiner: diffusers.DiffusionPipeline = None # dummy and overwritten by class
+sd_model: DiffusionPipeline | None = None # dummy and overwritten by class
+sd_refiner: DiffusionPipeline | None = None # dummy and overwritten by class
 sd_model_type: str = '' # dummy and overwritten by class
 sd_refiner_type: str = '' # dummy and overwritten by class
 sd_loaded: bool = False # dummy and overwritten by class

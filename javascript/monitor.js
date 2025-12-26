@@ -1,3 +1,11 @@
+const getModel = () => {
+  const cp = opts?.sd_model_checkpoint || '';
+  if (!cp) return 'unknown model';
+  const noBracket = cp.replace(/\s*\[.*\]\s*$/, ''); // remove trailing [hash]
+  const parts = noBracket.split(/[\\/]/); // split on / or \
+  return parts[parts.length - 1].trim() || 'unknown model';
+};
+
 async function updateIndicator(online, data, msg) {
   const el = document.getElementById('logo_nav');
   if (!el || !data) return;
@@ -5,9 +13,10 @@ async function updateIndicator(online, data, msg) {
   const date = new Date();
   const template = `
     Version: <b>${data.updated}</b><br>
-    Commit: <b>${data.hash}</b><br>
+    Commit: <b>${data.commit}</b><br>
     Branch: <b>${data.branch}</b><br>
     Status: ${status}<br>
+    Model: <b>${getModel()}</b><br>
     Since: ${date.toLocaleString()}<br>
   `;
   if (online) {

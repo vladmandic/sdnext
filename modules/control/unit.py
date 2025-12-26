@@ -134,15 +134,15 @@ class Unit(): # mashup of gradio controls and mapping to actual implementation c
             if image_file is None:
                 self.process.override = None
                 self.override = None
-                log.debug('Control process clear image')
+                log.debug('Control image: clear')
                 return gr.update(value=None)
             try:
                 self.process.override = Image.open(image_file.name)
                 self.override = self.process.override
-                log.debug(f'Control process upload image: path="{image_file.name}" image={self.process.override}')
+                log.debug(f'Control image: upload={self.process.override} path="{image_file.name}"')
                 return gr.update(visible=self.process.override is not None, value=self.process.override)
             except Exception as e:
-                log.error(f'Control process upload image failed: path="{image_file.name}" error={e}')
+                log.error(f'Control image: upload path="{image_file.name}" error={e}')
                 return gr.update(visible=False, value=None)
 
         def reuse_image(image):

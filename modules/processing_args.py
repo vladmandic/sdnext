@@ -127,6 +127,8 @@ def task_specific_kwargs(p, model):
         task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so qwen-image-edit pipeline does not error-out on t2i
     if ('QwenImageEditPlusPipeline' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
+    if ('QwenImageLayeredPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
+        task_args['image'] = p.init_images[0].convert('RGBA')
     if ('Flux2' in model_cls) and (p.init_control is not None) and (len(p.init_control) > 0):
         task_args['image'] += p.init_control
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
@@ -235,6 +237,11 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             embeds = prompt_parser_diffusers.embedder('prompt_embeds')
             if embeds is None:
                 shared.log.warning('Prompt parser encode: empty prompt embeds')
+                prompt_parser_diffusers.embedder = None
+                args['prompt'] = prompts
+            elif embeds.device == torch.device('meta'):
+                shared.log.warning('Prompt parser encode: embeds on meta device')
+                prompt_parser_diffusers.embedder = None
                 args['prompt'] = prompts
             else:
                 args['prompt_embeds'] = embeds
@@ -271,6 +278,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 args['negative_prompt'] = negative_prompts[0]
             else:
                 args['negative_prompt'] = negative_prompts
+
     if 'complex_human_instruction' in possible:
         chi = shared.opts.te_complex_human_instruction
         p.extra_generation_params["CHI"] = chi
@@ -454,7 +462,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
         args['max_area'] = args['width'] * args['height']
 
     # handle implicit controlnet
-    if 'control_image' in possible and 'control_image' not in args and 'image' in args:
+    if ('control_image' in possible) and ('control_image' not in args) and ('image' in args):
         if sd_models.get_diffusers_task(model) != sd_models.DiffusersTaskType.MODULAR:
             debug_log('Process: set control image')
             args['control_image'] = args['image']

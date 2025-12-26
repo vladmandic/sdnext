@@ -14,7 +14,7 @@ from modules.timer import process as process_timer
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'f2', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni', 'hunyuanimage', 'hunyuanimage3']
+offload_warn = ['sc', 'sd3', 'f1', 'f2', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni', 'hunyuanimage', 'hunyuanimage3', 'longcat']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
@@ -213,6 +213,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             return False
         return True
 
+    @torch.compiler.disable
     def pre_forward(self, module, *args, **kwargs):
         _id = id(module)
 
@@ -239,14 +240,26 @@ class OffloadHook(accelerate.hooks.ModelHook):
             max_memory = { device_index: self.gpu, "cpu": self.cpu }
             device_map = getattr(module, "balanced_offload_device_map", None)
             if (device_map is None) or (max_memory != getattr(module, "balanced_offload_max_memory", None)):
-                device_map = accelerate.infer_auto_device_map(module, max_memory=max_memory, no_split_module_classes=no_split_module_classes, verbose=verbose)
+                device_map = accelerate.infer_auto_device_map(module,
+                                                              max_memory=max_memory,
+                                                              no_split_module_classes=no_split_module_classes,
+                                                              verbose=verbose,
+                                                              clean_result=False,
+                                                             )
             offload_dir = getattr(module, "offload_dir", os.path.join(shared.opts.accelerate_offload_path, module.__class__.__name__))
             if devices.backend == "directml":
                 for k, v in device_map.items():
                     if isinstance(v, int):
                         device_map[k] = f"{devices.device.type}:{v}" # int implies CUDA or XPU device, but it will break DirectML backend so we add type
+            if debug:
+                shared.log.trace(f'Offload: type=balanced op=dispatch map={device_map}')
             if device_map is not None:
-                module = accelerate.dispatch_model(module, device_map=device_map, offload_dir=offload_dir)
+                module = accelerate.dispatch_model(module,
+                                                   main_device=torch.device(devices.device),
+                                                   device_map=device_map,
+                                                   offload_dir=offload_dir,
+                                                   force_hooks=True,
+                                                  )
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
             module.balanced_offload_device_map = device_map
             module.balanced_offload_max_memory = max_memory
@@ -261,6 +274,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         self.last_pre = _id
         return args, kwargs
 
+    @torch.compiler.disable
     def post_forward(self, module, output):
         if self.last_post != id(module):
             self.last_post = id(module)
@@ -289,6 +303,15 @@ def get_pipe_variants(pipe=None):
 
 
 def get_module_names(pipe=None, exclude=None):
+    def is_valid(module):
+        if isinstance(getattr(pipe, module, None), torch.nn.ModuleDict):
+            return True
+        if isinstance(getattr(pipe, module, None), torch.nn.ModuleList):
+            return True
+        if isinstance(getattr(pipe, module, None), torch.nn.Module):
+            return True
+        return False
+
     if exclude is None:
         exclude = []
     if pipe is None:
@@ -296,12 +319,19 @@ def get_module_names(pipe=None, exclude=None):
             pipe = shared.sd_model
         else:
             return []
-    if hasattr(pipe, "_internal_dict"):
-        modules_names = pipe._internal_dict.keys() # pylint: disable=protected-access
-    else:
-        modules_names = get_signature(pipe).keys()
+    modules_names = []
+    try:
+        dict_keys = pipe._internal_dict.keys() # pylint: disable=protected-access
+        modules_names.extend(dict_keys)
+    except Exception:
+        pass
+    try:
+        dict_keys = get_signature(pipe).keys()
+        modules_names.extend(dict_keys)
+    except Exception:
+        pass
     modules_names = [m for m in modules_names if m not in exclude and not m.startswith('_')]
-    modules_names = [m for m in modules_names if isinstance(getattr(pipe, m, None), torch.nn.Module)]
+    modules_names = [m for m in modules_names if is_valid(m)]
     modules_names = sorted(set(modules_names))
     return modules_names
 

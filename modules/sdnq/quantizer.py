@@ -59,8 +59,7 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
     else:
         if use_stochastic_rounding:
             mantissa_difference = 1 << (23 - dtype_dict[weights_dtype]["mantissa"])
-            quantized_weight = quantized_weight.view(dtype=torch.int32)
-            quantized_weight = torch.randint_like(quantized_weight, low=0, high=mantissa_difference).add_(quantized_weight).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
+            quantized_weight = quantized_weight.view(dtype=torch.int32).add_(torch.randint_like(quantized_weight, low=0, high=mantissa_difference, dtype=torch.int32)).view(dtype=torch.float32)
         quantized_weight.nan_to_num_()
     quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
     return quantized_weight, scale, zero_point
@@ -211,6 +210,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     result_shape = None
     original_shape = weight.shape
     original_stride = weight.stride()
+    weight = weight.detach()
 
     if torch_dtype is None:
         torch_dtype = weight.dtype
@@ -229,8 +229,6 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     )
 
     if layer_class_name in conv_types:
-        if dtype_dict[weights_dtype]["num_bits"] < 4:
-            weights_dtype = "uint4"
         is_conv_type = True
         reduction_axes = 1
         output_channel_size, channel_size = weight.shape[:2]
@@ -242,8 +240,6 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
             weight = weight.flatten(1,-1)
             reduction_axes = -1
     elif layer_class_name in conv_transpose_types:
-        if dtype_dict[weights_dtype]["num_bits"] < 4:
-            weights_dtype = "uint4"
         is_conv_transpose_type = True
         reduction_axes = 0
         channel_size, output_channel_size = weight.shape[:2]

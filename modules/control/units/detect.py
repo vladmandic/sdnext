@@ -28,3 +28,6 @@ def is_qwen(model):
 
 def is_hunyuandit(model):
     return is_compatible(model, pattern='HunyuanDiT')
+
+def is_zimage(model):
+    return is_compatible(model, pattern='ZImage')

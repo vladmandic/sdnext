@@ -100,13 +100,20 @@ const generateForever = (genbuttonid) => {
     clearInterval(window.generateOnRepeatInterval);
     window.generateOnRepeatInterval = null;
   } else {
-    log('generateForever: start');
     const genbutton = gradioApp().querySelector(genbuttonid);
-    const busy = document.getElementById('progressbar')?.style.display === 'block';
-    if (!busy) genbutton.click();
+    const isBusy = () => {
+      let busy = document.getElementById('progressbar')?.style.display === 'block';
+      if (!busy) {
+        // Also check in Modern UI
+        const outerButton = genbutton.parentElement.closest('button');
+        busy = outerButton?.classList.contains('generate') && outerButton?.classList.contains('active');
+      }
+      return busy;
+    };
+    log('generateForever: start');
+    if (!isBusy()) genbutton.click();
     window.generateOnRepeatInterval = setInterval(() => {
-      const pbBusy = document.getElementById('progressbar')?.style.display === 'block';
-      if (!pbBusy) genbutton.click();
+      if (!isBusy()) genbutton.click();
     }, 500);
   }
 };

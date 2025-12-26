@@ -5,7 +5,7 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.1.2"
+sdnq_version = "0.1.3"
 
 dtype_dict = {
     "int32": {"min": -2147483648, "max": 2147483647, "num_bits": 32, "sign": 1, "exponent": 0, "mantissa": 31, "target_dtype": torch.int32, "torch_dtype": torch.int32, "storage_dtype": torch.int32, "is_unsigned": False, "is_integer": True, "is_packed": False},
@@ -34,16 +34,32 @@ dtype_dict = {
     "float8_e5m2": {"min": -57344, "max": 57344, "num_bits": 8, "sign": 1, "exponent": 5, "mantissa": 2, "target_dtype": torch.float8_e5m2, "torch_dtype": torch.float8_e5m2, "storage_dtype": torch.float8_e5m2, "is_unsigned": False, "is_integer": False, "is_packed": False},
 }
 
-if hasattr(torch, "float8_e4m3fnuz"):
-    dtype_dict["float8_e4m3fnuz"] = {"min": -240, "max": 240, "num_bits": 8, "sign": 1, "exponent": 4, "mantissa": 3, "target_dtype": "fp8", "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
-if hasattr(torch, "float8_e5m2fnuz"):
-    dtype_dict["float8_e5m2fnuz"] = {"min": -57344, "max": 57344, "num_bits": 8, "sign": 1, "exponent": 5, "mantissa": 2, "target_dtype": "fp8", "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
-
 dtype_dict["fp32"] = dtype_dict["float32"]
 dtype_dict["bf16"] = dtype_dict["bfloat16"]
 dtype_dict["fp16"] = dtype_dict["float16"]
 dtype_dict["fp8"] = dtype_dict["float8_e4m3fn"]
 dtype_dict["bool"] = dtype_dict["uint1"]
+
+torch_dtype_dict = {
+    torch.int32: "int32",
+    torch.int16: "int16",
+    torch.int8: "int8",
+    torch.uint32: "uint32",
+    torch.uint16: "uint16",
+    torch.uint8: "uint8",
+    torch.float32: "float32",
+    torch.bfloat16: "bfloat16",
+    torch.float16: "float16",
+    torch.float8_e4m3fn: "float8_e4m3fn",
+    torch.float8_e5m2: "float8_e5m2",
+}
+
+if hasattr(torch, "float8_e4m3fnuz"):
+    dtype_dict["float8_e4m3fnuz"] = {"min": -240, "max": 240, "num_bits": 8, "sign": 1, "exponent": 4, "mantissa": 3, "target_dtype": "fp8", "torch_dtype": torch.float8_e4m3fnuz, "storage_dtype": torch.float8_e4m3fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
+    torch_dtype_dict[torch.float8_e4m3fnuz] = "float8_e4m3fnuz"
+if hasattr(torch, "float8_e5m2fnuz"):
+    dtype_dict["float8_e5m2fnuz"] = {"min": -57344, "max": 57344, "num_bits": 8, "sign": 1, "exponent": 5, "mantissa": 2, "target_dtype": "fp8", "torch_dtype": torch.float8_e5m2fnuz, "storage_dtype": torch.float8_e5m2fnuz, "is_unsigned": False, "is_integer": False, "is_packed": False}
+    torch_dtype_dict[torch.float8_e5m2fnuz] = "float8_e5m2fnuz"
 
 linear_types = {"Linear"}
 conv_types = {"Conv1d", "Conv2d", "Conv3d"}
@@ -172,7 +188,7 @@ module_skip_keys_dict = {
         {}
     ],
     "ZImageTransformer2DModel": [
-        ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "all_x_embedder", "all_final_layer"],
+        ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "siglip_embedder", "all_x_embedder", "all_final_layer"],
         {}
     ],
     "HunyuanImage3ForCausalMM": [

@@ -139,6 +139,10 @@ def guess_by_name(fn, current_guess):
         new_guess = 'NanoBanana'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
         new_guess = 'Z-Image'
+    elif 'longcat-image' in fn.lower():
+        new_guess = 'LongCat'
+    elif 'ovis-image' in fn.lower():
+        new_guess = 'Ovis-Image'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
@@ -150,7 +154,7 @@ def guess_by_diffusers(fn, current_guess):
         return current_guess, None
     index = os.path.join(fn, 'model_index.json')
     if os.path.exists(index) and os.path.isfile(index):
-        index = shared.readfile(index, silent=True)
+        index = shared.readfile(index, silent=True, as_type="dict")
         name = index.get('_name_or_path', None)
         if name is not None and name in exclude_by_name:
             return current_guess, None
@@ -169,7 +173,7 @@ def guess_by_diffusers(fn, current_guess):
                     is_quant = True
                     break
                 if folder.endswith('config.json'):
-                    quantization_config = shared.readfile(folder, silent=True).get("quantization_config", None)
+                    quantization_config = shared.readfile(folder, silent=True, as_type="dict").get("quantization_config", None)
                     if quantization_config is not None:
                         is_quant = True
                         break
@@ -180,7 +184,7 @@ def guess_by_diffusers(fn, current_guess):
                             is_quant = True
                             break
                         if f.endswith('config.json'):
-                            quantization_config = shared.readfile(f, silent=True).get("quantization_config", None)
+                            quantization_config = shared.readfile(f, silent=True, as_type="dict").get("quantization_config", None)
                             if quantization_config is not None:
                                 is_quant = True
                                 break

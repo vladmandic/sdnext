@@ -1,12 +1,19 @@
 # TODO
 
+## Known issues
+
+- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
+- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
+- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
+- peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
+
 ## Project Board
 
 - <https://github.com/users/vladmandic/projects>
 
 ## Internal
 
-- Reimplement llama remover for kanvas
+- Reimplement `llama` remover for kanvas
 - Deploy: Create executable for SD.Next  
 - Feature: Integrate natural language image search  
   [ImageDB](https://github.com/vladmandic/imagedb)  
@@ -21,7 +28,9 @@
 - UI: Lite vs Expert mode  
 - Video tab: add full API support  
 - Control tab: add overrides handling  
-- Engine: TensorRT acceleration
+- Engine: `TensorRT` acceleration
+- Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
+- Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
 ## Features
 
@@ -38,6 +47,7 @@
 
 TODO: *Prioritize*!
 
+- [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
 - [Bria FIBO](https://huggingface.co/briaai/FIBO)
@@ -74,11 +84,6 @@ TODO: *Prioritize*!
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 
-### General
-
-- Review/improve type-hinting and type checking
-  - A little easier to work with due to syntax changes in Python 3.10
-
 ### Asyncio
 
 - Policy system is deprecated and will be removed in **Python 3.16**
@@ -90,8 +95,6 @@ TODO: *Prioritize*!
   - Migration:
     - [asyncio.run](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.run)
     - [asyncio.Runner](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.Runner)
-
-### Shutil
 
 #### rmtree
 

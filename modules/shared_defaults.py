@@ -13,9 +13,9 @@ def get_default_modes(cmd_opts, mem_stat):
         if "gpu" in mem_stat and gpu_memory != 0:
             if gpu_memory <= 4:
                 cmd_opts.lowvram = True
-                default_offload_mode = "sequential"
+                default_offload_mode = "balanced"
                 default_diffusers_offload_min_gpu_memory = 0
-                log.info(f"Device detect: memory={gpu_memory:.1f} default=sequential optimization=lowvram")
+                log.info(f"Device detect: memory={gpu_memory:.1f} default=balanced optimization=lowvram")
             elif gpu_memory <= 12:
                 cmd_opts.medvram = True # VAE Tiling and other stuff
                 default_offload_mode = "balanced"

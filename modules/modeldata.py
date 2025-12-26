@@ -76,6 +76,10 @@ def get_model_type(pipe):
         model_type = 'x-omni'
     elif 'Photoroom' in name:
         model_type = 'prx'
+    elif 'LongCat' in name:
+        model_type = 'longcat'
+    elif 'Ovis-Image' in name:
+        model_type = 'ovis'
     # video models
     elif "CogVideo" in name:
         model_type = 'cogvideo'

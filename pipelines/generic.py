@@ -56,6 +56,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
             shared.log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
+            load_args.pop('device_map', None) # single-file uses different syntax
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
             transformer = loader(
                 local_file,

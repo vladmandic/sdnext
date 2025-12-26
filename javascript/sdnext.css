@@ -120,7 +120,7 @@ textarea {
 }
 
 span {
-  font-size: var(--text-md) !important;
+  font-size: var(--text-md);
 }
 
 button {

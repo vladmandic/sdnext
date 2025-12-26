@@ -43,7 +43,7 @@ exclude = [
 ]
 line-length = 250
 indent-width = 4
-target-version = "py39"
+target-version = "py310"
 
 [lint]
 select = [
@@ -72,6 +72,7 @@ select = [
 ignore = [
   "B006",   # Do not use mutable data structures for argument defaults
   "B008",   # Do not perform function call in argument defaults
+  "B905",   # Strict zip() usage
   "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
   "C408",   # Unnecessary `dict` call
   "I001",   # Import block is un-sorted or un-formatted
@@ -81,6 +82,7 @@ ignore = [
   "E731",   # Do not assign a `lambda` expression, use a `def`
   "E741",   # Ambiguous variable name
   "F401",   # Imported by unused
+  "EXE001", # file with shebang is not marked executable
   "NPY002", # replace legacy random
   "RUF005", # Consider iterable unpacking
   "RUF008", # Do not use mutable default values for dataclass

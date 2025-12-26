@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import json
 import threading
@@ -6,9 +7,11 @@ from modules import cmd_args, errors
 from modules.json_helpers import readfile, writefile
 from modules.shared_legacy import LegacyOption
 from installer import log
-if TYPE_CHECKING:
-    from modules.options import OptionInfo
 
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from modules.options import OptionInfo
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
@@ -21,7 +24,9 @@ class Options():
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
-    def __init__(self, options_templates:dict={}, restricted_opts:dict={}):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None):
+        if restricted_opts is None:
+            restricted_opts = set()
         self.data_labels = options_templates
         self.restricted_opts = restricted_opts
         self.data = {k: v.default for k, v in self.data_labels.items()}
@@ -163,12 +168,12 @@ class Options():
             log.debug(f'Settings: fn="{filename}" created')
             self.save(filename)
             return
-        self.data = readfile(filename, lock=True)
+        self.data = readfile(filename, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings').split(',')]
         unknown_settings = []
         for k, v in self.data.items():
-            info: OptionInfo = self.data_labels.get(k, None)
+            info: OptionInfo | None = self.data_labels.get(k, None)
             if info is not None:
                 if not info.validate(k, v):
                     self.data[k] = info.default
@@ -180,7 +185,7 @@ class Options():
         if len(unknown_settings) > 0:
             log.warning(f"Setting validation: unknown={unknown_settings}")
 
-    def onchange(self, key, func, call=True):
+    def onchange(self, key, func: Callable, call=True):
         item = self.data_labels.get(key)
         item.onchange = func
         if call:

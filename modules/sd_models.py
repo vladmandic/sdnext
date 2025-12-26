@@ -184,6 +184,23 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
 
 
 def move_model(model, device=None, force=False):
+    def set_execution_device(module, device):
+        if device == torch.device('cpu'):
+            return
+        if hasattr(module, "_hf_hook") and hasattr(module._hf_hook, "execution_device"): # pylint: disable=protected-access
+            try:
+                """
+                for k, v in module.named_parameters(recurse=True):
+                    if v.device == torch.device('meta'):
+                        from accelerate.utils import set_module_tensor_to_device
+                        set_module_tensor_to_device(module, k, device, tied_params_map=module._hf_hook.tied_params_map)
+                """
+                module._hf_hook.execution_device = device # pylint: disable=protected-access
+                # module._hf_hook.offload = True
+            except Exception as e:
+                if os.environ.get('SD_MOVE_DEBUG', None):
+                    shared.log.error(f'Model move execution device: device={device} {e}')
+
     if model is None or device is None:
         return
 
@@ -204,20 +221,20 @@ def move_model(model, device=None, force=False):
             if not isinstance(m, torch.nn.Module) or name in model._exclude_from_cpu_offload: # pylint: disable=protected-access
                 continue
             for module in m.modules():
-                if (hasattr(module, "_hf_hook") and hasattr(module._hf_hook, "execution_device") and module._hf_hook.execution_device is not None): # pylint: disable=protected-access
-                    try:
-                        module._hf_hook.execution_device = device # pylint: disable=protected-access
-                    except Exception as e:
-                        if os.environ.get('SD_MOVE_DEBUG', None):
-                            shared.log.error(f'Model move execution device: device={device} {e}')
+                set_execution_device(module, device)
+    # set_execution_device(model, device)
+
     if getattr(model, 'has_accelerate', False) and not force:
         return
     if hasattr(model, "device") and devices.normalize_device(model.device) == devices.normalize_device(device) and not force:
         return
+
     try:
         t0 = time.time()
         try:
-            if hasattr(model, 'to'):
+            if model.device == torch.device('meta'):
+                set_execution_device(model, device)
+            elif hasattr(model, 'to'):
                 model.to(device)
             if hasattr(model, "prior_pipe"):
                 model.prior_pipe.to(device)
@@ -458,6 +475,14 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_z_image import load_z_image
             sd_model = load_z_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['LongCat']:
+            from pipelines.model_longcat import load_longcat
+            sd_model = load_longcat(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Overfit']:
+            from pipelines.model_ovis import load_ovis
+            sd_model = load_ovis(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
@@ -604,9 +629,9 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
     quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
     model_config_path = os.path.join(fn, module_name, 'config.json')
     if os.path.exists(quantization_config_path):
-        quantization_config = shared.readfile(quantization_config_path, silent=True)
+        quantization_config = shared.readfile(quantization_config_path, silent=True, as_type="dict")
     elif os.path.exists(model_config_path):
-        quantization_config = shared.readfile(model_config_path, silent=True).get("quantization_config", None)
+        quantization_config = shared.readfile(model_config_path, silent=True, as_type="dict").get("quantization_config", None)
     if quantization_config is None:
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
@@ -1050,11 +1075,13 @@ def copy_diffuser_options(new_pipe, orig_pipe):
     new_pipe.feature_extractor = getattr(orig_pipe, 'feature_extractor', None)
     new_pipe.mask_processor = getattr(orig_pipe, 'mask_processor', None)
     new_pipe.restore_pipeline = getattr(orig_pipe, 'restore_pipeline', None)
-    new_pipe.task_args = getattr(orig_pipe, 'task_args', None)
     new_pipe.is_sdxl = getattr(orig_pipe, 'is_sdxl', False) # a1111 compatibility item
     new_pipe.is_sd2 = getattr(orig_pipe, 'is_sd2', False)
     new_pipe.is_sd1 = getattr(orig_pipe, 'is_sd1', True)
     add_noise_pred_to_diffusers_callback(new_pipe)
+    if getattr(new_pipe, 'task_args', None) is None:
+        new_pipe.task_args = {}
+        new_pipe.task_args.update(getattr(orig_pipe, 'task_args', {}))
     if new_pipe.has_accelerate:
         set_accelerate(new_pipe)
 

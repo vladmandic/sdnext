@@ -8,7 +8,14 @@ except Exception:
 
 
 nvml_initialized = False
+warned = False
 
+
+def warn_once(msg):
+    global warned # pylint: disable=global-statement
+    if not warned:
+        log.error(msg)
+        warned = True
 
 def get_reason(val):
     throttle = {
@@ -28,6 +35,8 @@ def get_reason(val):
 
 def get_nvml():
     global nvml_initialized # pylint: disable=global-statement
+    if warned:
+        return []
     try:
         from modules.memstats import ram_stats
         if not nvml_initialized:
@@ -71,7 +80,7 @@ def get_nvml():
         # log.debug(f'nmvl: {devices}')
         return devices
     except Exception as e:
-        log.error(f'NVML: {e}')
+        warn_once(f'NVML: {e}')
         return []
 
 

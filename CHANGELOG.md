@@ -1,5 +1,59 @@
 # Change Log for SD.Next
 
+## Update for 2025-12-26
+
+### Highlights for 2025-12-26
+
+End of year release update, just two weeks after previous one, with several new models and features:
+- Several new models including highly anticipated **Qwen-Image-Edit 2511** as well as **Qwen-Image-Layered**, **LongCat Image** and **Ovis Image**  
+- New features including support for **Z-Image** *ControlNets* and *fine-tunes* and **Detailer** segmentation support  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-12-26
+
+- **Models**
+  - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
+    LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
+  - [Qwen-Image-Edit 2511](Qwen/Qwen-Image-Edit-2511) in *base* and *pre-quantized* variants  
+    Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability  
+  - [Qwen-Image-Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants  
+    Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  
+    *note*: set number of desired output layers in *settings -> model options*  
+  - [Ovis Image 7B](https://huggingface.co/AIDC-AI/Ovis-Image-7B)  
+    Ovis Image is a new text-to-image base model based on Qwen3 text-encoder and optimized for text-rendering  
+- **Features**
+  - Google **Gemini** and **Veo** models support for both *Dev* and *Vertex* access methods  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
+  - **Z-Image Turbo** support loading transformer file-tunes in safetensors format  
+    as with any transformers/unet finetunes, place them then `models/unet`  
+    and use **UNET Model** to load safetensors file as they are not complete models  
+  - **Z-Image Turbo** support for **ControlNet Union**  
+    includes 1.0, 2.0 and 2.1 variants  
+  - **Detailer** support for segmentation models  
+    some detection models can produce exact segmentation mask and not just box  
+    to enable, set `use segmentation` option  
+    added segmentation models: *anzhc-eyes-seg*, *anzhc-face-1024-seg-8n*, *anzhc-head-seg-8n*  
+- **Internal**
+  - update nightlies to `rocm==7.1`  
+  - mark `python==3.9` as deprecated  
+  - extensions improved status indicators, thanks @awsr  
+  - additional type-safety checks, thanks @awsr  
+  - add model info to ui overlay  
+- **Wiki/Docs/Illustrations**  
+  - update models page, thanks @alerikaisattera  
+  - update reference models samples, thanks @liutyi  
+- **Fixes**  
+  - generate forever fix loop checks, thanks @awsr  
+  - tokenizer expclit use for flux2, thanks @CalamitousFelicitousness  
+  - torch.compile skip offloading steps  
+  - kanvas css with standardui  
+  - control input media with non-english locales  
+  - handle embeds when on meta device  
+  - improve offloading when model has manual modules  
+  - ui section colapsible state, thanks @awsr  
+  - ui filter by model type  
+
 ## Update for 2025-12-11
 
 ### Highlights for 2025-12-11

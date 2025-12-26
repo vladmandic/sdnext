@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import overload, List, Optional
 import os
 import sys
 import json
@@ -18,7 +18,6 @@ class Dot(dict): # dot notation access to dictionary attributes
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
 
 version = {
     'app': 'sd.next',
@@ -94,19 +93,35 @@ def get_log():
     return log
 
 
+@overload
+def str_to_bool(val: str | bool) -> bool: ...
+@overload
+def str_to_bool(val: None) -> None: ...
+def str_to_bool(val: str | bool | None) -> bool | None:
+    if isinstance(val, str):
+        if val.strip() and val.strip().lower() in ("1", "true"):
+            return True
+        return False
+    return val
+
+
 def install_traceback(suppress: list = []):
     from rich.traceback import install as traceback_install
     from rich.pretty import install as pretty_install
+
+    width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
+    if width is not None:
+        width = int(width)
     traceback_install(
         console=console,
-        extra_lines=os.environ.get('SD_TRACELINES', 1),
-        max_frames=os.environ.get('SD_TRACEFRAMES', 16),
-        width=os.environ.get('SD_TRACEWIDTH', console.width),
-        word_wrap=os.environ.get('SD_TRACEWRAP', False),
-        indent_guides=os.environ.get('SD_TRACEINDENT', False),
-        show_locals=os.environ.get('SD_TRACELOCALS', False),
-        locals_hide_dunder=os.environ.get('SD_TRACEDUNDER', True),
-        locals_hide_sunder=os.environ.get('SD_TRACESUNDER', None),
+        extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
+        max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
+        width=width,
+        word_wrap=str_to_bool(os.environ.get("SD_TRACEWRAP", False)),
+        indent_guides=str_to_bool(os.environ.get("SD_TRACEINDENT", False)),
+        show_locals=str_to_bool(os.environ.get("SD_TRACELOCALS", False)),
+        locals_hide_dunder=str_to_bool(os.environ.get("SD_TRACEDUNDER", True)),
+        locals_hide_sunder=str_to_bool(os.environ.get("SD_TRACESUNDER", None)),
         suppress=suppress,
     )
     pretty_install(console=console)
@@ -633,7 +648,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = '3d02cd543ef3101d821cb09c8fcab23c6e7ead33' # diffusers commit hash
+    sha = 'f6b6a7181eb44f0120b29cd897c129275f366c2a' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -781,10 +796,10 @@ def install_rocm_zluda():
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 7.0: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 7.1: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
+            else: # oldest rocm version on nightly is 7.0
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.0')
-            else: # oldest rocm version on nightly is 6.4
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm6.4')
         else:
             if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
@@ -1714,7 +1729,7 @@ def add_args(parser):
     group_install.add_argument('--skip-env', default=os.environ.get("SD_SKIPENV",False), action='store_true', help="Skips setting of env variables during startup, default: %(default)s")
 
     group_compute = parser.add_argument_group('Compute Engine')
-    group_compute.add_argument("--device-id", type=str, default=os.environ.get("SD_DEVICEID", None), help="Select the default CUDA device to use, default: %(default)s")
+    group_compute.add_argument("--device-id", type=str, default=os.environ.get("SD_DEVICEID", None), help="Select the default GPU device to use, default: %(default)s")
     group_compute.add_argument("--use-cuda", default=os.environ.get("SD_USECUDA",False), action='store_true', help="Force use nVidia CUDA backend, default: %(default)s")
     group_compute.add_argument("--use-ipex", default=os.environ.get("SD_USEIPEX",False), action='store_true', help="Force use Intel OneAPI XPU backend, default: %(default)s")
     group_compute.add_argument("--use-rocm", default=os.environ.get("SD_USEROCM",False), action='store_true', help="Force use AMD ROCm backend, default: %(default)s")
@@ -1730,9 +1745,11 @@ def add_args(parser):
     group_paths.add_argument("--models-dir", type=str, default=os.environ.get("SD_MODELSDIR", 'models'), help="Base path where all models are stored, default: %(default)s",)
     group_paths.add_argument("--extensions-dir", type=str, default=os.environ.get("SD_EXTENSIONSDIR", None), help="Base path where all extensions are stored, default: %(default)s",)
 
+    group_ui = parser.add_argument_group('UI')
+    group_ui.add_argument('--theme', type=str, default=os.environ.get("SD_THEME", None), help='Override UI theme')
+    group_ui.add_argument('--locale', type=str, default=os.environ.get("SD_LOCALE", None), help='Override UI locale')
+
     group_http = parser.add_argument_group('HTTP')
-    group_http.add_argument('--theme', type=str, default=os.environ.get("SD_THEME", None), help='Override UI theme')
-    group_http.add_argument('--locale', type=str, default=os.environ.get("SD_LOCALE", None), help='Override UI locale')
     group_http.add_argument("--server-name", type=str, default=os.environ.get("SD_SERVERNAME", None), help="Sets hostname of server, default: %(default)s")
     group_http.add_argument("--tls-keyfile", type=str, default=os.environ.get("SD_TLSKEYFILE", None), help="Enable TLS and specify key file, default: %(default)s")
     group_http.add_argument("--tls-certfile", type=str, default=os.environ.get("SD_TLSCERTFILE", None), help="Enable TLS and specify cert file, default: %(default)s")

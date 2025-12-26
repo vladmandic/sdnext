@@ -50,14 +50,14 @@ def load_files(files: list[str], state_dict: dict = None, key_mapping: dict = No
     if isinstance(files, str):
         files = [files]
     if method is None:
-        method = 'safetensors'
+        method = "safetensors"
     if state_dict is None:
         state_dict = {}
-    if method == 'safetensors':
+    if method == "safetensors":
         load_safetensors(files, state_dict=state_dict, key_mapping=key_mapping, device=device)
-    elif method == 'threaded':
+    elif method == "threaded":
         load_threaded(files, state_dict=state_dict, key_mapping=key_mapping, device=device)
-    elif method == 'streamer':
+    elif method == "streamer":
         load_streamer(files, state_dict=state_dict, key_mapping=key_mapping, device=device)
     else:
         raise ValueError(f"Unsupported loading method: {method}")

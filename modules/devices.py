@@ -238,8 +238,8 @@ def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
                     torch.cuda.synchronize()
                     torch.cuda.empty_cache() # cuda gc
                     torch.cuda.ipc_collect()
-            except Exception:
-                pass
+            except Exception as e:
+                log.error(f'GC: {e}')
     else:
         return gpu, ram
     t1 = time.time()
@@ -390,7 +390,7 @@ def test_triton(early: bool = False):
             def test_triton_func(a,b,c):
                 return a * b + c
             test_triton_func = torch.compile(test_triton_func, fullgraph=True)
-            test_triton_func(torch.randn(32, device=device), torch.randn(32, device=device), torch.randn(32, device=device))
+            test_triton_func(torch.randn(16, device=device), torch.randn(16, device=device), torch.randn(16, device=device))
             triton_ok = True
         else:
             triton_ok = False
