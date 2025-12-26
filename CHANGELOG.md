@@ -4,7 +4,7 @@
 
 ### Highlights for 2025-12-26
 
-End of year release with:
+End of year release update, just two weeks after previous one, with several new models and features:
 - Several new models including highly anticipated **Qwen-Image-Edit 2511** as well as **Qwen-Image-Layered**, **LongCat Image** and **Ovis Image**  
 - New features including support for **Z-Image** *ControlNets* and *fine-tunes* and **Detailer** segmentation support  
 
