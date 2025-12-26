@@ -479,6 +479,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_longcat import load_longcat
             sd_model = load_longcat(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Overfit']:
+            from pipelines.model_ovis import load_ovis
+            sd_model = load_ovis(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:

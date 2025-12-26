@@ -1,13 +1,16 @@
 # Change Log for SD.Next
 
-## Known issues
+## Update for 2025-12-26
 
-- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
-- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
-- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
-- peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
+### Highlights for 2025-12-26
 
-## Update for 2025-12-25
+End of year release with:
+- Several new models including highly anticipated **Qwen-Image-Edit 2511** as well as **Qwen-Image-Layered**, **LongCat Image** and **Ovis Image**  
+- New features including support for **Z-Image** *ControlNets* and *fine-tunes* and **Detailer** segmentation support  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-12-26
 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
@@ -17,6 +20,8 @@
   - [Qwen-Image-Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants  
     Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  
     *note*: set number of desired output layers in *settings -> model options*  
+  - [Ovis Image 7B](https://huggingface.co/AIDC-AI/Ovis-Image-7B)  
+    Ovis Image is a new text-to-image base model based on Qwen3 text-encoder and optimized for text-rendering  
 - **Features**
   - Google **Gemini** and **Veo** models support for both *Dev* and *Vertex* access methods  
     see [docs](https://vladmandic.github.io/sdnext-docs/Google-GenAI/) for details  
@@ -45,6 +50,7 @@
   - control input media with non-english locales  
   - handle embeds when on meta device  
   - improve offloading when model has manual modules  
+  - fix ui section colapsible state, thanks @awsr  
 
 ## Update for 2025-12-11
 

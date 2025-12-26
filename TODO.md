@@ -1,5 +1,12 @@
 # TODO
 
+## Known issues
+
+- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
+- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
+- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
+- peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
+
 ## Project Board
 
 - <https://github.com/users/vladmandic/projects>

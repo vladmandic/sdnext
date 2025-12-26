@@ -938,6 +938,16 @@
     "date": "2024 January"
   },
 
+  "AIDC Ovis-Image 7B": {
+    "path": "AIDC-AI/Ovis-Image-7B",
+    "skip": true,
+    "desc": "Built upon Ovis-U1, Ovis-Image is a 7B text-to-image model specifically optimized for high-quality text rendering, designed to operate efficiently under stringent computational constraints.",
+    "preview": "AIDC-AI--Ovis-Image-7B.jpg",
+    "size": 23.38,
+    "date": "2025 December",
+    "extras": ""
+  },
+
   "HDM-XUT 340M Anime": {
     "path": "KBlueLeaf/HDM-xut-340M-anime",
     "skip": true,
