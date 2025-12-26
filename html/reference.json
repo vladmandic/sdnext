@@ -278,7 +278,7 @@
 
   "lodestones Chroma1 HD": {
     "path": "lodestones/Chroma1-HD",
-    "preview": "lodestones--Chroma-HD.jpg",
+    "preview": "lodestones--Chroma1-HD.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the high-res fine-tune of the Chroma1-Base at a 1024x1024 resolution.",
     "skip": true,
     "extras": "",
@@ -287,7 +287,7 @@
   },
   "lodestones Chroma1 Base": {
     "path": "lodestones/Chroma1-Base",
-    "preview": "lodestones--Chroma-Base.jpg",
+    "preview": "lodestones--Chroma1-Base.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the core 512x512 model. It's a solid, all-around foundation for pretty much any creative project.",
     "skip": true,
     "extras": "",
@@ -296,7 +296,7 @@
   },
   "lodestones Chroma1 Flash": {
     "path": "lodestones/Chroma1-Flash",
-    "preview": "lodestones--Chroma-flash.jpg",
+    "preview": "lodestones--Chroma1-Flash.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. A fine-tuned version of the Chroma1-Base made to find the best way to make these flow matching models faster.",
     "skip": true,
     "extras": "",
@@ -306,7 +306,7 @@
   },
   "lodestones Chroma1 v50 Preview Annealed": {
     "path": "vladmandic/chroma-unlocked-v50-annealed",
-    "preview": "lodestones--Chroma-annealed.jpg",
+    "preview": "vladmandic--chroma-unlocked-v50-annealed.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Re-tweaked variant with extra noise added.",
     "skip": true,
     "extras": "",
