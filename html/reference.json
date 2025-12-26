@@ -313,24 +313,6 @@
     "size": 26.84,
     "date": "2025 July"
   },
-  "lodestones Chroma1 v48 Preview": {
-    "path": "vladmandic/chroma-unlocked-v48",
-    "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning.",
-    "skip": true,
-    "extras": "",
-    "size": 26.84,
-    "date": "2025 July"
-  },
-  "lodestones Chroma1 v48 Preview Calibrated": {
-    "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
-    "preview": "lodestones--Chroma-detail.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning but with some detail calibration.",
-    "skip": true,
-    "extras": "",
-    "size": 26.84,
-    "date": "2025 July"
-  },
 
   "Meituan LongCat Image": {
     "path": "meituan-longcat/LongCat-Image",
