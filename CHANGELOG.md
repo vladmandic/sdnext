@@ -39,6 +39,7 @@ End of year release update, just two weeks after previous one, with several new 
   - mark `python==3.9` as deprecated  
   - extensions improved status indicators, thanks @awsr  
   - additional type-safety checks, thanks @awsr  
+  - add model info to ui overlay  
 - **Wiki/Docs/Illustrations**  
   - update models page, thanks @alerikaisattera  
   - update reference models samples, thanks @liutyi  
