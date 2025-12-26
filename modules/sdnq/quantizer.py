@@ -968,7 +968,7 @@ class SDNQConfig(QuantizationConfigMixin):
         svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
         dynamic_loss_threshold (`float`, *optional*, defaults to `1e-2`):
-            The target quantization mse loss threshold to use for dynamic quantization.  
+            The target quantization mse loss threshold to use for dynamic quantization.
         svd_steps (`int`, *optional*, defaults to `8`):
             The number of iterations to use in svd lowrank estimation.
         use_svd (`bool`, *optional*, defaults to `False`):
@@ -982,8 +982,8 @@ class SDNQConfig(QuantizationConfigMixin):
         use_stochastic_rounding (`bool`, *optional*, defaults to `False`):
             Enabling this option will use stochastic rounding on the quantization step.
         use_dynamic_quantization (`bool`, *optional*, defaults to `False`):
-            Enabling this option will dynamically select a quantization type based on the dynamic_loss_threshold.  
-            weights_dtype will be used as the minimum allowed quantization type when this option is enabled.  
+            Enabling this option will dynamically select a quantization type based on the dynamic_loss_threshold.
+            weights_dtype will be used as the minimum allowed quantization type when this option is enabled.
         dequantize_fp32 (`bool`, *optional*, defaults to `False`):
             Enabling this option will use FP32 on the dequantization step.
         non_blocking (`bool`, *optional*, defaults to `False`):
