@@ -202,7 +202,7 @@
   },
   "Qwen-Image-Edit-2511": {
     "path": "Qwen/Qwen-Image-Edit-2511",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Qwen--Qwen-Image-Edit-2511.jpg",
     "desc": "Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability.",
     "skip": true,
     "extras": "",
@@ -211,7 +211,7 @@
   },
   "Qwen-Image-Layered": {
     "path": "Qwen/Qwen-Image-Layered",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Qwen--Qwen-Image-Layered.jpg",
     "desc": "Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers",
     "skip": true,
     "extras": "",
@@ -1124,7 +1124,7 @@
   },
   "Qwen-Image-Edit-2511 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Disty0--Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Edit-2511 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
@@ -1134,7 +1134,7 @@
   },
   "Qwen-Image-Layered sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Layered-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Disty0--Qwen-Image-Layered-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Layered using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
     "tags": "quantized",
