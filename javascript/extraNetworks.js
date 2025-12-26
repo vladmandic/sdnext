@@ -312,8 +312,9 @@ function extraNetworksFilterVersion(event) {
   const version = event.target.textContent.trim();
   const activeTab = getENActiveTab();
   const activePage = getENActivePage().toLowerCase();
-  const cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
-  log('extraNetworksFilterVersion', version);
+  let cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
+  if (!cardContainer) cardContainer = gradioApp().querySelector(`#txt2img_extra_networks_${activePage}_cards`);
+  log('extraNetworksFilterVersion', { version, activeTab, activePage, cardContainer });
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';

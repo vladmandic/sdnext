@@ -51,7 +51,8 @@ End of year release update, just two weeks after previous one, with several new 
   - control input media with non-english locales  
   - handle embeds when on meta device  
   - improve offloading when model has manual modules  
-  - fix ui section colapsible state, thanks @awsr  
+  - ui section colapsible state, thanks @awsr  
+  - ui filter by model type  
 
 ## Update for 2025-12-11
 
