@@ -160,7 +160,7 @@ conv_transpose_types = {"ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d"}
 allowed_types = set.union(linear_types, conv_types, conv_transpose_types)
 
 accepted_weight_dtypes = set(dtype_dict.keys())
-accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fnuz", "float16"}
+accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fn", "float16"}
 
 weights_dtype_order = [
     "uint1", "float1_e1m0fnu",
