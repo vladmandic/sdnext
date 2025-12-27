@@ -155,7 +155,7 @@ class Extension:
                 except Exception:
                     self.branch = 'unknown'
                 self.commit_hash = head.hexsha
-                self.version = f"<p>{self.commit_hash[:8]}</p><p>{datetime.fromtimestamp(self.commit_date).strftime('%a %b%d %Y %H:%M')}</p>"
+                self.version = f"<p>{self.commit_hash[:8]}</p><p>{format_eztime(datetime.fromtimestamp(self.commit_date, timezone.utc))}</p>"
             except Exception as ex:
                 shared.log.error(f"Extension: failed reading data from git repo={self.name}: {ex}")
                 self.remote = None

@@ -3,7 +3,7 @@ import json
 import shutil
 import errno
 import html
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import gradio as gr
 from modules import extensions, shared, paths, errors, ui_symbols, call_queue
 
@@ -108,10 +108,10 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
                 ext.git_fetch()
                 ext.read_info()
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {datetime.utcfromtimestamp(commit_date)}')
+                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_eztime(datetime.fromtimestamp(commit_date, timezone.utc), True)}')
             else:
                 commit_date = ext.commit_date or 1577836800
-                shared.log.debug(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {datetime.utcfromtimestamp(commit_date)}')
+                shared.log.debug(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_eztime(datetime.fromtimestamp(commit_date, timezone.utc), True)}')
         except FileNotFoundError as e:
             if 'FETCH_HEAD' not in str(e):
                 raise
@@ -229,10 +229,10 @@ def update_extension(extension_path, search_text, sort_column):
                 ext.git_fetch()
                 ext.read_info()
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {datetime.utcfromtimestamp(commit_date)}')
+                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_eztime(datetime.fromtimestamp(commit_date, timezone.utc), True)}')
             else:
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {datetime.utcfromtimestamp(commit_date)}')
+                shared.log.info(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_eztime(datetime.fromtimestamp(commit_date, timezone.utc), True)}')
         except FileNotFoundError as e:
             if 'FETCH_HEAD' not in str(e):
                 raise
@@ -311,7 +311,7 @@ def create_html(search_text, sort_column):
     def dt(x: str):
         val = ext.get(x, None)
         try:
-            return datetime.fromisoformat(val[:-1]).strftime('%a %b%d %Y %H:%M') if val is not None else "N/A"
+            return extensions.format_eztime(extensions.parse_isotime(val)) if val is not None else "N/A"
         except Exception:
             return 'N/A'
 
@@ -319,22 +319,23 @@ def create_html(search_text, sort_column):
     for ext in sorted(extensions_list, key=sort_function, reverse=sort_reverse):
         installed = get_installed(ext)
         author = ''
-        updated = datetime.timestamp(datetime.now())
+        updated = datetime.now(timezone.utc) # TZ-aware
         try:
             if 'github' in ext['url']:
                 author = 'Author: ' + ext['url'].split('/')[-2].split(':')[-1] if '/' in ext['url'] else ext['url'].split(':')[1].split('/')[0]
-                updated = datetime.timestamp(datetime.fromisoformat(ext.get('updated', '2000-01-01T00:00:00.000Z').rstrip('Z')))
+                updated = extensions.parse_isotime(ext.get('updated', '2000-01-01T00:00:00Z')) # TZ-aware
             else:
                 debug(f'Extension not from github: name={ext["name"]} url={ext["url"]}')
         except Exception as e:
             debug(f'Extension get updated error: name={ext["name"]} url={ext["url"]} {e}')
-        update_available = (installed is not None) and (ext['remote'] is not None) and (updated > ext['commit_date'])
+        local_ver_date = datetime.fromtimestamp(ext['commit_date'], timezone.utc) # TZ-aware
+        update_available = (installed is not None) and (ext['remote'] is not None) and (updated > local_ver_date) # TZ-aware
         if update_available:
-            debug(f'Extension update available: name={ext["name"]} updated={updated}/{datetime.utcfromtimestamp(updated)} commit={ext["commit_date"]}/{datetime.utcfromtimestamp(ext["commit_date"])}')
+            debug(f'Extension update available: name={ext["name"]} updated={extensions.format_eztime(updated), True} commit={extensions.format_eztime(local_ver_date), True}') # TZ-aware
         ext['sort_user'] = f"{'0' if ext['is_builtin'] else '1'}{'1' if ext['installed'] else '0'}{ext.get('name', '')}"
-        ext['sort_enabled'] = f"{'0' if ext['enabled'] else '1'}{'1' if ext['is_builtin'] else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00')}"
-        ext['sort_update'] = f"{'1' if update_available else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00')}"
-        delta = datetime.now() - datetime.fromisoformat(ext.get('created', '2000-01-01T00:00Z')[:-1])
+        ext['sort_enabled'] = f"{'0' if ext['enabled'] else '1'}{'1' if ext['is_builtin'] else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00Z')}"
+        ext['sort_update'] = f"{'1' if update_available else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00Z')}"
+        delta = datetime.now(timezone.utc) - extensions.parse_isotime(ext.get('created', '2000-01-01T00:00Z')) # TZ-aware to prep for 3.11+ datetime.fromisoformat() behavior
         ext['sort_trending'] = round(ext.get('stars', 0) / max(delta.days, 5), 1)
         tags = ext.get("tags", [])
         if not isinstance(tags, list):
@@ -396,7 +397,7 @@ def create_html(search_text, sort_column):
             else:
                 status = f"<div style='cursor:help;width:1em;' title='Unknown status'>{ui_symbols.svg_bullet.color('#008EBC')}</div>"
         else:
-            if updated < datetime.timestamp(datetime.now() - timedelta(6*30)):
+            if updated < datetime.now(timezone.utc) - timedelta(6*30): # TZ-aware
                 status = f"<div style='cursor:help;width:1em;' title='Unmaintained'>{ui_symbols.svg_bullet.color('#C000CF')}</div>"
             else:
                 status = f"<div style='cursor:help;width:1em;' title='No info'>{ui_symbols.svg_bullet.color('#7C7C7C')}</div>"
