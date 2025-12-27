@@ -228,7 +228,15 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         dtype_dict[weights_dtype]["is_unsigned"]
         or dtype_dict[weights_dtype]["is_integer"] != dtype_dict[quantized_matmul_dtype]["is_integer"]
         or dtype_dict[weights_dtype]["num_bits"] > dtype_dict[quantized_matmul_dtype]["num_bits"]
-        or (dtype_dict[weights_dtype]["is_packed"] and not dtype_dict[weights_dtype]["is_integer"])
+        or (
+            dtype_dict[weights_dtype]["is_packed"]
+            and not dtype_dict[weights_dtype]["is_integer"]
+            and not dtype_dict[quantized_matmul_dtype]["is_integer"]
+            and (
+                    dtype_dict[weights_dtype]["num_bits"] >= dtype_dict[quantized_matmul_dtype]["num_bits"]
+                    or dtype_dict[weights_dtype]["max"] > dtype_dict[quantized_matmul_dtype]["max"]
+                )
+        )
     )
 
     if layer_class_name in conv_types:
@@ -348,7 +356,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         scale.t_()
         weight.t_()
         weight = prepare_weight_for_matmul(weight)
-        if not use_tensorwise_fp8_matmul and not dtype_dict[weights_dtype]["is_integer"]:
+        if not use_tensorwise_fp8_matmul and not dtype_dict[quantized_matmul_dtype]["is_integer"]:
             scale = scale.to(dtype=torch.float32)
 
     sdnq_dequantizer = SDNQDequantizer(
@@ -956,8 +964,9 @@ class SDNQConfig(QuantizationConfigMixin):
 
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
-            The target dtype for the weights after quantization. Supported values are:
-            ("int16", "int8", "int7", "int6", "int5", "int4", "int3", "int2", "uint16", "uint8", "uint7", "uint6", "uint5", "uint4", "uint3", "uint2", "uint1", "bool", "float16", "float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
+            The target dtype for the weights after quantization.
+            Check out `sdnq.common.accepted_weight_dtypes` for all the supported values.
+            These are some of the recommended values to use: ("int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn")
         quantized_matmul_dtype (`str`, *optional*, defaults to `None`):
             The target dtype for quantized matmul.
             `None` will use "int8" with integer weight dtypes and "float8_e4m3fn" or "float16" with float weight dtypes.

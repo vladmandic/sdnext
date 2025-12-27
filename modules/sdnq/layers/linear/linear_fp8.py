@@ -5,6 +5,7 @@ from typing import Tuple
 import torch
 
 from ...common import compile_func # noqa: TID252
+from ...packed_float import unpack_float # noqa: TID252
 from ...dequantizer import quantize_fp_mm # noqa: TID252
 
 from .forward import check_mats
@@ -23,7 +24,11 @@ def fp8_matmul(
     bias: torch.FloatTensor = None,
     svd_up: torch.FloatTensor = None,
     svd_down: torch.FloatTensor = None,
+    quantized_weight_shape: torch.Size = None,
+    weights_dtype: str = None,
 ) -> torch.FloatTensor:
+    if quantized_weight_shape is not None:
+        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float8_e4m3fn)
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
     if svd_up is not None:
@@ -45,9 +50,18 @@ def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch
         return torch.nn.functional.linear(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
     if self.sdnq_dequantizer.re_quantize_for_matmul:
         weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
+        quantized_weight_shape = None
     else:
         weight, scale = self.weight, self.scale
-    return fp8_matmul(input, weight, scale, bias=self.bias, svd_up=self.svd_up, svd_down=self.svd_down)
+        quantized_weight_shape = self.sdnq_dequantizer.quantized_weight_shape if self.sdnq_dequantizer.is_packed else None
+    return fp8_matmul(
+        input, weight, scale,
+        bias=self.bias,
+        svd_up=self.svd_up,
+        svd_down=self.svd_down,
+        quantized_weight_shape=quantized_weight_shape,
+        weights_dtype=self.sdnq_dequantizer.weights_dtype,
+    )
 
 
 fp8_matmul = compile_func(fp8_matmul)
