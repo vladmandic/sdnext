@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import git
 from modules import shared, errors
 from modules.paths import extensions_dir, extensions_builtin_dir
@@ -9,6 +9,19 @@ from modules.paths import extensions_dir, extensions_builtin_dir
 extensions: list[Extension] = []
 if not os.path.exists(extensions_dir):
     os.makedirs(extensions_dir)
+
+
+def parse_isotime(time_string: str) -> datetime:
+    # If Python minimum version is 3.11+, this function can be replaced with datetime.fromisoformat()
+    time_string = time_string.rstrip("Z")
+    time_string = time_string[:-4] if "." in time_string[-4:] else time_string
+    return datetime.strptime(time_string, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+
+
+def format_eztime(d: datetime, local = False) -> str:
+    if d.tzinfo is None:
+        return d.strftime('%Y-%m-%d %H:%M')
+    return d.astimezone(timezone.utc if local else None).strftime('%Y-%m-%d %H:%M %Z')
 
 
 def active():
