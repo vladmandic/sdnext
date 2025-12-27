@@ -106,8 +106,8 @@ class Extension:
         self.branch = None
         self.remote = None
         self.have_info_from_repo = False
-        self.mtime = 0
-        self.ctime = 0
+        self.mtime = "2000-01-01T00:00Z"
+        self.ctime = "2000-01-01T00:00Z"
 
     def read_info(self, force=False):
         if self.have_info_from_repo and not force:

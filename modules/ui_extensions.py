@@ -308,7 +308,7 @@ def create_html(search_text, sort_column):
         ext['enabled'] = installed.enabled if installed is not None else ''
         ext['remote'] = installed.remote if installed is not None else None
         ext['path'] = installed.path if installed is not None else ''
-        ext['sort_default'] = f"{'1' if ext['is_builtin'] else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00')}"
+        ext['sort_default'] = f"{'1' if ext['is_builtin'] else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00Z')}"
     sort_reverse, sort_function = sort_ordering[sort_column]
 
     def dt(x: str):
