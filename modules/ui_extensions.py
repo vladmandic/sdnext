@@ -331,7 +331,7 @@ def create_html(search_text, sort_column):
                 debug(f'Extension not from github: name={ext["name"]} url={ext["url"]}')
         except Exception as e:
             debug(f'Extension get updated error: name={ext["name"]} url={ext["url"]} {e}')
-        update_available = (installed is not None) and (ext['remote'] is not None) and (ext['commit_date'] > updated)
+        update_available = (installed is not None) and (ext['remote'] is not None) and (updated > ext['commit_date'])
         if update_available:
             debug(f'Extension update available: name={ext["name"]} updated={updated}/{datetime.utcfromtimestamp(updated)} commit={ext["commit_date"]}/{datetime.utcfromtimestamp(ext["commit_date"])}')
         ext['sort_user'] = f"{'0' if ext['is_builtin'] else '1'}{'1' if ext['installed'] else '0'}{ext.get('name', '')}"
