@@ -19,7 +19,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
 def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
 def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
     global locking_available # pylint: disable=global-statement
-    data = {}
+    data = {} if as_type == "dict" else []
     lock_file = None
     locked = False
     if lock and locking_available:
