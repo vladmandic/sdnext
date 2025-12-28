@@ -13,9 +13,16 @@ if not os.path.exists(extensions_dir):
 
 def parse_isotime(time_string: str) -> datetime:
     # If Python minimum version is 3.11+, this function can be replaced with datetime.fromisoformat()
-    time_string = time_string.rstrip("Z")
-    time_string = time_string[:-4] if "." in time_string[-4:] else time_string
-    return datetime.strptime(time_string, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    trimmed = time_string.rstrip("Z")
+    if "." in trimmed:
+        trimmed = trimmed.split(".")[0]
+    match len(trimmed):
+        case 16:
+            return datetime.strptime(trimmed, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc)
+        case 19:
+            return datetime.strptime(trimmed, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        case _:
+            raise ValueError(f"Unexpected time string format: '{time_string}'")
 
 
 def format_eztime(d: datetime, local = False) -> str:
