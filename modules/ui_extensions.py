@@ -39,7 +39,7 @@ def list_extensions():
     fn = os.path.join(paths.script_path, "html", "extensions.json")
     extensions_list = shared.readfile(fn, silent=True, as_type="list")
     if len(extensions_list) == 0:
-        shared.log.info(f'Extension list is empty or invalid. Try refreshing or verifying downloaded data. file="{fn}"')
+        shared.log.info("Extension List: No information found. Refresh required.")
     found = []
     for ext in extensions.extensions:
         ext.read_info()
