@@ -59,6 +59,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     except Exception:
         locking_available = False
     if isinstance(data, list) and as_type == "dict":
+        log.warning(f"Read: Expected dictionary from '{filename}' but got list")
         if not data:
             return {}
         data0 = data[0]
@@ -66,6 +67,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
             return data0
         return {}
     if isinstance(data, dict) and as_type == "list":
+        log.warning(f"Read: Expected list from '{filename}' but got dictionary")
         if not data:
             return []
         return [data]
