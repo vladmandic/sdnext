@@ -25,10 +25,10 @@ def parse_isotime(time_string: str) -> datetime:
             raise ValueError(f"Unexpected time string format: '{time_string}'")
 
 
-def format_eztime(d: datetime, local = False) -> str:
+def format_dt(d: datetime) -> str:
     if d.tzinfo is None:
         return d.strftime('%Y-%m-%d %H:%M')
-    return d.astimezone(None if local else timezone.utc).strftime('%Y-%m-%d %H:%M %Z')
+    return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S') # Ensure UTC time is shown (just in case)
 
 
 def ts2utc(timestamp: int) -> datetime:
@@ -166,7 +166,7 @@ class Extension:
                 except Exception:
                     self.branch = 'unknown'
                 self.commit_hash = head.hexsha
-                self.version = f"<p>{self.commit_hash[:8]}</p><p>{format_eztime(datetime.fromtimestamp(self.commit_date, timezone.utc))}</p>"
+                self.version = f"<p>{self.commit_hash[:8]}</p><p>{format_dt(ts2utc(self.commit_date))}</p>"
             except Exception as ex:
                 shared.log.error(f"Extension: failed reading data from git repo={self.name}: {ex}")
                 self.remote = None
