@@ -328,7 +328,7 @@ def create_html(search_text, sort_column):
                 debug(f'Extension not from github: name={ext["name"]} url={ext["url"]}')
         except Exception as e:
             debug(f'Extension get updated error: name={ext["name"]} url={ext["url"]} {e}')
-        local_ver_date = datetime.fromtimestamp(ext['commit_date'], timezone.utc) # TZ-aware
+        local_ver_date = extensions.ts2utc(ext['commit_date']) # TZ-aware
         update_available = (installed is not None) and (not ext['is_builtin']) and (ext['remote'] is not None) and (updated > local_ver_date) # TZ-aware
         if update_available:
             debug(f'Extension update available: name={ext["name"]} updated={extensions.format_dt(updated)} commit={extensions.format_dt(local_ver_date)}') # TZ-aware
