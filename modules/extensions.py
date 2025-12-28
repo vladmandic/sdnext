@@ -28,7 +28,7 @@ def parse_isotime(time_string: str) -> datetime:
 def format_eztime(d: datetime, local = False) -> str:
     if d.tzinfo is None:
         return d.strftime('%Y-%m-%d %H:%M')
-    return d.astimezone(timezone.utc if local else None).strftime('%Y-%m-%d %H:%M %Z')
+    return d.astimezone(None if local else timezone.utc).strftime('%Y-%m-%d %H:%M %Z')
 
 
 def active():
