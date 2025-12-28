@@ -106,7 +106,7 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
             ext.check_updates()
             if ext.can_update:
                 ext.git_fetch()
-                ext.read_info(True)
+                ext.read_info()
                 commit_date = ext.commit_date or 1577836800
                 shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
             else:
@@ -227,7 +227,7 @@ def update_extension(extension_path, search_text, sort_column):
             ext.check_updates()
             if ext.can_update:
                 ext.git_fetch()
-                ext.read_info(True)
+                ext.read_info()
                 commit_date = ext.commit_date or 1577836800
                 shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
             else:
