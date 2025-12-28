@@ -31,6 +31,10 @@ def format_eztime(d: datetime, local = False) -> str:
     return d.astimezone(None if local else timezone.utc).strftime('%Y-%m-%d %H:%M %Z')
 
 
+def ts2utc(timestamp: int) -> datetime:
+    return datetime.fromtimestamp(timestamp, timezone.utc)
+
+
 def active():
     if shared.opts.disable_all_extensions == "all":
         return []
