@@ -109,10 +109,10 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
                 ext.git_fetch()
                 ext.read_info(True)
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
+                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date), seconds=True)}')
             else:
                 commit_date = ext.commit_date or 1577836800
-                shared.log.debug(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
+                shared.log.debug(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date), seconds=True)}')
         except FileNotFoundError as e:
             if 'FETCH_HEAD' not in str(e):
                 raise
@@ -230,10 +230,10 @@ def update_extension(extension_path, search_text, sort_column):
                 ext.git_fetch()
                 ext.read_info(True)
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
+                shared.log.info(f'Extensions updated: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date), seconds=True)}')
             else:
                 commit_date = ext.commit_date or 1577836800
-                shared.log.info(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date))}')
+                shared.log.info(f'Extensions no update available: {ext.name} {ext.commit_hash[:8]} {extensions.format_dt(extensions.ts2utc(commit_date), seconds=True)}')
         except FileNotFoundError as e:
             if 'FETCH_HEAD' not in str(e):
                 raise
@@ -342,7 +342,7 @@ def create_html(search_text, sort_column):
         local_ver_date = datetime.fromtimestamp(ext['commit_date'], timezone.utc) # TZ-aware
         update_available = (installed is not None) and (not ext['is_builtin']) and (ext['remote'] is not None) and (updated > local_ver_date) # TZ-aware
         if update_available:
-            debug(f'Extension update available: name={ext["name"]} updated={extensions.format_dt(updated)} commit={extensions.format_dt(local_ver_date)}') # TZ-aware
+            debug(f'Extension update available: name={ext["name"]} updated={extensions.format_dt(updated, seconds=True)} commit={extensions.format_dt(local_ver_date, seconds=True)}') # TZ-aware
         ext['sort_user'] = f"{'0' if ext['is_builtin'] else '1'}{'1' if ext['installed'] else '0'}{ext.get('name', '')}"
         ext['sort_enabled'] = f"{'0' if ext['enabled'] else '1'}{'1' if ext['is_builtin'] else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00Z')}"
         ext['sort_update'] = f"{'1' if update_available else '0'}{'1' if ext['installed'] else '0'}{ext.get('updated', '2000-01-01T00:00Z')}"

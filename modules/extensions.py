@@ -25,10 +25,12 @@ def parse_isotime(time_string: str) -> datetime:
             raise ValueError(f"Unexpected time string format: '{time_string}'")
 
 
-def format_dt(d: datetime) -> str:
+def format_dt(d: datetime, seconds = False) -> str:
     if d.tzinfo is None:
         return d.strftime('%Y-%m-%d %H:%M')
-    return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S') # Ensure UTC time is shown (just in case)
+    if seconds:
+        return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M')
 
 
 def ts2utc(timestamp: int) -> datetime:
