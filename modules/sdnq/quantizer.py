@@ -391,7 +391,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="int2", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, use_quantized_matmul=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=False, svd_up=None, svd_down=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="int2", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, use_quantized_matmul=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
     if torch_dtype is None:
         torch_dtype = weight.dtype
     weights_dtype_order_to_use = weights_dtype_order_fp32 if torch_dtype in {torch.float32, torch.float64} else weights_dtype_order
@@ -431,7 +431,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             param_name=param_name,
         )
 
-        if not svd_is_transposed and sdnq_dequantizer.use_quantized_matmul:
+        if use_svd and not svd_is_transposed and sdnq_dequantizer.use_quantized_matmul:
             svd_up = svd_up.t_()
             svd_down = svd_down.t_()
             svd_is_transposed = True
