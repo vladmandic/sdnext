@@ -32,7 +32,7 @@ def pack_float(x: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
     x = x.to(dtype=torch.float32).view(torch.int32)
 
     x = torch.where(
-        torch.greater(
+        torch.gt(
             torch.bitwise_and(x, -(1 << (mantissa_difference-4)) & ~(-mantissa_mask)),
             (1 << (mantissa_difference-1)),
         ),

@@ -19,7 +19,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
 def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
 def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
     global locking_available # pylint: disable=global-statement
-    data = {}
+    data = {} if as_type == "dict" else []
     lock_file = None
     locked = False
     if lock and locking_available:
@@ -59,11 +59,17 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     except Exception:
         locking_available = False
     if isinstance(data, list) and as_type == "dict":
+        if not data:
+            return {}
+        log.warning(f"Read: Expected dictionary from '{filename}' but got list")
         data0 = data[0]
         if isinstance(data0, dict):
             return data0
         return {}
     if isinstance(data, dict) and as_type == "list":
+        if not data:
+            return []
+        log.warning(f"Read: Expected list from '{filename}' but got dictionary")
         return [data]
     return data
 
