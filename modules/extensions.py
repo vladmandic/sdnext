@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import git
 from modules import shared, errors
 from modules.paths import extensions_dir, extensions_builtin_dir
@@ -9,6 +9,30 @@ from modules.paths import extensions_dir, extensions_builtin_dir
 extensions: list[Extension] = []
 if not os.path.exists(extensions_dir):
     os.makedirs(extensions_dir)
+
+
+def parse_isotime(time_string: str) -> datetime:
+    # If Python minimum version is 3.11+, this function can be replaced with datetime.fromisoformat()
+    trimmed = time_string.rstrip("Z")
+    if "." in trimmed:
+        trimmed = trimmed.split(".")[0]
+    match len(trimmed):
+        case 16:
+            return datetime.strptime(trimmed, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc)
+        case 19:
+            return datetime.strptime(trimmed, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        case _:
+            raise ValueError(f"Unexpected time string format: '{time_string}'")
+
+
+def format_dt(d: datetime) -> str:
+    if d.tzinfo is None:
+        return d.strftime('%Y-%m-%d %H:%M')
+    return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S') # Ensure UTC time is shown (just in case)
+
+
+def ts2utc(timestamp: int) -> datetime:
+    return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 def active():
@@ -106,8 +130,8 @@ class Extension:
         self.branch = None
         self.remote = None
         self.have_info_from_repo = False
-        self.mtime = 0
-        self.ctime = 0
+        self.mtime = "2000-01-01T00:00Z"
+        self.ctime = "2000-01-01T00:00Z"
 
     def read_info(self, force=False):
         if self.have_info_from_repo and not force:
@@ -142,7 +166,7 @@ class Extension:
                 except Exception:
                     self.branch = 'unknown'
                 self.commit_hash = head.hexsha
-                self.version = f"<p>{self.commit_hash[:8]}</p><p>{datetime.fromtimestamp(self.commit_date).strftime('%a %b%d %Y %H:%M')}</p>"
+                self.version = f"<p>{self.commit_hash[:8]}</p><p>{format_dt(ts2utc(self.commit_date))}</p>"
             except Exception as ex:
                 shared.log.error(f"Extension: failed reading data from git repo={self.name}: {ex}")
                 self.remote = None
