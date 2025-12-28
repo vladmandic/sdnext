@@ -3,6 +3,7 @@ import json
 import shutil
 import errno
 import html
+import re
 from datetime import datetime, timezone, timedelta
 import gradio as gr
 from modules import extensions, shared, paths, errors, ui_symbols, call_queue
@@ -268,6 +269,16 @@ def search_extensions(search_text, sort_column):
     return code, f'Search | {search_text} | {sort_column}'
 
 
+def make_wrappable_html(text: str) -> str:
+        text = html.escape(text)
+        if "_" in text:
+            return text.replace("_", "<wbr />_")
+        elif "-" not in text:
+            return re.sub(r"(?<=[a-z])([A-Z])", r"<wbr />\1", text)
+        else:
+            return text
+
+
 def create_html(search_text, sort_column):
     # shared.log.debug(f'Extensions manager: refresh list search="{search_text}" sort="{sort_column}"')
     code = """
@@ -406,7 +417,7 @@ def create_html(search_text, sort_column):
             <tr style="display: {visible}">
                 <td>{status}</td>
                 <td{' class="extension_status"' if ext['installed'] else ''}>{enabled_code}</td>
-                <td><a href="{html.escape(ext.get('url', ''))}" title={html.escape(ext.get('url', ''))} target="_blank" class="name">{html.escape(ext.get("name", "unknown"))}</a><br>{tags_text}</td>
+                <td><a href="{html.escape(ext.get('url', ''))}" title={html.escape(ext.get('url', ''))} target="_blank" class="name">{make_wrappable_html(ext.get("name", "unknown"))}</a><br>{tags_text}</td>
                 <td>{html.escape(ext.get("description", ""))}
                     <p class="info"><span class="date">Created {html.escape(dt('created'))} | Added {html.escape(dt('added'))} | Pushed {html.escape(dt('pushed'))} | Updated {html.escape(dt('updated'))}</span></p>
                     <p class="info"><span class="date">{author} | Stars {html.escape(str(ext.get('stars', 0)))} | Size {html.escape(str(ext.get('size', 0)))} | Commits {html.escape(str(ext.get('commits', 0)))} | Issues {html.escape(str(ext.get('issues', 0)))} | Trending {html.escape(str(ext['sort_trending']))}</span></p>
