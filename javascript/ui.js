@@ -254,7 +254,12 @@ function submit_control(...args) {
   const res = create_submit_args(args);
   res[0] = id;
   res[1] = window.submit_state;
-  res[2] = gradioApp().querySelector('#control-tabs > .tab-nav > .selected')?.innerText.toLowerCase() || ''; // selected tab name
+
+  const tabs = Array.from(gradioApp().querySelectorAll('#control-tabs > .tab-nav > button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['ControlNet', 'T2I Adapter', 'XS', 'Lite', 'Reference'];
+  const selectedTab = tabNames[tabIdx] || 'ControlNet';
+  res[2] = selectedTab.toLowerCase();
   window.submit_state = '';
   return res;
 }

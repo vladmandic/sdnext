@@ -1,14 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-27
+## Update for 2025-12-28
 
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
 - **Internal**
   - update reference models previews, thanks @liutyi  
+  - sdnq improvements  
 - **Fixes**
-  - extension update checker, thanks @awsr  
+  - extension tab: update checker, date handling, formatting etc., thanks @awsr  
+  - controlnet with non-english ui locales  
 
 ## Update for 2025-12-26
 
