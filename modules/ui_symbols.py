@@ -50,10 +50,10 @@ style_save = '↷'
 # Configurable symbols
 
 class SVGSymbol:
-    __re_display = re.compile(r"(?<=display:\s*?)\w+(?=;)")
+    __re_display = re.compile(r"(?<=display:)\s*?(\w+)(?=;)")
 
-    @lru_cache  # Class method due to RUF001, but also mostly so the `style` method shows params in IDE
     @classmethod
+    @lru_cache  # Class method due to RUF001, but also mostly so the `style` method shows params in IDE
     def __stylize(cls, svg: str, color: str | None = None, display: str | None = None):
         if color:
             svg = re.sub("currentColor", color, svg, count=1)
