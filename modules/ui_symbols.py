@@ -81,4 +81,4 @@ class SVGSymbol:
         return self.svg
 
 
-svg_bullet = SVGSymbol("<svg style='stroke:currentColor;fill:none;stroke-width:2;' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7'/></svg>")
+svg_bullet = SVGSymbol("<svg style='stroke:currentColor;fill:none;stroke-width:2;display:block;' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7'/></svg>")
