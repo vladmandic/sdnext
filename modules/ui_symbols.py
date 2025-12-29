@@ -1,5 +1,6 @@
 import re
 from functools import lru_cache
+from typing import final
 
 
 # Basic symbols
@@ -49,19 +50,25 @@ style_save = '↷'
 
 # Configurable symbols
 
+@final
 class SVGSymbol:
+    __created = []
     __re_display = re.compile(r"(?<=display:)\s*?(\w+)(?=;)")
 
     @classmethod
-    @lru_cache  # Class method due to RUF001, but also mostly so the `style` method shows params in IDE
+    @lru_cache  # Class method due to B019, but also mostly so the `style` method shows params in IDE
     def __stylize(cls, svg: str, color: str | None = None, display: str | None = None):
         if color:
-            svg = re.sub("currentColor", color, svg, count=1)
+            svg = re.sub("currentColor", color, svg)
         if display:
             svg = cls.__re_display.sub(display, svg, count=1)
         return svg
 
     def __init__(self, svg: str):
+        if svg in self.__created:
+            raise RuntimeError("SVGSymbol class was created with an existing value. There should only be one instance per symbol.", svg)
+        else:
+            self.__created.append(svg)
         self.svg = svg
         self.supports_color = False
         self.supports_display = False
