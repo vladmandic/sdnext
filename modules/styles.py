@@ -6,6 +6,7 @@ import csv
 import json
 import time
 import random
+from typing import Dict
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 
 
@@ -44,6 +45,87 @@ def apply_styles_to_prompt(prompt, styles):
         prompt = merge_prompts(style, prompt)
     return prompt
 
+def select_from_weighted_list(inner: str) -> str:
+    """Select an option from `inner` where explicit weights are probabilities in [0,1].
+
+    Behavior:
+    - Weights specified as `name:prob` are clamped to [0,1].
+    - If there are unweighted options, they share the remaining probability mass equally.
+    - If only weighted options are present and their sum != 1, they are normalized to sum to 1.
+    - If all probabilities are zero, falls back to uniform choice among keys.
+
+    Examples and test cases:
+        "x|y|z",
+        "x:0|y:0|z:0",
+        "x:0.1|y:0.9",
+        "x:0|y|z:0",
+        "",
+        "x:0.5|y|z",
+        "x:1|y:2|z:4",
+        "x:2|y|z",
+    """
+    if not inner:
+        return ''
+
+    parts = [p.strip() for p in inner.split('|') if p.strip()]
+    weighted: Dict[str, float] = {}
+    unweighted = []
+
+    for p in parts:
+        if ':' in p:
+            name, wstr = p.split(':', 1)
+            name = name.strip()
+            try:
+                w = float(wstr.strip())
+            except Exception:
+                w = 0.0
+            # clamp to [0,1]
+            w = max(0.0, min(1.0, w))
+            weighted[name] = weighted.get(name, 0.0) + w
+        else:
+            unweighted.append(p)
+
+    W = sum(weighted.values())
+    U = len(unweighted)
+
+    if U == 0:
+        # Only weighted options
+        keys = list(weighted.keys())
+        if not keys:
+            return ''
+        if W == 0.0:
+            return random.choice(keys)
+        if abs(W - 1.0) > 1e-12:
+            for k in weighted:
+                weighted[k] = weighted[k] / W
+    else:
+        # Mix of weighted and unweighted
+        if W >= 1.0:
+            # Weighted probabilities consume whole mass -> normalize them, unweighted get 0
+            for k in weighted:
+                weighted[k] = weighted[k] / W
+        else:
+            remaining = 1.0 - W
+            per = remaining / U
+            for name in unweighted:
+                weighted[name] = weighted.get(name, 0.0) + per
+
+    items = list(weighted.items())
+    if not items:
+        return ''
+    total = sum(v for _, v in items)
+    if total <= 0.0:
+        return items[0][0]
+
+    r = random.random() * total
+    cum = 0.0
+    for name, prob in items:
+        cum += prob
+        if r <= cum:
+            # print (r, "/", cum)
+            return name
+    return items[-1][0]
+
 
 def apply_curly_braces_to_prompt(prompt, seed=-1):
     # woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
@@ -60,8 +142,7 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
             if not m:
                 break
             inner = m.group(1)
-            options = [opt.strip() for opt in inner.split('|')]
-            choice = random.choice([o for o in options if o != '']) if options else ''
+            choice = select_from_weighted_list(inner)
             prompt = prompt[:m.start()] + choice + prompt[m.end():] # replace this specific span (slice-based) to avoid accidental other replacements
     finally:
         if old_state is not None:
