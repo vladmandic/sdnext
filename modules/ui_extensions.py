@@ -30,6 +30,8 @@ sort_ordering = {
 }
 
 
+re_snake_case = re.compile(r'_(?=[a-zA-z0-9])')
+re_camelCase = re.compile(r'(?<=[a-z])([A-Z])')
 def get_installed(ext):
     installed = [e for e in extensions.extensions if (e.remote or '').startswith(ext['url'].replace('.git', ''))]
     return installed[0] if len(installed) > 0 else None
@@ -271,12 +273,8 @@ def search_extensions(search_text, sort_column):
 
 def make_wrappable_html(text: str) -> str:
         text = html.escape(text)
-        if "_" in text:
-            return text.replace("_", "<wbr />_")
-        elif "-" not in text:
-            return re.sub(r"(?<=[a-z])([A-Z])", r"<wbr />\1", text)
-        else:
-            return text
+        text = re_snake_case.sub("<wbr />_", text)
+        return re_camelCase.sub(r"<wbr />\1", text)
 
 
 def create_html(search_text, sort_column):
