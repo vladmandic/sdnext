@@ -32,6 +32,10 @@ sort_ordering = {
 
 re_snake_case = re.compile(r'_(?=[a-zA-z0-9])')
 re_camelCase = re.compile(r'(?<=[a-z])([A-Z])')
+th_status = shared.if_modern(f'<span style="user-select:none;cursor:help" title="Status">{ui_symbols.info_btn}</span>', "Status")
+th_enabled = shared.if_modern(f'<span style="user-select:none;cursor:help" title="Enabled">{ui_symbols.check_btn}</span>', "Enabled")
+
+
 def get_installed(ext):
     installed = [e for e in extensions.extensions if (e.remote or '').startswith(ext['url'].replace('.git', ''))]
     return installed[0] if len(installed) > 0 else None
@@ -279,7 +283,7 @@ def make_wrappable_html(text: str) -> str:
 
 def create_html(search_text, sort_column):
     # shared.log.debug(f'Extensions manager: refresh list search="{search_text}" sort="{sort_column}"')
-    code = """
+    code = f"""
         <div id="extensions-div">
         <table id="extensions">
             <colgroup>
@@ -293,8 +297,8 @@ def create_html(search_text, sort_column):
             </colgroup>
             <thead style="font-size: 110%; border-style: solid; border-bottom: 1px var(--button-primary-border-color) solid">
             <tr>
-                <th>Status</th>
-                <th>Enabled</th>
+                <th>{th_enabled}</th>
+                <th>{th_status}</th>
                 <th>Extension</th>
                 <th>Description</th>
                 <th>Type</th>
@@ -377,7 +381,7 @@ def create_html(search_text, sort_column):
                 stats['enabled'] += 1
             type_code = f"""<div class="type">{"SYSTEM" if ext['is_builtin'] else 'USER'}</div>"""
             version_code = f"""<div class="version" style="background: {"--input-border-color-focus" if update_available else "inherit"}">{ext['version']}</div>"""
-            enabled_code = f"""<input class="gr-check-radio gr-checkbox" name="enable_{html.escape(ext.get("name", "unknown"))}" type="checkbox" {'checked="checked"' if ext.get("enabled", False) else ''}>"""
+            enabled_code = f"""<input class="gr-check-radio gr-checkbox" style="display:block;margin:auto;" name="enable_{html.escape(ext.get("name", "unknown"))}" type="checkbox" {'checked="checked"' if ext.get("enabled", False) else ''}>"""
             masked_path = html.escape(ext.get("path", "").replace('\\', '/'))
             if not ext['is_builtin']:
                 install_code = f"""<button onclick="uninstall_extension(this, '{masked_path}')" class="lg secondary gradio-button custom-button extension-button">uninstall</button>"""
@@ -389,36 +393,36 @@ def create_html(search_text, sort_column):
         if ext.get('status', None) is None or type(ext['status']) == str: # old format
             ext['status'] = 0
         if ext['url'] is None or ext['url'] == '':
-            status = f"<div style='cursor:help;width:1em;' title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
+            status = f"<div style='cursor:help;width:1em;margin:auto;' title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
         elif ext['status'] > 0:
             if ext['status'] == 1:
-                status = f"<div style='cursor:help;width:1em;' title='Verified'>{ui_symbols.svg_bullet.style('#00FD9C')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Verified'>{ui_symbols.svg_bullet.style('#00FD9C')}</div>"
             elif ext['status'] == 2:
-                status = f"<div style='cursor:help;width:1em;' title='Supported only with backend: Original'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Supported only with backend: Original'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
             elif ext['status'] == 3:
-                status = f"<div style='cursor:help;width:1em;' title='Supported only with backend: Diffusers'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Supported only with backend: Diffusers'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
             elif ext['status'] == 4:
-                status = f"<div style='cursor:help;width:1em;' title=\"{html.escape(ext.get('note', 'custom value'))}\">{ui_symbols.svg_bullet.style('#4E22FF')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title=\"{html.escape(ext.get('note', 'custom value'))}\">{ui_symbols.svg_bullet.style('#4E22FF')}</div>"
             elif ext['status'] == 5:
-                status = f"<div style='cursor:help;width:1em;' title='Not supported'>{ui_symbols.svg_bullet.style('#CE0000')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Not supported'>{ui_symbols.svg_bullet.style('#CE0000')}</div>"
             elif ext['status'] == 6:
-                status = f"<div style='cursor:help;width:1em;' title='Just discovered'>{ui_symbols.svg_bullet.style('#AEAEAE')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Just discovered'>{ui_symbols.svg_bullet.style('#AEAEAE')}</div>"
             else:
-                status = f"<div style='cursor:help;width:1em;' title='Unknown status'>{ui_symbols.svg_bullet.style('#008EBC')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Unknown status'>{ui_symbols.svg_bullet.style('#008EBC')}</div>"
         else:
             if updated < datetime.now(timezone.utc) - timedelta(6*30): # TZ-aware
-                status = f"<div style='cursor:help;width:1em;' title='Unmaintained'>{ui_symbols.svg_bullet.style('#C000CF')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Unmaintained'>{ui_symbols.svg_bullet.style('#C000CF')}</div>"
             else:
-                status = f"<div style='cursor:help;width:1em;' title='No info'>{ui_symbols.svg_bullet.style('#7C7C7C')}</div>"
+                status = f"<div style='cursor:help;width:1em;margin:auto;' title='No info'>{ui_symbols.svg_bullet.style('#7C7C7C')}</div>"
 
         code += f"""
             <tr style="display: {visible}">
-                <td>{status}</td>
                 <td{' class="extension_status"' if ext['installed'] else ''}>{enabled_code}</td>
+                <td>{status}</td>
                 <td><a href="{html.escape(ext.get('url', ''))}" title={html.escape(ext.get('url', ''))} target="_blank" class="name">{make_wrappable_html(ext.get("name", "unknown"))}</a><br>{tags_text}</td>
                 <td>{html.escape(ext.get("description", ""))}
-                    <p class="info"><span class="date">Created {html.escape(dt('created'))} | Added {html.escape(dt('added'))} | Pushed {html.escape(dt('pushed'))} | Updated {html.escape(dt('updated'))}</span></p>
-                    <p class="info"><span class="date">{author} | Stars {html.escape(str(ext.get('stars', 0)))} | Size {html.escape(str(ext.get('size', 0)))} | Commits {html.escape(str(ext.get('commits', 0)))} | Issues {html.escape(str(ext.get('issues', 0)))} | Trending {html.escape(str(ext['sort_trending']))}</span></p>
+                    <p class="info"><span class="date">Created: {html.escape(dt('created'))} | Added: {html.escape(dt('added'))} | Pushed: {html.escape(dt('pushed'))} | Updated: {html.escape(dt('updated'))}</span></p>
+                    <p class="info"><span class="date">{author} | Stars: {html.escape(str(ext.get('stars', 0)))} | Size: {html.escape(str(ext.get('size', 0)))} | Commits: {html.escape(str(ext.get('commits', 0)))} | Issues: {html.escape(str(ext.get('issues', 0)))} | Trending: {html.escape(str(ext['sort_trending']))}</span></p>
                 </td>
                 <td>{type_code}</td>
                 <td>{version_code}</td>
