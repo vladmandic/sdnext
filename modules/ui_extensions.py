@@ -381,7 +381,7 @@ def create_html(search_text, sort_column):
                 stats['enabled'] += 1
             type_code = f"""<div class="type">{"SYSTEM" if ext['is_builtin'] else 'USER'}</div>"""
             version_code = f"""<div class="version" style="background: {"--input-border-color-focus" if update_available else "inherit"}">{ext['version']}</div>"""
-            enabled_code = f"""<input class="gr-check-radio gr-checkbox" style="display:block;margin:auto;" name="enable_{html.escape(ext.get("name", "unknown"))}" type="checkbox" {'checked="checked"' if ext.get("enabled", False) else ''}>"""
+            enabled_code = f"""<input class="gr-check-radio gr-checkbox" style="display:block;margin:auto;width:fit-content;" name="enable_{html.escape(ext.get("name", "unknown"))}" type="checkbox" {'checked="checked"' if ext.get("enabled", False) else ''}>"""
             masked_path = html.escape(ext.get("path", "").replace('\\', '/'))
             if not ext['is_builtin']:
                 install_code = f"""<button onclick="uninstall_extension(this, '{masked_path}')" class="lg secondary gradio-button custom-button extension-button">uninstall</button>"""
