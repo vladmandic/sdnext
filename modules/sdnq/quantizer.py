@@ -991,7 +991,7 @@ class SDNQConfig(QuantizationConfigMixin):
         use_stochastic_rounding (`bool`, *optional*, defaults to `False`):
             Enabling this option will use stochastic rounding on the quantization step.
         use_dynamic_quantization (`bool`, *optional*, defaults to `False`):
-            Enabling this option will dynamically select a quantization type based on the dynamic_loss_threshold.
+            Enabling this option will dynamically select a per layer quantization type based on the dynamic_loss_threshold.
             weights_dtype will be used as the minimum allowed quantization type when this option is enabled.
         dequantize_fp32 (`bool`, *optional*, defaults to `False`):
             Enabling this option will use FP32 on the dequantization step.
