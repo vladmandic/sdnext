@@ -67,6 +67,7 @@ class SVGSymbol:
         return svg
 
     def __init__(self, svg: str):
+        svg = re.sub(r"\s{2,}", " ", svg.replace("\n", "")).replace("> <", "><").strip()
         if svg in self.__created:
             raise RuntimeError("SVGSymbol class was created with an existing value. There should only be one instance per symbol.", svg)
         else:
