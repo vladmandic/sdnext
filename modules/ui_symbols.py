@@ -53,7 +53,7 @@ style_save = '↷'
 @final
 class SVGSymbol:
     __created = []
-    __re_display = re.compile(r"(?<=display:)\s*?(\w+)(?=;)")
+    __re_display = re.compile(r"(?<=display:)\s*([\w\-]+)(?=;)")
 
     @classmethod
     @lru_cache  # Class method due to B019, but also mostly so the `style` method shows params in IDE
