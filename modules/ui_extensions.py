@@ -126,26 +126,27 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
     return create_html(search_text, sort_column), "Extension update complete | Restart required"
 
 
-def normalize_git_url(url) -> str:
-    return '' if url is None else url.removesuffix('.git')
+def normalize_git_url(url: str | None) -> str:
+    return '' if url is None else url.strip().removesuffix('.git')
 
 
 def install_extension_from_url(dirname, url, branch_name, search_text, sort_column):
     if shared.cmd_opts.disable_extension_access:
         shared.log.error('Extension: apply changes disallowed because public access is enabled and insecure is not specified')
         return ['', '']
-    if url is None or len(url) == 0:
+    url = normalize_git_url(url)
+    if not url:
         shared.log.error('Extension: url is not specified')
         return ['', '']
-    if dirname is None or dirname == "":
-        dirname = normalize_git_url(url.split('/')[-1])
+    if not dirname:
+        dirname = url.split('/')[-1]
     target_dir = os.path.join(extensions.extensions_dir, dirname)
     shared.log.info(f'Installing extension: {url} into {target_dir}')
     if os.path.exists(target_dir):
         shared.log.error(f'Extension: path="{target_dir}" directory already exists')
         return ['', '']
-    url = normalize_git_url(url)
-    assert len([x for x in extensions.extensions if normalize_git_url(x.remote) == url]) == 0, 'Extension with this URL is already installed'
+    if any(normalize_git_url(x.remote) == url for x in extensions.extensions):
+        return ['', "Extension with this URL is already installed"]
     tmpdir = os.path.join(paths.data_path, "tmp", dirname)
     try:
         import git
