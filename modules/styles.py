@@ -55,14 +55,17 @@ def select_from_weighted_list(inner: str) -> str:
     - If all probabilities are zero, falls back to uniform choice among keys.
 
     Examples and test cases:
-        "x|y|z",
-        "x:0|y:0|z:0",
-        "x:0.1|y:0.9",
-        "x:0|y|z:0",
         "",
-        "x:0.5|y|z",
-        "x:1|y:2|z:4",
-        "x:2|y|z",
+        "woman with {red|blonde|black} hair",
+        "woman with {red|blonde|{black|brown}} hair",
+        "woman with {red:0.5|blonde|{black:0.3|brown}} hair",
+        "woman with {red:0|blonde:0|black:0} hair",
+        "woman with {red:0.1|blonde:0.9} hair",
+        "woman with {red:0|blonde|black:0} hair",
+        "woman with {red:.5|blonde.1|black} hair",
+        "woman with {red:1|blonde:2|black:4} hair",
+        "woman with {red:2|blonde|black} hair",
+        "woman with {red:0.7|(blonde:1.3)|(black:1.2)} hair",
     """
     if not inner:
         return ''
@@ -72,7 +75,7 @@ def select_from_weighted_list(inner: str) -> str:
     unweighted = []
 
     for p in parts:
-        if ':' in p:
+        if ':' in p and not p.startswith('(') and not p.endswith(')'):
             name, wstr = p.split(':', 1)
             name = name.strip()
             try:
@@ -122,13 +125,13 @@ def select_from_weighted_list(inner: str) -> str:
     for name, prob in items:
         cum += prob
         if r <= cum:
-            # print (r, "/", cum)
             return name
     return items[-1][0]
 
 
 def apply_curly_braces_to_prompt(prompt, seed=-1):
-    # woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
+    # unweighted: woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
+    # weighted: woman with {white:0.6|green:0.2|{purple|yellow}} highlights and {red:.6|blue:.4} dress
     if not isinstance(prompt, str) or len(prompt) == 0:
         return prompt
     old_state = None
