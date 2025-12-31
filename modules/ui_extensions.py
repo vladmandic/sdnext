@@ -32,8 +32,6 @@ sort_ordering = {
 
 re_snake_case = re.compile(r'_(?=[a-zA-z0-9])')
 re_camelCase = re.compile(r'(?<=[a-z])([A-Z])')
-th_status = shared.if_modern(f'<span style="user-select:none;cursor:help" title="Status">{ui_symbols.info_btn}</span>', "Status")
-th_enabled = shared.if_modern(f'<span style="user-select:none;cursor:help" title="Enabled">{ui_symbols.check_btn}</span>', "Enabled")
 
 
 def get_installed(ext):
@@ -283,7 +281,7 @@ def make_wrappable_html(text: str) -> str:
 
 def create_html(search_text, sort_column):
     # shared.log.debug(f'Extensions manager: refresh list search="{search_text}" sort="{sort_column}"')
-    code = f"""
+    code = """
         <div id="extensions-div">
         <table id="extensions">
             <colgroup>
@@ -297,8 +295,8 @@ def create_html(search_text, sort_column):
             </colgroup>
             <thead style="font-size: 110%; border-style: solid; border-bottom: 1px var(--button-primary-border-color) solid">
             <tr>
-                <th>{th_enabled}</th>
-                <th>{th_status}</th>
+                <th></th>
+                <th></th>
                 <th>Extension</th>
                 <th>Description</th>
                 <th>Type</th>
@@ -393,27 +391,27 @@ def create_html(search_text, sort_column):
         if ext.get('status', None) is None or type(ext['status']) == str: # old format
             ext['status'] = 0
         if ext['url'] is None or ext['url'] == '':
-            status = f"<div style='cursor:help;width:1em;margin:auto;' title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
+            status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
         elif ext['status'] > 0:
             if ext['status'] == 1:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Verified'>{ui_symbols.svg_bullet.style('#00FD9C')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Verified'>{ui_symbols.svg_bullet.style('#00FD9C')}</div>"
             elif ext['status'] == 2:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Supported only with backend: Original'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Supported only with backend: Original'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
             elif ext['status'] == 3:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Supported only with backend: Diffusers'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Supported only with backend: Diffusers'>{ui_symbols.svg_bullet.style('#FFC300')}</div>"
             elif ext['status'] == 4:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title=\"{html.escape(ext.get('note', 'custom value'))}\">{ui_symbols.svg_bullet.style('#4E22FF')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title=\"{html.escape(ext.get('note', 'custom value'))}\">{ui_symbols.svg_bullet.style('#4E22FF')}</div>"
             elif ext['status'] == 5:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Not supported'>{ui_symbols.svg_bullet.style('#CE0000')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Not supported'>{ui_symbols.svg_bullet.style('#CE0000')}</div>"
             elif ext['status'] == 6:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Just discovered'>{ui_symbols.svg_bullet.style('#AEAEAE')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Just discovered'>{ui_symbols.svg_bullet.style('#AEAEAE')}</div>"
             else:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Unknown status'>{ui_symbols.svg_bullet.style('#008EBC')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Unknown status'>{ui_symbols.svg_bullet.style('#008EBC')}</div>"
         else:
             if updated < datetime.now(timezone.utc) - timedelta(6*30): # TZ-aware
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='Unmaintained'>{ui_symbols.svg_bullet.style('#C000CF')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='Unmaintained'>{ui_symbols.svg_bullet.style('#C000CF')}</div>"
             else:
-                status = f"<div style='cursor:help;width:1em;margin:auto;' title='No info'>{ui_symbols.svg_bullet.style('#7C7C7C')}</div>"
+                status = f"<div style='cursor:help;width:1rem;margin:auto;' title='No info'>{ui_symbols.svg_bullet.style('#7C7C7C')}</div>"
 
         code += f"""
             <tr style="display: {visible}">

@@ -5,7 +5,7 @@ import sys
 import time
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 import gradio as gr
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
@@ -29,9 +29,6 @@ if TYPE_CHECKING:
     from diffusers import DiffusionPipeline
     from modules.shared_legacy import LegacyOption
     from modules.ui_extra_networks import ExtraNetworksPage
-
-M = TypeVar("M")
-S = TypeVar("S")
 
 
 class Backend(Enum):
@@ -118,16 +115,6 @@ def list_checkpoint_titles():
 
 list_checkpoint_tiles = list_checkpoint_titles # alias for legacy typo
 default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
-
-
-def if_modern(modern: M, standard: S = None) -> M | S:
-    """Return input depending on whether Modern UI is being used or not.
-
-    Args:
-        modern (Any): Value to return if Modern UI is being used.
-        standard (Any, optional): Value to return if Modern UI is NOT being used. Defaults to None.
-    """
-    return modern if opts.theme_type == "Modern" else standard
 
 
 def is_url(string):
