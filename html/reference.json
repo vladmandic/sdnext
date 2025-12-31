@@ -182,6 +182,15 @@
     "size": 56.1,
     "date": "2025 August"
   },
+    "Qwen-Image-2512": {
+    "path": "Qwen/Qwen-Image-2512",
+    "preview": "Qwen--Qwen-Image-2512.jpg",
+    "desc": "Qwen-Image-2512 is an Qwen Image successor, that significantly reduces the AI-generated look, got finer natural detailils and improved text rendering.",
+    "skip": true,
+    "extras": "",
+    "size": 53.7,
+    "date": "2025 December"
+  },
   "Qwen-Image-Edit": {
     "path": "Qwen/Qwen-Image-Edit",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
