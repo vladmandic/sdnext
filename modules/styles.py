@@ -1,4 +1,3 @@
-# We need this so Python doesn't complain about the unknown StableDiffusionProcessing-typehint at runtime
 from __future__ import annotations
 import re
 import os
@@ -45,28 +44,8 @@ def apply_styles_to_prompt(prompt, styles):
         prompt = merge_prompts(style, prompt)
     return prompt
 
+
 def select_from_weighted_list(inner: str) -> str:
-    """Select an option from `inner` where explicit weights are probabilities in [0,1].
-
-    Behavior:
-    - Weights specified as `name:prob` are clamped to [0,1].
-    - If there are unweighted options, they share the remaining probability mass equally.
-    - If only weighted options are present and their sum != 1, they are normalized to sum to 1.
-    - If all probabilities are zero, falls back to uniform choice among keys.
-
-    Examples and test cases:
-        "",
-        "woman with {red|blonde|black} hair",
-        "woman with {red|blonde|{black|brown}} hair",
-        "woman with {red:0.5|blonde|{black:0.3|brown}} hair",
-        "woman with {red:0|blonde:0|black:0} hair",
-        "woman with {red:0.1|blonde:0.9} hair",
-        "woman with {red:0|blonde|black:0} hair",
-        "woman with {red:.5|blonde.1|black} hair",
-        "woman with {red:1|blonde:2|black:4} hair",
-        "woman with {red:2|blonde|black} hair",
-        "woman with {red:0.7|(blonde:1.3)|(black:1.2)} hair",
-    """
     if not inner:
         return ''
 
@@ -82,7 +61,6 @@ def select_from_weighted_list(inner: str) -> str:
                 w = float(wstr.strip())
             except Exception:
                 w = 0.0
-            # clamp to [0,1]
             w = max(0.0, min(1.0, w))
             weighted[name] = weighted.get(name, 0.0) + w
         else:
@@ -155,12 +133,13 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
 
 def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, seed=-1):
     def check_wildcard_files(prompt, wildcard, files, file_only=True):
-        trimmed = wildcard.replace('\\', os.path.sep).strip().lower()
+        trimmed = wildcard.replace('\\', os.path.sep).replace('/', os.path.sep).strip().lower()
         for file in files:
             if file_only:
                 paths = [os.path.splitext(file)[0].lower(), os.path.splitext(os.path.basename(file).lower())[0]] # fullname and basename
             else:
                 paths = [os.path.splitext(p.lower())[0] for p in os.path.normpath(file).split(os.path.sep)] # every path component
+            paths.insert(0, os.path.splitext(file)[0].lower())
             if (trimmed in paths) or (os.path.sep in trimmed and trimmed in paths[0]):
                 try:
                     with open(file, 'r', encoding='utf-8') as f:
