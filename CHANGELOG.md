@@ -1,12 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2025-12-31
+## Update for 2025-01-01
 
+- **Models**
+  - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
+    Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
 - **Internal**
+  - improve extensions tab behavior and formatting, thanks @awsr  
   - update reference models previews, thanks @liutyi  
+  - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
