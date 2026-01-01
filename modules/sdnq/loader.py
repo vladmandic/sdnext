@@ -179,8 +179,8 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                     output_channel_size, channel_size = module.sdnq_dequantizer.original_shape
                 else:
                     current_use_quantized_matmul = False
-                current_use_quantized_matmul = current_use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32
-                current_use_quantized_matmul = current_use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0
+                current_use_quantized_matmul = current_use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 # pylint: disable=possibly-used-before-assignment
+                current_use_quantized_matmul = current_use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0 # pylint: disable=possibly-used-before-assignment
 
             if dtype is not None and module.sdnq_dequantizer.result_dtype != torch.float32:
                 module.sdnq_dequantizer.result_dtype = dtype

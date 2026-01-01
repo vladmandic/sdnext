@@ -275,9 +275,9 @@ def search_extensions(search_text, sort_column):
 
 
 def make_wrappable_html(text: str) -> str:
-        text = html.escape(text)
-        text = re_snake_case.sub("<wbr />_", text)
-        return re_camelCase.sub(r"<wbr />\1", text)
+    text = html.escape(text)
+    text = re_snake_case.sub("<wbr />_", text)
+    return re_camelCase.sub(r"<wbr />\1", text)
 
 
 def create_html(search_text, sort_column):

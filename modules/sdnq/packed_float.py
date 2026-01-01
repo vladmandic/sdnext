@@ -21,13 +21,13 @@ def pack_float(x: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
     total_bits = dtype_dict[weights_dtype]["num_bits"]
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
-        sign_mask = (1 << (total_bits-1))
+        sign_mask = (1 << (total_bits-1)) # pylint: disable=superfluous-parens
     else:
         sign_mask = (1 << (total_bits-1)) + (1 << (total_bits-2))
 
     mantissa_difference = 23 - mantissa_bits
     exponent_difference = 8 - exponent_bits
-    mantissa_mask = (1 << mantissa_difference)
+    mantissa_mask = (1 << mantissa_difference) # pylint: disable=superfluous-parens
 
     x = x.to(dtype=torch.float32).view(torch.int32)
 
@@ -65,7 +65,7 @@ def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torc
     total_bits = dtype_dict[weights_dtype]["num_bits"]
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
-        sign_mask = (1 << (total_bits-1))
+        sign_mask = (1 << (total_bits-1)) # pylint: disable=superfluous-parens
     else:
         sign_mask = (1 << (total_bits-1)) + (1 << (total_bits-2))
 
