@@ -855,6 +855,7 @@ async function fetchFilesHT(evt, controller) {
     }
   }
 
+  if (controller.signal.aborted) return;
   el.files.appendChild(fragment);
 
   const t1 = performance.now();
@@ -914,6 +915,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     }
   };
   ws.onclose = (event) => {
+    if (controller.signal.aborted) return;
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
