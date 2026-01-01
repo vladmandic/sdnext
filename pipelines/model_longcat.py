@@ -30,6 +30,9 @@ def load_longcat(checkpoint_info, diffusers_load_config=None):
         text_processor=text_processor,
         **load_args,
     )
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["longcat"] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["longcat"] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["longcat"] = cls
 
     del transformer
     del text_encoder
