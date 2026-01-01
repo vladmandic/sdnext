@@ -2,6 +2,9 @@
 
 ## Update for 2025-01-01
 
+- **Models**
+  - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
+    Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
