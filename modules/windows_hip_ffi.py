@@ -4,22 +4,32 @@ if sys.platform == "win32":
     import os
     import ctypes
     import ctypes.wintypes
+    import psutil
 
     class hipDeviceProp(ctypes.Structure):
         _fields_ = [
             ('bytes', ctypes.c_byte * 1472) # 1472 in amdhip64_6.dll, shorter in amdhip64_7.dll?
         ]
+    
+    def _get_loaded_amdhip() -> str:
+        p = psutil.Process(os.getpid())
+        for dll in p.memory_maps():
+            _, _, name = dll.path.rpartition('\\')
+            if name in ("amdhip64_7.dll", "amdhip64_6.dll", "amdhip64.dll"):
+                return dll.path
 
     class HIP:
         def __init__(self):
             ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
             ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
             self.handle = None
-            path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_7.dll"
-            if not os.path.isfile(path):
-                path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_6.dll"
-            if not os.path.isfile(path):
-                path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64.dll"
+            path = _get_loaded_amdhip()
+            if not path:
+                path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_7.dll"
+                if not os.path.isfile(path):
+                    path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64_6.dll"
+                if not os.path.isfile(path):
+                    path = os.environ.get("windir", "C:\\Windows") + "\\System32\\amdhip64.dll"
             assert os.path.isfile(path)
             self.handle = ctypes.windll.kernel32.LoadLibraryA(path.encode('utf-8'))
             ctypes.windll.kernel32.GetLastError.restype = ctypes.wintypes.DWORD
