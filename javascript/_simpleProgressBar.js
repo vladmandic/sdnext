@@ -12,7 +12,7 @@ class SimpleProgressBar {
 
   constructor(monitoredSet) {
     this.#monitoredSet = monitoredSet;  // This is required because incrementing a variable with a class method turned out to not be an atomic operation
-    this.#container.style.cssText = 'position:relative;width:100%;background-color:hsla(0,0%,36%,0.3);height:1.2rem;margin:0;padding:0;display:none;'
+    this.#container.style.cssText = 'position:relative;overflow:hidden;border-radius:var(--sd-border-radius);width:100%;background-color:hsla(0,0%,36%,0.3);height:1.2rem;margin:0;padding:0;display:none;'
     this.#progress.style.cssText = 'position:absolute;left:0;height:100%;width:0;transition:width 200ms;'
     this.#progress.style.backgroundColor = 'hsla(110, 32%, 35%, 0.80)';  // alt: '#27911d'
     this.#textDiv.style.cssText = 'position:relative;margin:auto;width:max-content;height:100%;';
