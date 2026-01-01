@@ -13,11 +13,13 @@ const fileStylesheet = new CSSStyleSheet();
 const iconStopwatch = String.fromCodePoint(9201);
 // Store separator states for the session
 const separatorStates = new Map();
+const galleryProgressBar = new SimpleProgressBar();
 const el = {
   folders: undefined,
   files: undefined,
   search: undefined,
   status: undefined,
+  progress: undefined,
   btnSend: undefined,
 };
 
@@ -861,6 +863,7 @@ async function fetchFilesHT(evt, controller) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  galleryProgressBar.setMax(numFiles);
   addSeparators();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
@@ -871,6 +874,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   maintenanceController.abort('Gallery update'); // Abort previous controller
   maintenanceController = controller; // Point to new controller for next time
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
+  galleryProgressBar.clearProgress();
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -920,6 +924,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    galleryProgressBar.setMax(numFiles);
     addSeparators();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
@@ -985,13 +990,16 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   el.files = gradioApp().getElementById('tab-gallery-files');
   el.status = gradioApp().getElementById('tab-gallery-status');
   el.search = gradioApp().querySelector('#tab-gallery-search textarea');
-  if (!el.folders || !el.files || !el.status || !el.search) {
+  el.progress = gradioApp().getElementById('tab-gallery-progress');
+  if (!el.folders || !el.files || !el.status || !el.search || el.progress) {
     error('initGallery', 'Missing gallery elements');
     return;
   }
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  galleryProgressBar.attachTo(el.progress);
+  galleryProgressBar.monitor(galleryHashes);
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
