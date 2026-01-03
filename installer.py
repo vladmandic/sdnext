@@ -946,7 +946,7 @@ def check_torch():
 
         if not is_cuda_available and not is_ipex_available and allow_rocm:
             from modules import rocm
-            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or (len(rocm.agents) != 0 if sys.platform == "win32" else rocm.is_installed)) # late eval to avoid unnecessary import
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()

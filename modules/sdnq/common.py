@@ -184,7 +184,7 @@ weights_dtype_order_fp32 = weights_dtype_order + [
     "uint16", "float16_e1m15fnu", "float16_e2m14fnu", "float16_e3m13fnu", "float16_e4m12fnu", "float16_e5m11fnu",
 ]
 
-is_rdna2 = bool(devices.backend == "rocm" and int(devices.get_hip_arch_name()) < 1100)
+is_rdna2 = bool(devices.backend == "rocm" and devices.get_hip_agent().gfx_version < 0x1100)
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
 def check_torch_compile(): # dynamo can be disabled after startup
