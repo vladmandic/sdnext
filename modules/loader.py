@@ -13,7 +13,7 @@ initialized = False
 errors.install()
 logging.getLogger("DeepSpeed").disabled = True
 timer.startup.record("loader")
-
+errors.log.debug('Initializing: libraries')
 
 np = None
 try:

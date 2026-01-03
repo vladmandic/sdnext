@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-01
+## Update for 2025-01-03
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -9,16 +9,21 @@
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
   - allow weights for wildcards, thanks @Tillerz  
+- **UI**
+  - improve extensions tab layout and behavior, thanks @awsr  
+  - indicate collapsed/hidden sections  
 - **Internal**
-  - improve extensions tab behavior and formatting, thanks @awsr  
   - update reference models previews, thanks @liutyi  
   - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  
+  - startup sequence optimizations  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
   - update civitai base models, thanks @trojaner  
-  - fix wildards with folder specification  
+  - wildards with folder specification  
+  - z-image single-file loader  
+  - hip device name detection  
 
 ## Update for 2025-12-26
 

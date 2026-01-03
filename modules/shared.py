@@ -4,25 +4,27 @@ import os
 import sys
 import time
 import contextlib
+
 from enum import Enum
 from typing import TYPE_CHECKING
 import gradio as gr
+from installer import log, print_dict, console, get_version # pylint: disable=unused-import
+log.debug('Initializing: shared module')
+
+import modules.memmon
+import modules.paths as paths
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
+from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache
 from modules.shared_defaults import get_default_modes
-from modules import errors, devices, shared_items, shared_state, cmd_args, theme, history, files_cache
 from modules.paths import models_path, script_path, data_path, sd_configs_path, sd_default_config, sd_model_file, default_sd_model_file, extensions_dir, extensions_builtin_dir # pylint: disable=W0611
-from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
-from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
+
+log.debug('Initializing: pipelines')
+from modules import shared_items
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
-from modules.ui_components import DropdownEditable
-from modules.options import OptionInfo, options_section
-import modules.memmon
-import modules.styles
-import modules.paths as paths
-from installer import log, print_dict, console, get_version # pylint: disable=unused-import
+
 
 if TYPE_CHECKING:
     # Behavior modified by __future__.annotations
@@ -52,7 +54,6 @@ face_restorers = []
 yolo = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
-options_templates: dict[str, OptionInfo | LegacyOption] = {}
 hypernetworks = {}
 settings_components = {}
 restricted_opts = {
@@ -143,8 +144,15 @@ def list_samplers():
     modules.sd_samplers.set_samplers()
     return modules.sd_samplers.all_samplers
 
-
+log.debug('Initializing: default modes')
 startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_sdp_override_options, startup_sdp_override_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
+from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
+from modules.onnx_impl import execution_providers
+
+log.debug('Initializing: settings')
+from modules.ui_components import DropdownEditable
+from modules.options import OptionInfo, options_section
+options_templates: dict[str, OptionInfo | LegacyOption] = {}
 
 options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_backend": OptionInfo('diffusers', "Execution backend", gr.Radio, {"choices": ['diffusers', 'original'], "visible": False }),
@@ -836,9 +844,12 @@ opts.data['uni_pc_order'] = max(2, opts.schedulers_solver_order) # compatibility
 log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.get_optimal_device_name()} attention="{opts.cross_attention_optimization}" mode={devices.inference_context.__name__}')
 
 profiler = None
+import modules.styles
 prompt_styles = modules.styles.StyleDatabase(opts)
 reference_models = readfile(os.path.join('html', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
+
+log.debug('Initializing: devices')
 devices.args = cmd_opts
 devices.opts = opts
 devices.onnx = [opts.onnx_execution_provider]
