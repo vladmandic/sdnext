@@ -21,6 +21,7 @@
   - update civitai base models, thanks @trojaner  
   - wildards with folder specification  
   - z-image single-file loader  
+  - hip device name detection  
 
 ## Update for 2025-12-26
 
