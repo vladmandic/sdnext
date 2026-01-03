@@ -259,7 +259,7 @@ function sortExtraNetworks(fixed = 'no') {
     const cards = Array.from(pg.querySelectorAll('.card') || []);
     if (cards.length === 0) return 'sort: no cards';
     num += cards.length;
-    cards.sort((a, b) => { // eslint-disable-line no-loop-func
+    cards.sort((a, b) => {
       switch (sortVal) {
         case 0: return 0;
         case 1: return a.dataset.name ? a.dataset.name.localeCompare(b.dataset.name) : 0;
