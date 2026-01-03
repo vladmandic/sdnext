@@ -98,7 +98,7 @@ class Agent:
         else:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
-        self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
+        self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
 
     @property
     def therock(self) -> Union[str, None]:
