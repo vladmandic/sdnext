@@ -231,7 +231,7 @@ async function handleSeparator(separator) {
 }
 
 async function addSeparators() {
-  document.querySelectorAll('.gallery-separator').forEach((node) => el.files.removeChild(node));
+  document.querySelectorAll('.gallery-separator').forEach((node) => { el.files.removeChild(node); });
   const all = Array.from(el.files.children);
   let lastDir;
   let isFirstSeparator = true; // Flag to open the first separator by default
@@ -537,7 +537,7 @@ async function wsConnect(socket, timeout = 5000) {
 
   let loop = 0;
   while (socket.readyState === WebSocket.CONNECTING && loop < ttl) {
-    await new Promise((resolve) => setTimeout(resolve, intrasleep)); // eslint-disable-line no-promise-executor-return
+    await new Promise((resolve) => { setTimeout(resolve, intrasleep); });
     loop++;
   }
   return isOpened();

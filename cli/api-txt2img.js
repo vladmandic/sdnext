@@ -2,8 +2,7 @@
 
 // simple nodejs script to test sdnext api
 
-const fs = require('fs'); // eslint-disable-line no-undef
-const process = require('process'); // eslint-disable-line no-undef
+const fs = require('node:fs');
 
 const sd_url = process.env.SDAPI_URL || 'http://127.0.0.1:7860';
 const sd_username = process.env.SDAPI_USR;
