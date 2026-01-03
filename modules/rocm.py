@@ -351,65 +351,56 @@ refresh()
 
 # amdgpu-arch.exe written in Python
 CODE_AMDGPU_ARCH = """
+import os
 import sys
-if sys.platform == "win32":
-    import os
-    import ctypes
-    import ctypes.wintypes
-    import contextlib
-    hipDeviceProp = ctypes.c_byte * 1472
-    @contextlib.contextmanager
-    def mute(fd):
-        s = os.dup(fd)
-        try:
-            with open(os.devnull, 'w') as devnull:
-                os.dup2(devnull.fileno(), fd)
-                yield
-        finally:
-            os.dup2(s, fd)
-            os.close(s)
-    class HIP:
-        def __init__(self):
-            ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
-            ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
-            self.handle = None
-            path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_7.dll"
-            if not os.path.isfile(path):
-                path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_6.dll"
-            if not os.path.isfile(path):
-                path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64.dll"
-            assert os.path.isfile(path)
-            self.handle = ctypes.windll.kernel32.LoadLibraryA(path.encode('utf-8'))
-            ctypes.windll.kernel32.GetLastError.restype = ctypes.wintypes.DWORD
-            ctypes.windll.kernel32.GetLastError.argtypes = []
-            assert ctypes.windll.kernel32.GetLastError() == 0
-            ctypes.windll.kernel32.GetProcAddress.restype = ctypes.c_void_p
-            ctypes.windll.kernel32.GetProcAddress.argtypes = [ctypes.wintypes.HMODULE, ctypes.c_char_p]
-            hipInit = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_uint)(
-                ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipInit"))
-            with mute(sys.stdout.fileno()):
-                hipInit(0)
-            self.hipGetDeviceCount = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_int))(
-                ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceCount"))
-            self.hipGetDeviceProperties = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(hipDeviceProp), ctypes.c_int)(
-                ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceProperties"))
-        def __del__(self):
-            if self.handle is None:
-                return
-            ctypes.windll.kernel32.FreeLibrary.argtypes = [ctypes.wintypes.HMODULE]
-            ctypes.windll.kernel32.FreeLibrary(self.handle)
-        def get_device_count(self) -> int:
-            count = ctypes.c_int()
-            assert self.hipGetDeviceCount(ctypes.byref(count)) == 0
-            return count.value
-        def get_device_properties(self, device_id) -> bytes:
-            prop = hipDeviceProp()
-            assert self.hipGetDeviceProperties(ctypes.byref(prop), device_id) == 0
-            return bytes(prop)
+import ctypes
+import ctypes.wintypes
+import contextlib
+hipDeviceProp = ctypes.c_byte * 1472
+@contextlib.contextmanager
+def mute(fd):
+    s = os.dup(fd)
+    try:
+        with open(os.devnull, 'w') as devnull:
+            os.dup2(devnull.fileno(), fd)
+            yield
+    finally:
+        os.dup2(s, fd)
+        os.close(s)
+class HIP:
+    def __init__(self):
+        ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
+        ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
+        self.handle = None
+        path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_7.dll"
+        if not os.path.isfile(path):
+            path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_6.dll"
+        if not os.path.isfile(path):
+            path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64.dll"
+        assert os.path.isfile(path)
+        self.handle = ctypes.windll.kernel32.LoadLibraryA(path.encode('utf-8'))
+        ctypes.windll.kernel32.GetLastError.restype = ctypes.wintypes.DWORD
+        ctypes.windll.kernel32.GetLastError.argtypes = []
+        assert ctypes.windll.kernel32.GetLastError() == 0
+        ctypes.windll.kernel32.GetProcAddress.restype = ctypes.c_void_p
+        ctypes.windll.kernel32.GetProcAddress.argtypes = [ctypes.wintypes.HMODULE, ctypes.c_char_p]
+        hipInit = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_uint)(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipInit"))
+        with mute(sys.stdout.fileno()):
+            hipInit(0)
+        self.hipGetDeviceCount = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_int))(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceCount"))
+        self.hipGetDeviceProperties = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(hipDeviceProp), ctypes.c_int)(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceProperties"))
+    def get_device_count(self) -> int:
+        count = ctypes.c_int()
+        assert self.hipGetDeviceCount(ctypes.byref(count)) == 0
+        return count.value
+    def get_device_properties(self, device_id) -> bytes:
+        prop = hipDeviceProp()
+        assert self.hipGetDeviceProperties(ctypes.byref(prop), device_id) == 0
+        return bytes(prop)
 if __name__ == "__main__":
-    if sys.platform != "win32":
-        print("This script is only for Windows.")
-        sys.exit(1)
     hip = HIP()
     count = hip.get_device_count()
     archs: list[str | None] = [None] * count
