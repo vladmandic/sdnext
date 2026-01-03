@@ -140,39 +140,55 @@ async function filterExtraNetworksForTab(searchTerm) {
     const cards = Array.from(pg.querySelectorAll('.card') || []);
     items += cards.length;
     if (searchTerm === '' || searchTerm === 'all/') {
-      cards.forEach((elem) => elem.style.display = '');
+      cards.forEach((elem) => { elem.style.display = ''; });
     } else if (searchTerm === 'reference/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase()
-        .includes('reference/') && elem.dataset.tags === '' ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase()
+          .includes('reference/') && elem.dataset.tags === '' ? '' : 'none';
+      });
     } else if (searchTerm === 'distilled/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('distilled') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('distilled') ? '' : 'none';
+      });
     } else if (searchTerm === 'community/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('community') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('community') ? '' : 'none';
+      });
     } else if (searchTerm === 'cloud/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('cloud') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('cloud') ? '' : 'none';
+      });
     } else if (searchTerm === 'quantized/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('quantized') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('quantized') ? '' : 'none';
+      });
     } else if (searchTerm === 'local/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase()
-        .includes('reference/') ? 'none' : '');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase()
+          .includes('reference/') ? 'none' : '';
+      });
     } else if (searchTerm === 'diffusers/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase().replace('models--', 'diffusers').replaceAll('\\', '/')
-        .includes('diffusers/') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase().replace('models--', 'diffusers').replaceAll('\\', '/')
+          .includes('diffusers/') ? '' : 'none';
+      });
     } else if (searchTerm.startsWith('r#')) {
       searchTerm = searchTerm.substring(2);
       const re = new RegExp(searchTerm, 'i');
-      cards.forEach((elem) => elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? '' : 'none';
+      });
     } else {
       const searchList = searchTerm.split('|').filter((s) => s !== '' && !s.startsWith('-')).map((s) => s.trim());
       const excludeList = searchTerm.split('|').filter((s) => s !== '' && s.trim().startsWith('-')).map((s) => s.trim().substring(1).trim());
@@ -318,7 +334,7 @@ function extraNetworksFilterVersion(event) {
   if (!cardContainer) return;
   if (cardContainer.dataset.activeVersion === version) {
     cardContainer.dataset.activeVersion = '';
-    cardContainer.querySelectorAll('.card').forEach((card) => card.style.display = '');
+    cardContainer.querySelectorAll('.card').forEach((card) => { card.style.display = ''; });
   } else {
     cardContainer.dataset.activeVersion = version;
     cardContainer.querySelectorAll('.card').forEach((card) => {

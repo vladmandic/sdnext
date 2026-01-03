@@ -132,7 +132,6 @@ const jsConfig = defineConfig([
       'no-redeclare': 'off',
       'no-restricted-globals': 'off',
       'no-restricted-syntax': 'off',
-      'no-return-assign': 'off',
       'no-unused-vars': 'off',
       'no-use-before-define': 'warn',
       'no-useless-escape': 'off',
