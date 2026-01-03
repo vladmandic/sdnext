@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-01
+## Update for 2025-01-03
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -18,7 +18,8 @@
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
   - update civitai base models, thanks @trojaner  
-  - fix wildards with folder specification  
+  - wildards with folder specification  
+  - z-image single-file loader  
 
 ## Update for 2025-12-26
 
