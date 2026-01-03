@@ -3,7 +3,7 @@ import path from 'node:path';
 import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { helpers, plugins, rules } from 'eslint-config-airbnb-extended';
+import { configs, helpers, plugins, rules } from 'eslint-config-airbnb-extended';
 import globals from 'globals';
 import css from '@eslint/css';
 import html from '@html-eslint/eslint-plugin';
@@ -18,7 +18,7 @@ const jsConfig = defineConfig([
   {
     name: 'js/config',
     ...js.configs.recommended,
-    files: helpers.extensions.jsFileWithoutReact,
+    files: helpers.extensions.allFiles,
   },
   // Stylistic plugin
   plugins.stylistic,
@@ -34,7 +34,7 @@ const jsConfig = defineConfig([
   rules.base.variables,
   {
     name: 'sdnext',
-    files: helpers.extensions.jsFileWithoutReact,
+    files: helpers.extensions.allFiles,
     languageOptions: {
       globals: {
         ...globals.builtin,
@@ -188,6 +188,13 @@ const jsConfig = defineConfig([
   },
 ]);
 
+const typescriptConfig = defineConfig([
+  // TypeScript ESLint plugin
+  plugins.typescriptEslint,
+  // Airbnb base TypeScript config
+  ...configs.base.typescript,
+]);
+
 const nodeConfig = defineConfig([
   // Node plugin
   plugins.node,
@@ -290,6 +297,7 @@ export default defineConfig([
     '**/iframeResizer.min.js',
   ]),
   ...jsConfig,
+  ...typescriptConfig,
   ...nodeConfig,
   ...jsonConfig,
   ...markdownConfig,
