@@ -18,8 +18,8 @@ const jsConfig = defineConfig([
   // ESLint recommended config
   {
     name: 'js/config',
-    ...js.configs.recommended,
     files: helpers.extensions.allFiles,
+    ...js.configs.recommended,
   },
   pluginPromise.configs['flat/recommended'],
   // Stylistic plugin
@@ -35,7 +35,7 @@ const jsConfig = defineConfig([
   rules.base.stylistic,
   rules.base.variables,
   {
-    name: 'sdnext',
+    name: 'sdnext/js',
     files: helpers.extensions.allFiles,
     languageOptions: {
       globals: {
@@ -203,6 +203,7 @@ const nodeConfig = defineConfig([
   // Node plugin
   plugins.node,
   {
+    name: 'sdnext/node',
     files: ['**/cli/*.js'],
     languageOptions: {
       globals: {
