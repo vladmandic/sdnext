@@ -1,5 +1,4 @@
 /* eslint-disable max-classes-per-file */
-/* eslint lines-between-class-members: ["error", "always", { "exceptAfterSingleLine": true }] */
 let ws;
 let url;
 let currentImage;
@@ -973,7 +972,8 @@ async function monitorGalleries() {
 
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
+  // eslint-disable-next-line @stylistic/max-len
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}';
   document.head.append(busyAnimation);
 }
 
