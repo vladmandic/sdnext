@@ -9,13 +9,18 @@ import logging
 import importlib
 import contextlib
 from threading import Thread
+from installer import log, git_commit, custom_excepthook, version
+from modules import timer
 import modules.loader
 import modules.hashes
-
-from installer import log, git_commit, custom_excepthook, version
-from modules import timer, paths, shared, extensions, gr_tempdir, modelloader, modeldata
-from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
+import modules.paths
 import modules.devices
+from modules import shared
+from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
+import modules.gr_tempdir
+import modules.modeldata
+import modules.extensions
+import modules.modelloader
 import modules.sd_checkpoint
 import modules.sd_samplers
 import modules.scripts_manager
@@ -63,7 +68,7 @@ fastapi_args = {
 
 
 def initialize():
-    log.debug('Initializing')
+    log.debug('Initializing: modules')
 
     modules.sd_checkpoint.init_metadata()
     modules.hashes.init_cache()
@@ -80,7 +85,7 @@ def initialize():
     modules.model_te.refresh_te_list()
     timer.startup.record("te")
 
-    modelloader.cleanup_models()
+    modules.modelloader.cleanup_models()
     modules.sd_models.setup_model()
     timer.startup.record("models")
 
@@ -100,7 +105,7 @@ def initialize():
     yolo.initialize()
     timer.startup.record("detailer")
 
-    extensions.list_extensions()
+    modules.extensions.list_extensions()
     timer.startup.record("extensions")
 
     log.info('Load extensions')
@@ -110,7 +115,7 @@ def initialize():
     timer.startup.records["extensions"] = t_total # scripts can reset the time
     log.debug(f'Extensions init time: {t_timer.summary()}')
 
-    modelloader.load_upscalers()
+    modules.modelloader.load_upscalers()
     timer.startup.record("upscalers")
 
     modules.ui_extra_networks.initialize()
@@ -151,7 +156,7 @@ def initialize():
 
 
 def load_model():
-    modeldata.model_data.locked = False
+    modules.modeldata.model_data.locked = False
     autoload = shared.opts.sd_checkpoint_autoload or shared.cmd_opts.ckpt is not None
     log.info(f'Model: autoload={autoload} selected="{shared.opts.sd_model_checkpoint}"')
     if autoload:
@@ -169,7 +174,7 @@ def load_model():
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
     shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
-    shared.opts.onchange("temp_dir", gr_tempdir.on_tmpdir_changed)
+    shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")
 
 
@@ -232,7 +237,7 @@ def start_common():
         log.info(f'Base path: data="{shared.cmd_opts.data_dir}"')
     if shared.cmd_opts.models_dir is not None and len(shared.cmd_opts.models_dir) > 0 and shared.cmd_opts.models_dir != 'models':
         log.info(f'Base path: models="{shared.cmd_opts.models_dir}"')
-    paths.create_paths(shared.opts)
+    modules.paths.create_paths(shared.opts)
     async_policy()
     initialize()
     if shared.cmd_opts.backend == 'original':
@@ -245,7 +250,7 @@ def start_common():
     except Exception:
         pass
     if shared.opts.clean_temp_dir_at_start:
-        gr_tempdir.cleanup_tmpdr()
+        modules.gr_tempdir.cleanup_tmpdr()
         timer.startup.record("cleanup")
 
 
@@ -317,7 +322,7 @@ def start_ui():
             _frontend=True and shared.cmd_opts.share,
         )
     if shared.cmd_opts.data_dir is not None:
-        gr_tempdir.register_tmp_file(shared.demo, os.path.join(shared.cmd_opts.data_dir, 'x'))
+        modules.gr_tempdir.register_tmp_file(shared.demo, os.path.join(shared.cmd_opts.data_dir, 'x'))
     shared.log.info(f'Local URL: {local_url}')
     if shared.cmd_opts.listen:
         if not gradio_auth_creds:

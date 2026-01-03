@@ -58,7 +58,6 @@ def get_default_modes(cmd_opts, mem_stat):
     elif devices.backend in {"directml", "cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
 
-
     return (
         default_offload_mode,
         default_diffusers_offload_min_gpu_memory,

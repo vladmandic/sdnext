@@ -14,6 +14,7 @@
   - update reference models previews, thanks @liutyi  
   - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  
+  - startup sequence optimizations  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
