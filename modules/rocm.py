@@ -105,7 +105,7 @@ class Agent:
         if (self.gfx_version & 0xFFF0) == 0x1200:
             return "v2/gfx120X-all"
         if (self.gfx_version & 0xFFF0) == 0x1100:
-            return "v2/gfx110X-all"
+            return "v2/gfx110X-" + ("all" if self.is_apu else "dgpu")
         if self.gfx_version == 0x1150:
             return "v2-staging/gfx1150"
         if self.gfx_version == 0x1151:
