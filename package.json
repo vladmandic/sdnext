@@ -43,6 +43,7 @@
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "eslint-config-airbnb-extended": "^3.0.0",
+    "eslint-plugin-promise": "^7.2.1",
     "globals": "^17.0.0"
   },
   "dependencies": {

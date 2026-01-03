@@ -4,6 +4,7 @@ import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import { configs, helpers, plugins, rules } from 'eslint-config-airbnb-extended';
+import pluginPromise from 'eslint-plugin-promise';
 import globals from 'globals';
 import css from '@eslint/css';
 import html from '@html-eslint/eslint-plugin';
@@ -20,6 +21,7 @@ const jsConfig = defineConfig([
     ...js.configs.recommended,
     files: helpers.extensions.allFiles,
   },
+  pluginPromise.configs['flat/recommended'],
   // Stylistic plugin
   plugins.stylistic,
   // Import X plugin
@@ -184,6 +186,8 @@ const jsConfig = defineConfig([
           omitLastInOneLineBlock: false,
         },
       ],
+      'promise/always-return': 'off',
+      'promise/catch-or-return': 'off',
     },
   },
 ]);
