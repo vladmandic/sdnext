@@ -43,12 +43,12 @@
   --button-secondary-background-fill-hover: var(--neutral-600);
   --block-title-text-color: var(--neutral-300);
   --radius-xxs: 0;
-  --radius-xs: 1;
+  --radius-xs: 1px;
   --radius-sm: 2px;
-  --radius-md: 3;
+  --radius-md: 3px;
   --radius-lg: 4px;
-  --radius-xl: 5;
-  --radius-xxl: 6;
+  --radius-xl: 5px;
+  --radius-xxl: 6px;
   --line-xs: 1.0em;
   --line-sm: 1.2em;
   --line-md: 1.4em;

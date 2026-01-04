@@ -26,7 +26,7 @@
     "format": ". venv/bin/activate && pre-commit run --all-files",
     "lint": "npm run eslint && npm run format && npm run ruff && npm run pylint | grep -v TODO",
     "todo": "npm run pylint | grep W0511 | awk -F'TODO ' '{print \"- \"$NF}' | sed 's/ (fixme)//g' | sort",
-    "eslint-win": "eslint . javascript/ --rule \"linebreak-style: off\"",
+    "eslint-win": "eslint . javascript/ --rule \"@stylistic/linebreak-style: off\"",
     "ruff-win": "venv\\scripts\\activate && ruff check",
     "pylint-win": "venv\\scripts\\activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/",
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",

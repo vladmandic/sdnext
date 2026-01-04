@@ -140,6 +140,7 @@ const jsConfig = defineConfig([
       'prefer-destructuring': 'off',
       'prefer-rest-params': 'off',
       'prefer-template': 'warn',
+      'promise/no-nesting': 'off',
       radix: 'off',
       '@stylistic/brace-style': [
         'error',

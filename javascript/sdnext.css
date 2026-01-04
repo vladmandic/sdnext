@@ -2126,11 +2126,11 @@ div:has(>#tab-gallery-folders) {
 
 .docs-card-h1 {
   font-weight: bold;
-  font-size: 1.0;
+  font-size: 1.0em;
 }
 
 .docs-card-h2 {
-  font-size: 1.0;
+  font-size: 1.0em;
   max-height: 4em;
   overflow: hidden;
 }
