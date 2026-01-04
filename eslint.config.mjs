@@ -20,6 +20,12 @@ const jsConfig = defineConfig([
     name: 'js/config',
     files: helpers.extensions.allFiles,
     ...js.configs.recommended,
+    languageOptions: {
+      ecmaVersion: 'latest',
+      parserOptions: {
+        ecmaVersion: 'latest',
+      },
+    },
   },
   pluginPromise.configs['flat/recommended'],
   // Stylistic plugin
@@ -38,6 +44,10 @@ const jsConfig = defineConfig([
     name: 'sdnext/js',
     files: helpers.extensions.allFiles,
     languageOptions: {
+      ecmaVersion: 'latest',
+      parserOptions: {
+        ecmaVersion: 'latest',
+      },
       globals: {
         ...globals.builtin,
         ...globals.browser,
@@ -115,9 +125,6 @@ const jsConfig = defineConfig([
         initChangelog: 'readonly',
         sendNotification: 'readonly',
         monitorConnection: 'readonly',
-      },
-      parserOptions: {
-        ecmaVersion: 'latest',
       },
     },
     rules: {
