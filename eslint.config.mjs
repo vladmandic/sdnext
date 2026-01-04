@@ -1,16 +1,15 @@
 import path from 'node:path';
 
 import { includeIgnoreFile } from '@eslint/compat';
+import css from '@eslint/css';
 import js from '@eslint/js';
-import { defineConfig, globalIgnores } from 'eslint/config';
+import json from '@eslint/json';
+import markdown from '@eslint/markdown';
+import html from '@html-eslint/eslint-plugin';
 import { configs, helpers, plugins, rules } from 'eslint-config-airbnb-extended';
 import pluginPromise from 'eslint-plugin-promise';
+import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
-import css from '@eslint/css';
-import html from '@html-eslint/eslint-plugin';
-import json from '@eslint/json';
-// eslint-disable-next-line import-x/no-rename-default
-import markdown from '@eslint/markdown';
 
 const gitignorePath = path.resolve('.', '.gitignore');
 
@@ -25,31 +24,7 @@ const jsConfig = defineConfig([
       parserOptions: {
         ecmaVersion: 'latest',
       },
-    },
-  },
-  pluginPromise.configs['flat/recommended'],
-  // Stylistic plugin
-  plugins.stylistic,
-  // Import X plugin
-  plugins.importX,
-  // Trimmed from Airbnb base recommended config
-  rules.base.importsStrict,
-  rules.base.bestPractices,
-  rules.base.errors,
-  rules.base.es6,
-  rules.base.imports,
-  rules.base.style,
-  rules.base.stylistic,
-  rules.base.variables,
-  {
-    name: 'sdnext/js',
-    files: helpers.extensions.allFiles,
-    languageOptions: {
-      ecmaVersion: 'latest',
-      parserOptions: {
-        ecmaVersion: 'latest',
-      },
-      globals: {
+      globals: { // Set per project
         ...globals.builtin,
         ...globals.browser,
         ...globals.jquery,
@@ -128,6 +103,23 @@ const jsConfig = defineConfig([
         monitorConnection: 'readonly',
       },
     },
+  },
+  pluginPromise.configs['flat/recommended'],
+  // Stylistic plugin
+  plugins.stylistic,
+  // Import X plugin
+  plugins.importX,
+  // Airbnb base recommended config
+  ...configs.base.recommended,
+  {
+    name: 'sdnext/js',
+    files: helpers.extensions.allFiles,
+    languageOptions: {
+      ecmaVersion: 'latest',
+      parserOptions: {
+        ecmaVersion: 'latest',
+      },
+    },
     rules: {
       camelcase: 'off',
       'default-case': 'off',
@@ -144,7 +136,7 @@ const jsConfig = defineConfig([
       'no-restricted-syntax': 'off',
       'no-unused-vars': 'off',
       'no-use-before-define': 'warn',
-      'no-useless-escape': 'off',
+      'no-useless-escape': 'warn',
       'prefer-destructuring': 'off',
       'prefer-rest-params': 'off',
       'prefer-template': 'warn',
@@ -200,12 +192,22 @@ const jsConfig = defineConfig([
   },
 ]);
 
-const typescriptConfig = defineConfig([
-  // TypeScript ESLint plugin
-  plugins.typescriptEslint,
-  // Airbnb base TypeScript config
-  ...configs.base.typescript,
-]);
+// const typescriptConfig = defineConfig([
+//   // TypeScript ESLint plugin
+//   plugins.typescriptEslint,
+//   // Airbnb base TypeScript config
+//   ...configs.base.typescript,
+//   {
+//     name: 'sdnext/typescript',
+//     files: helpers.extensions.tsFiles,
+//     rules: {
+//       '@typescript-eslint/ban-ts-comment': 'off',
+//       '@typescript-eslint/explicit-module-boundary-types': 'off',
+//       '@typescript-eslint/no-shadow': 'error',
+//       '@typescript-eslint/no-var-requires': 'off',
+//     },
+//   },
+// ]);
 
 const nodeConfig = defineConfig([
   // Node plugin
@@ -219,6 +221,7 @@ const nodeConfig = defineConfig([
       },
     },
     rules: {
+      // Import as rule sets to override the `files` setting from default config
       ...rules.node.base.rules,
       ...rules.node.globals.rules,
       ...rules.node.noUnsupportedFeatures.rules,
@@ -250,48 +253,69 @@ const markdownConfig = defineConfig([
   },
 ]);
 
-// const cssConfig = defineConfig([
-//   {
-//     files: ['**/*.css'],
-//     language: 'css/css',
-//     plugins: { css },
-//     extends: ['css/recommended'],
-//     rules: {
-//       'css/font-family-fallbacks': 'off',
-//       'css/no-invalid-properties': [
-//         'error',
-//         {
-//           allowUnknownVariables: true,
-//         },
-//       ],
-//       'css/no-important': 'off',
-//       'css/use-baseline': [
-//         'warn',
-//         {
-//           available: 'newly',
-//         },
-//       ],
-//     },
-//   },
-// ]);
+const cssConfig = defineConfig([
+  {
+    files: ['**/*.css'],
+    language: 'css/css',
+    plugins: { css },
+    extends: ['css/recommended'],
+    // languageOptions: {
+    //   tolerant: true,
+    // },
+    rules: {
+      'css/font-family-fallbacks': 'off',
+      'css/no-invalid-properties': [
+        'error',
+        {
+          allowUnknownVariables: true,
+        },
+      ],
+      'css/no-important': 'off',
+      'css/use-baseline': 'off',
+    },
+  },
+]);
 
-// const htmlConfig = defineConfig([
-//   {
-//     files: ['**/*.html'],
-//     plugins: {
-//       html,
-//     },
-//     extends: ['html/recommended'],
-//     language: 'html/html',
-//     rules: {
-//       'html/indent': [
-//         'warn',
-//         2,
-//       ],
-//       'html/no-duplicate-class': 'error',
-//     },
-//   },
-// ]);
+const htmlConfig = defineConfig([
+  {
+    files: ['**/*.html'],
+    plugins: {
+      html,
+    },
+    extends: ['html/recommended'],
+    language: 'html/html',
+    rules: {
+      'html/attrs-newline': 'off',
+      'html/element-newline': [
+        'error',
+        {
+          inline: ['$inline'],
+        },
+      ],
+      'html/indent': [
+        'warn',
+        2,
+      ],
+      'html/no-duplicate-class': 'error',
+      'html/no-extra-spacing-attrs': [
+        'error',
+        {
+          enforceBeforeSelfClose: true,
+          disallowMissing: true,
+          disallowTabs: true,
+          disallowInAssignment: true,
+        },
+      ],
+      'html/require-closing-tags': [
+        'error',
+        {
+          selfClosing: 'always',
+        },
+      ],
+      'html/use-baseline': 'off',
+    },
+  },
+]);
 
 export default defineConfig([
   // Ignore files and folders listed in .gitignore
@@ -310,10 +334,10 @@ export default defineConfig([
     '**/iframeResizer.min.js',
   ]),
   ...jsConfig,
-  ...typescriptConfig,
+  // ...typescriptConfig,
   ...nodeConfig,
   ...jsonConfig,
   ...markdownConfig,
-  // ...cssConfig,
-  // ...htmlConfig,
+  ...cssConfig,
+  ...htmlConfig,
 ]);
