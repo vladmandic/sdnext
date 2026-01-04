@@ -33,6 +33,7 @@ const jsConfig = defineConfig([
   // Import X plugin
   plugins.importX,
   // Trimmed from Airbnb base recommended config
+  rules.base.importsStrict,
   rules.base.bestPractices,
   rules.base.errors,
   rules.base.es6,
