@@ -109,19 +109,19 @@ function updateGalleryStyles() {
 // Classes
 
 class SimpleProgressBar {
-  static #container = document.createElement('div');
-  static #progress = document.createElement('div');
-  static #textDiv = document.createElement('div');
-  static #text = document.createElement('span');
-  static #visible = false;
-  static #hideTimeout = null;
-  static #interval = null;
-  static #max = 0;
+  #container = document.createElement('div');
+  #progress = document.createElement('div');
+  #textDiv = document.createElement('div');
+  #text = document.createElement('span');
+  #visible = false;
+  #hideTimeout = null;
+  #interval = null;
+  #max = 0;
   /** @type {Set} */
-  static #monitoredSet;
+  #monitoredSet;
 
-  static {
-    this.#monitoredSet = galleryHashes;  // This is required because incrementing a variable with a class method turned out to not be an atomic operation
+  constructor(monitoredSet) {
+    this.#monitoredSet = monitoredSet;  // This is required because incrementing a variable with a class method turned out to not be an atomic operation
     this.#container.style.cssText = 'position:relative;overflow:hidden;border-radius:var(--sd-border-radius);width:100%;background-color:hsla(0,0%,36%,0.3);height:1.2rem;margin:0;padding:0;display:none;'
     this.#progress.style.cssText = 'position:absolute;left:0;height:100%;width:0;transition:width 200ms;'
     this.#progress.style.backgroundColor = 'hsla(110, 32%, 35%, 0.80)';  // alt: '#27911d'
@@ -132,7 +132,7 @@ class SimpleProgressBar {
     this.#container.append(this.#progress, this.#textDiv);
   }
 
-  static start(total) {
+  start(total) {
     this.clear();
     this.#max = total;
     this.#interval = setInterval(() => {
@@ -140,14 +140,14 @@ class SimpleProgressBar {
     }, 250);
   }
 
-  static attachTo(element) {
+  attachTo(element) {
     if (element.hasChildNodes) {
       element.innerHTML = '';
     }
     element.appendChild(this.#container);
   }
 
-  static clear() {
+  clear() {
     this.#stop();
     clearTimeout(this.#hideTimeout);
     this.#hideTimeout = null;
@@ -157,7 +157,7 @@ class SimpleProgressBar {
     this.#text.textContent = '';
   }
 
-  static #update(loaded, max) {
+  #update(loaded, max) {
     if (this.#hideTimeout) {
       this.#hideTimeout = null;
     }
@@ -177,12 +177,13 @@ class SimpleProgressBar {
     }
   }
 
-  static #stop() {
+  #stop() {
     clearInterval(this.#interval);
     this.#interval = null;
   }
 }
 
+const galleryProgressBar = new SimpleProgressBar(galleryHashes);
 
 /* This isn't as robust as the Web Locks API, but it will at least work if accessing a remote machine without HTTPS */
 class SimpleFunctionQueue {
@@ -938,7 +939,7 @@ async function fetchFilesHT(evt, controller) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-  SimpleProgressBar.start(numFiles);
+  galleryProgressBar.start(numFiles);
   addSeparators();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
@@ -949,7 +950,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   maintenanceController.abort('Gallery update'); // Abort previous controller
   maintenanceController = controller; // Point to new controller for next time
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
-  SimpleProgressBar.clear();
+  galleryProgressBar.clear();
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -999,7 +1000,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-    SimpleProgressBar.start(numFiles);
+    galleryProgressBar.start(numFiles);
     addSeparators();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
@@ -1073,7 +1074,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   setOverlayAnimation();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
-    SimpleProgressBar.attachTo(progress);
+    galleryProgressBar.attachTo(progress);
   } else {
     log('initGallery', 'Failed to attach loading progress bar');
   }
