@@ -13,6 +13,7 @@ from modules.lora import lora_common
 
 
 debug = os.environ.get('SD_DIFFUSERS_DEBUG', None) is not None
+output_type = 'np' if os.environ.get('SD_VAE_DEFAULT', None) is not None else 'latent'
 last_p = None
 orig_pipeline = shared.sd_model
 
@@ -157,7 +158,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
         num_frames=getattr(p, 'frames', 1),
-        output_type='latent',
+        output_type=output_type,
         clip_skip=p.clip_skip,
         desc=desc,
     )
@@ -307,7 +308,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 eta=shared.opts.scheduler_eta,
                 guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,
                 guidance_rescale=p.diffusers_guidance_rescale,
-                output_type='latent',
+                output_type=output_type,
                 clip_skip=p.clip_skip,
                 image=output.images,
                 strength=strength,
@@ -377,11 +378,11 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
         for i in range(len(output.images)):
             image = output.images[i]
             noise_level = round(350 * p.denoising_strength)
-            output_type = 'latent'
+            refiner_output_type = output_type
             if 'Upscale' in shared.sd_refiner.__class__.__name__ or 'Flux' in shared.sd_refiner.__class__.__name__ or 'Kandinsky' in shared.sd_refiner.__class__.__name__:
                 image = processing_vae.vae_decode(latents=image, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
                 p.extra_generation_params['Noise level'] = noise_level
-                output_type = 'np'
+                refiner_output_type = 'np'
             update_sampler(p, shared.sd_refiner, second_pass=True)
             shared.opts.prompt_attention = 'fixed'
             refiner_args = set_pipeline_args(
@@ -398,7 +399,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
                 denoising_start=p.refiner_start if p.refiner_start > 0 and p.refiner_start < 1 else None,
                 denoising_end=1 if p.refiner_start > 0 and p.refiner_start < 1 else None,
                 image=image,
-                output_type=output_type,
+                output_type=refiner_output_type,
                 clip_skip=p.clip_skip,
                 prompt_attention='fixed',
                 desc='Refiner',

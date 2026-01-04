@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-03
+## Update for 2025-01-04
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -13,10 +13,12 @@
   - improve extensions tab layout and behavior, thanks @awsr  
   - indicate collapsed/hidden sections  
 - **Internal**
+  - update js linting to `eslint9`, thanks @awsr  
   - update reference models previews, thanks @liutyi  
   - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  
   - startup sequence optimizations  
+  - new env variable `SD_VAE_DEFAULT` to force default vae processing    
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
