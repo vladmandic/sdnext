@@ -214,8 +214,8 @@ async function filterExtraNetworksForTab(searchTerm) {
 }
 
 function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
-  const re_extranet = /<([^:]+:[^:]+):[\d\.]+>/;
-  const re_extranet_g = /\s+<([^:]+:[^:]+):[\d\.]+>/g;
+  const re_extranet = /<([^:]+:[^:]+):[\d.]+>/;
+  const re_extranet_g = /\s+<([^:]+:[^:]+):[\d.]+>/g;
   let m = text.match(re_extranet);
   let replaced = false;
   let newTextareaText;

@@ -219,7 +219,7 @@ async function handleSeparator(separator) {
     if (!f.name) continue; // Skip separators
 
     // Check if file belongs to this exact directory
-    const fileDir = f.name.match(/(.*)[\/\\]/);
+    const fileDir = f.name.match(/(.*)[/\\]/);
     const fileDirPath = fileDir ? fileDir[1] : '';
 
     if (separator.title.length > 0 && fileDirPath === separator.title) {
@@ -238,7 +238,7 @@ async function addSeparators() {
 
   // First pass: create separators
   for (const f of all) {
-    let dir = f.name?.match(/(.*)[\/\\]/);
+    let dir = f.name?.match(/(.*)[/\\]/);
     if (!dir) dir = '';
     else dir = dir[1];
     if (dir !== lastDir) {
@@ -248,7 +248,7 @@ async function addSeparators() {
         let fileCount = 0;
         for (const file of all) {
           if (!file.name) continue;
-          const fileDir = file.name.match(/(.*)[\/\\]/);
+          const fileDir = file.name.match(/(.*)[/\\]/);
           const fileDirPath = fileDir ? fileDir[1] : '';
           if (fileDirPath === dir) fileCount++;
         }
@@ -298,7 +298,7 @@ async function addSeparators() {
   for (const f of all) {
     if (!f.name) continue; // Skip separators
 
-    const dir = f.name.match(/(.*)[\/\\]/);
+    const dir = f.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
@@ -356,7 +356,7 @@ class GalleryFile extends HTMLElement {
     }
 
     // Check separator state early to hide the element immediately
-    const dir = this.name.match(/(.*)[\/\\]/);
+    const dir = this.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
@@ -568,7 +568,7 @@ async function gallerySearch() {
       });
 
       allFiles.forEach((f) => {
-        const dir = f.name.match(/(.*)[\/\\]/);
+        const dir = f.name.match(/(.*)[/\\]/);
         const dirPath = (dir && dir[1]) ? dir[1] : '';
         const isOpen = separatorStates.get(dirPath);
         f.style.display = (!dirPath || isOpen) ? 'unset' : 'none';
@@ -602,7 +602,7 @@ async function gallerySearch() {
       if (isMatch) {
         fileMatches.add(f);
         totalFound++;
-        const dir = f.name.match(/(.*)[\/\\]/);
+        const dir = f.name.match(/(.*)[/\\]/);
         const dirPath = (dir && dir[1]) ? dir[1] : '';
         directoryMatches.set(dirPath, (directoryMatches.get(dirPath) || 0) + 1);
       }
@@ -715,7 +715,7 @@ async function gallerySort(btn) {
   for (const f of all) {
     if (!f.name) continue; // Skip separators
 
-    const dir = f.name.match(/(.*)[\/\\]/);
+    const dir = f.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
