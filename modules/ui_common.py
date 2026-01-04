@@ -277,7 +277,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 save = gr.Button('Save', elem_id=f'save_{tabname}')
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
                 if transfer:
-                    buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
+                    buttons = generation_parameters_copypaste.create_buttons(["control", "txt2img", "img2img", "extras", "caption"])
                 else:
                     buttons = None
 

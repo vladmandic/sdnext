@@ -152,15 +152,23 @@ def connect_paste_params_buttons():
         fields = paste_fields[binding.tabname]["fields"]
 
         destination_image_component = paste_fields[binding.tabname]["init_img"]
-        if binding.source_image_component and destination_image_component:
-            binding.paste_button.click(
-                _js="extract_image_from_gallery" if isinstance(binding.source_image_component, gr.Gallery) else None,
-                fn=send_image,
-                inputs=[binding.source_image_component],
-                outputs=[destination_image_component],
-                show_progress='hidden',
-            )
-
+        if binding.source_image_component:
+            if isinstance(destination_image_component, gr.Image):
+                binding.paste_button.click(
+                    _js="extract_image_from_gallery" if isinstance(binding.source_image_component, gr.Gallery) else None,
+                    fn=send_image,
+                    inputs=[binding.source_image_component],
+                    outputs=[destination_image_component],
+                    show_progress='hidden',
+                )
+            elif isinstance(destination_image_component, gr.HTML): # kanvas
+                binding.paste_button.click(
+                    _js="loadFromURL",
+                    fn=None,
+                    inputs=[binding.source_image_component],
+                    outputs=[],
+                    show_progress='hidden',
+                )
         override_settings_component = binding.override_settings_component or paste_fields[binding.tabname]["override_settings_component"]
         if binding.source_text_component is not None and fields is not None:
             connect_paste(binding.paste_button, fields, binding.source_text_component, override_settings_component, binding.tabname)

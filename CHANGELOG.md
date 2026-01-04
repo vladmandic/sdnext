@@ -10,6 +10,7 @@
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
   - allow weights for wildcards, thanks @Tillerz  
 - **UI**
+  - kanvas add send-to functionality  
   - improve extensions tab layout and behavior, thanks @awsr  
   - indicate collapsed/hidden sections  
 - **Internal**

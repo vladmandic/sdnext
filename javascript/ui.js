@@ -86,6 +86,12 @@ function extract_image_from_gallery(gallery) {
   return [gallery[index]];
 }
 
+function send_to_kanvas(gallery) {
+  const [image] = extract_image_from_gallery(gallery);
+  log('sendToKanvas', image);
+  if (window.loadFromURL && image.data) window.loadFromURL(image.data);
+}
+
 async function setTheme(val, old) {
   if (!old || val === old) return;
   old = old.replace('modern/', '');
@@ -99,7 +105,7 @@ async function setTheme(val, old) {
     const href = link.href.replace(old, val);
     const res = await fetch(href);
     if (res.ok) {
-      log('setTheme:', old, val);
+      log('setTheme', old, val);
       link.href = link.href.replace(old, val);
     } else {
       log('setTheme: CSS not found', val);
