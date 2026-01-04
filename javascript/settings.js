@@ -173,7 +173,7 @@ async function initModels() {
   `;
   el.innerHTML = res.length > 0 ? ready() : warn();
   el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', res.length === 0 ? 30000 : 1500);
+  setTimeout(() => { el.style.display = 'none'; }, res.length === 0 ? 30000 : 1500);
   if (res.length === 0) {
     if (en.classList.contains('hide')) gradioApp().getElementById('txt2img_extra_networks_btn').click();
     const repeat = setInterval(() => {
