@@ -49,5 +49,11 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "argparse": "^2.0.1"
+  },
+  "//": {
+    "disabled": {
+      "typescript": "^5.9.3",
+      "@types/node": "^25.0.3"
+    }
   }
 }
