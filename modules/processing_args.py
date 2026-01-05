@@ -49,13 +49,13 @@ def task_specific_kwargs(p, model):
             p.init_images = [helpers.decode_base64_to_image(i, quiet=True) for i in p.init_images]
         if isinstance(p.init_images[0], Image.Image):
             p.init_images = [i.convert('RGB') if i.mode != 'RGB' else i for i in p.init_images if i is not None]
-    p.width, p.height = processing_helpers.resize_init_images(p)
+    width, height = processing_helpers.resize_init_images(p)
     if (task_type == sd_models.DiffusersTaskType.TEXT_2_IMAGE or len(getattr(p, 'init_images', [])) == 0) and not is_img2img_model and 'video' not in p.ops:
         p.ops.append('txt2img')
         if hasattr(p, 'width') and hasattr(p, 'height'):
             task_args = {
-                'width': p.width,
-                'height': p.height,
+                'width': width,
+                'height': height,
             }
     elif (task_type == sd_models.DiffusersTaskType.IMAGE_2_IMAGE or is_img2img_model) and len(getattr(p, 'init_images', [])) > 0:
         if shared.sd_model_type == 'sdxl' and hasattr(model, 'register_to_config'):
@@ -74,18 +74,23 @@ def task_specific_kwargs(p, model):
         }
         if model_cls == 'FluxImg2ImgPipeline' or model_cls == 'FluxKontextPipeline': # needs explicit width/height
             if torch.is_tensor(p.init_images[0]):
-                p.width, p.height = p.init_images[0].shape[-1] * vae_scale_factor, p.init_images[0].shape[-2] * vae_scale_factor
+                p.width = p.init_images[0].shape[-1] * vae_scale_factor
+                p.height = p.init_images[0].shape[-2] * vae_scale_factor
             else:
-                p.width, p.height = 8 * math.ceil(p.init_images[0].width / vae_scale_factor), 8 * math.ceil(p.init_images[0].height / vae_scale_factor)
+                p.width = width
+                p.height = height
             if model_cls == 'FluxKontextPipeline':
                 aspect_ratio = p.width / p.height
                 max_area = max(p.width, p.height)**2
-                p.width, p.height = round((max_area * aspect_ratio) ** 0.5), round((max_area / aspect_ratio) ** 0.5)
-                p.width, p.height = p.width // vae_scale_factor * vae_scale_factor, p.height // vae_scale_factor * vae_scale_factor
+                p.width = round((max_area * aspect_ratio) ** 0.5)
+                p.height = round((max_area / aspect_ratio) ** 0.5)
+                p.width = p.width // vae_scale_factor * vae_scale_factor
+                p.height = p.height // vae_scale_factor * vae_scale_factor
                 task_args['max_area'] = max_area
             task_args['width'], task_args['height'] = p.width, p.height
         elif model_cls == 'OmniGenPipeline' or model_cls == 'OmniGen2Pipeline':
-            p.width, p.height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
+            p.width = width
+            p.height = height
             task_args = {
                 'width': p.width,
                 'height': p.height,
@@ -94,8 +99,8 @@ def task_specific_kwargs(p, model):
     elif task_type == sd_models.DiffusersTaskType.INSTRUCT and len(getattr(p, 'init_images', [])) > 0:
         p.ops.append('instruct')
         task_args = {
-            'width': p.width,
-            'height': p.height,
+            'width': width if hasattr(p, 'width') else None,
+            'height': height if hasattr(p, 'height') else None,
             'image': p.init_images,
             'strength': p.denoising_strength,
         }
@@ -118,8 +123,8 @@ def task_specific_kwargs(p, model):
             'image': p.init_images,
             'mask_image': mask_image,
             'strength': p.denoising_strength,
-            'height': p.height,
-            'width': p.width,
+            'height': height,
+            'width': width,
         }
 
     # model specific args
