@@ -105,7 +105,7 @@ class Agent:
         else:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
-        self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
+        self.blaslt_supported = False if blaslt_tensile_libpath is None else os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
 
     @property
     def therock(self) -> Union[str, None]:
@@ -234,9 +234,17 @@ def refresh():
     environment = find()
     if environment is not None:
         if isinstance(environment, ROCmEnvironment):
-            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
+            blaslt_tensile_libpath = os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library")
         elif isinstance(environment, PythonPackageEnvironment):
+            try:
+                import rocm_sdk
+                target_family = rocm_sdk._dist_info.determine_target_family()
+                spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family)
+                blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
+            except Exception:
+                blaslt_tensile_libpath = None
             spawn(["rocm-sdk", "init"])
+        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", blaslt_tensile_libpath)
         is_installed = True
         version = get_version()
 
@@ -283,12 +291,17 @@ if sys.platform == "win32":
         try:
             import torch
             import numpy as np
+            from installer import log
             from modules.devices import get_hip_agent
 
             agent = get_hip_agent()
+            if torch.version.hip is not None and not agent.blaslt_supported:
+                torch.backends.cuda.preferred_blas_library('hipblas')
+                log.debug('ROCm: disabled hipBLASLt')
             if (agent.gfx_version & 0xFFF0) == 0x1200:
                 # disable MIOpen for gfx120x
                 torch.backends.cudnn.enabled = False
+                log.debug('ROCm: disabled MIOpen')
 
             original_cholesky_ex = torch.linalg.cholesky_ex
             @wraps(original_cholesky_ex)
@@ -339,14 +352,25 @@ else: # sys.platform != "win32"
                 pass
 
     def rocm_init():
+        try:
+            import torch
+            from installer import log
+            from modules.devices import get_hip_agent
+
+            agent = get_hip_agent()
+            if not agent.blaslt_supported:
+                torch.backends.cuda.preferred_blas_library('hipblas')
+                log.debug('ROCm: disabled hipBLASLt')
+        except Exception as e:
+            return False, e
         return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 
-environment = None
-blaslt_tensile_libpath = ""
-is_installed = False
-version = None
+environment: Union[Environment, None] = None
+blaslt_tensile_libpath: Union[str, None] = None
+is_installed: bool = False
+version: Union[str, None] = None
 refresh()
 
 # amdgpu-arch.exe written in Python
