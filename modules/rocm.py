@@ -1,13 +1,16 @@
 import os
 import sys
+import glob
 import ctypes
 import shutil
 import subprocess
+from types import ModuleType
 from typing import Union, overload, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
 if TYPE_CHECKING:
     import torch
+rocm_sdk: Union[ModuleType, None] = None
 
 
 def resolve_link(path_: str) -> str:
@@ -47,14 +50,14 @@ class ROCmEnvironment(Environment):
 class PythonPackageEnvironment(Environment):
     hip: ctypes.CDLL
 
-    def __init__(self):
-        import _rocm_sdk_core
-        if sys.platform == "win32":
-            path = os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll")
-        else:
-            raise NotImplementedError
-        # This library will be loaded/used by PyTorch. So it won't make conflicts.
-        self.hip = ctypes.CDLL(path)
+    def __init__(self, rocm_sdk: ModuleType):
+        spec = rocm_sdk._dist_info.ALL_PACKAGES['core'].get_py_package()
+        lib = rocm_sdk._dist_info.ALL_LIBRARIES['amdhip64']
+        pattern = os.path.join(os.path.dirname(spec.origin), lib.windows_relpath if sys.platform == "win32" else lib.posix_relpath, lib.dll_pattern if sys.platform == "win32" else lib.so_pattern)
+        candidates = glob.glob(pattern)
+        if len(candidates) == 0:
+            raise FileNotFoundError("Could not find amdhip64 in rocm-sdk package")
+        self.hip = ctypes.CDLL(candidates[0])
 
 
 class MicroArchitecture(Enum):
@@ -139,14 +142,7 @@ class Agent:
         return None
 
 
-def find() -> Union[Environment, None]:
-    try: # TheRock
-        import _rocm_sdk_core # pylint: disable=unused-import
-        return PythonPackageEnvironment()
-    except ImportError:
-        pass
-
-    # system-wide installation
+def find() -> Union[ROCmEnvironment, None]:
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
         return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
@@ -230,20 +226,24 @@ def get_flash_attention_command(agent: Agent) -> str:
 
 
 def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
-    environment = find()
-    if environment is not None:
-        if isinstance(environment, ROCmEnvironment):
+    global rocm_sdk, environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    try:
+        import rocm_sdk
+        environment = PythonPackageEnvironment(rocm_sdk)
+        try:
+            target_family = rocm_sdk._dist_info.determine_target_family()
+            spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family)
+            blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
+        except Exception:
+            blaslt_tensile_libpath = None
+        spawn(["rocm-sdk", "init"])
+    except ImportError:
+        rocm_sdk = None
+        environment = find()
+        if environment is not None:
             blaslt_tensile_libpath = os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library")
-        elif isinstance(environment, PythonPackageEnvironment):
-            try:
-                import rocm_sdk
-                target_family = rocm_sdk._dist_info.determine_target_family()
-                spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family)
-                blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
-            except Exception:
-                blaslt_tensile_libpath = None
-            spawn(["rocm-sdk", "init"])
+
+    if environment is not None:
         blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", blaslt_tensile_libpath)
         is_installed = True
         version = get_version()
