@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-04
+## Update for 2025-01-05
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -27,6 +27,7 @@
   - wildards with folder specification  
   - z-image single-file loader  
   - hip device name detection  
+  - force align width/height to vae scale factor  
 
 ## Update for 2025-12-26
 
