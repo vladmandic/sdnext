@@ -299,10 +299,13 @@ def decode_images(image):
             return helpers.decode_base64_to_image(image, quiet=True)
         except Exception as e:
             shared.log.error(f'Decode image: {e}')
-    elif isinstance(image, Image.Image):
-        return image
+    # elif isinstance(image, Image.Image):
+    #     return image
+    # elif torch.is_tensor(image):
+    #     return image
     else:
-        shared.log.error(f'Decode image: {type(image)} unknown type')
+        return image
+        # shared.log.error(f'Decode image: {type(image)} unknown type')
     return None
 
 
