@@ -13,6 +13,7 @@
   - kanvas add send-to functionality  
   - improve extensions tab layout and behavior, thanks @awsr  
   - indicate collapsed/hidden sections  
+  - persistent panel minimize/maximize state  
 - **Internal**
   - update js linting to `eslint9`, thanks @awsr  
   - update reference models previews, thanks @liutyi  
