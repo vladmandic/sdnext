@@ -500,7 +500,7 @@ class YoloRestorer(Detailer):
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
             with gr.Row():
                 seg = gr.Checkbox(label="Use segmentation", elem_id=f"{tab}_detailer_seg", value=shared.opts.detailer_seg, visible=True)
-                save = gr.Checkbox(label="Include detection results", elem_id=f"{tab}_detailer_save", value=shared.opts.detailer_save, visible=True)
+                save = gr.Checkbox(label="Include detections", elem_id=f"{tab}_detailer_save", value=shared.opts.detailer_save, visible=True)
             with gr.Row():
                 merge = gr.Checkbox(label="Merge detailers", elem_id=f"{tab}_detailer_merge", value=shared.opts.detailer_merge, visible=True)
                 sort = gr.Checkbox(label="Sort detections", elem_id=f"{tab}_detailer_sort", value=shared.opts.detailer_sort, visible=True)
