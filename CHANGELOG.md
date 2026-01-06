@@ -31,6 +31,7 @@
   - z-image single-file loader  
   - hip device name detection  
   - force align width/height to vae scale factor  
+  - meituan-longca-image-edit missing image param  
 
 ## Update for 2025-12-26
 

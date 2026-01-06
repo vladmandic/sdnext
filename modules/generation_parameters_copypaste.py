@@ -163,7 +163,7 @@ def connect_paste_params_buttons():
                 )
             elif isinstance(destination_image_component, gr.HTML): # kanvas
                 binding.paste_button.click(
-                    _js="loadFromURL",
+                    _js="send_to_kanvas",
                     fn=None,
                     inputs=[binding.source_image_component],
                     outputs=[],

@@ -90,6 +90,10 @@ function send_to_kanvas(gallery) {
   const [image] = extract_image_from_gallery(gallery);
   log('sendToKanvas', image);
   if (window.loadFromURL && image.data) window.loadFromURL(image.data);
+  // const inputPanelEl = gradioApp().getElementById('control-template-column-input');
+  // if (inputPanelEl) inputPanelEl.classList.remove('hidden');
+  const inputPanelCb = gradioApp().getElementById('control_dynamic_input');
+  if (inputPanelCb && !inputPanelCb.checked) inputPanelCb.click();
 }
 
 async function setTheme(val, old) {
