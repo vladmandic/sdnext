@@ -1,10 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-05
+## Update for 2025-01-06
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
+    available in both *original* and sdnq *prequantized* variants  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
@@ -20,7 +21,8 @@
   - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  
   - startup sequence optimizations  
-  - new env variable `SD_VAE_DEFAULT` to force default vae processing    
+  - rocm/hip/hipblast detection and initialization improvements  
+  - new env variable `SD_VAE_DEFAULT` to force default vae processing  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
