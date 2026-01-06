@@ -1095,9 +1095,10 @@
   },
   "Qwen-Image-2512 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-2512-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-2512.jpg",
+    "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
     "skip": true,
+    "tags": "quantized",
     "extras": "",
     "size": 16.10,
     "date": "2025 December"
