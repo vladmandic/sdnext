@@ -673,7 +673,6 @@ def apply_hidiffusion(
             module.model = 'sd15'
             module.info = diffusion_model.info
 
-
     elif model_type == 'sdxl':
         modified_key = sdxl_hidiffusion_key()
         for key, module in diffusion_model.named_modules():
