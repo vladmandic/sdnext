@@ -296,7 +296,7 @@ if sys.platform == "win32":
 
             agent = get_hip_agent()
             if torch.version.hip is not None and not agent.blaslt_supported:
-                torch.backends.cuda.preferred_blas_library('hipblas')
+                os.environ['DISABLE_ADDMM_CUDA_LT'] = '1'
                 log.debug('ROCm: disabled hipBLASLt')
             if (agent.gfx_version & 0xFFF0) == 0x1200:
                 # disable MIOpen for gfx120x
