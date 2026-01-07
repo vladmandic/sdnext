@@ -592,13 +592,18 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
 
 
 def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None):
-    signature = inspect.signature(type(new_class).__init__, follow_wrapped=True)
-    possible = list(signature.parameters)
     kwargs = {}
+    signature = inspect.signature(StableDiffusionProcessing.__init__, follow_wrapped=True) # base class
+    possible = list(signature.parameters)
     for k, v in p.__dict__.copy().items():
         if k in possible:
             kwargs[k] = v
-    if dct is not None:
+    signature = inspect.signature(type(new_class).__init__, follow_wrapped=True) # target class
+    possible = list(signature.parameters)
+    for k, v in p.__dict__.copy().items():
+        if k in possible:
+            kwargs[k] = v
+    if dct is not None: # overrides
         for k, v in dct.items():
             if k in possible:
                 kwargs[k] = v

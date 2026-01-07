@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-06
+## Update for 2025-01-07
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -22,6 +22,7 @@
   - sdnq improvements  
   - startup sequence optimizations  
   - rocm/hip/hipblast detection and initialization improvements  
+  - zluda detection and initialization improvements  
   - new env variable `SD_VAE_DEFAULT` to force default vae processing  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
@@ -32,6 +33,8 @@
   - hip device name detection  
   - force align width/height to vae scale factor  
   - meituan-longca-image-edit missing image param  
+  - mobile auto-collapse when using side panel, thanks @awsr  
+  - switch processing class not restoring params  
 
 ## Update for 2025-12-26
 

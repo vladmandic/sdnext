@@ -47,6 +47,7 @@
 
 TODO: *Prioritize*!
 
+- [LTXVideo 0.98 LongMulti](https://github.com/huggingface/diffusers/pull/12614)
 - [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
