@@ -734,7 +734,7 @@ def install_rocm_zluda():
     if len(amd_gpus) == 0:
         log.warning('ROCm: no agent was found')
     else:
-        log.info(f'ROCm: agents={[repr(gpu) for gpu in amd_gpus]}')
+        log.info(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
         if args.device_id is None:
             index = 0
             for idx, gpu in enumerate(amd_gpus):
