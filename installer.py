@@ -734,7 +734,7 @@ def install_rocm_zluda():
     if len(amd_gpus) == 0:
         log.warning('ROCm: no agent was found')
     else:
-        log.info(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
+        log.info(f'ROCm: agents={[repr(gpu) for gpu in amd_gpus]}')
         if args.device_id is None:
             index = 0
             for idx, gpu in enumerate(amd_gpus):
@@ -757,7 +757,7 @@ def install_rocm_zluda():
 
     msg = f'ROCm: version={rocm.version}'
     if device is not None:
-        msg += f', using agent {device.name}'
+        msg += f', using agent {device}'
     log.info(msg)
 
     if sys.platform == "win32":
@@ -818,12 +818,12 @@ def install_rocm_zluda():
                     log.warning("ROCm: minimum supported version=6.0")
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
-        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
+        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
         if gfx_ver is not None and device.name.removeprefix("gfx") != gfx_ver.replace(".", ""):
             os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
-            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device.name} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
+            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
     ts('amd', t_start)
     return torch_command

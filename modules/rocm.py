@@ -3,6 +3,7 @@ import sys
 import glob
 import ctypes
 import shutil
+import logging
 import subprocess
 from types import ModuleType
 from typing import Union, overload, TYPE_CHECKING
@@ -109,6 +110,9 @@ class Agent:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
         self.blaslt_supported = False if blaslt_tensile_libpath is None else os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
+
+    def __str__(self) -> str:
+        return self.name
 
     @property
     def therock(self) -> Union[str, None]:
@@ -295,9 +299,8 @@ if sys.platform == "win32":
             from modules.devices import get_hip_agent
 
             agent = get_hip_agent()
-            if torch.version.hip is not None and not agent.blaslt_supported:
-                os.environ['DISABLE_ADDMM_CUDA_LT'] = '1'
-                log.debug('ROCm: disabled hipBLASLt')
+            if not agent.blaslt_supported:
+                log.log(logging.DEBUG if torch.version.hip is None else logging.WARNING, f'ROCm: hipBLASLt unavailable agent={agent}')
             if (agent.gfx_version & 0xFFF0) == 0x1200:
                 # disable MIOpen for gfx120x
                 torch.backends.cudnn.enabled = False
@@ -359,8 +362,7 @@ else: # sys.platform != "win32"
 
             agent = get_hip_agent()
             if not agent.blaslt_supported:
-                torch.backends.cuda.preferred_blas_library('hipblas')
-                log.debug('ROCm: disabled hipBLASLt')
+                log.debug(f'ROCm: hipBLASLt unavailable agent={agent}')
         except Exception as e:
             return False, e
         return True, None
