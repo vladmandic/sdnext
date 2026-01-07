@@ -34,6 +34,7 @@ function refreshGallerySelection({ emit = false } = {}) {
   const current = window.currentImage;
   const index = files.findIndex((file) => file.src === current);
   gallerySelection = { files, index };
+  updateGallerySelectionClasses();
   if (emit) {
     document.dispatchEvent(new CustomEvent('gallery-selection-changed', { detail: { index, files } }));
   }
@@ -46,6 +47,7 @@ function applyGallerySelection(index, { send = true, emit = true } = {}) {
   const clamped = Math.max(0, Math.min(index, files.length - 1));
   gallerySelection.index = clamped;
   window.currentImage = files[clamped].src;
+  updateGallerySelectionClasses();
   if (send && el.btnSend) el.btnSend.click();
   if (emit) {
     document.dispatchEvent(new CustomEvent('gallery-selection-changed', { detail: { index: clamped, files } }));
@@ -65,10 +67,18 @@ function setGallerySelectionByElement(element, options) {
 function resetGallerySelection() {
   gallerySelection = { files: [], index: -1 };
   window.currentImage = null;
+  updateGallerySelectionClasses();
 }
 
 function buildGalleryFileUrl(path) {
   return new URL(`/file=${encodeURI(path)}`, window.location.origin).toString();
+}
+
+function updateGallerySelectionClasses() {
+  const { files, index } = gallerySelection;
+  files.forEach((file, i) => {
+    file.classList.toggle('gallery-file-selected', i === index);
+  });
 }
 
 window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
@@ -153,6 +163,9 @@ function updateGalleryStyles() {
     }
     .gallery-file:hover {
       filter: grayscale(100%);
+    }
+    :host(.gallery-file-selected) .gallery-file {
+      box-shadow: 0 0 0 2px var(--sd-button-selected-color);
     }
   `);
 }
