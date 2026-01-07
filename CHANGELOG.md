@@ -35,6 +35,7 @@
   - meituan-longca-image-edit missing image param  
   - mobile auto-collapse when using side panel, thanks @awsr  
   - switch processing class not restoring params  
+  - hidiffusion tracing  
 
 ## Update for 2025-12-26
 

@@ -2,7 +2,6 @@ from typing import Type, Dict, Any, Tuple, Optional
 import math
 import torch
 import torch.nn.functional as F
-from diffusers.utils.torch_utils import is_torch_version
 from diffusers.pipelines import auto_pipeline
 
 
@@ -85,7 +84,6 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
     class transformer_block(block_class):
         # Save for unpatching later
         _parent = block_class
-        _forward = block_class.forward
 
         def forward(
             self,
@@ -98,7 +96,6 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
             class_labels: Optional[torch.LongTensor] = None,
             added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
         ) -> torch.FloatTensor:
-
             # reference: https://github.com/microsoft/Swin-Transformer
             def window_partition(x, window_size, shift_size, H, W):
                 B, _N, C = x.shape
@@ -158,7 +155,11 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
             # MSW-MSA
             rand_num = torch.rand(1)
             _B, N, _C = hidden_states.shape
-            ori_H, ori_W = self.info['size']
+            try:
+                ori_H, ori_W = self.info['size']
+            except Exception as e:
+                raise RuntimeError(f'HiDiffusion: cls={self.__class__.__name__} info={hasattr(self, "info")} parent={hasattr(self, "_parent")} orphaned call') from e
+
             downsample_ratio = round(((ori_H*ori_W) / N)**0.5)
             H, W = (math.ceil(ori_H/downsample_ratio), math.ceil(ori_W/downsample_ratio))
             widow_size = (math.ceil(H/2), math.ceil(W/2))
@@ -249,7 +250,6 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
                 hidden_states = hidden_states.squeeze(1)
             return hidden_states
 
-        _patched_forward = forward
     return transformer_block
 
 
@@ -257,7 +257,6 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
     # replace conventional downsampler with resolution-aware downsampler
     class cross_attn_down_block(block_class):
         _parent = block_class # Save for unpatching later
-        _forward = block_class.forward
         timestep = 0
         aggressive_raunet = False
         T1_ratio = 0
@@ -280,7 +279,10 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
                 self.info['pipeline']._num_timesteps = self.max_timestep # pylint: disable=protected-access
             self.max_timestep = self.info['pipeline']._num_timesteps # pylint: disable=protected-access
             # self.max_timestep = len(self.info['scheduler'].timesteps)
-            ori_H, ori_W = self.info['size']
+            try:
+                ori_H, ori_W = self.info['size']
+            except Exception as e:
+                raise RuntimeError(f'HiDiffusion: cls={self.__class__.__name__} info={hasattr(self, "info")} parent={hasattr(self, "_parent")} orphaned call') from e
             if self.model == 'sd15':
                 if ori_H < 256 or ori_W < 256:
                     self.T1_ratio = switching_threshold_ratio_dict['sd15_1024'][self.switching_threshold_ratio]
@@ -294,8 +296,6 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
                         self.T1_ratio = switching_threshold_ratio_dict['sdxl_2048'][self.switching_threshold_ratio]
                     if self.info['is_inpainting_task']:
                         self.aggressive_raunet = inpainting_is_aggressive_raunet
-                    elif self.info['is_playground']:
-                        self.aggressive_raunet = playground_is_aggressive_raunet
                     else:
                         self.aggressive_raunet = is_aggressive_raunet
                 else:
@@ -329,7 +329,7 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
 
                         return custom_forward
 
-                    ckpt_kwargs: Dict[str, Any] = {"use_reentrant": False} if is_torch_version(">=", "1.11.0") else {}
+                    ckpt_kwargs: Dict[str, Any] = {"use_reentrant": False}
                     hidden_states = torch.utils.checkpoint.checkpoint(
                         create_custom_forward(resnet),
                         hidden_states,
@@ -382,7 +382,6 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
 
             return hidden_states, output_states
 
-        _patched_forward = forward
     return cross_attn_down_block
 
 
@@ -391,7 +390,6 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
     class cross_attn_up_block(block_class):
         # Save for unpatching later
         _parent = block_class
-        _forward = block_class.forward
         timestep = 0
         aggressive_raunet = False
         T1_ratio = 0
@@ -411,7 +409,6 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
             attention_mask: Optional[torch.FloatTensor] = None,
             encoder_attention_mask: Optional[torch.FloatTensor] = None,
         ) -> torch.FloatTensor:
-
             def fix_scale(first, second):
                 if (first.shape[-1] != second.shape[-1] or first.shape[-2] != second.shape[-2]):
                     rescale = min(second.shape[-2] / first.shape[-2], second.shape[-1] / first.shape[-1])
@@ -420,7 +417,10 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
                 return first
 
             self.max_timestep = self.info['pipeline']._num_timesteps # pylint: disable=protected-access
-            ori_H, ori_W = self.info['size']
+            try:
+                ori_H, ori_W = self.info['size']
+            except Exception as e:
+                raise RuntimeError(f'HiDiffusion: cls={self.__class__.__name__} info={hasattr(self, "info")} parent={hasattr(self, "_parent")} orphaned call') from e
             if self.model == 'sd15':
                 if ori_H < 256 or ori_W < 256:
                     self.T1_ratio = switching_threshold_ratio_dict['sd15_1024'][self.switching_threshold_ratio]
@@ -435,8 +435,6 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
 
                     if self.info['is_inpainting_task']:
                         self.aggressive_raunet = inpainting_is_aggressive_raunet
-                    elif self.info['is_playground']:
-                        self.aggressive_raunet = playground_is_aggressive_raunet
                     else:
                         self.aggressive_raunet = is_aggressive_raunet
 
@@ -483,7 +481,6 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
                 self.timestep = 0
             return hidden_states
 
-        _patched_forward = forward
     return cross_attn_up_block
 
 
@@ -492,7 +489,6 @@ def make_diffusers_downsampler_block(block_class: Type[torch.nn.Module]) -> Type
     class downsampler_block(block_class):
         # Save for unpatching later
         _parent = block_class
-        _forward = block_class.forward
         T1_ratio = 0
         T1 = 0
         timestep = 0
@@ -502,7 +498,10 @@ def make_diffusers_downsampler_block(block_class: Type[torch.nn.Module]) -> Type
         def forward(self, hidden_states: torch.Tensor, scale = 1.0) -> torch.Tensor: # pylint: disable=unused-argument
             self.max_timestep = self.info['pipeline']._num_timesteps # pylint: disable=protected-access
             # self.max_timestep = len(self.info['scheduler'].timesteps)
-            ori_H, ori_W = self.info['size']
+            try:
+                ori_H, ori_W = self.info['size']
+            except Exception as e:
+                raise RuntimeError(f'HiDiffusion: cls={self.__class__.__name__} info={hasattr(self, "info")} parent={hasattr(self, "_parent")} orphaned call') from e
             if self.model == 'sd15':
                 if ori_H < 256 or ori_W < 256:
                     self.T1_ratio = switching_threshold_ratio_dict['sd15_1024'][self.switching_threshold_ratio]
@@ -516,8 +515,6 @@ def make_diffusers_downsampler_block(block_class: Type[torch.nn.Module]) -> Type
                         self.T1_ratio = switching_threshold_ratio_dict['sdxl_2048'][self.switching_threshold_ratio]
                     if self.info['is_inpainting_task']:
                         self.aggressive_raunet = inpainting_is_aggressive_raunet
-                    elif self.info['is_playground']:
-                        self.aggressive_raunet = playground_is_aggressive_raunet
                     else:
                         self.aggressive_raunet = is_aggressive_raunet
                 else:
@@ -551,7 +548,6 @@ def make_diffusers_downsampler_block(block_class: Type[torch.nn.Module]) -> Type
                 self.timestep = 0
             return hidden_states
 
-        _patched_forward = forward
     return downsampler_block
 
 
@@ -560,7 +556,6 @@ def make_diffusers_upsampler_block(block_class: Type[torch.nn.Module]) -> Type[t
     class upsampler_block(block_class):
         # Save for unpatching later
         _parent = block_class
-        _forward = block_class.forward
         T1_ratio = 0
         T1 = 0
         timestep = 0
@@ -570,7 +565,10 @@ def make_diffusers_upsampler_block(block_class: Type[torch.nn.Module]) -> Type[t
         def forward(self, hidden_states: torch.Tensor, scale = 1.0) -> torch.Tensor: # pylint: disable=unused-argument
             self.max_timestep = self.info['pipeline']._num_timesteps # pylint: disable=protected-access
             # self.max_timestep = len(self.info['scheduler'].timesteps)
-            ori_H, ori_W = self.info['size']
+            try:
+                ori_H, ori_W = self.info['size']
+            except Exception as e:
+                raise RuntimeError(f'HiDiffusion: cls={self.__class__.__name__} info={hasattr(self, "info")} parent={hasattr(self, "_parent")} orphaned call') from e
             if self.model == 'sd15':
                 if ori_H < 256 or ori_W < 256:
                     self.T1_ratio = switching_threshold_ratio_dict['sd15_1024'][self.switching_threshold_ratio]
@@ -585,8 +583,6 @@ def make_diffusers_upsampler_block(block_class: Type[torch.nn.Module]) -> Type[t
 
                     if self.info['is_inpainting_task']:
                         self.aggressive_raunet = inpainting_is_aggressive_raunet
-                    elif self.info['is_playground']:
-                        self.aggressive_raunet = playground_is_aggressive_raunet
                     else:
                         self.aggressive_raunet = is_aggressive_raunet
                 else:
@@ -606,7 +602,6 @@ def make_diffusers_upsampler_block(block_class: Type[torch.nn.Module]) -> Type[t
 
             return F.conv2d(hidden_states, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
-        _patched_forward = forward
     return upsampler_block
 
 
@@ -632,12 +627,13 @@ def apply_hidiffusion(
     """
     global current_steps # pylint: disable=global-statement
     current_steps = steps
-    if hasattr(model, 'controlnet'):
+    if hasattr(model, 'controlnet') and (model_type == 'sd' or model_type == 'sdxl'):
         from .hidiffusion_controlnet import make_diffusers_sdxl_contrtolnet_ppl, make_diffusers_unet_2d_condition
         make_ppl_fn = make_diffusers_sdxl_contrtolnet_ppl
         model.__class__ = make_ppl_fn(model.__class__)
         make_block_fn = make_diffusers_unet_2d_condition
         model.unet.__class__ = make_block_fn(model.unet.__class__)
+
     diffusion_model = model.unet if hasattr(model, "unet") else model
     diffusion_model.num_upsamplers += 12
     diffusion_model.info = {
@@ -646,14 +642,13 @@ def apply_hidiffusion(
         'hooks': [],
         'text_to_img_controlnet': hasattr(model, 'controlnet'),
         'is_inpainting_task': model.__class__ in auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING.values(),
-        'is_playground': False,
         'pipeline': model}
-    model.info = diffusion_model.info
-    hook_diffusion_model(diffusion_model)
 
     if model_type == 'sd':
         modified_key = sd15_hidiffusion_key()
         for key, module in diffusion_model.named_modules():
+            if hasattr(module, "_parent"):
+                raise RuntimeError(f'HiDiffusion: key={key} module={module.__class__} already patched')
             if apply_raunet and key in modified_key['down_module_key']:
                 module.__class__ = make_diffusers_downsampler_block(module.__class__)
                 module.switching_threshold_ratio = 'T1_ratio'
@@ -668,14 +663,15 @@ def apply_hidiffusion(
                 module.switching_threshold_ratio = 'T2_ratio'
             if apply_window_attn and key in modified_key['windown_attn_module_key']:
                 module.__class__ = make_diffusers_transformer_block(module.__class__)
-            if hasattr(module, "_patched_forward"):
-                module.forward = module._patched_forward # pylint: disable=protected-access
-            module.model = 'sd15'
-            module.info = diffusion_model.info
+            if hasattr(module, "_parent"):
+                module.model = 'sd15'
+                module.info = diffusion_model.info
 
     elif model_type == 'sdxl':
         modified_key = sdxl_hidiffusion_key()
         for key, module in diffusion_model.named_modules():
+            if hasattr(module, "_parent"):
+                raise RuntimeError(f'HiDiffusion: key={key} module={module.__class__} already patched')
             if apply_raunet and key in modified_key['down_module_key']:
                 module.__class__ = make_diffusers_cross_attn_down_block(module.__class__)
                 module.switching_threshold_ratio = 'T1_ratio'
@@ -690,25 +686,26 @@ def apply_hidiffusion(
                 module.switching_threshold_ratio = 'T2_ratio'
             if apply_window_attn and key in modified_key['windown_attn_module_key']:
                 module.__class__ = make_diffusers_transformer_block(module.__class__)
-            if hasattr(module, "_patched_forward"):
-                module.forward = module._patched_forward # pylint: disable=protected-access
-            module.model = 'sdxl'
-            module.info = diffusion_model.info
+            if hasattr(module, "_parent"):
+                module.model = 'sdxl'
+                module.info = diffusion_model.info
     else:
         raise RuntimeError('HiDiffusion: unsupported model type')
-    return model
+
+    model.info = diffusion_model.info
+    model.hidiffusion = True
+    hook_diffusion_model(diffusion_model)
 
 
 def remove_hidiffusion(model: torch.nn.Module):
     """ Removes hidiffusion from a Diffusion module if it was already patched. """
-    for _, module in model.unet.named_modules():
+    model = model.unet if hasattr(model, "unet") else model
+    for _, module in model.named_modules():
+        while hasattr(module, "_parent"):
+            model.hidiffusion = True
+            module.__class__ = module._parent # pylint: disable=protected-access
         if hasattr(module, "info"):
-            for hook in module.info["hooks"]:
+            for hook in module.info.get("hooks", []):
                 hook.remove()
             module.info["hooks"].clear()
             del module.info
-        if hasattr(module, "_forward"):
-            module.forward = module._forward # pylint: disable=protected-access
-        if hasattr(module, "_parent"):
-            module.__class__ = module._parent # pylint: disable=protected-access
-    return model

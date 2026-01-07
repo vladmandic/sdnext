@@ -15,6 +15,7 @@ def make_diffusers_unet_2d_condition(block_class):
     class unet_2d_condition(block_class):
         # Save for unpatching later
         _parent = block_class
+
         def forward(
             self,
             sample: torch.FloatTensor,
