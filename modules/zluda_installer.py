@@ -161,6 +161,7 @@ def load():
     def postinstall():
         import torch
         torch.version.hip = rocm.version
+
         platform = sys.platform
         sys.platform = ""
         from torch.utils import cpp_extension
@@ -172,3 +173,6 @@ def load():
             return os.path.join(cpp_extension.ROCM_HOME, *paths)
         cpp_extension._join_rocm_home = _join_rocm_home # pylint: disable=protected-access
     rocm.postinstall = postinstall
+
+    from modules.zluda import zluda_init
+    rocm.rocm_init = zluda_init

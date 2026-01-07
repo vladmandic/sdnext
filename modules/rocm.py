@@ -3,7 +3,6 @@ import sys
 import glob
 import ctypes
 import shutil
-import logging
 import subprocess
 from types import ModuleType
 from typing import Union, overload, TYPE_CHECKING
@@ -282,29 +281,31 @@ if sys.platform == "win32":
             os.environ["PATH"] = ";".join(paths_no_rocm)
             return
 
-        build_targets = torch.cuda.get_arch_list()
-        agents = get_agents()
-        for available in agents:
-            if available.name in build_targets:
-                return
-
-        # use cpu instead of crashing
-        torch.cuda.is_available = lambda: False
-
     def rocm_init():
         try:
             import torch
             import numpy as np
             from installer import log
             from modules.devices import get_hip_agent
+            from modules.rocm_triton_windows import apply_triton_patches
+
+            build_targets = torch.cuda.get_arch_list()
+            agents = get_agents()
+            if all(available.name not in build_targets for available in agents):
+                log.warning('ROCm: torch-rocm is installed, but none of build targets is available')
+                # use cpu instead of crashing
+                torch.cuda.is_available = lambda: False
 
             agent = get_hip_agent()
             if not agent.blaslt_supported:
-                log.log(logging.DEBUG if torch.version.hip is None else logging.WARNING, f'ROCm: hipBLASLt unavailable agent={agent}')
+                log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
             if (agent.gfx_version & 0xFFF0) == 0x1200:
                 # disable MIOpen for gfx120x
                 torch.backends.cudnn.enabled = False
                 log.debug('ROCm: disabled MIOpen')
+
+            if sys.platform == "win32":
+                apply_triton_patches()
 
             original_cholesky_ex = torch.linalg.cholesky_ex
             @wraps(original_cholesky_ex)
@@ -348,6 +349,7 @@ else: # sys.platform != "win32"
             try:
                 if shutil.which("conda") is not None:
                     # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    # (hsa-runtime64 depends on stdc++)
                     load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
                 # Preload rocr4wsl. The user don't have to replace the library file.
                 load_library_global("/opt/rocm/lib/libhsa-runtime64.so")

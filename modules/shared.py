@@ -862,13 +862,6 @@ mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
 if devices.backend == "directml":
     directml_do_hijack()
-elif sys.platform == "win32" and (devices.backend == "zluda" or devices.backend == "rocm"):
-    from modules.rocm_triton_windows import apply_triton_patches
-    apply_triton_patches()
-
-    if devices.backend == "zluda":
-        from modules.zluda import initialize_zluda
-        initialize_zluda()
 from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
 log.debug('Quantization: registered=SDNQ')
 
