@@ -27,7 +27,6 @@ def zluda_init():
         from modules import devices, zluda_installer
         from modules.shared import cmd_opts
         from modules.rocm_triton_windows import apply_triton_patches
-        from modules.onnx_impl.execution_providers import available_execution_providers, ExecutionProvider
 
         cmd_opts.device_id = None
 
@@ -42,7 +41,7 @@ def zluda_init():
             return False, result
 
         if not zluda_installer.default_agent.blaslt_supported:
-            log.warning(f'ROCm: hipBLASLt unavailable agent={zluda_installer.default_agent}')
+            log.debug(f'ROCm: hipBLASLt unavailable agent={zluda_installer.default_agent}')
 
         apply_triton_patches()
 
