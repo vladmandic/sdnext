@@ -12,6 +12,7 @@
   - allow weights for wildcards, thanks @Tillerz  
 - **UI**
   - kanvas add send-to functionality  
+  - kanvas improve support for standardui  
   - improve extensions tab layout and behavior, thanks @awsr  
   - indicate collapsed/hidden sections  
   - persistent panel minimize/maximize state  

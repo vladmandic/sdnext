@@ -236,8 +236,8 @@ def refresh():
         import rocm_sdk
         environment = PythonPackageEnvironment(rocm_sdk)
         try:
-            target_family = rocm_sdk._dist_info.determine_target_family()
-            spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family)
+            target_family = rocm_sdk._dist_info.determine_target_family() # pylint: disable=protected-access
+            spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family) # pylint: disable=protected-access
             blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
         except Exception:
             blaslt_tensile_libpath = None
