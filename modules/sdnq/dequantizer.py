@@ -230,6 +230,25 @@ def dequantize_sdnq_model(model: torch.nn.Module):
 # SDNQDequantizer has to be a dataclass for torch.compile
 @dataclass
 class SDNQDequantizer:
+    result_dtype: torch.dtype
+    result_shape: torch.Size
+    original_shape: torch.Size
+    original_stride: List[int]
+    quantized_weight_shape: torch.Size
+    weights_dtype: str
+    quantized_matmul_dtype: str
+    group_size: int
+    svd_rank: int
+    svd_steps: int
+    use_quantized_matmul: bool
+    re_quantize_for_matmul: bool
+    use_stochastic_rounding: bool
+    layer_class_name: str
+    is_packed: bool
+    is_unsigned: bool
+    is_integer: bool
+    is_integer_matmul: bool
+
     def __init__(
         self,
         result_dtype: torch.dtype,
@@ -247,10 +266,6 @@ class SDNQDequantizer:
         use_stochastic_rounding: bool,
         layer_class_name: str,
     ):
-        self.is_packed = dtype_dict[weights_dtype]["is_packed"]
-        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
-        self.is_integer = dtype_dict[weights_dtype]["is_integer"]
-        self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
         self.result_dtype = result_dtype
         self.result_shape = result_shape
         self.original_shape = original_shape
@@ -265,6 +280,10 @@ class SDNQDequantizer:
         self.re_quantize_for_matmul = re_quantize_for_matmul
         self.use_stochastic_rounding = use_stochastic_rounding
         self.layer_class_name = layer_class_name
+        self.is_packed = dtype_dict[weights_dtype]["is_packed"]
+        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
+        self.is_integer = dtype_dict[weights_dtype]["is_integer"]
+        self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
 
     @devices.inference_context()
     def re_quantize_matmul(self, weight, scale, zero_point, svd_up, svd_down): # pylint: disable=unused-argument

@@ -299,6 +299,13 @@ module_skip_keys_dict = {
         ["blocks.0.adaLN_modulation.1.weight", "x_embedder", "t_embedder", "y_embedder", "final_layer"],
         {}
     ],
+    "LTX2VideoTransformer3DModel": [
+        [
+            "audio_time_embed", "time_embed", "audio_caption_projection", "caption_projection", "proj_in", "audio_proj_in", "proj_out", "audio_proj_out",
+            "av_cross_attn_audio_scale_shift", "av_cross_attn_audio_v2a_gate", "av_cross_attn_video_a2v_gate", "av_cross_attn_video_scale_shift",
+        ],
+        {}
+    ],
     "Lumina2Transformer2DModel": [
         ["layers.0.norm1.linear.weight", "time_caption_embed", "x_embedder", "norm_out"],
         {}

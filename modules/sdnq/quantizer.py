@@ -1106,18 +1106,24 @@ class SDNQConfig(QuantizationConfigMixin):
         self.modules_dtype_dict = self.modules_dtype_dict.copy()
 
     def to_dict(self):
-        dct = self.__dict__.copy() # make serializable
-        dct["quantization_device"] = str(dct["quantization_device"]) if dct["quantization_device"] is not None else None
-        dct["return_device"] = str(dct["return_device"]) if dct["return_device"] is not None else None
-        return dct
+        quantization_config_dict = self.__dict__.copy() # make serializable
+        quantization_config_dict["quantization_device"] = str(quantization_config_dict["quantization_device"]) if quantization_config_dict["quantization_device"] is not None else None
+        quantization_config_dict["return_device"] = str(quantization_config_dict["return_device"]) if quantization_config_dict["return_device"] is not None else None
+        return quantization_config_dict
 
 
 import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
 diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
 diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
+diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq_training"] = SDNQQuantizer
+diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq_training"] = SDNQConfig
+
 import transformers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
 transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
 transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
+
+transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq_training"] = SDNQQuantizer
+transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq_training"] = SDNQConfig
 
 sdnq_quantize_layer_weight_compiled = compile_func(sdnq_quantize_layer_weight)
