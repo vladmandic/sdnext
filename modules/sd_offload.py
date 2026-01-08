@@ -131,7 +131,7 @@ def apply_sequential_offload(sd_model, op:str='model', quiet:bool=False):
         shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
 
 
-def disable_offload(sd_model, op:str='model', quiet:bool=False):
+def apply_none_offload(sd_model, op:str='model', quiet:bool=False):
     if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
         shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
     else:
@@ -159,7 +159,7 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
 
     if shared.opts.diffusers_offload_mode == "none":
-        disable_offload(sd_model, op=op, quiet=quiet)
+        apply_none_offload(sd_model, op=op, quiet=quiet)
 
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
         apply_model_offload(sd_model, op=op, quiet=quiet)

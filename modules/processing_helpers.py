@@ -335,7 +335,7 @@ def resize_init_images(p):
                 p.mask_for_overlay = images.resize_image(1, p.mask_for_overlay, tgt_width, tgt_height, upscaler_name=None)
             return tgt_width, tgt_height
     except Exception:
-        pass        
+        pass
     return p.width, p.height
 
 

@@ -10,6 +10,8 @@ from enum import Enum
 from functools import wraps
 if TYPE_CHECKING:
     import torch
+
+
 rocm_sdk: Union[ModuleType, None] = None
 
 
@@ -50,9 +52,9 @@ class ROCmEnvironment(Environment):
 class PythonPackageEnvironment(Environment):
     hip: ctypes.CDLL
 
-    def __init__(self, rocm_sdk: ModuleType):
-        spec = rocm_sdk._dist_info.ALL_PACKAGES['core'].get_py_package()
-        lib = rocm_sdk._dist_info.ALL_LIBRARIES['amdhip64']
+    def __init__(self, rocm_sdk_module: ModuleType):
+        spec = rocm_sdk_module._dist_info.ALL_PACKAGES['core'].get_py_package() # pylint: disable=protected-access
+        lib = rocm_sdk_module._dist_info.ALL_LIBRARIES['amdhip64'] # pylint: disable=protected-access
         pattern = os.path.join(os.path.dirname(spec.origin), lib.windows_relpath if sys.platform == "win32" else lib.posix_relpath, lib.dll_pattern if sys.platform == "win32" else lib.so_pattern)
         candidates = glob.glob(pattern)
         if len(candidates) == 0:

@@ -287,12 +287,7 @@ const htmlConfig = defineConfig([
     language: 'html/html',
     rules: {
       'html/attrs-newline': 'off',
-      'html/element-newline': [
-        'error',
-        {
-          inline: ['$inline'],
-        },
-      ],
+      'html/element-newline': 'off',
       'html/indent': [
         'warn',
         2,
