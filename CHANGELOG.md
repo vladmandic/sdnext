@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-07
+## Update for 2025-01-08
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -36,6 +36,8 @@
   - mobile auto-collapse when using side panel, thanks @awsr  
   - switch processing class not restoring params  
   - hidiffusion tracing  
+  - add skip_keys to offloading logic, fixes wan frames mismatch, thanks @ryanmeador  
+  - force model move on offload=none  
 
 ## Update for 2025-12-26
 

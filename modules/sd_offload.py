@@ -109,9 +109,17 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
             shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
         else:
             shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
-        if hasattr(sd_model, 'maybe_free_model_hooks'):
-            sd_model.maybe_free_model_hooks()
+        try:
             sd_model.has_accelerate = False
+            if hasattr(sd_model, 'maybe_free_model_hooks'):
+                sd_model.maybe_free_model_hooks()
+            sd_model = accelerate.hooks.remove_hook_from_module(sd_model, recurse=True)
+        except Exception:
+            pass
+        try:
+            sd_model = sd_model.to(devices.device)
+        except Exception as e:
+            shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} move device={devices.device} {e}')
 
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
         try:
