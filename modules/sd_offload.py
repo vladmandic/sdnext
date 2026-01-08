@@ -254,10 +254,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
             if debug:
                 shared.log.trace(f'Offload: type=balanced op=dispatch map={device_map}')
             if device_map is not None:
+                skip_keys = getattr(module, "_skip_keys", None)
                 module = accelerate.dispatch_model(module,
                                                    main_device=torch.device(devices.device),
                                                    device_map=device_map,
                                                    offload_dir=offload_dir,
+                                                   skip_keys=skip_keys,
                                                    force_hooks=True,
                                                   )
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access
