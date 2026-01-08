@@ -2,8 +2,6 @@
 
 ## Known issues
 
-- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
-- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
 - kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
 - peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
 
@@ -13,21 +11,21 @@
 
 ## Internal
 
-- Reimplement `llama` remover for kanvas
-- Deploy: Create executable for SD.Next  
-- Feature: Integrate natural language image search  
-  [ImageDB](https://github.com/vladmandic/imagedb)  
-- Feature: Transformers unified cache handler  
-- Feature: Remote Text-Encoder support  
-- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
-- Refactor: move sampler options to settings to config  
-- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
-- Feature: LoRA add OMI format support for SD35/FLUX.1  
+- Reimplement `llama` remover for Kanvas
+- Deploy: Create executable for SD.Next
+- Feature: Integrate natural language image search
+  [ImageDB](https://github.com/vladmandic/imagedb)
+- Feature: Transformers unified cache handler
+- Feature: Remote Text-Encoder support
+- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
+- Refactor: move sampler options to settings to config
+- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
+- Feature: LoRA add OMI format support for SD35/FLUX.1
 - Refactor: remove `CodeFormer`
-- Refactor: remove `GFPGAN`  
-- UI: Lite vs Expert mode  
-- Video tab: add full API support  
-- Control tab: add overrides handling  
+- Refactor: remove `GFPGAN`
+- UI: Lite vs Expert mode
+- Video tab: add full API support
+- Control tab: add overrides handling
 - Engine: `TensorRT` acceleration
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
@@ -35,11 +33,11 @@
 ## Features
 
 - [Flux.2 TinyVAE](https://huggingface.co/fal/FLUX.2-Tiny-AutoEncoder)
-- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
-- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
-- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
-- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
+- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)
+- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)
+- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
+- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
 - [Sonic Inpaint](https://github.com/ubc-vision/sonic)
 
@@ -47,6 +45,7 @@
 
 TODO: *Prioritize*!
 
+- [LTXVideo 2.0](https://github.com/huggingface/diffusers/pull/12915)
 - [LTXVideo 0.98 LongMulti](https://github.com/huggingface/diffusers/pull/12614)
 - [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
