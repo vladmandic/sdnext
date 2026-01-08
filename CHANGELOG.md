@@ -39,6 +39,7 @@
   - hidiffusion tracing  
   - add skip_keys to offloading logic, fixes wan frames mismatch, thanks @ryanmeador  
   - force model move on offload=none  
+  - kandinsky-5 image and video on non-cuda platforms  
 
 ## Update for 2025-12-26
 
