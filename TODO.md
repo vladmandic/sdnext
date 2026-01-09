@@ -1,10 +1,5 @@
 # TODO
 
-## Known issues
-
-- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
-- peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
-
 ## Project Board
 
 - <https://github.com/users/vladmandic/projects>
