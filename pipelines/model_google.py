@@ -70,24 +70,42 @@ class GoogleNanoBananaPipeline():
 
     def get_args(self):
         from modules.shared import opts
-        api_key = os.getenv("GOOGLE_API_KEY") or opts.google_api_key
-        vertex_credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        if (api_key is None or len(api_key) == 0) and (vertex_credentials is None or len(vertex_credentials) == 0):
-            log.error(f'Cloud: model="{self.model}" API key not provided')
-            return None
-        use_vertexai = (os.getenv("GOOGLE_GENAI_USE_VERTEXAI") is not None) or opts.google_use_vertexai
-        project_id = os.getenv("GOOGLE_CLOUD_PROJECT") or opts.google_project_id
-        location_id = os.getenv("GOOGLE_CLOUD_LOCATION") or opts.google_location_id
-        args = {
-            'api_key': api_key,
-            'vertexai': use_vertexai,
-            'project': project_id if len(project_id) > 0 else None,
-            'location': location_id if len(location_id) > 0 else None,
-        }
-        args_copy = args.copy()
-        args_copy['api_key'] = '...' + args_copy['api_key'][-4:] # last 4 chars
-        args_copy['credentials'] = vertex_credentials
-        log.debug(f'Cloud: model="{self.model}" args={args_copy}')
+        # Use UI settings only - env vars are intentionally ignored to prevent unexpected API charges
+        api_key = opts.google_api_key
+        project_id = opts.google_project_id
+        location_id = opts.google_location_id
+        use_vertexai = opts.google_use_vertexai
+
+        has_api_key = api_key and len(api_key) > 0
+        has_project = project_id and len(project_id) > 0
+        has_location = location_id and len(location_id) > 0
+
+        if use_vertexai:
+            if has_api_key and (has_project or has_location):
+                # Invalid: can't have both api_key AND project/location
+                log.error(f'Cloud: model="{self.model}" API key and project/location are mutually exclusive')
+                return None
+            elif has_api_key:
+                # Vertex AI Express Mode: api_key + vertexai, no project/location
+                args = {'api_key': api_key, 'vertexai': True}
+            elif has_project and has_location:
+                # Standard Vertex AI: project/location, no api_key
+                args = {'vertexai': True, 'project': project_id, 'location': location_id}
+            else:
+                log.error(f'Cloud: model="{self.model}" Vertex AI requires either API key (Express Mode) or project ID + location ID')
+                return None
+        else:
+            # Gemini Developer API: api_key only
+            if not has_api_key:
+                log.error(f'Cloud: model="{self.model}" API key not provided')
+                return None
+            args = {'api_key': api_key}
+
+        # Debug logging
+        args_log = args.copy()
+        if args_log.get('api_key'):
+            args_log['api_key'] = '...' + args_log['api_key'][-4:]
+        log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args
 
     def __call__(self, prompt: list[str], width: int, height: int, image: Image.Image = None):
