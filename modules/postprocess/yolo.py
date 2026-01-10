@@ -421,6 +421,7 @@ class YoloRestorer(Detailer):
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
+                pc.enable_hr = False # explictly disable hires for detailer pass
                 pc.recursion = True
 
                 # process
