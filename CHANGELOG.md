@@ -9,7 +9,7 @@
   - [LTX-2 19B Dev](https://huggingface.co/Lightricks/LTX-2)  
     LTX-2 is a new very large 19B parameter video generation model from Lightricks using Gemma-3 text encoder  
     available for T2I/I2I workflows in original and SDNQ prequantized variants  
-    *note*: audio generation is not yet supported  
+    *note*: audio generation and upsampling are not yet supported (soon)  
   - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  

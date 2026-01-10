@@ -521,9 +521,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
         conversation = [
@@ -658,9 +655,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
 
@@ -860,9 +854,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
         conversation = [
