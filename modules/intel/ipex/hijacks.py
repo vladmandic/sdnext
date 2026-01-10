@@ -70,7 +70,7 @@ original_get_autocast_dtype = torch.get_autocast_dtype
 @wraps(torch.get_autocast_dtype)
 def torch_get_autocast_dtype(device_type=None):
     if device_type is None or check_cuda(device_type) or check_device_type(device_type, "xpu"):
-        return torch.bfloat16
+        return devices.dtype or torch.bfloat16
     else:
         return original_get_autocast_dtype(device_type)
 
