@@ -51,6 +51,7 @@
   - kandinsky-5 image and video on non-cuda platforms  
   - lora loading when using torch without distributed support  
   - google-genai auth, thanks @CalamitousFelicitousness  
+  - reduce triton test verbosity  
 
 ## Update for 2025-12-26
 

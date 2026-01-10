@@ -400,7 +400,8 @@ def test_triton(early: bool = False):
             triton_ok = False
     except Exception as e:
         triton_ok = False
-        log.warning(f"Triton test fail: {e}")
+        line = str(e).splitlines()[0]
+        log.warning(f"Triton test fail: {line}")
         if debug:
             from modules import errors
             errors.display(e, 'Triton')
