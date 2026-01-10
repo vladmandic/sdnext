@@ -92,7 +92,7 @@ def apply_changes(disable_list, update_list, disable_all):
             errors.display(e, f'extensions apply update: {ext.name}')
     shared.opts.disabled_extensions = disabled
     shared.opts.disable_all_extensions = disable_all
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     shared.restart_server(restart=True)
 
 
