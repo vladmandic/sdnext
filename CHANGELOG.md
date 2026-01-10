@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-09
+## Update for 2025-01-10
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -10,6 +10,7 @@
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
   - allow weights for wildcards, thanks @Tillerz  
+  - sampler: add laplace beta schedule  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
@@ -42,6 +43,7 @@
   - force model move on offload=none  
   - kandinsky-5 image and video on non-cuda platforms  
   - lora loading when using torch without distributed support  
+  - google-genai auth, thanks @CalamitousFelicitousness  
 
 ## Update for 2025-12-26
 
