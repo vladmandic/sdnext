@@ -6,6 +6,7 @@
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
     available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
+  - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
