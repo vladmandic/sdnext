@@ -71,7 +71,7 @@ class GoogleVeoVideoPipeline():
 
     def get_args(self):
         from modules.shared import opts
-        # Use UI settings only - env vars are intentionally ignored to prevent unexpected API charges
+        # Use UI settings only - env vars are intentionally ignored
         api_key = opts.google_api_key
         project_id = opts.google_project_id
         location_id = opts.google_location_id
