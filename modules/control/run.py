@@ -679,7 +679,5 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
-        jobid = shared.state.begin('UI')
         yield (output_images, blended_image, html_txt, output_filename)
-        shared.state.end(jobid)
     return (output_images, blended_image, html_txt, output_filename)
