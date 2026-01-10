@@ -831,9 +831,8 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
 from modules.shared_legacy import get_legacy_options
 options_templates.update(get_legacy_options())
 from modules.options_handler import Options
-opts = Options(options_templates, restricted_opts)
 config_filename = cmd_opts.config
-opts.load(config_filename)
+opts = Options(options_templates, restricted_opts, filename=config_filename)
 cmd_opts = cmd_args.settings_args(opts, cmd_opts)
 if cmd_opts.locale is not None:
     opts.data['ui_locale'] = cmd_opts.locale

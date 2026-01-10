@@ -378,7 +378,7 @@ def webui(restart=False):
 
     load_model()
     mount_subpath(app)
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
 
     if shared.cmd_opts.profile:
         for k, v in modules.script_callbacks.callback_map.items():

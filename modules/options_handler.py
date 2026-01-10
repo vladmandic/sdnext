@@ -20,17 +20,18 @@ compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 class Options():
     data = None
     data_labels = None
-    filename = None
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
-    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None, *, filename = "config.json"):
         if restricted_opts is None:
             restricted_opts = set()
+        self.filename = filename
         self.data_labels = options_templates
         self.restricted_opts = restricted_opts
         self.data = {k: v.default for k, v in self.data_labels.items()}
         self.legacy = [k for k, v in self.data_labels.items() if isinstance(v, LegacyOption)]
+        self.load()
 
     def __setattr__(self, key, value): # pylint: disable=inconsistent-return-statements
         if self.data is not None:
@@ -103,8 +104,6 @@ class Options():
     def save_atomic(self, filename=None, silent=False):
         if self.debug:
             log.debug(f'Settings: save settings="{self.filename}" override="{filename}" cmd="{cmd_opts.config}" cwd="{os.getcwd()}"')
-        if self.filename is None:
-            self.filename = cmd_opts.config
         if filename is None:
             filename = self.filename
         filename = os.path.abspath(filename)
