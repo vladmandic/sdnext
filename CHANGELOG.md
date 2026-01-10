@@ -5,12 +5,13 @@
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
-    available in both *original* and sdnq *prequantized* variants  
+    available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
   - allow weights for wildcards, thanks @Tillerz  
   - sampler: add laplace beta schedule  
+    results in better prompt adherence and smoother infills  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
@@ -26,6 +27,7 @@
   - rocm/hip/hipblast detection and initialization improvements  
   - zluda detection and initialization improvements  
   - new env variable `SD_VAE_DEFAULT` to force default vae processing  
+  - update `nunchaku==1.1.0`  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  

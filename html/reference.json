@@ -1103,6 +1103,16 @@
     "size": 16.10,
     "date": "2025 December"
   },
+  "Qwen-Image-2512 sdnq-dynamic-uint4": {
+    "path": "Disty0/Qwen-Image-2512-SDNQ-4bit-dynamic",
+    "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-dynamic 4-bit uint",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "",
+    "size": 16.10,
+    "date": "2026 January"
+  },
   "Qwen-Image-Edit sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
