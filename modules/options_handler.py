@@ -23,10 +23,10 @@ class Options():
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
-    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None, *, filename = "config.json"):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None, *, filename = ''):
         if restricted_opts is None:
             restricted_opts = set()
-        self.filename = filename
+        self.filename: str = filename or cmd_opts.config
         self.data_labels = options_templates
         self.restricted_opts = restricted_opts
         self.data = {k: v.default for k, v in self.data_labels.items()}
