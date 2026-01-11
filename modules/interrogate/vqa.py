@@ -365,12 +365,14 @@ class VQA:
     def unload(self):
         """Release VLM model from GPU/memory."""
         if self.model is not None:
-            shared.log.debug(f'VQA unload: model="{self.loaded}"')
+            model_name = self.loaded
+            shared.log.debug(f'VQA unload: unloading model="{model_name}"')
             sd_models.move_model(self.model, devices.cpu, force=True)
             self.model = None
             self.processor = None
             self.loaded = None
             devices.torch_gc(force=True, reason='vqa unload')
+            shared.log.debug(f'VQA unload: model="{model_name}" unloaded')
         else:
             shared.log.debug('VQA unload: no model loaded')
 
