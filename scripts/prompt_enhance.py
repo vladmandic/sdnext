@@ -159,9 +159,9 @@ class Options:
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
-    max_tokens: int = 50
+    max_tokens: int = 512
     do_sample: bool = True
-    temperature: float = 0.15
+    temperature: float = 0.8
     repetition_penalty: float = 1.2
     thinking_mode: bool = False
 
