@@ -491,7 +491,7 @@ class YoloRestorer(Detailer):
             shared.opts.detailer_sort = sort
             shared.opts.detailer_seg = seg
             # shared.opts.detailer_resolution = resolution
-            shared.opts.save(shared.config_filename, silent=True)
+            shared.opts.save(silent=True)
             shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
             if not self.ui_mode:
                 shared.log.debug(f'Detailer expert: {text}')

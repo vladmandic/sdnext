@@ -99,7 +99,7 @@ def set_config(req: Dict[str, Any]):
     updated = []
     for k, v in req.items():
         updated.append({ k: shared.opts.set(k, v) })
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     return { "updated": updated }
 
 def get_cmd_flags():

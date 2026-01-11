@@ -1071,7 +1071,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     def ui_sort_cards(sort_order):
         if shared.opts.extra_networks_sort != sort_order:
             shared.opts.extra_networks_sort = sort_order
-            shared.opts.save(shared.config_filename)
+            shared.opts.save()
         return f'Networks: sort={sort_order}'
 
     dummy = gr.State(value=False) # pylint: disable=abstract-class-instantiated
