@@ -163,6 +163,8 @@ class Options:
     do_sample: bool = True
     temperature: float = 0.8
     repetition_penalty: float = 1.2
+    top_k: int = 0
+    top_p: float = 0.0
     thinking_mode: bool = False
 
     @staticmethod
@@ -382,7 +384,7 @@ class Script(scripts_manager.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True, prefill:str='', keep_prefill:bool=False, keep_thinking:bool=False):
+    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, top_k:int=None, top_p:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True, prefill:str='', keep_prefill:bool=False, keep_thinking:bool=False):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
@@ -396,6 +398,8 @@ class Script(scripts_manager.Script):
         tokens = tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
         temperature = temperature or self.options.temperature
+        top_k = top_k if top_k is not None else self.options.top_k
+        top_p = top_p if top_p is not None else self.options.top_p
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
@@ -576,13 +580,17 @@ class Script(scripts_manager.Script):
         try:
             with devices.inference_context():
                 sd_models.move_model(self.llm, devices.device)
-                outputs = self.llm.generate(
-                    **inputs,
-                    do_sample=sample,
-                    temperature=float(temperature),
-                    max_new_tokens=int(tokens),
-                    repetition_penalty=float(penalty),
-                )
+                gen_kwargs = {
+                    'do_sample': sample,
+                    'temperature': float(temperature),
+                    'max_new_tokens': int(tokens),
+                    'repetition_penalty': float(penalty),
+                }
+                if top_k > 0:
+                    gen_kwargs['top_k'] = int(top_k)
+                if top_p > 0:
+                    gen_kwargs['top_p'] = float(top_p)
+                outputs = self.llm.generate(**inputs, **gen_kwargs)
                 if shared.opts.diffusers_offload_mode != 'none':
                     sd_models.move_model(self.llm, devices.cpu, force=True)
                     devices.torch_gc(force=True, reason='prompt enhance offload')
@@ -618,7 +626,7 @@ class Script(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking):
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -630,6 +638,8 @@ class Script(scripts_manager.Script):
             tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
+            top_k=top_k,
+            top_p=top_p,
             thinking=thinking_mode,
             nsfw=nsfw_mode,
             use_vision=use_vision,
@@ -700,6 +710,9 @@ class Script(scripts_manager.Script):
                         temperature = gr.Slider(label='Temperature', value=self.options.temperature, minimum=0.0, maximum=1.0, step=0.01, interactive=True)
                         repetition_penalty = gr.Slider(label='Repetition penalty', value=self.options.repetition_penalty, minimum=0.0, maximum=2.0, step=0.01, interactive=True)
                     with gr.Row():
+                        top_k = gr.Slider(label='Top-K', value=self.options.top_k, minimum=0, maximum=100, step=1, interactive=True)
+                        top_p = gr.Slider(label='Top-P', value=self.options.top_p, minimum=0.0, maximum=1.0, step=0.01, interactive=True)
+                    with gr.Row():
                         nsfw_mode = gr.Checkbox(label='NSFW allowed', value=True, interactive=True)
                         thinking_mode = gr.Checkbox(label='Thinking mode', value=False, interactive=True)
                     with gr.Row():
@@ -727,8 +740,8 @@ class Script(scripts_manager.Script):
                 self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking]
+            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking]
 
     def after_component(self, component, **kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -739,7 +752,7 @@ class Script(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -761,6 +774,8 @@ class Script(scripts_manager.Script):
             tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
+            top_k=top_k,
+            top_p=top_p,
             thinking=thinking_mode,
             nsfw=nsfw_mode,
             use_vision=use_vision,
