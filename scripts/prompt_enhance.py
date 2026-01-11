@@ -40,7 +40,17 @@ def is_thinking_model(model_name: str) -> bool:
     """Check if model supports thinking/reasoning mode."""
     if not model_name:
         return False
-    return 'thinking' in model_name.lower()
+    model_lower = model_name.lower()
+    # Match VQA's detection patterns for consistency
+    thinking_indicators = [
+        'thinking',      # Qwen3-VL-*-Thinking models
+        'moondream3',    # Moondream 3 supports thinking
+        'moondream 3',
+        'moondream2',    # Moondream 2 supports reasoning mode
+        'moondream 2',
+        'mimo',          # XiaomiMiMo models
+    ]
+    return any(indicator in model_lower for indicator in thinking_indicators)
 
 
 def get_model_display_name(model_repo: str) -> str:
@@ -283,12 +293,16 @@ class Script(scripts_manager.Script):
 
     def unload(self):
         if self.llm is not None:
-            sd_models.move_model(self.llm, devices.cpu)
-        self.model = None
-        self.llm = None
-        self.tokenizer = None
-        devices.torch_gc()
-        shared.log.debug('Prompt enhance: model unloaded')
+            model_name = self.model
+            shared.log.debug(f'Prompt enhance: unloading model="{model_name}"')
+            sd_models.move_model(self.llm, devices.cpu, force=True)
+            self.model = None
+            self.llm = None
+            self.tokenizer = None
+            devices.torch_gc(force=True, reason='prompt enhance unload')
+            shared.log.debug(f'Prompt enhance: model="{model_name}" unloaded')
+        else:
+            shared.log.debug('Prompt enhance: no model loaded')
 
     def clean(self, response, keep_thinking=False, prefill_text='', keep_prefill=False):
         # Handle thinking tags FIRST (before generic tag removal)
@@ -385,7 +399,7 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
@@ -401,22 +415,29 @@ class Script(scripts_manager.Script):
         debug_log(f'Prompt enhance: networks={networks}')
 
         current_image = None
-        try:
-            if image is not None and isinstance(image, gr.Image):
-                current_image = image.value
-            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
-                current_image = image
-            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+        # Only process images if vision is enabled and model supports it
+        if use_vision and is_vision_model(model):
+            try:
+                if image is not None and isinstance(image, gr.Image):
+                    current_image = image.value
+                elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+                    current_image = image
+                if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+                    current_image = None
+                # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
+                if current_image is None and ui_control_helpers.input_source is not None:
+                    if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
+                        current_image = ui_control_helpers.input_source[0]
+                    elif isinstance(ui_control_helpers.input_source, Image.Image):
+                        current_image = ui_control_helpers.input_source
+            except Exception:
                 current_image = None
-            # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
-            if current_image is None and ui_control_helpers.input_source is not None:
-                if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
-                    current_image = ui_control_helpers.input_source[0]
-                elif isinstance(ui_control_helpers.input_source, Image.Image):
-                    current_image = ui_control_helpers.input_source
-        except Exception:
-            current_image = None
         debug_log(f'Prompt enhance: current_image={current_image is not None} size={f"{current_image.width}x{current_image.height}" if current_image else "N/A"}')
+
+        # Check if vision was requested but no image is available
+        if use_vision and is_vision_model(model) and current_image is None:
+            shared.log.error(f'Prompt enhance: model="{model}" error="No input image provided"')
+            return 'Error: No input image provided. Please upload or select an image.'
 
         # Resize large images to match VQA performance (Qwen3-VL performance is sensitive to resolution)
         # Create a copy to avoid modifying the original image used by img2img
@@ -438,7 +459,6 @@ class Script(scripts_manager.Script):
                     debug_log('Prompt enhance: Converted image to RGB mode')
 
         has_system = system is not None and len(system) > 4
-        mode = 'custom' if has_system else ''
 
         if current_image is not None and isinstance(current_image, Image.Image):
             if (self.tokenizer is None) or (not self.tokenizer.is_processor):
@@ -446,7 +466,6 @@ class Script(scripts_manager.Script):
                 return prompt_text # Return original text part if image cannot be processed
             if prompt_text is not None and len(prompt_text) > 0:
                 if not has_system:
-                    mode = 'i2i-prompt'
                     system = self.options.i2i_prompt
                     system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                     system += self.options.details_prompt
@@ -461,7 +480,6 @@ class Script(scripts_manager.Script):
                 ]
             else:
                 if not has_system:
-                    mode = 'i2i-noprompt'
                     system = self.options.i2i_noprompt
                     system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                     system += self.options.details_prompt
@@ -479,13 +497,11 @@ class Script(scripts_manager.Script):
                 system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                 system += self.options.details_prompt
             if not self.tokenizer.is_processor:
-                mode = 't2i+tokenizer'
                 chat_template = [
                     { "role": "system", "content": system },
                     { "role": "user",   "content": prompt_text },
                 ]
             else:
-                mode = 't2i+processor'
                 chat_template = [
                     { "role": "system", "content": [
                         {"type": "text", "text": system }
@@ -495,75 +511,63 @@ class Script(scripts_manager.Script):
                     ] },
                 ]
 
-        # Handle prefill - add as assistant message if provided
+        # Prepare prefill (VQA approach: string concatenation, not assistant message)
         prefill_text = (prefill or '').strip()
         use_prefill = len(prefill_text) > 0
-        if use_prefill:
-            if self.tokenizer.is_processor:
-                # Processor-style (multimodal) format
-                chat_template.append({
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": prefill_text}]
-                })
-            else:
-                # Tokenizer-style format
-                chat_template.append({
-                    "role": "assistant",
-                    "content": prefill_text
-                })
+        is_thinking = is_thinking_model(model)
 
-        debug_log(f'Prompt enhance: chat_template roles={[msg["role"] for msg in chat_template]} use_prefill={use_prefill}')
+        debug_log(f'Prompt enhance: chat_template roles={[msg["role"] for msg in chat_template]} is_thinking={is_thinking} thinking={thinking} use_prefill={use_prefill}')
         t0 = time.time()
         self.busy = True
         try:
-            if use_prefill:
-                # With prefill: don't add generation prompt, continue the assistant message
-                try:
-                    inputs = self.tokenizer.apply_chat_template(
-                        chat_template,
-                        add_generation_prompt=False,
-                        continue_final_message=True,
-                        enable_thinking=thinking,
-                        tokenize=True,
-                        return_dict=True,
-                        return_tensors="pt",
-                    ).to(devices.device).to(devices.dtype)
-                except TypeError:
-                    # Fallback if continue_final_message not supported
-                    inputs = self.tokenizer.apply_chat_template(
-                        chat_template,
-                        add_generation_prompt=True,
-                        enable_thinking=thinking,
-                        tokenize=True,
-                        return_dict=True,
-                        return_tensors="pt",
-                    ).to(devices.device).to(devices.dtype)
-            else:
-                # Without prefill: standard generation prompt
-                inputs = self.tokenizer.apply_chat_template(
-                    chat_template,
-                    add_generation_prompt=True,
-                    enable_thinking=thinking,
-                    tokenize=True,
-                    return_dict=True,
-                    return_tensors="pt",
-                ).to(devices.device).to(devices.dtype)
-
-            # Handle thinking + prefill combination
-            if use_prefill and thinking:
-                # Get text version to apply keep_think_block_open, then re-tokenize
+            # Generate text prompt using template (WITHOUT enable_thinking parameter)
+            # Let template naturally generate <think> for thinking models
+            try:
                 text_prompt = self.tokenizer.apply_chat_template(
                     chat_template,
-                    add_generation_prompt=False if use_prefill else True,
-                    continue_final_message=use_prefill,
-                    enable_thinking=thinking,
+                    add_generation_prompt=True,
                     tokenize=False,
                 )
-                text_prompt = keep_think_block_open(text_prompt)
-                inputs = self.tokenizer(text_prompt, return_tensors="pt").to(devices.device).to(devices.dtype)
+            except TypeError:
+                text_prompt = self.tokenizer.apply_chat_template(
+                    chat_template,
+                    tokenize=False,
+                )
+
+            # Manually handle thinking tags and prefill (VQA Qwen approach)
+            if is_thinking:
+                if not thinking:
+                    # User wants to SKIP thinking
+                    # Template opened the block with <think>, close it immediately
+                    text_prompt += "</think>\n"
+                    if use_prefill:
+                        text_prompt += prefill_text
+                    debug_log('Prompt enhance: forced thinking off, appended </think>')
+                else:
+                    # User wants thinking - prefill becomes part of thought process
+                    if use_prefill:
+                        text_prompt += prefill_text
+                    debug_log('Prompt enhance: thinking enabled, prefill inside think block')
+            else:
+                # Standard model (no <think> block)
+                if use_prefill:
+                    text_prompt += prefill_text
+
+            debug_log(f'Prompt enhance: final text_prompt (last 200 chars)="{text_prompt[-200:]}"')
+
+            # Tokenize the final prompt
+            # For VL models with images, pass the image to the processor (like VQA does)
+            if self.tokenizer.is_processor and current_image is not None:
+                inputs = self.tokenizer(text=[text_prompt], images=[current_image], padding=True, return_tensors="pt")
+            elif self.tokenizer.is_processor:
+                # VL processor without image - must use explicit text= parameter
+                inputs = self.tokenizer(text=[text_prompt], images=None, padding=True, return_tensors="pt")
+            else:
+                inputs = self.tokenizer(text_prompt, return_tensors="pt")
+            inputs = inputs.to(devices.device).to(devices.dtype)
 
             input_len = inputs['input_ids'].shape[1]
-            debug_log(f'Prompt enhance: input_len={input_len} sample={sample} temp={temperature} penalty={penalty} max_tokens={tokens}')
+            debug_log(f'Prompt enhance: input_len={input_len} input_ids_shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max_tokens={tokens}')
         except Exception as e:
             shared.log.error(f'Prompt enhance tokenize: {e}')
             errors.display(e, 'Prompt enhance')
@@ -576,21 +580,21 @@ class Script(scripts_manager.Script):
                     **inputs,
                     do_sample=sample,
                     temperature=float(temperature),
-                    max_new_tokens=int(input_len + tokens),
+                    max_new_tokens=int(tokens),
                     repetition_penalty=float(penalty),
                 )
                 if shared.opts.diffusers_offload_mode != 'none':
-                    sd_models.move_model(self.llm, devices.cpu)
-                    devices.torch_gc()
-            if debug_enabled:
-                raw_response = self.tokenizer.batch_decode(outputs, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-                debug_log(f'Prompt enhance: raw="{raw_response}"')
+                    sd_models.move_model(self.llm, devices.cpu, force=True)
+                    devices.torch_gc(force=True, reason='prompt enhance offload')
             outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
                 outputs_cropped,
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=True,
             )
+            if debug_enabled:
+                response_before_clean = response[0] if isinstance(response, list) else response
+                debug_log(f'Prompt enhance: response_before_clean="{response_before_clean}"')
         except Exception as e:
             outputs = None
             shared.log.error(f'Prompt enhance generate: {e}')
@@ -605,9 +609,9 @@ class Script(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" mode="{mode}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
+        shared.log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
-        debug_log(f'Prompt enhance: response="{response}"')
+        debug_log(f'Prompt enhance: response_after_clean="{response}"')
         self.busy = False
         if is_censored:
             shared.log.warning(f'Prompt enhance: censored response="{response}"')
@@ -713,7 +717,7 @@ class Script(scripts_manager.Script):
                         prompt_system = gr.Textbox(label='System prompt', value='', placeholder='Leave empty to use built-in enhancement instructions', interactive=True, lines=4, elem_id='prompt_enhance_system')
                 with gr.Accordion('Output', open=True, elem_id='prompt_enhance_output'): # Corrected elem_id reference
                     with gr.Row():
-                        prompt_output = gr.Textbox(label='Enhanced prompt', value='', placeholder='Enhanced prompt will appear here', interactive=True, lines=4)
+                        prompt_output = gr.Textbox(label='Enhanced prompt', value='', placeholder='Enhanced prompt will appear here', interactive=True, lines=4, max_lines=12, elem_id='prompt_enhance_result')
                     with gr.Row():
                         clear_btn = gr.Button(value='Clear', elem_id='prompt_enhance_clear', variant='secondary')
                         clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
