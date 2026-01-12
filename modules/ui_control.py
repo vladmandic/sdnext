@@ -104,7 +104,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
         except GeneratorExit:
-            pass  # Generator was closed by client - cleanup will run in finally
+            shared.log.error("Control: generator exit")
         except Exception as e:
             shared.log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
