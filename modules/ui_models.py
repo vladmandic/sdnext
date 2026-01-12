@@ -144,7 +144,7 @@ def create_ui():
                     model_table = gr.HTML(value='', elem_id="model_list_table")
 
                 model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
-                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
+                model_list_btn.click(fn=lambda: create_models_table(list(sd_models.checkpoints_list.values())), inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):
                 from modules.civitai.metadata_civitai import civit_search_metadata, civit_update_metadata
