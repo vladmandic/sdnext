@@ -1,10 +1,9 @@
-"""
-- modernui
-- teacache and others
-"""
 import os
 import time
 import threading
+import torch
+from PIL import Image
+
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks
 from modules.video_models.video_save import save_video
 from modules.video_models.video_utils import check_av
@@ -128,6 +127,7 @@ def run_ltx(task_id,
         t0 = time.time()
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         t1 = time.time()
+        output_type = 'np' if 'LTX2' in shared.sd_model.__class__.__name__ else 'latent'
         base_args = {
             "prompt": prompt,
             "negative_prompt": negative,
@@ -137,11 +137,8 @@ def run_ltx(task_id,
             "num_inference_steps": steps,
             "generator": get_generator(seed),
             "callback_on_step_end": diffusers_callback,
+            "output_type": output_type,
         }
-        if 'LTX2' in shared.sd_model.__class__.__name__:
-            base_args["output_type"] = "np"
-        else:
-            base_args["output_type"] = "latent"
         if 'Condition' in shared.sd_model.__class__.__name__:
             base_args["image_cond_noise_scale"] = image_cond_noise_scale
         shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=base {base_args}')
@@ -175,7 +172,7 @@ def run_ltx(task_id,
                 "width": get_bucket(upsample_ratio * width),
                 "height": get_bucket(upsample_ratio * height),
                 "generator": get_generator(seed),
-                "output_type": "latent",
+                "output_type": output_type,
             }
             if latents.ndim == 4:
                 latents = latents.unsqueeze(0) # add batch dimension
@@ -212,7 +209,7 @@ def run_ltx(task_id,
                 "image_cond_noise_scale": image_cond_noise_scale,
                 "generator": get_generator(seed),
                 "callback_on_step_end": diffusers_callback,
-                "output_type": "latent",
+                "output_type": output_type,
             }
             if latents.ndim == 4:
                 latents = latents.unsqueeze(0) # add batch dimension
@@ -240,7 +237,12 @@ def run_ltx(task_id,
 
         yield None, 'LTX: VAE decode in progress...'
         try:
-            frames = vae_decode(latents, decode_timestep, seed)
+            if torch.is_tensor(latents):
+                frames = vae_decode(latents, decode_timestep, seed)
+            else:
+                frames = latents
+        except TypeError as e:
+            frames = latents # likely because the latents are already decoded
         except AssertionError as e:
             yield from abort(e, ok=True, p=p)
             return
@@ -267,7 +269,14 @@ def run_ltx(task_id,
         )
 
         t_end = time.time()
-        _n, _c, _t, h, w = frames.shape
+        if isinstance(frames, list) and isinstance(frames[0], Image.Image):
+            w, h = frames[0].size
+        elif frames.ndim == 5:
+            _n, _c, _t, h, w = frames.shape
+        elif frames.ndim == 4:
+            _n, h, w, _c = frames.shape
+        else:
+            h, w = frames.shape[-2], frames.shape[-1]
         resolution = f'{w}x{h}' if num_frames > 0 else None
         summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
         memory = shared.mem_mon.summary()

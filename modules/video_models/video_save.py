@@ -62,6 +62,18 @@ def images_to_tensor(images):
     return tensor
 
 
+def numpy_to_tensor(images):
+    if images is None or len(images) == 0:
+        return None
+    array = [torch.from_numpy(images[i]) for i in range(images.shape[0])]
+    tensor = torch.stack(array, dim=0) # n h w c
+    tensor = tensor.unsqueeze(0) # 1, n, h, w, c
+    tensor = tensor.permute(0, 4, 1, 2, 3).contiguous() # 1, c, n, h, w
+    # tensor = (tensor.float() / 127.5) - 1.0 # from [0,255] to [-1,1]
+    # shared.log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
+    return tensor
+
+
 def atomic_save_video(filename, tensor:torch.Tensor, fps:float=24, codec:str='libx264', pix_fmt:str='yuv420p', options:str='', metadata:dict={}, pbar=None):
     av = check_av()
     if av is None or av is False:
@@ -141,6 +153,10 @@ def save_video(
 
     if pixels is None:
         return 0, output_video
+    if isinstance(pixels, np.ndarray):
+        pixels = numpy_to_tensor(pixels)
+    if isinstance(pixels, list) and isinstance(pixels[0], Image.Image):
+        pixels = images_to_tensor(pixels)
     if not torch.is_tensor(pixels):
         shared.log.error(f'Video: type={type(pixels)} not a tensor')
         return 0, output_video
