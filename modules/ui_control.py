@@ -103,12 +103,15 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
+        except GeneratorExit:
+            pass  # Generator was closed by client - cleanup will run in finally
         except Exception as e:
             shared.log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
             yield [None, None, None, None, f'Control: Exception: {e}', '']
-        progress.finish_task(job_id)
-        shared.state.end(jobid)
+        finally:
+            progress.finish_task(job_id)
+            shared.state.end(jobid)
 
 
 def create_ui(_blocks: gr.Blocks=None):
