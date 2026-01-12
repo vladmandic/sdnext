@@ -140,7 +140,7 @@ def run_ltx(task_id,
             "output_type": "latent",
         }
         if 'Condition' in shared.sd_model.__class__.__name__:
-            base_args["image_cond_noise_scale"] = image_cond_noise_scale    
+            base_args["image_cond_noise_scale"] = image_cond_noise_scale
         shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=base {base_args}')
         if len(conditions) > 0:
             base_args["conditions"] = conditions

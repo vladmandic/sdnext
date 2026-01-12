@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-10
+## Update for 2025-01-12
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -14,9 +14,13 @@
 - **Feaures**
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
-  - allow weights for wildcards, thanks @Tillerz  
-  - sampler: add laplace beta schedule  
+  - **wildcards**: allow weights, thanks @Tillerz  
+  - **sampler**: add laplace beta schedule  
     results in better prompt adherence and smoother infills  
+  - **prompt enhance**: improve handling and refresh ui, thanks @CalamitousFelicitousness  
+    new models such moondream-3 and xiaomo-mimo
+    add support for *thinking* mode where model can reason about the prompt  
+    add support for *vision* processing where prompt enhance can also optionally analyze input image  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
@@ -52,6 +56,7 @@
   - lora loading when using torch without distributed support  
   - google-genai auth, thanks @CalamitousFelicitousness  
   - reduce triton test verbosity  
+  - improve qwen i2i handling  
 
 ## Update for 2025-12-26
 
