@@ -269,6 +269,7 @@ def create_ui(_blocks: gr.Blocks=None):
 
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
+            btn_generate.click(**select_dict)
             for ctrl in [input_image, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
                 if hasattr(ctrl, 'change'):
                     ctrl.change(**select_dict)
