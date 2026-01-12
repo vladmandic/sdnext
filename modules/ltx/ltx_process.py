@@ -137,8 +137,11 @@ def run_ltx(task_id,
             "num_inference_steps": steps,
             "generator": get_generator(seed),
             "callback_on_step_end": diffusers_callback,
-            "output_type": "latent",
         }
+        if 'LTX2' in shared.sd_model.__class__.__name__:
+            base_args["output_type"] = "np"
+        else:
+            base_args["output_type"] = "latent"
         if 'Condition' in shared.sd_model.__class__.__name__:
             base_args["image_cond_noise_scale"] = image_cond_noise_scale
         shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=base {base_args}')

@@ -31,7 +31,7 @@ processed = None # last known processed results
 
 
 class Processed:
-    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None):
+    def __init__(self, p: StableDiffusionProcessing, images_list, seed=-1, info=None, subseed=None, all_prompts=None, all_negative_prompts=None, all_seeds=None, all_subseeds=None, index_of_first_image=0, infotexts=None, comments="", binary=None, audio=None):
         self.sd_model_hash = getattr(shared.sd_model, 'sd_model_hash', '') if model_data.sd_model is not None else ''
 
         self.prompt = p.prompt or ''
@@ -52,6 +52,8 @@ class Processed:
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
         self.denoising_strength = p.denoising_strength
+
+        self.audio = audio
 
         self.restore_faces = p.restore_faces or False
         self.face_restoration_model = shared.opts.face_restoration_model if p.restore_faces else None
@@ -484,6 +486,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         output_images.append(batch_image)
                         infotexts.append(batch_infotext)
 
+            audio = getattr(samples, 'audio', None)
+
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')
             timer.process.record('post')
@@ -522,6 +526,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         subseed=p.all_subseeds[0],
         index_of_first_image=index_of_first_image,
         infotexts=infotexts,
+        audio=audio,
     )
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner) and not (shared.state.interrupted or shared.state.skipped):
         p.scripts.postprocess(p, results)

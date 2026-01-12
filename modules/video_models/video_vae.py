@@ -20,11 +20,13 @@ def set_vae_params(p):
             shared.sd_model.vae.use_framewise_decoding = True
         if hasattr(shared.sd_model.vae, 'enable_tiling'):
             shared.sd_model.vae.enable_tiling()
+        debug(f'VAE params: type={vae_type} tiling=True frames={p.frames} tile_frames={p.vae_tile_frames} framewise={getattr(shared.sd_model.vae, "use_framewise_decoding", None)}')
     else:
         if hasattr(shared.sd_model.vae, 'use_framewise_decoding'):
             shared.sd_model.vae.use_framewise_decoding = False
         if hasattr(shared.sd_model.vae, 'disable_tiling'):
             shared.sd_model.vae.disable_tiling()
+        debug(f'VAE params: type={vae_type} tiling=False frames={p.frames} tile_frames={p.vae_tile_frames} framewise={getattr(shared.sd_model.vae, "use_framewise_decoding", None)}')
 
 
 def vae_decode_tiny(latents):
