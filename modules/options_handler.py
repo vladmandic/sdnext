@@ -12,12 +12,15 @@ from installer import log
 if TYPE_CHECKING:
     from collections.abc import Callable
     from modules.options import OptionInfo
+    from typing import Any
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 
 
 class Options():
+    data: dict[str, Any] = {} # Required. (Gets checked by __getattr__ before setup in __init__)
+    data_labels: dict[str, OptionInfo | LegacyOption] = {} # Required. (Gets checked by __getattr__ before setup in __init__)
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
@@ -32,34 +35,31 @@ class Options():
         self.load()
 
     def __setattr__(self, key, value): # pylint: disable=inconsistent-return-statements
-        if self.data is not None:
-            if key in self.data or key in self.data_labels:
-                if cmd_opts.freeze:
-                    log.warning(f'Settings are frozen: {key}')
-                    return
-                if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
-                    log.warning(f'Settings key is restricted: {key}')
-                    return
-                if self.debug:
-                    log.trace(f'Settings set: {key}={value}')
-                if key in self.legacy:
-                    log.warning(f'Settings set: {key}={value} legacy')
-                self.data[key] = value
+        if key in self.data or key in self.data_labels:
+            if cmd_opts.freeze:
+                log.warning(f'Settings are frozen: {key}')
                 return
+            if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
+                log.warning(f'Settings key is restricted: {key}')
+                return
+            if self.debug:
+                log.trace(f'Settings set: {key}={value}')
+            if key in self.legacy:
+                log.warning(f'Settings set: {key}={value} legacy')
+            self.data[key] = value
+            return
         return super(Options, self).__setattr__(key, value) # pylint: disable=super-with-arguments
 
     def get(self, item):
-        if self.data is not None:
-            if item in self.data:
-                return self.data[item]
+        if item in self.data:
+            return self.data[item]
         if item in self.data_labels:
             return self.data_labels[item].default
         return super(Options, self).__getattribute__(item) # pylint: disable=super-with-arguments
 
     def __getattr__(self, item):
-        if self.data is not None:
-            if item in self.data:
-                return self.data[item]
+        if item in self.data:
+            return self.data[item]
         if item in self.data_labels:
             return self.data_labels[item].default
         return super(Options, self).__getattribute__(item) # pylint: disable=super-with-arguments
