@@ -1,7 +1,7 @@
 import os
 import inspect
-import gradio as gr
 from typing import cast
+import gradio as gr
 from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
 from modules.ui_components import ToolButton
 from modules.ui_common import create_refresh_button
