@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-12
+## Update for 2025-01-13
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -54,6 +54,7 @@
   - force model move on offload=none  
   - kandinsky-5 image and video on non-cuda platforms  
   - lora loading when using torch without distributed support  
+  - generate slowdown when consequtive lora-diffusers enabled  
   - google-genai auth, thanks @CalamitousFelicitousness  
   - reduce triton test verbosity  
   - improve qwen i2i handling  
