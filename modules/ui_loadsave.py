@@ -1,5 +1,6 @@
 import os
 import gradio as gr
+from typing import TYPE_CHECKING, cast
 from modules import errors
 from modules.ui_components import ToolButton
 
@@ -90,10 +91,11 @@ class UiLoadsave:
             apply_field(x, 'value', check_dropdown, getattr(x, 'init_field', None))
 
         def check_tab_id(tab_id):
-            tab_items = list(filter(lambda e: isinstance(e, gr.TabItem), x.children))
+            if TYPE_CHECKING:
+                assert isinstance(x, gr.Tabs)
+            tab_items = cast('list[gr.TabItem]', list(filter(lambda e: isinstance(e, gr.TabItem), x.children))) # Force static type checker to get correct type
             if type(tab_id) == str:
-                tab_ids = [t.id for t in tab_items]
-                return tab_id in tab_ids
+                return tab_id in [t.id for t in tab_items]
             elif type(tab_id) == int:
                 return 0 <= tab_id < len(tab_items)
             else:
