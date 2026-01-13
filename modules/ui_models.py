@@ -179,7 +179,7 @@ def create_ui():
                             custom_name = gr.Textbox(label="New model name")
                         with gr.Row():
                             merge_mode = gr.Dropdown(choices=merge_methods.__all__, value="weighted_sum", label="Interpolation Method")
-                            merge_mode_docs = gr.HTML(value=getattr(merge_methods, "weighted_sum", "").__doc__.replace("\n", "<br>"))
+                            merge_mode_docs = gr.HTML(value=(getattr(merge_methods, "weighted_sum", "").__doc__ or 'Error: Documentation missing').replace("\n", "<br>"))
                         with gr.Row():
                             primary_model_name = gr.Dropdown(sd_model_choices(), label="Primary model", value="None")
                             create_refresh_button(primary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "checkpoint_A_refresh")

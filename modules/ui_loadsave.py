@@ -290,11 +290,12 @@ class UiLoadsave:
         self.ui_defaults_review = gr.HTML("", elem_id="ui_defaults_review")
 
     def setup_ui(self):
+        review = [self.ui_defaults_review] if self.ui_defaults_review is not None else None
         if self.ui_defaults_view:
-            self.ui_defaults_view.click(fn=self.ui_view, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
+            self.ui_defaults_view.click(fn=self.ui_view, inputs=list(self.component_mapping.values()), outputs=review)
         if self.ui_defaults_apply:
-            self.ui_defaults_apply.click(fn=self.ui_apply, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
+            self.ui_defaults_apply.click(fn=self.ui_apply, inputs=list(self.component_mapping.values()), outputs=review)
         if self.ui_defaults_restore:
-            self.ui_defaults_restore.click(fn=self.ui_restore, inputs=[], outputs=[self.ui_defaults_review])
+            self.ui_defaults_restore.click(fn=self.ui_restore, inputs=[], outputs=review)
         if self.ui_defaults_submenu:
-            self.ui_defaults_submenu.click(fn=self.ui_submenu_apply, _js='uiOpenSubmenus', inputs=[self.ui_defaults_review], outputs=[self.ui_defaults_review])
+            self.ui_defaults_submenu.click(fn=self.ui_submenu_apply, _js='uiOpenSubmenus', inputs=review, outputs=review)

@@ -124,7 +124,8 @@ def writefile(data, filename, mode='w', silent=False, atomic=False):
                 file.write(output)
         t1 = time.time()
         if not silent:
-            log.debug(f'Save: file="{filename}" json={len(data)} bytes={len(output)} time={t1-t0:.3f}')
+            datalength = len(data) if isinstance(data, (dict, list)) else (len(data.__dict__))
+            log.debug(f'Save: file="{filename}" json={datalength} bytes={len(output)} time={t1-t0:.3f}')
     except Exception as err:
         log.error(f'Save failed: file="{filename}" {err}')
     try:

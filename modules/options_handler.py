@@ -169,7 +169,7 @@ class Options():
             return
         self.data = readfile(filename, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
-            self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings').split(',')]
+            self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings', '').split(',')]
         unknown_settings = []
         for k, v in self.data.items():
             info: OptionInfo | None = self.data_labels.get(k, None)
