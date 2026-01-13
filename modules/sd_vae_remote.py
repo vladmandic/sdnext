@@ -1,4 +1,3 @@
-from typing import List
 import io
 import time
 import json
@@ -47,7 +46,7 @@ dtypes = {
 }
 
 
-def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str = None) -> Image.Image:
+def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str | None = None):
     from modules import devices, shared, errors, modelloader
     tensors = []
     content = 0
@@ -128,7 +127,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     return tensors
 
 
-def remote_encode(images: List[Image.Image], model_type: str = None) -> torch.Tensor:
+def remote_encode(images: list[Image.Image], model_type: str | None = None):
     from diffusers.utils import remote_utils
     from modules import devices, shared, errors, modelloader
     if not shared.opts.remote_vae_encode:

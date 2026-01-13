@@ -170,7 +170,7 @@ class Options():
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings', '').split(',')]
         unknown_settings = []
         for k, v in self.data.items():
-            info: OptionInfo | None = self.data_labels.get(k, None)
+            info = self.data_labels.get(k, None)
             if info is not None:
                 if not info.validate(k, v):
                     self.data[k] = info.default
