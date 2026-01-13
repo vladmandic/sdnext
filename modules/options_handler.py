@@ -83,7 +83,7 @@ class Options():
             return False
         if self.data_labels[key].onchange is not None:
             try:
-                self.data_labels[key].onchange()
+                self.data_labels[key].onchange() # type: ignore (False positive. We just checked for not None.)
             except Exception as err:
                 log.error(f'Error in onchange callback: {key} {value} {err}')
                 errors.display(err, 'Error in onchange callback')
