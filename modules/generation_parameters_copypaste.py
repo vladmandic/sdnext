@@ -61,7 +61,7 @@ def image_from_url_text(filedata: str | list | dict | None):
         if len(filedata) == 0:
             return None
         filedata = filedata[0]
-    if type(filedata) == dict:
+    if not isinstance(filedata, str):
         shared.log.warning('Incorrect filedata received')
         return None
     if filedata.startswith("data:image/png;base64,"):
