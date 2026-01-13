@@ -67,9 +67,14 @@ def delete_files(js_data, files, all_files, index):
     except Exception:
         data = { 'index_of_first_image': 0 }
     start_index = 0
-    if index > -1 and shared.opts.save_selected_only and (index >= data['index_of_first_image']):
-        files = [files[index]]
-        start_index = index
+    first_index = data['index_of_first_image']
+    if (index > -1) and shared.opts.save_selected_only and (index >= first_index):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
+        if index < len(files):
+            files = [files[index]]
+            start_index = index
+        else:
+            shared.log.error(f'Delete: index={index} first={first_index} files={len(files)} out of range')
+            files = []
     deleted = []
     all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
     all_files = [os.path.normpath(f) for f in all_files]
@@ -135,9 +140,13 @@ def save_files(js_data, files, html_info, index):
         data = {}
     p = PObject(data)
     start_index = 0
-    if index > -1 and shared.opts.save_selected_only and (index >= p.index_of_first_image):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
-        files = [files[index]]
-        start_index = index
+    if (index > -1) and shared.opts.save_selected_only and (index >= p.index_of_first_image):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
+        if index < len(files):
+            files = [files[index]]
+            start_index = index
+        else:
+            shared.log.error(f'Save: index={index} first={p.index_of_first_image} files={len(files)} out of range')
+            files = []
     filenames = []
     fullfns = []
     for image_index, filedata in enumerate(files, start_index):
