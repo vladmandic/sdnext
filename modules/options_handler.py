@@ -18,8 +18,6 @@ compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 
 
 class Options():
-    data = None
-    data_labels = None
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
