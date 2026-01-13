@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import gradio as gr
 from PIL import Image
-from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm
+from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm, call_queue
 from modules.video_models.video_utils import check_av
 from modules.framepack import framepack_install # pylint: disable=wrong-import-order
 from modules.framepack import framepack_load # pylint: disable=wrong-import-order
@@ -18,7 +18,6 @@ tmp_dir = os.path.join(paths.data_path, 'tmp', 'framepack')
 git_dir = os.path.join(os.path.dirname(__file__), 'framepack')
 git_repo = 'https://github.com/lllyasviel/framepack'
 git_commit = 'c5d375661a2557383f0b8da9d11d14c23b0c4eaf'
-queue_lock = threading.Lock()
 loaded_variant = None
 
 
@@ -131,7 +130,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
         return
 
     progress.add_task_to_queue(task_id)
-    with queue_lock:
+    with call_queue.get_lock():
         progress.start_task(task_id)
 
         yield from load_model(variant, attention)

@@ -4,7 +4,7 @@ import threading
 import torch
 from PIL import Image
 
-from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks
+from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks, call_queue
 from modules.video_models.video_save import save_video
 from modules.video_models.video_utils import check_av
 from modules.processing_callbacks import diffusers_callback
@@ -15,7 +15,6 @@ debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None e
 # engine, model = 'LTX Video', 'LTXVideo 0.9.7 13B'
 upsample_repo_id = "a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers"
 upsample_pipe = None
-queue_lock = threading.Lock()
 
 
 def run_ltx(task_id,
@@ -72,7 +71,7 @@ def run_ltx(task_id,
     # from diffusers import LTXConditionPipeline # pylint: disable=unused-import
     check_av()
     progress.add_task_to_queue(task_id)
-    with queue_lock:
+    with call_queue.get_lock():
         progress.start_task(task_id)
         memstats.reset_stats()
         timer.process.reset()
@@ -241,7 +240,7 @@ def run_ltx(task_id,
                 frames = vae_decode(latents, decode_timestep, seed)
             else:
                 frames = latents
-        except TypeError as e:
+        except TypeError:
             frames = latents # likely because the latents are already decoded
         except AssertionError as e:
             yield from abort(e, ok=True, p=p)

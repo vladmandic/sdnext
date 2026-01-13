@@ -7,7 +7,7 @@ function setRefreshInterval() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) refreshInterval = Math.max(2500, opts.live_preview_refresh_period || 1000);
     else refreshInterval = opts.live_preview_refresh_period || 1000;
-    log('refreshInterval', document.visibilityState, refreshInterval);
+    // log('refreshInterval', document.visibilityState, refreshInterval);
   });
 }
 

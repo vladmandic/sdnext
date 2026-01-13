@@ -18,9 +18,10 @@
   - **sampler**: add laplace beta schedule  
     results in better prompt adherence and smoother infills  
   - **prompt enhance**: improve handling and refresh ui, thanks @CalamitousFelicitousness  
-    new models such moondream-3 and xiaomo-mimo
+    new models such moondream-3 and xiaomo-mimo  
     add support for *thinking* mode where model can reason about the prompt  
     add support for *vision* processing where prompt enhance can also optionally analyze input image  
+    add support for *pre-fill* mode where prompt enhance can continue from existing caption  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
