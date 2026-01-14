@@ -38,7 +38,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'z_image', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen', 'longcat']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'z_image', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen', 'longcat', 'glm_image']
 
 
 def warn_once(msg, variant=None):
@@ -59,7 +59,7 @@ def get_model(model_type = 'decoder', variant = None):
         model_cls = 'sd'
     elif model_cls in {'pixartsigma', 'hunyuandit', 'omnigen', 'auraflow'}:
         model_cls = 'sdxl'
-    elif model_cls in {'h1', 'z_image', 'lumina2', 'chroma', 'longcat'}:
+    elif model_cls in {'h1', 'z_image', 'lumina2', 'chroma', 'longcat', 'glm_image'}:
         model_cls = 'f1'
     elif model_cls in {'wanai', 'qwen', 'chrono'}:
         variant = variant or 'TAE WanVideo'

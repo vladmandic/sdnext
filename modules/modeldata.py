@@ -78,6 +78,8 @@ def get_model_type(pipe):
         model_type = 'prx'
     elif 'LongCat' in name:
         model_type = 'longcat'
+    elif 'GlmImage' in name:
+        model_type = 'glm_image'
     elif 'Ovis-Image' in name:
         model_type = 'ovis'
     # video models
