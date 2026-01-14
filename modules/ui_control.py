@@ -11,7 +11,7 @@ import installer
 gr_height = 512
 max_units = shared.opts.control_max_units
 units: list[unit.Unit] = [] # main state variable
-controls: list[gr.component] = [] # list of gr controls
+controls: list[gr.components.Component] = [] # list of gr controls
 debug = shared.log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
 

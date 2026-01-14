@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Any, Dict
+from typing import Any
 from fastapi import Request, Depends
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
@@ -95,7 +95,7 @@ def get_config():
         del options['sd_lora']
     return options
 
-def set_config(req: Dict[str, Any]):
+def set_config(req: dict[str, Any]):
     updated = []
     for k, v in req.items():
         updated.append({ k: shared.opts.set(k, v) })

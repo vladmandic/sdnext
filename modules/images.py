@@ -311,7 +311,7 @@ def parse_novelai_metadata(data: dict):
     return geninfo
 
 
-def read_info_from_image(image: Image, watermark: bool = False):
+def read_info_from_image(image: Image.Image, watermark: bool = False):
     if image is None:
         return '', {}
     if isinstance(image, str):
@@ -419,7 +419,7 @@ def draw_overlay(im, text: str = '', y_offset: int = 0):
     return im
 
 
-def set_watermark(image, wm_text: str = None, wm_image: Image.Image = None):
+def set_watermark(image, wm_text: str | None = None, wm_image: Image.Image | None = None):
     if shared.opts.image_watermark_position != 'none' and wm_image is not None: # visible watermark
         if isinstance(wm_image, str):
             try:

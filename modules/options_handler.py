@@ -12,56 +12,54 @@ from installer import log
 if TYPE_CHECKING:
     from collections.abc import Callable
     from modules.options import OptionInfo
+    from typing import Any
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 
 
 class Options():
-    data = None
-    data_labels = None
+    data_labels: dict[str, OptionInfo | LegacyOption]
+    data: dict[str, Any]
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
     def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None, *, filename = ''):
         if restricted_opts is None:
             restricted_opts = set()
+        super().__setattr__('data_labels', options_templates)
+        super().__setattr__('data', {k: v.default for k, v in options_templates.items()})
         self.filename: str = filename or cmd_opts.config
-        self.data_labels = options_templates
         self.restricted_opts = restricted_opts
-        self.data = {k: v.default for k, v in self.data_labels.items()}
-        self.legacy = [k for k, v in self.data_labels.items() if isinstance(v, LegacyOption)]
+        self.legacy = [k for k, v in options_templates.items() if isinstance(v, LegacyOption)]
         self.load()
 
     def __setattr__(self, key, value): # pylint: disable=inconsistent-return-statements
-        if self.data is not None:
-            if key in self.data or key in self.data_labels:
-                if cmd_opts.freeze:
-                    log.warning(f'Settings are frozen: {key}')
-                    return
-                if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
-                    log.warning(f'Settings key is restricted: {key}')
-                    return
-                if self.debug:
-                    log.trace(f'Settings set: {key}={value}')
-                if key in self.legacy:
-                    log.warning(f'Settings set: {key}={value} legacy')
-                self.data[key] = value
+        if key in self.data or key in self.data_labels:
+            if cmd_opts.freeze:
+                log.warning(f'Settings are frozen: {key}')
                 return
+            if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
+                log.warning(f'Settings key is restricted: {key}')
+                return
+            if self.debug:
+                log.trace(f'Settings set: {key}={value}')
+            if key in self.legacy:
+                log.warning(f'Settings set: {key}={value} legacy')
+            self.data[key] = value
+            return
         return super(Options, self).__setattr__(key, value) # pylint: disable=super-with-arguments
 
     def get(self, item):
-        if self.data is not None:
-            if item in self.data:
-                return self.data[item]
+        if item in self.data:
+            return self.data[item]
         if item in self.data_labels:
             return self.data_labels[item].default
         return super(Options, self).__getattribute__(item) # pylint: disable=super-with-arguments
 
     def __getattr__(self, item):
-        if self.data is not None:
-            if item in self.data:
-                return self.data[item]
+        if item in self.data:
+            return self.data[item]
         if item in self.data_labels:
             return self.data_labels[item].default
         return super(Options, self).__getattribute__(item) # pylint: disable=super-with-arguments
@@ -81,9 +79,10 @@ class Options():
             setattr(self, key, value)
         except RuntimeError:
             return False
-        if self.data_labels[key].onchange is not None:
+        func = self.data_labels[key].onchange
+        if func is not None:
             try:
-                self.data_labels[key].onchange()
+                func()
             except Exception as err:
                 log.error(f'Error in onchange callback: {key} {value} {err}')
                 errors.display(err, 'Error in onchange callback')
@@ -169,10 +168,10 @@ class Options():
             return
         self.data = readfile(filename, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
-            self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings').split(',')]
+            self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings', '').split(',')]
         unknown_settings = []
         for k, v in self.data.items():
-            info: OptionInfo | None = self.data_labels.get(k, None)
+            info = self.data_labels.get(k, None)
             if info is not None:
                 if not info.validate(k, v):
                     self.data[k] = info.default

@@ -25,7 +25,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     if lock and locking_available:
         try:
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock")
-            lock_file.logger.disabled = True
+            lock_file.logger.disabled = True # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_read_lock(blocking=True, timeout=3)
         except Exception as err:
             lock_file = None
@@ -105,7 +105,7 @@ def writefile(data, filename, mode='w', silent=False, atomic=False):
     try:
         if locking_available:
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock") if locking_available else None
-            lock_file.logger.disabled = True
+            lock_file.logger.disabled = True # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_write_lock(blocking=True, timeout=3) if lock_file is not None else False
     except Exception as err:
         locking_available = False
@@ -124,7 +124,8 @@ def writefile(data, filename, mode='w', silent=False, atomic=False):
                 file.write(output)
         t1 = time.time()
         if not silent:
-            log.debug(f'Save: file="{filename}" json={len(data)} bytes={len(output)} time={t1-t0:.3f}')
+            datalength = len(data) if isinstance(data, (dict, list)) else (len(data.__dict__))
+            log.debug(f'Save: file="{filename}" json={datalength} bytes={len(output)} time={t1-t0:.3f}')
     except Exception as err:
         log.error(f'Save failed: file="{filename}" {err}')
     try:
