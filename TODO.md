@@ -6,6 +6,8 @@
 
 ## Internal
 
+- Update `transformers==5.0.0`
+- Unify *huggingface* and *diffusers* model folders
 - Reimplement `llama` remover for Kanvas
 - Deploy: Create executable for SD.Next
 - Feature: Integrate natural language image search
@@ -40,7 +42,6 @@
 
 TODO: *Prioritize*!
 
-- [LTXVideo 2.0](https://github.com/huggingface/diffusers/pull/12915)
 - [LTXVideo 0.98 LongMulti](https://github.com/huggingface/diffusers/pull/12614)
 - [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)

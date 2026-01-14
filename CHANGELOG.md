@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-13
+## Update for 2025-01-14
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -30,6 +30,7 @@
   - persistent panel minimize/maximize state  
 - **Internal**
   - update js linting to `eslint9`, thanks @awsr  
+  - update strong typing checks, thanks @awsr  
   - update reference models previews, thanks @liutyi  
   - update models specs page, thanks @alerikaisattera  
   - sdnq improvements  

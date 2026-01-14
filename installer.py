@@ -648,7 +648,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = 'dad5cb55e6ade24fb397525eb023ad4eba37019d' # diffusers commit hash
+    sha = '7feb4fc791909f4a58b153d6d07c6cb8437b2e58' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -679,7 +679,7 @@ def check_transformers():
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
-        target_transformers = '4.57.3'
+        target_transformers = '4.57.5'
         target_tokenizers = '0.22.2'
     if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
         if pkg_transformers is None:
