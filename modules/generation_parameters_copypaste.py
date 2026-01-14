@@ -35,7 +35,7 @@ def reset():
     field_names.clear()
 
 
-def image_from_url_text(filedata: str | list | dict | None):
+def image_from_url_text(filedata):
     if filedata is None:
         return None
     if type(filedata) == list and len(filedata) > 0 and type(filedata[0]) == dict and filedata[0].get("is_file", False):
