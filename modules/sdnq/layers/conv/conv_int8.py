@@ -37,9 +37,10 @@ def conv_int8_matmul(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    input, scale = quantize_int_mm_input(input, scale)
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8)
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8).t_()
+        scale = scale.t()
+    input, scale = quantize_int_mm_input(input, scale)
     input, weight = check_mats(input, weight)
 
     if groups == 1:

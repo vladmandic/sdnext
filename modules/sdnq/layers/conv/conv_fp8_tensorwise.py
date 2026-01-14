@@ -37,9 +37,10 @@ def conv_fp8_matmul_tensorwise(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    input, scale = quantize_fp_mm_input_tensorwise(input, scale)
     if quantized_weight_shape is not None:
-        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float8_e4m3fn)
+        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float8_e4m3fn).t_()
+        scale = scale.t()
+    input, scale = quantize_fp_mm_input_tensorwise(input, scale)
     input, weight = check_mats(input, weight)
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 

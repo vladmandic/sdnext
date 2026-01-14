@@ -170,7 +170,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
         return model
     for module_name, module in model.named_children():
         if hasattr(module, "sdnq_dequantizer"):
-            layer_class_name = module.__class__.__name__
+            layer_class_name = module.original_class.__name__
             current_use_quantized_matmul = use_quantized_matmul
             if current_use_quantized_matmul:
                 if layer_class_name in conv_types:
@@ -204,7 +204,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
             if current_use_quantized_matmul is not None and current_use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
-                if not module.sdnq_dequantizer.re_quantize_for_matmul:
+                if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
                     module.scale.t_()
                     module.weight.t_()
                     if current_use_quantized_matmul:
@@ -215,8 +215,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 if module.svd_up is not None:
                     module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), current_use_quantized_matmul)
                 module.sdnq_dequantizer.use_quantized_matmul = current_use_quantized_matmul
-                module.forward = get_forward_func(module.__class__.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, current_use_quantized_matmul)
-                module.forward = module.forward.__get__(module, module.__class__)
+                module.forward_func = get_forward_func(module.original_class.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, current_use_quantized_matmul)
             setattr(model, module_name, module)
         else:
             setattr(model, module_name, apply_sdnq_options_to_module(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))

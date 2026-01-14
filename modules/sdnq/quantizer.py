@@ -20,6 +20,7 @@ from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int_symetric, pack_int_asymetric
 from .packed_float import pack_float
 from .forward import get_forward_func
+from .layers import get_sdnq_wrapper_class
 
 
 class QuantizationMethod(str, Enum):
@@ -55,7 +56,7 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: Union[int, List[i
 
     if dtype_dict[weights_dtype]["is_integer"]:
         if use_stochastic_rounding:
-            quantized_weight.add_(torch.randn_like(quantized_weight), alpha=0.1)
+            quantized_weight.add_(torch.rand_like(quantized_weight), alpha=0.1)
         quantized_weight.round_()
     else:
         if use_stochastic_rounding:
@@ -352,7 +353,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
             svd_down = svd_down.to(dtype=torch_dtype)
 
     re_quantize_for_matmul = re_quantize_for_matmul or num_of_groups > 1
-    if use_quantized_matmul and not re_quantize_for_matmul:
+    if use_quantized_matmul and not re_quantize_for_matmul and not dtype_dict[weights_dtype]["is_packed"]:
         scale.t_()
         weight.t_()
         weight = prepare_weight_for_matmul(weight)
@@ -436,7 +437,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             svd_down = svd_down.t_()
             svd_is_transposed = True
 
-        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(quantized_weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=torch.float32)).div_(weight_std)
+        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(quantized_weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=torch.float32, skip_compile=True)).div_(weight_std)
         if quantization_loss <= dynamic_loss_threshold:
             return (quantized_weight, scale, zero_point, svd_up, svd_down, sdnq_dequantizer)
     return None
@@ -499,6 +500,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
         ) = weight_data
         del weight_data
 
+        layer = get_sdnq_wrapper_class(layer, get_forward_func(layer_class_name, layer.sdnq_dequantizer.quantized_matmul_dtype, layer.sdnq_dequantizer.use_quantized_matmul))
         layer.weight = torch.nn.Parameter(layer.weight.to(return_device, non_blocking=non_blocking), requires_grad=False)
         layer.scale = torch.nn.Parameter(layer.scale.to(return_device, non_blocking=non_blocking), requires_grad=False)
         if layer.zero_point is not None:
@@ -506,10 +508,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
         if layer.svd_up is not None:
             layer.svd_up = torch.nn.Parameter(layer.svd_up.to(return_device, non_blocking=non_blocking), requires_grad=False)
             layer.svd_down = torch.nn.Parameter(layer.svd_down.to(return_device, non_blocking=non_blocking), requires_grad=False)
-
         layer = layer.to(return_device, non_blocking=non_blocking)
-        layer.forward = get_forward_func(layer_class_name, layer.sdnq_dequantizer.quantized_matmul_dtype, layer.sdnq_dequantizer.use_quantized_matmul)
-        layer.forward = layer.forward.__get__(layer, layer.__class__)
 
         if use_dynamic_quantization:
             if modules_dtype_dict is None:
@@ -814,7 +813,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         else:
             param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
 
-        layer, _ = get_module_from_name(model, param_name)
+        layer, tensor_name = get_module_from_name(model, param_name)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict = sdnq_quantize_layer(
             layer,
@@ -848,6 +847,8 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if layer.svd_up is not None:
                 layer.svd_up._is_hf_initialized = True # pylint: disable=protected-access
                 layer.svd_down._is_hf_initialized = True # pylint: disable=protected-access
+        parent_module, tensor_name = get_module_from_name(model, param_name.removesuffix(tensor_name).removesuffix("."))
+        setattr(parent_module, tensor_name, layer)
 
     def get_quantize_ops(self):
         return SDNQQuantize(self)

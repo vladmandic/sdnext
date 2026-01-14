@@ -31,7 +31,8 @@ def int8_matmul(
     weights_dtype: str = None,
 ) -> torch.FloatTensor:
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8)
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8).t_()
+        scale = scale.t()
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
     if svd_up is not None:

@@ -21,7 +21,8 @@ def fp16_matmul(
     weights_dtype: str = None,
 ) -> torch.FloatTensor:
     if quantized_weight_shape is not None:
-        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float16)
+        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float16).t_()
+        scale = scale.t()
     elif weight.dtype != torch.float16:
         weight = weight.to(dtype=torch.float16) # fp8 weights
     return_dtype = input.dtype
