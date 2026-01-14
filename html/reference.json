@@ -1352,7 +1352,7 @@
     "preview": "zai-org--GLM-Image.jpg",
     "desc": "GLM-Image is a two-stage image generation model combining autoregressive token generation (9B vision-language encoder) with diffusion refinement (7B DiT transformer). Features strong text rendering and compositional capabilities.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 1.5, steps: 20",
+    "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
     "size": 15.3,
     "date": "2025 January"
   }
