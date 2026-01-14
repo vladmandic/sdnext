@@ -6,8 +6,9 @@
 
 ## Internal
 
-- Update `transformers==5.0.0`
-- Unify *huggingface* and *diffusers* model folders
+- Feature: Move `nunchaku` models to refernce instead of internal decision  
+- Update: `transformers==5.0.0`
+- Feature: Unify *huggingface* and *diffusers* model folders
 - Reimplement `llama` remover for Kanvas
 - Deploy: Create executable for SD.Next
 - Feature: Integrate natural language image search

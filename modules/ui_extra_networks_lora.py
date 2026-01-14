@@ -64,6 +64,11 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         clean_tags.pop('dataset', None)
         return clean_tags
 
+    def cleanup_version(self, dct, lora):
+        ver = dct.get("baseModel", lora.sd_version)
+        ver = ver.replace(' 0.9', '').replace(' 1.0', '').replace(' ', '')
+        return ver
+
     def create_item(self, name):
         l = lora_load.available_networks.get(name)
         if l is None:
@@ -74,7 +79,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
             name = os.path.splitext(os.path.relpath(l.filename, shared.cmd_opts.lora_dir))[0]
             size, mtime = modelstats.stat(l.filename)
             info = self.find_info(l.filename)
-            version = self.find_version(l, info)
+            ver_dct = self.find_version(l, info)
             item = {
                 "type": 'Lora',
                 "name": name,
@@ -85,10 +90,10 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
                 "metadata": json.dumps(l.metadata, indent=4) if l.metadata else None,
                 "mtime": mtime,
                 "size": size,
-                "version": version.get("baseModel", l.sd_version),
+                "version": self.cleanup_version(ver_dct, l),
                 "info": info,
                 "description": self.find_description(l.filename, info),
-                "tags": self.get_tags(l, info, version),
+                "tags": self.get_tags(l, info, ver_dct),
             }
             return item
         except Exception as e:

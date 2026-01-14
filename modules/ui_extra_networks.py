@@ -157,7 +157,7 @@ class ExtraNetworksPage:
         pass
 
     def patch(self, text: str, tabname: str):
-        return text.replace('~tabname', tabname)
+        return text.replace('~tabname', tabname).replace('txt2img', tabname)
 
     def create_xyz_grid(self):
         pass

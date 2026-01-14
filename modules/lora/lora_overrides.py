@@ -1,12 +1,14 @@
 from modules import shared
 
 
-maybe_diffusers = [ # forced if lora_maybe_diffusers is enabled
+force_hashes_diffusers = [ # forced always
+    # '816d0eed49fd', # flash-sdxl
+    # 'c2ec22757b46', # flash-sd15
+    # '22c8339e7666', # spo-sdxl-10ep
     # 'aaebf6360f7d', # sd15-lcm
     # '3d18b05e4f56', # sdxl-lcm
     # 'b71dcb732467', # sdxl-tcd
     # '813ea5fb1c67', # sdxl-turbo
-    # not really needed, but just in case
     # '5a48ac366664', # hyper-sd15-1step
     # 'ee0ff23dcc42', # hyper-sd15-2step
     # 'e476eb1da5df', # hyper-sd15-4step
@@ -19,41 +21,14 @@ maybe_diffusers = [ # forced if lora_maybe_diffusers is enabled
     # '8cca3706050b', # hyper-sdxl-1step
 ]
 
-force_diffusers = [ # forced always
-    '816d0eed49fd', # flash-sdxl
-    'c2ec22757b46', # flash-sd15
-    '22c8339e7666', # spo-sdxl-10ep
+allow_native = [
+    'sd',
+    'sdxl',
+    'sd3',
+    'f1',
+    'chroma',
 ]
 
-force_models_diffusers = [ # forced always
-    # 'sd3',
-    'sc',
-    'h1',
-    'kandinsky5',
-    'kandinsky3',
-    'kandinsky',
-    'hunyuandit',
-    'hunyuanimage',
-    'auraflow',
-    'lumina2',
-    'qwen',
-    'bria',
-    'flite',
-    'cosmos',
-    'chrono',
-    'z_image',
-    'f2',
-    'longcat',
-    # video models
-    'hunyuanvideo',
-    'hunyuanvideo15'
-    'cogvideo',
-    'wanai',
-    'chrono',
-    'ltxvideo',
-    'mochivideo',
-    'allegrovideo',
-]
 
 force_classes_diffusers = [ # forced always
     'FluxKontextPipeline', 'FluxKontextInpaintPipeline',
@@ -65,11 +40,9 @@ fuse_ignore = [
 
 
 def get_method(shorthash=''):
-    use_diffusers = shared.opts.lora_force_diffusers or (shared.sd_model_type in force_models_diffusers) or (shared.sd_model.__class__.__name__ in force_classes_diffusers)
-    if shared.opts.lora_maybe_diffusers and len(shorthash) > 4:
-        use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in maybe_diffusers)
-    if shared.opts.lora_force_diffusers and len(shorthash) > 4:
-        use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in force_diffusers)
+    use_diffusers = shared.opts.lora_force_diffusers or (shared.sd_model.__class__.__name__ in force_classes_diffusers) or (shared.sd_model_type not in allow_native)
+    if len(shorthash) > 4:
+        use_diffusers = use_diffusers or any(x.startswith(shorthash) for x in force_hashes_diffusers)
     nunchaku_dit = hasattr(shared.sd_model, 'transformer') and 'Nunchaku' in shared.sd_model.transformer.__class__.__name__
     nunchaku_unet = hasattr(shared.sd_model, 'unet') and 'Nunchaku' in shared.sd_model.unet.__class__.__name__
     use_nunchaku = nunchaku_dit or nunchaku_unet

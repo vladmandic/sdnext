@@ -326,21 +326,21 @@ function extraNetworksSearchButton(event) {
 
 function extraNetworksFilterVersion(event) {
   const version = event.target.textContent.trim();
-  const activeTab = getENActiveTab();
   const activePage = getENActivePage().toLowerCase();
-  let cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
-  if (!cardContainer) cardContainer = gradioApp().querySelector(`#txt2img_extra_networks_${activePage}_cards`);
-  log('extraNetworksFilterVersion', { version, activeTab, activePage, cardContainer });
-  if (!cardContainer) return;
-  if (cardContainer.dataset.activeVersion === version) {
-    cardContainer.dataset.activeVersion = '';
-    cardContainer.querySelectorAll('.card').forEach((card) => { card.style.display = ''; });
-  } else {
-    cardContainer.dataset.activeVersion = version;
-    cardContainer.querySelectorAll('.card').forEach((card) => {
-      if (card.dataset.version === version) card.style.display = '';
-      else card.style.display = 'none';
-    });
+  const cardContainers = gradioApp().querySelectorAll('.extra-network-cards');
+  log('extraNetworksFilterVersion', { activePage, version });
+  for (const cardContainer of cardContainers) {
+    if (!cardContainer.id.includes(activePage)) continue;
+    if (cardContainer.dataset.activeVersion === version) {
+      cardContainer.dataset.activeVersion = '';
+      cardContainer.querySelectorAll('.card').forEach((card) => { card.style.display = ''; });
+    } else {
+      cardContainer.dataset.activeVersion = version;
+      cardContainer.querySelectorAll('.card').forEach((card) => {
+        if (card.dataset.version === version) card.style.display = '';
+        else card.style.display = 'none';
+      });
+    }
   }
 }
 

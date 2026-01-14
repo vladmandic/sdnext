@@ -678,6 +678,9 @@ def check_transformers():
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
+    elif args.new:
+        target_transformers = '5.0.0rc2'
+        target_tokenizers = '0.22.2'
     else:
         target_transformers = '4.57.5'
         target_tokenizers = '0.22.2'

@@ -39,6 +39,7 @@
   - zluda detection and initialization improvements  
   - new env variable `SD_VAE_DEFAULT` to force default vae processing  
   - update `nunchaku==1.1.0`  
+  - lora switch logic from force-diffusers to allow-native  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
@@ -60,6 +61,7 @@
   - google-genai auth, thanks @CalamitousFelicitousness  
   - reduce triton test verbosity  
   - improve qwen i2i handling  
+  - networks filter by model type  
 
 ## Update for 2025-12-26
 
