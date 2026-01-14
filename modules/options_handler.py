@@ -19,19 +19,19 @@ compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
 
 
 class Options():
-    data: dict[str, Any] = {} # Required. (Gets checked by __getattr__ before setup in __init__)
-    data_labels: dict[str, OptionInfo | LegacyOption] = {} # Required. (Gets checked by __getattr__ before setup in __init__)
+    data_labels: dict[str, OptionInfo | LegacyOption]
+    data: dict[str, Any]
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
 
     def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = {}, restricted_opts: set[str] | None = None, *, filename = ''):
         if restricted_opts is None:
             restricted_opts = set()
+        super().__setattr__('data_labels', options_templates)
+        super().__setattr__('data', {k: v.default for k, v in options_templates.items()})
         self.filename: str = filename or cmd_opts.config
-        self.data_labels = options_templates
         self.restricted_opts = restricted_opts
-        self.data = {k: v.default for k, v in self.data_labels.items()}
-        self.legacy = [k for k, v in self.data_labels.items() if isinstance(v, LegacyOption)]
+        self.legacy = [k for k, v in options_templates.items() if isinstance(v, LegacyOption)]
         self.load()
 
     def __setattr__(self, key, value): # pylint: disable=inconsistent-return-statements
