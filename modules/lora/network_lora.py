@@ -27,8 +27,8 @@ class NetworkModuleLora(network.NetworkModule):
             return None
         linear_modules = [torch.nn.Linear, torch.nn.modules.linear.NonDynamicallyQuantizableLinear, torch.nn.MultiheadAttention, diffusers_lora.LoRACompatibleLinear]
         typ = type(self.sd_module)
-        is_linear = typ in linear_modules or self.sd_module.__class__.__name__ in ["NNCFLinear", "QLinear", "Linear4bit"]
-        is_conv = (typ in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv]) or (self.sd_module.__class__.__name__ in ["NNCFConv2d", "QConv2d"]) or (typ.__name__ in ['downsampler_block', 'upsampler_block'])
+        is_linear = typ in linear_modules or self.sd_module.__class__.__name__ in ["SDNQLinear", "QLinear", "Linear4bit"]
+        is_conv = (typ in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv]) or (self.sd_module.__class__.__name__ in ["SDNQConv2d", "QConv2d"]) or (typ.__name__ in ['downsampler_block', 'upsampler_block'])
         if is_linear:
             weight = weight.reshape(weight.shape[0], -1)
             module = torch.nn.Linear(weight.shape[1], weight.shape[0], bias=False)
