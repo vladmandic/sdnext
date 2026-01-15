@@ -13,9 +13,7 @@
 - Deploy: Create executable for SD.Next
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
-- Feature: Transformers unified cache handler
 - Feature: Remote Text-Encoder support
-- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
 - Refactor: move sampler options to settings to config
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Feature: LoRA add OMI format support for SD35/FLUX.1
@@ -28,20 +26,26 @@
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
+## Modular
+
+- Switch to modular pipelines
+- Feature: Transformers unified cache handler
+- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
+- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
+
 ## Features
 
 - [Flux.2 TinyVAE](https://huggingface.co/fal/FLUX.2-Tiny-AutoEncoder)
 - [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)
 - [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)
-- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
 - [Sonic Inpaint](https://github.com/ubc-vision/sonic)
 
 ### New models / Pipelines
 
-TODO: *Prioritize*!
+TODO: Investigate which models are diffusers-compatible and prioritize!
 
 - [LTXVideo 0.98 LongMulti](https://github.com/huggingface/diffusers/pull/12614)
 - [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)

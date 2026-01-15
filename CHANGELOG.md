@@ -12,7 +12,7 @@
     *note*: audio generation and upsampling are not yet supported (soon)  
   - [GLM-Image](https://huggingface.co/zai-org/GLM-Image)  
     GLM-image is a new image generation model that adopts a hybrid autoregressive with diffusion decoder architecture  
-    available in both *original* and *sdnq-dynamic prequantized* variants  
+    available in both *original* and *sdnq-dynamic prequantized* variants, thanks @CalamitousFelicitousness  
     *note*: model requires usage of `--new` flag to install pre-release versions of required package  
   - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
 - **Feaures**
