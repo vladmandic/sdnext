@@ -38,7 +38,7 @@ prev_cls = ''
 prev_type = ''
 prev_model = ''
 lock = threading.Lock()
-supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'zimage', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen', 'longcat', 'glmimage']
+supported = ['sd', 'sdxl', 'sd3', 'f1', 'h1', 'zimage', 'lumina2', 'hunyuanvideo', 'wanai', 'chrono', 'cosmos', 'mochivideo', 'pixartsigma', 'pixartalpha', 'hunyuandit', 'omnigen', 'qwen', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4']
 
 
 def warn_once(msg, variant=None):
@@ -59,9 +59,9 @@ def get_model(model_type = 'decoder', variant = None):
         model_cls = 'sd'
     elif model_cls in {'pixartsigma', 'hunyuandit', 'omnigen', 'auraflow'}:
         model_cls = 'sdxl'
-    elif model_cls in {'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'glmimage'}:
+    elif model_cls in {'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4'}:
         model_cls = 'f1'
-    elif model_cls in {'wanai', 'qwen', 'chrono'}:
+    elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos'}:
         variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
