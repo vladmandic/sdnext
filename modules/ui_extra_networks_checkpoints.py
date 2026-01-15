@@ -19,6 +19,8 @@ version_map = {
     "StableDiffusionXL": "SD XL",
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
+    "Z": "Z-Image",
+    "Glm": "GLM-Image",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
@@ -91,7 +93,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             ready = reference_downloaded(url)
             version = "ready" if ready else "download"
             if tag == 'cloud':
-                version = 'cloud'
+                version = 'Cloud'
             if not ready and shared.opts.offline_mode:
                 count['hidden'] += 1
                 continue

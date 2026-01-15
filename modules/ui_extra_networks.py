@@ -326,6 +326,7 @@ class ExtraNetworksPage:
             else:
                 style = 'network-folder'
             subdirs_html += f'<button class="lg secondary gradio-button custom-button {style}" onclick="extraNetworksSearchButton(event)">{html.escape(subdir)}</button><br>'
+
         self.html = ''
         self.create_items(tabname)
         versions = sorted({item.get("version", "") for item in self.items if item.get("version")})
