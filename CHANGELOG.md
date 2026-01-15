@@ -32,6 +32,7 @@
     add support for *vision* processing where prompt enhance can also optionally analyze input image  
     add support for *pre-fill* mode where prompt enhance can continue from existing caption  
   - **chroma**: add inpaint pipeline support  
+  - **taesd preview**: support for more models, thanks @alerikaisattera  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
