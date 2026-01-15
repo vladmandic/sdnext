@@ -29,6 +29,7 @@
     add support for *thinking* mode where model can reason about the prompt  
     add support for *vision* processing where prompt enhance can also optionally analyze input image  
     add support for *pre-fill* mode where prompt enhance can continue from existing caption  
+  - **chroma**: add inpaint pipeline support  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
