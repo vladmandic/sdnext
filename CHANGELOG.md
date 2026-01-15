@@ -51,6 +51,7 @@
   - update `nunchaku==1.1.0`  
   - lora switch logic from force-diffusers to allow-native  
   - split `reference.json`  
+  - print system env on startup  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  
