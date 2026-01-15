@@ -400,6 +400,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     infotexts = []
     output_images = []
     output_binary = None
+    audio = None
 
     process_init(p)
     if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):

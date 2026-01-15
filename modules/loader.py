@@ -99,13 +99,22 @@ except Exception:
     _bnb = False
 timer.startup.record("bnb")
 
+import huggingface_hub # pylint: disable=W0611,C0411
+logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
+if huggingface_hub.__version__.startswith('0.'):
+    huggingface_hub.is_offline_mode = lambda: False
+timer.startup.record("hfhub")
+
+import accelerate # pylint: disable=W0611,C0411
+timer.startup.record("accelerate")
+
+import pydantic # pylint: disable=W0611,C0411
+timer.startup.record("pydantic")
+
 import transformers # pylint: disable=W0611,C0411
 from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
 transformers_logging.set_verbosity_error()
 timer.startup.record("transformers")
-
-import accelerate # pylint: disable=W0611,C0411
-timer.startup.record("accelerate")
 
 try:
     import onnxruntime # pylint: disable=W0611,C0411
@@ -120,9 +129,6 @@ from fastapi import FastAPI # pylint: disable=W0611,C0411
 import gradio # pylint: disable=W0611,C0411
 timer.startup.record("gradio")
 errors.install([gradio])
-
-import pydantic # pylint: disable=W0611,C0411
-timer.startup.record("pydantic")
 
 # patch different progress bars
 import tqdm as tqdm_lib # pylint: disable=C0411
@@ -144,10 +150,6 @@ except Exception as e:
     errors.log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
     errors.log.error('Please restart re-run the installer')
     sys.exit(1)
-
-import huggingface_hub # pylint: disable=W0611,C0411
-logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
-timer.startup.record("hfhub")
 
 try:
     import pillow_jxl # pylint: disable=W0611,C0411
@@ -185,6 +187,7 @@ def get_packages():
         "gradio": gradio.__version__,
         "transformers": transformers.__version__,
         "accelerate": accelerate.__version__,
+        "hub": huggingface_hub.__version__,
     }
 
 try:

@@ -439,7 +439,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Kandinsky 5.0']:
+        elif model_type in ['Kandinsky 5.0'] and '2I' in model_type:
             from pipelines.model_kandinsky import load_kandinsky5
             sd_model = load_kandinsky5(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -482,6 +482,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         elif model_type in ['Overfit']:
             from pipelines.model_ovis import load_ovis
             sd_model = load_ovis(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['GLM-Image']:
+            from pipelines.model_glm import load_glm_image
+            sd_model = load_glm_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')

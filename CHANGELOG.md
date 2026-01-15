@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-14
+## Update for 2025-01-15
 
 - **Models**
   - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
@@ -10,8 +10,17 @@
     LTX-2 is a new very large 19B parameter video generation model from Lightricks using Gemma-3 text encoder  
     available for T2I/I2I workflows in original and SDNQ prequantized variants  
     *note*: audio generation and upsampling are not yet supported (soon)  
+  - [GLM-Image](https://huggingface.co/zai-org/GLM-Image)  
+    GLM-image is a new image generation model that adopts a hybrid autoregressive with diffusion decoder architecture  
+    available in both *original* and *sdnq-dynamic prequantized* variants, thanks @CalamitousFelicitousness  
+    *note*: model requires pre-release versions of `transformers` package:  
+    > pip install --upgrade git+https://github.com/huggingface/transformers.git  
+    > ./webui.sh --experimental  
   - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
 - **Feaures**
+  - **SDNQ**: add *dynamic* quantization method  
+    sdnq can dynamically determine best quantization method for each module layer  
+    slower to quantize on-the-fly, but results in better quality with minimal resource usage  
   - **SDNQ** now has *19 int* based and *69 float* based quantization types  
     *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
   - **wildcards**: allow weights, thanks @Tillerz  
@@ -22,6 +31,7 @@
     add support for *thinking* mode where model can reason about the prompt  
     add support for *vision* processing where prompt enhance can also optionally analyze input image  
     add support for *pre-fill* mode where prompt enhance can continue from existing caption  
+  - **chroma**: add inpaint pipeline support  
 - **UI**
   - kanvas add send-to functionality  
   - kanvas improve support for standardui  
@@ -40,6 +50,8 @@
   - new env variable `SD_VAE_DEFAULT` to force default vae processing  
   - update `nunchaku==1.1.0`  
   - lora switch logic from force-diffusers to allow-native  
+  - split `reference.json`  
+  - print system env on startup  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  

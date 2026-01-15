@@ -156,6 +156,8 @@ def task_specific_kwargs(p, model):
         task_args['reference_images'] = p.init_images
     if ('GoogleNanoBananaPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['image'] = p.init_images[0]
+    if ('GlmImagePipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
+        task_args['image'] = p.init_images
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             shared.log.error('BLiP diffusion requires init image')

@@ -19,6 +19,8 @@ version_map = {
     "StableDiffusionXL": "SD XL",
     "WanToVideo": "Wan",
     "WanVACE": "Wan",
+    "Z": "Z-Image",
+    "Glm": "GLM-Image",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
@@ -40,7 +42,19 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             shared.log.debug(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable}')
             return []
         count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0 }
-        shared.reference_models = readfile(os.path.join('html', 'reference.json'), as_type="dict")
+
+        reference_base = readfile(os.path.join('html', 'reference.json'), as_type="dict")
+        reference_quant = readfile(os.path.join('html', 'reference-quant.json'), as_type="dict")
+        reference_distilled = readfile(os.path.join('html', 'reference-distilled.json'), as_type="dict")
+        reference_community = readfile(os.path.join('html', 'reference-community.json'), as_type="dict")
+        reference_cloud = readfile(os.path.join('html', 'reference-cloud.json'), as_type="dict")
+        shared.reference_models = {}
+        shared.reference_models.update(reference_base)
+        shared.reference_models.update(reference_quant)
+        shared.reference_models.update(reference_community)
+        shared.reference_models.update(reference_distilled)
+        shared.reference_models.update(reference_cloud)
+
         for k, v in shared.reference_models.items():
             count['total'] += 1
             url = v['path']
@@ -79,7 +93,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             ready = reference_downloaded(url)
             version = "ready" if ready else "download"
             if tag == 'cloud':
-                version = 'cloud'
+                version = 'Cloud'
             if not ready and shared.opts.offline_mode:
                 count['hidden'] += 1
                 continue
@@ -103,7 +117,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 "version": version,
                 "tags": tag,
             }
-        shared.log.debug(f'Networks: type="reference" items={count}')
+        shared.log.debug(f'Networks: type="reference" {count}')
 
     def create_item(self, name):
         record = None
