@@ -22,7 +22,7 @@ def get_model_type(pipe):
         model_type = 'sd' # instaflow is compatible with sd
     elif "AnimateDiffPipeline" in name:
         model_type = 'sd' # animatediff is compatible with sd
-    elif "Kandinsky5" in name:
+    elif "Kandinsky5" in name and '2I' in name:
         model_type = 'kandinsky5'
     elif "Kandinsky3" in name:
         model_type = 'kandinsky3'
@@ -41,7 +41,7 @@ def get_model_type(pipe):
     elif "Flux" in name or "Flex1" in name or "Flex2" in name:
         model_type = 'f1'
     elif "ZImage" in name or "Z-Image" in name:
-        model_type = 'z_image'
+        model_type = 'zimage'
     elif "Lumina2" in name:
         model_type = 'lumina2'
     elif "Lumina" in name:
@@ -79,10 +79,22 @@ def get_model_type(pipe):
     elif 'LongCat' in name:
         model_type = 'longcat'
     elif 'GlmImage' in name:
-        model_type = 'glm_image'
+        model_type = 'glmimage'
     elif 'Ovis-Image' in name:
         model_type = 'ovis'
+    elif 'Wan' in name:
+        model_type = 'wanai'
+    elif 'ChronoEdit' in name:
+        model_type = 'chrono'
+    elif 'HDM-xut' in name:
+        model_type = 'hdm'
+    elif 'HunyuanImage3' in name:
+        model_type = 'hunyuanimage3'
+    elif 'HunyuanImage' in name:
+        model_type = 'hunyuanimage'
     # video models
+    elif "Kandinsky5" in name and '2V' in name:
+        model_type = 'kandinsky5video'
     elif "CogVideo" in name:
         model_type = 'cogvideo'
     elif 'HunyuanVideo15' in name:
@@ -95,17 +107,6 @@ def get_model_type(pipe):
         model_type = 'mochivideo'
     elif "Allegro" in name:
         model_type = 'allegrovideo'
-    # hybrid models
-    elif 'Wan' in name:
-        model_type = 'wanai'
-    elif 'ChronoEdit' in name:
-        model_type = 'chrono'
-    elif 'HDM-xut' in name:
-        model_type = 'hdm'
-    elif 'HunyuanImage3' in name:
-        model_type = 'hunyuanimage3'
-    elif 'HunyuanImage' in name:
-        model_type = 'hunyuanimage'
     # cloud models
     elif 'GoogleVeo' in name:
         model_type = 'veo3'

@@ -439,7 +439,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Kandinsky 5.0']:
+        elif model_type in ['Kandinsky 5.0'] and '2I' in model_type:
             from pipelines.model_kandinsky import load_kandinsky5
             sd_model = load_kandinsky5(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
