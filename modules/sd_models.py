@@ -359,6 +359,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_flux2 import load_flux2
             sd_model = load_flux2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['FLUX2 Klein']:
+            from pipelines.model_flux2_klein import load_flux2_klein
+            sd_model = load_flux2_klein(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['FLEX']:
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
