@@ -16,7 +16,7 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     # Load transformer - Klein uses Flux2Transformer2DModel (same class as Flux2, different size)
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.Flux2Transformer2DModel, load_config=diffusers_load_config)
 
-    # Load text encoder - Klein uses Qwen3ForCausalLM (8B), shared across all Klein variants
+    # Load text encoder - Klein uses Qwen3 (4B for Klein-4B, 8B for Klein-9B)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3ForCausalLM, load_config=diffusers_load_config)
 
     pipe = diffusers.Flux2KleinPipeline.from_pretrained(

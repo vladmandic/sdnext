@@ -12,6 +12,9 @@ import torch
 from modules import devices, paths, shared
 
 
+debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
+
+
 TAESD_MODELS = {
     'TAESD 1.3 Mocha Croissant': { 'fn': 'taesd_13_', 'uri': 'https://github.com/madebyollin/taesd/raw/7f572ca629c9b0d3c9f71140e5f501e09f9ea280', 'model': None },
     'TAESD 1.2 Chocolate-Dipped Shortbread': { 'fn': 'taesd_12_', 'uri': 'https://github.com/madebyollin/taesd/raw/8909b44e3befaa0efa79c5791e4fe1c4d4f7884e', 'model': None },
@@ -158,8 +161,9 @@ def decode(latents):
                 dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
                 tensor = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
                 tensor = tensor.detach().clone().to(devices.device, dtype=dtype)
-                shared.log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} tensor={tensor.shape}')
-                # FLUX.2 has 128 latent channels that need reshaping to 32 channels for TAESD
+                if debug:
+                    shared.log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} tensor={tensor.shape}')
+                # Fallback: reshape packed 128-channel latents to 32 channels if not already unpacked
                 if variant == 'TAE FLUX.2' and len(tensor.shape) == 4 and tensor.shape[1] == 128:
                     b, _c, h, w = tensor.shape
                     tensor = tensor.reshape(b, 32, h * 2, w * 2)
