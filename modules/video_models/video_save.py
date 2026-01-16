@@ -90,7 +90,7 @@ def write_audio(
     audio_stream.codec_context.layout = "stereo"
     audio_stream.codec_context.format = "fltp"
     audio_stream.codec_context.time_base = Fraction(1, audio_sample_rate)
-    audio_stream.time_base = audio_stream.codec_context.time_base
+    # audio_stream.time_base = audio_stream.codec_context.time_base # TODO audio set time-base
     shared.log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} format={audio_stream.codec_context.format} base={audio_stream.codec_context.time_base}')
     # init input samples
     if samples.ndim == 1:
