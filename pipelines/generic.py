@@ -92,7 +92,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 transformer.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} {e}')
-        errors.display(e, 'Load:')
+        errors.display(e, 'Load')
         raise
     devices.torch_gc()
     shared.state.end(jobid)
@@ -243,7 +243,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 text_encoder.quantization_config = quant_args.get('quantization_config', None)
     except Exception as e:
         shared.log.error(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} {e}')
-        errors.display(e, 'Load:')
+        errors.display(e, 'Load')
         raise
     devices.torch_gc()
     shared.state.end(jobid)

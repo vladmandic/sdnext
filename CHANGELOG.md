@@ -16,6 +16,7 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
   - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
     Flux.2-Klein is a new family of compact models from BFL in *4B and 9B sizes* and avaialable as *destilled and base* variants  
     also includes are *sdnq prequantized variants*  
+    *note*: 9B variant is [gated](https://vladmandic.github.io/sdnext-docs/Gated/)  
   - [Qwen-Image-2512](https://qwen.ai/blog?id=qwen-image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
     available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
