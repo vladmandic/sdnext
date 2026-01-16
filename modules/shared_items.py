@@ -137,7 +137,7 @@ def get_pipelines():
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
             from installer import log # pylint: disable=redefined-outer-name
-            log.error(f'Pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__} not available')
+            log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
     return pipelines
 
 

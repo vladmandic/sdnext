@@ -49,7 +49,7 @@
     "size": 31.58,
     "date": "2025 November"
   },
-  "Black Forest Labs FLUX.2 Klein Base 4B sdnq-uint4-dynamic": {
+  "Black Forest Labs FLUX.2 Klein 4B sdnq-uint4-dynamic": {
     "path": "Disty0/FLUX.2-klein-4B-SDNQ-4bit-dynamic",
     "preview": "black-forest-labs--FLUX.2-klein-base-4B.jpg",
     "desc": "Dynamic 4 bit quantization of black-forest-labs/FLUX.2-klein-9B using SDNQ.",
@@ -59,7 +59,7 @@
     "size": 5.1,
     "date": "2025 January"
   },
-  "Black Forest Labs FLUX.2 Klein Base 9B sdnq-uint4-dynamic-svd": {
+  "Black Forest Labs FLUX.2 Klein 9B sdnq-uint4-dynamic-svd": {
     "path": "Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32",
     "preview": "black-forest-labs--FLUX.2-klein-base-9B.jpg",
     "desc": "FLUX.2-klein-base-9B is the undistilled 9 billion parameter base model of FLUX.2-klein. Requires 50 inference steps for full quality but offers flexibility for fine-tuning. Supports text-to-image and multi-reference editing. Non-commercial license.",
