@@ -200,6 +200,23 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 **load_args,
                 **quant_args,
             )
+        # Qwen3ForCausalLM - shared text encoders by hidden_size:
+        # - Z-Image, Klein-4B: Qwen3-4B (hidden_size=2560)
+        # - Klein-9B: Qwen3-8B (hidden_size=4096)
+        elif cls_name == transformers.Qwen3ForCausalLM and allow_shared and shared.opts.te_shared_t5:
+            if '-9b' in repo_id.lower():
+                shared_repo = 'black-forest-labs/FLUX.2-klein-9B'  # 9B variants use Qwen3-8B
+            else:
+                shared_repo = 'Tongyi-MAI/Z-Image-Turbo'  # 4B variants and Z-Image use Qwen3-4B
+            subfolder = 'text_encoder'
+            shared.log.debug(f'Load model: text_encoder="{shared_repo}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("transformers")} shared={shared.opts.te_shared_t5}')
+            text_encoder = cls_name.from_pretrained(
+                shared_repo,
+                cache_dir=shared.opts.hfcache_dir,
+                subfolder=subfolder,
+                **load_args,
+                **quant_args,
+            )
 
         # load from repo
         if text_encoder is None:

@@ -124,11 +124,29 @@
     "size": 104.74,
     "date": "2025 November"
   },
+  "Black Forest Labs FLUX.2 Klein Base 4B": {
+    "path": "black-forest-labs/FLUX.2-klein-base-4B",
+    "preview": "black-forest-labs--FLUX.2-klein-base-4B.jpg",
+    "desc": "FLUX.2-klein-base-4B is the undistilled 4 billion parameter base model of FLUX.2-klein. Requires 50 inference steps for full quality but offers flexibility for fine-tuning. Supports text-to-image and multi-reference editing. Apache 2.0 licensed.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 8.5,
+    "date": "2025 January"
+  },
+  "Black Forest Labs FLUX.2 Klein Base 9B": {
+    "path": "black-forest-labs/FLUX.2-klein-base-9B",
+    "preview": "black-forest-labs--FLUX.2-klein-base-9B.jpg",
+    "desc": "FLUX.2-klein-base-9B is the undistilled 9 billion parameter base model of FLUX.2-klein. Requires 50 inference steps for full quality but offers flexibility for fine-tuning. Supports text-to-image and multi-reference editing. Non-commercial license.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 18.5,
+    "date": "2025 January"
+  },
 
   "Z-Image-Turbo": {
     "path": "Tongyi-MAI/Z-Image-Turbo",
     "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
-    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It offers sub-second inference latency on enterprise-grade H800 GPUs and fits comfortably within 16G VRAM consumer devices. It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
+    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
     "size": 20.3,

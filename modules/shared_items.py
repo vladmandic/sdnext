@@ -48,6 +48,8 @@ pipelines = {
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
+    'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
+    'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
     'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
     # dynamically imported and redefined later
