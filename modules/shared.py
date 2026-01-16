@@ -558,7 +558,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "directories_max_prompt_words": OptionInfo(8, "Max words", gr.Slider, {"minimum": 1, "maximum": 99, "step": 1, **hide_dirs}),
 
     "outdir_sep_dirs": OptionInfo("<h2>Folders</h2>", "", gr.HTML),
-    "outdir_samples": OptionInfo("", "Images folder", component_args=hide_dirs, folder=True),
+    "outdir_samples": OptionInfo("", "Base images folder (specific folders below are appended when set)", component_args=hide_dirs, folder=True),
     "outdir_txt2img_samples": OptionInfo("outputs/text", 'Folder for text generate', component_args=hide_dirs, folder=True),
     "outdir_img2img_samples": OptionInfo("outputs/image", 'Folder for image generate', component_args=hide_dirs, folder=True),
     "outdir_control_samples": OptionInfo("outputs/control", 'Folder for control generate', component_args=hide_dirs, folder=True),
@@ -568,7 +568,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_init_images": OptionInfo("outputs/inputs", "Folder for init images", component_args=hide_dirs, folder=True),
 
     "outdir_sep_grids": OptionInfo("<h2>Grids</h2>", "", gr.HTML),
-    "outdir_grids": OptionInfo("", "Grids folder", component_args=hide_dirs, folder=True),
+    "outdir_grids": OptionInfo("", "Base grids folder (specific folders below are appended when set)", component_args=hide_dirs, folder=True),
     "outdir_txt2img_grids": OptionInfo("outputs/grids", 'Folder for txt2img grids', component_args=hide_dirs, folder=True),
     "outdir_img2img_grids": OptionInfo("outputs/grids", 'Folder for img2img grids', component_args=hide_dirs, folder=True),
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),

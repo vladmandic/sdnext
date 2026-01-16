@@ -239,9 +239,16 @@ class SimpleFunctionQueue {
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
-  constructor(name) {
+  constructor(folder) {
     super();
-    this.name = decodeURI(name);
+    // Support both old format (string) and new format (object with path and label)
+    if (typeof folder === 'object' && folder !== null) {
+      this.name = decodeURI(folder.path || '');
+      this.label = decodeURI(folder.label || folder.path || '');
+    } else {
+      this.name = decodeURI(folder);
+      this.label = this.name;
+    }
     this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
@@ -250,8 +257,8 @@ class GalleryFolder extends HTMLElement {
   connectedCallback() {
     const div = document.createElement('div');
     div.className = 'gallery-folder';
-    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
-    div.title = this.name;
+    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
+    div.title = this.name; // Show full path on hover
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
         if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
