@@ -95,7 +95,6 @@ def get_backend(shared_cmd_opts):
 
 def get_gpu_info():
     def get_driver():
-        import subprocess
         if torch.xpu.is_available():
             try:
                 return torch.xpu.get_device_properties(torch.xpu.current_device()).driver_version
@@ -103,6 +102,7 @@ def get_gpu_info():
                 return ''
         elif torch.cuda.is_available() and torch.version.cuda:
             try:
+                import subprocess
                 result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 version = result.stdout.decode(encoding="utf8", errors="ignore").strip()
                 return version
@@ -114,7 +114,7 @@ def get_gpu_info():
     def get_package_version(pkg: str):
         import pkg_resources
         spec = pkg_resources.working_set.by_key.get(pkg, None) # more reliable than importlib
-        version = pkg_resources.get_distribution(pkg).version if spec is not None else ''
+        version = pkg_resources.get_distribution(pkg).version if spec is not None else None
         return version
 
     if not torch.cuda.is_available():
