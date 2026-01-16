@@ -15,17 +15,19 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
 - **Models**
   - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
     Flux.2-Klein is a new family of compact models from BFL in *4B and 9B sizes* and avaialable as *destilled and base* variants  
-    also includes are *SDNQ prequantized variants*  
+    also includes are *sdnq prequantized variants*  
   - [Qwen-Image-2512](https://qwen.ai/blog?id=qwen-image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
     available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
+    thanks @CalamitousFelicitousness  
   - [LTX-2 19B Dev](https://ltx.io/model/ltx-2)  
     LTX-2 is a new very large 19B parameter video generation model from Lightricks using Gemma-3 text encoder  
-    available for T2I/I2I workflows in original and SDNQ prequantized variants  
+    available for T2I/I2I workflows in original and sdnq prequantized variants  
     *note*: audio generation and upsampling are not yet supported (soon)  
   - [GLM-Image](https://z.ai/blog/glm-image)  
     GLM-image is a new image generation model that adopts a hybrid autoregressive with diffusion decoder architecture  
-    available in both *original* and *sdnq-dynamic prequantized* variants, thanks @CalamitousFelicitousness  
+    available in both *original* and *sdnq-dynamic prequantized* variants  
+    thanks @CalamitousFelicitousness  
     *note*: model requires pre-release versions of `transformers` package:  
     > pip install --upgrade git+https://github.com/huggingface/transformers.git  
     > ./webui.sh --experimental  

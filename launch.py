@@ -68,8 +68,7 @@ def get_custom_args():
         installer.log.trace(f'Environment: {installer.print_dict(env)}')
     env = [f'{k}={v}' for k, v in os.environ.items() if k.startswith('SD_')]
     ld = [f'{k}={v}' for k, v in os.environ.items() if k.startswith('LD_')]
-    compute = [f'{k}={v}' for k, v in os.environ.items() if 'TORCH' in k or 'CUDA' in k or 'ROCM' in k or 'MIOPEN' in k]
-    installer.log.debug(f'Flags: sd={env} ld={ld} compute={compute}')
+    installer.log.debug(f'Flags: sd={env} ld={ld}')
     rec('args')
 
 
