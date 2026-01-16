@@ -1,6 +1,5 @@
 import os
 import time
-import threading
 import torch
 from PIL import Image
 

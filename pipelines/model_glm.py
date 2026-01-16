@@ -86,6 +86,10 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
+    if not hasattr(transformers, 'GlmImageForConditionalGeneration'):
+        shared.log.error(f'Load model: type=GLM-Image repo="{repo_id}" transformers={transformers.__version__} not supported')
+        return None
+
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     shared.log.debug(f'Load model: type=GLM-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
@@ -108,7 +112,7 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
     # Note: This is a conditional generation model, different from typical text encoders
     vision_language_encoder = generic.load_text_encoder(
         repo_id,
-        cls_name=transformers.GlmImageForConditionalGeneration,
+        cls_name=transformers.GlmImageForConditionalGeneration, # pylint: disable=no-member
         subfolder="vision_language_encoder",
         load_config=diffusers_load_config,
         allow_shared=False

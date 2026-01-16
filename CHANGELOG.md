@@ -1,22 +1,36 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-15
+## Update for 2025-01-16
+
+### Highlights for 2025-01-16
+
+First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
+There are also improvements to SDNQ quantization engine, updated Prompt Enhance and many others  
+Plus some significant under-the-hood changes to improve code coverage and quality which resulted in more than usual levels of bug-fixes!  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-01-16
 
 - **Models**
-  - [Qwen-Image-2512](https://huggingface.co/Qwen/Qwen-Image-2512)  
+  - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
+    Flux.2-Klein is a new family of compact models from BFL in *4B and 9B sizes* and avaialable as *destilled and base* variants  
+    also includes are *SDNQ prequantized variants*  
+  - [Qwen-Image-2512](https://qwen.ai/blog?id=qwen-image-2512)  
     Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
     available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
-  - [LTX-2 19B Dev](https://huggingface.co/Lightricks/LTX-2)  
+  - [LTX-2 19B Dev](https://ltx.io/model/ltx-2)  
     LTX-2 is a new very large 19B parameter video generation model from Lightricks using Gemma-3 text encoder  
     available for T2I/I2I workflows in original and SDNQ prequantized variants  
     *note*: audio generation and upsampling are not yet supported (soon)  
-  - [GLM-Image](https://huggingface.co/zai-org/GLM-Image)  
+  - [GLM-Image](https://z.ai/blog/glm-image)  
     GLM-image is a new image generation model that adopts a hybrid autoregressive with diffusion decoder architecture  
     available in both *original* and *sdnq-dynamic prequantized* variants, thanks @CalamitousFelicitousness  
     *note*: model requires pre-release versions of `transformers` package:  
     > pip install --upgrade git+https://github.com/huggingface/transformers.git  
     > ./webui.sh --experimental  
   - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
+    nunchaku optimized z-image turbo  
 - **Feaures**
   - **SDNQ**: add *dynamic* quantization method  
     sdnq can dynamically determine best quantization method for each module layer  

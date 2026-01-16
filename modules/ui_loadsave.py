@@ -1,6 +1,6 @@
+from typing import TYPE_CHECKING, cast
 import os
 import gradio as gr
-from typing import TYPE_CHECKING, cast
 from modules import errors
 from modules.ui_components import ToolButton
 

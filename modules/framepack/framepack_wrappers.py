@@ -1,7 +1,6 @@
 import os
 import re
 import random
-import threading
 import numpy as np
 import torch
 import gradio as gr

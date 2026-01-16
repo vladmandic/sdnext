@@ -314,7 +314,6 @@ def create_ui(_blocks: gr.Blocks=None):
                 result_txt,
                 output_html_log,
             ]
-            global control_dict # pylint: disable=global-statement
             control_dict = dict(
                 fn=generate_click,
                 _js="submit_control",
