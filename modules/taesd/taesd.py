@@ -77,7 +77,11 @@ class TAESD(nn.Module): # pylint: disable=abstract-method
             self.decoder = self.decoder.to(devices.device, dtype=self.dtype)
 
     def guess_latent_channels(self, decoder_path, encoder_path):
-        return 16 if ("f1" in encoder_path or "f1" in decoder_path) or ("sd3" in encoder_path or "sd3" in decoder_path) else 4
+        if "f2" in encoder_path or "f2" in decoder_path:
+            return 32  # FLUX.2 uses 32 latent channels
+        if ("f1" in encoder_path or "f1" in decoder_path) or ("sd3" in encoder_path or "sd3" in decoder_path):
+            return 16
+        return 4
 
     @staticmethod
     def scale_latents(x):

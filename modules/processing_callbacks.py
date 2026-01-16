@@ -116,7 +116,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
         if current_noise_pred is None:
             current_noise_pred = kwargs.get("predicted_image_embedding", None)
 
-        if hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX
+        if hasattr(pipe, "_unpack_latents") and hasattr(pipe, "vae_scale_factor"): # FLUX.1
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
                 width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
                 height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
@@ -128,6 +128,37 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
                 shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
             else:
                 shared.state.current_noise_pred = current_noise_pred
+        elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
+            # Get dimensions for unpacking, same logic as FLUX.1
+            vae_scale = getattr(pipe, 'vae_scale_factor', 8)
+            if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
+                width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
+                height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
+            else:
+                width = getattr(p, 'width', 1024)
+                height = getattr(p, 'height', 1024)
+            latents = kwargs['latents']
+            if len(latents.shape) == 3:  # packed format [B, seq_len, patch_channels]
+                b, seq_len, patch_ch = latents.shape
+                channels = patch_ch // 4  # 4 = 2x2 patch
+                h_patches = height // vae_scale // 2
+                w_patches = width // vae_scale // 2
+                if h_patches * w_patches != seq_len:  # fallback to square assumption
+                    h_patches = w_patches = int(seq_len ** 0.5)
+                # [B, h*w, C*4] -> [B, h, w, C, 2, 2] -> [B, C, h, 2, w, 2] -> [B, C, H, W]
+                latents = latents.view(b, h_patches, w_patches, channels, 2, 2)
+                latents = latents.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
+            shared.state.current_latent = latents
+            if current_noise_pred is not None and len(current_noise_pred.shape) == 3:
+                b, seq_len, patch_ch = current_noise_pred.shape
+                channels = patch_ch // 4
+                h_patches = height // vae_scale // 2
+                w_patches = width // vae_scale // 2
+                if h_patches * w_patches != seq_len:
+                    h_patches = w_patches = int(seq_len ** 0.5)
+                current_noise_pred = current_noise_pred.view(b, h_patches, w_patches, channels, 2, 2)
+                current_noise_pred = current_noise_pred.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
+            shared.state.current_noise_pred = current_noise_pred
         else:
             shared.state.current_latent = kwargs['latents']
             shared.state.current_noise_pred = current_noise_pred
