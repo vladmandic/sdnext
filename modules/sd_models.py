@@ -493,8 +493,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             allow_post_quant = False
     except Exception as e:
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
-        if debug_load:
-            errors.display(e, 'Load')
+        errors.display(e, 'Load')
         return None, True
     if sd_model is not None:
         return sd_model, True
