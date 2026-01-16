@@ -3,6 +3,7 @@ import copy
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
 from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_prompt
+from modules.paths import resolve_output_path
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -56,7 +57,7 @@ def generate(*args, **kwargs):
     p.state = ui_state
     p.do_not_save_grid = True
     p.do_not_save_samples = not mp4_frames
-    p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_video
+    p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
     if 'T2V' in model:
         if init_image is not None:
             shared.log.warning('Video: op=T2V init image not supported')

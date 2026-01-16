@@ -164,7 +164,7 @@ def save_image(image,
     if not check_grid_size([image]):
         return None, None, None
     if path is None or path == '': # set default path to avoid errors when functions are triggered manually or via api and param is not set
-        path = shared.opts.outdir_save
+        path = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
