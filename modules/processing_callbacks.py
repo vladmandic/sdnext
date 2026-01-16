@@ -121,15 +121,14 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
                 width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
                 height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
             else:
-                width = getattr(p, 'width', 0)
-                height = getattr(p, 'height', 0)
+                width = getattr(p, 'width', 1024)
+                height = getattr(p, 'height', 1024)
             shared.state.current_latent = pipe._unpack_latents(kwargs['latents'], height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
             if current_noise_pred is not None:
                 shared.state.current_noise_pred = pipe._unpack_latents(current_noise_pred, height, width, pipe.vae_scale_factor) # pylint: disable=protected-access
             else:
                 shared.state.current_noise_pred = current_noise_pred
         elif hasattr(pipe, "_unpatchify_latents"): # FLUX.2 - unpack [B, seq, patch_ch] to [B, ch, H, W]
-            # Get dimensions for unpacking, same logic as FLUX.1
             vae_scale = getattr(pipe, 'vae_scale_factor', 8)
             if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
                 width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
