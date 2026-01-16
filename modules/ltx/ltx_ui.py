@@ -38,6 +38,9 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
                 with gr.Row():
                     decode_timestep = gr.Slider(label='LTX decode timestep', minimum=0.01, maximum=1.0, step=0.01, value=0.05, elem_id="ltx_decode_timestep")
                     image_cond_noise_scale = gr.Slider(label='Noise scale', minimum=0.01, maximum=1.0, step=0.01, value=0.025, elem_id="ltx_image_cond_noise_scale")
+            with gr.Accordion(open=False, label="Audio", elem_id='ltx_audio_accordion'):
+                with gr.Row():
+                    audio_enable = gr.Checkbox(label='LTX enable audio', value=False, elem_id="ltx_audio_enable")
 
         with gr.Column(elem_id='ltx-output-column', scale=2) as _column_output:
             with gr.Row():
@@ -60,6 +63,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
         init_strength, init_image, last_image, condition_files, condition_video, condition_video_frames, condition_video_skip,
         decode_timestep, image_cond_noise_scale,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
+        audio_enable,
         overrides,
     ]
     video_outputs = [

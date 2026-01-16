@@ -261,6 +261,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
                 elif 'Flux' in model.__class__.__name__:
                     args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
                 elif 'Chroma' in model.__class__.__name__:
+                    args['pooled_prompt_embeds'] = prompt_parser_diffusers.embedder('positive_pooleds')
                     args['prompt_attention_mask'] = prompt_parser_diffusers.embedder('prompt_attention_masks')
         else:
             args['prompt'] = prompts

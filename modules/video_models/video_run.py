@@ -155,9 +155,15 @@ def generate(*args, **kwargs):
         pixels = video_save.images_to_tensor(processed.images)
     else:
         pixels = None
+    if hasattr(processed, 'audio') and processed.audio is not None:
+        audio = processed.audio[0].float().cpu()
+    else:
+        audio = None
+
     _num_frames, video_file = video_save.save_video(
         p=p,
         pixels=pixels,
+        audio=audio,
         binary=processed.bytes,
         mp4_fps=mp4_fps,
         mp4_codec=mp4_codec,

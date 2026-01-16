@@ -4,6 +4,7 @@ import torch
 from PIL import Image
 
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks, call_queue
+from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
 from modules.video_models.video_utils import check_av
 from modules.processing_callbacks import diffusers_callback
@@ -49,6 +50,7 @@ def run_ltx(task_id,
             mp4_video:bool,
             mp4_frames:bool,
             mp4_sf:bool,
+            audio_enable:bool,
             _overrides,
            ):
 
@@ -120,12 +122,18 @@ def run_ltx(task_id,
         sampler_name = processing.get_sampler_name(sampler_index)
         sd_samplers.create_sampler(sampler_name, shared.sd_model)
         shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=init styles={styles} networks={networks} sampler={shared.sd_model.scheduler.__class__.__name__}')
+
         extra_networks.activate(p, networks)
+        framewise = 'LTX2' not in shared.sd_model.__class__.__name__
+        set_vae_params(p, framewise=framewise)
 
         t0 = time.time()
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         t1 = time.time()
-        output_type = 'np' if 'LTX2' in shared.sd_model.__class__.__name__ else 'latent'
+        if 'LTX2' in shared.sd_model.__class__.__name__:
+            output_type = 'np'
+        else:
+            output_type = 'latent'
         base_args = {
             "prompt": prompt,
             "negative_prompt": negative,
@@ -137,21 +145,37 @@ def run_ltx(task_id,
             "callback_on_step_end": diffusers_callback,
             "output_type": output_type,
         }
+        if 'LTX2' in shared.sd_model.__class__.__name__:
+            base_args["frame_rate"] = float(mp4_fps)
         if 'Condition' in shared.sd_model.__class__.__name__:
             base_args["image_cond_noise_scale"] = image_cond_noise_scale
         shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=base {base_args}')
         if len(conditions) > 0:
             base_args["conditions"] = conditions
+
+        if debug:
+            shared.log.trace(f'LTX args: {base_args}')
         yield None, 'LTX: Generate in progress...'
         samplejob = shared.state.begin('Sample')
         try:
-            latents = shared.sd_model(**base_args).frames[0]
+            result = shared.sd_model(**base_args)
+            latents = result.frames[0]
         except AssertionError as e:
             yield from abort(e, ok=True, p=p)
             return
         except Exception as e:
             yield from abort(e, ok=False, p=p)
             return
+        if audio_enable and hasattr(result, 'audio') and result.audio is not None:
+            audio = result.audio[0].float().cpu()
+        else:
+            audio = None
+        try:
+            if debug:
+                shared.log.trace(f'LTX result frames={latents.shape if latents is not None else None} audio={audio.shape if audio is not None else None}')
+        except Exception:
+            pass
+
         t2 = time.time()
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         t3 = time.time()
@@ -211,6 +235,7 @@ def run_ltx(task_id,
             }
             if latents.ndim == 4:
                 latents = latents.unsqueeze(0) # add batch dimension
+
             shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=refine latents={latents.shape} {refine_args}')
             if len(conditions) > 0:
                 refine_args["conditions"] = conditions
@@ -252,9 +277,15 @@ def run_ltx(task_id,
         t11 = time.time()
         timer.process.add('offload', t11 - t10)
 
+        try:
+            aac_sample_rate = shared.sd_model.vocoder.config.output_sampling_rate
+        except Exception:
+            aac_sample_rate = 24000
+
         num_frames, video_file = save_video(
             p=p,
             pixels=frames,
+            audio=audio,
             mp4_fps=mp4_fps,
             mp4_codec=mp4_codec,
             mp4_opt=mp4_opt,
@@ -263,6 +294,7 @@ def run_ltx(task_id,
             mp4_video=mp4_video,
             mp4_frames=mp4_frames,
             mp4_interpolate=mp4_interpolate,
+            aac_sample_rate=aac_sample_rate,
             metadata={},
         )
 
