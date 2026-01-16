@@ -161,7 +161,7 @@ def decode(latents):
                 shared.log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} tensor={tensor.shape}')
                 # FLUX.2 has 128 latent channels that need reshaping to 32 channels for TAESD
                 if variant == 'TAE FLUX.2' and len(tensor.shape) == 4 and tensor.shape[1] == 128:
-                    b, c, h, w = tensor.shape
+                    b, _c, h, w = tensor.shape
                     tensor = tensor.reshape(b, 32, h * 2, w * 2)
                 if variant.startswith('TAESD') or variant in {'TAE FLUX.1', 'TAE FLUX.2', 'TAE SD3'}:
                     image = vae.decoder(tensor).clamp(0, 1).detach()
