@@ -69,6 +69,7 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
   - lora switch logic from force-diffusers to allow-native  
   - split `reference.json`  
   - print system env on startup  
+  - disable fallback on models with custom loaders  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  

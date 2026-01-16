@@ -495,8 +495,11 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         shared.log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
         if debug_load:
             errors.display(e, 'Load')
-        return None
-    return sd_model
+        return None, True
+    if sd_model is not None:
+        return sd_model, True
+    else:
+        return sd_model, False
 
 
 def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op='model'):
@@ -797,6 +800,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
             return
 
     sd_model = None
+    handled = False
     try:
         # initial load only
         if sd_model is None:
@@ -837,25 +841,25 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
                 timer.load.record("vae")
 
         # load with custom loader
-        if sd_model is None:
-            sd_model = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
+        if sd_model is None and not handled:
+            sd_model, handled = load_diffuser_force(model_type, checkpoint_info, diffusers_load_config, op)
             if sd_model is not None and not sd_model:
                 shared.log.error(f'Load {op}: type="{model_type}" pipeline="{pipeline}" not loaded')
                 return
 
         # load sdnq-prequantized model
-        if sd_model is None:
+        if sd_model is None and not handled:
             if model_type.endswith('SDNQ'):
                 sd_model = load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op)
                 model_type = model_type.replace(' SDNQ', '')
 
         # load from single-file
-        if sd_model is None:
+        if sd_model is None and not handled:
             if os.path.isfile(checkpoint_info.path) and checkpoint_info.path.lower().endswith('.safetensors'):
                 sd_model = load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
 
         # load from hf folder-style
-        if sd_model is None:
+        if sd_model is None and not handled:
             if os.path.isdir(checkpoint_info.path) or (checkpoint_info.type == 'huggingface') or (checkpoint_info.type == 'transformer') or (checkpoint_info.type == 'reference'):
                 sd_model = load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op)
 
