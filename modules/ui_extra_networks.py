@@ -203,6 +203,7 @@ class ExtraNetworksPage:
 
     def get_exif(self, image: Image.Image):
         import piexif
+        import piexif.helper
         try:
             exifinfo = image.getexif()
             if exifinfo is not None and len(exifinfo) > 0:
