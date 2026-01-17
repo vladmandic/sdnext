@@ -70,49 +70,49 @@ def init_api():
         return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
 
     def get_metadata(page: str = "", item: str = ""):
-        page = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'metadata': 'none' })
-        metadata = page.metadata.get(item, 'none')
+        metadata = page_dict.metadata.get(item, 'none')
         if metadata is None:
             metadata = ''
         # shared.log.debug(f"Networks metadata: page='{page}' item={item} len={len(metadata)}")
         return JSONResponse({"metadata": metadata})
 
     def get_info(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'info': 'none' })
-        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if x['name'].lower() == item.lower()]), None)
+        if item_dict is None:
             return JSONResponse({ 'info': 'none' })
-        info = page.find_info(item.get('filename', None) or item.get('name', None))
+        info = page_dict.find_info(item_dict.get('filename', None) or item_dict.get('name', None))
         if info is None:
             info = {}
         # shared.log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
         return JSONResponse({"info": info})
 
     def get_desc(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'description': 'none' })
-        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if x['name'].lower() == item.lower()]), None)
+        if item_dict is None:
             return JSONResponse({ 'description': 'none' })
-        desc = page.find_description(item.get('filename', None) or item.get('name', None))
+        desc = page_dict.find_description(item_dict.get('filename', None) or item_dict.get('name', None))
         if desc is None:
             desc = ''
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
         return JSONResponse({"description": desc})
 
     def get_network(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'page': 'none' })
-        item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
+        if item_dict is None:
             return JSONResponse({ 'item': 'none' })
-        obj = json.dumps(item, cls=DateTimeEncoder)
+        obj = json.dumps(item_dict, cls=DateTimeEncoder)
         return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
