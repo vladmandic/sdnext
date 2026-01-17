@@ -517,7 +517,10 @@ class ExtraNetworksPage:
                     pass
             if info is None:
                 info = self.find_info(path)
-        desc = info.get('description', '') or ''
+        if not isinstance(info, dict):
+            self.desc_time += time.time() - t0
+            return ''
+        desc = info.get('description', '')
         f = HTMLFilter()
         f.feed(desc)
         t1 = time.time()
