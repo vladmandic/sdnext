@@ -153,6 +153,16 @@ class ExtraNetworksPage:
     def __str__(self):
         return f'Page(title="{self.title}" name="{self.name}" items={len(self.items)})'
 
+    def switch_view(self, tabname: str):
+        new_view = 'gallery' if self.view == 'list' else 'list'
+        self.view = new_view
+        self.card = card_full if new_view == 'gallery' else card_list
+        self.html = ''
+        self.create_page(tabname)
+        if shared.opts.extra_networks_view != new_view:
+            shared.opts.extra_networks_view = new_view
+            shared.opts.save()
+
     def refresh(self):
         pass
 
@@ -574,7 +584,7 @@ def register_pages():
 
 def get_pages(title=None):
     visible = shared.opts.extra_networks
-    pages = []
+    pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
         visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
@@ -1008,12 +1018,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     def ui_view_cards(title):
         pages = []
         for page in get_pages():
-            shared.opts.extra_networks_view = page.view
-            # shared.opts.save(shared.config_filename)
-            page.view = 'gallery' if page.view == 'list' else 'list'
-            page.card = card_full if page.view == 'gallery' else card_list
-            page.html = ''
-            page.create_page(ui.tabname)
+            page.switch_view(ui.tabname)
             shared.log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname} view={page.view}')
             pages.append(page.html)
         ui.search.update(title)
