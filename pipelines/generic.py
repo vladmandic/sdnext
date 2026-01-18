@@ -203,7 +203,8 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         # Qwen3ForCausalLM - shared text encoders by hidden_size:
         # - Z-Image, Klein-4B: Qwen3-4B (hidden_size=2560)
         # - Klein-9B: Qwen3-8B (hidden_size=4096)
-        elif cls_name == transformers.Qwen3ForCausalLM and allow_shared and shared.opts.te_shared_t5:
+        # SDNQ repos for Klein and Z-Image contain text encoders pre-quantized with different quantization methods, skip shared loading
+        elif cls_name == transformers.Qwen3ForCausalLM and allow_shared and shared.opts.te_shared_t5 and 'sdnq' not in repo_id.lower():
             if '-9b' in repo_id.lower():
                 shared_repo = 'black-forest-labs/FLUX.2-klein-9B'  # 9B variants use Qwen3-8B
             else:
