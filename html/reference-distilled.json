@@ -168,7 +168,7 @@
     "desc": "FLUX.2-klein-4B is a 4 billion parameter size-distilled version of FLUX.2-dev optimized for consumer GPUs. Achieves sub-second inference with 4 steps. Supports both text-to-image generation and multi-reference image editing. Apache 2.0 licensed.",
     "skip": true,
     "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 4.0, steps: 4",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 8.5,
     "date": "2025 January"
   },
@@ -178,7 +178,7 @@
     "desc": "FLUX.2-klein-9B is a 9 billion parameter size-distilled version of FLUX.2-dev. Higher quality than 4B variant with sub-second inference using 4 steps. Supports text-to-image and multi-reference editing. Non-commercial license.",
     "skip": true,
     "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 4.0, steps: 4",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 18.5,
     "date": "2025 January"
   }
