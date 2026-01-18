@@ -70,49 +70,49 @@ def init_api():
         return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
 
     def get_metadata(page: str = "", item: str = ""):
-        page = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in shared.extra_networks if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'metadata': 'none' })
-        metadata = page.metadata.get(item, 'none')
+        metadata = page_dict.metadata.get(item, 'none')
         if metadata is None:
             metadata = ''
         # shared.log.debug(f"Networks metadata: page='{page}' item={item} len={len(metadata)}")
         return JSONResponse({"metadata": metadata})
 
     def get_info(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'info': 'none' })
-        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if x['name'].lower() == item.lower()]), None)
+        if item_dict is None:
             return JSONResponse({ 'info': 'none' })
-        info = page.find_info(item.get('filename', None) or item.get('name', None))
+        info = page_dict.find_info(item_dict.get('filename', None) or item_dict.get('name', None))
         if info is None:
             info = {}
         # shared.log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
         return JSONResponse({"info": info})
 
     def get_desc(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'description': 'none' })
-        item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if x['name'].lower() == item.lower()]), None)
+        if item_dict is None:
             return JSONResponse({ 'description': 'none' })
-        desc = page.find_description(item.get('filename', None) or item.get('name', None))
+        desc = page_dict.find_description(item_dict.get('filename', None) or item_dict.get('name', None))
         if desc is None:
             desc = ''
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
         return JSONResponse({"description": desc})
 
     def get_network(page: str = "", item: str = ""):
-        page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
-        if page is None:
+        page_dict = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
+        if page_dict is None:
             return JSONResponse({ 'page': 'none' })
-        item = next(iter([x for x in page.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
-        if item is None:
+        item_dict = next(iter([x for x in page_dict.items if (x['alias'].lower() == item.lower() or x['name'].lower() == item.lower())]), None)
+        if item_dict is None:
             return JSONResponse({ 'item': 'none' })
-        obj = json.dumps(item, cls=DateTimeEncoder)
+        obj = json.dumps(item_dict, cls=DateTimeEncoder)
         return JSONResponse(obj)
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
@@ -152,6 +152,16 @@ class ExtraNetworksPage:
 
     def __str__(self):
         return f'Page(title="{self.title}" name="{self.name}" items={len(self.items)})'
+
+    def switch_view(self, tabname: str):
+        new_view = 'gallery' if self.view == 'list' else 'list'
+        self.view = new_view
+        self.card = card_full if new_view == 'gallery' else card_list
+        self.html = ''
+        self.create_page(tabname)
+        if shared.opts.extra_networks_view != new_view:
+            shared.opts.extra_networks_view = new_view
+            shared.opts.save()
 
     def refresh(self):
         pass
@@ -193,6 +203,7 @@ class ExtraNetworksPage:
 
     def get_exif(self, image: Image.Image):
         import piexif
+        import piexif.helper
         try:
             exifinfo = image.getexif()
             if exifinfo is not None and len(exifinfo) > 0:
@@ -507,7 +518,10 @@ class ExtraNetworksPage:
                     pass
             if info is None:
                 info = self.find_info(path)
-        desc = info.get('description', '') or ''
+        if not isinstance(info, dict):
+            self.desc_time += time.time() - t0
+            return ''
+        desc = info.get('description', '')
         f = HTMLFilter()
         f.feed(desc)
         t1 = time.time()
@@ -574,7 +588,7 @@ def register_pages():
 
 def get_pages(title=None):
     visible = shared.opts.extra_networks
-    pages = []
+    pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
         visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
@@ -1008,12 +1022,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     def ui_view_cards(title):
         pages = []
         for page in get_pages():
-            shared.opts.extra_networks_view = page.view
-            # shared.opts.save(shared.config_filename)
-            page.view = 'gallery' if page.view == 'list' else 'list'
-            page.card = card_full if page.view == 'gallery' else card_list
-            page.html = ''
-            page.create_page(ui.tabname)
+            page.switch_view(ui.tabname)
             shared.log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname} view={page.view}')
             pages.append(page.html)
         ui.search.update(title)
