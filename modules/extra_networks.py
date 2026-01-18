@@ -108,7 +108,6 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         if args is not None:
             continue
         try:
-            # extra_network.activate(p, [])
             signature = list(inspect.signature(extra_network.activate).parameters)
             if 'include' in signature and 'exclude' in signature:
                 extra_network.activate(p, [], include=include, exclude=exclude)

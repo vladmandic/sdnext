@@ -97,7 +97,7 @@ def parse(p, params_list, step=0):
     dyn_dims = []
     lora_modules = []
     for params in params_list:
-        names.append(params.positional[0])
+        name = params.positional[0]
 
         default_multiplier = params.positional[1] if len(params.positional) > 1 else shared.opts.extra_networks_default_multiplier
         default_multiplier = to_float(default_multiplier)
@@ -121,6 +121,11 @@ def parse(p, params_list, step=0):
                 unet_multiplier[i] = to_float(unet_multiplier[i])
 
         dyn_dim = int(params.named["dyn"]) if "dyn" in params.named else None
+
+        if (te_multiplier == 0) and all(u == 0 for u in unet_multiplier): # skip lora with strength zero
+            continue
+
+        names.append(name)
         te_multipliers.append(te_multiplier)
         unet_multipliers.append(unet_multiplier)
         dyn_dims.append(dyn_dim)
@@ -180,7 +185,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             exclude = ['none']
         key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
-        debug_log(f'Network load: type=LoRA key="{key}" requested={requested} loaded={loaded}')
+        debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if len(requested) != len(loaded):
             sd_model.loaded_loras[key] = requested
             return True
@@ -223,18 +228,19 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 jobid = shared.state.begin('LoRA')
                 if len(l.previously_loaded_networks) > 0:
-                    shared.log.info(f'Network unload: type=LoRA apply={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_diffusers else "backup"}')
+                    shared.log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_native else "backup"}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
-                l.previously_loaded_networks = l.loaded_networks.copy()
-                debug_log(f'Network load: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]} changed')
+                debug_log(f'Network change: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
+                if len(include) == 0:
+                    l.previously_loaded_networks = l.loaded_networks.copy()
                 shared.state.end(jobid)
 
         if len(l.loaded_networks) > 0 and (len(networks.applied_layers) > 0 or load_method=='diffusers' or load_method=='nunchaku') and step == 0:
             infotext(p)
             prompt(p)
             if has_changed and len(include) == 0: # print only once
-                shared.log.info(f'Network load: type=LoRA apply={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
+                shared.log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p, force=False):
         if len(lora_diffusers.diffuser_loaded) > 0:

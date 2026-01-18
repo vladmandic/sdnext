@@ -743,6 +743,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_default_multiplier": OptionInfo(1.0, "Default strength", gr.Slider, {"minimum": 0.0, "maximum": 2.0, "step": 0.01}),
     "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
+
+    "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
     "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
     "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),

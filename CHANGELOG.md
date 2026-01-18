@@ -60,6 +60,8 @@ For full list of changes, see full changelog.
   - persistent panel minimize/maximize state  
   - gallery improve sorting behavior  
 - **Internal**
+  - **lora** native support by default will now skip text-encoder  
+    can be enabled in *settings -> networks*
   - update js linting to `eslint9`, thanks @awsr  
   - update strong typing checks, thanks @awsr  
   - update reference models previews, thanks @liutyi  
@@ -97,6 +99,8 @@ For full list of changes, see full changelog.
   - improve qwen i2i handling  
   - networks filter by model type  
   - netoworks icon/list view type switch, thanks @awsr  
+  - lora skip with strength zero  
+  - lora force unapply on change  
 
 ## Update for 2025-12-26
 

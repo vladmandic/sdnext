@@ -208,7 +208,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
     steps = kwargs.get("num_inference_steps", None) or len(getattr(p, 'timesteps', ['1']))
     clip_skip = kwargs.pop("clip_skip", 1)
 
-    extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
+    if shared.opts.lora_apply_te:
+        extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
 
     parser = 'fixed'
     prompt_attention = prompt_attention or shared.opts.prompt_attention
