@@ -5,8 +5,9 @@
 ### Highlights for 2025-01-18
 
 First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
-There are also improvements to SDNQ quantization engine, updated Prompt Enhance and many others  
-Plus some significant under-the-hood changes to improve code coverage and quality which resulted in more than usual levels of bug-fixes!  
+There are also improvements to SDNQ quantization engine, updated Prompt Enhance and many others.  
+Plus some significant under-the-hood changes to improve code coverage and quality which resulted in more than usual levels of bug-fixes and some ~300 commits!  
+For full list of changes, see full changelog.
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
