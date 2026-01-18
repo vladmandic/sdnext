@@ -100,7 +100,7 @@ body:
         - API
         - Standard
         - ModernUI
-      default: 1
+      default: 2
     validations:
       required: true
   - type: dropdown
@@ -120,18 +120,11 @@ body:
       label: Model
       description: What is the model type you're using?
       options:
-        - StableDiffusion 1.5
-        - StableDiffusion 2.1
-        - StableDiffusion XL
-        - StableDiffusion 3.x
-        - StableCascade
-        - FLUX.1
-        - PixArt
-        - Kandinsky
-        - Playground
-        - AuraFlow
+        - Unspecified
+        - StableDiffusion 1.5/2.1/XL
+        - Other image model
         - Any Video Model
-        - Other
+        - LLM
       default: 0
     validations:
       required: true
