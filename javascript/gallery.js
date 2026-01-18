@@ -318,7 +318,11 @@ async function addSeparators() {
   document.querySelectorAll('.gallery-separator').forEach((node) => { el.files.removeChild(node); });
   const all = Array.from(el.files.children);
   let lastDir;
-  let isFirstSeparator = true; // Flag to open the first separator by default
+
+  // Count root files (files without a directory path)
+  const hasRootFiles = all.some((f) => f.name && !f.name.match(/[/\\]/));
+  // Only auto-open first separator if there are no root files to display
+  let isFirstSeparator = !hasRootFiles;
 
   // First pass: create separators
   for (const f of all) {
@@ -449,7 +453,9 @@ class GalleryFile extends HTMLElement {
       }
     }
 
-    this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    // Normalize path to ensure consistent hash regardless of which folder view is used
+    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
+    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -485,9 +491,11 @@ class GalleryFile extends HTMLElement {
           this.size = json.size;
           this.mtime = new Date(json.mtime);
           if (opts.browser_cache) {
+            // Store file's actual parent directory (not browsed folder) for consistent cleanup
+            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
             await idbAdd({
               hash: this.hash,
-              folder: this.folder,
+              folder: fileDir,
               file: this.name,
               size: this.size,
               mtime: this.mtime,
@@ -736,59 +744,84 @@ async function gallerySort(btn) {
   if (arr.length === 0) return; // no files to sort
   if (btn) lastSort = btn.charCodeAt(0);
   const fragment = document.createDocumentFragment();
+
+  // Helper to get directory path from a file node
+  const getDirPath = (node) => {
+    const match = node.name.match(/(.*)[/\\]/);
+    return match ? match[1] : '';
+  };
+
+  // Partition into root files and subfolder files - root files always stay at top
+  const rootFiles = arr.filter((node) => !getDirPath(node));
+  const subfolderFiles = arr.filter((node) => getDirPath(node));
+
+  // Group subfolder files by directory
+  const folderGroups = new Map();
+  for (const file of subfolderFiles) {
+    const dir = getDirPath(file);
+    if (!folderGroups.has(dir)) {
+      folderGroups.set(dir, []);
+    }
+    folderGroups.get(dir).push(file);
+  }
+
+  // Sort function based on current sort mode
+  let sortFn;
   switch (lastSort) {
     case 61789: // name asc
       lastSortName = 'Name Ascending';
-      arr
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.name.localeCompare(b.name);
       break;
     case 61790: // name dsc
       lastSortName = 'Name Descending';
-      arr
-        .sort((b, a) => a.name.localeCompare(b.name))
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.name.localeCompare(a.name);
       break;
     case 61792: // size asc
       lastSortName = 'Size Ascending';
-      arr
-        .sort((a, b) => a.size - b.size)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.size - b.size;
       break;
     case 61793: // size dsc
       lastSortName = 'Size Descending';
-      arr
-        .sort((b, a) => a.size - b.size)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.size - a.size;
       break;
     case 61794: // resolution asc
       lastSortName = 'Resolution Ascending';
-      arr
-        .sort((a, b) => a.width * a.height - b.width * b.height)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.width * a.height - b.width * b.height;
       break;
     case 61795: // resolution dsc
       lastSortName = 'Resolution Descending';
-      arr
-        .sort((b, a) => a.width * a.height - b.width * b.height)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.width * b.height - a.width * a.height;
       break;
     case 61662:
       lastSortName = 'Modified Ascending';
-      arr
-        .sort((a, b) => a.mtime - b.mtime)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.mtime - b.mtime;
       break;
     case 61661:
       lastSortName = 'Modified Descending';
-      arr
-        .sort((b, a) => a.mtime - b.mtime)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.mtime - a.mtime;
       break;
     default:
       lastSortName = 'None';
+      sortFn = null;
       break;
   }
+
+  // Sort root files
+  if (sortFn) {
+    rootFiles.sort(sortFn);
+  }
+  rootFiles.forEach((node) => fragment.appendChild(node));
+
+  // Sort folder names alphabetically, then sort files within each folder
+  const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  for (const folderName of sortedFolderNames) {
+    const files = folderGroups.get(folderName);
+    if (sortFn) {
+      files.sort(sortFn);
+    }
+    files.forEach((node) => fragment.appendChild(node));
+  }
+
   if (fragment.children.length === 0) return;
   el.files.innerHTML = '';
   el.files.appendChild(fragment);
