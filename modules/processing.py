@@ -325,9 +325,6 @@ def process_samples(p: StableDiffusionProcessing, samples):
             if p.color_corrections is not None and i < len(p.color_corrections):
                 p.ops.append('color')
                 if not p.do_not_save_samples and shared.opts.save_images_before_color_correction:
-                    orig = p.color_corrections
-                    p.color_corrections = None
-                    p.color_corrections = orig
                     image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                     images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")

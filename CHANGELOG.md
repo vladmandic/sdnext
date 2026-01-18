@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-16
+## Update for 2025-01-18
 
-### Highlights for 2025-01-16
+### Highlights for 2025-01-18
 
 First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
 There are also improvements to SDNQ quantization engine, updated Prompt Enhance and many others  
@@ -10,7 +10,7 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-01-16
+### Details for 2025-01-18
 
 - **Models**
   - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
@@ -57,6 +57,7 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
   - improve extensions tab layout and behavior, thanks @awsr  
   - indicate collapsed/hidden sections  
   - persistent panel minimize/maximize state  
+  - gallery improve sorting behavior  
 - **Internal**
   - update js linting to `eslint9`, thanks @awsr  
   - update strong typing checks, thanks @awsr  
@@ -94,6 +95,7 @@ Plus some significant under-the-hood changes to improve code coverage and qualit
   - reduce triton test verbosity  
   - improve qwen i2i handling  
   - networks filter by model type  
+  - netoworks icon/list view type switch, thanks @awsr  
 
 ## Update for 2025-12-26
 
