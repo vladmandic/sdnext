@@ -18,6 +18,7 @@ from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
 from modules.generation_parameters_copypaste import create_override_settings_dict
+from modules.paths import resolve_output_path
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -402,8 +403,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
         hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
         # path
-        outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_control_samples,
-        outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_control_grids,
+        outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples),
+        outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_control_grids),
         # overrides
         override_settings=extra
     )
@@ -572,13 +573,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
                     # what are we doing?
                     if 'control' in p.ops:
-                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_control_samples
+                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples)
                     elif 'img2img' in p.ops:
-                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_img2img_samples
+                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
                     elif 'txt2img' in p.ops:
-                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
+                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
                     else: # fallback to txt2img
-                        p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
+                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
 
                     # pipeline
                     output = None

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from modules import errors, shared, scripts_manager, ui
 from modules.api import models, script, helpers
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images
+from modules.paths import resolve_output_path
 
 
 errors.install()
@@ -105,8 +106,8 @@ class APIGenerate():
             p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
             self.prepare_ip_adapter(txt2imgreq, p)
             p.scripts = script_runner
-            p.outpath_grids = shared.opts.outdir_grids or shared.opts.outdir_txt2img_grids
-            p.outpath_samples = shared.opts.outdir_samples or shared.opts.outdir_txt2img_samples
+            p.outpath_grids = resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_txt2img_grids)
+            p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
             for key, value in getattr(txt2imgreq, "extra", {}).items():
                 setattr(p, key, value)
             jobid = shared.state.begin('API-TXT', api=True)
@@ -157,8 +158,8 @@ class APIGenerate():
             self.prepare_ip_adapter(img2imgreq, p)
             p.init_images = [helpers.decode_base64_to_image(x) for x in init_images]
             p.scripts = script_runner
-            p.outpath_grids = shared.opts.outdir_img2img_grids
-            p.outpath_samples = shared.opts.outdir_img2img_samples
+            p.outpath_grids = resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_img2img_grids)
+            p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
             for key, value in getattr(img2imgreq, "extra", {}).items():
                 setattr(p, key, value)
             jobid = shared.state.begin('API-IMG', api=True)

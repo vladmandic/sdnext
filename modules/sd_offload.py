@@ -7,18 +7,22 @@ import torch
 import accelerate.hooks
 import accelerate.utils.modeling
 from installer import log
-from modules import shared, devices, errors, model_quant
+from modules import shared, devices, errors, model_quant, sd_models
 from modules.timer import process as process_timer
 
 
 debug = os.environ.get('SD_MOVE_DEBUG', None) is not None
 verbose = os.environ.get('SD_MOVE_VERBOSE', None) is not None
 debug_move = log.trace if debug else lambda *args, **kwargs: None
-offload_warn = ['sc', 'sd3', 'f1', 'f2', 'h1', 'hunyuandit', 'auraflow', 'omnigen', 'omnigen2', 'cogview4', 'cosmos', 'chroma', 'x-omni', 'hunyuanimage', 'hunyuanimage3', 'longcat']
+offload_allow_none = ['sd', 'sdxl']
 offload_post = ['h1']
 offload_hook_instance = None
 balanced_offload_exclude = ['CogView4Pipeline', 'MeissonicPipeline']
-no_split_module_classes = ["Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "WanTransformerBlock"]
+no_split_module_classes = [
+    "Linear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d",
+    "SDNQLinear", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d",
+    "WanTransformerBlock",
+]
 accelerate_dtype_byte_size = None
 move_stream = None
 
@@ -92,6 +96,60 @@ def apply_group_offload(sd_model, op:str='model'):
     return sd_model
 
 
+def apply_model_offload(sd_model, op:str='model', quiet:bool=False):
+    try:
+        shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
+        if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
+            shared.opts.diffusers_move_base = False
+            shared.opts.diffusers_move_unet = False
+            shared.opts.diffusers_move_refiner = False
+            shared.log.warning(f'Disabling {op} "Move model to CPU" since "Model CPU offload" is enabled')
+        if not hasattr(sd_model, "_all_hooks") or len(sd_model._all_hooks) == 0: # pylint: disable=protected-access
+            sd_model.enable_model_cpu_offload(device=devices.device)
+        else:
+            sd_model.maybe_free_model_hooks()
+        set_accelerate(sd_model)
+    except Exception as e:
+        shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
+
+def apply_sequential_offload(sd_model, op:str='model', quiet:bool=False):
+    try:
+        shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
+        if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
+            shared.opts.diffusers_move_base = False
+            shared.opts.diffusers_move_unet = False
+            shared.opts.diffusers_move_refiner = False
+            shared.log.warning(f'Disabling {op} "Move model to CPU" since "Sequential CPU offload" is enabled')
+        if sd_model.has_accelerate:
+            if op == "vae": # reapply sequential offload to vae
+                from accelerate import cpu_offload
+                sd_model.vae.to(devices.cpu)
+                cpu_offload(sd_model.vae, devices.device, offload_buffers=len(sd_model.vae._parameters) > 0) # pylint: disable=protected-access
+            else:
+                pass # do nothing if offload is already applied
+        else:
+            sd_model.enable_sequential_cpu_offload(device=devices.device)
+        set_accelerate(sd_model)
+    except Exception as e:
+        shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+
+
+def apply_none_offload(sd_model, op:str='model', quiet:bool=False):
+    if shared.sd_model_type not in offload_allow_none:
+        shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
+    else:
+        shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
+    try:
+        sd_model.has_accelerate = False
+        if hasattr(sd_model, 'maybe_free_model_hooks'):
+            sd_model.maybe_free_model_hooks()
+        sd_model = accelerate.hooks.remove_hook_from_module(sd_model, recurse=True)
+    except Exception:
+        pass
+    sd_models.move_model(sd_model, devices.device)
+
+
 def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=False):
     global accelerate_dtype_byte_size # pylint: disable=global-statement
     t0 = time.time()
@@ -105,50 +163,13 @@ def set_diffuser_offload(sd_model, op:str='model', quiet:bool=False, force:bool=
         accelerate.utils.modeling.dtype_byte_size = dtype_byte_size
 
     if shared.opts.diffusers_offload_mode == "none":
-        if shared.sd_model_type in offload_warn or 'video' in shared.sd_model_type:
-            shared.log.warning(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} type={shared.sd_model.__class__.__name__} large model')
-        else:
-            shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
-        if hasattr(sd_model, 'maybe_free_model_hooks'):
-            sd_model.maybe_free_model_hooks()
-            sd_model.has_accelerate = False
+        apply_none_offload(sd_model, op=op, quiet=quiet)
 
     if shared.opts.diffusers_offload_mode == "model" and hasattr(sd_model, "enable_model_cpu_offload"):
-        try:
-            shared.log.quiet(quiet, f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
-            if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
-                shared.opts.diffusers_move_base = False
-                shared.opts.diffusers_move_unet = False
-                shared.opts.diffusers_move_refiner = False
-                shared.log.warning(f'Disabling {op} "Move model to CPU" since "Model CPU offload" is enabled')
-            if not hasattr(sd_model, "_all_hooks") or len(sd_model._all_hooks) == 0: # pylint: disable=protected-access
-                sd_model.enable_model_cpu_offload(device=devices.device)
-            else:
-                sd_model.maybe_free_model_hooks()
-            set_accelerate(sd_model)
-        except Exception as e:
-            shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+        apply_model_offload(sd_model, op=op, quiet=quiet)
 
     if shared.opts.diffusers_offload_mode == "sequential" and hasattr(sd_model, "enable_sequential_cpu_offload"):
-        try:
-            shared.log.debug(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} limit={shared.opts.cuda_mem_fraction}')
-            if shared.opts.diffusers_move_base or shared.opts.diffusers_move_unet or shared.opts.diffusers_move_refiner:
-                shared.opts.diffusers_move_base = False
-                shared.opts.diffusers_move_unet = False
-                shared.opts.diffusers_move_refiner = False
-                shared.log.warning(f'Disabling {op} "Move model to CPU" since "Sequential CPU offload" is enabled')
-            if sd_model.has_accelerate:
-                if op == "vae": # reapply sequential offload to vae
-                    from accelerate import cpu_offload
-                    sd_model.vae.to(devices.cpu)
-                    cpu_offload(sd_model.vae, devices.device, offload_buffers=len(sd_model.vae._parameters) > 0) # pylint: disable=protected-access
-                else:
-                    pass # do nothing if offload is already applied
-            else:
-                sd_model.enable_sequential_cpu_offload(device=devices.device)
-            set_accelerate(sd_model)
-        except Exception as e:
-            shared.log.error(f'Setting {op}: offload={shared.opts.diffusers_offload_mode} {e}')
+        apply_sequential_offload(sd_model, op=op, quiet=quiet)
 
     if shared.opts.diffusers_offload_mode == "group":
         sd_model = apply_group_offload(sd_model, op=op)
@@ -254,10 +275,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
             if debug:
                 shared.log.trace(f'Offload: type=balanced op=dispatch map={device_map}')
             if device_map is not None:
+                skip_keys = getattr(module, "_skip_keys", None)
                 module = accelerate.dispatch_model(module,
                                                    main_device=torch.device(devices.device),
                                                    device_map=device_map,
                                                    offload_dir=offload_dir,
+                                                   skip_keys=skip_keys,
                                                    force_hooks=True,
                                                   )
             module._hf_hook.execution_device = torch.device(devices.device) # pylint: disable=protected-access

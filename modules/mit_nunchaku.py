@@ -4,7 +4,7 @@ from installer import log, pip
 from modules import devices
 
 
-nunchaku_ver = '1.0.2'
+nunchaku_ver = '1.1.0'
 ok = False
 
 

@@ -37,7 +37,7 @@ def apply_setting(key, value):
     shared.opts.data[key] = valtype(value) if valtype != type(None) else value
     if oldval != value and shared.opts.data_labels[key].onchange is not None:
         shared.opts.data_labels[key].onchange()
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     return getattr(shared.opts, key)
 
 
@@ -149,7 +149,7 @@ def run_settings(*args):
         shared.opts.sd_backend = "diffusers"
     try:
         if len(changed) > 0:
-            shared.opts.save(shared.config_filename)
+            shared.opts.save()
             shared.log.info(f'Settings: changed={len(changed)} {changed}')
     except RuntimeError:
         shared.log.error(f'Settings failed: change={len(changed)} {changed}')
@@ -167,7 +167,7 @@ def run_settings_single(value, key, progress=False):
     if shared.cmd_opts.use_directml:
         from modules.dml import directml_override_opts
         directml_override_opts()
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet']:
         shared.log.debug(f'Setting changed: {key}={value} progress={progress}')
     return get_value_for_setting(key), shared.opts.dumpjson()

@@ -40,7 +40,7 @@ def update_vlm_params(*args):
     shared.opts.interrogate_vlm_keep_prefill = bool(vlm_keep_prefill)
     shared.opts.interrogate_vlm_keep_thinking = bool(vlm_keep_thinking)
     shared.opts.interrogate_vlm_thinking_mode = bool(vlm_thinking_mode)
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
 
 
 def update_clip_params(*args):
@@ -52,7 +52,7 @@ def update_clip_params(*args):
     shared.opts.interrogate_clip_num_beams = int(clip_num_beams)
     shared.opts.interrogate_clip_flavor_count = int(clip_flavor_count)
     shared.opts.interrogate_clip_chunk_size = int(clip_chunk_size)
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     openclip.update_interrogate_params()
 
 

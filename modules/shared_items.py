@@ -48,7 +48,10 @@ pipelines = {
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
+    'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
+    'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
+    'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
@@ -134,7 +137,7 @@ def get_pipelines():
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
             from installer import log # pylint: disable=redefined-outer-name
-            log.error(f'Pipeline={k} diffusers={diffusers.__version__} path={diffusers.__file__} not available')
+            log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
     return pipelines
 
 

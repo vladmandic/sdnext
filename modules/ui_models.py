@@ -1,5 +1,6 @@
 import os
 import inspect
+from typing import cast
 import gradio as gr
 from modules import errors, sd_models, sd_vae, extras, sd_samplers, ui_symbols, modelstats
 from modules.ui_components import ToolButton
@@ -143,7 +144,7 @@ def create_ui():
                     model_table = gr.HTML(value='', elem_id="model_list_table")
 
                 model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
-                model_list_btn.click(fn=lambda: create_models_table(sd_models.checkpoints_list.values()), inputs=[], outputs=[model_table])
+                model_list_btn.click(fn=lambda: create_models_table(list(sd_models.checkpoints_list.values())), inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):
                 from modules.civitai.metadata_civitai import civit_search_metadata, civit_update_metadata
@@ -178,7 +179,7 @@ def create_ui():
                             custom_name = gr.Textbox(label="New model name")
                         with gr.Row():
                             merge_mode = gr.Dropdown(choices=merge_methods.__all__, value="weighted_sum", label="Interpolation Method")
-                            merge_mode_docs = gr.HTML(value=getattr(merge_methods, "weighted_sum", "").__doc__.replace("\n", "<br>"))
+                            merge_mode_docs = gr.HTML(value=merge_methods.weighted_sum.__doc__.strip().replace("\n", "<br>")) # pylint: disable=no-member # pyright: ignore[reportOptionalMemberAccess]
                         with gr.Row():
                             primary_model_name = gr.Dropdown(sd_model_choices(), label="Primary model", value="None")
                             create_refresh_button(primary_model_name, sd_models.list_models, lambda: {"choices": sd_model_choices()}, "checkpoint_A_refresh")
@@ -318,7 +319,11 @@ def create_ui():
                         return gr.Slider.update(value=None, visible=False)
 
                 def show_help(mode):
-                    doc = getattr(merge_methods, mode).__doc__.replace("\n", "<br>")
+                    try:
+                        doc = getattr(merge_methods, mode).__doc__.strip().replace("\n", "<br>")
+                    except AttributeError:
+                        log.warning(f'Merge mode "{mode}" is missing documentation')
+                        doc = "Error: Documentation missing"
                     return gr.update(value=doc, visible=True)
 
                 def show_unload(device):
@@ -358,8 +363,8 @@ def create_ui():
                 merge_mode.input(fn=tertiary, inputs=merge_mode, outputs=[tertiary_model_name, tertiary_refresh])
                 merge_mode.input(fn=beta_visibility, inputs=merge_mode, outputs=[beta, alpha_label, beta_label, beta_apply_preset, beta_preset, beta_base, beta_in_blocks, beta_mid_block, beta_out_blocks])
                 re_basin.change(fn=show_iters, inputs=re_basin, outputs=re_basin_iterations)
-                apply_preset.click(fn=load_presets, inputs=[alpha_preset, alpha_preset_lambda], outputs=[alpha_base, alpha_in_blocks, alpha_mid_block, alpha_out_blocks, tabs])
-                beta_apply_preset.click(fn=load_presets, inputs=[beta_preset, beta_preset_lambda], outputs=[beta_base, beta_in_blocks, beta_mid_block, beta_out_blocks, tabs])
+                apply_preset.click(fn=load_presets, inputs=[alpha_preset, alpha_preset_lambda], outputs=[alpha_base, alpha_in_blocks, alpha_mid_block, alpha_out_blocks, cast("gr.components.Component", tabs)]) # Casting because Tabs has an update method.
+                beta_apply_preset.click(fn=load_presets, inputs=[beta_preset, beta_preset_lambda], outputs=[beta_base, beta_in_blocks, beta_mid_block, beta_out_blocks, cast("gr.components.Component", tabs)]) # Casting because Tabs has an update method.
 
                 modelmerger_merge.click(
                     fn=wrap_gradio_gpu_call(modelmerger, extra_outputs=lambda: [gr.update() for _ in range(4)], name='Models'),

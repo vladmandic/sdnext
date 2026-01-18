@@ -21,7 +21,7 @@ def options_section(section_identifier: tuple[str, str], options_dict: dict[str,
 class OptionInfo:
     def __init__(
             self,
-            default: Any | None = None,
+            default: Any = None,
             label="",
             component: type[Component] | type[DropdownEditable] | None = None,
             component_args: dict | Callable[..., dict] | None = None,

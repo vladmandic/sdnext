@@ -67,6 +67,10 @@ def has_triton(early:bool=False) -> bool:
     return test_triton(early=early)
 
 
+def get_hip_agent() -> rocm.Agent:
+    return rocm.Agent(device)
+
+
 def get_backend(shared_cmd_opts):
     global args # pylint: disable=global-statement
     args = shared_cmd_opts
@@ -91,7 +95,6 @@ def get_backend(shared_cmd_opts):
 
 def get_gpu_info():
     def get_driver():
-        import subprocess
         if torch.xpu.is_available():
             try:
                 return torch.xpu.get_device_properties(torch.xpu.current_device()).driver_version
@@ -99,6 +102,7 @@ def get_gpu_info():
                 return ''
         elif torch.cuda.is_available() and torch.version.cuda:
             try:
+                import subprocess
                 result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 version = result.stdout.decode(encoding="utf8", errors="ignore").strip()
                 return version
@@ -110,7 +114,7 @@ def get_gpu_info():
     def get_package_version(pkg: str):
         import pkg_resources
         spec = pkg_resources.working_set.by_key.get(pkg, None) # more reliable than importlib
-        version = pkg_resources.get_distribution(pkg).version if spec is not None else ''
+        version = pkg_resources.get_distribution(pkg).version if spec is not None else None
         return version
 
     if not torch.cuda.is_available():
@@ -324,9 +328,9 @@ def test_fp16():
         elif backend == 'rocm':
             # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
             # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
-            agent = getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000")
+            agent = get_hip_agent()
             agent_name = getattr(torch.cuda.get_device_properties(device), "name", "AMD Radeon RX 0000")
-            if agent == "gfx1102" or (agent == "gfx1100" and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):
+            if agent.gfx_version == 0x1102 or (agent.gfx_version == 0x1100 and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):
                 fp16_ok = False
                 return fp16_ok
     try:
@@ -355,7 +359,7 @@ def test_bf16():
         elif backend == 'rocm' or backend == 'zluda':
             agent = None
             if backend == 'rocm':
-                agent = rocm.Agent(getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000"))
+                agent = get_hip_agent()
             else:
                 from modules.zluda_installer import default_agent
                 agent = default_agent
@@ -396,7 +400,8 @@ def test_triton(early: bool = False):
             triton_ok = False
     except Exception as e:
         triton_ok = False
-        log.warning(f"Triton test fail: {e}")
+        line = str(e).splitlines()[0]
+        log.warning(f"Triton test fail: {line}")
         if debug:
             from modules import errors
             errors.display(e, 'Triton')

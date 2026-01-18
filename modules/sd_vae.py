@@ -10,7 +10,7 @@ base_vae = None
 loaded_vae_file = None
 checkpoint_info = None
 vae_path = os.path.abspath(os.path.join(paths.models_path, 'VAE'))
-debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
+debug = os.environ.get('SD_VAE_DEBUG', None) is not None
 unspecified = object()
 vae_scale_override = {
     'WanPipeline': 16,

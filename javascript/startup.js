@@ -6,7 +6,7 @@ async function waitForOpts() {
   // make sure all of the ui is ready and options are loaded
   const t0 = performance.now();
   let t1 = performance.now();
-  while (true) { // eslint-disable-line no-constant-condition
+  while (true) {
     if (t1 - t0 > 120000) {
       log('waitForOpts timeout');
       break;

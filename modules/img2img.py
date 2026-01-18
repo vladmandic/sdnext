@@ -7,6 +7,7 @@ from modules import scripts_manager, shared, processing, images, errors
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.ui_common import plaintext_to_html
 from modules.memstats import memory_stats
+from modules.paths import resolve_output_path
 
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -239,8 +240,8 @@ def img2img(id_task: str, state: str, mode: int,
 
     p = processing.StableDiffusionProcessingImg2Img(
         sd_model=shared.sd_model,
-        outpath_samples=shared.opts.outdir_samples or shared.opts.outdir_img2img_samples,
-        outpath_grids=shared.opts.outdir_grids or shared.opts.outdir_img2img_grids,
+        outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples),
+        outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_img2img_grids),
         prompt=prompt,
         negative_prompt=negative_prompt,
         styles=prompt_styles,

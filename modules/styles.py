@@ -1,4 +1,3 @@
-# We need this so Python doesn't complain about the unknown StableDiffusionProcessing-typehint at runtime
 from __future__ import annotations
 import re
 import os
@@ -6,6 +5,7 @@ import csv
 import json
 import time
 import random
+from typing import Dict
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 
 
@@ -45,8 +45,71 @@ def apply_styles_to_prompt(prompt, styles):
     return prompt
 
 
+def select_from_weighted_list(inner: str) -> str:
+    if not inner:
+        return ''
+
+    parts = [p.strip() for p in inner.split('|') if p.strip()]
+    weighted: Dict[str, float] = {}
+    unweighted = []
+
+    for p in parts:
+        if ':' in p and not p.startswith('(') and not p.endswith(')'):
+            name, wstr = p.split(':', 1)
+            name = name.strip()
+            try:
+                w = float(wstr.strip())
+            except Exception:
+                w = 0.0
+            w = max(0.0, min(1.0, w))
+            weighted[name] = weighted.get(name, 0.0) + w
+        else:
+            unweighted.append(p)
+
+    W = sum(weighted.values())
+    U = len(unweighted)
+
+    if U == 0:
+        # Only weighted options
+        keys = list(weighted.keys())
+        if not keys:
+            return ''
+        if W == 0.0:
+            return random.choice(keys)
+        if abs(W - 1.0) > 1e-12:
+            for k in weighted:
+                weighted[k] = weighted[k] / W
+    else:
+        # Mix of weighted and unweighted
+        if W >= 1.0:
+            # Weighted probabilities consume whole mass -> normalize them, unweighted get 0
+            for k in weighted:
+                weighted[k] = weighted[k] / W
+        else:
+            remaining = 1.0 - W
+            per = remaining / U
+            for name in unweighted:
+                weighted[name] = weighted.get(name, 0.0) + per
+
+    items = list(weighted.items())
+    if not items:
+        return ''
+    total = sum(v for _, v in items)
+    if total <= 0.0:
+        return items[0][0]
+
+    r = random.random() * total
+    cum = 0.0
+    for name, prob in items:
+        cum += prob
+        if r <= cum:
+            return name
+    return items[-1][0]
+
+
 def apply_curly_braces_to_prompt(prompt, seed=-1):
-    # woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
+    # unweighted: woman with {white|green|{purple|yellow}} highlights and {red|blue} dress
+    # weighted: woman with {white:0.6|green:0.2|{purple|yellow}} highlights and {red:.6|blue:.4} dress
     if not isinstance(prompt, str) or len(prompt) == 0:
         return prompt
     old_state = None
@@ -60,8 +123,7 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
             if not m:
                 break
             inner = m.group(1)
-            options = [opt.strip() for opt in inner.split('|')]
-            choice = random.choice([o for o in options if o != '']) if options else ''
+            choice = select_from_weighted_list(inner)
             prompt = prompt[:m.start()] + choice + prompt[m.end():] # replace this specific span (slice-based) to avoid accidental other replacements
     finally:
         if old_state is not None:
@@ -71,12 +133,13 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
 
 def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, seed=-1):
     def check_wildcard_files(prompt, wildcard, files, file_only=True):
-        trimmed = wildcard.replace('\\', os.path.sep).strip().lower()
+        trimmed = wildcard.replace('\\', os.path.sep).replace('/', os.path.sep).strip().lower()
         for file in files:
             if file_only:
                 paths = [os.path.splitext(file)[0].lower(), os.path.splitext(os.path.basename(file).lower())[0]] # fullname and basename
             else:
                 paths = [os.path.splitext(p.lower())[0] for p in os.path.normpath(file).split(os.path.sep)] # every path component
+            paths.insert(0, os.path.splitext(file)[0].lower())
             if (trimmed in paths) or (os.path.sep in trimmed and trimmed in paths[0]):
                 try:
                     with open(file, 'r', encoding='utf-8') as f:

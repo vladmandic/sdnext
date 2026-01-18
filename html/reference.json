@@ -38,15 +38,6 @@
     "size": 6.94,
     "date": "2023 July"
   },
-  "StabilityAI StableDiffusion XL Turbo": {
-    "path": "stabilityai/sdxl-turbo",
-    "preview": "stabilityai--sdxl-turbo.jpg",
-    "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a 1-4 steps.",
-    "skip": true,
-    "variant": "fp16",
-    "tags": "distilled",
-    "extras": "steps: 4, cfg_scale: 0.0"
-  },
   "StabilityAI Stable Cascade": {
     "path": "huggingface/stabilityai/stable-cascade",
     "skip": true,
@@ -55,17 +46,6 @@
     "preview": "stabilityai--stable-cascade.jpg",
     "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
     "size": 11.82,
-    "date": "2024 February"
-  },
-  "StabilityAI Stable Cascade Lite": {
-    "path": "huggingface/stabilityai/stable-cascade-lite",
-    "skip": true,
-    "variant": "bf16",
-    "desc": "Stable Cascade is a diffusion model built upon the Würstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space. Why is this important? The smaller the latent space, the faster you can run inference and the cheaper the training becomes. How small is the latent space? Stable Diffusion uses a compression factor of 8, resulting in a 1024x1024 image being encoded to 128x128. Stable Cascade achieves a compression factor of 42, meaning that it is possible to encode a 1024x1024 image to 24x24, while maintaining crisp reconstructions. The text-conditional model is then trained in the highly compressed latent space. Previous versions of this architecture, achieved a 16x cost reduction over Stable Diffusion 1.5",
-    "preview": "stabilityai--stable-cascade-lite.jpg",
-    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
-    "size": 4.97,
-    "tags": "distilled",
     "date": "2024 February"
   },
   "StabilityAI Stable Diffusion 3.0 Medium": {
@@ -97,15 +77,6 @@
     "extras": "sampler: Default, cfg_scale: 7.0",
     "size": 26.98,
     "date": "2024 October"
-  },
-  "StabilityAI Stable Diffusion 3.5 Turbo": {
-    "path": "stabilityai/stable-diffusion-3.5-large-turbo",
-    "skip": true,
-    "variant": "fp16",
-    "desc": "Stable Diffusion 3.5 Large Turbo is a Multimodal Diffusion Transformer (MMDiT) text-to-image model with Adversarial Diffusion Distillation (ADD) that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency, with a focus on fewer inference steps.",
-    "preview": "stabilityai--stable-diffusion-3_5-large-turbo.jpg",
-    "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 7.0"
   },
 
   "Black Forest Labs FLUX.1 Dev": {
@@ -153,20 +124,29 @@
     "size": 104.74,
     "date": "2025 November"
   },
-  "Tencent FLUX.1 Dev SRPO": {
-    "path": "vladmandic/flux.1-dev-SRPO",
-    "preview": "vladmandic--flux.1-dev-SRPO.jpg",
-    "desc": "FLUX.1 Dev SRPO is Tencent trained with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference",
-    "tags": "distilled",
+  "Black Forest Labs FLUX.2 Klein Base 4B": {
+    "path": "black-forest-labs/FLUX.2-klein-base-4B",
+    "preview": "black-forest-labs--FLUX.2-klein-base-4B.jpg",
+    "desc": "FLUX.2-klein-base-4B is the undistilled 4 billion parameter base model of FLUX.2-klein. Requires 50 inference steps for full quality but offers flexibility for fine-tuning. Supports text-to-image and multi-reference editing. Apache 2.0 licensed.",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 4.5"
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 8.5,
+    "date": "2025 January"
+  },
+  "Black Forest Labs FLUX.2 Klein Base 9B": {
+    "path": "black-forest-labs/FLUX.2-klein-base-9B",
+    "preview": "black-forest-labs--FLUX.2-klein-base-9B.jpg",
+    "desc": "FLUX.2-klein-base-9B is the undistilled 9 billion parameter base model of FLUX.2-klein. Requires 50 inference steps for full quality but offers flexibility for fine-tuning. Supports text-to-image and multi-reference editing. Non-commercial license.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 18.5,
+    "date": "2025 January"
   },
 
   "Z-Image-Turbo": {
     "path": "Tongyi-MAI/Z-Image-Turbo",
     "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
-    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It offers sub-second inference latency on enterprise-grade H800 GPUs and fits comfortably within 16G VRAM consumer devices. It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
-    "tags": "distilled",
+    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
     "size": 20.3,
@@ -181,6 +161,15 @@
     "extras": "",
     "size": 56.1,
     "date": "2025 August"
+  },
+  "Qwen-Image-2512": {
+    "path": "Qwen/Qwen-Image-2512",
+    "preview": "Qwen--Qwen-Image-2512.jpg",
+    "desc": "Qwen-Image-2512 is an Qwen Image successor, that significantly reduces the AI-generated look, got finer natural detailils and improved text rendering.",
+    "skip": true,
+    "extras": "",
+    "size": 53.7,
+    "date": "2025 December"
   },
   "Qwen-Image-Edit": {
     "path": "Qwen/Qwen-Image-Edit",
@@ -202,7 +191,7 @@
   },
   "Qwen-Image-Edit-2511": {
     "path": "Qwen/Qwen-Image-Edit-2511",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Qwen--Qwen-Image-Edit-2511.jpg",
     "desc": "Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability.",
     "skip": true,
     "extras": "",
@@ -211,74 +200,17 @@
   },
   "Qwen-Image-Layered": {
     "path": "Qwen/Qwen-Image-Layered",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "preview": "Qwen--Qwen-Image-Layered.jpg",
     "desc": "Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers",
     "skip": true,
     "extras": "",
     "size": 53.7,
     "date": "2025 December"
   },
-  "Qwen-Image-Lightning": {
-    "path": "vladmandic/Qwen-Lightning",
-    "preview": "vladmandic--Qwen-Lightning.jpg",
-    "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
-    "skip": true,
-    "extras": "steps: 8",
-    "size": 56.1,
-    "tags": "distilled",
-    "date": "2025 August"
-  },
-  "Qwen-Image-Distill": {
-    "path": "SahilCarterr/Qwen-Image-Distill-Full",
-    "preview": "SahilCarterr--Qwen-Image-Distill-Full.jpg",
-    "desc": "Qwen-Image-Distill is a distilled and accelerated version of Qwen-Image by DiffSynth-Studio.",
-    "skip": true,
-    "extras": "steps: 15",
-    "size": 56.1,
-    "tags": "distilled",
-    "date": "2025 August"
-  },
-  "Qwen-Image-Lightning-Edit": {
-    "path": "vladmandic/Qwen-Lightning-Edit",
-    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
-    "desc": "Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
-    "skip": true,
-    "extras": "steps: 8",
-    "size": 56.1,
-    "tags": "distilled",
-    "date": "2025 August"
-  },
-  "Qwen-Image Pruning-12B": {
-    "path": "OPPOer/Qwen-Image-Pruning",
-    "subfolder": "Qwen-Image-12B-8steps",
-    "preview": "OPPOer--Qwen-Image-Pruning.jpg",
-    "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 12B parameters.",
-    "skip": true,
-    "tags": "distilled",
-    "date": "2025 Ocotober"
-  },
-  "Qwen-Image-Edit Pruning-13B": {
-    "path": "OPPOer/Qwen-Image-Edit-Pruning",
-    "subfolder": "Qwen-Image-Edit-13B-4steps",
-    "preview": "OPPOer--Qwen-Image-Edit-Pruning.jpg",
-    "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
-    "skip": true,
-    "tags": "distilled",
-    "date": "2025 Ocotober"
-  },
-  "Qwen-Image-Edit-2509 Pruning-13B": {
-    "path": "OPPOer/Qwen-Image-Edit-2509-Pruning",
-    "subfolder": "Qwen-Image-Edit-2509-13B-4steps",
-    "preview": "OPPOer--Qwen-Image-Edit-2509-Pruning.jpg",
-    "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
-    "skip": true,
-    "tags": "distilled",
-    "date": "2025 Ocotober"
-  },
 
   "lodestones Chroma1 HD": {
     "path": "lodestones/Chroma1-HD",
-    "preview": "lodestones--Chroma-HD.jpg",
+    "preview": "lodestones--Chroma1-HD.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the high-res fine-tune of the Chroma1-Base at a 1024x1024 resolution.",
     "skip": true,
     "extras": "",
@@ -287,45 +219,17 @@
   },
   "lodestones Chroma1 Base": {
     "path": "lodestones/Chroma1-Base",
-    "preview": "lodestones--Chroma-Base.jpg",
+    "preview": "lodestones--Chroma1-Base.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. This is the core 512x512 model. It's a solid, all-around foundation for pretty much any creative project.",
     "skip": true,
     "extras": "",
     "size": 26.84,
     "date": "2025 July"
   },
-  "lodestones Chroma1 Flash": {
-    "path": "lodestones/Chroma1-Flash",
-    "preview": "lodestones--Chroma-flash.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. A fine-tuned version of the Chroma1-Base made to find the best way to make these flow matching models faster.",
-    "skip": true,
-    "extras": "",
-    "size": 26.84,
-    "tags": "distilled",
-    "date": "2025 July"
-  },
   "lodestones Chroma1 v50 Preview Annealed": {
     "path": "vladmandic/chroma-unlocked-v50-annealed",
-    "preview": "lodestones--Chroma-annealed.jpg",
+    "preview": "vladmandic--chroma-unlocked-v50-annealed.jpg",
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Re-tweaked variant with extra noise added.",
-    "skip": true,
-    "extras": "",
-    "size": 26.84,
-    "date": "2025 July"
-  },
-  "lodestones Chroma1 v48 Preview": {
-    "path": "vladmandic/chroma-unlocked-v48",
-    "preview": "lodestones--Chroma.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning.",
-    "skip": true,
-    "extras": "",
-    "size": 26.84,
-    "date": "2025 July"
-  },
-  "lodestones Chroma1 v48 Preview Calibrated": {
-    "path": "vladmandic/chroma-unlocked-v48-detail-calibrated",
-    "preview": "lodestones--Chroma-detail.jpg",
-    "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. Last raw version of Chroma before final finetuning but with some detail calibration.",
     "skip": true,
     "extras": "",
     "size": 26.84,
@@ -451,14 +355,6 @@
     "desc": "SDXS: Real-Time One-Step Latent Diffusion Models with Image Conditions",
     "extras": "width: 512, height: 512, sampler: CMSI, steps: 1, cfg_scale: 0.0"
   },
-  "SDXL Flash Mini": {
-    "path": "SDXL-Flash_Mini.safetensors@https://huggingface.co/sd-community/sdxl-flash-mini/resolve/main/SDXL-Flash_Mini.safetensors?download=true",
-    "preview": "SDXL-Flash_Mini.jpg",
-    "desc": "Introducing the new fast model SDXL Flash (Mini), we learned that all fast XL models work fast, but the quality decreases, and we also made a fast model, but it is not as fast as LCM, Turbo, Lightning and Hyper, but the quality is higher.",
-    "extras": "width: 2048, height: 1024, sampler: DEIS, steps: 40, cfg_scale: 6.0",
-    "tags": "distilled",
-    "experimental": true
-  },
 
   "NVLabs Sana 1.5 1.6B 1k": {
     "path": "Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers",
@@ -475,13 +371,6 @@
     "skip": true,
     "size": 15.58,
     "date": "2025 March"
-  },
-  "NVLabs Sana 1.5 1.6B 1k Sprint": {
-    "path": "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers",
-    "desc": "SANA-Sprint is an ultra-efficient diffusion model for text-to-image (T2I) generation, reducing inference steps from 20 to 1-4 while achieving state-of-the-art performance.",
-    "preview": "Efficient-Large-Model--Sana15_Sprint_1600M_1024px_diffusers.jpg",
-    "tags": "distilled",
-    "skip": true
   },
   "NVLabs Sana 1.0 1.6B 4k": {
     "path": "Efficient-Large-Model/Sana_1600M_4Kpx_BF16_diffusers",
@@ -593,26 +482,6 @@
     "size": 6.43,
     "date": "2023 November"
   },
-  "Segmind SSD-1B": {
-    "path": "huggingface/segmind/SSD-1B",
-    "preview": "segmind--SSD-1B.jpg",
-    "desc": "The Segmind Stable Diffusion Model (SSD-1B) offers a compact, efficient, and distilled version of the SDXL model. At 50% smaller and 60% faster than Stable Diffusion XL (SDXL), it provides quick and seamless performance without sacrificing image quality.",
-    "variant": "fp16",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 9.0",
-    "size": 8.72,
-    "tags": "distilled",
-    "date": "2023 October"
-  },
-  "Segmind Tiny": {
-    "path": "segmind/tiny-sd",
-    "preview": "segmind--tiny-sd.jpg",
-    "desc": "Segmind's Tiny-SD offers a compact, efficient, and distilled version of Realistic Vision 4.0 and is up to 80% faster than SD1.5",
-    "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 9.0",
-    "size": 1.03,
-    "tags": "distilled",
-    "date": "2023 July"
-  },
   "Segmind SegMoE SD 4x2": {
     "path": "segmind/SegMoE-SD-4x2-v0",
     "preview": "segmind--SegMoE-SD-4x2-v0.jpg",
@@ -672,16 +541,6 @@
     "size": 0,
     "date": "2025 August"
   },
-  "Tencent HunyuanImage 2.1 Distilled": {
-    "path": "hunyuanvideo-community/HunyuanImage-2.1-Distilled-Diffusers",
-    "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
-    "preview": "hunyuanvideo-community--HunyuanImage-2.1-Distilled-Diffusers.jpg",
-    "extras": "",
-    "tags": "distilled",
-    "skip": true,
-    "size": 0,
-    "date": "2025 August"
-  },
   "Tencent HunyuanImage 2.1 Refiner": {
     "path": "hunyuanvideo-community/HunyuanImage-2.1-Refiner-Diffusers",
     "desc": "HunyuanImage-2.1, a highly efficient text-to-image model that is capable of generating 2K (2048 × 2048) resolution images.",
@@ -699,24 +558,10 @@
     "size": 14.09,
     "date": "2024 May"
   },
-  "Tencent HunyuanDiT 1.2 Distilled": {
-    "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
-    "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers-Distilled.jpg",
-    "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 2.0"
-  },
   "Tencent HunyuanDiT 1.1": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers.jpg",
-    "extras": "sampler: Default, cfg_scale: 2.0"
-  },
-  "Tencent HunyuanDiT 1.1 Distilled": {
-    "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
-    "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
-    "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled.jpg",
-    "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 2.0"
   },
 
@@ -1002,338 +847,14 @@
     "skip": true
   },
 
-  "FLUX.1-Dev sdnq-svd-uint4": {
-    "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+  "ZAI GLM-Image": {
+    "path": "zai-org/GLM-Image",
+    "preview": "zai-org--GLM-Image.jpg",
+    "desc": "GLM-Image is a two-stage image generation model combining autoregressive token generation (9B vision-language encoder) with diffusion refinement (7B DiT transformer). Features strong text rendering and compositional capabilities.",
     "skip": true,
-    "tags": "quantized",
-    "size": 12.60,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "FLUX.1-Schnell sdnq-svd-uint4": {
-    "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-schnell-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 12.60,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "FLUX.1-Dev Krea sdnq-svd-uint4": {
-    "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-Krea-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 12.60,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "FLUX.1-Dev Kontext sdnq-svd-uint4": {
-    "path": "Disty0/FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.1-Kontext-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 12.60,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "FLUX.2 Dev sdnq-svd-uint4": {
-    "path": "Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--FLUX.2-dev-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.2-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "extras": "",
-    "size": 31.58,
-    "date": "2025 November"
-  },
-  "Chroma1-HD sdnq-svd-uint4": {
-    "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--Chroma1-HD-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 11.89,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "Wan-AI Wan2.2 A14B T2I sdnq-svd-uint4": {
-    "path": "Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32",
-    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
-    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 23.54,
-    "extras": ""
-  },
-  "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
-    "path": "Disty0/Wan2.2-I2V-A14B-SDNQ-uint4-svd-r32",
-    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
-    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 23.55,
-    "extras": ""
-  },
-  "Z-Image-Turbo sdnq-svd-uint4": {
-    "path": "Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--Z-Image-Turbo-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of Tongyi-MAI/Z-Image-Turbo using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
-    "size": 6.5,
-    "date": "2025 November"
-  },
-  "Qwen-Image sdnq-svd-uint4": {
-    "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 16.09,
-    "extras": ""
-  },
-  "Qwen-Image-Edit sdnq-svd-uint4": {
-    "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 16.10,
-    "extras": ""
-  },
-  "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
-    "path": "Disty0/Qwen-Image-Edit-2509-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 16.10,
-    "extras": ""
-  },
-  "Qwen-Image-Edit-2511 sdnq-svd-uint4": {
-    "path": "Disty0/Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image-Edit-2511 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 December",
-    "size": 16.10,
-    "extras": ""
-  },
-  "Qwen-Image-Layered sdnq-svd-uint4": {
-    "path": "Disty0/Qwen-Image-Layered-SDNQ-uint4-svd-r32",
-    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image-Layered using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 December",
-    "size": 16.10,
-    "extras": ""
-  },
-  "nVidia ChronoEdit sdnq-svd-uint4": {
-    "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
-    "preview": "Disty0--ChronoEdit-14B-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
-    "skip": true,
-    "tags": "quantized",
-    "date": "2025 October",
-    "size": 18.10,
-    "extras": ""
-  },
-  "Tencent HunyuanImage 3.0 sdnq-svd-uint4": {
-    "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
-    "desc": "Quantization of tencent/HunyuanImage-3.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
-    "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
-    "extras": "",
-    "skip": true,
-    "tags": "quantized",
-    "size": 57.06,
-    "date": "2025 September"
-  },
-  "Tempest-by-Vlad XL sdnq-svd-uint4": {
-    "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
-    "preview": "vladmandic--tempestByVlad_baseV01-SDNQ-uint4-svd.jpg",
-    "desc": "Quantization of vladmandic/tempestByVlad_baseV01 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 3.37,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "NoobAI-XL v1.1 epsilon sdnq-svd-uint4": {
-    "path": "Disty0/NoobAI-XL-v1.1-SDNQ-uint4-svd-r128",
-    "preview": "Disty0--NoobAI-XL-v1.1-SDNQ-uint4-svd-r128.jpg",
-    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 3.37,
-    "date": "2025 October",
-    "extras": ""
-  },
-  "NoobAI-XL v1.0 v-pred sdnq-svd-uint4": {
-    "path": "Disty0/NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128",
-    "preview": "Disty0--NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128.jpg",
-    "desc": "Quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 3.37,
-    "date": "2025 October",
-    "extras": ""
-  },
-
-  "Tempest-by-Vlad XL": {
-    "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
-    "preview": "tempestByVlad_baseV01.jpg",
-    "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
-  },
-  "Tempest-by-Vlad XL Hyper": {
-    "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
-    "preview": "tempestByVlad_hyperV01.jpg",
-    "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
-  },
-  "Juggernaut XL XI": {
-    "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
-    "preview": "juggernautXL_juggXIByRundiffusion.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "date": "2024 August",
-    "size": 6.94,
-    "tags": "community",
-    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-  "Juggernaut XL XI Lightning": {
-    "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
-    "preview": "juggernautXL_juggXILightningByRD.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion XL",
-    "date": "2024 August",
-    "size": 6.94,
-    "tags": "community",
-    "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
-  },
-  "Juggernaut SD Reborn": {
-    "original": true,
-    "path": "juggernaut_reborn.safetensors@https://civitai.com/api/download/models/274039",
-    "preview": "juggernaut_reborn.jpg",
-    "desc": "Showcase finetuned model based on Stable diffusion 1.5",
-    "date": "2023 December",
-    "size": 2.28,
-    "tags": "community",
-    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
-  },
-  "WAI Illustrious XL v15": {
-    "path": "waiIllustriousSDXL_v150.safetensors@https://civitai.com/api/download/models/2167369",
-    "preview": "waiIllustriousSDXL_v150.jpg",
-    "desc": "",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 August",
-    "extras": ""
-  },
-  "Pony Realism XL v2.3": {
-    "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/1763661",
-    "preview": "ponyRealism_V23.jpg",
-    "desc": "",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 May",
-    "extras": ""
-  },
-  "NoobAI XL 1.0 V-Pred": {
-    "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
-    "preview": "noobaiXLNAIXL_vPred10Version.jpg",
-    "desc": "",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2024 December",
-    "extras": ""
-  },
-  "NoobAI XL 1.1 Epsilon": {
-    "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-1.1/resolve/main/NoobAI-XL-v1.1.safetensors",
-    "preview": "noobaiXLNAIXL_epsilonPred11Version.jpg",
-    "desc": "",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2024 November",
-    "extras": ""
-  },
-  "WAI-Ani-Pony XL v14": {
-    "path": "waiANIPONYXL_v140.safetensors.safetensors@https://civitai.com/api/download/models/1767402",
-    "preview": "waiANIPONYXL_v140.jpg",
-    "desc": "",
-    "tags": "community",
-    "size": 6.94,
-    "date": "2025 May",
-    "extras": ""
-  },
-  "Tiwaz CenKreChro": {
-    "path": "Tiwaz/CenKreChro",
-    "preview": "Tiwaz--CenKreChro.jpg",
-    "skip": true,
-    "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
-    "extras": "",
-    "tags": "community",
-    "date": "2025 September"
-  },
-  "purplesmartai Pony 7": {
-    "path": "purplesmartai/pony-v7-base",
-    "preview": "purplesmartai--pony-v7-base.jpg",
-    "skip": true,
-    "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
-    "extras": "",
-    "tags": "community",
-    "date": "October September"
-  },
-  "ShuttleAI Shuttle 3.0 Diffusion": {
-    "path": "shuttleai/shuttle-3-diffusion",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3-diffusion.jpg",
-    "tags": "community",
-    "skip": true
-  },
-  "ShuttleAI Shuttle 3.1 Aesthetic": {
-    "path": "shuttleai/shuttle-3.1-aesthetic",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
-    "tags": "community",
-    "skip": true
-  },
-  "ShuttleAI Shuttle Jaguar": {
-    "path": "shuttleai/shuttle-jaguar",
-    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-jaguar.jpg",
-    "tags": "community",
-    "skip": true
-  },
-
-  "Google Gemini 2.5 Flash Nano Banana": {
-    "path": "gemini-2.5-flash-image",
-    "desc": "Gemini can generate and process images conversationally. You can prompt Gemini with text, images, or a combination of both allowing you to create, edit, and iterate on visuals with unprecedented control.",
-    "preview": "gemini-2.5-flash-image.jpg",
-    "tags": "cloud",
-    "skip": true
-  },
-  "Google Gemini 3.0 Pro Nano Banana": {
-    "path": "gemini-3-pro-image-preview",
-    "desc": "Built on Gemini 3. Create and edit images with studio-quality levels of precision and control",
-    "preview": "gemini-3-pro-image-preview.jpg",
-    "tags": "cloud",
-    "skip": true
+    "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
+    "size": 15.3,
+    "date": "2025 January"
   }
 
 }

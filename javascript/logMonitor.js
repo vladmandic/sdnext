@@ -56,7 +56,7 @@ async function logMonitor() {
   if (imgGallery) imgGallery.style.height = opts.logmonitor_show ? '50vh' : '55vh';
 
   if (!opts.logmonitor_show) {
-    Array.from(document.getElementsByClassName('log-monitor')).forEach((el) => el.style.display = 'none');
+    Array.from(document.getElementsByClassName('log-monitor')).forEach((el) => { el.style.display = 'none'; });
     return;
   }
 

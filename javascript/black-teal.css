@@ -43,12 +43,12 @@
   --button-secondary-background-fill-hover: var(--neutral-600);
   --block-title-text-color: var(--neutral-300);
   --radius-xxs: 0;
-  --radius-xs: 1;
+  --radius-xs: 1px;
   --radius-sm: 2px;
-  --radius-md: 3;
+  --radius-md: 3px;
   --radius-lg: 4px;
-  --radius-xl: 5;
-  --radius-xxl: 6;
+  --radius-xl: 5px;
+  --radius-xxl: 6px;
   --line-xs: 1.0em;
   --line-sm: 1.2em;
   --line-md: 1.4em;
@@ -77,8 +77,10 @@ button { max-width: 400px; white-space: nowrap; }
 img { background-color: var(--background-color); }
 
 input[type='range'] { display: block; margin: 0; padding: 0; height: 0.8em; background-color: transparent; overflow: hidden; cursor: pointer; box-shadow: 0 0 0 0 transparent; -webkit-appearance: none; appearance: none; }
+/* eslint-disable-next-line css/no-invalid-properties */
 input[type='range']::-webkit-slider-thumb { height: .9em; width: .9em; background-color: hsl(180, 54%, 61%); box-shadow: var(--range-shadow); border-radius: var(--radius-xs); }
 input[type='range']::-webkit-slider-runnable-track, input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; }
+/* eslint-disable-next-line css/no-invalid-properties */
 input[type='range']::-moz-range-thumb { height: .9em; width: .9em; background-color: hsl(180, 54%, 61%); box-shadow: var(--range-shadow); }
 input[type='range']::-moz-range-track, input[type='range']::-webkit-slider-runnable-track { border: none; background: none; width: 100%; height: 100%; }
 

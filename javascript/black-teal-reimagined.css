@@ -553,7 +553,7 @@ svg.feather.feather-image,
 }
 
 .output-html {
-  line-height: 1.2 rem;
+  line-height: 1.2rem;
   overflow-x: hidden;
 }
 
@@ -1016,7 +1016,7 @@ svg.feather.feather-image,
 
 .loading {
   color: white;
-  position: border-box;
+  position: absolute;
   top: 85%;
   font-size: 1.5em;
 }
@@ -1028,7 +1028,7 @@ svg.feather.feather-image,
   border-radius: 50%;
   border-top: var(--spacing-md) solid var(--primary-600);
   animation: spin 2s linear infinite, pulse 1.5s ease-in-out infinite;
-  position: border-box;
+  position: absolute;
 }
 
 .loader::before,

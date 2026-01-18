@@ -1,0 +1,132 @@
+{
+    "Tempest-by-Vlad XL": {
+    "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
+    "preview": "tempestByVlad_baseV01.jpg",
+    "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
+    "extras": ""
+  },
+  "Tempest-by-Vlad XL Hyper": {
+    "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
+    "preview": "tempestByVlad_hyperV01.jpg",
+    "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 January",
+    "extras": ""
+  },
+  "Juggernaut XL XI": {
+    "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
+    "preview": "juggernautXL_juggXIByRundiffusion.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
+    "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
+  },
+  "Juggernaut XL XI Lightning": {
+    "path": "juggernautXL_juggXILightningByRD.safetensors@https://civitai.com/api/download/models/920957",
+    "preview": "juggernautXL_juggXILightningByRD.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion XL",
+    "date": "2024 August",
+    "size": 6.94,
+    "tags": "community",
+    "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
+  },
+  "Juggernaut SD Reborn": {
+    "original": true,
+    "path": "juggernaut_reborn.safetensors@https://civitai.com/api/download/models/274039",
+    "preview": "juggernaut_reborn.jpg",
+    "desc": "Showcase finetuned model based on Stable diffusion 1.5",
+    "date": "2023 December",
+    "size": 2.28,
+    "tags": "community",
+    "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
+  },
+  "WAI Illustrious XL v15": {
+    "path": "waiIllustriousSDXL_v150.safetensors@https://civitai.com/api/download/models/2167369",
+    "preview": "waiIllustriousSDXL_v150.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 August",
+    "extras": ""
+  },
+  "Pony Realism XL v2.3": {
+    "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/1763661",
+    "preview": "ponyRealism_V23.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 May",
+    "extras": ""
+  },
+  "NoobAI XL 1.0 V-Pred": {
+    "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
+    "preview": "noobaiXLNAIXL_vPred10Version.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2024 December",
+    "extras": ""
+  },
+  "NoobAI XL 1.1 Epsilon": {
+    "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-1.1/resolve/main/NoobAI-XL-v1.1.safetensors",
+    "preview": "noobaiXLNAIXL_epsilonPred11Version.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2024 November",
+    "extras": ""
+  },
+  "WAI-Ani-Pony XL v14": {
+    "path": "waiANIPONYXL_v140.safetensors.safetensors@https://civitai.com/api/download/models/1767402",
+    "preview": "waiANIPONYXL_v140.jpg",
+    "desc": "",
+    "tags": "community",
+    "size": 6.94,
+    "date": "2025 May",
+    "extras": ""
+  },
+  "Tiwaz CenKreChro": {
+    "path": "Tiwaz/CenKreChro",
+    "preview": "Tiwaz--CenKreChro.jpg",
+    "skip": true,
+    "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
+    "extras": "",
+    "tags": "community",
+    "date": "2025 September"
+  },
+  "purplesmartai Pony 7": {
+    "path": "purplesmartai/pony-v7-base",
+    "preview": "purplesmartai--pony-v7-base.jpg",
+    "skip": true,
+    "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
+    "extras": "",
+    "tags": "community",
+    "date": "October September"
+  },
+  "ShuttleAI Shuttle 3.0 Diffusion": {
+    "path": "shuttleai/shuttle-3-diffusion",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-3-diffusion.jpg",
+    "tags": "community",
+    "skip": true
+  },
+  "ShuttleAI Shuttle 3.1 Aesthetic": {
+    "path": "shuttleai/shuttle-3.1-aesthetic",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
+    "tags": "community",
+    "skip": true
+  },
+  "ShuttleAI Shuttle Jaguar": {
+    "path": "shuttleai/shuttle-jaguar",
+    "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
+    "preview": "shuttleai--shuttle-jaguar.jpg",
+    "tags": "community",
+    "skip": true
+  }
+}

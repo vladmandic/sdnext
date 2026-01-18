@@ -45,7 +45,7 @@ def hf_login(token=None):
         except Exception:
             pass
         with contextlib.redirect_stdout(stdout):
-            hf.login(token=token, add_to_git_credential=False, write_permission=False)
+            hf.login(token=token, add_to_git_credential=False)
         os.environ['HF_TOKEN'] = token
         text = stdout.getvalue() or ''
         obfuscated_token = 'hf_...' + token[-4:]

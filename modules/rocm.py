@@ -1,11 +1,18 @@
 import os
 import sys
+import glob
 import ctypes
 import shutil
 import subprocess
-from typing import Union, List
+from types import ModuleType
+from typing import Union, overload, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
+if TYPE_CHECKING:
+    import torch
+
+
+rocm_sdk: Union[ModuleType, None] = None
 
 
 def resolve_link(path_: str) -> str:
@@ -20,8 +27,8 @@ def dirname(path_: str, r: int = 1) -> str:
     return path_
 
 
-def spawn(command: Union[str, List[str]], cwd: os.PathLike = '.') -> str:
-    process = subprocess.run(command, cwd=cwd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def spawn(command: Union[str, list[str]], cwd: os.PathLike = '.') -> str:
+    process = subprocess.run(command, cwd=cwd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     return process.stdout.decode(encoding="utf8", errors="ignore")
 
 
@@ -45,14 +52,14 @@ class ROCmEnvironment(Environment):
 class PythonPackageEnvironment(Environment):
     hip: ctypes.CDLL
 
-    def __init__(self):
-        import _rocm_sdk_core
-        if sys.platform == "win32":
-            path = os.path.join(_rocm_sdk_core.__path__[0], "bin", "amdhip64_7.dll")
-        else:
-            raise NotImplementedError
-        # This library will be loaded/used by PyTorch. So it won't make conflicts.
-        self.hip = ctypes.CDLL(path)
+    def __init__(self, rocm_sdk_module: ModuleType):
+        spec = rocm_sdk_module._dist_info.ALL_PACKAGES['core'].get_py_package() # pylint: disable=protected-access
+        lib = rocm_sdk_module._dist_info.ALL_LIBRARIES['amdhip64'] # pylint: disable=protected-access
+        pattern = os.path.join(os.path.dirname(spec.origin), lib.windows_relpath if sys.platform == "win32" else lib.posix_relpath, lib.dll_pattern if sys.platform == "win32" else lib.so_pattern)
+        candidates = glob.glob(pattern)
+        if len(candidates) == 0:
+            raise FileNotFoundError("Could not find amdhip64 in rocm-sdk package")
+        self.hip = ctypes.CDLL(candidates[0])
 
 
 class MicroArchitecture(Enum):
@@ -83,9 +90,19 @@ class Agent:
             break
         return result
 
-    def __init__(self, name: str):
-        self.name = name
-        self.gfx_version = Agent.parse_gfx_version(name)
+    @overload
+    def __init__(self, name: str): ...
+    @overload
+    def __init__(self, device: 'torch.types.Device'): ...
+
+    def __init__(self, arg):
+        if isinstance(arg, str):
+            name = arg
+        else: # assume arg is device-like object
+            import torch
+            name = getattr(torch.cuda.get_device_properties(arg), "gcnArchName", "gfx0000")
+        self.name = name.split(':')[0]
+        self.gfx_version = Agent.parse_gfx_version(self.name)
         if self.gfx_version > 0x1000:
             self.arch = MicroArchitecture.RDNA
         elif self.gfx_version in (0x908, 0x90a, 0x942,):
@@ -93,14 +110,17 @@ class Agent:
         else:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
-        self.blaslt_supported = os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{name}.hsaco" if sys.platform == "win32" else f"extop_{name}.co"))
+        self.blaslt_supported = False if blaslt_tensile_libpath is None else os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
+
+    def __str__(self) -> str:
+        return self.name
 
     @property
     def therock(self) -> Union[str, None]:
         if (self.gfx_version & 0xFFF0) == 0x1200:
             return "v2/gfx120X-all"
         if (self.gfx_version & 0xFFF0) == 0x1100:
-            return "v2/gfx110X-all"
+            return "v2/gfx110X-" + ("all" if self.is_apu else "dgpu")
         if self.gfx_version == 0x1150:
             return "v2-staging/gfx1150"
         if self.gfx_version == 0x1151:
@@ -127,14 +147,7 @@ class Agent:
         return None
 
 
-def find() -> Union[Environment, None]:
-    try: # TheRock
-        import _rocm_sdk_core # pylint: disable=unused-import
-        return PythonPackageEnvironment()
-    except ImportError:
-        pass
-
-    # system-wide installation
+def find() -> Union[ROCmEnvironment, None]:
     hip_path = shutil.which("hipconfig")
     if hip_path is not None:
         return ROCmEnvironment(dirname(resolve_link(hip_path), 2))
@@ -218,42 +231,44 @@ def get_flash_attention_command(agent: Agent) -> str:
 
 
 def refresh():
-    global environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
-    if sys.platform == "win32":
-        global agents # pylint: disable=global-statement
+    global rocm_sdk, environment, blaslt_tensile_libpath, is_installed, version # pylint: disable=global-statement
+    try:
+        import rocm_sdk
+        environment = PythonPackageEnvironment(rocm_sdk)
         try:
-            agents = driver_get_agents()
+            target_family = rocm_sdk._dist_info.determine_target_family() # pylint: disable=protected-access
+            spec = rocm_sdk._dist_info.ALL_PACKAGES['libraries'].get_py_package(target_family) # pylint: disable=protected-access
+            blaslt_tensile_libpath = os.path.join(os.path.dirname(spec.origin), "bin", "hipblaslt", "library")
         except Exception:
-            agents = []
-    environment = find()
+            blaslt_tensile_libpath = None
+        spawn(["rocm-sdk", "init"])
+    except ImportError:
+        rocm_sdk = None
+        environment = find()
+        if environment is not None:
+            blaslt_tensile_libpath = os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library")
+
     if environment is not None:
-        if isinstance(environment, ROCmEnvironment):
-            blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", os.path.join(environment.path, "bin" if sys.platform == "win32" else "lib", "hipblaslt", "library"))
-        elif isinstance(environment, PythonPackageEnvironment):
-            spawn(["rocm-sdk", "init"])
+        blaslt_tensile_libpath = os.environ.get("HIPBLASLT_TENSILE_LIBPATH", blaslt_tensile_libpath)
         is_installed = True
         version = get_version()
 
 
 if sys.platform == "win32":
-    def get_agents() -> List[Agent]:
-        return agents
-        #if isinstance(environment, ROCmEnvironment):
-        #    out = spawn("amdgpu-arch", cwd=os.path.join(environment.path, 'bin'))
-        #else:
-        #    # Assume that amdgpu-arch is in PATH (venv/Scripts/amdgpu-arch.exe)
-        #    out = spawn("amdgpu-arch")
-        #out = out.strip()
-        #if out == "":
-        #    return []
-        #return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
+    import tempfile
 
-    def driver_get_agents() -> List[Agent]:
-        # unsafe and experimental feature
-        from modules import windows_hip_ffi
-        archs = windows_hip_ffi.get_archs()
-        # filter out None (is there any better way?)
-        return [Agent(x) for x in archs if x is not None]
+    def get_agents() -> list[Agent]:
+        name = None
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
+            name = f.name
+            f.write(CODE_AMDGPU_ARCH)
+            f.flush()
+        out = spawn([sys.executable, name])
+        os.unlink(name)
+        out = out.strip()
+        if out == "":
+            return []
+        return [Agent(x.split(' ')[-1].strip()) for x in out.split("\n")]
 
     def postinstall():
         import torch
@@ -268,24 +283,31 @@ if sys.platform == "win32":
             os.environ["PATH"] = ";".join(paths_no_rocm)
             return
 
-        build_targets = torch.cuda.get_arch_list()
-        for available in agents:
-            if available.name in build_targets:
-                return
-
-        # use cpu instead of crashing
-        torch.cuda.is_available = lambda: False
-
     def rocm_init():
         try:
             import torch
             import numpy as np
-            from modules.devices import get_optimal_device
+            from installer import log
+            from modules.devices import get_hip_agent
+            from modules.rocm_triton_windows import apply_triton_patches
 
-            gfx_version = Agent.parse_gfx_version(getattr(torch.cuda.get_device_properties(get_optimal_device()), "gcnArchName", "gfx0000"))
-            if (gfx_version & 0xFFF0) == 0x1200:
+            build_targets = torch.cuda.get_arch_list()
+            agents = get_agents()
+            if all(available.name not in build_targets for available in agents):
+                log.warning('ROCm: torch-rocm is installed, but none of build targets is available')
+                # use cpu instead of crashing
+                torch.cuda.is_available = lambda: False
+
+            agent = get_hip_agent()
+            if not agent.blaslt_supported:
+                log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
+            if (agent.gfx_version & 0xFFF0) == 0x1200:
                 # disable MIOpen for gfx120x
                 torch.backends.cudnn.enabled = False
+                log.debug('ROCm: disabled MIOpen')
+
+            if sys.platform == "win32":
+                apply_triton_patches()
 
             original_cholesky_ex = torch.linalg.cholesky_ex
             @wraps(original_cholesky_ex)
@@ -314,9 +336,8 @@ if sys.platform == "win32":
         return True, None
 
     is_wsl: bool = False
-    agents: List[Agent] = [] # temp
 else: # sys.platform != "win32"
-    def get_agents() -> List[Agent]:
+    def get_agents() -> list[Agent]:
         try:
             _agents = spawn("rocm_agent_enumerator").split("\n")
             _agents = [x for x in _agents if x and x != 'gfx000']
@@ -330,6 +351,7 @@ else: # sys.platform != "win32"
             try:
                 if shutil.which("conda") is not None:
                     # Preload stdc++ library. This will bypass Anaconda stdc++ library.
+                    # (hsa-runtime64 depends on stdc++)
                     load_library_global("/lib/x86_64-linux-gnu/libstdc++.so.6")
                 # Preload rocr4wsl. The user don't have to replace the library file.
                 load_library_global("/opt/rocm/lib/libhsa-runtime64.so")
@@ -337,12 +359,107 @@ else: # sys.platform != "win32"
                 pass
 
     def rocm_init():
+        try:
+            import torch
+            from installer import log
+            from modules.devices import get_hip_agent
+
+            agent = get_hip_agent()
+            if not agent.blaslt_supported:
+                log.debug(f'ROCm: hipBLASLt unavailable agent={agent}')
+        except Exception as e:
+            return False, e
         return True, None
 
     is_wsl: bool = os.environ.get('WSL_DISTRO_NAME', 'unknown' if spawn('wslpath -w /') else None) is not None
 
-environment = None
-blaslt_tensile_libpath = ""
-is_installed = False
-version = None
+environment: Union[Environment, None] = None
+blaslt_tensile_libpath: Union[str, None] = None
+is_installed: bool = False
+version: Union[str, None] = None
 refresh()
+
+# amdgpu-arch.exe written in Python
+CODE_AMDGPU_ARCH = """
+import os
+import sys
+import ctypes
+import ctypes.wintypes
+import contextlib
+hipDeviceProp = ctypes.c_byte * 1472
+@contextlib.contextmanager
+def mute(fd):
+    s = os.dup(fd)
+    try:
+        with open(os.devnull, 'w') as devnull:
+            os.dup2(devnull.fileno(), fd)
+            yield
+    finally:
+        os.dup2(s, fd)
+        os.close(s)
+class HIP:
+    def __init__(self):
+        ctypes.windll.kernel32.LoadLibraryA.restype = ctypes.wintypes.HMODULE
+        ctypes.windll.kernel32.LoadLibraryA.argtypes = [ctypes.c_char_p]
+        self.handle = None
+        path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_7.dll"
+        if not os.path.isfile(path):
+            path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64_6.dll"
+        if not os.path.isfile(path):
+            path = os.environ.get("windir", "C:\\\\Windows") + "\\\\System32\\\\amdhip64.dll"
+        assert os.path.isfile(path)
+        self.handle = ctypes.windll.kernel32.LoadLibraryA(path.encode('utf-8'))
+        ctypes.windll.kernel32.GetLastError.restype = ctypes.wintypes.DWORD
+        ctypes.windll.kernel32.GetLastError.argtypes = []
+        assert ctypes.windll.kernel32.GetLastError() == 0
+        ctypes.windll.kernel32.GetProcAddress.restype = ctypes.c_void_p
+        ctypes.windll.kernel32.GetProcAddress.argtypes = [ctypes.wintypes.HMODULE, ctypes.c_char_p]
+        hipInit = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_uint)(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipInit"))
+        with mute(sys.stdout.fileno()):
+            hipInit(0)
+        self.hipGetDeviceCount = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_int))(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceCount"))
+        self.hipGetDeviceProperties = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(hipDeviceProp), ctypes.c_int)(
+            ctypes.windll.kernel32.GetProcAddress(self.handle, b"hipGetDeviceProperties"))
+    def get_device_count(self) -> int:
+        count = ctypes.c_int()
+        assert self.hipGetDeviceCount(ctypes.byref(count)) == 0
+        return count.value
+    def get_device_properties(self, device_id) -> bytes:
+        prop = hipDeviceProp()
+        assert self.hipGetDeviceProperties(ctypes.byref(prop), device_id) == 0
+        return bytes(prop)
+if __name__ == "__main__":
+    hip = HIP()
+    count = hip.get_device_count()
+    archs: list[str | None] = [None] * count
+    for i in range(count):
+        prop = hip.get_device_properties(i)
+        name = ""
+        idx = 0
+        while idx < len(prop):
+            try:
+                idx = prop.index(0x67, idx) + 1
+            except ValueError:
+                break
+            if prop[idx] != 0x66:
+                continue
+            if prop[idx + 1] != 0x78:
+                continue
+            idx = idx + 2
+            while prop[idx] != 0x00:
+                c = prop[idx]
+                idx += 1
+                if (c < 0x30 or c > 0x39) and (c < 0x61 or c > 0x66):
+                    name = ""
+                    continue
+                name += chr(c)
+            break
+        if name:
+            archs[i] = "gfx" + name
+    del hip
+    for arch in archs:
+        if arch is not None:
+            print(arch)
+"""

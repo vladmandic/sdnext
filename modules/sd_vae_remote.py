@@ -1,4 +1,3 @@
-from typing import List
 import io
 import time
 import json
@@ -21,7 +20,7 @@ hf_decode_endpoints['auraflow'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['omnigen'] = hf_decode_endpoints['sdxl']
 hf_decode_endpoints['h1'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['chroma'] = hf_decode_endpoints['f1']
-hf_decode_endpoints['z_image'] = hf_decode_endpoints['f1']
+hf_decode_endpoints['zimage'] = hf_decode_endpoints['f1']
 hf_decode_endpoints['lumina2'] = hf_decode_endpoints['f1']
 
 hf_encode_endpoints = {
@@ -36,7 +35,7 @@ hf_encode_endpoints['hunyuandit'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['auraflow'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['omnigen'] = hf_encode_endpoints['sdxl']
 hf_encode_endpoints['h1'] = hf_encode_endpoints['f1']
-hf_encode_endpoints['z_image'] = hf_encode_endpoints['f1']
+hf_encode_endpoints['zimage'] = hf_encode_endpoints['f1']
 hf_encode_endpoints['lumina2'] = hf_encode_endpoints['f1']
 
 dtypes = {
@@ -47,7 +46,7 @@ dtypes = {
 }
 
 
-def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str = None) -> Image.Image:
+def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str | None = None):
     from modules import devices, shared, errors, modelloader
     tensors = []
     content = 0
@@ -93,7 +92,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 params["output_type"] = "pt"
                 params["output_tensor_type"] = "binary"
                 headers["Accept"] = "tensor/binary"
-            if model_type in {'f1', 'h1', 'z_image', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
+            if model_type in {'f1', 'h1', 'zimage', 'lumina2', 'chroma'} and (width > 0) and (height > 0):
                 params['width'] = width
                 params['height'] = height
             if shared.sd_model.vae is not None and shared.sd_model.vae.config is not None:
@@ -128,7 +127,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     return tensors
 
 
-def remote_encode(images: List[Image.Image], model_type: str = None) -> torch.Tensor:
+def remote_encode(images: list[Image.Image], model_type: str | None = None):
     from diffusers.utils import remote_utils
     from modules import devices, shared, errors, modelloader
     if not shared.opts.remote_vae_encode:

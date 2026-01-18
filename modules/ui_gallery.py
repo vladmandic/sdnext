@@ -68,6 +68,7 @@ def create_ui():
             sort_buttons.append(ToolButton(value=ui_symbols.sort_time_dsc, elem_classes=['gallery-sort']))
             gr.Textbox(show_label=False, placeholder='Search', elem_id='tab-gallery-search')
             gr.HTML('', elem_id='tab-gallery-status')
+            gr.HTML('', elem_id='tab-gallery-progress')
             for btn in sort_buttons:
                 btn.click(fn=None, _js='gallerySort', inputs=[btn], outputs=[])
         with gr.Row():

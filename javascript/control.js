@@ -3,7 +3,6 @@ function controlInputMode(inputMode, ...args) {
   if (updateEl) updateEl.click();
   const tab = gradioApp().querySelector('#control-tab-input button.selected');
   if (!tab) return ['Image', ...args];
-  // let inputTab = tab.innerText;
   const tabs = Array.from(gradioApp().querySelectorAll('#control-tab-input button'));
   const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
   const tabNames = ['Image', 'Video', 'Batch', 'Folder'];
@@ -21,7 +20,7 @@ async function setupControlUI() {
   const tabs = ['input', 'output', 'preview'];
   for (const tab of tabs) {
     const btn = gradioApp().getElementById(`control-${tab}-button`);
-    if (!btn) continue; // eslint-disable-line no-continue
+    if (!btn) continue;
     btn.style.cursor = 'pointer';
     btn.onclick = () => {
       const t = gradioApp().getElementById(`control-tab-${tab}`);

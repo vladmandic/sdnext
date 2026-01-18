@@ -221,7 +221,7 @@ axis_options = [
     AxisOption("[Sampler] Timestep spacing", str, apply_setting("schedulers_timestep_spacing"), choices=lambda: ['default', 'linspace', 'leading', 'trailing']),
     AxisOption("[Sampler] Timestep range", int, apply_setting("schedulers_timesteps_range")),
     AxisOption("[Sampler] Solver order", int, apply_setting("schedulers_solver_order")),
-    AxisOption("[Sampler] Beta schedule", str, apply_setting("schedulers_beta_schedule"), choices=lambda: ['default', 'linear', 'scaled', 'cosine']),
+    AxisOption("[Sampler] Beta schedule", str, apply_setting("schedulers_beta_schedule"), choices=lambda: ['default', 'linear', 'scaled', 'cosine', 'sigmoid', 'laplace']),
     AxisOption("[Sampler] Beta start", float, apply_setting("schedulers_beta_start")),
     AxisOption("[Sampler] Beta end", float, apply_setting("schedulers_beta_end")),
     AxisOption("[Sampler] Flow shift", float, apply_setting("schedulers_shift")),

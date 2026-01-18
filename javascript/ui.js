@@ -86,6 +86,16 @@ function extract_image_from_gallery(gallery) {
   return [gallery[index]];
 }
 
+function send_to_kanvas(gallery) {
+  const [image] = extract_image_from_gallery(gallery);
+  log('sendToKanvas', image);
+  if (window.loadFromURL && image.data) window.loadFromURL(image.data);
+  // const inputPanelEl = gradioApp().getElementById('control-template-column-input');
+  // if (inputPanelEl) inputPanelEl.classList.remove('hidden');
+  const inputPanelCb = gradioApp().getElementById('control_dynamic_input');
+  if (inputPanelCb && !inputPanelCb.checked) inputPanelCb.click();
+}
+
 async function setTheme(val, old) {
   if (!old || val === old) return;
   old = old.replace('modern/', '');
@@ -99,7 +109,7 @@ async function setTheme(val, old) {
     const href = link.href.replace(old, val);
     const res = await fetch(href);
     if (res.ok) {
-      log('setTheme:', old, val);
+      log('setTheme', old, val);
       link.href = link.href.replace(old, val);
     } else {
       log('setTheme: CSS not found', val);
@@ -254,7 +264,12 @@ function submit_control(...args) {
   const res = create_submit_args(args);
   res[0] = id;
   res[1] = window.submit_state;
-  res[2] = gradioApp().querySelector('#control-tabs > .tab-nav > .selected')?.innerText.toLowerCase() || ''; // selected tab name
+
+  const tabs = Array.from(gradioApp().querySelectorAll('#control-tabs > .tab-nav > button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['ControlNet', 'T2I Adapter', 'XS', 'Lite', 'Reference'];
+  const selectedTab = tabNames[tabIdx] || 'ControlNet';
+  res[2] = selectedTab.toLowerCase();
   window.submit_state = '';
   return res;
 }

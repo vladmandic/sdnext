@@ -31,7 +31,7 @@ def html_head():
     for script in modules.scripts_manager.list_scripts("javascript", ".js"):
         if script.filename in main or script.filename in skip:
             continue
-        if '.esm' in js or '.mjs' in js:
+        if '.esm' in script.filename or '.mjs' in script.filename:
             head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         else:
             head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'

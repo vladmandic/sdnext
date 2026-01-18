@@ -153,7 +153,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         args["Color correction"] = True
     if shared.opts.token_merging_method == 'ToMe': # tome/todo
         args['ToMe'] = shared.opts.tome_ratio if shared.opts.tome_ratio != 0 else None
-    else:
+    elif shared.opts.token_merging_method == 'ToDo':
         args['ToDo'] = shared.opts.todo_ratio if shared.opts.todo_ratio != 0 else None
     if hasattr(shared.sd_model, 'embedding_db') and len(shared.sd_model.embedding_db.embeddings_used) > 0: # register used embeddings
         args['Embeddings'] = ', '.join(shared.sd_model.embedding_db.embeddings_used)

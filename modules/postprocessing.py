@@ -6,6 +6,7 @@ from PIL import Image
 
 from modules import shared, images, devices, scripts_manager, scripts_postprocessing, infotext
 from modules.shared import opts
+from modules.paths import resolve_output_path
 
 
 def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemporaryFile], input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
@@ -58,7 +59,7 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
     if extras_mode == 2 and output_dir != '':
         outpath = output_dir
     else:
-        outpath = opts.outdir_samples or opts.outdir_extras_samples
+        outpath = resolve_output_path(opts.outdir_samples, opts.outdir_extras_samples)
     processed_images = []
     for image, name, ext in zip(image_data, image_names, image_ext): # pylint: disable=redefined-argument-from-local
         shared.log.debug(f'Process: image={image} {args}')

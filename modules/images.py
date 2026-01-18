@@ -164,7 +164,7 @@ def save_image(image,
     if not check_grid_size([image]):
         return None, None, None
     if path is None or path == '': # set default path to avoid errors when functions are triggered manually or via api and param is not set
-        path = shared.opts.outdir_save
+        path = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
     namegen = FilenameGenerator(p, seed, prompt, image, grid=grid)
     suffix = suffix if suffix is not None else ''
     basename = '' if basename is None else basename
@@ -311,7 +311,7 @@ def parse_novelai_metadata(data: dict):
     return geninfo
 
 
-def read_info_from_image(image: Image, watermark: bool = False):
+def read_info_from_image(image: Image.Image, watermark: bool = False):
     if image is None:
         return '', {}
     if isinstance(image, str):
@@ -419,7 +419,7 @@ def draw_overlay(im, text: str = '', y_offset: int = 0):
     return im
 
 
-def set_watermark(image, wm_text: str = None, wm_image: Image.Image = None):
+def set_watermark(image, wm_text: str | None = None, wm_image: Image.Image | None = None):
     if shared.opts.image_watermark_position != 'none' and wm_image is not None: # visible watermark
         if isinstance(wm_image, str):
             try:

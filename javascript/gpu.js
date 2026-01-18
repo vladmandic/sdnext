@@ -1,9 +1,9 @@
-let gpuInterval = null; // eslint-disable-line prefer-const
+let gpuInterval = null;
 const chartData = { mem: [], load: [] };
 
 async function updateGPUChart(mem, load) {
   const maxLen = 120;
-  const colorRangeMap = $.range_map({ // eslint-disable-line no-undef
+  const colorRangeMap = $.range_map({
     '0:5': '#fffafa',
     '6:10': '#fff7ed',
     '11:20': '#fed7aa',
@@ -22,8 +22,8 @@ async function updateGPUChart(mem, load) {
   chartData.load.push(load);
   if (chartData.mem.length > maxLen) chartData.mem.shift();
   chartData.mem.push(mem);
-  $('#gpuChart').sparkline(chartData.load, sparklineConfigLOAD); // eslint-disable-line no-undef
-  $('#gpuChart').sparkline(chartData.mem, sparklineConfigMEM); // eslint-disable-line no-undef
+  $('#gpuChart').sparkline(chartData.load, sparklineConfigLOAD);
+  $('#gpuChart').sparkline(chartData.mem, sparklineConfigMEM);
 }
 
 async function updateGPU() {

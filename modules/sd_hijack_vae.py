@@ -29,7 +29,10 @@ def hijack_vae_decode(*args, **kwargs):
             else:
                 res = shared.sd_model.vae.orig_decode(latents, *args[1:], **kwargs)
             t1 = time.time()
-            shared.log.debug(f'Decode: vae={shared.sd_model.vae.__class__.__name__} slicing={getattr(shared.sd_model.vae, "use_slicing", None)} tiling={getattr(shared.sd_model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
+            try:
+                shared.log.debug(f'Decode: vae={shared.sd_model.vae.__class__.__name__} dtype={latents.dtype} latents={list(latents.shape)}:{latents.device} decoded={list(res[0].shape)} slicing={getattr(shared.sd_model.vae, "use_slicing", None)} tiling={getattr(shared.sd_model.vae, "use_tiling", None)} time={t1-t0:.3f}')
+            except Exception:
+                pass
         else:
             res = shared.sd_model.vae.orig_decode(*args, **kwargs)
     except Exception as e:

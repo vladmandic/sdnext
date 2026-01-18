@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // script used to localize sdnext ui and hints to multiple languages using google gemini ai
 
-const fs = require('fs');
-const process = require('process');
+const fs = require('node:fs');
+
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const api_key = process.env.GOOGLE_AI_API_KEY;

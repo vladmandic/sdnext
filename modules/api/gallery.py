@@ -10,6 +10,7 @@ from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
 from modules import shared, images, files_cache, modelstats
+from modules.paths import resolve_output_path
 
 
 debug = shared.log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -128,20 +129,51 @@ def register_api(app: FastAPI): # register api
 
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
     def get_folders():
+        def make_folder(path, label=None):
+            """Create folder entry with path and display label."""
+            if label is None:
+                label = os.path.basename(path) or path
+            return {"path": path, "label": label}
+
         reference_dir = os.path.join('models', 'Reference')
-        folders = [shared.opts.data.get(f, '') for f in OPTS_FOLDERS]
-        folders += list(shared.opts.browser_folders.split(','))
-        folders += [reference_dir]
-        folders = [f.strip() for f in folders if f != '']
-        folders = list(dict.fromkeys(folders)) # filter duplicates
-        folders = [f for f in folders if os.path.isdir(f)]
-        if shared.demo is not None:
-            for f in folders:
-                if f not in shared.demo.allowed_paths:
-                    debug(f'Browser folders allow: {f}')
-                    shared.demo.allowed_paths.append(quote(f))
-        debug(f'Browser folders: {folders}')
-        return JSONResponse(content=folders)
+        base_samples = shared.opts.outdir_samples
+        base_grids = shared.opts.outdir_grids
+        # Build list of resolved output paths with labels
+        folders = []
+        if base_samples:
+            folders.append(make_folder(base_samples, os.path.basename(base_samples.rstrip('/\\'))))
+        if base_grids and base_grids != base_samples:
+            folders.append(make_folder(base_grids, os.path.basename(base_grids.rstrip('/\\'))))
+        # Use the specific folder setting values as labels (e.g., "outputs/text" -> "outputs/text")
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_txt2img_samples), shared.opts.outdir_txt2img_samples))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_img2img_samples), shared.opts.outdir_img2img_samples))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_control_samples), shared.opts.outdir_control_samples))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_extras_samples), shared.opts.outdir_extras_samples))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_save), shared.opts.outdir_save))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_video), shared.opts.outdir_video))
+        folders.append(make_folder(resolve_output_path(base_samples, shared.opts.outdir_init_images), shared.opts.outdir_init_images))
+        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_txt2img_grids), shared.opts.outdir_txt2img_grids))
+        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_img2img_grids), shared.opts.outdir_img2img_grids))
+        folders.append(make_folder(resolve_output_path(base_grids, shared.opts.outdir_control_grids), shared.opts.outdir_control_grids))
+        # Custom browser folders and reference dir
+        for f in shared.opts.browser_folders.split(','):
+            f = f.strip()
+            if f:
+                folders.append(make_folder(f))
+        folders.append(make_folder(reference_dir, 'Reference'))
+        # Filter empty and duplicates (by path)
+        seen_paths = set()
+        unique_folders = []
+        for f in folders:
+            path = f["path"].strip()
+            if path and path not in seen_paths and os.path.isdir(path):
+                seen_paths.add(path)
+                unique_folders.append(f)
+                if shared.demo is not None and path not in shared.demo.allowed_paths:
+                    debug(f'Browser folders allow: {path}')
+                    shared.demo.allowed_paths.append(quote(path))
+        debug(f'Browser folders: {unique_folders}')
+        return JSONResponse(content=unique_folders)
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     async def get_thumb(file: str):

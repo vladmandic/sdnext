@@ -299,37 +299,43 @@ def decode_images(image):
             return helpers.decode_base64_to_image(image, quiet=True)
         except Exception as e:
             shared.log.error(f'Decode image: {e}')
-    elif isinstance(image, Image.Image):
-        return image
+    # elif isinstance(image, Image.Image):
+    #     return image
+    # elif torch.is_tensor(image):
+    #     return image
     else:
-        shared.log.error(f'Decode image: {type(image)} unknown type')
+        return image
+        # shared.log.error(f'Decode image: {type(image)} unknown type')
     return None
 
 
 def resize_init_images(p):
-    if getattr(p, 'image', None) is not None and getattr(p, 'init_images', None) is None:
-        p.init_images = [p.image]
-
-    if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
-        p.init_images = decode_images(p.init_images)
-        vae_scale_factor = sd_vae.get_vae_scale_factor()
-        tgt_width, tgt_height = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor), vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
-        if p.init_images[0].size != (tgt_width, tgt_height):
-            shared.log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
-            p.init_images = [images.resize_image(1, image, tgt_width, tgt_height, upscaler_name=None) for image in p.init_images]
-            p.height = tgt_height
-            p.width = tgt_width
-            sd_hijack_hypertile.hypertile_set(p)
-        if getattr(p, 'mask', None) is not None and p.mask is not None and p.mask.size != (tgt_width, tgt_height):
-            p.mask = decode_images(p.mask)
-            p.mask = images.resize_image(1, p.mask, tgt_width, tgt_height, upscaler_name=None)
-        if getattr(p, 'init_mask', None) is not None and p.init_mask is not None and p.init_mask.size != (tgt_width, tgt_height):
-            p.init_mask = decode_images(p.init_mask)
-            p.init_mask = images.resize_image(1, p.init_mask, tgt_width, tgt_height, upscaler_name=None)
-        if getattr(p, 'mask_for_overlay', None) is not None and p.mask_for_overlay is not None and p.mask_for_overlay.size != (tgt_width, tgt_height):
-            p.mask_for_overlay = decode_images(p.mask_for_overlay)
-            p.mask_for_overlay = images.resize_image(1, p.mask_for_overlay, tgt_width, tgt_height, upscaler_name=None)
-        return tgt_width, tgt_height
+    try:
+        if getattr(p, 'image', None) is not None and getattr(p, 'init_images', None) is None:
+            p.init_images = [p.image]
+        if getattr(p, 'init_images', None) is not None and len(p.init_images) > 0:
+            p.init_images = decode_images(p.init_images)
+            vae_scale_factor = sd_vae.get_vae_scale_factor()
+            tgt_width = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor)
+            tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
+            if p.init_images[0].size != (tgt_width, tgt_height):
+                shared.log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
+                p.init_images = [images.resize_image(1, image, tgt_width, tgt_height, upscaler_name=None) for image in p.init_images]
+                p.height = tgt_height
+                p.width = tgt_width
+                sd_hijack_hypertile.hypertile_set(p)
+            if getattr(p, 'mask', None) is not None and p.mask is not None and p.mask.size != (tgt_width, tgt_height):
+                p.mask = decode_images(p.mask)
+                p.mask = images.resize_image(1, p.mask, tgt_width, tgt_height, upscaler_name=None)
+            if getattr(p, 'init_mask', None) is not None and p.init_mask is not None and p.init_mask.size != (tgt_width, tgt_height):
+                p.init_mask = decode_images(p.init_mask)
+                p.init_mask = images.resize_image(1, p.init_mask, tgt_width, tgt_height, upscaler_name=None)
+            if getattr(p, 'mask_for_overlay', None) is not None and p.mask_for_overlay is not None and p.mask_for_overlay.size != (tgt_width, tgt_height):
+                p.mask_for_overlay = decode_images(p.mask_for_overlay)
+                p.mask_for_overlay = images.resize_image(1, p.mask_for_overlay, tgt_width, tgt_height, upscaler_name=None)
+            return tgt_width, tgt_height
+    except Exception:
+        pass
     return p.width, p.height
 
 

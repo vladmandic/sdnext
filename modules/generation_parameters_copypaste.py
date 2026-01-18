@@ -1,3 +1,4 @@
+from __future__ import annotations
 import base64
 import io
 import os
@@ -8,9 +9,9 @@ from modules.infotext import parse, mapping, quote, unquote # pylint: disable=un
 
 
 type_of_gr_update = type(gr.update())
-paste_fields = {}
+paste_fields: dict[str, dict] = {}
 field_names = {}
-registered_param_bindings = []
+registered_param_bindings: list[ParamBinding] = []
 debug = shared.log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
 parse_generation_parameters = parse # compatibility
@@ -18,7 +19,7 @@ infotext_to_setting_name_mapping = mapping # compatibility
 
 
 class ParamBinding:
-    def __init__(self, paste_button, tabname, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None):
+    def __init__(self, paste_button, tabname: str, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None):
         self.paste_button = paste_button
         self.tabname = tabname
         self.source_text_component = source_text_component
@@ -60,7 +61,7 @@ def image_from_url_text(filedata):
         if len(filedata) == 0:
             return None
         filedata = filedata[0]
-    if type(filedata) == dict:
+    if not isinstance(filedata, str):
         shared.log.warning('Incorrect filedata received')
         return None
     if filedata.startswith("data:image/png;base64,"):
@@ -71,13 +72,13 @@ def image_from_url_text(filedata):
         filedata = filedata[len("data:image/jpeg;base64,"):]
     if filedata.startswith("data:image/jxl;base64,"):
         filedata = filedata[len("data:image/jxl;base64,"):]
-    filedata = base64.decodebytes(filedata.encode('utf-8'))
-    image = Image.open(io.BytesIO(filedata))
+    filebytes = base64.decodebytes(filedata.encode('utf-8'))
+    image = Image.open(io.BytesIO(filebytes))
     images.read_info_from_image(image)
     return image
 
 
-def add_paste_fields(tabname, init_img, fields, override_settings_component=None):
+def add_paste_fields(tabname: str, init_img: gr.Image | gr.HTML | None, fields: list[tuple[gr.components.Component, str]] | None, override_settings_component=None):
     paste_fields[tabname] = {"init_img": init_img, "fields": fields, "override_settings_component": override_settings_component}
     try:
         field_names[tabname] = [f[1] for f in fields if f[1] is not None and not callable(f[1])] if fields is not None else [] # tuple (component, label)
@@ -108,7 +109,7 @@ def get_all_fields():
     return all_fields
 
 
-def create_buttons(tabs_list):
+def create_buttons(tabs_list: list[str]) -> dict[str, gr.Button]:
     buttons = {}
     for tab in tabs_list:
         name = tab
@@ -128,7 +129,7 @@ def create_buttons(tabs_list):
     return buttons
 
 
-def should_skip(param):
+def should_skip(param: str):
     skip_params = [p.strip().lower() for p in shared.opts.disable_apply_params.split(",")]
     if not shared.opts.clip_skip_enabled:
         skip_params += ['clip skip']
@@ -149,18 +150,26 @@ def connect_paste_params_buttons():
         if binding.tabname not in paste_fields:
             debug(f"Not not registered: tab={binding.tabname}")
             continue
-        fields = paste_fields[binding.tabname]["fields"]
+        fields: list[tuple[gr.components.Component, str]] = paste_fields[binding.tabname]["fields"]
 
         destination_image_component = paste_fields[binding.tabname]["init_img"]
-        if binding.source_image_component and destination_image_component:
-            binding.paste_button.click(
-                _js="extract_image_from_gallery" if isinstance(binding.source_image_component, gr.Gallery) else None,
-                fn=send_image,
-                inputs=[binding.source_image_component],
-                outputs=[destination_image_component],
-                show_progress='hidden',
-            )
-
+        if binding.source_image_component:
+            if isinstance(destination_image_component, gr.Image):
+                binding.paste_button.click(
+                    _js="extract_image_from_gallery" if isinstance(binding.source_image_component, gr.Gallery) else None,
+                    fn=send_image,
+                    inputs=[binding.source_image_component],
+                    outputs=[destination_image_component],
+                    show_progress='hidden',
+                )
+            elif isinstance(destination_image_component, gr.HTML): # kanvas
+                binding.paste_button.click(
+                    _js="send_to_kanvas",
+                    fn=None,
+                    inputs=[binding.source_image_component],
+                    outputs=[],
+                    show_progress='hidden',
+                )
         override_settings_component = binding.override_settings_component or paste_fields[binding.tabname]["override_settings_component"]
         if binding.source_text_component is not None and fields is not None:
             connect_paste(binding.paste_button, fields, binding.source_text_component, override_settings_component, binding.tabname)

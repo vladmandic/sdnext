@@ -365,12 +365,14 @@ class VQA:
     def unload(self):
         """Release VLM model from GPU/memory."""
         if self.model is not None:
-            shared.log.debug(f'VQA unload: model="{self.loaded}"')
+            model_name = self.loaded
+            shared.log.debug(f'VQA unload: unloading model="{model_name}"')
             sd_models.move_model(self.model, devices.cpu, force=True)
             self.model = None
             self.processor = None
             self.loaded = None
             devices.torch_gc(force=True, reason='vqa unload')
+            shared.log.debug(f'VQA unload: model="{model_name}" unloaded')
         else:
             shared.log.debug('VQA unload: no model loaded')
 
@@ -521,9 +523,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
         conversation = [
@@ -658,9 +657,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
 
@@ -860,9 +856,6 @@ class VQA:
         cls_name = self.model.__class__.__name__
         debug(f'VQA interrogate: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
-        # Warn if using Florence-2 task tokens with non-Florence-2 models
-        if is_florence_task(question):
-            shared.log.warning(f'Interrogate: Florence-2 task token "{question}" is designed for Florence-2 models. Using it anyway, but results may vary.')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         system_prompt = system_prompt or shared.opts.interrogate_vlm_system
         conversation = [

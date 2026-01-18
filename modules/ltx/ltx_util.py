@@ -9,7 +9,7 @@ loaded_model: str = None
 
 def get_bucket(size: int):
     if not hasattr(shared.sd_model, 'vae_temporal_compression_ratio'):
-        return int(size) - (int(size) % 16)
+        return int(size) - (int(size) % 32)
     return int(size) - (int(size) % shared.sd_model.vae_temporal_compression_ratio)
 
 

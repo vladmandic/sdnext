@@ -116,11 +116,15 @@ def setup_model():
     # sd_hijack_accelerate.hijack_torch_conv()
 
 
-def checkpoint_titles():
+def checkpoint_titles(use_short=False):
     def convert(name):
         return int(name) if name.isdigit() else name.lower()
+
     def alphanumeric_key(key):
-        return [convert(c) for c in re.split('([0-9]+)', key)]
+        return [convert(c) for c in re.split("([0-9]+)", key)]
+
+    if use_short:
+        return sorted([x.title.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] for x in checkpoints_list.values()], key=alphanumeric_key)
     return sorted([x.title for x in checkpoints_list.values()], key=alphanumeric_key)
 
 

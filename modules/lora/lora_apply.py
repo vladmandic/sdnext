@@ -213,7 +213,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
                 quantization_device=devices.device,
                 return_device=device,
                 param_name=getattr(self, 'network_layer_name', None),
-            ).to(device)
+            )[0].to(device)
             weight = None
             del dequant_weight
         except Exception as e:

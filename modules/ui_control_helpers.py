@@ -131,7 +131,7 @@ def process_kanvas(x): # only used when kanvas overrides gr.Image object
 def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
     global busy, input_source, input_init, input_mask # pylint: disable=global-statement
     t0 = time.time()
-    busy = True
+    busy = False
     selected_input = input_image # default: Image or Kanvas
     if input_mode == 'Video':
         selected_input = input_video
@@ -142,8 +142,9 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
     size = [gr.update(), gr.update()]
     if selected_input is None:
         input_source = None
-        busy = False
         return [gr.Tabs.update(), None, ''] + size
+
+    busy = True
     input_type = type(selected_input)
     input_mask = None
     status = 'Control input | Unknown'

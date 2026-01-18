@@ -3,7 +3,7 @@ import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, check_torch_compile
+from .common import dtype_dict, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
 from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul, get_quant_args_from_config
 from .forward import get_forward_func
 from .file_loader import load_files
@@ -25,7 +25,7 @@ def unset_config_on_save(quantization_config: SDNQConfig) -> SDNQConfig:
     return quantization_config
 
 
-def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "10GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
+def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "5GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
     if is_pipeline:
         for module_name in get_module_names(model):
             module = getattr(model, module_name, None)
@@ -106,7 +106,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
         else:
             model = model_cls(**model_config)
 
-        model = sdnq_post_load_quant(model, torch_dtype=dtype, add_skip_keys=False, **get_quant_args_from_config(quantization_config))
+        model = sdnq_post_load_quant(model, torch_dtype=dtype, add_skip_keys=False, use_dynamic_quantization=False, **get_quant_args_from_config(quantization_config))
 
     key_mapping = getattr(model, "_checkpoint_conversion_mapping", None)
     files = []
@@ -170,6 +170,18 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
         return model
     for module_name, module in model.named_children():
         if hasattr(module, "sdnq_dequantizer"):
+            layer_class_name = module.original_class.__name__
+            current_use_quantized_matmul = use_quantized_matmul
+            if current_use_quantized_matmul:
+                if layer_class_name in conv_types:
+                    output_channel_size, channel_size = module.sdnq_dequantizer.original_shape[:2]
+                elif layer_class_name in linear_types:
+                    output_channel_size, channel_size = module.sdnq_dequantizer.original_shape
+                else:
+                    current_use_quantized_matmul = False
+                current_use_quantized_matmul = current_use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 # pylint: disable=possibly-used-before-assignment
+                current_use_quantized_matmul = current_use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0 # pylint: disable=possibly-used-before-assignment
+
             if dtype is not None and module.sdnq_dequantizer.result_dtype != torch.float32:
                 module.sdnq_dequantizer.result_dtype = dtype
 
@@ -177,7 +189,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 dequantize_fp32
                 or dtype_dict[module.sdnq_dequantizer.weights_dtype]["num_bits"] > 8
                 or (
-                    (use_quantized_matmul or (use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul))
+                    (current_use_quantized_matmul or (current_use_quantized_matmul is None and module.sdnq_dequantizer.use_quantized_matmul))
                     and not dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["is_integer"]
                     and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["num_bits"] == 16)
                 )
@@ -191,20 +203,19 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 module.svd_up.data = module.svd_up.to(dtype=scale_dtype)
                 module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
-            if use_quantized_matmul is not None and use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
-                if not module.sdnq_dequantizer.re_quantize_for_matmul:
+            if current_use_quantized_matmul is not None and current_use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
+                if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
                     module.scale.t_()
                     module.weight.t_()
-                    if use_quantized_matmul:
+                    if current_use_quantized_matmul:
                         module.weight.data = prepare_weight_for_matmul(module.weight)
                     else:
                         module.scale.data = module.scale.contiguous()
                         module.weight.data = module.weight.contiguous()
                 if module.svd_up is not None:
-                    module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), use_quantized_matmul)
-                module.sdnq_dequantizer.use_quantized_matmul = use_quantized_matmul
-                module.forward = get_forward_func(module.__class__.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, use_quantized_matmul)
-                module.forward = module.forward.__get__(module, module.__class__)
+                    module.svd_up.data, module.svd_down.data = prepare_svd_for_matmul(module.svd_up.t_(), module.svd_down.t_(), current_use_quantized_matmul)
+                module.sdnq_dequantizer.use_quantized_matmul = current_use_quantized_matmul
+                module.forward_func = get_forward_func(module.original_class.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, current_use_quantized_matmul)
             setattr(model, module_name, module)
         else:
             setattr(model, module_name, apply_sdnq_options_to_module(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))

@@ -181,7 +181,7 @@ def api_list_models(model_type: str = None):
         model_list += list(predefined_qwen)
     if model_type == 'hunyuandit' or model_type == 'all':
         model_list += list(predefined_hunyuandit)
-    if model_type == 'z_image':
+    if model_type == 'zimage':
         model_list += list(predefined_zimage)
     model_list += sorted(find_models())
     return model_list
@@ -207,7 +207,7 @@ def list_models(refresh=False):
         models = ['None'] + list(predefined_qwen) + sorted(find_models())
     elif modules.shared.sd_model_type == 'hunyuandit':
         models = ['None'] + list(predefined_hunyuandit) + sorted(find_models())
-    elif modules.shared.sd_model_type == 'z_image':
+    elif modules.shared.sd_model_type == 'zimage':
         models = ['None'] + list(predefined_zimage) + sorted(find_models())
     else:
         log.warning(f'Control {what} model list failed: unknown model type')
@@ -273,7 +273,7 @@ class ControlNet():
         elif shared.sd_model_type == 'hunyuandit':
             from diffusers import HunyuanDiT2DControlNetModel as cls
             config = 'Tencent-Hunyuan/HunyuanDiT-v1.2-ControlNet-Diffusers-Canny'
-        elif shared.sd_model_type == 'z_image':
+        elif shared.sd_model_type == 'zimage':
             from diffusers import ZImageControlNetModel as cls
             if '2.0' in model_id:
                 config = 'hlky/Z-Image-Turbo-Fun-Controlnet-Union-2.0'

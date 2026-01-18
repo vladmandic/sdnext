@@ -1,15 +1,26 @@
+import os
+import sys
 import html
 import threading
 import time
 import cProfile
 from modules import shared, progress, errors, timer
 
+
 queue_lock = threading.Lock()
+debug = os.environ.get('SD_QUEUE_DEBUG', None) is not None
+
+
+def get_lock():
+    if debug:
+        fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+        errors.log.debug(f'Queue: fn={fn} lock={queue_lock.locked()}')
+    return queue_lock
 
 
 def wrap_queued_call(func):
     def f(*args, **kwargs):
-        with queue_lock:
+        with get_lock():
             res = func(*args, **kwargs)
         return res
     return f
@@ -24,7 +35,7 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
             progress.add_task_to_queue(id_task)
         else:
             id_task = None
-        with queue_lock:
+        with get_lock():
             progress.start_task(id_task)
             res = [None, '', '', '']
             try:

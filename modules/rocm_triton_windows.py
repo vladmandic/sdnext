@@ -1,6 +1,8 @@
 import sys
+from typing import Union
 import torch
-from modules import shared
+from modules import shared, devices
+from modules.rocm import Agent
 
 
 if sys.platform == "win32":
@@ -35,7 +37,7 @@ if sys.platform == "win32":
     class DeviceProperties:
         PROPERTIES_OVERRIDE = {
             # sometimes gcnArchName contains device name ("AMD Radeon RX ..."), not architecture name ("gfx...")
-            "gcnArchName": "UNKNOWN ARCHITECTURE",
+            "gcnArchName": "gfx0000",
         }
         internal: torch._C._CudaDeviceProperties
 
@@ -56,20 +58,17 @@ if sys.platform == "win32":
         from modules import zluda
         return zluda.core.to_hip_stream(_cuda_getCurrentRawStream(device))
 
-    def get_default_agent_name():
+    def get_default_agent() -> Union[Agent, None]:
         if shared.devices.backend == "rocm":
-            device = shared.devices.get_optimal_device()
-            return getattr(torch.cuda.get_device_properties(device), "gcnArchName", None)
+            return devices.get_hip_agent()
         else:
             from modules import zluda
-            if zluda.default_agent is None:
-                return None
-            return zluda.default_agent.name
+            return zluda.default_agent
 
     def apply_triton_patches():
-        arch_name = get_default_agent_name()
-        if arch_name is not None:
-            DeviceProperties.PROPERTIES_OVERRIDE["gcnArchName"] = arch_name
+        agent = get_default_agent()
+        if agent is not None:
+            DeviceProperties.PROPERTIES_OVERRIDE["gcnArchName"] = agent.name
         torch.cuda._get_device_properties = torch_cuda__get_device_properties # pylint: disable=protected-access
         if shared.devices.backend == "zluda":
             torch._C._cuda_getCurrentRawStream = torch__C__cuda_getCurrentRawStream # pylint: disable=protected-access

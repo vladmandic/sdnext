@@ -143,12 +143,11 @@ def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
     global device_supports_fp64
     if check_cuda(device):
         device = return_xpu(device)
-    if not device_supports_fp64:
-        if check_device_type(device, "xpu"):
-            if dtype == torch.float64:
-                dtype = torch.float32
-            elif dtype is None and (hasattr(data, "dtype") and (data.dtype == torch.float64 or data.dtype == float)):
-                dtype = torch.float32
+    if not device_supports_fp64 and check_device_type(device, "xpu"):
+        if dtype == torch.float64:
+            dtype = torch.float32
+        elif dtype is None and (hasattr(data, "dtype") and (data.dtype == torch.float64 or data.dtype == float)):
+            dtype = torch.float32
     return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
 
 
@@ -223,8 +222,6 @@ def torch_empty(*args, device=None, **kwargs):
 original_torch_randn = torch.randn
 @wraps(torch.randn)
 def torch_randn(*args, device=None, dtype=None, **kwargs):
-    if dtype is bytes:
-        dtype = None
     if check_cuda(device):
         return original_torch_randn(*args, device=return_xpu(device), dtype=dtype, **kwargs)
     else:
@@ -258,13 +255,32 @@ def torch_full(*args, device=None, **kwargs):
         return original_torch_full(*args, device=device, **kwargs)
 
 
+original_torch_arange = torch.arange
+@wraps(torch.arange)
+def torch_arange(*args, device=None, dtype=None, **kwargs):
+    global device_supports_fp64
+    if check_cuda(device):
+        if not device_supports_fp64 and dtype == torch.float64:
+            dtype = torch.float32
+        return original_torch_arange(*args, device=return_xpu(device), dtype=dtype, **kwargs)
+    else:
+        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
+            dtype = torch.float32
+        return original_torch_arange(*args, device=device, dtype=dtype, **kwargs)
+
+
 original_torch_linspace = torch.linspace
 @wraps(torch.linspace)
-def torch_linspace(*args, device=None, **kwargs):
+def torch_linspace(*args, device=None, dtype=None, **kwargs):
+    global device_supports_fp64
     if check_cuda(device):
-        return original_torch_linspace(*args, device=return_xpu(device), **kwargs)
+        if not device_supports_fp64 and dtype == torch.float64:
+            dtype = torch.float32
+        return original_torch_linspace(*args, device=return_xpu(device), dtype=dtype, **kwargs)
     else:
-        return original_torch_linspace(*args, device=device, **kwargs)
+        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
+            dtype = torch.float32
+        return original_torch_linspace(*args, device=device, dtype=dtype, **kwargs)
 
 
 original_torch_eye = torch.eye
@@ -358,6 +374,7 @@ def ipex_hijacks():
     torch.ones = torch_ones
     torch.zeros = torch_zeros
     torch.full = torch_full
+    torch.arange = torch_arange
     torch.linspace = torch_linspace
     torch.eye = torch_eye
     torch.load = torch_load
