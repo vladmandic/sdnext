@@ -57,7 +57,7 @@
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "tags": "quantized",
     "size": 5.1,
-    "date": "2025 January"
+    "date": "2026 January"
   },
   "Black Forest Labs FLUX.2 Klein 9B sdnq-uint4-dynamic-svd": {
     "path": "Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32",
@@ -67,7 +67,7 @@
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "tags": "quantized",
     "size": 11.7,
-    "date": "2025 January"
+    "date": "2026 January"
   },
   "Chroma1-HD sdnq-svd-uint4": {
     "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
@@ -234,6 +234,6 @@
     "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
     "size": 11.6,
     "tags": "quantized",
-    "date": "2025 January"
+    "date": "2026 January"
   }
 }
