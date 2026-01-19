@@ -521,7 +521,7 @@ class ExtraNetworksPage:
         if not isinstance(info, dict):
             self.desc_time += time.time() - t0
             return ''
-        desc = info.get('description', '')
+        desc = info.get('description', '') or ''
         f = HTMLFilter()
         f.feed(desc)
         t1 = time.time()
