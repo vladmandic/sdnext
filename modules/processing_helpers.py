@@ -236,6 +236,10 @@ def get_fixed_seed(seed):
 def fix_seed(p):
     p.seed = get_fixed_seed(p.seed)
     p.subseed = get_fixed_seed(p.subseed)
+    for i in range(len(p.all_seeds)):
+        p.all_seeds[i] = get_fixed_seed(p.all_seeds[i])
+    for i in range(len(p.all_subseeds)):
+        p.all_subseeds[i] = get_fixed_seed(p.all_subseeds[i])
 
 
 def old_hires_fix_first_pass_dimensions(width, height):

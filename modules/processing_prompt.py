@@ -93,10 +93,10 @@ def set_prompt(p,
         try:
             prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
         except Exception as e:
+            prompt_parser_diffusers.embedder = None
             shared.log.error(f'Prompt parser encode: {e}')
             if debug_enabled:
                 errors.display(e, 'Prompt parser encode')
-        prompt_parser_diffusers.embedder = None
         timer.process.record('prompt', reset=False)
         shared.state.end(jobid)
     else:

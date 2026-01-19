@@ -77,6 +77,7 @@ For full list of changes, see full changelog.
   - print system env on startup  
   - disable fallback on models with custom loaders  
   - refactor triggering of prompt parser and set secondary prompts when needed  
+  - refactor handling of seeds  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  

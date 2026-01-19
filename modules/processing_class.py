@@ -313,6 +313,8 @@ class StableDiffusionProcessing:
         self.negative_prompts = None
         self.all_prompts = None
         self.all_negative_prompts = None
+        self.seeds = []
+        self.subseeds = []
         self.all_seeds = None
         self.all_subseeds = None
 
