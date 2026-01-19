@@ -372,44 +372,6 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
     return resized
 
 
-def fix_prompts(p, prompts, negative_prompts, prompts_2, negative_prompts_2):
-    if hasattr(p, 'keep_prompts'):
-        return prompts, negative_prompts, prompts_2, negative_prompts_2
-
-    if type(prompts) is str:
-        prompts = [prompts]
-    if type(negative_prompts) is str:
-        negative_prompts = [negative_prompts]
-
-    if hasattr(p, '[init_images]') and p.init_images is not None and len(p.init_images) > 1:
-        while len(prompts) < len(p.init_images):
-            prompts.append(prompts[-1])
-        while len(negative_prompts) < len(p.init_images):
-            negative_prompts.append(negative_prompts[-1])
-
-    while len(prompts) < p.batch_size:
-        prompts.append(prompts[-1])
-    while len(negative_prompts) < p.batch_size:
-        negative_prompts.append(negative_prompts[-1])
-
-    while len(negative_prompts) < len(prompts):
-        negative_prompts.append(negative_prompts[-1])
-    while len(prompts) < len(negative_prompts):
-        prompts.append(prompts[-1])
-
-    if type(prompts_2) is str:
-        prompts_2 = [prompts_2]
-    if type(prompts_2) is list:
-        while len(prompts_2) < len(prompts):
-            prompts_2.append(prompts_2[-1])
-    if type(negative_prompts_2) is str:
-        negative_prompts_2 = [negative_prompts_2]
-    if type(negative_prompts_2) is list:
-        while len(negative_prompts_2) < len(prompts_2):
-            negative_prompts_2.append(negative_prompts_2[-1])
-    return prompts, negative_prompts, prompts_2, negative_prompts_2
-
-
 def calculate_base_steps(p, use_denoise_start, use_refiner_start):
     if len(getattr(p, 'timesteps', [])) > 0:
         return None
