@@ -43,10 +43,10 @@ def update_vlm_params(*args):
     shared.opts.save()
 
 
-def wd14_tag_wrapper(image, model_name, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
-    """Wrapper for wd14.tag that maps UI inputs to function parameters."""
-    from modules.interrogate import wd14
-    return wd14.tag(
+def tagger_tag_wrapper(image, model_name, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
+    """Wrapper for tagger.tag that maps UI inputs to function parameters."""
+    from modules.interrogate import tagger
+    return tagger.tag(
         image=image,
         model_name=model_name,
         general_threshold=general_threshold,
@@ -60,10 +60,10 @@ def wd14_tag_wrapper(image, model_name, general_threshold, character_threshold, 
     )
 
 
-def wd14_batch_wrapper(model_name, batch_files, batch_folder, batch_str, save_output, save_append, recursive, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
-    """Wrapper for wd14.batch that maps UI inputs to function parameters."""
-    from modules.interrogate import wd14
-    return wd14.batch(
+def tagger_batch_wrapper(model_name, batch_files, batch_folder, batch_str, save_output, save_append, recursive, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
+    """Wrapper for tagger.batch that maps UI inputs to function parameters."""
+    from modules.interrogate import tagger
+    return tagger.batch(
         model_name=model_name,
         batch_files=batch_files,
         batch_folder=batch_folder,
@@ -80,6 +80,20 @@ def wd14_batch_wrapper(model_name, batch_files, batch_folder, batch_str, save_ou
         use_spaces=use_spaces,
         escape_brackets=escape_brackets,
     )
+
+
+def update_tagger_ui(model_name):
+    """Update UI controls based on selected tagger model.
+
+    When DeepBooru is selected, character_threshold and include_rating are disabled
+    since DeepBooru doesn't support separate character threshold or rating tags.
+    """
+    from modules.interrogate import tagger
+    is_db = tagger.is_deepbooru(model_name)
+    return [
+        gr.update(interactive=not is_db),  # character_threshold
+        gr.update(interactive=not is_db, value=False if is_db else None),  # include_rating
+    ]
 
 
 def update_clip_params(*args):
@@ -198,10 +212,10 @@ def create_ui():
                         btn_clip_interrogate_img = gr.Button("Interrogate", variant='primary', elem_id="btn_clip_interrogate_img")
                         btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
                 with gr.Tab("Booru Tags", elem_id='tab_booru_tags'):
-                    from modules.interrogate import wd14
+                    from modules.interrogate import tagger
                     with gr.Row():
-                        wd_model = gr.Dropdown(wd14.get_models(), value=shared.opts.wd14_model, label='Tagger Model', elem_id='wd_model')
-                        ui_common.create_refresh_button(wd_model, wd14.refresh_models, lambda: {"choices": wd14.get_models()}, 'wd_models_refresh')
+                        wd_model = gr.Dropdown(tagger.get_models(), value=shared.opts.wd14_model, label='Tagger Model', elem_id='wd_model')
+                        ui_common.create_refresh_button(wd_model, tagger.refresh_models, lambda: {"choices": tagger.get_models()}, 'wd_models_refresh')
                     with gr.Row():
                         wd_load_btn = gr.Button(value='Load', elem_id='wd_load', variant='secondary')
                         wd_unload_btn = gr.Button(value='Unload', elem_id='wd_unload', variant='secondary')
@@ -210,14 +224,15 @@ def create_ui():
                             wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.wd14_general_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
                             wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.wd14_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
                         with gr.Row():
-                            wd_max_tags = gr.Slider(label='Max tags', value=shared.opts.wd14_max_tags, minimum=1, maximum=512, step=1, elem_id='wd_max_tags')
+                            wd_max_tags = gr.Slider(label='Max tags', value=shared.opts.tagger_max_tags, minimum=1, maximum=512, step=1, elem_id='wd_max_tags')
                             wd_include_rating = gr.Checkbox(label='Include rating', value=shared.opts.wd14_include_rating, elem_id='wd_include_rating')
                         with gr.Row():
-                            wd_sort_alpha = gr.Checkbox(label='Sort alphabetically', value=shared.opts.wd14_sort_alpha, elem_id='wd_sort_alpha')
-                            wd_use_spaces = gr.Checkbox(label='Use spaces', value=shared.opts.wd14_use_spaces, elem_id='wd_use_spaces')
-                            wd_escape = gr.Checkbox(label='Escape brackets', value=shared.opts.wd14_escape, elem_id='wd_escape')
+                            wd_sort_alpha = gr.Checkbox(label='Sort alphabetically', value=shared.opts.tagger_sort_alpha, elem_id='wd_sort_alpha')
+                            wd_use_spaces = gr.Checkbox(label='Use spaces', value=shared.opts.tagger_use_spaces, elem_id='wd_use_spaces')
+                            wd_escape = gr.Checkbox(label='Escape brackets', value=shared.opts.tagger_escape, elem_id='wd_escape')
                         with gr.Row():
-                            wd_exclude_tags = gr.Textbox(label='Exclude tags', value=shared.opts.wd14_exclude_tags, placeholder='Comma-separated tags to exclude', elem_id='wd_exclude_tags')
+                            wd_exclude_tags = gr.Textbox(label='Exclude tags', value=shared.opts.tagger_exclude_tags, placeholder='Comma-separated tags to exclude', elem_id='wd_exclude_tags')
+                    gr.HTML('<style>#wd_character_threshold:has(input:disabled), #wd_include_rating:has(input:disabled) { opacity: 0.5; }</style>')
                     with gr.Accordion(label='Tagger: Batch', open=False, visible=True):
                         with gr.Row():
                             wd_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='wd_batch_files')
@@ -253,8 +268,8 @@ def create_ui():
     btn_clip_interrogate_batch.click(fn=openclip.interrogate_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
     btn_vlm_caption.click(fn=vlm_caption_wrapper, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode], outputs=[prompt, output_image])
     btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_wd_tag.click(fn=wd14_tag_wrapper, inputs=[image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_wd_tag_batch.click(fn=wd14_batch_wrapper, inputs=[wd_model, wd_batch_files, wd_batch_folder, wd_batch_str, wd_save_output, wd_save_append, wd_folder_recursive, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_wd_tag.click(fn=tagger_tag_wrapper, inputs=[image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_wd_tag_batch.click(fn=tagger_batch_wrapper, inputs=[wd_model, wd_batch_files, wd_batch_folder, wd_batch_str, wd_save_output, wd_save_append, wd_folder_recursive, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
 
     # Dynamic UI updates based on selected model and task
     vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
@@ -263,14 +278,17 @@ def create_ui():
     # Load/Unload model buttons
     vlm_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
     vlm_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
-    def wd14_load_wrapper(model_name):
-        from modules.interrogate import wd14
-        return wd14.load_model(model_name)
-    def wd14_unload_wrapper():
-        from modules.interrogate import wd14
-        return wd14.unload_model()
-    wd_load_btn.click(fn=wd14_load_wrapper, inputs=[wd_model], outputs=[])
-    wd_unload_btn.click(fn=wd14_unload_wrapper, inputs=[], outputs=[])
+    def tagger_load_wrapper(model_name):
+        from modules.interrogate import tagger
+        return tagger.load_model(model_name)
+    def tagger_unload_wrapper():
+        from modules.interrogate import tagger
+        return tagger.unload_model()
+    wd_load_btn.click(fn=tagger_load_wrapper, inputs=[wd_model], outputs=[])
+    wd_unload_btn.click(fn=tagger_unload_wrapper, inputs=[], outputs=[])
+
+    # Dynamic UI update when tagger model changes (disable controls for DeepBooru)
+    wd_model.change(fn=update_tagger_ui, inputs=[wd_model], outputs=[wd_character_threshold, wd_include_rating], show_progress=False)
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))

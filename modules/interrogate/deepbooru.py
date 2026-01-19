@@ -4,7 +4,7 @@ import threading
 import torch
 import numpy as np
 from PIL import Image
-from modules import modelloader, paths, devices, shared, sd_models
+from modules import modelloader, paths, devices, shared
 
 re_special = re.compile(r'([\\()])')
 load_lock = threading.Lock()
@@ -13,6 +13,7 @@ load_lock = threading.Lock()
 class DeepDanbooru:
     def __init__(self):
         self.model = None
+        self._device = devices.cpu
 
     def load(self):
         with load_lock:
@@ -32,14 +33,17 @@ class DeepDanbooru:
             self.model.load_state_dict(torch.load(files[0], map_location="cpu"))
             self.model.eval()
             self.model.to(devices.cpu, devices.dtype)
+            self._device = devices.cpu
 
     def start(self):
         self.load()
-        sd_models.move_model(self.model, devices.device)
+        self.model.to(devices.device)
+        self._device = devices.device
 
     def stop(self):
         if shared.opts.interrogate_offload:
-            sd_models.move_model(self.model, devices.cpu)
+            self.model.to(devices.cpu)
+            self._device = devices.cpu
         devices.torch_gc()
 
     def tag(self, pil_image):
@@ -58,8 +62,8 @@ class DeepDanbooru:
             return ''
         pic = pil_image.resize((512, 512), resample=Image.Resampling.LANCZOS).convert("RGB")
         a = np.expand_dims(np.array(pic, dtype=np.float32), 0) / 255
-        with devices.inference_context(), devices.autocast():
-            x = torch.from_numpy(a).to(devices.device)
+        with devices.inference_context():
+            x = torch.from_numpy(a).to(device=devices.device, dtype=devices.dtype)
             y = self.model(x)[0].detach().float().cpu().numpy()
         probability_dict = {}
         for tag, probability in zip(self.model.tags, y):
@@ -68,25 +72,208 @@ class DeepDanbooru:
             if tag.startswith("rating:"):
                 continue
             probability_dict[tag] = probability
-        if shared.opts.deepbooru_sort_alpha:
+        if shared.opts.tagger_sort_alpha:
             tags = sorted(probability_dict)
         else:
             tags = [tag for tag, _ in sorted(probability_dict.items(), key=lambda x: -x[1])]
         res = []
-        filtertags = {x.strip().replace(' ', '_') for x in shared.opts.deepbooru_filter_tags.split(",")}
+        filtertags = {x.strip().replace(' ', '_') for x in shared.opts.tagger_exclude_tags.split(",")}
         for tag in [x for x in tags if x not in filtertags]:
             probability = probability_dict[tag]
             tag_outformat = tag
-            if shared.opts.deepbooru_use_spaces:
+            if shared.opts.tagger_use_spaces:
                 tag_outformat = tag_outformat.replace('_', ' ')
-            if shared.opts.deepbooru_escape:
+            if shared.opts.tagger_escape:
                 tag_outformat = re.sub(re_special, r'\\\1', tag_outformat)
             if shared.opts.interrogate_score and not force_disable_ranks:
                 tag_outformat = f"({tag_outformat}:{probability:.2f})"
             res.append(tag_outformat)
-        if len(res) > shared.opts.deepbooru_max_tags:
-            res = res[:shared.opts.deepbooru_max_tags]
+        if len(res) > shared.opts.tagger_max_tags:
+            res = res[:shared.opts.tagger_max_tags]
         return ", ".join(res)
 
 
 model = DeepDanbooru()
+
+
+def get_models() -> list:
+    """Return list of available DeepBooru models (just one)."""
+    return ["DeepBooru"]
+
+
+def load_model(model_name: str = None) -> bool:
+    """Load the DeepBooru model."""
+    try:
+        model.load()
+        return model.model is not None
+    except Exception as e:
+        shared.log.error(f'DeepBooru load: {e}')
+        return False
+
+
+def unload_model():
+    """Unload the DeepBooru model and free memory."""
+    if model.model is not None:
+        shared.log.debug('DeepBooru unload')
+        model.model = None
+        model._device = devices.cpu
+        devices.torch_gc(force=True)
+
+
+def tag(image, **kwargs) -> str:
+    """Tag an image using DeepBooru.
+
+    Args:
+        image: PIL Image to tag
+        **kwargs: Additional arguments (for interface compatibility)
+
+    Returns:
+        Formatted tag string
+    """
+    import time
+    t0 = time.time()
+    jobid = shared.state.begin('DeepBooru Tag')
+    shared.log.info(f'DeepBooru: image_size={image.size if image else None}')
+
+    try:
+        result = model.tag(image)
+        shared.log.debug(f'DeepBooru: complete time={time.time()-t0:.2f}s tags={len(result.split(", ")) if result else 0}')
+    except Exception as e:
+        result = f"Exception {type(e)}"
+        shared.log.error(f'DeepBooru: {e}')
+
+    shared.state.end(jobid)
+    return result
+
+
+def batch(
+    model_name: str,
+    batch_files: list,
+    batch_folder: str,
+    batch_str: str,
+    save_output: bool = True,
+    save_append: bool = False,
+    recursive: bool = False,
+    **kwargs
+) -> str:
+    """Process multiple images in batch mode.
+
+    Args:
+        model_name: Model name (ignored, only DeepBooru available)
+        batch_files: List of file paths
+        batch_folder: Folder path from file picker
+        batch_str: Folder path as string
+        save_output: Save caption to .txt files
+        save_append: Append to existing caption files
+        recursive: Recursively process subfolders
+        **kwargs: Additional arguments (for interface compatibility)
+
+    Returns:
+        Combined tag results
+    """
+    import time
+    from pathlib import Path
+    import rich.progress as rp
+
+    # Load model
+    model.load()
+
+    # Collect image files
+    image_files = []
+    image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'}
+
+    # From file picker
+    if batch_files:
+        for f in batch_files:
+            if isinstance(f, dict):
+                image_files.append(Path(f['name']))
+            elif hasattr(f, 'name'):
+                image_files.append(Path(f.name))
+            else:
+                image_files.append(Path(f))
+
+    # From folder picker
+    if batch_folder:
+        folder_path = None
+        if isinstance(batch_folder, list) and len(batch_folder) > 0:
+            f = batch_folder[0]
+            if isinstance(f, dict):
+                folder_path = Path(f['name']).parent
+            elif hasattr(f, 'name'):
+                folder_path = Path(f.name).parent
+        if folder_path and folder_path.is_dir():
+            if recursive:
+                for ext in image_extensions:
+                    image_files.extend(folder_path.rglob(f'*{ext}'))
+            else:
+                for ext in image_extensions:
+                    image_files.extend(folder_path.glob(f'*{ext}'))
+
+    # From string path
+    if batch_str and batch_str.strip():
+        folder_path = Path(batch_str.strip())
+        if folder_path.is_dir():
+            if recursive:
+                for ext in image_extensions:
+                    image_files.extend(folder_path.rglob(f'*{ext}'))
+            else:
+                for ext in image_extensions:
+                    image_files.extend(folder_path.glob(f'*{ext}'))
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_files = []
+    for f in image_files:
+        f_resolved = f.resolve()
+        if f_resolved not in seen:
+            seen.add(f_resolved)
+            unique_files.append(f)
+    image_files = unique_files
+
+    if not image_files:
+        shared.log.warning('DeepBooru batch: no images found')
+        return ''
+
+    t0 = time.time()
+    jobid = shared.state.begin('DeepBooru Batch')
+    shared.log.info(f'DeepBooru batch: images={len(image_files)} write={save_output} append={save_append} recursive={recursive}')
+
+    results = []
+    model.start()
+
+    # Progress bar
+    pbar = rp.Progress(rp.TextColumn('[cyan]DeepBooru:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
+
+    with pbar:
+        task = pbar.add_task(total=len(image_files), description='starting...')
+        for img_path in image_files:
+            pbar.update(task, advance=1, description=str(img_path.name))
+            try:
+                if shared.state.interrupted:
+                    shared.log.info('DeepBooru batch: interrupted')
+                    break
+
+                image = Image.open(img_path)
+                tags_str = model.tag_multi(image)
+
+                if save_output:
+                    txt_path = img_path.with_suffix('.txt')
+                    if save_append and txt_path.exists():
+                        with open(txt_path, 'a', encoding='utf-8') as f:
+                            f.write(f', {tags_str}')
+                    else:
+                        with open(txt_path, 'w', encoding='utf-8') as f:
+                            f.write(tags_str)
+
+                results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
+
+            except Exception as e:
+                shared.log.error(f'DeepBooru batch: file="{img_path}" error={e}')
+                results.append(f'{img_path.name}: ERROR - {e}')
+
+    model.stop()
+    elapsed = time.time() - t0
+    shared.log.info(f'DeepBooru batch: complete images={len(results)} time={elapsed:.1f}s')
+    shared.state.end(jobid)
+
+    return '\n'.join(results)

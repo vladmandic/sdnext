@@ -691,7 +691,7 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
 
     "interrogate_vlm_sep": OptionInfo("<h2>VLM</h2>", "", gr.HTML),
     "interrogate_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models)}),
-    "interrogate_vlm_prompt": OptionInfo(vlm_prompts[0], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts }),
+    "interrogate_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts }),
     "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: default prompt"),
     "interrogate_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
     "interrogate_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
@@ -703,25 +703,24 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "interrogate_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
     "interrogate_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
 
+    # Common tagger settings (shared by DeepBooru and WD14)
+    "tagger_sep": OptionInfo("<h2>Tagger Settings</h2>", "", gr.HTML),
+    "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
+    "tagger_sort_alpha": OptionInfo(False, "Tagger: sort alphabetically"),
+    "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags"),
+    "tagger_escape": OptionInfo(True, "Tagger: escape brackets"),
+    "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags"),
+
+    # DeepBooru-specific settings
     "deepbooru_sep": OptionInfo("<h2>DeepBooru</h2>", "", gr.HTML),
     "deepbooru_score_threshold": OptionInfo(0.65, "DeepBooru: score threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
-    "deepbooru_max_tags": OptionInfo(74, "DeepBooru: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
-    "deepbooru_clip_score": OptionInfo(False, "DeepBooru: include scores in results"),
-    "deepbooru_sort_alpha": OptionInfo(False, "DeepBooru: sort alphabetically"),
-    "deepbooru_use_spaces": OptionInfo(False, "DeepBooru: use spaces for tags"),
-    "deepbooru_escape": OptionInfo(True, "DeepBooru: escape brackets"),
-    "deepbooru_filter_tags": OptionInfo("", "DeepBooru: exclude tags"),
 
+    # WD14-specific settings
     "wd14_sep": OptionInfo("<h2>WD14 Tagger</h2>", "", gr.HTML),
     "wd14_model": OptionInfo("wd-eva02-large-tagger-v3", "WD14: default model", gr.Dropdown, {"choices": []}),
     "wd14_general_threshold": OptionInfo(0.35, "WD14: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
     "wd14_character_threshold": OptionInfo(0.85, "WD14: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
-    "wd14_max_tags": OptionInfo(74, "WD14: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
     "wd14_include_rating": OptionInfo(False, "WD14: include rating tags"),
-    "wd14_sort_alpha": OptionInfo(False, "WD14: sort alphabetically"),
-    "wd14_use_spaces": OptionInfo(False, "WD14: use spaces for tags"),
-    "wd14_escape": OptionInfo(True, "WD14: escape brackets"),
-    "wd14_exclude_tags": OptionInfo("", "WD14: exclude tags"),
 }))
 
 options_templates.update(options_section(('huggingface', "Huggingface"), {

@@ -90,13 +90,10 @@ class WD14Tagger:
                     return False
 
                 import onnxruntime as ort
-                providers = []
-                if devices.backend == 'cuda':
-                    providers.append('CUDAExecutionProvider')
-                providers.append('CPUExecutionProvider')
-                debug_log(f'WD14 load: onnxruntime version={ort.__version__} providers={providers}')
 
-                self.session = ort.InferenceSession(model_file, providers=providers)
+                debug_log(f'WD14 load: onnxruntime version={ort.__version__}')
+
+                self.session = ort.InferenceSession(model_file, providers=['CPUExecutionProvider'])
                 self.model_name = model_name
 
                 # Get actual providers used
@@ -233,15 +230,15 @@ class WD14Tagger:
         if include_rating is None:
             include_rating = shared.opts.wd14_include_rating
         if exclude_tags is None:
-            exclude_tags = shared.opts.wd14_exclude_tags
+            exclude_tags = shared.opts.tagger_exclude_tags
         if max_tags is None:
-            max_tags = shared.opts.wd14_max_tags
+            max_tags = shared.opts.tagger_max_tags
         if sort_alpha is None:
-            sort_alpha = shared.opts.wd14_sort_alpha
+            sort_alpha = shared.opts.tagger_sort_alpha
         if use_spaces is None:
-            use_spaces = shared.opts.wd14_use_spaces
+            use_spaces = shared.opts.tagger_use_spaces
         if escape_brackets is None:
-            escape_brackets = shared.opts.wd14_escape
+            escape_brackets = shared.opts.tagger_escape
 
         debug_log(f'WD14 predict: general_threshold={general_threshold} character_threshold={character_threshold} max_tags={max_tags} include_rating={include_rating} sort_alpha={sort_alpha}')
 
