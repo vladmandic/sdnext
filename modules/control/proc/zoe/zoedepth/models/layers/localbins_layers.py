@@ -155,7 +155,7 @@ class LinearSplitter(nn.Module):
 
         b_prev = b_prev / b_prev.sum(dim=1, keepdim=True)  # renormalize for gurantees
         # print(b_prev.shape, S_normed.shape)
-        # if is_for_query:(1).expand(-1, b_prev.size(0)//n, -1, -1, -1, -1).flatten(0,1)  # TODO ? can replace all this with a single torch.repeat?
+        # if is_for_query:(1).expand(-1, b_prev.size(0)//n, -1, -1, -1, -1).flatten(0,1)
         b = b_prev.unsqueeze(2) * S_normed
         b = b.flatten(1,2)  # .shape n, prev_nbins * split_factor, h, w
 

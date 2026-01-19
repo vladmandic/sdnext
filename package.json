@@ -33,7 +33,8 @@
     "lint": "npm run format && npm run eslint && npm run eslint-ui && npm run ruff && npm run pylint | grep -v TODO",
     "lint-win": "npm run format-win && npm run eslint-win && npm run eslint-ui-win && npm run ruff-win && npm run pylint-win",
     "test": ". venv/bin/activate; python launch.py --debug --test",
-    "todo": "npm run pylint | grep W0511 | awk -F'TODO ' '{print \"- \"$NF}' | sed 's/ (fixme)//g' | sort"
+    "todo": "grep -oIPR 'TODO.*' *.py modules/ pipelines/ | sort -u",
+    "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.0",

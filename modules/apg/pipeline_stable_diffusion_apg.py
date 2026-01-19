@@ -965,7 +965,7 @@ class StableDiffusionPipelineAPG(
             latents,
         )
 
-        # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
+        # 6. Prepare extra step kwargs. 
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 6.1 Add image embeds for IP-Adapter

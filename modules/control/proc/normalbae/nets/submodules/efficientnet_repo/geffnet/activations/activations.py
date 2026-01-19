@@ -12,8 +12,6 @@ from torch.nn import functional as F
 def swish(x, inplace: bool = False):
     """Swish - Described originally as SiLU (https://arxiv.org/abs/1702.03118v3)
     and also as Swish (https://arxiv.org/abs/1710.05941).
-
-    TODO Rename to SiLU with addition to PyTorch
     """
     return x.mul_(x.sigmoid()) if inplace else x.mul(x.sigmoid())
 

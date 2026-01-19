@@ -483,7 +483,7 @@ def _decode_block_str(block_str):
     Returns:
         A list of block args (dicts)
     Raises:
-        ValueError: if the string def not properly specified (TODO)
+        ValueError: if the string def not properly specified
     """
     assert isinstance(block_str, str)
     ops = block_str.split('_')

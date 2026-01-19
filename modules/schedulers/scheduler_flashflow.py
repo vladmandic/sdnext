@@ -349,7 +349,6 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """Constructs the noise schedule of Karras et al. (2022)."""
 
         # Hack to make sure that other schedulers which copy this function don't break
-        # TODO: Add this logic to the other schedulers
         if hasattr(self.config, "sigma_min"):
             sigma_min = self.config.sigma_min
         else:
@@ -375,7 +374,6 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """Constructs an exponential noise schedule."""
 
         # Hack to make sure that other schedulers which copy this function don't break
-        # TODO: Add this logic to the other schedulers
         if hasattr(self.config, "sigma_min"):
             sigma_min = self.config.sigma_min
         else:
@@ -399,7 +397,6 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """From "Beta Sampling is All You Need" [arXiv:2407.12173] (Lee et. al, 2024)"""
 
         # Hack to make sure that other schedulers which copy this function don't break
-        # TODO: Add this logic to the other schedulers
         if hasattr(self.config, "sigma_min"):
             sigma_min = self.config.sigma_min
         else:

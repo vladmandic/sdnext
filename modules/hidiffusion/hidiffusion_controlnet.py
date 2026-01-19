@@ -550,7 +550,7 @@ def make_diffusers_sdxl_contrtolnet_ppl(block_class):
                 # # scale the initial noise by the standard deviation required by the scheduler
                 # latents = latents * self.scheduler.init_noise_sigma
 
-            # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
+            # 7. Prepare extra step kwargs. 
             extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
             # 7.1 Create tensor stating which controlnets to keep

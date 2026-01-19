@@ -77,8 +77,6 @@ def apply_model_with_memblocks(model, x, parallel, show_progress_bar):
         T = NT // N
         x = x.view(N, T, C, H, W)
     else:
-        # TODO(oboerbohan): at least on macos this still gradually uses more memory during decode...
-        # need to fix :(
         out = []
         # iterate over input timesteps and also iterate over blocks.
         # because of the cursed TPool/TGrow blocks, this is not a nested loop,

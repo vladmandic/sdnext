@@ -22,8 +22,6 @@ __all__ = ['swish_jit', 'SwishJit', 'mish_jit', 'MishJit',
 def swish_jit(x, inplace: bool = False):
     """Swish - Described originally as SiLU (https://arxiv.org/abs/1702.03118v3)
     and also as Swish (https://arxiv.org/abs/1710.05941).
-
-    TODO Rename to SiLU with addition to PyTorch
     """
     return x.mul(x.sigmoid())
 
