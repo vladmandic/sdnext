@@ -1,5 +1,6 @@
 import os
 import sys
+import ssl
 import site
 import ctypes
 import shutil
@@ -84,14 +85,23 @@ def install():
         args.use_nightly = True
     if args.use_nightly:
         platform = "nightly-" + platform
-    urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
-    with zipfile.ZipFile('_zluda', 'r') as archive:
-        infos = archive.infolist()
-        for info in infos:
-            if not info.is_dir():
-                info.filename = os.path.basename(info.filename)
-                archive.extract(info, path)
-    os.remove('_zluda')
+    log.debug(f'Install ZLUDA: rocm={rocm.version} platform={platform} commit={commit}')
+    ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access
+    try:
+        urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
+        if not os.path.exists('_zluda'):
+            raise RuntimeError('ZLUDA download failed')
+        with zipfile.ZipFile('_zluda', 'r') as archive:
+            infos = archive.infolist()
+            for info in infos:
+                if not info.is_dir():
+                    info.filename = os.path.basename(info.filename)
+                    archive.extract(info, path)
+    except Exception as e:
+        raise RuntimeError(f'Install ZLUDA: {e}') from e
+    finally:
+        if os.path.exists('_zluda'):
+            os.remove('_zluda')
 
 
 def uninstall():

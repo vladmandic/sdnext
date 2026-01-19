@@ -781,20 +781,20 @@ def install_rocm_zluda():
                 zluda_installer.install()
                 zluda_installer.set_default_agent(device)
             except Exception as e:
-                log.warning(f'Failed to install ZLUDA: {e}')
+                log.error(f'Install ZLUDA: {e}')
 
             try:
                 zluda_installer.load()
             except Exception as e:
-                log.warning(f'Failed to load ZLUDA: {e}')
+                log.error(f'Load ZLUDA: {e}')
         else: # TODO rocm: switch to pytorch source when it becomes available
             if device is None:
-                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+                log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+                check_python(supported_minors=[11, 12, 13], reason='ROCm: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
-                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
+                check_python(supported_minors=[12], reason='ROCm: Windows preview python==3.12 required')
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')

@@ -40,7 +40,6 @@ def download_urllib(args):
     fn = ''
     req = urllib.request.Request(args.url, headers=headers)
     res = urllib.request.urlopen(req)
-    res.getheader('content-length')
     content_length = int(res.getheader('content-length') or 0)
     fn = get_filename(args, res)
     print(f'downloading: url={args.url} file={fn} size={content_length if content_length > 0 else "unknown"} lib=urllib block={args.block}')

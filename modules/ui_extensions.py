@@ -252,10 +252,12 @@ def update_extension(extension_path, search_text, sort_column):
 
 def refresh_extensions_list(search_text, sort_column):
     global extensions_list # pylint: disable=global-statement
+    import ssl
     import urllib.request
     try:
         shared.log.debug(f'Updating extensions list: url={extensions_index}')
-        with urllib.request.urlopen(extensions_index, timeout=3.0) as response:
+        context = ssl._create_unverified_context() # pylint: disable=protected-access
+        with urllib.request.urlopen(extensions_index, timeout=3.0, context=context) as response:
             text = response.read()
         extensions_list = json.loads(text)
         with open(os.path.join(paths.script_path, "html", "extensions.json"), "w", encoding="utf-8") as outfile:

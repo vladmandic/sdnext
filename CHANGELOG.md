@@ -78,6 +78,7 @@ For full list of changes, see full changelog.
   - disable fallback on models with custom loaders  
   - refactor triggering of prompt parser and set secondary prompts when needed  
   - refactor handling of seeds  
+  - allow unsafe ssl context for downloads  
 - **Fixes**
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
   - controlnet with non-english ui locales  

@@ -105,7 +105,6 @@ def set_prompt(p,
 
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2)
     prompts, negative_prompts, prompts_2, negative_prompts_2 = fix_prompt_model(cls, prompts, negative_prompts, prompts_2, negative_prompts_2)
-    args = set_fallback_prompt(args, possible, prompts=None, negative_prompts=None, prompts_2=prompts_2, negative_prompts_2=negative_prompts_2) # we dont parse secondary prompts
 
     if prompt_parser_diffusers.embedder is not None:
         if 'prompt' in possible:
@@ -127,6 +126,8 @@ def set_prompt(p,
             else:
                 if 'prompt_embeds' in possible:
                     args['prompt_embeds'] = prompt_embeds
+                else:
+                    args = set_fallback_prompt(args, possible, prompts=prompts, negative_prompts=None, prompts_2=None, negative_prompts_2=None)
                 if 'pooled_prompt_embeds' in possible:
                     args['pooled_prompt_embeds'] = prompt_pooled_embeds
                     if 'StableCascade' in cls:
@@ -156,6 +157,8 @@ def set_prompt(p,
             else:
                 if 'negative_prompt_embeds' in possible:
                     args['negative_prompt_embeds'] = negative_embeds
+                else:
+                    args = set_fallback_prompt(args, possible, prompts=None, negative_prompts=negative_prompts, prompts_2=None, negative_prompts_2=None)
                 if 'negative_pooled_prompt_embeds' in possible:
                     args['negative_pooled_prompt_embeds'] = negative_pooled_embeds
                     if 'StableCascade' in cls:
@@ -169,6 +172,9 @@ def set_prompt(p,
         debug_log('Prompt fallback: no embedder')
         args = set_fallback_prompt(args, possible, prompts=prompts, negative_prompts=negative_prompts, prompts_2=None, negative_prompts_2=None)
         prompt_attention = 'fixed'
+
+    if 'prompt_embeds' not in args and 'negative_prompt_embeds' not in args: # pass secondary prompts as-in
+        args = set_fallback_prompt(args, possible, prompts=None, negative_prompts=None, prompts_2=prompts_2, negative_prompts_2=negative_prompts_2)
 
     if (prompt_parser_diffusers.embedder is not None) and (not prompt_parser_diffusers.embedder.scheduled_prompt):
         prompt_parser_diffusers.embedder = None # not scheduled so we dont need it anymore
