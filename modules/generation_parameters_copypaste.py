@@ -17,6 +17,10 @@ debug('Trace: PASTE')
 parse_generation_parameters = parse # compatibility
 infotext_to_setting_name_mapping = mapping # compatibility
 
+# Mapping of aliases to metadata parameter names, populated automatically from component labels/elem_ids
+# This allows users to use component labels, elem_ids, or metadata names in the "skip params" setting
+param_aliases: dict[str, str] = {}
+
 
 class ParamBinding:
     def __init__(self, paste_button, tabname: str, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None):
@@ -85,9 +89,36 @@ def add_paste_fields(tabname: str, init_img: gr.Image | gr.HTML | None, fields: 
     except Exception as e:
         shared.log.error(f"Paste fields: tab={tabname} fields={fields} {e}")
         field_names[tabname] = []
+
+    # Build param_aliases automatically from component labels and elem_ids
+    if fields is not None:
+        for component, metadata_name in fields:
+            if metadata_name is None or callable(metadata_name):
+                continue
+            metadata_lower = metadata_name.lower()
+            # Extract label from component (e.g., "Batch size" -> maps to "Batch-2")
+            label = getattr(component, 'label', None)
+            if label and isinstance(label, str):
+                label_lower = label.lower()
+                if label_lower != metadata_lower and label_lower not in param_aliases:
+                    param_aliases[label_lower] = metadata_lower
+            # Extract elem_id and derive variable name (e.g., "txt2img_batch_size" -> "batch_size")
+            elem_id = getattr(component, 'elem_id', None)
+            if elem_id and isinstance(elem_id, str):
+                # Strip common prefixes like "txt2img_", "img2img_", "control_"
+                var_name = elem_id
+                for prefix in ['txt2img_', 'img2img_', 'control_', 'video_', 'extras_']:
+                    if var_name.startswith(prefix):
+                        var_name = var_name[len(prefix):]
+                        break
+                var_name_lower = var_name.lower()
+                if var_name_lower != metadata_lower and var_name_lower not in param_aliases:
+                    param_aliases[var_name_lower] = metadata_lower
+
     # backwards compatibility for existing extensions
     debug(f'Paste fields: tab={tabname} fields={field_names[tabname]}')
     debug(f'All fields: {get_all_fields()}')
+    debug(f'Param aliases: {param_aliases}')
     import modules.ui
     if tabname == 'txt2img':
         modules.ui.txt2img_paste_fields = fields # compatibility
@@ -133,10 +164,22 @@ def should_skip(param: str):
     skip_params = [p.strip().lower() for p in shared.opts.disable_apply_params.split(",")]
     if not shared.opts.clip_skip_enabled:
         skip_params += ['clip skip']
+
+    # Expand skip_params with aliases (e.g., "batch_size" -> "batch-2")
+    expanded_skip = set(skip_params)
+    for skip in skip_params:
+        if skip in param_aliases:
+            expanded_skip.add(param_aliases[skip])
+
+    # Check if param should be skipped
+    param_lower = param.lower()
+    # Also check normalized name (without -1/-2) so "batch" skips both "batch-1" and "batch-2"
+    param_normalized = param_lower.replace('-1', '').replace('-2', '')
+
     all_params = [p.lower() for p in get_all_fields()]
     valid = any(p in all_params for p in skip_params)
-    skip = param.lower() in skip_params
-    debug(f'Check: param="{param}" valid={valid} skip={skip}')
+    skip = param_lower in expanded_skip or param_normalized in expanded_skip
+    debug(f'Check: param="{param}" valid={valid} skip={skip} expanded={expanded_skip}')
     return skip
 
 
