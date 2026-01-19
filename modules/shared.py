@@ -711,6 +711,17 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "deepbooru_use_spaces": OptionInfo(False, "DeepBooru: use spaces for tags"),
     "deepbooru_escape": OptionInfo(True, "DeepBooru: escape brackets"),
     "deepbooru_filter_tags": OptionInfo("", "DeepBooru: exclude tags"),
+
+    "wd14_sep": OptionInfo("<h2>WD14 Tagger</h2>", "", gr.HTML),
+    "wd14_model": OptionInfo("wd-eva02-large-tagger-v3", "WD14: default model", gr.Dropdown, {"choices": []}),
+    "wd14_general_threshold": OptionInfo(0.35, "WD14: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
+    "wd14_character_threshold": OptionInfo(0.85, "WD14: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
+    "wd14_max_tags": OptionInfo(74, "WD14: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
+    "wd14_include_rating": OptionInfo(False, "WD14: include rating tags"),
+    "wd14_sort_alpha": OptionInfo(False, "WD14: sort alphabetically"),
+    "wd14_use_spaces": OptionInfo(False, "WD14: use spaces for tags"),
+    "wd14_escape": OptionInfo(True, "WD14: escape brackets"),
+    "wd14_exclude_tags": OptionInfo("", "WD14: exclude tags"),
 }))
 
 options_templates.update(options_section(('huggingface', "Huggingface"), {

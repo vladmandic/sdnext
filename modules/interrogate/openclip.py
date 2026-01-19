@@ -1,10 +1,28 @@
 import os
+import time
 from collections import namedtuple
 import threading
 import re
 import gradio as gr
 from PIL import Image
 from modules import devices, paths, shared, errors, sd_models
+
+
+debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
+
+
+def _apply_blip2_fix(model, processor):
+    """Apply compatibility fix for BLIP2 models with newer transformers versions."""
+    from transformers import AddedToken
+    if not hasattr(model.config, 'num_query_tokens'):
+        return
+    processor.num_query_tokens = model.config.num_query_tokens
+    image_token = AddedToken("<image>", normalized=False, special=True)
+    processor.tokenizer.add_tokens([image_token], special_tokens=True)
+    model.resize_token_embeddings(len(processor.tokenizer), pad_to_multiple_of=64)
+    model.config.image_token_index = len(processor.tokenizer) - 1
+    debug_log(f'CLIP load: applied BLIP2 tokenizer fix num_query_tokens={model.config.num_query_tokens}')
 
 
 caption_models = {
@@ -79,10 +97,14 @@ def load_interrogator(clip_model, blip_model):
     clip_interrogator.clip_interrogator.CAPTION_MODELS = caption_models
     global ci # pylint: disable=global-statement
     if ci is None:
-        shared.log.debug(f'Interrogate load: clip="{clip_model}" blip="{blip_model}"')
+        t0 = time.time()
+        device = devices.get_optimal_device()
+        cache_path = os.path.join(paths.models_path, 'Interrogator')
+        shared.log.info(f'CLIP load: clip="{clip_model}" blip="{blip_model}" device={device}')
+        debug_log(f'CLIP load: cache_path="{cache_path}" max_length={shared.opts.interrogate_clip_max_length} chunk_size={shared.opts.interrogate_clip_chunk_size} flavor_count={shared.opts.interrogate_clip_flavor_count} offload={shared.opts.interrogate_offload}')
         interrogator_config = clip_interrogator.Config(
-            device=devices.get_optimal_device(),
-            cache_path=os.path.join(paths.models_path, 'Interrogator'),
+            device=device,
+            cache_path=cache_path,
             clip_model_name=clip_model,
             caption_model_name=blip_model,
             quiet=True,
@@ -93,22 +115,39 @@ def load_interrogator(clip_model, blip_model):
             caption_offload=shared.opts.interrogate_offload,
         )
         ci = clip_interrogator.Interrogator(interrogator_config)
+        if blip_model.startswith('blip2-'):
+            _apply_blip2_fix(ci.caption_model, ci.caption_processor)
+        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}s')
     elif clip_model != ci.config.clip_model_name or blip_model != ci.config.caption_model_name:
-        ci.config.clip_model_name = clip_model
-        ci.config.clip_model = None
-        ci.load_clip_model()
-        ci.config.caption_model_name = blip_model
-        ci.config.caption_model = None
-        ci.load_caption_model()
+        t0 = time.time()
+        if clip_model != ci.config.clip_model_name:
+            shared.log.info(f'CLIP load: clip="{clip_model}" reloading')
+            debug_log(f'CLIP load: previous clip="{ci.config.clip_model_name}"')
+            ci.config.clip_model_name = clip_model
+            ci.config.clip_model = None
+            ci.load_clip_model()
+        if blip_model != ci.config.caption_model_name:
+            shared.log.info(f'CLIP load: blip="{blip_model}" reloading')
+            debug_log(f'CLIP load: previous blip="{ci.config.caption_model_name}"')
+            ci.config.caption_model_name = blip_model
+            ci.config.caption_model = None
+            ci.load_caption_model()
+            if blip_model.startswith('blip2-'):
+                _apply_blip2_fix(ci.caption_model, ci.caption_processor)
+        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}s')
+    else:
+        debug_log(f'CLIP: models already loaded clip="{clip_model}" blip="{blip_model}"')
 
 
 def unload_clip_model():
     if ci is not None and shared.opts.interrogate_offload:
+        shared.log.debug('CLIP unload: offloading models to CPU')
         sd_models.move_model(ci.caption_model, devices.cpu)
         sd_models.move_model(ci.clip_model, devices.cpu)
         ci.caption_offloaded = True
         ci.clip_offloaded = True
         devices.torch_gc()
+        debug_log('CLIP unload: complete')
 
 
 def interrogate(image, mode, caption=None):
@@ -119,6 +158,8 @@ def interrogate(image, mode, caption=None):
     if image is None:
         return ''
     image = image.convert("RGB")
+    t0 = time.time()
+    debug_log(f'CLIP: mode="{mode}" image_size={image.size} caption={caption is not None} min_flavors={shared.opts.interrogate_clip_min_flavors} max_flavors={shared.opts.interrogate_clip_max_flavors}')
     if mode == 'best':
         prompt = ci.interrogate(image, caption=caption, min_flavors=shared.opts.interrogate_clip_min_flavors, max_flavors=shared.opts.interrogate_clip_max_flavors, )
     elif mode == 'caption':
@@ -131,22 +172,27 @@ def interrogate(image, mode, caption=None):
         prompt = ci.interrogate_negative(image, max_flavors=shared.opts.interrogate_clip_max_flavors)
     else:
         raise RuntimeError(f"Unknown mode {mode}")
+    debug_log(f'CLIP: mode="{mode}" time={time.time()-t0:.2f}s result="{prompt[:100]}..."' if len(prompt) > 100 else f'CLIP: mode="{mode}" time={time.time()-t0:.2f}s result="{prompt}"')
     return prompt
 
 
 def interrogate_image(image, clip_model, blip_model, mode):
     jobid = shared.state.begin('Interrogate CLiP')
+    t0 = time.time()
+    shared.log.info(f'CLIP: mode="{mode}" clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
     try:
         if shared.sd_loaded:
             from modules.sd_models import apply_balanced_offload # prevent circular import
             apply_balanced_offload(shared.sd_model)
+            debug_log('CLIP: applied balanced offload to sd_model')
         load_interrogator(clip_model, blip_model)
         image = image.convert('RGB')
         prompt = interrogate(image, mode)
         devices.torch_gc()
+        shared.log.debug(f'CLIP: complete time={time.time()-t0:.2f}s')
     except Exception as e:
         prompt = f"Exception {type(e)}"
-        shared.log.error(f'Interrogate: {e}')
+        shared.log.error(f'CLIP: {e}')
         errors.display(e, 'Interrogate')
     shared.state.end(jobid)
     return prompt
@@ -162,8 +208,11 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
         from modules.files_cache import list_files
         files += list(list_files(batch_str, ext_filter=['.png', '.jpg', '.jpeg', '.webp', '.jxl'], recursive=recursive))
     if len(files) == 0:
-        shared.log.warning('Interrogate batch: type=clip no images')
+        shared.log.warning('CLIP batch: no images found')
         return ''
+    t0 = time.time()
+    shared.log.info(f'CLIP batch: mode="{mode}" images={len(files)} clip="{clip_model}" blip="{blip_model}" write={write} append={append}')
+    debug_log(f'CLIP batch: recursive={recursive} files={files[:5]}{"..." if len(files) > 5 else ""}')
     jobid = shared.state.begin('Interrogate batch')
     prompts = []
 
@@ -171,6 +220,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
     if write:
         file_mode = 'w' if not append else 'a'
         writer = BatchWriter(os.path.dirname(files[0]), mode=file_mode)
+        debug_log(f'CLIP batch: writing to "{os.path.dirname(files[0])}" mode="{file_mode}"')
     import rich.progress as rp
     pbar = rp.Progress(rp.TextColumn('[cyan]Caption:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
     with pbar:
@@ -179,6 +229,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
             pbar.update(task, advance=1, description=file)
             try:
                 if shared.state.interrupted:
+                    shared.log.info('CLIP batch: interrupted')
                     break
                 image = Image.open(file).convert('RGB')
                 prompt = interrogate(image, mode)
@@ -186,19 +237,23 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
                 if write:
                     writer.add(file, prompt)
             except OSError as e:
-                shared.log.error(f'Interrogate batch: {e}')
+                shared.log.error(f'CLIP batch: file="{file}" error={e}')
     if write:
         writer.close()
     ci.config.quiet = False
     unload_clip_model()
     shared.state.end(jobid)
+    shared.log.info(f'CLIP batch: complete images={len(prompts)} time={time.time()-t0:.2f}s')
     return '\n\n'.join(prompts)
 
 
 def analyze_image(image, clip_model, blip_model):
+    t0 = time.time()
+    shared.log.info(f'CLIP analyze: clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
     load_interrogator(clip_model, blip_model)
     image = image.convert('RGB')
     image_features = ci.image_to_features(image)
+    debug_log(f'CLIP analyze: features shape={image_features.shape if hasattr(image_features, "shape") else "unknown"}')
     top_mediums = ci.mediums.rank(image_features, 5)
     top_artists = ci.artists.rank(image_features, 5)
     top_movements = ci.movements.rank(image_features, 5)
@@ -209,6 +264,7 @@ def analyze_image(image, clip_model, blip_model):
     movement_ranks = dict(sorted(zip(top_movements, ci.similarities(image_features, top_movements)), key=lambda x: x[1], reverse=True))
     trending_ranks = dict(sorted(zip(top_trendings, ci.similarities(image_features, top_trendings)), key=lambda x: x[1], reverse=True))
     flavor_ranks = dict(sorted(zip(top_flavors, ci.similarities(image_features, top_flavors)), key=lambda x: x[1], reverse=True))
+    shared.log.debug(f'CLIP analyze: complete time={time.time()-t0:.2f}s')
 
     # Format labels as text
     def format_category(name, ranks):

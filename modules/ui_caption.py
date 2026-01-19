@@ -43,6 +43,45 @@ def update_vlm_params(*args):
     shared.opts.save()
 
 
+def wd14_tag_wrapper(image, model_name, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
+    """Wrapper for wd14.tag that maps UI inputs to function parameters."""
+    from modules.interrogate import wd14
+    return wd14.tag(
+        image=image,
+        model_name=model_name,
+        general_threshold=general_threshold,
+        character_threshold=character_threshold,
+        include_rating=include_rating,
+        exclude_tags=exclude_tags,
+        max_tags=int(max_tags),
+        sort_alpha=sort_alpha,
+        use_spaces=use_spaces,
+        escape_brackets=escape_brackets,
+    )
+
+
+def wd14_batch_wrapper(model_name, batch_files, batch_folder, batch_str, save_output, save_append, recursive, general_threshold, character_threshold, include_rating, exclude_tags, max_tags, sort_alpha, use_spaces, escape_brackets):
+    """Wrapper for wd14.batch that maps UI inputs to function parameters."""
+    from modules.interrogate import wd14
+    return wd14.batch(
+        model_name=model_name,
+        batch_files=batch_files,
+        batch_folder=batch_folder,
+        batch_str=batch_str,
+        save_output=save_output,
+        save_append=save_append,
+        recursive=recursive,
+        general_threshold=general_threshold,
+        character_threshold=character_threshold,
+        include_rating=include_rating,
+        exclude_tags=exclude_tags,
+        max_tags=int(max_tags),
+        sort_alpha=sort_alpha,
+        use_spaces=use_spaces,
+        escape_brackets=escape_brackets,
+    )
+
+
 def update_clip_params(*args):
     clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams = args
     shared.opts.interrogate_clip_min_length = int(clip_min_length)
@@ -158,6 +197,42 @@ def create_ui():
                     with gr.Row():
                         btn_clip_interrogate_img = gr.Button("Interrogate", variant='primary', elem_id="btn_clip_interrogate_img")
                         btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
+                with gr.Tab("Booru Tags", elem_id='tab_booru_tags'):
+                    from modules.interrogate import wd14
+                    with gr.Row():
+                        wd_model = gr.Dropdown(wd14.get_models(), value=shared.opts.wd14_model, label='Tagger Model', elem_id='wd_model')
+                        ui_common.create_refresh_button(wd_model, wd14.refresh_models, lambda: {"choices": wd14.get_models()}, 'wd_models_refresh')
+                    with gr.Row():
+                        wd_load_btn = gr.Button(value='Load', elem_id='wd_load', variant='secondary')
+                        wd_unload_btn = gr.Button(value='Unload', elem_id='wd_unload', variant='secondary')
+                    with gr.Accordion(label='Tagger: Advanced Options', open=True, visible=True):
+                        with gr.Row():
+                            wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.wd14_general_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
+                            wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.wd14_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
+                        with gr.Row():
+                            wd_max_tags = gr.Slider(label='Max tags', value=shared.opts.wd14_max_tags, minimum=1, maximum=512, step=1, elem_id='wd_max_tags')
+                            wd_include_rating = gr.Checkbox(label='Include rating', value=shared.opts.wd14_include_rating, elem_id='wd_include_rating')
+                        with gr.Row():
+                            wd_sort_alpha = gr.Checkbox(label='Sort alphabetically', value=shared.opts.wd14_sort_alpha, elem_id='wd_sort_alpha')
+                            wd_use_spaces = gr.Checkbox(label='Use spaces', value=shared.opts.wd14_use_spaces, elem_id='wd_use_spaces')
+                            wd_escape = gr.Checkbox(label='Escape brackets', value=shared.opts.wd14_escape, elem_id='wd_escape')
+                        with gr.Row():
+                            wd_exclude_tags = gr.Textbox(label='Exclude tags', value=shared.opts.wd14_exclude_tags, placeholder='Comma-separated tags to exclude', elem_id='wd_exclude_tags')
+                    with gr.Accordion(label='Tagger: Batch', open=False, visible=True):
+                        with gr.Row():
+                            wd_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='wd_batch_files')
+                        with gr.Row():
+                            wd_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], interactive=True, height=100, elem_id='wd_batch_folder')
+                        with gr.Row():
+                            wd_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='wd_batch_str')
+                        with gr.Row():
+                            wd_save_output = gr.Checkbox(label='Save Caption Files', value=True, elem_id="wd_save_output")
+                            wd_save_append = gr.Checkbox(label='Append Caption Files', value=False, elem_id="wd_save_append")
+                            wd_folder_recursive = gr.Checkbox(label='Recursive', value=False, elem_id="wd_folder_recursive")
+                        with gr.Row():
+                            btn_wd_tag_batch = gr.Button("Batch Tag", variant='primary', elem_id="btn_wd_tag_batch")
+                    with gr.Row():
+                        btn_wd_tag = gr.Button("Tag", variant='primary', elem_id="btn_wd_tag")
         with gr.Column(variant='compact', elem_id='interrogate_output'):
             with gr.Row(elem_id='interrogate_output_prompt'):
                 prompt = gr.Textbox(label="Answer", lines=12, placeholder="ai generated image description")
@@ -178,6 +253,8 @@ def create_ui():
     btn_clip_interrogate_batch.click(fn=openclip.interrogate_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
     btn_vlm_caption.click(fn=vlm_caption_wrapper, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode], outputs=[prompt, output_image])
     btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_wd_tag.click(fn=wd14_tag_wrapper, inputs=[image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_wd_tag_batch.click(fn=wd14_batch_wrapper, inputs=[wd_model, wd_batch_files, wd_batch_folder, wd_batch_str, wd_save_output, wd_save_append, wd_folder_recursive, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
 
     # Dynamic UI updates based on selected model and task
     vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
@@ -186,6 +263,14 @@ def create_ui():
     # Load/Unload model buttons
     vlm_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
     vlm_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
+    def wd14_load_wrapper(model_name):
+        from modules.interrogate import wd14
+        return wd14.load_model(model_name)
+    def wd14_unload_wrapper():
+        from modules.interrogate import wd14
+        return wd14.unload_model()
+    wd_load_btn.click(fn=wd14_load_wrapper, inputs=[wd_model], outputs=[])
+    wd_unload_btn.click(fn=wd14_unload_wrapper, inputs=[], outputs=[])
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))
