@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2026-01-21
+
+- add `SD_DEVICE_DEBUG` env variable to trace rocm/xpu/directml init failures  
+- fix `all_seeds`
+- improve `wrap_gradio` error handling
+
 ## Update for 2026-01-20
 
 ### Highlights for 2026-01-20
