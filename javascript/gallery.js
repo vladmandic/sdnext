@@ -29,12 +29,24 @@ function getVisibleGalleryFiles() {
   return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
 }
 
+function updateGallerySelectionClasses(files = gallerySelection.files, index = gallerySelection.index) {
+  files.forEach((file, i) => {
+    file.classList.toggle('gallery-file-selected', i === index);
+  });
+}
+
 function refreshGallerySelection() {
   updateGallerySelectionClasses(gallerySelection.files, -1);
   const files = getVisibleGalleryFiles();
   const index = files.findIndex((file) => file.src === currentImage);
   gallerySelection = { files, index };
   updateGallerySelectionClasses(files, index);
+}
+
+function resetGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
+  gallerySelection = { files: [], index: -1 };
+  currentImage = null;
 }
 
 function applyGallerySelection(index, { send = true } = {}) {
@@ -62,20 +74,8 @@ function setGallerySelectionByElement(element, options) {
   if (index >= 0) applyGallerySelection(index, options);
 }
 
-function resetGallerySelection() {
-  updateGallerySelectionClasses(gallerySelection.files, -1);
-  gallerySelection = { files: [], index: -1 };
-  currentImage = null;
-}
-
 function buildGalleryFileUrl(path) {
   return new URL(`/file=${encodeURI(path)}`, window.location.origin).toString();
-}
-
-function updateGallerySelectionClasses(files = gallerySelection.files, index = gallerySelection.index) {
-  files.forEach((file, i) => {
-    file.classList.toggle('gallery-file-selected', i === index);
-  });
 }
 
 window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
