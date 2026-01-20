@@ -1,7 +1,7 @@
 /* eslint-disable max-classes-per-file */
 let ws;
 let url;
-window.currentImage = window.currentImage || null;
+let currentImage = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
@@ -29,29 +29,27 @@ function getVisibleGalleryFiles() {
   return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
 }
 
-function refreshGallerySelection({ emit = false } = {}) {
+function refreshGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
   const files = getVisibleGalleryFiles();
-  const current = window.currentImage;
-  const index = files.findIndex((file) => file.src === current);
+  const index = files.findIndex((file) => file.src === currentImage);
   gallerySelection = { files, index };
-  updateGallerySelectionClasses();
-  if (emit) {
-    document.dispatchEvent(new CustomEvent('gallery-selection-changed', { detail: { index, files } }));
-  }
+  updateGallerySelectionClasses(files, index);
 }
 
-function applyGallerySelection(index, { send = true, emit = true } = {}) {
+function applyGallerySelection(index, { send = true } = {}) {
   if (!gallerySelection.files.length) refreshGallerySelection();
   const files = gallerySelection.files;
   if (!files.length) return;
-  const clamped = Math.max(0, Math.min(index, files.length - 1));
-  gallerySelection.index = clamped;
-  window.currentImage = files[clamped].src;
-  updateGallerySelectionClasses();
-  if (send && el.btnSend) el.btnSend.click();
-  if (emit) {
-    document.dispatchEvent(new CustomEvent('gallery-selection-changed', { detail: { index: clamped, files } }));
+  if (!Number.isInteger(index) || index < 0 || index >= files.length) {
+    log('gallery selection index out of range', index, files.length);
+    resetGallerySelection();
+    return;
   }
+  gallerySelection.index = index;
+  currentImage = files[index].src;
+  updateGallerySelectionClasses(files, index);
+  if (send && el.btnSend) el.btnSend.click();
 }
 
 function setGallerySelectionByElement(element, options) {
@@ -65,17 +63,16 @@ function setGallerySelectionByElement(element, options) {
 }
 
 function resetGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
   gallerySelection = { files: [], index: -1 };
-  window.currentImage = null;
-  updateGallerySelectionClasses();
+  currentImage = null;
 }
 
 function buildGalleryFileUrl(path) {
   return new URL(`/file=${encodeURI(path)}`, window.location.origin).toString();
 }
 
-function updateGallerySelectionClasses() {
-  const { files, index } = gallerySelection;
+function updateGallerySelectionClasses(files = gallerySelection.files, index = gallerySelection.index) {
   files.forEach((file, i) => {
     file.classList.toggle('gallery-file-selected', i === index);
   });
@@ -83,7 +80,7 @@ function updateGallerySelectionClasses() {
 
 window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
 window.setGallerySelection = (index, options) => applyGallerySelection(index, options);
-window.getGallerySelectedUrl = () => (window.currentImage ? buildGalleryFileUrl(window.currentImage) : null);
+window.getGallerySelectedUrl = () => (currentImage ? buildGalleryFileUrl(currentImage) : null);
 
 /**
  * Wait for the `outstanding` variable to be below the specified value
@@ -586,7 +583,7 @@ class GalleryFile extends HTMLElement {
       return;
     } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
     img.onclick = () => {
-      setGallerySelectionByElement(this, { send: true, emit: true });
+      setGallerySelectionByElement(this, { send: true });
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     if (this.shadow.children.length > 0) {
@@ -606,7 +603,7 @@ class GalleryFile extends HTMLElement {
 
 // methods
 
-const gallerySendImage = (_images) => [window.currentImage]; // invoked by gradio button
+const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
 
 async function getHash(str, algo = 'SHA-256') {
   try {
@@ -789,7 +786,7 @@ async function gallerySearch() {
 
     const t1 = performance.now();
     updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-    refreshGallerySelection({ emit: true });
+    refreshGallerySelection();
   }, 250);
 }
 
@@ -910,7 +907,7 @@ async function gallerySort(btn) {
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
   updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-  refreshGallerySelection({ emit: true });
+  refreshGallerySelection();
 }
 
 /**
@@ -1018,7 +1015,6 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  resetGallerySelection();
   updateStatusWithSort(['Folder', evt.target.name], 'in-progress');
   let numFiles = 0;
 
@@ -1047,7 +1043,7 @@ async function fetchFilesHT(evt, controller) {
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   galleryProgressBar.start(numFiles);
   addSeparators();
-  refreshGallerySelection({ emit: true });
+  refreshGallerySelection();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
 
@@ -1110,7 +1106,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
     galleryProgressBar.start(numFiles);
     addSeparators();
-    refreshGallerySelection({ emit: true });
+    refreshGallerySelection();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
   ws.onerror = (event) => {
