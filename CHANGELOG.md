@@ -59,6 +59,7 @@ For full list of changes, see full changelog.
   - indicate collapsed/hidden sections  
   - persistent panel minimize/maximize state  
   - gallery improve sorting behavior  
+  - gallery implement prev/next navigation in full screen viewer, thanks @ryanmeador  
 - **Internal**
   - **lora** native support by default will now skip text-encoder  
     can be enabled in *settings -> networks*
