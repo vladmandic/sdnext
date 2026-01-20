@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageOps
 from modules import shared, images, scripts_manager, masking, sd_models, sd_vae, processing_helpers
+from modules.paths import resolve_output_path
 
 
 debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -312,6 +313,8 @@ class StableDiffusionProcessing:
         self.negative_prompts = None
         self.all_prompts = None
         self.all_negative_prompts = None
+        self.seeds = []
+        self.subseeds = []
         self.all_seeds = None
         self.all_subseeds = None
 
@@ -537,7 +540,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.init_img_width = getattr(self, 'init_img_width', img.width) # pylint: disable=attribute-defined-outside-init
             self.init_img_height = getattr(self, 'init_img_height', img.height) # pylint: disable=attribute-defined-outside-init
             if shared.opts.save_init_img:
-                images.save_image(img, path=shared.opts.outdir_init_images, basename=None, forced_filename=self.init_img_hash, suffix="-init-image")
+                images.save_image(img, path=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_init_images), basename=None, forced_filename=self.init_img_hash, suffix="-init-image")
             image = images.flatten(img, shared.opts.img2img_background_color)
             if crop_region is None and self.resize_mode > 0:
                 image = images.resize_image(self.resize_mode, image, self.width, self.height, upscaler_name=self.resize_name, context=self.resize_context)
@@ -592,13 +595,18 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
 
 
 def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None):
-    signature = inspect.signature(type(new_class).__init__, follow_wrapped=True)
-    possible = list(signature.parameters)
     kwargs = {}
+    signature = inspect.signature(StableDiffusionProcessing.__init__, follow_wrapped=True) # base class
+    possible = list(signature.parameters)
     for k, v in p.__dict__.copy().items():
         if k in possible:
             kwargs[k] = v
-    if dct is not None:
+    signature = inspect.signature(type(new_class).__init__, follow_wrapped=True) # target class
+    possible = list(signature.parameters)
+    for k, v in p.__dict__.copy().items():
+        if k in possible:
+            kwargs[k] = v
+    if dct is not None: # overrides
         for k, v in dct.items():
             if k in possible:
                 kwargs[k] = v

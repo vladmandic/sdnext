@@ -118,7 +118,7 @@ def fill(image, mask):
 
 """
 [docs](https://huggingface.co/docs/transformers/v4.36.1/en/model_doc/sam#overview)
-TODO:
+TODO: additional masking algorithms
 - PerSAM
 - REMBG
 - https://huggingface.co/docs/transformers/tasks/semantic_segmentation

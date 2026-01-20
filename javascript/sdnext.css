@@ -2031,42 +2031,43 @@ div:has(>#tab-gallery-folders) {
 
 .loading {
   color: white;
-  position: border-box;
-  top: 85%;
-  font-size: 1.5em;
+  left: 50%;
+  position: absolute;
+  top: 20%;
+  transform: translateX(-50%);
 }
 
 .loader {
-  width: 100px;
-  height: 100px;
+  animation: spin 4s linear infinite, hue 5s infinite alternate;
   border: var(--spacing-md) solid transparent;
   border-radius: 50%;
-  border-top: var(--spacing-md) solid var(--primary-600);
-  animation: spin 2s linear infinite, hue 5s infinite alternate;
-  position: border-box;
+  border-top: var(--spacing-md) solid var(--sd-main-accent-color);
+  height: 300px;
+  position: relative;
+  width: 300px;
 }
 
-.loader::before,
-.loader::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  right: 6px;
-  border-radius: 50%;
+.loader::before, .loader::after {
   border: var(--spacing-md) solid transparent;
-  animation: hue 5s infinite alternate;
+  border-radius: 50%;
+  bottom: 6px;
+  content: "";
+  left: 6px;
+  position: absolute;
+  right: 6px;
+  top: 6px;
 }
 
 .loader::before {
-  border-top-color: var(--primary-900);
-  animation: spin 3s linear infinite;
+  animation: 3s spin linear infinite, hue 5s infinite alternate;
+  border-top-color: var(--sd-main-accent-color);
+  filter: brightness(50%);
 }
 
 .loader::after {
-  border-top-color: var(--primary-300);
-  animation: spin 1.5s linear infinite;
+  animation: spin 1.5s linear infinite, hue 5s infinite alternate;
+  border-top-color: var(--sd-main-accent-color);
+  filter: brightness(150%);
 }
 
 .docs-search textarea {
@@ -2126,11 +2127,11 @@ div:has(>#tab-gallery-folders) {
 
 .docs-card-h1 {
   font-weight: bold;
-  font-size: 1.0;
+  font-size: 1.0em;
 }
 
 .docs-card-h2 {
-  font-size: 1.0;
+  font-size: 1.0em;
   max-height: 4em;
   overflow: hidden;
 }

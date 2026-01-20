@@ -1,52 +1,54 @@
 # TODO
 
-## Known issues
-
-- z-image-turbo controlnet device mismatch: <https://github.com/huggingface/diffusers/pull/12886>
-- z-image-turbo safetensors loader: <https://github.com/huggingface/diffusers/issues/12887>
-- kandinsky-image-5 hardcoded cuda: <https://github.com/huggingface/diffusers/pull/12814>
-- peft lora with torch-rocm-windows: <https://github.com/huggingface/peft/pull/2963>
-
 ## Project Board
 
 - <https://github.com/users/vladmandic/projects>
 
 ## Internal
 
-- Reimplement `llama` remover for kanvas
-- Deploy: Create executable for SD.Next  
-- Feature: Integrate natural language image search  
-  [ImageDB](https://github.com/vladmandic/imagedb)  
-- Feature: Transformers unified cache handler  
-- Feature: Remote Text-Encoder support  
-- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)  
-- Refactor: move sampler options to settings to config  
-- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)  
-- Feature: LoRA add OMI format support for SD35/FLUX.1  
+- Feature: Move `nunchaku` models to refernce instead of internal decision  
+- Update: `transformers==5.0.0`
+- Feature: Unify *huggingface* and *diffusers* model folders
+- Reimplement `llama` remover for Kanvas
+- Deploy: Create executable for SD.Next
+- Feature: Integrate natural language image search
+  [ImageDB](https://github.com/vladmandic/imagedb)
+- Feature: Remote Text-Encoder support
+- Refactor: move sampler options to settings to config
+- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
+- Feature: LoRA add OMI format support for SD35/FLUX.1
 - Refactor: remove `CodeFormer`
-- Refactor: remove `GFPGAN`  
-- UI: Lite vs Expert mode  
-- Video tab: add full API support  
-- Control tab: add overrides handling  
+- Refactor: remove `GFPGAN`
+- UI: Lite vs Expert mode
+- Video tab: add full API support
+- Control tab: add overrides handling
 - Engine: `TensorRT` acceleration
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 
+## Modular
+
+- Switch to modular pipelines
+- Feature: Transformers unified cache handler
+- Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
+- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
+
 ## Features
 
 - [Flux.2 TinyVAE](https://huggingface.co/fal/FLUX.2-Tiny-AutoEncoder)
-- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)  
-- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)  
-- [MagCache](https://github.com/lllyasviel/FramePack/pull/673/files)  
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)  
-- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)  
+- [IPAdapter composition](https://huggingface.co/ostris/ip-composition-adapter)
+- [IPAdapter negative guidance](https://github.com/huggingface/diffusers/discussions/7167)
+- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
 - [Sonic Inpaint](https://github.com/ubc-vision/sonic)
 
 ### New models / Pipelines
 
-TODO: *Prioritize*!
+TODO: Investigate which models are diffusers-compatible and prioritize!
 
+- [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6)
+- [LTXVideo 0.98 LongMulti](https://github.com/huggingface/diffusers/pull/12614)
 - [Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [NewBie Image Exp0.1](https://github.com/huggingface/diffusers/pull/12803)
 - [Sana-I2V](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
@@ -54,7 +56,8 @@ TODO: *Prioritize*!
 - [Bytedance Lynx](https://github.com/bytedance/lynx)
 - [ByteDance OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance USO](https://github.com/bytedance/USO)
-- [Chroma1 Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
+- [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
+- [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma)
 - [DiffSynth Studio](https://github.com/modelscope/DiffSynth-Studio)
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)  
 - [Dream0 guidance](https://huggingface.co/ByteDance/DreamO)  

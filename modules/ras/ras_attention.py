@@ -126,7 +126,7 @@ class RASLuminaAttnProcessor2_0:
             else:
                 softmax_scale = attn.scale
 
-        # perform Grouped-qurey Attention (GQA)   # TODO replace with GQA
+        # perform Grouped-qurey Attention (GQA)
         n_rep = attn.heads // kv_heads
         if n_rep >= 1:
             key = key.unsqueeze(3).repeat(1, 1, 1, n_rep, 1).flatten(2, 3)

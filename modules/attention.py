@@ -89,7 +89,7 @@ def set_ck_flash_attention(backend: str, device: torch.device):
         if backend == "rocm":
             if not installed('flash-attn'):
                 log.info('Torch attention: type="Flash attention" building...')
-                agent = rocm.Agent(getattr(torch.cuda.get_device_properties(device), "gcnArchName", "gfx0000"))
+                agent = rocm.Agent(device)
                 install(rocm.get_flash_attention_command(agent), reinstall=True)
         else:
             install('flash-attn')

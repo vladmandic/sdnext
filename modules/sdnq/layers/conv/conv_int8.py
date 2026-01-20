@@ -15,18 +15,18 @@ from ..linear.forward import check_mats # noqa: TID252
 
 def conv_int8_matmul(
     input: torch.FloatTensor,
-    weight: torch.CharTensor,
-    bias: torch.FloatTensor,
+    weight: torch.Tensor,
     scale: torch.FloatTensor,
-    svd_up: torch.FloatTensor,
-    svd_down: torch.FloatTensor,
-    quantized_weight_shape: torch.Size,
     result_shape: torch.Size,
-    weights_dtype: str,
     reversed_padding_repeated_twice: List[int],
     padding_mode: str, conv_type: int,
     groups: int, stride: List[int],
     padding: List[int], dilation: List[int],
+    bias: torch.FloatTensor = None,
+    svd_up: torch.FloatTensor = None,
+    svd_down: torch.FloatTensor = None,
+    quantized_weight_shape: torch.Size = None,
+    weights_dtype: str = None,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
@@ -37,9 +37,10 @@ def conv_int8_matmul(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    input, scale = quantize_int_mm_input(input, scale)
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8)
+        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8).t_()
+        scale = scale.t()
+    input, scale = quantize_int_mm_input(input, scale)
     input, weight = check_mats(input, weight)
 
     if groups == 1:
@@ -73,18 +74,19 @@ def quantized_conv_forward_int8_matmul(self, input) -> torch.FloatTensor:
         weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
         quantized_weight_shape = None
     else:
-        weight = self.weight
-        scale = self.scale
+        weight, scale = self.weight, self.scale
         quantized_weight_shape = self.sdnq_dequantizer.quantized_weight_shape if self.sdnq_dequantizer.is_packed else None
     return conv_int8_matmul(
-        input, weight, self.bias,
-        scale, self.svd_up, self.svd_down,
-        quantized_weight_shape,
+        input, weight, scale,
         self.sdnq_dequantizer.result_shape,
-        self.sdnq_dequantizer.weights_dtype,
         self._reversed_padding_repeated_twice,
         self.padding_mode, conv_type,
         self.groups, stride, padding, dilation,
+        bias=self.bias,
+        svd_up=self.svd_up,
+        svd_down=self.svd_down,
+        quantized_weight_shape=quantized_weight_shape,
+        weights_dtype=self.sdnq_dequantizer.weights_dtype,
     )
 
 

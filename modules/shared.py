@@ -4,25 +4,27 @@ import os
 import sys
 import time
 import contextlib
+
 from enum import Enum
 from typing import TYPE_CHECKING
 import gradio as gr
+from installer import log, print_dict, console, get_version # pylint: disable=unused-import
+log.debug('Initializing: shared module')
+
+import modules.memmon
+import modules.paths as paths
 from modules.json_helpers import readfile, writefile # pylint: disable=W0611
 from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
+from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache
 from modules.shared_defaults import get_default_modes
-from modules import errors, devices, shared_items, shared_state, cmd_args, theme, history, files_cache
 from modules.paths import models_path, script_path, data_path, sd_configs_path, sd_default_config, sd_model_file, default_sd_model_file, extensions_dir, extensions_builtin_dir # pylint: disable=W0611
-from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
-from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
+
+log.debug('Initializing: pipelines')
+from modules import shared_items
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
-from modules.ui_components import DropdownEditable
-from modules.options import OptionInfo, options_section
-import modules.memmon
-import modules.styles
-import modules.paths as paths
-from installer import log, print_dict, console, get_version # pylint: disable=unused-import
+
 
 if TYPE_CHECKING:
     # Behavior modified by __future__.annotations
@@ -52,7 +54,6 @@ face_restorers = []
 yolo = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
-options_templates: dict[str, OptionInfo | LegacyOption] = {}
 hypernetworks = {}
 settings_components = {}
 restricted_opts = {
@@ -70,7 +71,7 @@ restricted_opts = {
 }
 resize_modes = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"]
 max_workers = 12
-sdnq_quant_modes = ["int8", "float8_e4m3fn", "int7", "int6", "int5", "uint4", "uint3", "uint2", "float8_e5m2", "float8_e4m3fnuz", "float8_e5m2fnuz", "float16", "int16", "uint16", "uint8", "uint7", "uint6", "uint5", "int4", "int3", "int2", "uint1"]
+sdnq_quant_modes = ["int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
 sdnq_matmul_modes = ["auto", "int8", "float8_e4m3fn", "float16"]
 default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
 state = shared_state.State()
@@ -143,8 +144,15 @@ def list_samplers():
     modules.sd_samplers.set_samplers()
     return modules.sd_samplers.all_samplers
 
-
+log.debug('Initializing: default modes')
 startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_sdp_override_options, startup_sdp_override_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
+from modules.dml import memory_providers, default_memory_provider, directml_do_hijack
+from modules.onnx_impl import execution_providers
+
+log.debug('Initializing: settings')
+from modules.ui_components import DropdownEditable
+from modules.options import OptionInfo, options_section
+options_templates: dict[str, OptionInfo | LegacyOption] = {}
 
 options_templates.update(options_section(('sd', "Model Loading"), {
     "sd_backend": OptionInfo('diffusers', "Execution backend", gr.Radio, {"choices": ['diffusers', 'original'], "visible": False }),
@@ -224,7 +232,9 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
     "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
     "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
+    "sdnq_dynamic_loss_threshold": OptionInfo(1e-2, "Dynamic loss threshold", gr.Slider, {"minimum": 1e-4, "maximum": 1e-1, "step": 1e-4}),
     "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
+    "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
     "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
     "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
     "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
@@ -548,7 +558,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "directories_max_prompt_words": OptionInfo(8, "Max words", gr.Slider, {"minimum": 1, "maximum": 99, "step": 1, **hide_dirs}),
 
     "outdir_sep_dirs": OptionInfo("<h2>Folders</h2>", "", gr.HTML),
-    "outdir_samples": OptionInfo("", "Images folder", component_args=hide_dirs, folder=True),
+    "outdir_samples": OptionInfo("", "Base images folder", component_args=hide_dirs, folder=True),
     "outdir_txt2img_samples": OptionInfo("outputs/text", 'Folder for text generate', component_args=hide_dirs, folder=True),
     "outdir_img2img_samples": OptionInfo("outputs/image", 'Folder for image generate', component_args=hide_dirs, folder=True),
     "outdir_control_samples": OptionInfo("outputs/control", 'Folder for control generate', component_args=hide_dirs, folder=True),
@@ -558,7 +568,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_init_images": OptionInfo("outputs/inputs", "Folder for init images", component_args=hide_dirs, folder=True),
 
     "outdir_sep_grids": OptionInfo("<h2>Grids</h2>", "", gr.HTML),
-    "outdir_grids": OptionInfo("", "Grids folder", component_args=hide_dirs, folder=True),
+    "outdir_grids": OptionInfo("", "Base grids folde", component_args=hide_dirs, folder=True),
     "outdir_txt2img_grids": OptionInfo("outputs/grids", 'Folder for txt2img grids', component_args=hide_dirs, folder=True),
     "outdir_img2img_grids": OptionInfo("outputs/grids", 'Folder for img2img grids', component_args=hide_dirs, folder=True),
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
@@ -679,8 +689,8 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: default prompt"),
     "interrogate_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
     "interrogate_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
-    "interrogate_vlm_do_sample": OptionInfo(False, "VLM: use sample method"),
-    "interrogate_vlm_temperature": OptionInfo(0, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
+    "interrogate_vlm_do_sample": OptionInfo(True, "VLM: use sample method"),
+    "interrogate_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
     "interrogate_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
     "interrogate_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
     "interrogate_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
@@ -733,13 +743,13 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "extra_networks_default_multiplier": OptionInfo(1.0, "Default strength", gr.Slider, {"minimum": 0.0, "maximum": 2.0, "step": 0.01}),
     "lora_force_reload": OptionInfo(False, "LoRA force reload always"),
     "lora_force_diffusers": OptionInfo(False if not cmd_opts.use_openvino else True, "LoRA load using Diffusers method"),
+
+    "lora_apply_te": OptionInfo(False, "LoRA native apply to text encoder"),
     "lora_fuse_native": OptionInfo(True, "LoRA native fuse with model"),
     "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
     "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
     "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
     "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
-    "lora_quant": OptionInfo("NF4","LoRA precision when quantized", gr.Radio, {"choices": ["NF4", "FP4"]}),
-    "lora_maybe_diffusers": OptionInfo(False, "LoRA load using Diffusers method for selected models", gr.Checkbox, {"visible": False}),
 
     "extra_networks_styles_sep": OptionInfo("<h2>Styles</h2>", "", gr.HTML),
     "extra_networks_styles": OptionInfo(True, "Show reference styles"),
@@ -823,9 +833,8 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
 from modules.shared_legacy import get_legacy_options
 options_templates.update(get_legacy_options())
 from modules.options_handler import Options
-opts = Options(options_templates, restricted_opts)
 config_filename = cmd_opts.config
-opts.load(config_filename)
+opts = Options(options_templates, restricted_opts, filename=config_filename)
 cmd_opts = cmd_args.settings_args(opts, cmd_opts)
 if cmd_opts.locale is not None:
     opts.data['ui_locale'] = cmd_opts.locale
@@ -836,9 +845,12 @@ opts.data['uni_pc_order'] = max(2, opts.schedulers_solver_order) # compatibility
 log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.get_optimal_device_name()} attention="{opts.cross_attention_optimization}" mode={devices.inference_context.__name__}')
 
 profiler = None
+import modules.styles
 prompt_styles = modules.styles.StyleDatabase(opts)
 reference_models = readfile(os.path.join('html', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
+
+log.debug('Initializing: devices')
 devices.args = cmd_opts
 devices.opts = opts
 devices.onnx = [opts.onnx_execution_provider]
@@ -851,13 +863,6 @@ mem_mon = modules.memmon.MemUsageMonitor("MemMon", devices.device)
 history = history.History()
 if devices.backend == "directml":
     directml_do_hijack()
-elif sys.platform == "win32" and (devices.backend == "zluda" or devices.backend == "rocm"):
-    from modules.rocm_triton_windows import apply_triton_patches
-    apply_triton_patches()
-
-    if devices.backend == "zluda":
-        from modules.zluda import initialize_zluda
-        initialize_zluda()
 from modules import sdnq # pylint: disable=unused-import # register to diffusers and transformers
 log.debug('Quantization: registered=SDNQ')
 

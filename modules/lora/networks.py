@@ -7,6 +7,7 @@ from modules import shared, devices, sd_models
 
 
 applied_layers: list[str] = []
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2']
 
 
 def network_activate(include=[], exclude=[]):
@@ -17,7 +18,7 @@ def network_activate(include=[], exclude=[]):
         sd_models.move_model(sd_model, device=devices.cpu)
     device = None
     modules = {}
-    components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer']
+    components = include if len(include) > 0 else default_components
     components = [x for x in components if x not in exclude]
     active_components = []
     for name in components:
@@ -43,7 +44,7 @@ def network_activate(include=[], exclude=[]):
             for _, module in modules[component]:
                 network_layer_name = getattr(module, 'network_layer_name', None)
                 current_names = getattr(module, "network_current_names", ())
-                if getattr(module, 'weight', None) is None or shared.state.interrupted or network_layer_name is None or current_names == wanted_names:
+                if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == wanted_names):
                     if task is not None:
                         pbar.update(task, advance=1)
                     continue

@@ -1,5 +1,115 @@
 # Change Log for SD.Next
 
+## Update for 2025-01-20
+
+### Highlights for 2025-01-20
+
+First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
+There are also improvements to *SDNQ* quantization engine, updated *Prompt Enhance*, *Image Preview* and many others.  
+Plus some significant under-the-hood changes to improve code coverage and quality which resulted in more than usual levels of bug-fixes and some ~330 commits!  
+For full list of changes, see full changelog.
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2025-01-20
+
+- **Models**
+  - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
+    Flux.2-Klein is a new family of compact models from BFL in *4B and 9B sizes* and avaialable as *destilled and base* variants  
+    also includes are *sdnq prequantized variants*  
+    *note*: 9B variant is [gated](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Qwen-Image-2512](https://qwen.ai/blog?id=qwen-image-2512)  
+    Qwen-Image successor, significantly reduces the AI-generated look and adds finer natural detailils and improved text rendering  
+    available in both *original*, *sdnq-svd prequantized* and *sdnq-dynamic prequantized*  variants  
+    thanks @CalamitousFelicitousness  
+  - [LTX-2 19B Dev](https://ltx.io/model/ltx-2)  
+    LTX-2 is a new very large 19B parameter video generation model from Lightricks using Gemma-3 text encoder  
+    available for T2I/I2I workflows in original and sdnq prequantized variants  
+    *note*: model is very sensitive to input params and will result in errors otherwise  
+  - [GLM-Image](https://z.ai/blog/glm-image)  
+    GLM-image is a new image generation model that adopts a hybrid autoregressive with diffusion decoder architecture  
+    available in both *original* and *sdnq-dynamic prequantized* variants  
+    thanks @CalamitousFelicitousness  
+    *note*: model requires pre-release versions of `transformers` package:  
+    > pip install --upgrade git+https://github.com/huggingface/transformers.git  
+    > ./webui.sh --experimental  
+  - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
+    nunchaku optimized z-image turbo  
+- **Feaures**
+  - **SDNQ**: add *dynamic* quantization method  
+    sdnq can dynamically determine best quantization method for each module layer  
+    slower to quantize on-the-fly, but results in better quality with minimal resource usage  
+  - **SDNQ** now has *19 int* based and *69 float* based quantization types  
+    *note*: not all are exposed via ui purely for simplicity, but all are available via api and scripts  
+  - **wildcards**: allow weights, thanks @Tillerz  
+  - **sampler**: add laplace beta schedule  
+    results in better prompt adherence and smoother infills  
+  - **prompt enhance**: improve handling and refresh ui, thanks @CalamitousFelicitousness  
+    new models such moondream-3 and xiaomo-mimo  
+    add support for *thinking* mode where model can reason about the prompt  
+    add support for *vision* processing where prompt enhance can also optionally analyze input image  
+    add support for *pre-fill* mode where prompt enhance can continue from existing caption  
+  - **chroma**: add inpaint pipeline support  
+  - **taesd preview**: support for more models, thanks @alerikaisattera  
+  - **image ouput paths**: better handling of relative/absolute paths, thanks @CalamitousFelicitousness  
+- **UI**
+  - kanvas add send-to functionality  
+  - kanvas improve support for standardui  
+  - improve extensions tab layout and behavior, thanks @awsr  
+  - indicate collapsed/hidden sections  
+  - persistent panel minimize/maximize state  
+  - gallery improve sorting behavior  
+  - gallery implement prev/next navigation in full screen viewer, thanks @ryanmeador  
+- **Internal**
+  - **lora** native support by default will now skip text-encoder  
+    can be enabled in *settings -> networks*
+  - update core js linting to `eslint9`, thanks @awsr  
+  - update modernui js linting to `eslint9`, thanks @awsr  
+  - update kanvas js linting to `eslint9`, thanks @awsr  
+  - update strong typing checks, thanks @awsr  
+  - update reference models previews, thanks @liutyi  
+  - update models specs page, thanks @alerikaisattera  
+  - sdnq improvements  
+  - startup sequence optimizations  
+  - rocm/hip/hipblast detection and initialization improvements  
+  - zluda detection and initialization improvements  
+  - new env variable `SD_VAE_DEFAULT` to force default vae processing  
+  - update `nunchaku==1.1.0`  
+  - lora switch logic from force-diffusers to allow-native  
+  - split `reference.json`  
+  - print system env on startup  
+  - disable fallback on models with custom loaders  
+  - refactor triggering of prompt parser and set secondary prompts when needed  
+  - refactor handling of seeds  
+  - allow unsafe ssl context for downloads  
+- **Fixes**
+  - controlnet: controlnet with non-english ui locales  
+  - core: add skip_keys to offloading logic, fixes wan frames mismatch, thanks @ryanmeador  
+  - core: force model move on offload=none  
+  - core: hidiffusion tracing  
+  - core: hip device name detection  
+  - core: reduce triton test verbosity  
+  - core: switch processing class not restoring params  
+  - extension tab: update checker, date handling, formatting etc., thanks @awsr  
+  - lora force unapply on change  
+  - lora handle null description, thanks @CalamitousFelicitousness  
+  - lora loading when using torch without distributed support  
+  - lora skip with strength zero  
+  - lora: generate slowdown when consequtive lora-diffusers enabled  
+  - model: google-genai auth, thanks @CalamitousFelicitousness  
+  - model: improve qwen i2i handling  
+  - model: kandinsky-5 image and video on non-cuda platforms  
+  - model: meituan-longca-image-edit missing image param  
+  - model: wan 2.2 i2v  
+  - model: z-image single-file loader  
+  - other: update civitai base models, thanks @trojaner  
+  - ui: gallery save/delete  
+  - ui: mobile auto-collapse when using side panel, thanks @awsr  
+  - ui: networks filter by model type  
+  - ui: networks icon/list view type switch, thanks @awsr  
+  - vae: force align width/height to vae scale factor  
+  - wildards with folder specification  
+
 ## Update for 2025-12-26
 
 ### Highlights for 2025-12-26

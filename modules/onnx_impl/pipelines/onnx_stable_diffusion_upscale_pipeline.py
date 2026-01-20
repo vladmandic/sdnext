@@ -128,7 +128,7 @@ class OnnxStableDiffusionUpscalePipeline(diffusers.OnnxStableDiffusionUpscalePip
                 " `pipeline.unet` or your `image` input."
             )
 
-        # 8. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
+        # 8. Prepare extra step kwargs.
         accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
         extra_step_kwargs = {}
         if accepts_eta:

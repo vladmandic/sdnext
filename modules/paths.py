@@ -57,6 +57,23 @@ def create_path(folder):
         log.error(f'Create failed: folder="{folder}" {e}')
 
 
+def resolve_output_path(base_path: str, specific_path: str) -> str:
+    """
+    Resolve output path by combining base and specific paths.
+
+    - If specific_path is absolute, return it directly (base is ignored)
+    - If base_path is set and specific_path is relative, join them
+    - If base_path is empty/None, return specific_path as-is
+    """
+    if not specific_path:
+        return base_path or ''
+    if os.path.isabs(specific_path):
+        return specific_path
+    if base_path:
+        return os.path.normpath(os.path.join(base_path, specific_path))
+    return specific_path
+
+
 def create_paths(opts):
     def fix_path(folder):
         tgt = None
@@ -110,6 +127,22 @@ def create_paths(opts):
     create_path(fix_path('styles_dir'))
     create_path(fix_path('yolo_dir'))
     create_path(fix_path('wildcards_dir'))
+
+    # Create resolved output paths (base + specific)
+    base_samples = opts.data.get('outdir_samples', '')
+    base_grids = opts.data.get('outdir_grids', '')
+    if base_samples:
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_txt2img_samples', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_img2img_samples', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_control_samples', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_extras_samples', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_save', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_video', '')))
+        create_path(resolve_output_path(base_samples, opts.data.get('outdir_init_images', '')))
+    if base_grids:
+        create_path(resolve_output_path(base_grids, opts.data.get('outdir_txt2img_grids', '')))
+        create_path(resolve_output_path(base_grids, opts.data.get('outdir_img2img_grids', '')))
+        create_path(resolve_output_path(base_grids, opts.data.get('outdir_control_grids', '')))
 
 
 class Prioritize:

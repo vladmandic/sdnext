@@ -12,7 +12,6 @@ class BaseDataset(Data.Dataset):
         samples = torch.stack([x["sample"] for x in batch])
         caption = [x["caption"] for x in batch]
         tokenizer_outs = [x["tokenizer_out"] for x in batch]
-        # TODO: change to stack and reduce dim?
         add_time_ids = [x["add_time_ids"] for x in batch]
         tokenizer_outputs = []
         for tokenizer_out in zip(*tokenizer_outs):

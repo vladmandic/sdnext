@@ -19,19 +19,32 @@ def check_tmp_file(gradio, filename):
     ok = False
     if hasattr(gradio, 'temp_file_sets'):
         ok = ok or any(filename in fileset for fileset in gradio.temp_file_sets)
-    if shared.opts.outdir_samples != '':
-        ok = ok or Path(shared.opts.outdir_samples).resolve() in Path(filename).resolve().parents
-    else:
-        ok = ok or Path(shared.opts.outdir_txt2img_samples).resolve() in Path(filename).resolve().parents
-        ok = ok or Path(shared.opts.outdir_img2img_samples).resolve() in Path(filename).resolve().parents
-        ok = ok or Path(shared.opts.outdir_extras_samples).resolve() in Path(filename).resolve().parents
-    if shared.opts.outdir_grids != '':
-        ok = ok or Path(shared.opts.outdir_grids).resolve() in Path(filename).resolve().parents
-    else:
-        ok = ok or Path(shared.opts.outdir_txt2img_grids).resolve() in Path(filename).resolve().parents
-        ok = ok or Path(shared.opts.outdir_img2img_grids).resolve() in Path(filename).resolve().parents
-    ok = ok or Path(shared.opts.outdir_save).resolve() in Path(filename).resolve().parents
-    ok = ok or Path(shared.opts.outdir_init_images).resolve() in Path(filename).resolve().parents
+    # Check resolved output paths (base + specific)
+    base_samples = shared.opts.outdir_samples
+    base_grids = shared.opts.outdir_grids
+    resolved_paths = [
+        paths.resolve_output_path(base_samples, shared.opts.outdir_txt2img_samples),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_img2img_samples),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_extras_samples),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_control_samples),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_save),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_video),
+        paths.resolve_output_path(base_samples, shared.opts.outdir_init_images),
+        paths.resolve_output_path(base_grids, shared.opts.outdir_txt2img_grids),
+        paths.resolve_output_path(base_grids, shared.opts.outdir_img2img_grids),
+        paths.resolve_output_path(base_grids, shared.opts.outdir_control_grids),
+    ]
+    # Also check base folders directly if set
+    if base_samples:
+        resolved_paths.append(base_samples)
+    if base_grids:
+        resolved_paths.append(base_grids)
+    for path in resolved_paths:
+        if path:
+            try:
+                ok = ok or Path(path).resolve() in Path(filename).resolve().parents
+            except Exception:
+                pass
     return ok
 
 

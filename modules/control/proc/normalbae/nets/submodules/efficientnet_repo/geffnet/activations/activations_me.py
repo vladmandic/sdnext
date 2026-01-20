@@ -36,8 +36,6 @@ class SwishJitAutoFn(torch.autograd.Function):
 
     Swish - Described originally as SiLU (https://arxiv.org/abs/1702.03118v3)
     and also as Swish (https://arxiv.org/abs/1710.05941).
-
-    TODO Rename to SiLU with addition to PyTorch
     """
 
     @staticmethod

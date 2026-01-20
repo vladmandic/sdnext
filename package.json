@@ -20,33 +20,43 @@
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
     "packages": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft pytorch_lightning pylint ruff",
-    "eslint": "eslint . javascript/",
-    "ruff": ". venv/bin/activate && ruff check",
-    "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "format": ". venv/bin/activate && pre-commit run --all-files",
-    "lint": "npm run eslint && npm run format && npm run ruff && npm run pylint | grep -v TODO",
-    "todo": "npm run pylint | grep W0511 | awk -F'TODO ' '{print \"- \"$NF}' | sed 's/ (fixme)//g' | sort",
-    "eslint-win": "eslint . javascript/ --rule \"linebreak-style: off\"",
-    "ruff-win": "venv\\scripts\\activate && ruff check",
-    "pylint-win": "venv\\scripts\\activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/",
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",
-    "lint-win": "npm run eslint-win && npm run format-win && npm run ruff-win && npm run pylint-win",
-    "test": ". venv/bin/activate; python launch.py --debug --test"
+    "eslint": "eslint . javascript/",
+    "eslint-win": "eslint . javascript/ --rule \"@stylistic/linebreak-style: off\"",
+    "eslint-ui": "cd extensions-builtin/sdnext-modernui && eslint . javascript/",
+    "eslint-ui-win": "cd extensions-builtin/sdnext-modernui && eslint . javascript/ --rule \"@stylistic/linebreak-style: off\"",
+    "ruff": ". venv/bin/activate && ruff check",
+    "ruff-win": "venv\\scripts\\activate && ruff check",
+    "pylint": ". venv/bin/activate && pylint --disable=W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
+    "pylint-win": "venv\\scripts\\activate && pylint --disable=W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/",
+    "lint": "npm run format && npm run eslint && npm run eslint-ui && npm run ruff && npm run pylint | grep -v TODO",
+    "lint-win": "npm run format-win && npm run eslint-win && npm run eslint-ui-win && npm run ruff-win && npm run pylint-win",
+    "test": ". venv/bin/activate; python launch.py --debug --test",
+    "todo": "grep -oIPR 'TODO.*' *.py modules/ pipelines/ | sort -u",
+    "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u"
   },
   "devDependencies": {
-    "esbuild": "^0.18.20"
+    "@eslint/compat": "^2.0.0",
+    "@eslint/css": "^0.14.1",
+    "@eslint/js": "^9.39.2",
+    "@eslint/json": "^0.14.0",
+    "@eslint/markdown": "^7.5.1",
+    "@html-eslint/eslint-plugin": "^0.52.1",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "eslint-config-airbnb-extended": "^3.0.0",
+    "eslint-plugin-promise": "^7.2.1",
+    "globals": "^17.0.0"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "@typescript-eslint/eslint-plugin": "^8.47.0",
-    "argparse": "^2.0.1",
-    "eslint": "^8.57.1",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-css": "^0.9.2",
-    "eslint-plugin-html": "^8.1.3",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-json": "^3.1.0",
-    "eslint-plugin-markdown": "^4.0.1",
-    "eslint-plugin-node": "^11.1.0"
+    "@google/generative-ai": "^0.24.1",
+    "argparse": "^2.0.1"
+  },
+  "//": {
+    "disabled": {
+      "typescript": "^5.9.3",
+      "@types/node": "^25.0.3"
+    }
   }
 }

@@ -99,7 +99,7 @@ def align_crop_face_landmarks(img,
     #  - np.flipud(eye_to_mouth) * [-1, 1]: rotate 90 clockwise
     # norm with the hypotenuse: get the direction
     x /= np.hypot(*x)  # get the hypotenuse of a right triangle
-    rect_scale = 1  # TODO: you can edit it to get larger rect
+    rect_scale = 1
     x *= max(np.hypot(*eye_to_eye) * 2.0 * rect_scale, np.hypot(*eye_to_mouth) * 1.8 * rect_scale)
     # y: half height of the oriented crop rectangle
     y = np.flipud(x) * [-1, 1]
@@ -116,7 +116,6 @@ def align_crop_face_landmarks(img,
 
     quad_ori = np.copy(quad)
     # Shrink, for large face
-    # TODO: do we really need shrink
     shrink = int(np.floor(qsize / output_size * 0.5))
     if shrink > 1:
         h, w = img.shape[0:2]

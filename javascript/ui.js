@@ -33,9 +33,10 @@ function clip_gallery_urls(gallery) {
 }
 
 function isVisible(el) {
+  if (!el) return false;
   const rect = el.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0) return false;
-  return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+  return (rect.top >= 0) && (rect.left >= 0) && (rect.bottom <= (window.innerHeight || document.documentElement.clientHeight)) && (rect.right <= (window.innerWidth || document.documentElement.clientWidth));
 }
 
 function all_gallery_buttons() {
@@ -63,18 +64,31 @@ function selected_gallery_index() {
   const button = selected_gallery_button();
   let result = -1;
   buttons.forEach((v, i) => { if (v === button) { result = i; } });
+  if (result === -1 && gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) {
+    const gallerySelection = window.getGallerySelection();
+    if (Number.isInteger(gallerySelection.index)) result = gallerySelection.index;
+  }
   return result;
 }
 
-function selected_gallery_files() {
+function selected_gallery_files(tabname) {
   let allImages = [];
+  let allThumbnails;
+  if (tabname && tabname !== 'gallery') allThumbnails = gradioApp().querySelectorAll('div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
+  else allThumbnails = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
   try {
-    let allCurrentButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
-    if (allCurrentButtons.length === 0) allCurrentButtons = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
-    allImages = Array.from(allCurrentButtons).map((v) => v.querySelector('img')?.src);
-    allImages = allImages.filter((el) => isVisible(el));
-  } catch { /**/ }
-  const selectedIndex = selected_gallery_index();
+    allImages = Array.from(allThumbnails).map((v) => v.querySelector('img'));
+    if (tabname && tabname !== 'gallery') allImages = allImages.filter((img) => isVisible(img));
+    allImages = allImages.map((img) => {
+      let fn = img.src;
+      if (fn.includes('file=')) fn = fn.split('file=')[1];
+      return decodeURI(fn);
+    });
+  } catch (err) {
+    error(`selected_gallery_files: ${err}`);
+  }
+  let selectedIndex = -1;
+  if (tabname && tabname !== 'gallery') selectedIndex = selected_gallery_index();
   return [allImages, selectedIndex];
 }
 
@@ -84,6 +98,16 @@ function extract_image_from_gallery(gallery) {
   let index = selected_gallery_index();
   if (index < 0 || index >= gallery.length) index = 0;
   return [gallery[index]];
+}
+
+function send_to_kanvas(gallery) {
+  const [image] = extract_image_from_gallery(gallery);
+  log('sendToKanvas', image);
+  if (window.loadFromURL && image.data) window.loadFromURL(image.data);
+  // const inputPanelEl = gradioApp().getElementById('control-template-column-input');
+  // if (inputPanelEl) inputPanelEl.classList.remove('hidden');
+  const inputPanelCb = gradioApp().getElementById('control_dynamic_input');
+  if (inputPanelCb && !inputPanelCb.checked) inputPanelCb.click();
 }
 
 async function setTheme(val, old) {
@@ -99,7 +123,7 @@ async function setTheme(val, old) {
     const href = link.href.replace(old, val);
     const res = await fetch(href);
     if (res.ok) {
-      log('setTheme:', old, val);
+      log('setTheme', old, val);
       link.href = link.href.replace(old, val);
     } else {
       log('setTheme: CSS not found', val);
@@ -254,7 +278,12 @@ function submit_control(...args) {
   const res = create_submit_args(args);
   res[0] = id;
   res[1] = window.submit_state;
-  res[2] = gradioApp().querySelector('#control-tabs > .tab-nav > .selected')?.innerText.toLowerCase() || ''; // selected tab name
+
+  const tabs = Array.from(gradioApp().querySelectorAll('#control-tabs > .tab-nav > button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['ControlNet', 'T2I Adapter', 'XS', 'Lite', 'Reference'];
+  const selectedTab = tabNames[tabIdx] || 'ControlNet';
+  res[2] = selectedTab.toLowerCase();
   window.submit_state = '';
   return res;
 }

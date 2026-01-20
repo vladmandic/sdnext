@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING, cast
 import os
 import gradio as gr
 from modules import errors
@@ -90,10 +91,11 @@ class UiLoadsave:
             apply_field(x, 'value', check_dropdown, getattr(x, 'init_field', None))
 
         def check_tab_id(tab_id):
-            tab_items = list(filter(lambda e: isinstance(e, gr.TabItem), x.children))
+            if TYPE_CHECKING:
+                assert isinstance(x, gr.Tabs)
+            tab_items = cast('list[gr.TabItem]', list(filter(lambda e: isinstance(e, gr.TabItem), x.children))) # Force static type checker to get correct type
             if type(tab_id) == str:
-                tab_ids = [t.id for t in tab_items]
-                return tab_id in tab_ids
+                return tab_id in [t.id for t in tab_items]
             elif type(tab_id) == int:
                 return 0 <= tab_id < len(tab_items)
             else:
@@ -290,11 +292,12 @@ class UiLoadsave:
         self.ui_defaults_review = gr.HTML("", elem_id="ui_defaults_review")
 
     def setup_ui(self):
+        review = [self.ui_defaults_review] if self.ui_defaults_review is not None else None
         if self.ui_defaults_view:
-            self.ui_defaults_view.click(fn=self.ui_view, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
+            self.ui_defaults_view.click(fn=self.ui_view, inputs=list(self.component_mapping.values()), outputs=review)
         if self.ui_defaults_apply:
-            self.ui_defaults_apply.click(fn=self.ui_apply, inputs=list(self.component_mapping.values()), outputs=[self.ui_defaults_review])
+            self.ui_defaults_apply.click(fn=self.ui_apply, inputs=list(self.component_mapping.values()), outputs=review)
         if self.ui_defaults_restore:
-            self.ui_defaults_restore.click(fn=self.ui_restore, inputs=[], outputs=[self.ui_defaults_review])
+            self.ui_defaults_restore.click(fn=self.ui_restore, inputs=[], outputs=review)
         if self.ui_defaults_submenu:
-            self.ui_defaults_submenu.click(fn=self.ui_submenu_apply, _js='uiOpenSubmenus', inputs=[self.ui_defaults_review], outputs=[self.ui_defaults_review])
+            self.ui_defaults_submenu.click(fn=self.ui_submenu_apply, _js='uiOpenSubmenus', inputs=review, outputs=review)

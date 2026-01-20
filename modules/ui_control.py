@@ -11,7 +11,7 @@ import installer
 gr_height = 512
 max_units = shared.opts.control_max_units
 units: list[unit.Unit] = [] # main state variable
-controls: list[gr.component] = [] # list of gr controls
+controls: list[gr.components.Component] = [] # list of gr controls
 debug = shared.log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
 
@@ -89,11 +89,12 @@ def get_units(*values):
 
 def generate_click(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
-        time.sleep(0.01)
+        debug(f'Control: tab="{active_tab}" job={job_id} busy')
+        time.sleep(0.1)
     from modules.control.run import control_run
     debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
     progress.add_task_to_queue(job_id)
-    with call_queue.queue_lock:
+    with call_queue.get_lock():
         yield [None, None, None, None, 'Control: starting', '']
         shared.mem_mon.reset()
         jobid = shared.state.begin('Control')
@@ -103,12 +104,15 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
+        except GeneratorExit:
+            shared.log.error("Control: generator exit")
         except Exception as e:
             shared.log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
             yield [None, None, None, None, f'Control: Exception: {e}', '']
-        progress.finish_task(job_id)
-        shared.state.end(jobid)
+        finally:
+            progress.finish_task(job_id)
+            shared.state.end(jobid)
 
 
 def create_ui(_blocks: gr.Blocks=None):
@@ -248,8 +252,18 @@ def create_ui(_blocks: gr.Blocks=None):
             show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             show_preview.change(fn=lambda x: gr.update(visible=x), inputs=[show_preview], outputs=[column_preview])
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
-            btn_prompt_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[prompt], outputs=[prompt_counter], show_progress = 'hidden')
-            btn_negative_counter.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[negative], outputs=[negative_counter], show_progress = 'hidden')
+            btn_prompt_counter.click(
+                fn=call_queue.wrap_queued_call(ui_common.update_token_counter),
+                inputs=[prompt],
+                outputs=[prompt_counter],
+                show_progress = 'hidden',
+            )
+            btn_negative_counter.click(
+                fn=call_queue.wrap_queued_call(ui_common.update_token_counter),
+                inputs=[negative],
+                outputs=[negative_counter],
+                show_progress = 'hidden',
+            )
 
             select_dict = dict(
                 fn=helpers.select_input,
@@ -305,7 +319,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 _js="submit_control",
                 inputs=[tabs_state, state, tabs_state] + input_fields + input_script_args,
                 outputs=output_fields,
-                show_progress='full',
+                show_progress='hidden',
+                # queue=not shared.cmd_opts.listen,
             )
             prompt.submit(**control_dict)
             negative.submit(**control_dict)

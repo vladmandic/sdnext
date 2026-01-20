@@ -2,5 +2,14 @@
   "python.analysis.extraPaths": [".", "./modules", "./scripts", "./pipelines"],
   "python.analysis.typeCheckingMode": "off",
   "editor.formatOnSave": false,
-  "python.REPL.enableREPLSmartSend": false
+  "python.REPL.enableREPLSmartSend": false,
+  "eslint.enable": true,
+  "eslint.validate": [
+    "javascript",
+    "typescript",
+    "html",
+    "css",
+    "json",
+    "markdown"
+  ]
 }

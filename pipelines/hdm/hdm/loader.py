@@ -119,6 +119,5 @@ def load_all(conf: dict):
     trainer = load_trainer(
         conf.pop("trainer"), unet=unet, te=te, vae=vae, scheduler=scheduler
     )
-    # TODO: there might be a better way to handle this
     dataset.tokenizers = tokenizers
     return dataset, trainer, (unet, te, tokenizers, vae, scheduler)

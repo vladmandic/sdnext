@@ -194,7 +194,6 @@ param_scheduler = [
     dict(
         # use quadratic formula to warm up 5 epochs
         # and lr is updated by iteration
-        # TODO: fix default scope in get function
         type='mmdet.QuadraticWarmupLR',
         by_epoch=True,
         begin=0,

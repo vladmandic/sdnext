@@ -1,0 +1,239 @@
+{
+   "FLUX.1-Dev sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Schnell sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-schnell-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Dev Krea sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-Krea-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.1-Dev Kontext sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-Kontext-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 12.60,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "FLUX.2 Dev sdnq-svd-uint4": {
+    "path": "Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--FLUX.2-dev-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.2-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "",
+    "size": 31.58,
+    "date": "2025 November"
+  },
+  "Black Forest Labs FLUX.2 Klein 4B sdnq-uint4-dynamic": {
+    "path": "Disty0/FLUX.2-klein-4B-SDNQ-4bit-dynamic",
+    "preview": "Disty0--FLUX.2-klein-4B-SDNQ-4bit-dynamic.jpg",
+    "desc": "Dynamic 4-bit quantization of black-forest-labs/FLUX.2-klein-4B using SDNQ.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "tags": "quantized",
+    "size": 5.1,
+    "date": "2026 January"
+  },
+  "Black Forest Labs FLUX.2 Klein 9B sdnq-uint4-dynamic-svd": {
+    "path": "Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32",
+    "preview": "Disty0--FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32.jpg",
+    "desc": "Dynamic 4-bit quantization of black-forest-labs/FLUX.2-klein-9B using SDNQ with SVD rank 32.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "tags": "quantized",
+    "size": 11.7,
+    "date": "2026 January"
+  },
+  "Chroma1-HD sdnq-svd-uint4": {
+    "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--Chroma1-HD-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "size": 11.89,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "Wan-AI Wan2.2 A14B T2I sdnq-svd-uint4": {
+    "path": "Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 23.54,
+    "extras": ""
+  },
+  "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
+    "path": "Disty0/Wan2.2-I2V-A14B-SDNQ-uint4-svd-r32",
+    "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 23.55,
+    "extras": ""
+  },
+  "Z-Image-Turbo sdnq-svd-uint4": {
+    "path": "Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--Z-Image-Turbo-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Tongyi-MAI/Z-Image-Turbo using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
+    "size": 6.5,
+    "date": "2025 November"
+  },
+  "Qwen-Image sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.09,
+    "extras": ""
+  },
+  "Qwen-Image-2512 sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-2512-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "",
+    "size": 16.10,
+    "date": "2025 December"
+  },
+  "Qwen-Image-2512 sdnq-dynamic-uint4": {
+    "path": "Disty0/Qwen-Image-2512-SDNQ-4bit-dynamic",
+    "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-dynamic 4-bit uint",
+    "skip": true,
+    "tags": "quantized",
+    "extras": "",
+    "size": 17.2,
+    "date": "2026 January"
+  },
+  "Qwen-Image-Edit sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-2509-SDNQ-uint4-svd-r32",
+    "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Qwen-Image-Edit-2511 sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Edit-2511 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 December",
+    "size": 16.10,
+    "extras": ""
+  },
+  "Qwen-Image-Layered sdnq-svd-uint4": {
+    "path": "Disty0/Qwen-Image-Layered-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--Qwen-Image-Layered-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of Qwen/Qwen-Image-Layered using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 December",
+    "size": 16.10,
+    "extras": ""
+  },
+  "nVidia ChronoEdit sdnq-svd-uint4": {
+    "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
+    "preview": "Disty0--ChronoEdit-14B-SDNQ-uint4-svd-r32.jpg",
+    "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
+    "skip": true,
+    "tags": "quantized",
+    "date": "2025 October",
+    "size": 18.10,
+    "extras": ""
+  },
+  "Tencent HunyuanImage 3.0 sdnq-svd-uint4": {
+    "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
+    "desc": "Quantization of tencent/HunyuanImage-3.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
+    "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
+    "extras": "",
+    "skip": true,
+    "tags": "quantized",
+    "size": 57.06,
+    "date": "2025 September"
+  },
+  "Tempest-by-Vlad XL sdnq-svd-uint4": {
+    "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
+    "preview": "vladmandic--tempestByVlad_baseV01-SDNQ-uint4-svd.jpg",
+    "desc": "Quantization of vladmandic/tempestByVlad_baseV01 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "NoobAI-XL v1.1 epsilon sdnq-svd-uint4": {
+    "path": "Disty0/NoobAI-XL-v1.1-SDNQ-uint4-svd-r128",
+    "preview": "Disty0--NoobAI-XL-v1.1-SDNQ-uint4-svd-r128.jpg",
+    "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "NoobAI-XL v1.0 v-pred sdnq-svd-uint4": {
+    "path": "Disty0/NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128",
+    "preview": "Disty0--NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128.jpg",
+    "desc": "Quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
+    "tags": "quantized",
+    "size": 3.37,
+    "date": "2025 October",
+    "extras": ""
+  },
+  "ZAI GLM-Image sdnq-dynamic-uint4": {
+    "path": "Disty0/GLM-Image-SDNQ-4bit-dynamic",
+    "preview": "zai-org--GLM-Image.jpg",
+    "desc": "Quantization of ZAI GLM-Image using SDNQ: sdnq-dynamic 4-bit uint",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
+    "size": 11.6,
+    "tags": "quantized",
+    "date": "2026 January"
+  }
+}

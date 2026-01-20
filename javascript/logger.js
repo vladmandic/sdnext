@@ -10,7 +10,7 @@ const log = async (...msg) => {
     window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
-  console.log(ts, ...msg); // eslint-disable-line no-console
+  console.log(ts, ...msg);
 };
 
 const debug = async (...msg) => {
@@ -20,7 +20,7 @@ const debug = async (...msg) => {
     window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
-  console.debug(ts, ...msg); // eslint-disable-line no-console
+  console.debug(ts, ...msg);
 };
 
 const error = async (...msg) => {
@@ -30,7 +30,7 @@ const error = async (...msg) => {
     window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
-  console.error(ts, ...msg); // eslint-disable-line no-console
+  console.error(ts, ...msg);
   // const txt = msg.join(' ');
   // if (!txt.includes('asctime') && !txt.includes('xhr.')) xhrPost('/sdapi/v1/log', { error: txt }); // eslint-disable-line no-use-before-define
 };

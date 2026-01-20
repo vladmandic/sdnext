@@ -140,39 +140,55 @@ async function filterExtraNetworksForTab(searchTerm) {
     const cards = Array.from(pg.querySelectorAll('.card') || []);
     items += cards.length;
     if (searchTerm === '' || searchTerm === 'all/') {
-      cards.forEach((elem) => elem.style.display = '');
+      cards.forEach((elem) => { elem.style.display = ''; });
     } else if (searchTerm === 'reference/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase()
-        .includes('reference/') && elem.dataset.tags === '' ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase()
+          .includes('reference/') && elem.dataset.tags === '' ? '' : 'none';
+      });
     } else if (searchTerm === 'distilled/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('distilled') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('distilled') ? '' : 'none';
+      });
     } else if (searchTerm === 'community/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('community') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('community') ? '' : 'none';
+      });
     } else if (searchTerm === 'cloud/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('cloud') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('cloud') ? '' : 'none';
+      });
     } else if (searchTerm === 'quantized/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.tags
-        .toLowerCase()
-        .includes('quantized') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('quantized') ? '' : 'none';
+      });
     } else if (searchTerm === 'local/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase()
-        .includes('reference/') ? 'none' : '');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase()
+          .includes('reference/') ? 'none' : '';
+      });
     } else if (searchTerm === 'diffusers/') {
-      cards.forEach((elem) => elem.style.display = elem.dataset.name
-        .toLowerCase().replace('models--', 'diffusers').replaceAll('\\', '/')
-        .includes('diffusers/') ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.name
+          .toLowerCase().replace('models--', 'diffusers').replaceAll('\\', '/')
+          .includes('diffusers/') ? '' : 'none';
+      });
     } else if (searchTerm.startsWith('r#')) {
       searchTerm = searchTerm.substring(2);
       const re = new RegExp(searchTerm, 'i');
-      cards.forEach((elem) => elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? '' : 'none');
+      cards.forEach((elem) => {
+        elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? '' : 'none';
+      });
     } else {
       const searchList = searchTerm.split('|').filter((s) => s !== '' && !s.startsWith('-')).map((s) => s.trim());
       const excludeList = searchTerm.split('|').filter((s) => s !== '' && s.trim().startsWith('-')).map((s) => s.trim().substring(1).trim());
@@ -198,8 +214,8 @@ async function filterExtraNetworksForTab(searchTerm) {
 }
 
 function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
-  const re_extranet = /<([^:]+:[^:]+):[\d\.]+>/;
-  const re_extranet_g = /\s+<([^:]+:[^:]+):[\d\.]+>/g;
+  const re_extranet = /<([^:]+:[^:]+):[\d.]+>/;
+  const re_extranet_g = /\s+<([^:]+:[^:]+):[\d.]+>/g;
   let m = text.match(re_extranet);
   let replaced = false;
   let newTextareaText;
@@ -243,7 +259,7 @@ function sortExtraNetworks(fixed = 'no') {
     const cards = Array.from(pg.querySelectorAll('.card') || []);
     if (cards.length === 0) return 'sort: no cards';
     num += cards.length;
-    cards.sort((a, b) => { // eslint-disable-line no-loop-func
+    cards.sort((a, b) => {
       switch (sortVal) {
         case 0: return 0;
         case 1: return a.dataset.name ? a.dataset.name.localeCompare(b.dataset.name) : 0;
@@ -310,21 +326,21 @@ function extraNetworksSearchButton(event) {
 
 function extraNetworksFilterVersion(event) {
   const version = event.target.textContent.trim();
-  const activeTab = getENActiveTab();
   const activePage = getENActivePage().toLowerCase();
-  let cardContainer = gradioApp().querySelector(`#${activeTab}_${activePage}_cards`);
-  if (!cardContainer) cardContainer = gradioApp().querySelector(`#txt2img_extra_networks_${activePage}_cards`);
-  log('extraNetworksFilterVersion', { version, activeTab, activePage, cardContainer });
-  if (!cardContainer) return;
-  if (cardContainer.dataset.activeVersion === version) {
-    cardContainer.dataset.activeVersion = '';
-    cardContainer.querySelectorAll('.card').forEach((card) => card.style.display = '');
-  } else {
-    cardContainer.dataset.activeVersion = version;
-    cardContainer.querySelectorAll('.card').forEach((card) => {
-      if (card.dataset.version === version) card.style.display = '';
-      else card.style.display = 'none';
-    });
+  const cardContainers = gradioApp().querySelectorAll('.extra-network-cards');
+  log('extraNetworksFilterVersion', { activePage, version });
+  for (const cardContainer of cardContainers) {
+    if (!cardContainer.id.includes(activePage)) continue;
+    if (cardContainer.dataset.activeVersion === version) {
+      cardContainer.dataset.activeVersion = '';
+      cardContainer.querySelectorAll('.card').forEach((card) => { card.style.display = ''; });
+    } else {
+      cardContainer.dataset.activeVersion = version;
+      cardContainer.querySelectorAll('.card').forEach((card) => {
+        if (card.dataset.version === version) card.style.display = '';
+        else card.style.display = 'none';
+      });
+    }
   }
 }
 

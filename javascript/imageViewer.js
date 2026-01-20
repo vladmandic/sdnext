@@ -32,6 +32,7 @@ function closeModal(evt, force = false) {
 }
 
 function modalImageSwitch(offset) {
+  const negmod = (n, m) => ((n % m) + m) % m;
   const galleryButtons = all_gallery_buttons();
   if (galleryButtons.length > 1) {
     const currentButton = selected_gallery_button();
@@ -39,7 +40,6 @@ function modalImageSwitch(offset) {
     galleryButtons.forEach((v, i) => {
       if (v === currentButton) result = i;
     });
-    const negmod = (n, m) => ((n % m) + m) % m;
     if (result !== -1) {
       const nextButton = galleryButtons[negmod((result + offset), galleryButtons.length)];
       nextButton.click();
@@ -47,7 +47,23 @@ function modalImageSwitch(offset) {
       const modal = gradioApp().getElementById('lightboxModal');
       modalImage.src = nextButton.children[0].src;
       if (modalImage.style.display === 'none') modal.style.setProperty('background-image', `url(${modalImage.src})`);
+      return;
     }
+  }
+
+  const galleryFilesContainer = gradioApp().getElementById('tab-gallery-files');
+  if (!galleryFilesContainer || !galleryFilesContainer.offsetParent) return;
+  const gallerySelection = window.getGallerySelection();
+  if (!gallerySelection.files.length || gallerySelection.files.length <= 1) return;
+  const baseIndex = gallerySelection.index >= 0 ? gallerySelection.index : 0;
+  const nextIndex = negmod((baseIndex + offset), gallerySelection.files.length);
+  window.setGallerySelection(nextIndex, { send: true });
+  const modalImage = gradioApp().getElementById('modalImage');
+  const modal = gradioApp().getElementById('lightboxModal');
+  const directSrc = window.getGallerySelectedUrl();
+  if (modalImage && modal && directSrc) {
+    modalImage.src = directSrc;
+    if (modalImage.style.display === 'none') modal.style.setProperty('background-image', `url(${directSrc})`);
   }
 }
 

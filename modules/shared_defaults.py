@@ -52,12 +52,11 @@ def get_default_modes(cmd_opts, mem_stat):
         default_sdp_override_choices.append('Triton Flash attention')
     elif devices.backend == "rocm":
         default_sdp_override_choices.append('Triton Flash attention')
-        import torch
-        if int(getattr(torch.cuda.get_device_properties(devices.device), "gcnArchName", "gfx0000")[3:]) < 1100:
+        agent = devices.get_hip_agent()
+        if agent.gfx_version < 0x1100:
             default_sdp_override_options = ['Dynamic attention'] # only RDNA2 and older GPUs needs this
     elif devices.backend in {"directml", "cpu", "mps"}:
         default_sdp_override_options = ['Dynamic attention']
-
 
     return (
         default_offload_mode,

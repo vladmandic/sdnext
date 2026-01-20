@@ -395,7 +395,7 @@ def get_config(model_name, mode='train', dataset=None, **overwrite_kwargs):
     overwrite_kwargs = split_combined_args(overwrite_kwargs)
     config = {**config, **overwrite_kwargs}
 
-    # Casting to bool   # TODO: Not necessary. Remove and test
+    # Casting to bool
     for key in KEYS_TYPE_BOOL:
         if key in config:
             config[key] = bool(config[key])

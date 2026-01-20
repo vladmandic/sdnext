@@ -65,6 +65,10 @@ class NetworkOnDisk:
             return 'hv'
         if base.startswith("chroma"):
             return 'chroma'
+        if base.startswith('zimage'):
+            return 'zimage'
+        if base.startswith('qwen'):
+            return 'qwen'
 
         if arch.startswith("stable-diffusion-v1"):
             return 'sd1'

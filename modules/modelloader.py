@@ -45,7 +45,7 @@ def hf_login(token=None):
         except Exception:
             pass
         with contextlib.redirect_stdout(stdout):
-            hf.login(token=token, add_to_git_credential=False, write_permission=False)
+            hf.login(token=token, add_to_git_credential=False)
         os.environ['HF_TOKEN'] = token
         text = stdout.getvalue() or ''
         obfuscated_token = 'hf_...' + token[-4:]
@@ -274,13 +274,16 @@ def load_civitai(model: str, url: str):
 
 def download_url_to_file(url: str, dst: str):
     # based on torch.hub.download_url_to_file
+    import ssl
     import uuid
     import tempfile
     from urllib.request import urlopen, Request
     from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
     file_size = None
     req = Request(url, headers={"User-Agent": "sdnext"})
-    u = urlopen(req) # pylint: disable=R1732
+
+    context = ssl._create_unverified_context() # pylint: disable=protected-access
+    u = urlopen(req, context=context) # pylint: disable=R1732
     meta = u.info()
     if hasattr(meta, 'getheaders'):
         content_length = meta.getheaders("Content-Length")

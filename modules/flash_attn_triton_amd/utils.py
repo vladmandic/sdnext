@@ -116,7 +116,6 @@ class MetaData():
             assert self.cu_seqlens_q is not None
             assert self.cu_seqlens_k is not None
             assert len(self.cu_seqlens_q) == len(self.cu_seqlens_k)
-            # TODO: Remove once bias is supported with varlen
             assert self.bias is None
             # assert not self.return_scores
         else:
@@ -125,7 +124,6 @@ class MetaData():
             assert self.cu_seqlens_q is None and self.cu_seqlens_k is None
         assert k.shape == v.shape
         assert q.shape[-1] == k.shape[-1] and q.shape[-1] == v.shape[-1]
-        # TODO: Change assert if we support qkl f8 and v f16
         assert q.dtype == k.dtype and q.dtype == v.dtype
         assert o.shape == q.shape
         assert (nheads_q % nheads_k) == 0
@@ -243,7 +241,6 @@ def input_helper(
         equal_seqlens=False
 
         # gen tensors
-        # TODO: the gen functions should maybe have different gen modes like random, ones, increasing seqlen
         q, cu_seqlens_q, max_seqlen_q = generate_varlen_tensor(TOTAL_SEQLENS_Q, HQ, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)
         k, cu_seqlens_k, max_seqlen_k = generate_varlen_tensor(TOTAL_SEQLENS_K, HK, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)
         v, _, _ = generate_varlen_tensor(TOTAL_SEQLENS_K, HK, D_HEAD, batch_size=BATCH, dtype=dtype, device=device, equal_seqlens=equal_seqlens, DEBUG_INPUT=DEBUG_INPUT)

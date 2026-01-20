@@ -200,51 +200,51 @@ def create_sampler_options(tabname):
         shared.opts.data['schedulers_use_loworder'] = 'low order' in sampler_options
         shared.opts.data['schedulers_rescale_betas'] = 'rescale' in sampler_options
         shared.log.debug(f'Sampler set options: {sampler_options}')
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_timesteps(timesteps):
         shared.log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_spacing(spacing):
         shared.log.debug(f'Sampler set options: spacing={spacing}')
         shared.opts.schedulers_timestep_spacing = spacing
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_sigma(sampler_sigma):
         shared.log.debug(f'Sampler set options: sigma={sampler_sigma}')
         shared.opts.schedulers_sigma = sampler_sigma
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_order(sampler_order):
         shared.log.debug(f'Sampler set options: order={sampler_order}')
         shared.opts.schedulers_solver_order = sampler_order
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_prediction(sampler_prediction):
         shared.log.debug(f'Sampler set options: prediction={sampler_prediction}')
         shared.opts.schedulers_prediction_type = sampler_prediction
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_beta(sampler_beta):
         shared.log.debug(f'Sampler set options: beta={sampler_beta}')
         shared.opts.schedulers_beta_schedule = sampler_beta
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
         shared.log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
         shared.opts.schedulers_base_shift = sampler_base_shift
         shared.opts.schedulers_max_shift = sampler_max_shift
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     def set_sigma_adjust(val, start, end):
         shared.log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
         shared.opts.schedulers_sigma_adjust_min = start
         shared.opts.schedulers_sigma_adjust_max = end
-        shared.opts.save(shared.config_filename, silent=True)
+        shared.opts.save(silent=True)
 
     # 'linear', 'scaled_linear', 'squaredcos_cap_v2'
     def set_sampler_preset(preset):
@@ -258,7 +258,7 @@ def create_sampler_options(tabname):
         sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
         sampler_spacing = gr.Dropdown(label='Timestep spacing', elem_id=f"{tabname}_sampler_spacing", choices=['default', 'linspace', 'leading', 'trailing'], value=shared.opts.schedulers_timestep_spacing, type='value')
     with gr.Row(elem_classes=['flex-break']):
-        sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid'], value=shared.opts.schedulers_beta_schedule, type='value')
+        sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid', 'laplace'], value=shared.opts.schedulers_beta_schedule, type='value')
         sampler_prediction = gr.Dropdown(label='Prediction method', elem_id=f"{tabname}_sampler_prediction", choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value=shared.opts.schedulers_prediction_type, type='value')
     with gr.Row(elem_classes=['flex-break']):
         sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')

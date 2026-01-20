@@ -94,7 +94,6 @@ class BriaPipeline(FluxPipeline):
             scheduler=scheduler,
         )
 
-        # TODO - why different than offical flux (-1)
         self.vae_scale_factor = (
             2 ** (len(self.vae.config.block_out_channels)) if hasattr(self, "vae") and self.vae is not None else 16
         )

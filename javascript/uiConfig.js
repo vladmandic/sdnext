@@ -14,7 +14,7 @@ async function getUIDefaults() {
   const btn = gradioApp().getElementById('ui_defaults_view');
   if (!btn) return;
   const intersectionObserver = new IntersectionObserver((entries) => {
-    if (entries[0].intersectionRatio <= 0) { }
+    if (entries[0].intersectionRatio <= 0) { /* Pass */ }
     if (entries[0].intersectionRatio > 0) btn.click();
   });
   intersectionObserver.observe(btn); // monitor visibility of tab

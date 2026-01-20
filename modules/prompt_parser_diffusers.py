@@ -48,7 +48,13 @@ def prepare_model(pipe = None):
 
 
 class PromptEmbedder:
-    def __init__(self, prompts, negative_prompts, steps, clip_skip, p):
+    def __init__(self,
+                 prompts,
+                 negative_prompts,
+                 steps,
+                 clip_skip,
+                 p,
+                ):
         t0 = time.time()
         self.prompts = prompts
         self.negative_prompts = negative_prompts

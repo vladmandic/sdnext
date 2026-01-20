@@ -6,6 +6,7 @@ import platform
 import subprocess
 import gradio as gr
 from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
+from modules.paths import resolve_output_path
 
 
 folder_symbol = ui_symbols.folder
@@ -67,9 +68,14 @@ def delete_files(js_data, files, all_files, index):
     except Exception:
         data = { 'index_of_first_image': 0 }
     start_index = 0
-    if index > -1 and shared.opts.save_selected_only and (index >= data['index_of_first_image']):
-        files = [files[index]]
-        start_index = index
+    first_index = data['index_of_first_image']
+    if (index > -1) and shared.opts.save_selected_only and (index >= first_index):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
+        if index < len(files):
+            files = [files[index]]
+            start_index = index
+        else:
+            shared.log.error(f'Delete: index={index} first={first_index} files={len(files)} out of range')
+            files = []
     deleted = []
     all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
     all_files = [os.path.normpath(f) for f in all_files]
@@ -82,7 +88,7 @@ def delete_files(js_data, files, all_files, index):
                 continue
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
-                os.remove(fn)
+                # os.remove(fn)
                 if fn in all_files:
                     all_files.remove(fn)
                     shared.log.info(f'Delete: image="{fn}"')
@@ -100,7 +106,7 @@ def delete_files(js_data, files, all_files, index):
 
 
 def save_files(js_data, files, html_info, index):
-    os.makedirs(shared.opts.outdir_save, exist_ok=True)
+    os.makedirs(resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), exist_ok=True)
 
     class PObject: # pylint: disable=too-few-public-methods
         def __init__(self, d=None):
@@ -122,7 +128,7 @@ def save_files(js_data, files, html_info, index):
             self.styles = getattr(self, 'styles', None) or getattr(self, 'Styles', None) or []
             self.styles = [s.strip() for s in self.styles.split(',')] if isinstance(self.styles, str) else self.styles
 
-            self.outpath_grids = shared.opts.outdir_grids or shared.opts.outdir_txt2img_grids
+            self.outpath_grids = resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_txt2img_grids)
             self.infotexts = getattr(self, 'infotexts', [html_info])
             self.infotext = self.infotexts[0] if len(self.infotexts) > 0 else html_info
             self.all_negative_prompt = getattr(self, 'all_negative_prompts', [self.negative_prompt])
@@ -135,9 +141,13 @@ def save_files(js_data, files, html_info, index):
         data = {}
     p = PObject(data)
     start_index = 0
-    if index > -1 and shared.opts.save_selected_only and (index >= p.index_of_first_image):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
-        files = [files[index]]
-        start_index = index
+    if (index > -1) and shared.opts.save_selected_only and (index >= p.index_of_first_image):  # ensures we are looking at a specific non-grid picture, and we have save_selected_only # pylint: disable=no-member
+        if index < len(files):
+            files = [files[index]]
+            start_index = index
+        else:
+            shared.log.error(f'Save: index={index} first={p.index_of_first_image} files={len(files)} out of range')
+            files = []
     filenames = []
     fullfns = []
     for image_index, filedata in enumerate(files, start_index):
@@ -152,14 +162,14 @@ def save_files(js_data, files, html_info, index):
         if 'name' in filedata and ('tmp' not in filedata['name']) and os.path.isfile(filedata['name']):
             fullfn = filedata['name']
             fullfns.append(fullfn)
-            destination = shared.opts.outdir_save
+            destination = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
             namegen = images.FilenameGenerator(p, seed=p.all_seeds[i], prompt=p.all_prompts[i], image=None)  # pylint: disable=no-member
             dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]").lstrip(' ').rstrip('\\ /')
             destination = os.path.join(destination, dirname)
             destination = namegen.sanitize(destination)
             os.makedirs(destination, exist_ok = True)
             tgt_filename = os.path.join(destination, os.path.basename(fullfn))
-            relfn = os.path.relpath(tgt_filename, shared.opts.outdir_save)
+            relfn = os.path.relpath(tgt_filename, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
             filenames.append(relfn)
             if not os.path.exists(tgt_filename):
                 try:
@@ -192,14 +202,14 @@ def save_files(js_data, files, html_info, index):
             try:
                 seed = p.all_seeds[i] if i < len(p.all_seeds) else p.seed
                 prompt = p.all_prompts[i] if i < len(p.all_prompts) else p.prompt
-                fullfn, txt_fullfn, _exif = images.save_image(image, shared.opts.outdir_save, "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+                fullfn, txt_fullfn, _exif = images.save_image(image, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
             except Exception as e:
                 fullfn, txt_fullfn = None, None
                 shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
                 errors.display(e, 'save')
             if fullfn is None:
                 continue
-            filename = os.path.relpath(fullfn, shared.opts.outdir_save)
+            filename = os.path.relpath(fullfn, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
             filenames.append(filename)
             fullfns.append(fullfn)
             if txt_fullfn:
@@ -207,7 +217,7 @@ def save_files(js_data, files, html_info, index):
                 # fullfns.append(txt_fullfn)
             script_callbacks.image_save_btn_callback(filename)
     if shared.opts.samples_save_zip and len(fullfns) > 1:
-        zip_filepath = os.path.join(shared.opts.outdir_save, "images.zip")
+        zip_filepath = os.path.join(resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "images.zip")
         from zipfile import ZipFile
         with ZipFile(zip_filepath, "w") as zip_file:
             for i in range(len(fullfns)):
@@ -277,7 +287,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 save = gr.Button('Save', elem_id=f'save_{tabname}')
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
                 if transfer:
-                    buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras", "caption"])
+                    buttons = generation_parameters_copypaste.create_buttons(["control", "txt2img", "img2img", "extras", "caption"])
                 else:
                     buttons = None
 
@@ -302,7 +312,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                     outputs=[download_files, html_log],
                 )
                 delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress='hidden',
-                    _js="(x, y, i, j) => [x, y, ...selected_gallery_files()]",
+                    _js=f'(x, y, i, j) => [x, y, ...selected_gallery_files("{tabname}")]',
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[result_gallery, html_log],
                 )

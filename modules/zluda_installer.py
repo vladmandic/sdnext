@@ -1,5 +1,6 @@
 import os
 import sys
+import ssl
 import site
 import ctypes
 import shutil
@@ -84,14 +85,23 @@ def install():
         args.use_nightly = True
     if args.use_nightly:
         platform = "nightly-" + platform
-    urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
-    with zipfile.ZipFile('_zluda', 'r') as archive:
-        infos = archive.infolist()
-        for info in infos:
-            if not info.is_dir():
-                info.filename = os.path.basename(info.filename)
-                archive.extract(info, path)
-    os.remove('_zluda')
+    log.debug(f'Install ZLUDA: rocm={rocm.version} platform={platform} commit={commit}')
+    ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access
+    try:
+        urllib.request.urlretrieve(f'https://github.com/lshqqytiger/ZLUDA/releases/download/rel.{commit}/ZLUDA-{platform}-rocm{rocm.version[0]}-amd64.zip', '_zluda')
+        if not os.path.exists('_zluda'):
+            raise RuntimeError('ZLUDA download failed')
+        with zipfile.ZipFile('_zluda', 'r') as archive:
+            infos = archive.infolist()
+            for info in infos:
+                if not info.is_dir():
+                    info.filename = os.path.basename(info.filename)
+                    archive.extract(info, path)
+    except Exception as e:
+        raise RuntimeError(f'Install ZLUDA: {e}') from e
+    finally:
+        if os.path.exists('_zluda'):
+            os.remove('_zluda')
 
 
 def uninstall():
@@ -124,13 +134,8 @@ def load():
     core = Core(ctypes.windll.LoadLibrary(os.path.join(path, 'nvcuda.dll')))
     ml = ZLUDALibrary(ctypes.windll.LoadLibrary(os.path.join(path, 'nvml.dll')))
     is_nightly = core.get_nightly_flag() == 1
-    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.environment.path, "bin", "hipblaslt.dll")) and default_agent is not None
+    hipBLASLt_enabled = is_nightly and os.path.exists(rocm.blaslt_tensile_libpath) and os.path.exists(os.path.join(rocm.environment.path, "bin", "hipblaslt.dll")) and default_agent is not None and default_agent.blaslt_supported
     MIOpen_enabled = is_nightly and os.path.exists(os.path.join(rocm.environment.path, "bin", "MIOpen.dll"))
-
-    if hipBLASLt_enabled:
-        if not default_agent.blaslt_supported:
-            hipBLASLt_enabled = False
-        log.debug(f'ROCm hipBLASLt: arch={default_agent.name} available={hipBLASLt_enabled}')
 
     for k, v in DLL_MAPPING.items():
         if not os.path.exists(os.path.join(path, v)):
@@ -166,6 +171,7 @@ def load():
     def postinstall():
         import torch
         torch.version.hip = rocm.version
+
         platform = sys.platform
         sys.platform = ""
         from torch.utils import cpp_extension
@@ -177,3 +183,6 @@ def load():
             return os.path.join(cpp_extension.ROCM_HOME, *paths)
         cpp_extension._join_rocm_home = _join_rocm_home # pylint: disable=protected-access
     rocm.postinstall = postinstall
+
+    from modules.zluda import zluda_init
+    rocm.rocm_init = zluda_init

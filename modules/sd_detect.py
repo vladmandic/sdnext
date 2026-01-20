@@ -92,6 +92,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'HiDream'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
+    elif 'flux.2' in fn.lower() and 'klein' in fn.lower():
+        new_guess = 'FLUX2 Klein'
     elif 'flux.2' in fn.lower():
         new_guess = 'FLUX2'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
@@ -143,6 +145,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'LongCat'
     elif 'ovis-image' in fn.lower():
         new_guess = 'Ovis-Image'
+    elif 'glm-image' in fn.lower():
+        new_guess = 'GLM-Image'
     if debug_load:
         shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess

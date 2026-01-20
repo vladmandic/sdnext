@@ -1,12 +1,12 @@
 /* eslint-disable max-classes-per-file */
-/* eslint lines-between-class-members: ["error", "always", { "exceptAfterSingleLine": true }] */
 let ws;
 let url;
-let currentImage;
+let currentImage = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
+let gallerySelection = { files: [], index: -1 };
 const galleryHashes = new Set();
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
@@ -23,6 +23,64 @@ const el = {
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+function getVisibleGalleryFiles() {
+  if (!el.files) return [];
+  return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
+}
+
+function updateGallerySelectionClasses(files = gallerySelection.files, index = gallerySelection.index) {
+  files.forEach((file, i) => {
+    file.classList.toggle('gallery-file-selected', i === index);
+  });
+}
+
+function refreshGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
+  const files = getVisibleGalleryFiles();
+  const index = files.findIndex((file) => file.src === currentImage);
+  gallerySelection = { files, index };
+  updateGallerySelectionClasses(files, index);
+}
+
+function resetGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
+  gallerySelection = { files: [], index: -1 };
+  currentImage = null;
+}
+
+function applyGallerySelection(index, { send = true } = {}) {
+  if (!gallerySelection.files.length) refreshGallerySelection();
+  const files = gallerySelection.files;
+  if (!files.length) return;
+  if (!Number.isInteger(index) || index < 0 || index >= files.length) {
+    log('gallery selection index out of range', index, files.length);
+    resetGallerySelection();
+    return;
+  }
+  gallerySelection.index = index;
+  currentImage = files[index].src;
+  updateGallerySelectionClasses(files, index);
+  if (send && el.btnSend) el.btnSend.click();
+}
+
+function setGallerySelectionByElement(element, options) {
+  if (!gallerySelection.files.length) refreshGallerySelection();
+  let index = gallerySelection.files.findIndex((file) => file === element);
+  if (index < 0) {
+    refreshGallerySelection();
+    index = gallerySelection.files.findIndex((file) => file === element);
+  }
+  if (index >= 0) applyGallerySelection(index, options);
+}
+
+function buildGalleryFileUrl(path) {
+  return new URL(`/file=${encodeURI(path)}`, window.location.origin).toString();
+}
+
+window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
+window.setGallerySelection = (index, options) => applyGallerySelection(index, options);
+window.getGallerySelectedUrl = () => (currentImage ? buildGalleryFileUrl(currentImage) : null);
 
 /**
  * Wait for the `outstanding` variable to be below the specified value
@@ -103,10 +161,90 @@ function updateGalleryStyles() {
     .gallery-file:hover {
       filter: grayscale(100%);
     }
+    :host(.gallery-file-selected) .gallery-file {
+      box-shadow: 0 0 0 2px var(--sd-button-selected-color);
+    }
   `);
 }
 
 // Classes
+
+class SimpleProgressBar {
+  #container = document.createElement('div');
+  #progress = document.createElement('div');
+  #textDiv = document.createElement('div');
+  #text = document.createElement('span');
+  #visible = false;
+  #hideTimeout = null;
+  #interval = null;
+  #max = 0;
+  /** @type {Set} */
+  #monitoredSet;
+
+  constructor(monitoredSet) {
+    this.#monitoredSet = monitoredSet; // This is required because incrementing a variable with a class method turned out to not be an atomic operation
+    this.#container.style.cssText = 'position:relative;overflow:hidden;border-radius:var(--sd-border-radius);width:100%;background-color:hsla(0,0%,36%,0.3);height:1.2rem;margin:0;padding:0;display:none;';
+    this.#progress.style.cssText = 'position:absolute;left:0;height:100%;width:0;transition:width 200ms;';
+    this.#progress.style.backgroundColor = 'hsla(110, 32%, 35%, 0.80)'; // alt: '#27911d'
+    this.#textDiv.style.cssText = 'position:relative;margin:auto;width:max-content;height:100%;';
+    this.#text.style.cssText = 'user-select:none;color:white;';
+
+    this.#textDiv.append(this.#text);
+    this.#container.append(this.#progress, this.#textDiv);
+  }
+
+  start(total) {
+    this.clear();
+    this.#max = total;
+    this.#interval = setInterval(() => {
+      this.#update(this.#monitoredSet.size, this.#max);
+    }, 250);
+  }
+
+  attachTo(element) {
+    if (element.hasChildNodes) {
+      element.innerHTML = '';
+    }
+    element.appendChild(this.#container);
+  }
+
+  clear() {
+    this.#stop();
+    clearTimeout(this.#hideTimeout);
+    this.#hideTimeout = null;
+    this.#container.style.display = 'none';
+    this.#visible = false;
+    this.#progress.style.width = '0';
+    this.#text.textContent = '';
+  }
+
+  #update(loaded, max) {
+    if (this.#hideTimeout) {
+      this.#hideTimeout = null;
+    }
+
+    this.#progress.style.width = `${Math.floor((loaded / max) * 100)}%`;
+    this.#text.textContent = `${loaded}/${max}`;
+
+    if (!this.#visible) {
+      this.#container.style.display = 'block';
+      this.#visible = true;
+    }
+    if (loaded >= max) {
+      this.#stop();
+      this.#hideTimeout = setTimeout(() => {
+        this.clear();
+      }, 1000);
+    }
+  }
+
+  #stop() {
+    clearInterval(this.#interval);
+    this.#interval = null;
+  }
+}
+
+const galleryProgressBar = new SimpleProgressBar(galleryHashes);
 
 /* This isn't as robust as the Web Locks API, but it will at least work if accessing a remote machine without HTTPS */
 class SimpleFunctionQueue {
@@ -163,9 +301,16 @@ class SimpleFunctionQueue {
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
-  constructor(name) {
+  constructor(folder) {
     super();
-    this.name = decodeURI(name);
+    // Support both old format (string) and new format (object with path and label)
+    if (typeof folder === 'object' && folder !== null) {
+      this.name = decodeURI(folder.path || '');
+      this.label = decodeURI(folder.label || folder.path || '');
+    } else {
+      this.name = decodeURI(folder);
+      this.label = this.name;
+    }
     this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
@@ -174,8 +319,8 @@ class GalleryFolder extends HTMLElement {
   connectedCallback() {
     const div = document.createElement('div');
     div.className = 'gallery-folder';
-    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.name}`;
-    div.title = this.name;
+    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
+    div.title = this.name; // Show full path on hover
     div.addEventListener('click', () => {
       for (const folder of el.folders.children) {
         if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
@@ -220,7 +365,7 @@ async function handleSeparator(separator) {
     if (!f.name) continue; // Skip separators
 
     // Check if file belongs to this exact directory
-    const fileDir = f.name.match(/(.*)[\/\\]/);
+    const fileDir = f.name.match(/(.*)[/\\]/);
     const fileDirPath = fileDir ? fileDir[1] : '';
 
     if (separator.title.length > 0 && fileDirPath === separator.title) {
@@ -232,14 +377,18 @@ async function handleSeparator(separator) {
 }
 
 async function addSeparators() {
-  document.querySelectorAll('.gallery-separator').forEach((node) => el.files.removeChild(node));
+  document.querySelectorAll('.gallery-separator').forEach((node) => { el.files.removeChild(node); });
   const all = Array.from(el.files.children);
   let lastDir;
-  let isFirstSeparator = true; // Flag to open the first separator by default
+
+  // Count root files (files without a directory path)
+  const hasRootFiles = all.some((f) => f.name && !f.name.match(/[/\\]/));
+  // Only auto-open first separator if there are no root files to display
+  let isFirstSeparator = !hasRootFiles;
 
   // First pass: create separators
   for (const f of all) {
-    let dir = f.name?.match(/(.*)[\/\\]/);
+    let dir = f.name?.match(/(.*)[/\\]/);
     if (!dir) dir = '';
     else dir = dir[1];
     if (dir !== lastDir) {
@@ -249,7 +398,7 @@ async function addSeparators() {
         let fileCount = 0;
         for (const file of all) {
           if (!file.name) continue;
-          const fileDir = file.name.match(/(.*)[\/\\]/);
+          const fileDir = file.name.match(/(.*)[/\\]/);
           const fileDirPath = fileDir ? fileDir[1] : '';
           if (fileDirPath === dir) fileCount++;
         }
@@ -299,7 +448,7 @@ async function addSeparators() {
   for (const f of all) {
     if (!f.name) continue; // Skip separators
 
-    const dir = f.name.match(/(.*)[\/\\]/);
+    const dir = f.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
@@ -357,7 +506,7 @@ class GalleryFile extends HTMLElement {
     }
 
     // Check separator state early to hide the element immediately
-    const dir = this.name.match(/(.*)[\/\\]/);
+    const dir = this.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
@@ -366,7 +515,9 @@ class GalleryFile extends HTMLElement {
       }
     }
 
-    this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    // Normalize path to ensure consistent hash regardless of which folder view is used
+    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
+    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -402,9 +553,11 @@ class GalleryFile extends HTMLElement {
           this.size = json.size;
           this.mtime = new Date(json.mtime);
           if (opts.browser_cache) {
+            // Store file's actual parent directory (not browsed folder) for consistent cleanup
+            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
             await idbAdd({
               hash: this.hash,
-              folder: this.folder,
+              folder: fileDir,
               file: this.name,
               size: this.size,
               mtime: this.mtime,
@@ -430,8 +583,7 @@ class GalleryFile extends HTMLElement {
       return;
     } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
     img.onclick = () => {
-      currentImage = this.src;
-      el.btnSend.click();
+      setGallerySelectionByElement(this, { send: true });
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     if (this.shadow.children.length > 0) {
@@ -538,7 +690,7 @@ async function wsConnect(socket, timeout = 5000) {
 
   let loop = 0;
   while (socket.readyState === WebSocket.CONNECTING && loop < ttl) {
-    await new Promise((resolve) => setTimeout(resolve, intrasleep)); // eslint-disable-line no-promise-executor-return
+    await new Promise((resolve) => { setTimeout(resolve, intrasleep); });
     loop++;
   }
   return isOpened();
@@ -569,7 +721,7 @@ async function gallerySearch() {
       });
 
       allFiles.forEach((f) => {
-        const dir = f.name.match(/(.*)[\/\\]/);
+        const dir = f.name.match(/(.*)[/\\]/);
         const dirPath = (dir && dir[1]) ? dir[1] : '';
         const isOpen = separatorStates.get(dirPath);
         f.style.display = (!dirPath || isOpen) ? 'unset' : 'none';
@@ -603,7 +755,7 @@ async function gallerySearch() {
       if (isMatch) {
         fileMatches.add(f);
         totalFound++;
-        const dir = f.name.match(/(.*)[\/\\]/);
+        const dir = f.name.match(/(.*)[/\\]/);
         const dirPath = (dir && dir[1]) ? dir[1] : '';
         directoryMatches.set(dirPath, (directoryMatches.get(dirPath) || 0) + 1);
       }
@@ -634,6 +786,7 @@ async function gallerySearch() {
 
     const t1 = performance.now();
     updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    refreshGallerySelection();
   }, 250);
 }
 
@@ -653,59 +806,84 @@ async function gallerySort(btn) {
   if (arr.length === 0) return; // no files to sort
   if (btn) lastSort = btn.charCodeAt(0);
   const fragment = document.createDocumentFragment();
+
+  // Helper to get directory path from a file node
+  const getDirPath = (node) => {
+    const match = node.name.match(/(.*)[/\\]/);
+    return match ? match[1] : '';
+  };
+
+  // Partition into root files and subfolder files - root files always stay at top
+  const rootFiles = arr.filter((node) => !getDirPath(node));
+  const subfolderFiles = arr.filter((node) => getDirPath(node));
+
+  // Group subfolder files by directory
+  const folderGroups = new Map();
+  for (const file of subfolderFiles) {
+    const dir = getDirPath(file);
+    if (!folderGroups.has(dir)) {
+      folderGroups.set(dir, []);
+    }
+    folderGroups.get(dir).push(file);
+  }
+
+  // Sort function based on current sort mode
+  let sortFn;
   switch (lastSort) {
     case 61789: // name asc
       lastSortName = 'Name Ascending';
-      arr
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.name.localeCompare(b.name);
       break;
     case 61790: // name dsc
       lastSortName = 'Name Descending';
-      arr
-        .sort((b, a) => a.name.localeCompare(b.name))
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.name.localeCompare(a.name);
       break;
     case 61792: // size asc
       lastSortName = 'Size Ascending';
-      arr
-        .sort((a, b) => a.size - b.size)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.size - b.size;
       break;
     case 61793: // size dsc
       lastSortName = 'Size Descending';
-      arr
-        .sort((b, a) => a.size - b.size)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.size - a.size;
       break;
     case 61794: // resolution asc
       lastSortName = 'Resolution Ascending';
-      arr
-        .sort((a, b) => a.width * a.height - b.width * b.height)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.width * a.height - b.width * b.height;
       break;
     case 61795: // resolution dsc
       lastSortName = 'Resolution Descending';
-      arr
-        .sort((b, a) => a.width * a.height - b.width * b.height)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.width * b.height - a.width * a.height;
       break;
     case 61662:
       lastSortName = 'Modified Ascending';
-      arr
-        .sort((a, b) => a.mtime - b.mtime)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => a.mtime - b.mtime;
       break;
     case 61661:
       lastSortName = 'Modified Descending';
-      arr
-        .sort((b, a) => a.mtime - b.mtime)
-        .forEach((node) => fragment.appendChild(node));
+      sortFn = (a, b) => b.mtime - a.mtime;
       break;
     default:
       lastSortName = 'None';
+      sortFn = null;
       break;
   }
+
+  // Sort root files
+  if (sortFn) {
+    rootFiles.sort(sortFn);
+  }
+  rootFiles.forEach((node) => fragment.appendChild(node));
+
+  // Sort folder names alphabetically, then sort files within each folder
+  const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  for (const folderName of sortedFolderNames) {
+    const files = folderGroups.get(folderName);
+    if (sortFn) {
+      files.sort(sortFn);
+    }
+    files.forEach((node) => fragment.appendChild(node));
+  }
+
   if (fragment.children.length === 0) return;
   el.files.innerHTML = '';
   el.files.appendChild(fragment);
@@ -716,7 +894,7 @@ async function gallerySort(btn) {
   for (const f of all) {
     if (!f.name) continue; // Skip separators
 
-    const dir = f.name.match(/(.*)[\/\\]/);
+    const dir = f.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
@@ -729,6 +907,7 @@ async function gallerySort(btn) {
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
   updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  refreshGallerySelection();
 }
 
 /**
@@ -856,12 +1035,15 @@ async function fetchFilesHT(evt, controller) {
     }
   }
 
+  if (controller.signal.aborted) return;
   el.files.appendChild(fragment);
 
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  galleryProgressBar.start(numFiles);
   addSeparators();
+  refreshGallerySelection();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
 
@@ -871,6 +1053,8 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   maintenanceController.abort('Gallery update'); // Abort previous controller
   maintenanceController = controller; // Point to new controller for next time
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
+  galleryProgressBar.clear();
+  resetGallerySelection();
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -915,11 +1099,14 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     }
   };
   ws.onclose = (event) => {
+    if (controller.signal.aborted) return;
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    galleryProgressBar.start(numFiles);
     addSeparators();
+    refreshGallerySelection();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
   ws.onerror = (event) => {
@@ -973,7 +1160,8 @@ async function monitorGalleries() {
 
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}'; // eslint-disable-line max-len
+  // eslint-disable-next-line @stylistic/max-len
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}';
   document.head.append(busyAnimation);
 }
 
@@ -990,6 +1178,12 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  const progress = gradioApp().getElementById('tab-gallery-progress');
+  if (progress) {
+    galleryProgressBar.attachTo(progress);
+  } else {
+    log('initGallery', 'Failed to attach loading progress bar');
+  }
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';

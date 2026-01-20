@@ -648,7 +648,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = 'f6b6a7181eb44f0120b29cd897c129275f366c2a' # diffusers commit hash
+    sha = 'd7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -678,9 +678,12 @@ def check_transformers():
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
+    elif args.new:
+        target_transformers = '5.0.0rc2'
+        target_tokenizers = '0.22.2'
     else:
-        target_transformers = '4.57.3'
-        target_tokenizers = '0.22.1'
+        target_transformers = '4.57.5'
+        target_tokenizers = '0.22.2'
     if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
         if pkg_transformers is None:
             log.info(f'Transformers install: version={target_transformers}')
@@ -757,7 +760,7 @@ def install_rocm_zluda():
 
     msg = f'ROCm: version={rocm.version}'
     if device is not None:
-        msg += f', using agent {device.name}'
+        msg += f', using agent {device}'
     log.info(msg)
 
     if sys.platform == "win32":
@@ -778,20 +781,20 @@ def install_rocm_zluda():
                 zluda_installer.install()
                 zluda_installer.set_default_agent(device)
             except Exception as e:
-                log.warning(f'Failed to install ZLUDA: {e}')
+                log.error(f'Install ZLUDA: {e}')
 
             try:
                 zluda_installer.load()
             except Exception as e:
-                log.warning(f'Failed to load ZLUDA: {e}')
+                log.error(f'Load ZLUDA: {e}')
         else: # TODO rocm: switch to pytorch source when it becomes available
             if device is None:
-                log.warning('No ROCm agent was found. Please make sure that graphics driver is installed and up to date.')
+                log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+                check_python(supported_minors=[11, 12, 13], reason='ROCm: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
-                check_python(supported_minors=[12], reason='ROCm Windows preview requires Python version 3.12')
+                check_python(supported_minors=[12], reason='ROCm: Windows preview python==3.12 required')
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
@@ -818,12 +821,12 @@ def install_rocm_zluda():
                     log.warning("ROCm: minimum supported version=6.0")
 
     if device is None or os.environ.get("HSA_OVERRIDE_GFX_VERSION", None) is not None:
-        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device.name if device is not None else None} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
+        log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION auto config skipped: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
     else:
         gfx_ver = device.get_gfx_version()
         if gfx_ver is not None and device.name.removeprefix("gfx") != gfx_ver.replace(".", ""):
             os.environ.setdefault('HSA_OVERRIDE_GFX_VERSION', gfx_ver)
-            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device.name} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
+            log.info(f'ROCm: HSA_OVERRIDE_GFX_VERSION config overridden: device={device} version={os.environ.get("HSA_OVERRIDE_GFX_VERSION", None)}')
 
     ts('amd', t_start)
     return torch_command
@@ -946,7 +949,7 @@ def check_torch():
 
         if not is_cuda_available and not is_ipex_available and allow_rocm:
             from modules import rocm
-            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or (len(rocm.agents) != 0 if sys.platform == "win32" else rocm.is_installed)) # late eval to avoid unnecessary import
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
         if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()
@@ -1397,6 +1400,7 @@ def set_environment():
     log.debug('Setting environment tuning')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
+    os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
     os.environ.setdefault('CUDA_AUTO_BOOST', '1')
     os.environ.setdefault('CUDA_CACHE_DISABLE', '0')
     os.environ.setdefault('CUDA_DEVICE_DEFAULT_PERSISTING_L2_CACHE_PERCENTAGE_LIMIT', '0')
@@ -1407,20 +1411,27 @@ def set_environment():
     os.environ.setdefault('GRADIO_ANALYTICS_ENABLED', 'False')
     os.environ.setdefault('K_DIFFUSION_USE_COMPILE', '0')
     os.environ.setdefault('KINETO_LOG_LEVEL', '3')
+    os.environ.setdefault('NEOReadDebugKeys', '1')
     os.environ.setdefault('NUMEXPR_MAX_THREADS', '16')
     os.environ.setdefault('PYTHONHTTPSVERIFY', '0')
+    os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
+    os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1')
+    os.environ.setdefault('RUNAI_STREAMER_CHUNK_BYTESIZE', '2097152')
+    os.environ.setdefault('RUNAI_STREAMER_LOG_LEVEL', 'DEBUG' if os.environ.get('SD_LOAD_DEBUG') else 'WARNING')
+    os.environ.setdefault('RUNAI_STREAMER_MEMORY_LIMIT', '-1')
     os.environ.setdefault('SAFETENSORS_FAST_GPU', '1')
+    os.environ.setdefault('SYCL_CACHE_PERSISTENT', '1')
     os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
     os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+    os.environ.setdefault('TOKENIZERS_PARALLELISM', '0')
     os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
     os.environ.setdefault('TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD', '1')
+    os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
+    os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
-    os.environ.setdefault('RUNAI_STREAMER_CHUNK_BYTESIZE', '2097152')
-    os.environ.setdefault('RUNAI_STREAMER_MEMORY_LIMIT', '-1')
-    os.environ.setdefault('RUNAI_STREAMER_LOG_LEVEL', 'DEBUG' if os.environ.get('SD_LOAD_DEBUG') else 'WARNING')
     allocator = f'garbage_collection_threshold:{opts.get("torch_gc_threshold", 80)/100:0.2f},max_split_size_mb:512'
     if opts.get("torch_malloc", "native") == 'cudaMallocAsync':
         allocator += ',backend:cudaMallocAsync'
@@ -1430,14 +1441,6 @@ def set_environment():
     os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', allocator)
     os.environ.setdefault('PYTORCH_HIP_ALLOC_CONF', allocator)
     log.debug(f'Torch allocator: "{allocator}"')
-    os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
-    os.environ.setdefault('NEOReadDebugKeys', '1')
-    os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
-    os.environ.setdefault('SYCL_CACHE_PERSISTENT', '1')
-    os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
-    os.environ.setdefault('PYTORCH_ENABLE_XPU_FALLBACK', '1')
-    os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
-    os.environ.setdefault('TOKENIZERS_PARALLELISM', '0')
 
 
 def check_extensions():
@@ -1644,6 +1647,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
                 log.info(f'Repository upgraded: {ver}')
+                log.warning('Server restart is recommended to apply changes')
                 if ver == latest: # double check
                     restart()
             except Exception:

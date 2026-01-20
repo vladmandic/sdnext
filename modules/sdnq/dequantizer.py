@@ -8,6 +8,7 @@ import torch
 from modules import devices
 from .common import dtype_dict, compile_func, use_contiguous_mm, use_tensorwise_fp8_matmul
 from .packed_int import unpack_int_symetric, unpack_int_asymetric
+from .packed_float import unpack_float
 
 
 @devices.inference_context()
@@ -25,7 +26,7 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
         if result.ndim > 2 and weight.ndim > 2: # convs
             result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
         else:
-            result = result.addmm_(svd_up, svd_down)
+            result = result.to(dtype=svd_up.dtype).addmm_(svd_up, svd_down)
     if dtype is not None:
         result = result.to(dtype=dtype)
     return result
@@ -48,7 +49,7 @@ def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, svd
         if result.ndim > 2 and weight.ndim > 2: # convs
             result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
         else:
-            result = result.addmm_(svd_up, svd_down)
+            result = result.to(dtype=svd_up.dtype).addmm_(svd_up, svd_down)
     if dtype is not None:
         result = result.to(dtype=dtype)
     return result
@@ -70,8 +71,18 @@ def dequantize_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.Floa
 
 
 @devices.inference_context()
-def dequantize_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, dtype: Optional[torch.dtype] = None, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None, result_shape: Optional[torch.Size] = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None, dtype: Optional[torch.dtype] = None, result_shape: Optional[torch.Size] = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
+
+
+@devices.inference_context()
+def dequantize_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None, dtype: Optional[torch.dtype] = None, result_shape: Optional[torch.Size] = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
+    return dequantize_asymmetric(unpack_float(weight, shape, weights_dtype), scale, zero_point, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul)
+
+
+@devices.inference_context()
+def dequantize_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None, dtype: Optional[torch.dtype] = None, result_shape: Optional[torch.Size] = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
+    return dequantize_symmetric(unpack_float(weight, shape, weights_dtype), scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 
 
 @devices.inference_context()
@@ -84,7 +95,7 @@ def quantize_int_mm(input: torch.FloatTensor, dim: int = -1, matmul_dtype: str =
 @devices.inference_context()
 def quantize_int_mm_sr(input: torch.FloatTensor, dim: int = -1, matmul_dtype: str = "int8") -> Tuple[torch.Tensor, torch.FloatTensor]:
     scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
-    input = torch.div(input, scale).add_(torch.randn_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    input = torch.div(input, scale).add_(torch.rand_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
     return input, scale
 
 
@@ -157,6 +168,16 @@ def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: tor
 
 
 @devices.inference_context()
+def re_quantize_matmul_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> Tuple[torch.Tensor, torch.FloatTensor]:
+    return re_quantize_matmul_asymmetric(unpack_float(weight, shape, weights_dtype), scale, zero_point, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
+
+
+@devices.inference_context()
+def re_quantize_matmul_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: Optional[torch.Size] = None, svd_up: Optional[torch.FloatTensor] = None, svd_down: Optional[torch.FloatTensor] = None) -> Tuple[torch.Tensor, torch.FloatTensor]:
+    return re_quantize_matmul_symmetric(unpack_float(weight, shape, weights_dtype), scale, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
+
+
+@devices.inference_context()
 def dequantize_layer_weight(self: torch.nn.Module, inplace: bool = False):
     weight = torch.nn.Parameter(self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul), requires_grad=True)
     forward = getattr(torch.nn, self.sdnq_dequantizer.layer_class_name).forward
@@ -209,6 +230,25 @@ def dequantize_sdnq_model(model: torch.nn.Module):
 # SDNQDequantizer has to be a dataclass for torch.compile
 @dataclass
 class SDNQDequantizer:
+    result_dtype: torch.dtype
+    result_shape: torch.Size
+    original_shape: torch.Size
+    original_stride: List[int]
+    quantized_weight_shape: torch.Size
+    weights_dtype: str
+    quantized_matmul_dtype: str
+    group_size: int
+    svd_rank: int
+    svd_steps: int
+    use_quantized_matmul: bool
+    re_quantize_for_matmul: bool
+    use_stochastic_rounding: bool
+    layer_class_name: str
+    is_packed: bool
+    is_unsigned: bool
+    is_integer: bool
+    is_integer_matmul: bool
+
     def __init__(
         self,
         result_dtype: torch.dtype,
@@ -226,10 +266,6 @@ class SDNQDequantizer:
         use_stochastic_rounding: bool,
         layer_class_name: str,
     ):
-        self.is_packed = dtype_dict[weights_dtype]["is_packed"]
-        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
-        self.is_integer = dtype_dict[weights_dtype]["is_integer"]
-        self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
         self.result_dtype = result_dtype
         self.result_shape = result_shape
         self.original_shape = original_shape
@@ -244,14 +280,24 @@ class SDNQDequantizer:
         self.re_quantize_for_matmul = re_quantize_for_matmul
         self.use_stochastic_rounding = use_stochastic_rounding
         self.layer_class_name = layer_class_name
+        self.is_packed = dtype_dict[weights_dtype]["is_packed"]
+        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
+        self.is_integer = dtype_dict[weights_dtype]["is_integer"]
+        self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
 
     @devices.inference_context()
     def re_quantize_matmul(self, weight, scale, zero_point, svd_up, svd_down): # pylint: disable=unused-argument
         if self.is_packed:
-            if self.is_unsigned:
-                return re_quantize_matmul_packed_int_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
+            if self.is_integer:
+                if self.is_unsigned:
+                    return re_quantize_matmul_packed_int_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
+                else:
+                    return re_quantize_matmul_packed_int_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
             else:
-                return re_quantize_matmul_packed_int_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
+                if self.is_unsigned:
+                    return re_quantize_matmul_packed_float_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
+                else:
+                    return re_quantize_matmul_packed_float_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
         else:
             if self.is_unsigned:
                 return re_quantize_matmul_asymmetric_compiled(weight, scale, zero_point, self.quantized_matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=self.result_shape)
@@ -262,17 +308,30 @@ class SDNQDequantizer:
     def __call__(self, weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul: bool = False, skip_compile: bool = False, dtype: torch.dtype = None): # pylint: disable=unused-argument
         if dtype is None:
             dtype = self.result_dtype
+        re_quantize_for_matmul = self.re_quantize_for_matmul or self.is_packed
         if self.is_packed:
-            if self.is_unsigned:
-                if skip_compile: # compiled training needs to be traced with the original function
-                    return dequantize_packed_int_asymmetric(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
+            if self.is_integer:
+                if self.is_unsigned:
+                    if skip_compile: # compiled training needs to be traced with the original function
+                        return dequantize_packed_int_asymmetric(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
+                    else:
+                        return dequantize_packed_int_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
                 else:
-                    return dequantize_packed_int_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
+                    if skip_compile:
+                        return dequantize_packed_int_symmetric(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
+                    else:
+                        return dequantize_packed_int_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
             else:
-                if skip_compile:
-                    return dequantize_packed_int_symmetric(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=self.re_quantize_for_matmul)
+                if self.is_unsigned:
+                    if skip_compile: # compiled training needs to be traced with the original function
+                        return dequantize_packed_float_asymmetric(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
+                    else:
+                        return dequantize_packed_float_asymmetric_compiled(weight, scale, zero_point, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
                 else:
-                    return dequantize_packed_int_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=self.re_quantize_for_matmul)
+                    if skip_compile:
+                        return dequantize_packed_float_symmetric(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
+                    else:
+                        return dequantize_packed_float_symmetric_compiled(weight, scale, self.quantized_weight_shape, self.weights_dtype, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
         else:
             if self.is_unsigned:
                 if skip_compile:
@@ -281,16 +340,22 @@ class SDNQDequantizer:
                     return dequantize_asymmetric_compiled(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul)
             else:
                 if skip_compile:
-                    return dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=self.re_quantize_for_matmul)
+                    return dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
                 else:
-                    return dequantize_symmetric_compiled(weight, scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=self.re_quantize_for_matmul)
+                    return dequantize_symmetric_compiled(weight, scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=self.result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 
 
 dequantize_asymmetric_compiled = compile_func(dequantize_asymmetric)
 dequantize_symmetric_compiled = compile_func(dequantize_symmetric)
 dequantize_packed_int_asymmetric_compiled = compile_func(dequantize_packed_int_asymmetric)
 dequantize_packed_int_symmetric_compiled = compile_func(dequantize_packed_int_symmetric)
+dequantize_packed_float_asymmetric_compiled = compile_func(dequantize_packed_float_asymmetric)
+dequantize_packed_float_symmetric_compiled = compile_func(dequantize_packed_float_symmetric)
 re_quantize_matmul_asymmetric_compiled = compile_func(re_quantize_matmul_asymmetric)
 re_quantize_matmul_symmetric_compiled = compile_func(re_quantize_matmul_symmetric)
 re_quantize_matmul_packed_int_asymmetric_compiled = compile_func(re_quantize_matmul_packed_int_asymmetric)
 re_quantize_matmul_packed_int_symmetric_compiled = compile_func(re_quantize_matmul_packed_int_symmetric)
+re_quantize_matmul_packed_float_asymmetric_compiled = compile_func(re_quantize_matmul_packed_float_asymmetric)
+re_quantize_matmul_packed_float_symmetric_compiled = compile_func(re_quantize_matmul_packed_float_symmetric)
+
+torch.serialization.add_safe_globals([SDNQDequantizer])

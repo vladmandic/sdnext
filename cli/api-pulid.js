@@ -2,9 +2,9 @@
 
 // simple nodejs script to test sdnext api
 
-const fs = require('fs');
-const path = require('path');
-const process = require('process');
+const fs = require('node:fs');
+const path = require('node:path');
+
 const argparse = require('argparse');
 
 const sd_url = process.env.SDAPI_URL || 'http://127.0.0.1:7860';

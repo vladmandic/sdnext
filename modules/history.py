@@ -1,8 +1,5 @@
 """
-TODO:
-- apply metadata
-- preview
-- load/save
+TODO: apply metadata, preview, load/save
 """
 
 import sys

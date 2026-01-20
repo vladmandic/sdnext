@@ -1,0 +1,16 @@
+{
+    "Google Gemini 2.5 Flash Nano Banana": {
+    "path": "gemini-2.5-flash-image",
+    "desc": "Gemini can generate and process images conversationally. You can prompt Gemini with text, images, or a combination of both allowing you to create, edit, and iterate on visuals with unprecedented control.",
+    "preview": "gemini-2.5-flash-image.jpg",
+    "tags": "cloud",
+    "skip": true
+  },
+  "Google Gemini 3.0 Pro Nano Banana": {
+    "path": "gemini-3-pro-image-preview",
+    "desc": "Built on Gemini 3. Create and edit images with studio-quality levels of precision and control",
+    "preview": "gemini-3-pro-image-preview.jpg",
+    "tags": "cloud",
+    "skip": true
+  }
+}
