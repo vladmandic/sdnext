@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-20
+## Update for 2026-01-20
 
-### Highlights for 2025-01-20
+### Highlights for 2026-01-20
 
 First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
 There are also improvements to *SDNQ* quantization engine, updated *Prompt Enhance*, *Image Preview* and many others.  
@@ -11,7 +11,7 @@ For full list of changes, see full changelog.
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-01-20
+### Details for 2026-01-20
 
 - **Models**
   - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
