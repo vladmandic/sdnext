@@ -1039,7 +1039,7 @@ class StableDiffusionXLTilingPipeline(
         if isinstance(self.scheduler, LMSDiscreteScheduler):
             latents = latents * self.scheduler.sigmas[0]
 
-        # 5. Prepare extra step kwargs. 
+        # 5. Prepare extra step kwargs.
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 6. Prepare added time ids & embeddings

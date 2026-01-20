@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2025-01-19
+## Update for 2025-01-20
 
-### Highlights for 2025-01-19
+### Highlights for 2025-01-20
 
 First release of 2026 brings quite a few new models: **Flux.2-Klein, Qwen-Image-2512, LTX-2-Dev, GLM-Image**  
 There are also improvements to SDNQ quantization engine, updated Prompt Enhance and many others.  
@@ -11,7 +11,7 @@ For full list of changes, see full changelog.
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2025-01-19
+### Details for 2025-01-20
 
 - **Models**
   - [Flux.2 Klein](https://bfl.ai/blog/flux2-klein-towards-interactive-visual-intelligence)  
@@ -80,31 +80,32 @@ For full list of changes, see full changelog.
   - refactor handling of seeds  
   - allow unsafe ssl context for downloads  
 - **Fixes**
+  - controlnet: controlnet with non-english ui locales  
+  - core: add skip_keys to offloading logic, fixes wan frames mismatch, thanks @ryanmeador  
+  - core: force model move on offload=none  
+  - core: hidiffusion tracing  
+  - core: hip device name detection  
+  - core: reduce triton test verbosity  
+  - core: switch processing class not restoring params  
   - extension tab: update checker, date handling, formatting etc., thanks @awsr  
-  - controlnet with non-english ui locales  
-  - update civitai base models, thanks @trojaner  
-  - wildards with folder specification  
-  - z-image single-file loader  
-  - hip device name detection  
-  - force align width/height to vae scale factor  
-  - meituan-longca-image-edit missing image param  
-  - mobile auto-collapse when using side panel, thanks @awsr  
-  - switch processing class not restoring params  
-  - hidiffusion tracing  
-  - add skip_keys to offloading logic, fixes wan frames mismatch, thanks @ryanmeador  
-  - wan 2.2 i2v  
-  - force model move on offload=none  
-  - kandinsky-5 image and video on non-cuda platforms  
-  - lora loading when using torch without distributed support  
-  - generate slowdown when consequtive lora-diffusers enabled  
-  - google-genai auth, thanks @CalamitousFelicitousness  
-  - reduce triton test verbosity  
-  - improve qwen i2i handling  
-  - networks filter by model type  
-  - netoworks icon/list view type switch, thanks @awsr  
-  - lora skip with strength zero  
   - lora force unapply on change  
   - lora handle null description, thanks @CalamitousFelicitousness  
+  - lora loading when using torch without distributed support  
+  - lora skip with strength zero  
+  - lora: generate slowdown when consequtive lora-diffusers enabled  
+  - model: google-genai auth, thanks @CalamitousFelicitousness  
+  - model: improve qwen i2i handling  
+  - model: kandinsky-5 image and video on non-cuda platforms  
+  - model: meituan-longca-image-edit missing image param  
+  - model: wan 2.2 i2v  
+  - model: z-image single-file loader  
+  - other: update civitai base models, thanks @trojaner  
+  - ui: gallery save/delete  
+  - ui: mobile auto-collapse when using side panel, thanks @awsr  
+  - ui: networks filter by model type  
+  - ui: networks icon/list view type switch, thanks @awsr  
+  - vae: force align width/height to vae scale factor  
+  - wildards with folder specification  
 
 ## Update for 2025-12-26
 

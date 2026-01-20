@@ -679,7 +679,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
             latents,
         )
 
-        # 9. Prepare extra step kwargs. 
+        # 9. Prepare extra step kwargs.
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 10. Prepare added time ids & embeddings

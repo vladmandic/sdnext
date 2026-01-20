@@ -88,7 +88,7 @@ def delete_files(js_data, files, all_files, index):
                 continue
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
-                os.remove(fn)
+                # os.remove(fn)
                 if fn in all_files:
                     all_files.remove(fn)
                     shared.log.info(f'Delete: image="{fn}"')
@@ -312,7 +312,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                     outputs=[download_files, html_log],
                 )
                 delete.click(fn=call_queue.wrap_gradio_call(delete_files), show_progress='hidden',
-                    _js="(x, y, i, j) => [x, y, ...selected_gallery_files()]",
+                    _js=f'(x, y, i, j) => [x, y, ...selected_gallery_files("{tabname}")]',
                     inputs=[generation_info, result_gallery, html_info, html_info],
                     outputs=[result_gallery, html_log],
                 )

@@ -1756,7 +1756,7 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength, device)
 
 
-        # 7. Prepare extra step kwargs. 
+        # 7. Prepare extra step kwargs.
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
         map = torchvision.transforms.Resize(tuple(s // self.vae_scale_factor for s in image.shape[2:]),antialias=None)(map)
 

@@ -33,9 +33,10 @@ function clip_gallery_urls(gallery) {
 }
 
 function isVisible(el) {
+  if (!el) return false;
   const rect = el.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0) return false;
-  return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+  return (rect.top >= 0) && (rect.left >= 0) && (rect.bottom <= (window.innerHeight || document.documentElement.clientHeight)) && (rect.right <= (window.innerWidth || document.documentElement.clientWidth));
 }
 
 function all_gallery_buttons() {
@@ -66,15 +67,24 @@ function selected_gallery_index() {
   return result;
 }
 
-function selected_gallery_files() {
+function selected_gallery_files(tabname) {
   let allImages = [];
+  let allThumbnails;
+  if (tabname && tabname !== 'gallery') allThumbnails = gradioApp().querySelectorAll('div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
+  else allThumbnails = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
   try {
-    let allCurrentButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small');
-    if (allCurrentButtons.length === 0) allCurrentButtons = gradioApp().querySelectorAll('.gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
-    allImages = Array.from(allCurrentButtons).map((v) => v.querySelector('img')?.src);
-    allImages = allImages.filter((el) => isVisible(el));
-  } catch { /**/ }
-  const selectedIndex = selected_gallery_index();
+    allImages = Array.from(allThumbnails).map((v) => v.querySelector('img'));
+    if (tabname && tabname !== 'gallery') allImages = allImages.filter((img) => isVisible(img));
+    allImages = allImages.map((img) => {
+      let fn = img.src;
+      if (fn.includes('file=')) fn = fn.split('file=')[1];
+      return decodeURI(fn);
+    });
+  } catch (err) {
+    error(`selected_gallery_files: ${err}`);
+  }
+  let selectedIndex = -1;
+  if (tabname && tabname !== 'gallery') selectedIndex = selected_gallery_index();
   return [allImages, selectedIndex];
 }
 
