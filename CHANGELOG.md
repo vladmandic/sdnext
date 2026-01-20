@@ -63,7 +63,9 @@ For full list of changes, see full changelog.
 - **Internal**
   - **lora** native support by default will now skip text-encoder  
     can be enabled in *settings -> networks*
-  - update js linting to `eslint9`, thanks @awsr  
+  - update core js linting to `eslint9`, thanks @awsr  
+  - update modernui js linting to `eslint9`, thanks @awsr  
+  - update kanvas js linting to `eslint9`, thanks @awsr  
   - update strong typing checks, thanks @awsr  
   - update reference models previews, thanks @liutyi  
   - update models specs page, thanks @alerikaisattera  
