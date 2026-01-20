@@ -295,12 +295,14 @@ if sys.platform == "win32":
 
             build_targets = torch.cuda.get_arch_list()
             agents = get_agents()
+            log.debug(f'ROCm: agents={agents}')
             if all(available.name not in build_targets for available in agents):
                 log.warning('ROCm: torch-rocm is installed, but none of build targets are available')
                 # use cpu instead of crashing
                 torch.cuda.is_available = lambda: False
 
             agent = get_hip_agent()
+            log.debug(f'ROCm: selected={agents}')
             if not agent.blaslt_supported:
                 log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
             if (agent.gfx_version & 0xFFF0) == 0x1200:
