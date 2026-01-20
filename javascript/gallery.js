@@ -1,11 +1,12 @@
 /* eslint-disable max-classes-per-file */
 let ws;
 let url;
-let currentImage;
+let currentImage = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
+let gallerySelection = { files: [], index: -1 };
 const galleryHashes = new Set();
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
@@ -22,6 +23,64 @@ const el = {
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+function getVisibleGalleryFiles() {
+  if (!el.files) return [];
+  return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
+}
+
+function refreshGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
+  const files = getVisibleGalleryFiles();
+  const index = files.findIndex((file) => file.src === currentImage);
+  gallerySelection = { files, index };
+  updateGallerySelectionClasses(files, index);
+}
+
+function applyGallerySelection(index, { send = true } = {}) {
+  if (!gallerySelection.files.length) refreshGallerySelection();
+  const files = gallerySelection.files;
+  if (!files.length) return;
+  if (!Number.isInteger(index) || index < 0 || index >= files.length) {
+    log('gallery selection index out of range', index, files.length);
+    resetGallerySelection();
+    return;
+  }
+  gallerySelection.index = index;
+  currentImage = files[index].src;
+  updateGallerySelectionClasses(files, index);
+  if (send && el.btnSend) el.btnSend.click();
+}
+
+function setGallerySelectionByElement(element, options) {
+  if (!gallerySelection.files.length) refreshGallerySelection();
+  let index = gallerySelection.files.findIndex((file) => file === element);
+  if (index < 0) {
+    refreshGallerySelection();
+    index = gallerySelection.files.findIndex((file) => file === element);
+  }
+  if (index >= 0) applyGallerySelection(index, options);
+}
+
+function resetGallerySelection() {
+  updateGallerySelectionClasses(gallerySelection.files, -1);
+  gallerySelection = { files: [], index: -1 };
+  currentImage = null;
+}
+
+function buildGalleryFileUrl(path) {
+  return new URL(`/file=${encodeURI(path)}`, window.location.origin).toString();
+}
+
+function updateGallerySelectionClasses(files = gallerySelection.files, index = gallerySelection.index) {
+  files.forEach((file, i) => {
+    file.classList.toggle('gallery-file-selected', i === index);
+  });
+}
+
+window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
+window.setGallerySelection = (index, options) => applyGallerySelection(index, options);
+window.getGallerySelectedUrl = () => (currentImage ? buildGalleryFileUrl(currentImage) : null);
 
 /**
  * Wait for the `outstanding` variable to be below the specified value
@@ -101,6 +160,9 @@ function updateGalleryStyles() {
     }
     .gallery-file:hover {
       filter: grayscale(100%);
+    }
+    :host(.gallery-file-selected) .gallery-file {
+      box-shadow: 0 0 0 2px var(--sd-button-selected-color);
     }
   `);
 }
@@ -521,8 +583,7 @@ class GalleryFile extends HTMLElement {
       return;
     } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
     img.onclick = () => {
-      currentImage = this.src;
-      el.btnSend.click();
+      setGallerySelectionByElement(this, { send: true });
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     if (this.shadow.children.length > 0) {
@@ -725,6 +786,7 @@ async function gallerySearch() {
 
     const t1 = performance.now();
     updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    refreshGallerySelection();
   }, 250);
 }
 
@@ -845,6 +907,7 @@ async function gallerySort(btn) {
   const t1 = performance.now();
   log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
   updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  refreshGallerySelection();
 }
 
 /**
@@ -980,6 +1043,7 @@ async function fetchFilesHT(evt, controller) {
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   galleryProgressBar.start(numFiles);
   addSeparators();
+  refreshGallerySelection();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
 
@@ -990,6 +1054,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   maintenanceController = controller; // Point to new controller for next time
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
   galleryProgressBar.clear();
+  resetGallerySelection();
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -1041,6 +1106,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
     galleryProgressBar.start(numFiles);
     addSeparators();
+    refreshGallerySelection();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
   ws.onerror = (event) => {

@@ -64,6 +64,10 @@ function selected_gallery_index() {
   const button = selected_gallery_button();
   let result = -1;
   buttons.forEach((v, i) => { if (v === button) { result = i; } });
+  if (result === -1 && gradioApp().getElementById('tab-gallery-search')?.checkVisibility()) {
+    const gallerySelection = window.getGallerySelection();
+    if (Number.isInteger(gallerySelection.index)) result = gallerySelection.index;
+  }
   return result;
 }
 
