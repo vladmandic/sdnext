@@ -673,14 +673,15 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
 }))
 
 options_templates.update(options_section(('interrogate', "Interrogate"), {
-    "interrogate_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["OpenCLiP", "VLM", "DeepBooru"]}),
+    "interrogate_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "CLiP", "Tagger"]}),
     "interrogate_offload": OptionInfo(True, "Offload models "),
-    "interrogate_score": OptionInfo(False, "Include scores in results when available"),
+    "interrogate_score": OptionInfo(False, "Include scores in results when available", gr.Checkbox, {"visible": False}),
 
-    "interrogate_clip_sep": OptionInfo("<h2>OpenCLiP</h2>", "", gr.HTML),
-    "interrogate_clip_model": OptionInfo("ViT-L-14/openai", "CLiP: default model", gr.Dropdown, lambda: {"choices": get_clip_models()}, refresh=refresh_clip_models),
-    "interrogate_clip_mode": OptionInfo(caption_types[0], "CLiP: default mode", gr.Dropdown, {"choices": caption_types}),
-    "interrogate_blip_model": OptionInfo(list(caption_models)[0], "CLiP: default captioner", gr.Dropdown, {"choices": list(caption_models)}),
+    # OpenCLiP settings (hidden - controlled via Caption Tab)
+    "interrogate_clip_sep": OptionInfo("<h2>OpenCLiP</h2>", "", gr.HTML, {"visible": False}),
+    "interrogate_clip_model": OptionInfo("ViT-L-14/openai", "CLiP: default model", gr.Dropdown, lambda: {"choices": get_clip_models(), "visible": False}, refresh=refresh_clip_models),
+    "interrogate_clip_mode": OptionInfo(caption_types[0], "CLiP: default mode", gr.Dropdown, {"choices": caption_types, "visible": False}),
+    "interrogate_blip_model": OptionInfo(list(caption_models)[0], "CLiP: default captioner", gr.Dropdown, {"choices": list(caption_models), "visible": False}),
     "interrogate_clip_num_beams": OptionInfo(1, "CLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
     "interrogate_clip_min_length": OptionInfo(32, "CLiP: min length", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1,  "visible": False}),
     "interrogate_clip_max_length": OptionInfo(74, "CLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1,  "visible": False}),
@@ -689,13 +690,14 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "interrogate_clip_flavor_count": OptionInfo(1024, "CLiP: intermediate flavors", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64,  "visible": False}),
     "interrogate_clip_chunk_size": OptionInfo(1024, "CLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64,  "visible": False}),
 
-    "interrogate_vlm_sep": OptionInfo("<h2>VLM</h2>", "", gr.HTML),
-    "interrogate_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models)}),
-    "interrogate_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts }),
-    "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: default prompt"),
+    # VLM settings (hidden - controlled via Caption Tab)
+    "interrogate_vlm_sep": OptionInfo("<h2>VLM</h2>", "", gr.HTML, {"visible": False}),
+    "interrogate_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models), "visible": False}),
+    "interrogate_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts, "visible": False}),
+    "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: default prompt", gr.Textbox, {"visible": False}),
     "interrogate_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
     "interrogate_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
-    "interrogate_vlm_do_sample": OptionInfo(True, "VLM: use sample method"),
+    "interrogate_vlm_do_sample": OptionInfo(True, "VLM: use sample method", gr.Checkbox, {"visible": False}),
     "interrogate_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
     "interrogate_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
     "interrogate_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
@@ -703,24 +705,24 @@ options_templates.update(options_section(('interrogate', "Interrogate"), {
     "interrogate_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
     "interrogate_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
 
-    # Common tagger settings (shared by DeepBooru and WD14)
-    "tagger_sep": OptionInfo("<h2>Tagger Settings</h2>", "", gr.HTML),
-    "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
-    "tagger_sort_alpha": OptionInfo(False, "Tagger: sort alphabetically"),
-    "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags"),
-    "tagger_escape": OptionInfo(True, "Tagger: escape brackets"),
-    "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags"),
+    # Common tagger settings (hidden - controlled via Caption Tab)
+    "tagger_sep": OptionInfo("<h2>Tagger Settings</h2>", "", gr.HTML, {"visible": False}),
+    "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
+    "tagger_sort_alpha": OptionInfo(False, "Tagger: sort alphabetically", gr.Checkbox, {"visible": False}),
+    "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags", gr.Checkbox, {"visible": False}),
+    "tagger_escape": OptionInfo(True, "Tagger: escape brackets", gr.Checkbox, {"visible": False}),
+    "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags", gr.Textbox, {"visible": False}),
 
-    # DeepBooru-specific settings
-    "deepbooru_sep": OptionInfo("<h2>DeepBooru</h2>", "", gr.HTML),
-    "deepbooru_score_threshold": OptionInfo(0.65, "DeepBooru: score threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
+    # DeepBooru-specific settings (hidden - controlled via Caption Tab)
+    "deepbooru_sep": OptionInfo("<h2>DeepBooru</h2>", "", gr.HTML, {"visible": False}),
+    "deepbooru_score_threshold": OptionInfo(0.65, "DeepBooru: score threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
 
-    # WD14-specific settings
-    "wd14_sep": OptionInfo("<h2>WD14 Tagger</h2>", "", gr.HTML),
-    "wd14_model": OptionInfo("wd-eva02-large-tagger-v3", "WD14: default model", gr.Dropdown, {"choices": []}),
-    "wd14_general_threshold": OptionInfo(0.35, "WD14: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
-    "wd14_character_threshold": OptionInfo(0.85, "WD14: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01}),
-    "wd14_include_rating": OptionInfo(False, "WD14: include rating tags"),
+    # WD14-specific settings (hidden - controlled via Caption Tab)
+    "wd14_sep": OptionInfo("<h2>WD14 Tagger</h2>", "", gr.HTML, {"visible": False}),
+    "wd14_model": OptionInfo("wd-eva02-large-tagger-v3", "WD14: default model", gr.Dropdown, {"choices": [], "visible": False}),
+    "wd14_general_threshold": OptionInfo(0.35, "WD14: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
+    "wd14_character_threshold": OptionInfo(0.85, "WD14: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
+    "wd14_include_rating": OptionInfo(False, "WD14: include rating tags", gr.Checkbox, {"visible": False}),
 }))
 
 options_templates.update(options_section(('huggingface', "Huggingface"), {

@@ -12,7 +12,7 @@ def interrogate(image):
         shared.log.error('Interrogate: no image provided')
         return ''
     t0 = time.time()
-    if shared.opts.interrogate_default_type == 'OpenCLiP':
+    if shared.opts.interrogate_default_type == 'CLiP':
         shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} clip="{shared.opts.interrogate_clip_model}" blip="{shared.opts.interrogate_blip_model}" mode="{shared.opts.interrogate_clip_mode}"')
         from modules.interrogate import openclip
         openclip.load_interrogator(clip_model=shared.opts.interrogate_clip_model, blip_model=shared.opts.interrogate_blip_model)
@@ -20,10 +20,21 @@ def interrogate(image):
         prompt = openclip.interrogate(image, mode=shared.opts.interrogate_clip_mode)
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
-    elif shared.opts.interrogate_default_type == 'DeepBooru':
-        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type}')
-        from modules.interrogate import deepbooru
-        prompt = deepbooru.model.tag(image)
+    elif shared.opts.interrogate_default_type == 'Tagger':
+        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} model="{shared.opts.wd14_model}"')
+        from modules.interrogate import tagger
+        prompt = tagger.tag(
+            image=image,
+            model_name=shared.opts.wd14_model,
+            general_threshold=shared.opts.wd14_general_threshold,
+            character_threshold=shared.opts.wd14_character_threshold,
+            include_rating=shared.opts.wd14_include_rating,
+            exclude_tags=shared.opts.tagger_exclude_tags,
+            max_tags=shared.opts.tagger_max_tags,
+            sort_alpha=shared.opts.tagger_sort_alpha,
+            use_spaces=shared.opts.tagger_use_spaces,
+            escape_brackets=shared.opts.tagger_escape,
+        )
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
     elif shared.opts.interrogate_default_type == 'VLM':

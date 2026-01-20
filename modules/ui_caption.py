@@ -96,6 +96,20 @@ def update_tagger_ui(model_name):
     ]
 
 
+def update_tagger_params(model_name, general_threshold, character_threshold, include_rating, max_tags, sort_alpha, use_spaces, escape_brackets, exclude_tags):
+    """Save all tagger parameters to shared.opts when UI controls change."""
+    shared.opts.wd14_model = model_name
+    shared.opts.wd14_general_threshold = float(general_threshold)
+    shared.opts.wd14_character_threshold = float(character_threshold)
+    shared.opts.wd14_include_rating = bool(include_rating)
+    shared.opts.tagger_max_tags = int(max_tags)
+    shared.opts.tagger_sort_alpha = bool(sort_alpha)
+    shared.opts.tagger_use_spaces = bool(use_spaces)
+    shared.opts.tagger_escape = bool(escape_brackets)
+    shared.opts.tagger_exclude_tags = str(exclude_tags)
+    shared.opts.save()
+
+
 def update_clip_params(*args):
     clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams = args
     shared.opts.interrogate_clip_min_length = int(clip_min_length)
@@ -107,6 +121,21 @@ def update_clip_params(*args):
     shared.opts.interrogate_clip_chunk_size = int(clip_chunk_size)
     shared.opts.save()
     openclip.update_interrogate_params()
+
+
+def update_clip_model_params(clip_model, blip_model, clip_mode):
+    """Save CLiP model settings to shared.opts when UI controls change."""
+    shared.opts.interrogate_clip_model = str(clip_model)
+    shared.opts.interrogate_blip_model = str(blip_model)
+    shared.opts.interrogate_clip_mode = str(clip_mode)
+    shared.opts.save()
+
+
+def update_vlm_model_params(vlm_model, vlm_system):
+    """Save VLM model settings to shared.opts when UI controls change."""
+    shared.opts.interrogate_vlm_model = str(vlm_model)
+    shared.opts.interrogate_vlm_system = str(vlm_system)
+    shared.opts.save()
 
 
 def create_ui():
@@ -211,7 +240,7 @@ def create_ui():
                     with gr.Row():
                         btn_clip_interrogate_img = gr.Button("Interrogate", variant='primary', elem_id="btn_clip_interrogate_img")
                         btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
-                with gr.Tab("Booru Tags", elem_id='tab_booru_tags'):
+                with gr.Tab("Tagger", elem_id='tab_tagger'):
                     from modules.interrogate import tagger
                     with gr.Row():
                         wd_model = gr.Dropdown(tagger.get_models(), value=shared.opts.wd14_model, label='Tagger Model', elem_id='wd_model')
@@ -289,6 +318,29 @@ def create_ui():
 
     # Dynamic UI update when tagger model changes (disable controls for DeepBooru)
     wd_model.change(fn=update_tagger_ui, inputs=[wd_model], outputs=[wd_character_threshold, wd_include_rating], show_progress=False)
+
+    # Save tagger parameters to shared.opts when UI controls change
+    tagger_inputs = [wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape, wd_exclude_tags]
+    wd_model.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_general_threshold.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_character_threshold.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_include_rating.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_max_tags.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_sort_alpha.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_use_spaces.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_escape.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_exclude_tags.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+
+    # Save CLiP model parameters to shared.opts when UI controls change
+    clip_model_inputs = [clip_model, blip_model, clip_mode]
+    clip_model.change(fn=update_clip_model_params, inputs=clip_model_inputs, outputs=[], show_progress=False)
+    blip_model.change(fn=update_clip_model_params, inputs=clip_model_inputs, outputs=[], show_progress=False)
+    clip_mode.change(fn=update_clip_model_params, inputs=clip_model_inputs, outputs=[], show_progress=False)
+
+    # Save VLM model parameters to shared.opts when UI controls change
+    vlm_model_inputs = [vlm_model, vlm_system]
+    vlm_model.change(fn=update_vlm_model_params, inputs=vlm_model_inputs, outputs=[], show_progress=False)
+    vlm_system.change(fn=update_vlm_model_params, inputs=vlm_model_inputs, outputs=[], show_progress=False)
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))
