@@ -59,7 +59,7 @@ if sys.platform == "win32":
         return zluda.core.to_hip_stream(_cuda_getCurrentRawStream(device))
 
     def get_default_agent() -> Union[Agent, None]:
-        if shared.devices.backend == "rocm":
+        if shared.devices.has_rocm():
             return devices.get_hip_agent()
         else:
             from modules import zluda
