@@ -2,6 +2,7 @@
 let ws;
 let url;
 let currentImage = null;
+let currentGalleryFolder = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
@@ -959,9 +960,10 @@ const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
  * @param {string} folder - Folder to clean
  * @param {number} imgCount - Expected number of images in gallery
  * @param {AbortController} controller - AbortController that's handling this task
+ * @param {boolean} force - Force full cleanup of the folder
  */
-async function thumbCacheCleanup(folder, imgCount, controller) {
-  if (!opts.browser_cache) return;
+async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
+  if (!opts.browser_cache && !force) return;
   try {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
@@ -978,14 +980,14 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     callback: async () => {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
-      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
+      const staticGalleryHashes = new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
       const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
-      if (cleanupCount < 500 || !Number.isFinite(cleanupCount)) {
+      if (!force && (cleanupCount < 500 || !Number.isFinite(cleanupCount))) {
         // Don't run when there aren't many excess entries
         return;
       }
@@ -1017,6 +1019,20 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         });
     },
   });
+}
+
+async function addCacheClearButton() {
+  const btn = document.createElement('button');
+  btn.innerText = 'Clear Folder Thumbnails (double click)';
+  btn.addEventListener('dblclick', () => {
+    if (!currentGalleryFolder) return;
+    const controller = resetController('Clearing thumbnails');
+    galleryHashes.clear();
+    galleryProgressBar.clear();
+    resetGallerySelection();
+    thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
+  });
+  el.files.insertAdjacentElement('afterend', btn);
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1074,6 +1090,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     return;
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
+  currentGalleryFolder = evt.target.name;
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1184,6 +1201,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  addCacheClearButton();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
     galleryProgressBar.attachTo(progress);
