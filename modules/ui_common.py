@@ -88,7 +88,7 @@ def delete_files(js_data, files, all_files, index):
                 continue
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
-                # os.remove(fn)
+                os.remove(fn)
                 if fn in all_files:
                     all_files.remove(fn)
                     shared.log.info(f'Delete: image="{fn}"')
