@@ -1022,7 +1022,10 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
 }
 
 async function addCacheClearButton() {
+  const div = document.createElement('div');
+  div.style.marginBlock = '0.5rem';
   const btn = document.createElement('button');
+  btn.style.cssText = 'margin: auto; display: block;';
   btn.innerText = 'Clear Folder Thumbnails (double click)';
   btn.addEventListener('dblclick', () => {
     if (!currentGalleryFolder) return;
@@ -1032,7 +1035,8 @@ async function addCacheClearButton() {
     resetGallerySelection();
     thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
   });
-  el.files.insertAdjacentElement('afterend', btn);
+  div.append(btn);
+  el.files.insertAdjacentElement('afterend', div);
 }
 
 async function fetchFilesHT(evt, controller) {
