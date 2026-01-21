@@ -93,7 +93,6 @@ class TaggerTest:
     def setup(self):
         """Load test image and models."""
         from PIL import Image
-        from modules import shared
 
         print("=" * 70)
         print("TAGGER SETTINGS TEST SUITE")
@@ -221,7 +220,6 @@ class TaggerTest:
     def get_memory_stats(self):
         """Get current GPU and CPU memory usage."""
         import torch
-        import gc
 
         stats = {}
 
