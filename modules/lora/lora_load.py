@@ -304,7 +304,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             shared.log.error(f'Network load: type=LoRA action=fuse {str(e)}')
             if l.debug:
                 errors.display(e, 'LoRA')
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True) # some layers may end up on cpu without hook
+        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True) # some layers may end up on cpu without hook
 
     if len(l.loaded_networks) > 0 and l.debug:
         shared.log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')

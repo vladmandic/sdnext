@@ -466,7 +466,7 @@ def report_model_stats(module_name, module):
         shared.log.error(f'Module stats: name={module_name} {e}')
 
 
-def apply_balanced_offload(sd_model=None, exclude=None, force=False):
+def apply_balanced_offload(sd_model=None, exclude:list[str]=None, force:bool=False, silent:bool=False):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model
@@ -499,7 +499,8 @@ def apply_balanced_offload(sd_model=None, exclude=None, force=False):
             module.module_name = module_name
             module.offload_dir = os.path.join(shared.opts.accelerate_offload_path, checkpoint_name, module_name)
             apply_balanced_offload_to_module(module, op='apply')
-            report_model_stats(module_name, module)
+            if not silent:
+                report_model_stats(module_name, module)
 
     set_accelerate(sd_model)
     t = time.time() - t0

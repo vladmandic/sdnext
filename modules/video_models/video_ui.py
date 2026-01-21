@@ -190,7 +190,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
     ]
 
     video_dict = dict(
-        fn=call_queue.wrap_gradio_gpu_call(video_run.generate, extra_outputs=[None, '', ''], name='Video'),
+        fn=call_queue.wrap_gradio_gpu_call(video_run.generate, extra_outputs=[gr.update(), gr.update(), gr.update(), gr.update()], name='Video'),
         _js="submit_video",
         inputs=state_inputs + video_inputs,
         outputs=video_outputs,

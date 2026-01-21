@@ -110,7 +110,7 @@ class Agent:
         else:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
-        self.blaslt_supported = False if blaslt_tensile_libpath is None else os.path.exists(os.path.join(blaslt_tensile_libpath, f"Kernels.so-000-{self.name}.hsaco" if sys.platform == "win32" else f"extop_{self.name}.co"))
+        self.blaslt_supported = False if blaslt_tensile_libpath is None else os.path.exists(os.path.join(blaslt_tensile_libpath, f"TensileLibrary_lazy_{self.name}.dat"))
 
     def __str__(self) -> str:
         return self.name
@@ -138,6 +138,8 @@ class Agent:
         return None
 
     def get_gfx_version(self) -> Union[str, None]:
+        if self.gfx_version is None:
+            return None
         if self.gfx_version >= 0x1100 and self.gfx_version < 0x1200:
             return "11.0.0"
         elif self.gfx_version != 0x1030 and self.gfx_version >= 0x1000 and self.gfx_version < 0x1100:
@@ -293,12 +295,14 @@ if sys.platform == "win32":
 
             build_targets = torch.cuda.get_arch_list()
             agents = get_agents()
+            log.debug(f'ROCm: agents={agents}')
             if all(available.name not in build_targets for available in agents):
-                log.warning('ROCm: torch-rocm is installed, but none of build targets is available')
+                log.warning('ROCm: torch-rocm is installed, but none of build targets are available')
                 # use cpu instead of crashing
                 torch.cuda.is_available = lambda: False
 
             agent = get_hip_agent()
+            log.debug(f'ROCm: selected={agents}')
             if not agent.blaslt_supported:
                 log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
             if (agent.gfx_version & 0xFFF0) == 0x1200:

@@ -173,7 +173,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
     def signature(self, names: List[str], te_multipliers: List, unet_multipliers: List):
         return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers)]
 
-    def changed(self, requested: List[str], include: List[str], exclude: List[str]):
+    def changed(self, requested: List[str], include: List[str] = None, exclude: List[str] = None) -> bool:
         if shared.opts.lora_force_reload:
             return True
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
@@ -213,15 +213,17 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             debug_log(f'Network load: type=LoRA include={include} exclude={exclude} method={load_method} requested={requested} fn={fn}')
 
         if load_method == 'diffusers':
-            has_changed = False # diffusers handles its own loading
-            if len(exclude) == 0:
+            has_changed = self.changed(requested)
+            if has_changed:
                 jobid = shared.state.begin('LoRA')
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load only on first call
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.end(jobid)
+
         elif load_method == 'nunchaku':
             from modules.lora import lora_nunchaku
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
+
         else: # native
             lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
             has_changed = self.changed(requested, include, exclude)

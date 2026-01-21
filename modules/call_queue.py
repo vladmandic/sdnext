@@ -37,7 +37,6 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
             id_task = None
         with get_lock():
             progress.start_task(id_task)
-            res = [None, '', '', '']
             try:
                 res = func(*args, **kwargs)
                 progress.record_results(id_task, res)
@@ -45,7 +44,8 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
                 shared.log.error(f"Exception: {e}")
                 shared.log.error(f"Arguments: args={str(args)[:10240]} kwargs={str(kwargs)[:10240]}")
                 errors.display(e, 'gradio call')
-                res[-1] = f"<div class='error'>{html.escape(str(e))}</div>"
+                res = extra_outputs or []
+                res.append(f"<div class='error'>{html.escape(str(e))}</div>")
             finally:
                 progress.finish_task(id_task)
         return res
@@ -70,7 +70,8 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             if res is None:
                 msg = "No result returned from function"
                 shared.log.warning(msg)
-                res = [None, '', '', f"<div class='error'>{html.escape(msg)}</div>"]
+                res = extra_outputs_array or []
+                res.append(f"<div class='error'>{html.escape(msg)}</div>")
             else:
                 res = list(res)
             if shared.cmd_opts.profile:
@@ -78,9 +79,8 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
                 errors.profile(pr, 'Wrap')
         except Exception as e:
             errors.display(e, 'gradio call')
-            if extra_outputs_array is None:
-                extra_outputs_array = [None, '']
-            res = extra_outputs_array + [f"<div class='error'>{html.escape(type(e).__name__+': '+str(e))}</div>"]
+            res = extra_outputs_array or []
+            res.append(f"<div class='error'>{html.escape(type(e).__name__+': '+str(e))}</div>")
         shared.state.end(jobid)
         if not add_stats:
             return tuple(res)
