@@ -1033,6 +1033,7 @@ async function addCacheClearButton() {
     galleryHashes.clear();
     galleryProgressBar.clear();
     resetGallerySelection();
+    el.files.innerHTML = '';
     thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
   });
   div.append(btn);
