@@ -93,7 +93,7 @@ class WD14Tagger:
 
                 debug_log(f'WD14 load: onnxruntime version={ort.__version__}')
 
-                self.session = ort.InferenceSession(model_file, providers=['CPUExecutionProvider'])
+                self.session = ort.InferenceSession(model_file, providers=devices.onnx)
                 self.model_name = model_name
 
                 # Get actual providers used
@@ -224,11 +224,11 @@ class WD14Tagger:
 
         # Use settings defaults if not specified
         if general_threshold is None:
-            general_threshold = shared.opts.wd14_general_threshold
+            general_threshold = shared.opts.tagger_threshold
         if character_threshold is None:
             character_threshold = shared.opts.wd14_character_threshold
         if include_rating is None:
-            include_rating = shared.opts.wd14_include_rating
+            include_rating = shared.opts.tagger_include_rating
         if exclude_tags is None:
             exclude_tags = shared.opts.tagger_exclude_tags
         if max_tags is None:
@@ -238,7 +238,7 @@ class WD14Tagger:
         if use_spaces is None:
             use_spaces = shared.opts.tagger_use_spaces
         if escape_brackets is None:
-            escape_brackets = shared.opts.tagger_escape
+            escape_brackets = shared.opts.tagger_escape_brackets
 
         debug_log(f'WD14 predict: general_threshold={general_threshold} character_threshold={character_threshold} max_tags={max_tags} include_rating={include_rating} sort_alpha={sort_alpha}')
 
@@ -326,11 +326,11 @@ class WD14Tagger:
                 formatted_tag = formatted_tag.replace('_', ' ')
             if escape_brackets:
                 formatted_tag = re.sub(re_special, r'\\\1', formatted_tag)
-            if shared.opts.interrogate_score:
+            if shared.opts.tagger_show_scores:
                 formatted_tag = f"({formatted_tag}:{tag_probs[tag_name]:.2f})"
             result.append(formatted_tag)
 
-        output = ', '.join(result)
+        output = ", ".join(result)
         total_time = time.time() - t0
         debug_log(f'WD14 predict: complete tags={len(result)} time={total_time:.2f}s result="{output[:100]}..."' if len(output) > 100 else f'WD14 predict: complete tags={len(result)} time={total_time:.2f}s result="{output}"')
 
@@ -387,6 +387,9 @@ def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
             tagger.load(model_name)
         result = tagger.predict(image, **kwargs)
         shared.log.debug(f'WD14: complete time={time.time()-t0:.2f}s tags={len(result.split(", ")) if result else 0}')
+        # Offload model if setting enabled
+        if shared.opts.interrogate_offload:
+            tagger.unload()
     except Exception as e:
         result = f"Exception {type(e)}"
         shared.log.error(f'WD14: {e}')

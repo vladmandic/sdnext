@@ -85,28 +85,29 @@ def tagger_batch_wrapper(model_name, batch_files, batch_folder, batch_str, save_
 def update_tagger_ui(model_name):
     """Update UI controls based on selected tagger model.
 
-    When DeepBooru is selected, character_threshold and include_rating are disabled
-    since DeepBooru doesn't support separate character threshold or rating tags.
+    When DeepBooru is selected, character_threshold is disabled since DeepBooru
+    doesn't support separate character threshold.
     """
     from modules.interrogate import tagger
     is_db = tagger.is_deepbooru(model_name)
     return [
         gr.update(interactive=not is_db),  # character_threshold
-        gr.update(interactive=not is_db, value=False if is_db else None),  # include_rating
+        gr.update(),  # include_rating - now supported by both taggers
     ]
 
 
-def update_tagger_params(model_name, general_threshold, character_threshold, include_rating, max_tags, sort_alpha, use_spaces, escape_brackets, exclude_tags):
+def update_tagger_params(model_name, general_threshold, character_threshold, include_rating, max_tags, sort_alpha, use_spaces, escape_brackets, exclude_tags, show_scores):
     """Save all tagger parameters to shared.opts when UI controls change."""
     shared.opts.wd14_model = model_name
-    shared.opts.wd14_general_threshold = float(general_threshold)
+    shared.opts.tagger_threshold = float(general_threshold)
     shared.opts.wd14_character_threshold = float(character_threshold)
-    shared.opts.wd14_include_rating = bool(include_rating)
+    shared.opts.tagger_include_rating = bool(include_rating)
     shared.opts.tagger_max_tags = int(max_tags)
     shared.opts.tagger_sort_alpha = bool(sort_alpha)
     shared.opts.tagger_use_spaces = bool(use_spaces)
-    shared.opts.tagger_escape = bool(escape_brackets)
+    shared.opts.tagger_escape_brackets = bool(escape_brackets)
     shared.opts.tagger_exclude_tags = str(exclude_tags)
+    shared.opts.tagger_show_scores = bool(show_scores)
     shared.opts.save()
 
 
@@ -135,6 +136,12 @@ def update_vlm_model_params(vlm_model, vlm_system):
     """Save VLM model settings to shared.opts when UI controls change."""
     shared.opts.interrogate_vlm_model = str(vlm_model)
     shared.opts.interrogate_vlm_system = str(vlm_system)
+    shared.opts.save()
+
+
+def update_default_caption_type(caption_type):
+    """Save the default caption type to shared.opts."""
+    shared.opts.interrogate_default_type = str(caption_type)
     shared.opts.save()
 
 
@@ -200,7 +207,7 @@ def create_ui():
                             btn_vlm_caption_batch = gr.Button("Batch Caption", variant='primary', elem_id="btn_vlm_caption_batch")
                     with gr.Row():
                         btn_vlm_caption = gr.Button("Caption", variant='primary', elem_id="btn_vlm_caption")
-                with gr.Tab("CLiP Interrogate", elem_id='tab_clip_interrogate'):
+                with gr.Tab("OpenCLiP", elem_id='tab_clip_interrogate'):
                     with gr.Row():
                         clip_model = gr.Dropdown([], value=shared.opts.interrogate_clip_model, label='CLiP Model', elem_id='clip_clip_model')
                         ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
@@ -250,17 +257,19 @@ def create_ui():
                         wd_unload_btn = gr.Button(value='Unload', elem_id='wd_unload', variant='secondary')
                     with gr.Accordion(label='Tagger: Advanced Options', open=True, visible=True):
                         with gr.Row():
-                            wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.wd14_general_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
+                            wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.tagger_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
                             wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.wd14_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
                         with gr.Row():
                             wd_max_tags = gr.Slider(label='Max tags', value=shared.opts.tagger_max_tags, minimum=1, maximum=512, step=1, elem_id='wd_max_tags')
-                            wd_include_rating = gr.Checkbox(label='Include rating', value=shared.opts.wd14_include_rating, elem_id='wd_include_rating')
+                            wd_include_rating = gr.Checkbox(label='Include rating', value=shared.opts.tagger_include_rating, elem_id='wd_include_rating')
                         with gr.Row():
                             wd_sort_alpha = gr.Checkbox(label='Sort alphabetically', value=shared.opts.tagger_sort_alpha, elem_id='wd_sort_alpha')
                             wd_use_spaces = gr.Checkbox(label='Use spaces', value=shared.opts.tagger_use_spaces, elem_id='wd_use_spaces')
-                            wd_escape = gr.Checkbox(label='Escape brackets', value=shared.opts.tagger_escape, elem_id='wd_escape')
+                            wd_escape = gr.Checkbox(label='Escape brackets', value=shared.opts.tagger_escape_brackets, elem_id='wd_escape')
                         with gr.Row():
                             wd_exclude_tags = gr.Textbox(label='Exclude tags', value=shared.opts.tagger_exclude_tags, placeholder='Comma-separated tags to exclude', elem_id='wd_exclude_tags')
+                        with gr.Row():
+                            wd_show_scores = gr.Checkbox(label='Show confidence scores', value=shared.opts.tagger_show_scores, elem_id='wd_show_scores')
                     gr.HTML('<style>#wd_character_threshold:has(input:disabled), #wd_include_rating:has(input:disabled) { opacity: 0.5; }</style>')
                     with gr.Accordion(label='Tagger: Batch', open=False, visible=True):
                         with gr.Row():
@@ -277,6 +286,14 @@ def create_ui():
                             btn_wd_tag_batch = gr.Button("Batch Tag", variant='primary', elem_id="btn_wd_tag_batch")
                     with gr.Row():
                         btn_wd_tag = gr.Button("Tag", variant='primary', elem_id="btn_wd_tag")
+                with gr.Tab("Interrogate", elem_id='tab_interrogate'):
+                    with gr.Row():
+                        default_caption_type = gr.Radio(
+                            choices=["VLM", "OpenCLiP", "Tagger"],
+                            value=shared.opts.interrogate_default_type,
+                            label="Default Caption Type",
+                            elem_id="default_caption_type"
+                        )
         with gr.Column(variant='compact', elem_id='interrogate_output'):
             with gr.Row(elem_id='interrogate_output_prompt'):
                 prompt = gr.Textbox(label="Answer", lines=12, placeholder="ai generated image description")
@@ -320,7 +337,7 @@ def create_ui():
     wd_model.change(fn=update_tagger_ui, inputs=[wd_model], outputs=[wd_character_threshold, wd_include_rating], show_progress=False)
 
     # Save tagger parameters to shared.opts when UI controls change
-    tagger_inputs = [wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape, wd_exclude_tags]
+    tagger_inputs = [wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape, wd_exclude_tags, wd_show_scores]
     wd_model.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
     wd_general_threshold.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
     wd_character_threshold.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
@@ -330,6 +347,7 @@ def create_ui():
     wd_use_spaces.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
     wd_escape.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
     wd_exclude_tags.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
+    wd_show_scores.change(fn=update_tagger_params, inputs=tagger_inputs, outputs=[], show_progress=False)
 
     # Save CLiP model parameters to shared.opts when UI controls change
     clip_model_inputs = [clip_model, blip_model, clip_mode]
@@ -341,6 +359,9 @@ def create_ui():
     vlm_model_inputs = [vlm_model, vlm_system]
     vlm_model.change(fn=update_vlm_model_params, inputs=vlm_model_inputs, outputs=[], show_progress=False)
     vlm_system.change(fn=update_vlm_model_params, inputs=vlm_model_inputs, outputs=[], show_progress=False)
+
+    # Save default caption type to shared.opts when UI control changes
+    default_caption_type.change(fn=update_default_caption_type, inputs=[default_caption_type], outputs=[], show_progress=False)
 
     for tabname, button in copy_interrogate_buttons.items():
         generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(paste_button=button, tabname=tabname, source_text_component=prompt, source_image_component=image,))

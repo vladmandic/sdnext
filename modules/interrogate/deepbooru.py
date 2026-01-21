@@ -46,14 +46,55 @@ class DeepDanbooru:
             self._device = devices.cpu
         devices.torch_gc()
 
-    def tag(self, pil_image):
+    def tag(self, pil_image, **kwargs):
         self.start()
-        res = self.tag_multi(pil_image)
+        res = self.tag_multi(pil_image, **kwargs)
         self.stop()
 
         return res
 
-    def tag_multi(self, pil_image, force_disable_ranks=False):
+    def tag_multi(
+        self,
+        pil_image,
+        general_threshold: float = None,
+        include_rating: bool = None,
+        exclude_tags: str = None,
+        max_tags: int = None,
+        sort_alpha: bool = None,
+        use_spaces: bool = None,
+        escape_brackets: bool = None,
+    ):
+        """Run inference and return formatted tag string.
+
+        Args:
+            pil_image: PIL Image to tag
+            general_threshold: Threshold for tag scores (0-1)
+            include_rating: Whether to include rating tags
+            exclude_tags: Comma-separated tags to exclude
+            max_tags: Maximum number of tags to return
+            sort_alpha: Sort tags alphabetically vs by confidence
+            use_spaces: Use spaces instead of underscores
+            escape_brackets: Escape parentheses/brackets in tags
+
+        Returns:
+            Formatted tag string
+        """
+        # Use settings defaults if not specified
+        if general_threshold is None:
+            general_threshold = shared.opts.tagger_threshold
+        if include_rating is None:
+            include_rating = shared.opts.tagger_include_rating
+        if exclude_tags is None:
+            exclude_tags = shared.opts.tagger_exclude_tags
+        if max_tags is None:
+            max_tags = shared.opts.tagger_max_tags
+        if sort_alpha is None:
+            sort_alpha = shared.opts.tagger_sort_alpha
+        if use_spaces is None:
+            use_spaces = shared.opts.tagger_use_spaces
+        if escape_brackets is None:
+            escape_brackets = shared.opts.tagger_escape_brackets
+
         if isinstance(pil_image, list):
             pil_image = pil_image[0] if len(pil_image) > 0 else None
         if isinstance(pil_image, dict) and 'name' in pil_image:
@@ -67,29 +108,29 @@ class DeepDanbooru:
             y = self.model(x)[0].detach().float().cpu().numpy()
         probability_dict = {}
         for tag, probability in zip(self.model.tags, y):
-            if probability < shared.opts.deepbooru_score_threshold:
+            if probability < general_threshold:
                 continue
-            if tag.startswith("rating:"):
+            if tag.startswith("rating:") and not include_rating:
                 continue
             probability_dict[tag] = probability
-        if shared.opts.tagger_sort_alpha:
+        if sort_alpha:
             tags = sorted(probability_dict)
         else:
             tags = [tag for tag, _ in sorted(probability_dict.items(), key=lambda x: -x[1])]
         res = []
-        filtertags = {x.strip().replace(' ', '_') for x in shared.opts.tagger_exclude_tags.split(",")}
+        filtertags = {x.strip().replace(' ', '_') for x in exclude_tags.split(",")}
         for tag in [x for x in tags if x not in filtertags]:
             probability = probability_dict[tag]
             tag_outformat = tag
-            if shared.opts.tagger_use_spaces:
+            if use_spaces:
                 tag_outformat = tag_outformat.replace('_', ' ')
-            if shared.opts.tagger_escape:
+            if escape_brackets:
                 tag_outformat = re.sub(re_special, r'\\\1', tag_outformat)
-            if shared.opts.interrogate_score and not force_disable_ranks:
+            if shared.opts.tagger_show_scores:
                 tag_outformat = f"({tag_outformat}:{probability:.2f})"
             res.append(tag_outformat)
-        if len(res) > shared.opts.tagger_max_tags:
-            res = res[:shared.opts.tagger_max_tags]
+        if max_tags > 0 and len(res) > max_tags:
+            res = res[:max_tags]
         return ", ".join(res)
 
 
@@ -125,7 +166,8 @@ def tag(image, **kwargs) -> str:
 
     Args:
         image: PIL Image to tag
-        **kwargs: Additional arguments (for interface compatibility)
+        **kwargs: Tagger parameters (general_threshold, include_rating, exclude_tags,
+                  max_tags, sort_alpha, use_spaces, escape_brackets)
 
     Returns:
         Formatted tag string
@@ -136,7 +178,7 @@ def tag(image, **kwargs) -> str:
     shared.log.info(f'DeepBooru: image_size={image.size if image else None}')
 
     try:
-        result = model.tag(image)
+        result = model.tag(image, **kwargs)
         shared.log.debug(f'DeepBooru: complete time={time.time()-t0:.2f}s tags={len(result.split(", ")) if result else 0}')
     except Exception as e:
         result = f"Exception {type(e)}"
@@ -254,7 +296,7 @@ def batch(
                     break
 
                 image = Image.open(img_path)
-                tags_str = model.tag_multi(image)
+                tags_str = model.tag_multi(image, **kwargs)
 
                 if save_output:
                     txt_path = img_path.with_suffix('.txt')

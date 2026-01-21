@@ -90,7 +90,7 @@
   {"id":"","label":"Embedding","localized":"","reload":"","hint":"Textual inversion embedding is a trained embedded information about the subject"},
   {"id":"","label":"Hypernetwork","localized":"","reload":"","hint":"Small trained neural network that modifies behavior of the loaded model"},
   {"id":"","label":"VLM Caption","localized":"","reload":"","hint":"Analyze image using vision langugage model"},
-  {"id":"","label":"CLiP Interrogate","localized":"","reload":"","hint":"Analyze image using CLiP model"},
+  {"id":"","label":"OpenCLiP","localized":"","reload":"","hint":"Analyze image using CLiP model via OpenCLiP"},
   {"id":"","label":"VAE","localized":"","reload":"","hint":"Variational Auto Encoder: model used to run image decode at the end of generate"},
   {"id":"","label":"History","localized":"","reload":"","hint":"List of previous generations that can be further reprocessed"},
   {"id":"","label":"UI disable variable aspect ratio","localized":"","reload":"","hint":"When disabled, all thumbnails appear as squared images"},
