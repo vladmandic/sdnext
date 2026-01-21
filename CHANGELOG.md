@@ -3,8 +3,10 @@
 ## Update for 2026-01-21
 
 - add `SD_DEVICE_DEBUG` env variable to trace rocm/xpu/directml init failures  
-- fix `all_seeds`
-- improve `wrap_gradio` error handling
+- fix lora load when using non-native loader  
+- fix `all_seeds`  
+- fix image delete  
+- improve `wrap_gradio` error handling  
 
 ## Update for 2026-01-20
 
