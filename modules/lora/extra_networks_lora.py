@@ -214,11 +214,14 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
 
         if load_method == 'diffusers':
             has_changed = False # diffusers handles its own loading
-            if len(exclude) == 0:
+            diffusers_loaded_key = tuple(sorted(requested)) if len(requested) > 0 else None
+            already_loaded = getattr(p, '_diffusers_lora_loaded', None) == diffusers_loaded_key and diffusers_loaded_key is not None
+            if not already_loaded:
                 jobid = shared.state.begin('LoRA')
-                lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load only on first call
+                lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules)
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.end(jobid)
+                p._diffusers_lora_loaded = diffusers_loaded_key  # pylint: disable=protected-access
         elif load_method == 'nunchaku':
             from modules.lora import lora_nunchaku
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
