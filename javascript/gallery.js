@@ -24,6 +24,13 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
+function resetController(reason) {
+  maintenanceController.abort(reason);
+  const controller = new AbortController();
+  maintenanceController = controller;
+  return controller;
+}
+
 function getVisibleGalleryFiles() {
   if (!el.files) return [];
   return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
@@ -1049,9 +1056,8 @@ async function fetchFilesHT(evt, controller) {
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!url) return;
-  const controller = new AbortController(); // Only called here because fetchFilesHT isn't called directly
-  maintenanceController.abort('Gallery update'); // Abort previous controller
-  maintenanceController = controller; // Point to new controller for next time
+  // Abort previous controller and point to new controller for next time
+  const controller = resetController('Gallery update'); // Called here because fetchFilesHT isn't called directly
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
   galleryProgressBar.clear();
   resetGallerySelection();
