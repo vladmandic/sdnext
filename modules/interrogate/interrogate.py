@@ -21,13 +21,13 @@ def interrogate(image):
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
     elif shared.opts.interrogate_default_type == 'Tagger':
-        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} model="{shared.opts.wd14_model}"')
+        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} model="{shared.opts.waifudiffusion_model}"')
         from modules.interrogate import tagger
         prompt = tagger.tag(
             image=image,
-            model_name=shared.opts.wd14_model,
+            model_name=shared.opts.waifudiffusion_model,
             general_threshold=shared.opts.tagger_threshold,
-            character_threshold=shared.opts.wd14_character_threshold,
+            character_threshold=shared.opts.waifudiffusion_character_threshold,
             include_rating=shared.opts.tagger_include_rating,
             exclude_tags=shared.opts.tagger_exclude_tags,
             max_tags=shared.opts.tagger_max_tags,

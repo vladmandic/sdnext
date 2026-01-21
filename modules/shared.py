@@ -774,8 +774,8 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags", gr.Checkbox, {"visible": False}),
     "tagger_escape_brackets": OptionInfo(True, "Tagger: escape brackets", gr.Checkbox, {"visible": False}),
     "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags", gr.Textbox, {"visible": False}),
-    "wd14_model": OptionInfo("wd-eva02-large-tagger-v3", "WD14: default model", gr.Dropdown, {"choices": [], "visible": False}),
-    "wd14_character_threshold": OptionInfo(0.85, "WD14: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
+    "waifudiffusion_model": OptionInfo("wd-eva02-large-tagger-v3", "WaifuDiffusion: default model", gr.Dropdown, {"choices": [], "visible": False}),
+    "waifudiffusion_character_threshold": OptionInfo(0.85, "WaifuDiffusion: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
 
     # control settings are handled separately
     "control_hires": OptionInfo(False, "Hires use Control", gr.Checkbox, {"visible": False}),

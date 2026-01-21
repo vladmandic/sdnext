@@ -98,9 +98,9 @@ def update_tagger_ui(model_name):
 
 def update_tagger_params(model_name, general_threshold, character_threshold, include_rating, max_tags, sort_alpha, use_spaces, escape_brackets, exclude_tags, show_scores):
     """Save all tagger parameters to shared.opts when UI controls change."""
-    shared.opts.wd14_model = model_name
+    shared.opts.waifudiffusion_model = model_name
     shared.opts.tagger_threshold = float(general_threshold)
-    shared.opts.wd14_character_threshold = float(character_threshold)
+    shared.opts.waifudiffusion_character_threshold = float(character_threshold)
     shared.opts.tagger_include_rating = bool(include_rating)
     shared.opts.tagger_max_tags = int(max_tags)
     shared.opts.tagger_sort_alpha = bool(sort_alpha)
@@ -250,7 +250,7 @@ def create_ui():
                 with gr.Tab("Tagger", elem_id='tab_tagger'):
                     from modules.interrogate import tagger
                     with gr.Row():
-                        wd_model = gr.Dropdown(tagger.get_models(), value=shared.opts.wd14_model, label='Tagger Model', elem_id='wd_model')
+                        wd_model = gr.Dropdown(tagger.get_models(), value=shared.opts.waifudiffusion_model, label='Tagger Model', elem_id='wd_model')
                         ui_common.create_refresh_button(wd_model, tagger.refresh_models, lambda: {"choices": tagger.get_models()}, 'wd_models_refresh')
                     with gr.Row():
                         wd_load_btn = gr.Button(value='Load', elem_id='wd_load', variant='secondary')
@@ -258,7 +258,7 @@ def create_ui():
                     with gr.Accordion(label='Tagger: Advanced Options', open=True, visible=True):
                         with gr.Row():
                             wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.tagger_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
-                            wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.wd14_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
+                            wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.waifudiffusion_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
                         with gr.Row():
                             wd_max_tags = gr.Slider(label='Max tags', value=shared.opts.tagger_max_tags, minimum=1, maximum=512, step=1, elem_id='wd_max_tags')
                             wd_include_rating = gr.Checkbox(label='Include rating', value=shared.opts.tagger_include_rating, elem_id='wd_include_rating')

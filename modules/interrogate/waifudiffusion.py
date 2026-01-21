@@ -1,4 +1,4 @@
-# WD14/WaifuDiffusion Tagger - ONNX-based anime/illustration tagging
+# WaifuDiffusion Tagger - ONNX-based anime/illustration tagging
 # Based on SmilingWolf's tagger models: https://huggingface.co/SmilingWolf
 
 import os
@@ -17,8 +17,8 @@ debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 re_special = re.compile(r'([\\()])')
 load_lock = threading.Lock()
 
-# WD14 model repository mappings
-WD14_MODELS = {
+# WaifuDiffusion model repository mappings
+WAIFUDIFFUSION_MODELS = {
     # v3 models (latest, recommended)
     "wd-eva02-large-tagger-v3": "SmilingWolf/wd-eva02-large-tagger-v3",
     "wd-vit-tagger-v3": "SmilingWolf/wd-vit-tagger-v3",
@@ -38,8 +38,8 @@ CATEGORY_CHARACTER = 4
 CATEGORY_RATING = 9
 
 
-class WD14Tagger:
-    """WD14/WaifuDiffusion Tagger using ONNX inference."""
+class WaifuDiffusionTagger:
+    """WaifuDiffusion Tagger using ONNX inference."""
 
     def __init__(self):
         self.session = None
@@ -54,63 +54,63 @@ class WD14Tagger:
         import huggingface_hub
 
         if model_name is None:
-            model_name = shared.opts.wd14_model
-        if model_name not in WD14_MODELS:
-            shared.log.error(f'WD14: unknown model "{model_name}"')
+            model_name = shared.opts.waifudiffusion_model
+        if model_name not in WAIFUDIFFUSION_MODELS:
+            shared.log.error(f'WaifuDiffusion: unknown model "{model_name}"')
             return False
 
         with load_lock:
             if self.session is not None and self.model_name == model_name:
-                debug_log(f'WD14: model already loaded model="{model_name}"')
+                debug_log(f'WaifuDiffusion: model already loaded model="{model_name}"')
                 return True  # Already loaded
 
             # Unload previous model if different
             if self.model_name != model_name and self.session is not None:
-                debug_log(f'WD14: switching model from "{self.model_name}" to "{model_name}"')
+                debug_log(f'WaifuDiffusion: switching model from "{self.model_name}" to "{model_name}"')
                 self.unload()
 
-            repo_id = WD14_MODELS[model_name]
+            repo_id = WAIFUDIFFUSION_MODELS[model_name]
             t0 = time.time()
-            shared.log.info(f'WD14 load: model="{model_name}" repo="{repo_id}"')
+            shared.log.info(f'WaifuDiffusion load: model="{model_name}" repo="{repo_id}"')
 
             try:
                 # Download only ONNX model and tags CSV (skip safetensors/msgpack variants)
-                debug_log(f'WD14 load: downloading from HuggingFace cache_dir="{shared.opts.hfcache_dir}"')
+                debug_log(f'WaifuDiffusion load: downloading from HuggingFace cache_dir="{shared.opts.hfcache_dir}"')
                 self.model_path = huggingface_hub.snapshot_download(
                     repo_id,
                     cache_dir=shared.opts.hfcache_dir,
                     allow_patterns=["model.onnx", "selected_tags.csv"],
                 )
-                debug_log(f'WD14 load: model_path="{self.model_path}"')
+                debug_log(f'WaifuDiffusion load: model_path="{self.model_path}"')
 
                 # Load ONNX model
                 model_file = os.path.join(self.model_path, "model.onnx")
                 if not os.path.exists(model_file):
-                    shared.log.error(f'WD14 load: model file not found: {model_file}')
+                    shared.log.error(f'WaifuDiffusion load: model file not found: {model_file}')
                     return False
 
                 import onnxruntime as ort
 
-                debug_log(f'WD14 load: onnxruntime version={ort.__version__}')
+                debug_log(f'WaifuDiffusion load: onnxruntime version={ort.__version__}')
 
                 self.session = ort.InferenceSession(model_file, providers=devices.onnx)
                 self.model_name = model_name
 
                 # Get actual providers used
                 actual_providers = self.session.get_providers()
-                debug_log(f'WD14 load: active providers={actual_providers}')
+                debug_log(f'WaifuDiffusion load: active providers={actual_providers}')
 
                 # Load tags from CSV
                 self._load_tags()
 
                 load_time = time.time() - t0
-                shared.log.debug(f'WD14 load: time={load_time:.2f}s tags={len(self.tags)}')
-                debug_log(f'WD14 load: input_name={self.session.get_inputs()[0].name} output_name={self.session.get_outputs()[0].name}')
+                shared.log.debug(f'WaifuDiffusion load: time={load_time:.2f} tags={len(self.tags)}')
+                debug_log(f'WaifuDiffusion load: input_name={self.session.get_inputs()[0].name} output_name={self.session.get_outputs()[0].name}')
                 return True
 
             except Exception as e:
-                shared.log.error(f'WD14 load: failed error={e}')
-                errors.display(e, 'WD14 load')
+                shared.log.error(f'WaifuDiffusion load: failed error={e}')
+                errors.display(e, 'WaifuDiffusion load')
                 self.unload()
                 return False
 
@@ -120,7 +120,7 @@ class WD14Tagger:
 
         csv_path = os.path.join(self.model_path, "selected_tags.csv")
         if not os.path.exists(csv_path):
-            shared.log.error(f'WD14 load: tags file not found: {csv_path}')
+            shared.log.error(f'WaifuDiffusion load: tags file not found: {csv_path}')
             return
 
         self.tags = []
@@ -136,24 +136,24 @@ class WD14Tagger:
         category_counts = {}
         for cat in self.tag_categories:
             category_counts[cat] = category_counts.get(cat, 0) + 1
-        debug_log(f'WD14 load: tag categories={category_counts}')
+        debug_log(f'WaifuDiffusion load: tag categories={category_counts}')
 
     def unload(self):
         """Unload the model and free resources."""
         if self.session is not None:
-            shared.log.debug(f'WD14 unload: model="{self.model_name}"')
+            shared.log.debug(f'WaifuDiffusion unload: model="{self.model_name}"')
             self.session = None
             self.tags = None
             self.tag_categories = None
             self.model_name = None
             self.model_path = None
             devices.torch_gc(force=True)
-            debug_log('WD14 unload: complete')
+            debug_log('WaifuDiffusion unload: complete')
         else:
-            debug_log('WD14 unload: no model loaded')
+            debug_log('WaifuDiffusion unload: no model loaded')
 
     def preprocess_image(self, image: Image.Image) -> np.ndarray:
-        """Preprocess image for WD14 model input.
+        """Preprocess image for WaifuDiffusion model input.
 
         - Resize to 448x448 (standard for WD models)
         - Pad to square with white background
@@ -189,7 +189,7 @@ class WD14Tagger:
         # Add batch dimension
         img_array = np.expand_dims(img_array, axis=0)
 
-        debug_log(f'WD14 preprocess: original_size={original_size} mode={original_mode} padded_size={max_dim} output_shape={img_array.shape}')
+        debug_log(f'WaifuDiffusion preprocess: original_size={original_size} mode={original_mode} padded_size={max_dim} output_shape={img_array.shape}')
         return img_array
 
     def predict(
@@ -223,24 +223,16 @@ class WD14Tagger:
         t0 = time.time()
 
         # Use settings defaults if not specified
-        if general_threshold is None:
-            general_threshold = shared.opts.tagger_threshold
-        if character_threshold is None:
-            character_threshold = shared.opts.wd14_character_threshold
-        if include_rating is None:
-            include_rating = shared.opts.tagger_include_rating
-        if exclude_tags is None:
-            exclude_tags = shared.opts.tagger_exclude_tags
-        if max_tags is None:
-            max_tags = shared.opts.tagger_max_tags
-        if sort_alpha is None:
-            sort_alpha = shared.opts.tagger_sort_alpha
-        if use_spaces is None:
-            use_spaces = shared.opts.tagger_use_spaces
-        if escape_brackets is None:
-            escape_brackets = shared.opts.tagger_escape_brackets
+        general_threshold = general_threshold or shared.opts.tagger_threshold
+        character_threshold = character_threshold or shared.opts.waifudiffusion_character_threshold
+        include_rating = include_rating if include_rating is not None else shared.opts.tagger_include_rating
+        exclude_tags = exclude_tags or shared.opts.tagger_exclude_tags
+        max_tags = max_tags or shared.opts.tagger_max_tags
+        sort_alpha = sort_alpha if sort_alpha is not None else shared.opts.tagger_sort_alpha
+        use_spaces = use_spaces if use_spaces is not None else shared.opts.tagger_use_spaces
+        escape_brackets = escape_brackets if escape_brackets is not None else shared.opts.tagger_escape_brackets
 
-        debug_log(f'WD14 predict: general_threshold={general_threshold} character_threshold={character_threshold} max_tags={max_tags} include_rating={include_rating} sort_alpha={sort_alpha}')
+        debug_log(f'WaifuDiffusion predict: general_threshold={general_threshold} character_threshold={character_threshold} max_tags={max_tags} include_rating={include_rating} sort_alpha={sort_alpha}')
 
         # Handle input variations
         if isinstance(image, list):
@@ -248,7 +240,7 @@ class WD14Tagger:
         if isinstance(image, dict) and 'name' in image:
             image = Image.open(image['name'])
         if image is None:
-            shared.log.error('WD14 predict: no image provided')
+            shared.log.error('WaifuDiffusion predict: no image provided')
             return ''
 
         # Load model if needed
@@ -265,13 +257,13 @@ class WD14Tagger:
         output_name = self.session.get_outputs()[0].name
         probs = self.session.run([output_name], {input_name: img_input})[0][0]
         infer_time = time.time() - t_infer
-        debug_log(f'WD14 predict: inference time={infer_time:.3f}s output_shape={probs.shape}')
+        debug_log(f'WaifuDiffusion predict: inference time={infer_time:.3f}s output_shape={probs.shape}')
 
         # Build tag list with probabilities
         tag_probs = {}
         exclude_set = {x.strip().replace(' ', '_').lower() for x in exclude_tags.split(',') if x.strip()}
         if exclude_set:
-            debug_log(f'WD14 predict: exclude_tags={exclude_set}')
+            debug_log(f'WaifuDiffusion predict: exclude_tags={exclude_set}')
 
         general_count = 0
         character_count = 0
@@ -305,7 +297,7 @@ class WD14Tagger:
                 if prob >= general_threshold:
                     tag_probs[tag_name] = float(prob)
 
-        debug_log(f'WD14 predict: matched tags general={general_count} character={character_count} rating={rating_count} total={len(tag_probs)}')
+        debug_log(f'WaifuDiffusion predict: matched tags general={general_count} character={character_count} rating={rating_count} total={len(tag_probs)}')
 
         # Sort tags
         if sort_alpha:
@@ -316,7 +308,7 @@ class WD14Tagger:
         # Limit number of tags
         if max_tags > 0 and len(sorted_tags) > max_tags:
             sorted_tags = sorted_tags[:max_tags]
-            debug_log(f'WD14 predict: limited to max_tags={max_tags}')
+            debug_log(f'WaifuDiffusion predict: limited to max_tags={max_tags}')
 
         # Format output
         result = []
@@ -332,7 +324,7 @@ class WD14Tagger:
 
         output = ", ".join(result)
         total_time = time.time() - t0
-        debug_log(f'WD14 predict: complete tags={len(result)} time={total_time:.2f}s result="{output[:100]}..."' if len(output) > 100 else f'WD14 predict: complete tags={len(result)} time={total_time:.2f}s result="{output}"')
+        debug_log(f'WaifuDiffusion predict: complete tags={len(result)} time={total_time:.2f} result="{output[:100]}..."' if len(output) > 100 else f'WaifuDiffusion predict: complete tags={len(result)} time={total_time:.2f} result="{output}"')
 
         return output
 
@@ -342,12 +334,37 @@ class WD14Tagger:
 
 
 # Global tagger instance
-tagger = WD14Tagger()
+tagger = WaifuDiffusionTagger()
+
+
+def _save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
+    """Save tags to a text file with error handling.
+
+    Args:
+        img_path: Path to the image file
+        tags_str: Tags string to save
+        save_append: If True, append to existing file; otherwise overwrite
+
+    Returns:
+        True if save succeeded, False otherwise
+    """
+    try:
+        txt_path = img_path.with_suffix('.txt')
+        if save_append and txt_path.exists():
+            with open(txt_path, 'a', encoding='utf-8') as f:
+                f.write(f', {tags_str}')
+        else:
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write(tags_str)
+        return True
+    except Exception as e:
+        shared.log.error(f'WaifuDiffusion batch: failed to save file="{img_path}" error={e}')
+        return False
 
 
 def get_models() -> list:
-    """Return list of available WD14 model names."""
-    return list(WD14_MODELS.keys())
+    """Return list of available WaifuDiffusion model names."""
+    return list(WAIFUDIFFUSION_MODELS.keys())
 
 
 def refresh_models() -> list:
@@ -358,17 +375,17 @@ def refresh_models() -> list:
 
 
 def load_model(model_name: str = None) -> bool:
-    """Load the specified WD14 model."""
+    """Load the specified WaifuDiffusion model."""
     return tagger.load(model_name)
 
 
 def unload_model():
-    """Unload the current WD14 model."""
+    """Unload the current WaifuDiffusion model."""
     tagger.unload()
 
 
 def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
-    """Tag an image using WD14 tagger.
+    """Tag an image using WaifuDiffusion tagger.
 
     Args:
         image: PIL Image to tag
@@ -379,21 +396,21 @@ def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
         Formatted tag string
     """
     t0 = time.time()
-    jobid = shared.state.begin('WD14 Tag')
-    shared.log.info(f'WD14: model="{model_name or tagger.model_name or shared.opts.wd14_model}" image_size={image.size if image else None}')
+    jobid = shared.state.begin('WaifuDiffusion Tag')
+    shared.log.info(f'WaifuDiffusion: model="{model_name or tagger.model_name or shared.opts.waifudiffusion_model}" image_size={image.size if image else None}')
 
     try:
         if model_name and model_name != tagger.model_name:
             tagger.load(model_name)
         result = tagger.predict(image, **kwargs)
-        shared.log.debug(f'WD14: complete time={time.time()-t0:.2f}s tags={len(result.split(", ")) if result else 0}')
+        shared.log.debug(f'WaifuDiffusion: complete time={time.time()-t0:.2f} tags={len(result.split(", ")) if result else 0}')
         # Offload model if setting enabled
         if shared.opts.interrogate_offload:
             tagger.unload()
     except Exception as e:
         result = f"Exception {type(e)}"
-        shared.log.error(f'WD14: {e}')
-        errors.display(e, 'WD14 Tag')
+        shared.log.error(f'WaifuDiffusion: {e}')
+        errors.display(e, 'WaifuDiffusion Tag')
 
     shared.state.end(jobid)
     return result
@@ -485,19 +502,19 @@ def batch(
     image_files = unique_files
 
     if not image_files:
-        shared.log.warning('WD14 batch: no images found')
+        shared.log.warning('WaifuDiffusion batch: no images found')
         return ''
 
     t0 = time.time()
-    jobid = shared.state.begin('WD14 Batch')
-    shared.log.info(f'WD14 batch: model="{tagger.model_name}" images={len(image_files)} write={save_output} append={save_append} recursive={recursive}')
-    debug_log(f'WD14 batch: files={[str(f) for f in image_files[:5]]}{"..." if len(image_files) > 5 else ""}')
+    jobid = shared.state.begin('WaifuDiffusion Batch')
+    shared.log.info(f'WaifuDiffusion batch: model="{tagger.model_name}" images={len(image_files)} write={save_output} append={save_append} recursive={recursive}')
+    debug_log(f'WaifuDiffusion batch: files={[str(f) for f in image_files[:5]]}{"..." if len(image_files) > 5 else ""}')
 
     results = []
 
     # Progress bar
     import rich.progress as rp
-    pbar = rp.Progress(rp.TextColumn('[cyan]WD14:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
+    pbar = rp.Progress(rp.TextColumn('[cyan]WaifuDiffusion:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
 
     with pbar:
         task = pbar.add_task(total=len(image_files), description='starting...')
@@ -505,31 +522,23 @@ def batch(
             pbar.update(task, advance=1, description=str(img_path.name))
             try:
                 if shared.state.interrupted:
-                    shared.log.info('WD14 batch: interrupted')
+                    shared.log.info('WaifuDiffusion batch: interrupted')
                     break
 
                 image = Image.open(img_path)
                 tags_str = tagger.predict(image, **kwargs)
 
                 if save_output:
-                    txt_path = img_path.with_suffix('.txt')
-                    if save_append and txt_path.exists():
-                        with open(txt_path, 'a', encoding='utf-8') as f:
-                            f.write(f', {tags_str}')
-                        debug_log(f'WD14 batch: appended to "{txt_path}"')
-                    else:
-                        with open(txt_path, 'w', encoding='utf-8') as f:
-                            f.write(tags_str)
-                        debug_log(f'WD14 batch: wrote to "{txt_path}"')
+                    _save_tags_to_file(img_path, tags_str, save_append)
 
                 results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
 
             except Exception as e:
-                shared.log.error(f'WD14 batch: file="{img_path}" error={e}')
+                shared.log.error(f'WaifuDiffusion batch: file="{img_path}" error={e}')
                 results.append(f'{img_path.name}: ERROR - {e}')
 
     elapsed = time.time() - t0
-    shared.log.info(f'WD14 batch: complete images={len(results)} time={elapsed:.1f}s')
+    shared.log.info(f'WaifuDiffusion batch: complete images={len(results)} time={elapsed:.1f}s')
     shared.state.end(jobid)
 
     return '\n'.join(results)

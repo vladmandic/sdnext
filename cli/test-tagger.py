@@ -2,7 +2,7 @@
 """
 Tagger Settings Test Suite
 
-Tests all WD14 and DeepBooru tagger settings to verify they're properly
+Tests all WaifuDiffusion and DeepBooru tagger settings to verify they're properly
 mapped and affect output correctly.
 
 Usage:
@@ -71,7 +71,7 @@ class TaggerTest:
     def __init__(self):
         self.results = {'passed': [], 'failed': [], 'skipped': []}
         self.test_image = None
-        self.wd14_loaded = False
+        self.waifudiffusion_loaded = False
         self.deepbooru_loaded = False
 
     def log_pass(self, msg):
@@ -116,11 +116,11 @@ class TaggerTest:
 
         # Load models
         print("\nLoading models...")
-        from modules.interrogate import wd14, deepbooru
+        from modules.interrogate import waifudiffusion, deepbooru
 
         t0 = time.time()
-        self.wd14_loaded = wd14.load_model()
-        print(f"  WD14: {'loaded' if self.wd14_loaded else 'FAILED'} ({time.time()-t0:.1f}s)")
+        self.waifudiffusion_loaded = waifudiffusion.load_model()
+        print(f"  WaifuDiffusion: {'loaded' if self.waifudiffusion_loaded else 'FAILED'} ({time.time()-t0:.1f}s)")
 
         t0 = time.time()
         self.deepbooru_loaded = deepbooru.load_model()
@@ -132,10 +132,10 @@ class TaggerTest:
         print("CLEANUP")
         print("=" * 70)
 
-        from modules.interrogate import wd14, deepbooru
+        from modules.interrogate import waifudiffusion, deepbooru
         from modules import devices
 
-        wd14.unload_model()
+        waifudiffusion.unload_model()
         deepbooru.unload_model()
         devices.torch_gc(force=True)
         print("  Models unloaded")
@@ -205,14 +205,14 @@ class TaggerTest:
             else:
                 self.log_fail(f"Provider '{provider}' configured but not available")
 
-        # Test 5: If WD14 loaded, check session providers
-        if self.wd14_loaded:
-            from modules.interrogate import wd14
-            if wd14.tagger.session is not None:
-                session_providers = wd14.tagger.session.get_providers()
-                self.log_pass(f"WD14 session providers: {session_providers}")
+        # Test 5: If WaifuDiffusion loaded, check session providers
+        if self.waifudiffusion_loaded:
+            from modules.interrogate import waifudiffusion
+            if waifudiffusion.tagger.session is not None:
+                session_providers = waifudiffusion.tagger.session.get_providers()
+                self.log_pass(f"WaifuDiffusion session providers: {session_providers}")
             else:
-                self.log_skip("WD14 session not initialized")
+                self.log_skip("WaifuDiffusion session not initialized")
 
     # =========================================================================
     # TEST: Memory Management (Offload/Reload/Unload)
@@ -251,7 +251,7 @@ class TaggerTest:
         import torch
         import gc
         from modules import devices
-        from modules.interrogate import wd14, deepbooru
+        from modules.interrogate import waifudiffusion, deepbooru
 
         # Memory leak tolerance (MB) - some variance is expected
         GPU_LEAK_TOLERANCE_MB = 50
@@ -362,10 +362,10 @@ class TaggerTest:
             deepbooru.load_model()
 
         # =====================================================================
-        # WD14: Test session lifecycle with memory monitoring
+        # WaifuDiffusion: Test session lifecycle with memory monitoring
         # =====================================================================
-        if self.wd14_loaded:
-            print("\n  WD14 Memory Management:")
+        if self.waifudiffusion_loaded:
+            print("\n  WaifuDiffusion Memory Management:")
 
             # Baseline memory
             gc.collect()
@@ -375,74 +375,74 @@ class TaggerTest:
             print(f"    Baseline: GPU={baseline['gpu_allocated']:.1f}MB, RAM={baseline['ram_used']:.1f}MB")
 
             # Test 1: Session exists
-            if wd14.tagger.session is not None:
-                self.log_pass("WD14: session loaded")
+            if waifudiffusion.tagger.session is not None:
+                self.log_pass("WaifuDiffusion: session loaded")
             else:
-                self.log_fail("WD14: session not loaded")
+                self.log_fail("WaifuDiffusion: session not loaded")
                 return
 
             # Test 2: Get current providers
-            providers = wd14.tagger.session.get_providers()
+            providers = waifudiffusion.tagger.session.get_providers()
             print(f"    Active providers: {providers}")
-            self.log_pass(f"WD14: using providers {providers}")
+            self.log_pass(f"WaifuDiffusion: using providers {providers}")
 
             # Test 3: Run inference
             try:
-                tags = wd14.tagger.predict(self.test_image, max_tags=3)
+                tags = waifudiffusion.tagger.predict(self.test_image, max_tags=3)
                 after_infer = self.get_memory_stats()
                 print(f"    After inference: GPU={after_infer['gpu_allocated']:.1f}MB, RAM={after_infer['ram_used']:.1f}MB")
                 if tags:
-                    self.log_pass(f"WD14: inference works ({tags[:30]}...)")
+                    self.log_pass(f"WaifuDiffusion: inference works ({tags[:30]}...)")
                 else:
-                    self.log_fail("WD14: inference returned empty")
+                    self.log_fail("WaifuDiffusion: inference returned empty")
             except Exception as e:
-                self.log_fail(f"WD14: inference failed: {e}")
+                self.log_fail(f"WaifuDiffusion: inference failed: {e}")
 
             # Test 4: Unload session with memory check
-            model_name = wd14.tagger.model_name
-            wd14.unload_model()
+            model_name = waifudiffusion.tagger.model_name
+            waifudiffusion.unload_model()
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             after_unload = self.get_memory_stats()
             print(f"    After unload: GPU={after_unload['gpu_allocated']:.1f}MB, RAM={after_unload['ram_used']:.1f}MB")
 
-            if wd14.tagger.session is None:
-                self.log_pass("WD14: unload successful")
+            if waifudiffusion.tagger.session is None:
+                self.log_pass("WaifuDiffusion: unload successful")
             else:
-                self.log_fail("WD14: unload failed, session still exists")
+                self.log_fail("WaifuDiffusion: unload failed, session still exists")
 
             # Check for memory leaks after unload
             gpu_leak = after_unload['gpu_allocated'] - baseline['gpu_allocated']
             ram_leak = after_unload['ram_used'] - baseline['ram_used']
             if gpu_leak <= GPU_LEAK_TOLERANCE_MB:
-                self.log_pass(f"WD14: no GPU memory leak after unload (diff={gpu_leak:.1f}MB)")
+                self.log_pass(f"WaifuDiffusion: no GPU memory leak after unload (diff={gpu_leak:.1f}MB)")
             else:
-                self.log_fail(f"WD14: GPU memory leak detected (diff={gpu_leak:.1f}MB > {GPU_LEAK_TOLERANCE_MB}MB)")
+                self.log_fail(f"WaifuDiffusion: GPU memory leak detected (diff={gpu_leak:.1f}MB > {GPU_LEAK_TOLERANCE_MB}MB)")
 
             if ram_leak <= RAM_LEAK_TOLERANCE_MB:
-                self.log_pass(f"WD14: no RAM leak after unload (diff={ram_leak:.1f}MB)")
+                self.log_pass(f"WaifuDiffusion: no RAM leak after unload (diff={ram_leak:.1f}MB)")
             else:
-                self.log_warn(f"WD14: RAM increased after unload (diff={ram_leak:.1f}MB) - may be caching")
+                self.log_warn(f"WaifuDiffusion: RAM increased after unload (diff={ram_leak:.1f}MB) - may be caching")
 
             # Test 5: Reload session
-            wd14.load_model(model_name)
+            waifudiffusion.load_model(model_name)
             after_reload = self.get_memory_stats()
             print(f"    After reload: GPU={after_reload['gpu_allocated']:.1f}MB, RAM={after_reload['ram_used']:.1f}MB")
-            if wd14.tagger.session is not None:
-                self.log_pass("WD14: reload successful")
+            if waifudiffusion.tagger.session is not None:
+                self.log_pass("WaifuDiffusion: reload successful")
             else:
-                self.log_fail("WD14: reload failed")
+                self.log_fail("WaifuDiffusion: reload failed")
 
             # Test 6: Inference after reload
             try:
-                tags = wd14.tagger.predict(self.test_image, max_tags=3)
+                tags = waifudiffusion.tagger.predict(self.test_image, max_tags=3)
                 if tags:
-                    self.log_pass("WD14: inference after reload works")
+                    self.log_pass("WaifuDiffusion: inference after reload works")
                 else:
-                    self.log_fail("WD14: inference after reload returned empty")
+                    self.log_fail("WaifuDiffusion: inference after reload returned empty")
             except Exception as e:
-                self.log_fail(f"WD14: inference after reload failed: {e}")
+                self.log_fail(f"WaifuDiffusion: inference after reload failed: {e}")
 
             # Final memory check after full cycle
             gc.collect()
@@ -471,8 +471,8 @@ class TaggerTest:
             ('tagger_escape_brackets', bool),
             ('tagger_exclude_tags', str),
             ('tagger_show_scores', bool),
-            ('wd14_model', str),
-            ('wd14_character_threshold', float),
+            ('waifudiffusion_model', str),
+            ('waifudiffusion_character_threshold', float),
             ('interrogate_offload', bool),
         ]
 
@@ -486,23 +486,23 @@ class TaggerTest:
     # =========================================================================
     # TEST: Parameter Effect - Tests a single parameter on both taggers
     # =========================================================================
-    def test_parameter(self, param_name, test_func, wd14_supported=True, deepbooru_supported=True):
-        """Test a parameter on both WD14 and DeepBooru."""
+    def test_parameter(self, param_name, test_func, waifudiffusion_supported=True, deepbooru_supported=True):
+        """Test a parameter on both WaifuDiffusion and DeepBooru."""
         print(f"\n  Testing: {param_name}")
 
-        if wd14_supported and self.wd14_loaded:
+        if waifudiffusion_supported and self.waifudiffusion_loaded:
             try:
-                result = test_func('wd14')
+                result = test_func('waifudiffusion')
                 if result is True:
-                    self.log_pass(f"WD14: {param_name}")
+                    self.log_pass(f"WaifuDiffusion: {param_name}")
                 elif result is False:
-                    self.log_fail(f"WD14: {param_name}")
+                    self.log_fail(f"WaifuDiffusion: {param_name}")
                 else:
-                    self.log_skip(f"WD14: {param_name} - {result}")
+                    self.log_skip(f"WaifuDiffusion: {param_name} - {result}")
             except Exception as e:
-                self.log_fail(f"WD14: {param_name} - {e}")
-        elif wd14_supported:
-            self.log_skip(f"WD14: {param_name} - model not loaded")
+                self.log_fail(f"WaifuDiffusion: {param_name} - {e}")
+        elif waifudiffusion_supported:
+            self.log_skip(f"WaifuDiffusion: {param_name} - model not loaded")
 
         if deepbooru_supported and self.deepbooru_loaded:
             try:
@@ -520,9 +520,9 @@ class TaggerTest:
 
     def tag(self, tagger, **kwargs):
         """Helper to call the appropriate tagger."""
-        if tagger == 'wd14':
-            from modules.interrogate import wd14
-            return wd14.tagger.predict(self.test_image, **kwargs)
+        if tagger == 'waifudiffusion':
+            from modules.interrogate import waifudiffusion
+            return waifudiffusion.tagger.predict(self.test_image, **kwargs)
         else:
             from modules.interrogate import deepbooru
             return deepbooru.model.tag(self.test_image, **kwargs)
@@ -759,16 +759,16 @@ class TaggerTest:
         self.test_parameter('include_rating', check_include_rating)
 
     # =========================================================================
-    # TEST: character_threshold (WD14 only)
+    # TEST: character_threshold (WaifuDiffusion only)
     # =========================================================================
     def test_character_threshold(self):
-        """Test that character_threshold affects character tag count (WD14 only)."""
+        """Test that character_threshold affects character tag count (WaifuDiffusion only)."""
         print("\n" + "=" * 70)
-        print("TEST: character_threshold effect (WD14 only)")
+        print("TEST: character_threshold effect (WaifuDiffusion only)")
         print("=" * 70)
 
         def check_character_threshold(tagger):
-            if tagger != 'wd14':
+            if tagger != 'waifudiffusion':
                 return "not supported"
 
             # Character threshold only affects character tags
@@ -796,17 +796,17 @@ class TaggerTest:
 
         from modules.interrogate import tagger
 
-        # Test WD14 through unified interface
-        if self.wd14_loaded:
+        # Test WaifuDiffusion through unified interface
+        if self.waifudiffusion_loaded:
             try:
                 models = tagger.get_models()
-                wd14_model = next((m for m in models if m != 'DeepBooru'), None)
-                if wd14_model:
-                    tags = tagger.tag(self.test_image, model_name=wd14_model, max_tags=5)
-                    print(f"    WD14 ({wd14_model}): {tags[:50]}...")
-                    self.log_pass("Unified interface: WD14")
+                waifudiffusion_model = next((m for m in models if m != 'DeepBooru'), None)
+                if waifudiffusion_model:
+                    tags = tagger.tag(self.test_image, model_name=waifudiffusion_model, max_tags=5)
+                    print(f"    WaifuDiffusion ({waifudiffusion_model}): {tags[:50]}...")
+                    self.log_pass("Unified interface: WaifuDiffusion")
             except Exception as e:
-                self.log_fail(f"Unified interface: WD14 - {e}")
+                self.log_fail(f"Unified interface: WaifuDiffusion - {e}")
 
         # Test DeepBooru through unified interface
         if self.deepbooru_loaded:

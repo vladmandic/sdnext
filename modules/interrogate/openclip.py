@@ -117,7 +117,7 @@ def load_interrogator(clip_model, blip_model):
         ci = clip_interrogator.Interrogator(interrogator_config)
         if blip_model.startswith('blip2-'):
             _apply_blip2_fix(ci.caption_model, ci.caption_processor)
-        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}s')
+        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}')
     elif clip_model != ci.config.clip_model_name or blip_model != ci.config.caption_model_name:
         t0 = time.time()
         if clip_model != ci.config.clip_model_name:
@@ -134,7 +134,7 @@ def load_interrogator(clip_model, blip_model):
             ci.load_caption_model()
             if blip_model.startswith('blip2-'):
                 _apply_blip2_fix(ci.caption_model, ci.caption_processor)
-        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}s')
+        shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}')
     else:
         debug_log(f'CLIP: models already loaded clip="{clip_model}" blip="{blip_model}"')
 
@@ -172,7 +172,7 @@ def interrogate(image, mode, caption=None):
         prompt = ci.interrogate_negative(image, max_flavors=shared.opts.interrogate_clip_max_flavors)
     else:
         raise RuntimeError(f"Unknown mode {mode}")
-    debug_log(f'CLIP: mode="{mode}" time={time.time()-t0:.2f}s result="{prompt[:100]}..."' if len(prompt) > 100 else f'CLIP: mode="{mode}" time={time.time()-t0:.2f}s result="{prompt}"')
+    debug_log(f'CLIP: mode="{mode}" time={time.time()-t0:.2f} result="{prompt[:100]}..."' if len(prompt) > 100 else f'CLIP: mode="{mode}" time={time.time()-t0:.2f} result="{prompt}"')
     return prompt
 
 
@@ -189,7 +189,7 @@ def interrogate_image(image, clip_model, blip_model, mode):
         image = image.convert('RGB')
         prompt = interrogate(image, mode)
         devices.torch_gc()
-        shared.log.debug(f'CLIP: complete time={time.time()-t0:.2f}s')
+        shared.log.debug(f'CLIP: complete time={time.time()-t0:.2f}')
     except Exception as e:
         prompt = f"Exception {type(e)}"
         shared.log.error(f'CLIP: {e}')
@@ -243,7 +243,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
     ci.config.quiet = False
     unload_clip_model()
     shared.state.end(jobid)
-    shared.log.info(f'CLIP batch: complete images={len(prompts)} time={time.time()-t0:.2f}s')
+    shared.log.info(f'CLIP batch: complete images={len(prompts)} time={time.time()-t0:.2f}')
     return '\n\n'.join(prompts)
 
 
@@ -264,7 +264,7 @@ def analyze_image(image, clip_model, blip_model):
     movement_ranks = dict(sorted(zip(top_movements, ci.similarities(image_features, top_movements)), key=lambda x: x[1], reverse=True))
     trending_ranks = dict(sorted(zip(top_trendings, ci.similarities(image_features, top_trendings)), key=lambda x: x[1], reverse=True))
     flavor_ranks = dict(sorted(zip(top_flavors, ci.similarities(image_features, top_flavors)), key=lambda x: x[1], reverse=True))
-    shared.log.debug(f'CLIP analyze: complete time={time.time()-t0:.2f}s')
+    shared.log.debug(f'CLIP analyze: complete time={time.time()-t0:.2f}')
 
     # Format labels as text
     def format_category(name, ranks):

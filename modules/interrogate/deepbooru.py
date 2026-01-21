@@ -80,20 +80,13 @@ class DeepDanbooru:
             Formatted tag string
         """
         # Use settings defaults if not specified
-        if general_threshold is None:
-            general_threshold = shared.opts.tagger_threshold
-        if include_rating is None:
-            include_rating = shared.opts.tagger_include_rating
-        if exclude_tags is None:
-            exclude_tags = shared.opts.tagger_exclude_tags
-        if max_tags is None:
-            max_tags = shared.opts.tagger_max_tags
-        if sort_alpha is None:
-            sort_alpha = shared.opts.tagger_sort_alpha
-        if use_spaces is None:
-            use_spaces = shared.opts.tagger_use_spaces
-        if escape_brackets is None:
-            escape_brackets = shared.opts.tagger_escape_brackets
+        general_threshold = general_threshold or shared.opts.tagger_threshold
+        include_rating = include_rating if include_rating is not None else shared.opts.tagger_include_rating
+        exclude_tags = exclude_tags or shared.opts.tagger_exclude_tags
+        max_tags = max_tags or shared.opts.tagger_max_tags
+        sort_alpha = sort_alpha if sort_alpha is not None else shared.opts.tagger_sort_alpha
+        use_spaces = use_spaces if use_spaces is not None else shared.opts.tagger_use_spaces
+        escape_brackets = escape_brackets if escape_brackets is not None else shared.opts.tagger_escape_brackets
 
         if isinstance(pil_image, list):
             pil_image = pil_image[0] if len(pil_image) > 0 else None
@@ -135,6 +128,31 @@ class DeepDanbooru:
 
 
 model = DeepDanbooru()
+
+
+def _save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
+    """Save tags to a text file with error handling.
+
+    Args:
+        img_path: Path to the image file
+        tags_str: Tags string to save
+        save_append: If True, append to existing file; otherwise overwrite
+
+    Returns:
+        True if save succeeded, False otherwise
+    """
+    try:
+        txt_path = img_path.with_suffix('.txt')
+        if save_append and txt_path.exists():
+            with open(txt_path, 'a', encoding='utf-8') as f:
+                f.write(f', {tags_str}')
+        else:
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write(tags_str)
+        return True
+    except Exception as e:
+        shared.log.error(f'DeepBooru batch: failed to save file="{img_path}" error={e}')
+        return False
 
 
 def get_models() -> list:
@@ -179,7 +197,7 @@ def tag(image, **kwargs) -> str:
 
     try:
         result = model.tag(image, **kwargs)
-        shared.log.debug(f'DeepBooru: complete time={time.time()-t0:.2f}s tags={len(result.split(", ")) if result else 0}')
+        shared.log.debug(f'DeepBooru: complete time={time.time()-t0:.2f} tags={len(result.split(", ")) if result else 0}')
     except Exception as e:
         result = f"Exception {type(e)}"
         shared.log.error(f'DeepBooru: {e}')
@@ -299,13 +317,7 @@ def batch(
                 tags_str = model.tag_multi(image, **kwargs)
 
                 if save_output:
-                    txt_path = img_path.with_suffix('.txt')
-                    if save_append and txt_path.exists():
-                        with open(txt_path, 'a', encoding='utf-8') as f:
-                            f.write(f', {tags_str}')
-                    else:
-                        with open(txt_path, 'w', encoding='utf-8') as f:
-                            f.write(tags_str)
+                    _save_tags_to_file(img_path, tags_str, save_append)
 
                 results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
 
