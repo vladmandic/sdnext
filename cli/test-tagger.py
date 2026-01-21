@@ -271,19 +271,19 @@ class TaggerTest:
             print(f"    Baseline: GPU={baseline['gpu_allocated']:.1f}MB, RAM={baseline['ram_used']:.1f}MB")
 
             # Test 1: Check initial state (should be on CPU after load)
-            initial_device = deepbooru.model._device
+            initial_device = next(deepbooru.model.model.parameters()).device
             print(f"    Initial device: {initial_device}")
-            if initial_device == devices.cpu:
+            if initial_device.type == 'cpu':
                 self.log_pass("DeepBooru: initial state on CPU")
             else:
                 self.log_pass(f"DeepBooru: initial state on {initial_device}")
 
             # Test 2: Move to GPU (start)
             deepbooru.model.start()
-            gpu_device = deepbooru.model._device
+            gpu_device = next(deepbooru.model.model.parameters()).device
             after_gpu = self.get_memory_stats()
             print(f"    After start(): {gpu_device} | GPU={after_gpu['gpu_allocated']:.1f}MB (+{after_gpu['gpu_allocated']-baseline['gpu_allocated']:.1f}MB)")
-            if gpu_device == devices.device:
+            if gpu_device.type == devices.device.type:
                 self.log_pass(f"DeepBooru: moved to GPU ({gpu_device})")
             else:
                 self.log_fail(f"DeepBooru: failed to move to GPU, got {gpu_device}")
@@ -306,9 +306,9 @@ class TaggerTest:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             after_offload = self.get_memory_stats()
-            cpu_device = deepbooru.model._device
+            cpu_device = next(deepbooru.model.model.parameters()).device
             print(f"    After stop(): {cpu_device} | GPU={after_offload['gpu_allocated']:.1f}MB, RAM={after_offload['ram_used']:.1f}MB")
-            if cpu_device == devices.cpu:
+            if cpu_device.type == 'cpu':
                 self.log_pass("DeepBooru: offloaded to CPU")
             else:
                 self.log_fail(f"DeepBooru: failed to offload, still on {cpu_device}")

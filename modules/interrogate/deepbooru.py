@@ -13,7 +13,6 @@ load_lock = threading.Lock()
 class DeepDanbooru:
     def __init__(self):
         self.model = None
-        self._device = devices.cpu
 
     def load(self):
         with load_lock:
@@ -33,17 +32,14 @@ class DeepDanbooru:
             self.model.load_state_dict(torch.load(files[0], map_location="cpu"))
             self.model.eval()
             self.model.to(devices.cpu, devices.dtype)
-            self._device = devices.cpu
 
     def start(self):
         self.load()
         self.model.to(devices.device)
-        self._device = devices.device
 
     def stop(self):
         if shared.opts.interrogate_offload:
             self.model.to(devices.cpu)
-            self._device = devices.cpu
         devices.torch_gc()
 
     def tag(self, pil_image, **kwargs):
@@ -175,7 +171,6 @@ def unload_model():
     if model.model is not None:
         shared.log.debug('DeepBooru unload')
         model.model = None
-        model._device = devices.cpu
         devices.torch_gc(force=True)
 
 
