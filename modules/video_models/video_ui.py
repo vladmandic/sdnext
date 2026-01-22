@@ -98,7 +98,7 @@ def create_ui_outputs():
                 mp4_codec = gr.Dropdown(label="Video codec", choices=['none', 'libx264'], value='libx264', type='value')
                 ui_common.create_refresh_button(mp4_codec, video_utils.get_codecs, elem_id="framepack_mp4_codec_refresh")
                 mp4_ext = gr.Textbox(label="Video format", value='mp4', elem_id="framepack_mp4_ext")
-                mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="framepack_mp4_ext")
+                mp4_opt = gr.Textbox(label="Video options", value='crf:16', elem_id="framepack_mp4_opt")
             with gr.Row():
                 mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="framepack_mp4_video")
                 mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="framepack_mp4_frames")
