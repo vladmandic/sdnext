@@ -155,6 +155,9 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
     res: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
     if prompt is None:
         return "", res
+    if isinstance(prompt, list):
+        shared.log.warning("parse_prompt was called with a list instead of a string", prompt)
+        return parse_prompts(prompt)
 
     def found(m: re.Match[str]):
         name, args = m.group(1, 2)
