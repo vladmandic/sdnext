@@ -9,6 +9,7 @@
 - fix image delete  
 - fix `all_seeds` error  
 - improve `wrap_gradio` error handling  
+- use refiner/detail steps as-is for non sd/sdxl models  
 
 ## Update for 2026-01-20
 
