@@ -427,7 +427,10 @@ def update_token_counter(text):
         shared.log.debug('Tokenizer busy')
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
-    prompt, _ = extra_networks.parse_prompt(text)
+    if isinstance(text, list):
+        prompt, _ = extra_networks.parse_prompts(text)
+    else:
+        prompt, _ = extra_networks.parse_prompt(text)
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
         tokenizer = shared.sd_model.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
