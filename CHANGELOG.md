@@ -6,8 +6,9 @@
 - fix detailer double save  
 - fix lora load when using peft/diffusers loader  
 - fix rocm hipblaslt detection  
-- fix image delete  
+- fix image delete, thanks @awsr  
 - fix `all_seeds` error  
+- fix qwen settings typo, thanks @liutyi  
 - improve `wrap_gradio` error handling  
 - use refiner/detail steps as-is for non sd/sdxl models  
 
