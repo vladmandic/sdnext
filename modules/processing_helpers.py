@@ -408,9 +408,11 @@ def calculate_base_steps(p, use_denoise_start, use_refiner_start):
 
 
 def calculate_hires_steps(p):
-    cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
-        steps = p.steps
+    if shared.sd_model_type not in ['sd', 'sdxl']:
+        if p.hr_second_pass_steps > 0:
+            steps = p.hr_second_pass_steps
+        else:
+            steps = p.steps
     elif p.hr_second_pass_steps > 0:
         steps = (p.hr_second_pass_steps // p.denoising_strength) + 1
     elif p.denoising_strength > 0:
@@ -422,10 +424,7 @@ def calculate_hires_steps(p):
 
 
 def calculate_refiner_steps(p):
-    cls = shared.sd_model.__class__.__name__
-    if 'Flex' in cls or 'Kontext' in cls or 'Edit' in cls or 'Wan' in cls or 'Flux2' in cls:
-        steps = p.steps
-    elif "StableDiffusionXL" in shared.sd_refiner.__class__.__name__:
+    if shared.sd_refiner_type == 'sdxl':
         if p.refiner_start > 0 and p.refiner_start < 1:
             steps = (p.refiner_steps // (1 - p.refiner_start) // 2) + 1
         elif p.denoising_strength > 0:
@@ -433,7 +432,10 @@ def calculate_refiner_steps(p):
         else:
             steps = 0
     else:
-        steps = (p.refiner_steps * 1.25) + 1
+        if p.refiner_steps > 0:
+            steps = p.refiner_steps
+        else:
+            steps = p.steps
     debug_steps(f'Steps: type=refiner input={p.refiner_steps} output={steps} start={p.refiner_start} denoise={p.denoising_strength}')
     return max(1, int(steps))
 
