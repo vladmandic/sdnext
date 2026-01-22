@@ -1,8 +1,9 @@
 # Change Log for SD.Next
 
-## Update for 2026-01-21
+## Update for 2026-01-22
 
 - add `SD_DEVICE_DEBUG` env variable to trace rocm/xpu/directml init failures  
+- fix detailer double save  
 - fix lora load when using peft/diffusers loader  
 - fix rocm hipblaslt detection  
 - fix image delete  

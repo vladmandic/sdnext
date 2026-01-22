@@ -421,7 +421,11 @@ class YoloRestorer(Detailer):
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
-                pc.enable_hr = False # explictly disable hires for detailer pass
+                # explictly disable for detailer pass
+                pc.enable_hr = False 
+                pc.do_not_save_samples = True
+                pc.do_not_save_grid = True
+                # set recursion flag to avoid nested detailer calls
                 pc.recursion = True
 
                 # process
