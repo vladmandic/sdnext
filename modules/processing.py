@@ -243,13 +243,13 @@ def process_init(p: StableDiffusionProcessing):
     seed = get_fixed_seed(p.seed)
     subseed = get_fixed_seed(p.subseed)
     reset_prompts = False
-    if p.all_prompts is None:
+    if not p.all_prompts:
         p.all_prompts = p.prompt if isinstance(p.prompt, list) else p.batch_size * p.n_iter * [p.prompt]
         reset_prompts = True
-    if p.all_negative_prompts is None:
+    if not p.all_negative_prompts:
         p.all_negative_prompts = p.negative_prompt if isinstance(p.negative_prompt, list) else p.batch_size * p.n_iter * [p.negative_prompt]
         reset_prompts = True
-    if p.all_seeds is None:
+    if not p.all_seeds:
         reset_prompts = True
         if type(seed) == list:
             p.all_seeds = [int(s) for s in seed]
@@ -262,7 +262,7 @@ def process_init(p: StableDiffusionProcessing):
                     for i in range(len(p.all_prompts)):
                         seed = get_fixed_seed(p.seed)
                         p.all_seeds.append(int(seed) + (i if p.subseed_strength == 0 else 0))
-    if p.all_subseeds is None:
+    if not p.all_subseeds:
         if type(subseed) == list:
             p.all_subseeds = [int(s) for s in subseed]
         else:
@@ -433,7 +433,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             p.subseeds = p.all_subseeds[n * p.batch_size:(n+1) * p.batch_size]
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
-            if len(p.prompts) == 0:
+            if not p.prompts:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):

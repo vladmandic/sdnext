@@ -34,7 +34,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
         return None
 
     # validate prompt
-    if p.all_prompts is None or len(p.all_prompts) == 0:
+    if not p.all_prompts:
         processing.process_init(p)
         p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
     trigger_ids = shared.sd_model.tokenizer.encode(trigger) + shared.sd_model.tokenizer_2.encode(trigger)
@@ -61,7 +61,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     shared.opts.data['prompt_attention'] = 'fixed' # otherwise need to deal with class_tokens_mask
     p.task_args['input_id_images'] = input_images
     p.task_args['start_merge_step'] = int(start * p.steps)
-    p.task_args['prompt'] = p.all_prompts[0] if p.all_prompts is not None else p.prompt
+    p.task_args['prompt'] = p.all_prompts[0] if p.all_prompts else p.prompt
 
     is_v2 = 'v2' in model
     if is_v2:

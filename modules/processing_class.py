@@ -308,15 +308,14 @@ class StableDiffusionProcessing:
             shared.log.error(f'Override: {override_settings} {e}')
             self.override_settings = {}
 
-        # null items initialized later
-        self.prompts = None
-        self.negative_prompts = None
-        self.all_prompts = None
-        self.all_negative_prompts = None
+        self.prompts = []
+        self.negative_prompts = []
+        self.all_prompts = []
+        self.all_negative_prompts = []
         self.seeds = []
         self.subseeds = []
-        self.all_seeds = None
-        self.all_subseeds = None
+        self.all_seeds = []
+        self.all_subseeds = []
 
         # a1111 compatibility items
         self.seed_enable_extras: bool = True
