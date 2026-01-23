@@ -20,10 +20,21 @@ def interrogate(image):
         prompt = openclip.interrogate(image, mode=shared.opts.interrogate_clip_mode)
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
-    elif shared.opts.interrogate_default_type == 'DeepBooru':
-        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type}')
-        from modules.interrogate import deepbooru
-        prompt = deepbooru.model.tag(image)
+    elif shared.opts.interrogate_default_type == 'Tagger':
+        shared.log.info(f'Interrogate: type={shared.opts.interrogate_default_type} model="{shared.opts.waifudiffusion_model}"')
+        from modules.interrogate import tagger
+        prompt = tagger.tag(
+            image=image,
+            model_name=shared.opts.waifudiffusion_model,
+            general_threshold=shared.opts.tagger_threshold,
+            character_threshold=shared.opts.waifudiffusion_character_threshold,
+            include_rating=shared.opts.tagger_include_rating,
+            exclude_tags=shared.opts.tagger_exclude_tags,
+            max_tags=shared.opts.tagger_max_tags,
+            sort_alpha=shared.opts.tagger_sort_alpha,
+            use_spaces=shared.opts.tagger_use_spaces,
+            escape_brackets=shared.opts.tagger_escape_brackets,
+        )
         shared.log.debug(f'Interrogate: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
     elif shared.opts.interrogate_default_type == 'VLM':
