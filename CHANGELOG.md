@@ -15,6 +15,7 @@
   - update package requirements  
 - **Fixes**
   - add video ui elem_ids, thanks @ryanmeador  
+  - use base steps as-is for non sd/sdxl models  
 
 ## Update for 2026-01-22
 
