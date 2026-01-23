@@ -863,8 +863,8 @@ def install_openvino():
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cpu torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
-        install(os.environ.get('NNCF_COMMAND', 'nncf==2.18.0'), 'nncf')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
+        install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
     ts('openvino', t_start)
     return torch_command
 
