@@ -1,4 +1,10 @@
 # Change Log for SD.Next
+
+## Todo
+
+- figure out `rocm/linux` rdnb3 vs rdna4
+- update `rocm/windows`
+ 
 ## Update for 2026-01-23
 
 - **Features**
@@ -9,6 +15,9 @@
 - **Internal**
   - **cuda**: update to `torch==2.10.0`  
   - **xpu**: update to `torch==2.10.0`  
+  - **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
+  - **rocm/linux**: update to `torch==2.10.0` 
+  - **rocm/windows**: tbd
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
   - further work on type consistency and type checking, thanks @awsr  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
