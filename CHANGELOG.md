@@ -16,6 +16,7 @@
 - **Fixes**
   - add video ui elem_ids, thanks @ryanmeador  
   - use base steps as-is for non sd/sdxl models  
+  - ui css fixes for modernui  
 
 ## Update for 2026-01-22
 
