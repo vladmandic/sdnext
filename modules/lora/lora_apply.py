@@ -142,7 +142,7 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
-            ErrorLimiter.update("network_calc_weights")
+            ErrorLimiter.notify("network_calc_weights")
         continue
     return batch_updown, batch_ex_bias
 

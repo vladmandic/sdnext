@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
-from sdnext_core.errorlimiter import ErrorLimiter
+from sdnext_core.errorlimiter import limit_errors
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
@@ -259,51 +259,50 @@ class EmbeddingDatabase:
         File names take precidence over bundled embeddings passed as a dict.
         Bundled embeddings are automatically set to overwrite previous embeddings.
         """
-        overwrite = bool(data)
-        if not shared.sd_loaded:
-            return
-        if not shared.opts.diffusers_enable_embed:
-            return
-        embeddings, skipped = open_embeddings(filename) or convert_bundled(data)
-        for skip in skipped:
-            self.skipped_embeddings[skip.name] = skipped
-        if not embeddings:
-            return
-        text_encoders, tokenizers, hiddensizes = get_text_encoders()
-        if not all([text_encoders, tokenizers, hiddensizes]):
-            return
-        ErrorLimiter.start("load_diffusers_embedding_1")
-        for embedding in embeddings:
-            try:
-                embedding.vector_sizes = [v.shape[-1] for v in embedding.vec]
-                if shared.opts.diffusers_convert_embed and 768 in hiddensizes and 1280 in hiddensizes and 1280 not in embedding.vector_sizes and 768 in embedding.vector_sizes:
-                    embedding.vec.append(convert_embedding(embedding.vec[embedding.vector_sizes.index(768)], text_encoders[hiddensizes.index(768)], text_encoders[hiddensizes.index(1280)]))
-                    embedding.vector_sizes.append(1280)
-                if (not all(vs in hiddensizes for vs in embedding.vector_sizes) or  # Skip SD2.1 in SD1.5/SDXL/SD3 vis versa
-                        len(embedding.vector_sizes) > len(hiddensizes) or  # Skip SDXL/SD3 in SD1.5
-                        (len(embedding.vector_sizes) < len(hiddensizes) and len(embedding.vector_sizes) != 2)):  # SD3 no T5
-                    embedding.tokens = []
+        with limit_errors("load_diffusers_embedding") as elimit:
+            overwrite = bool(data)
+            if not shared.sd_loaded:
+                return
+            if not shared.opts.diffusers_enable_embed:
+                return
+            embeddings, skipped = open_embeddings(filename) or convert_bundled(data)
+            for skip in skipped:
+                self.skipped_embeddings[skip.name] = skipped
+            if not embeddings:
+                return
+            text_encoders, tokenizers, hiddensizes = get_text_encoders()
+            if not all([text_encoders, tokenizers, hiddensizes]):
+                return
+            for embedding in embeddings:
+                try:
+                    embedding.vector_sizes = [v.shape[-1] for v in embedding.vec]
+                    if shared.opts.diffusers_convert_embed and 768 in hiddensizes and 1280 in hiddensizes and 1280 not in embedding.vector_sizes and 768 in embedding.vector_sizes:
+                        embedding.vec.append(convert_embedding(embedding.vec[embedding.vector_sizes.index(768)], text_encoders[hiddensizes.index(768)], text_encoders[hiddensizes.index(1280)]))
+                        embedding.vector_sizes.append(1280)
+                    if (not all(vs in hiddensizes for vs in embedding.vector_sizes) or  # Skip SD2.1 in SD1.5/SDXL/SD3 vis versa
+                            len(embedding.vector_sizes) > len(hiddensizes) or  # Skip SDXL/SD3 in SD1.5
+                            (len(embedding.vector_sizes) < len(hiddensizes) and len(embedding.vector_sizes) != 2)):  # SD3 no T5
+                        embedding.tokens = []
+                        self.skipped_embeddings[embedding.name] = embedding
+                except Exception as e:
+                    shared.log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
                     self.skipped_embeddings[embedding.name] = embedding
-            except Exception as e:
-                shared.log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
-                self.skipped_embeddings[embedding.name] = embedding
-                ErrorLimiter.update("load_diffusers_embedding_1")
-        if overwrite:
-            shared.log.info(f"Load bundled embeddings: {list(data.keys())}")
+                    elimit()
+            if overwrite:
+                shared.log.info(f"Load bundled embeddings: {list(data.keys())}")
+                for embedding in embeddings:
+                    if embedding.name not in self.skipped_embeddings:
+                        deref_tokenizers(embedding.tokens, tokenizers)
+            insert_tokens(embeddings, tokenizers)
             for embedding in embeddings:
                 if embedding.name not in self.skipped_embeddings:
-                    deref_tokenizers(embedding.tokens, tokenizers)
-        insert_tokens(embeddings, tokenizers)
-        ErrorLimiter.start("load_diffusers_embedding_2")
-        for embedding in embeddings:
-            if embedding.name not in self.skipped_embeddings:
-                try:
-                    insert_vectors(embedding, tokenizers, text_encoders, hiddensizes)
-                    self.register_embedding(embedding, shared.sd_model)
-                except Exception as e:
-                    shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
-                    errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
-                    ErrorLimiter.update("load_diffusers_embedding_2")
+                    try:
+                        insert_vectors(embedding, tokenizers, text_encoders, hiddensizes)
+                        self.register_embedding(embedding, shared.sd_model)
+                    except Exception as e:
+                        shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
+                        errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
+                        elimit()
         return
 
     def load_from_dir(self, embdir):

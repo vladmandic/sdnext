@@ -1,7 +1,7 @@
 from contextlib import nullcontext
 import time
 import rich.progress as rp
-from sdnext_core.errorlimiter import ErrorLimiter, ErrorLimiterTrigger
+from sdnext_core.errorlimiter import limit_errors
 from modules.lora import lora_common as l
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models
@@ -13,8 +13,7 @@ default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_
 
 def network_activate(include=[], exclude=[]):
     t0 = time.time()
-    ErrorLimiter.start("network_calc_weights")
-    try:
+    with limit_errors("network_calc_weights"):
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -70,8 +69,6 @@ def network_activate(include=[], exclude=[]):
 
             if task is not None and len(applied_layers) == 0:
                 pbar.remove_task(task) # hide progress bar for no action
-    except ErrorLimiterTrigger as e:
-        raise RuntimeError(f"HALTING. Too many errors during {e.name}") from e
     l.timer.activate += time.time() - t0
     if l.debug and len(l.loaded_networks) > 0:
         shared.log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
@@ -86,8 +83,7 @@ def network_deactivate(include=[], exclude=[]):
     if len(l.previously_loaded_networks) == 0:
         return
     t0 = time.time()
-    ErrorLimiter.start("network_calc_weights")
-    try:
+    with limit_errors("network_calc_weights"):
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -130,8 +126,6 @@ def network_deactivate(include=[], exclude=[]):
                     module.network_current_names = ()
                     if task is not None:
                         pbar.update(task, advance=1, description=f'networks={len(l.previously_loaded_networks)} modules={active_components} layers={total} unapply={len(applied_layers)}')
-    except ErrorLimiterTrigger as e:
-        raise RuntimeError(f"HALTING. Too many errors during {e.name}") from e
     l.timer.deactivate = time.time() - t0
     if l.debug and len(l.previously_loaded_networks) > 0:
         shared.log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
