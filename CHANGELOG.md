@@ -1,6 +1,22 @@
 # Change Log for SD.Next
 
+## Update for 2026-01-23
+
+- **Features**
+  - caption tab support for Booru tagger models, thanks @CalamitousFelicitousness  
+  - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
+  - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
+- **Internal**
+  - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
+  - further work on type consistency and type checking, thanks @awsr  
+  - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
+  - update package requirements  
+- **Fixes**
+  - add video ui elem_ids, thanks @ryanmeador  
+
 ## Update for 2026-01-22
+
+Bugfix release
 
 - add `SD_DEVICE_DEBUG` env variable to trace rocm/xpu/directml init failures  
 - fix detailer double save  
