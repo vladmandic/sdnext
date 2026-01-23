@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 
 
-class ErrorLimiterTrigger(BaseException): # Use BaseException to avoid being caught by "except Exception:".
+class ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
     def __init__(self, name: str, *args):
         super().__init__(*args)
         self.name = name
@@ -20,7 +20,7 @@ class ErrorLimiter:
         cls._store[name] = limit
 
     @classmethod
-    def notify(cls, name: str): # Can be manually triggered if execution is spread across multiple files
+    def notify(cls, name: str):  # Can be manually triggered if execution is spread across multiple files
         if name in cls._store.keys():
             cls._store[name] = cls._store[name] - 1
             if cls._store[name] <= 0:
@@ -41,12 +41,12 @@ def limit_errors(name: str, limit: int = 5):
     >>>     while do_thing():
     >>>         if (something_bad):
     >>>             print("Something bad happened")
-    >>>             elimit() # In this example, raises ErrorLimiterAbort on the 5th call
+    >>>             elimit()  # In this example, raises ErrorLimiterAbort on the 5th call
     >>>         try:
     >>>             something_broken()
     >>>         except Exception:
     >>>             print("Encountered an exception")
-    >>>             elimit() # Count is shared across all calls
+    >>>             elimit()  # Count is shared across all calls
 
     Args:
         name (str): Identifier.
@@ -54,6 +54,9 @@ def limit_errors(name: str, limit: int = 5):
 
     Raises:
         ErrorLimiterAbort: Subclass of RuntimeException.
+
+    Yields:
+        Callable: Notification function to indicate that an error occurred.
     """
     try:
         ErrorLimiter.start(name, limit)
