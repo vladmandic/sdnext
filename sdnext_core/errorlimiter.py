@@ -1,4 +1,4 @@
-class ErrorLimiterTrigger(RuntimeError):
+class ErrorLimiterTrigger(Exception):
     def __init__(self, name: str, *args):
         super().__init__(*args)
         self.name = name
