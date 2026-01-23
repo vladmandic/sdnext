@@ -1,7 +1,7 @@
 <div align="center">
 <img src="https://github.com/vladmandic/sdnext/raw/master/html/logo-transparent.png" width=200 alt="SD.Next">
 
-# SD.Next: All-in-one WebUI for AI generative image and video creation
+# SD.Next: All-in-one WebUI for AI generative image and video creation and captioning  
 
 ![Last update](https://img.shields.io/github/last-commit/vladmandic/sdnext?svg=true)
 ![License](https://img.shields.io/github/license/vladmandic/sdnext?svg=true)
@@ -27,10 +27,8 @@
 All individual features are not listed here, instead check [ChangeLog](CHANGELOG.md) for full list of changes
 - Fully localized:
   ▹ **English | Chinese | Russian | Spanish | German | French | Italian | Portuguese | Japanese | Korean**  
-- Multiple UIs!  
-  ▹ **Standard | Modern**  
+- Desktop and Mobile support!  
 - Multiple [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
-- Built-in Control for Text, Image, Batch and Video processing!  
 - Multi-platform!  
  ▹ **Windows | Linux | MacOS | nVidia CUDA | AMD ROCm | Intel Arc / IPEX XPU | DirectML | OpenVINO | ONNX+Olive | ZLUDA**
 - Platform specific auto-detection and tuning performed on install  
@@ -38,9 +36,7 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
   Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO / LayerWise*  
 - **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
-- Built-in queue management  
 - Built in installer with automatic updates and dependency management  
-- Mobile compatible  
 
 <br>
 
