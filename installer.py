@@ -648,7 +648,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = 'd7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6' # diffusers commit hash
+    sha = 'd4f97d19210d4abc32dac78fe7080cd8f5f0809c' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -714,7 +714,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+cu128 torchvision==0.24.1+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch-2.10.0+cu128 torchvision-0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -841,7 +841,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+xpu torchvision==0.24.1+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+xpu torchvision==0.25.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -1540,7 +1540,7 @@ def check_ui(ver):
 
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: sdnext={ver["branch"]} ui={ver["ui"]}')
+        log.debug(f'Branch mismatch: {ver}')
         cwd = os.getcwd()
         try:
             os.chdir('extensions-builtin/sdnext-modernui')
@@ -1548,10 +1548,7 @@ def check_ui(ver):
             git('checkout ' + target, ignore=True, optional=True)
             os.chdir(cwd)
             ver = get_version(force=True)
-            if not same(ver):
-                log.debug(f'Branch synchronized: {ver["branch"]}')
-            else:
-                log.debug(f'Branch sync failed: sdnext={ver["branch"]} ui={ver["ui"]}')
+            log.debug(f'Branch sync: {ver}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
         os.chdir(cwd)
