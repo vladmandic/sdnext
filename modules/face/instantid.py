@@ -63,7 +63,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
     sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
 
     # pipeline specific args
-    if p.all_prompts is None or len(p.all_prompts) == 0:
+    if not p.all_prompts:
         processing.process_init(p)
         p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
     orig_prompt_attention = shared.opts.prompt_attention
@@ -73,8 +73,8 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
     p.task_args['controlnet_conditioning_scale'] = float(conditioning)
     p.task_args['ip_adapter_scale'] = float(strength)
     shared.log.debug(f"InstantID args: {p.task_args}")
-    p.task_args['prompt'] = p.all_prompts[0] if p.all_prompts is not None else p.prompt
-    p.task_args['negative_prompt'] = p.all_negative_prompts[0] if p.all_negative_prompts is not None else p.negative_prompt
+    p.task_args['prompt'] = p.all_prompts[0] if p.all_prompts else p.prompt
+    p.task_args['negative_prompt'] = p.all_negative_prompts[0] if p.all_negative_prompts else p.negative_prompt
     p.task_args['image_embeds'] = face_embeds[0] # overwrite placeholder
 
     # run processing

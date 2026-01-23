@@ -311,7 +311,7 @@ def parse_novelai_metadata(data: dict):
     return geninfo
 
 
-def read_info_from_image(image: Image.Image, watermark: bool = False):
+def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[str, dict]:
     if image is None:
         return '', {}
     if isinstance(image, str):
@@ -322,9 +322,11 @@ def read_info_from_image(image: Image.Image, watermark: bool = False):
             return '', {}
     items = image.info or {}
     geninfo = items.pop('parameters', None) or items.pop('UserComment', None) or ''
-    if geninfo is not None and len(geninfo) > 0:
+    if isinstance(geninfo, dict):
         if 'UserComment' in geninfo:
-            geninfo = geninfo['UserComment']
+            geninfo = geninfo['UserComment'] # Info was nested
+        else:
+            geninfo = '' # Unknown format. Ignore contents
         items['UserComment'] = geninfo
 
     if "exif" in items:
@@ -342,7 +344,7 @@ def read_info_from_image(image: Image.Image, watermark: bool = False):
                         val = round(val[0] / val[1], 2)
                     if val is not None and key in ExifTags.TAGS: # add known tags
                         if ExifTags.TAGS[key] == 'UserComment': # add geninfo from UserComment
-                            geninfo = val
+                            geninfo = str(val)
                             items['parameters'] = val
                         else:
                             items[ExifTags.TAGS[key]] = val

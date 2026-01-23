@@ -151,33 +151,30 @@ def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
 re_extra_net = re.compile(r"<(\w+):([^>]+)>")
 
 
-def parse_prompt(prompt):
-    res = defaultdict(list)
+def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNetworkParams]]]:
+    res: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
     if prompt is None:
-        return prompt, res
+        return "", res
+    if isinstance(prompt, list):
+        shared.log.warning("parse_prompt was called with a list instead of a string", prompt)
+        return parse_prompts(prompt)
 
-    def found(m):
-        name = m.group(1)
-        args = m.group(2)
+    def found(m: re.Match[str]):
+        name, args = m.group(1, 2)
         res[name].append(ExtraNetworkParams(items=args.split(":")))
         return ""
-    if isinstance(prompt, list):
-        prompt = [re.sub(re_extra_net, found, p) for p in prompt]
-    else:
-        prompt = re.sub(re_extra_net, found, prompt)
-    return prompt, res
+
+    updated_prompt = re.sub(re_extra_net, found, prompt)
+    return updated_prompt, res
 
 
-def parse_prompts(prompts):
-    res = []
-    extra_data = None
-    if prompts is None:
-        return prompts, extra_data
-
+def parse_prompts(prompts: list[str]):
+    updated_prompt_list: list[str] = []
+    extra_data: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
     for prompt in prompts:
         updated_prompt, parsed_extra_data = parse_prompt(prompt)
-        if extra_data is None:
+        if not extra_data:
             extra_data = parsed_extra_data
-        res.append(updated_prompt)
+        updated_prompt_list.append(updated_prompt)
 
-    return res, extra_data
+    return updated_prompt_list, extra_data

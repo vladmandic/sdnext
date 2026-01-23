@@ -5,13 +5,17 @@ Lightweight IP-Adapter applied to existing pipeline in Diffusers
 - IP adapters: https://huggingface.co/h94/IP-Adapter
 """
 
+from __future__ import annotations
 import os
 import time
 import json
+from typing import TYPE_CHECKING
 from PIL import Image
-import diffusers
 import transformers
 from modules import processing, shared, devices, sd_models, errors, model_quant
+
+if TYPE_CHECKING:
+    from diffusers import DiffusionPipeline
 
 
 clip_loaded = None
@@ -160,7 +164,7 @@ def unapply(pipe, unload: bool = False): # pylint: disable=arguments-differ
         pass
 
 
-def load_image_encoder(pipe: diffusers.DiffusionPipeline, adapter_names: list[str]):
+def load_image_encoder(pipe: DiffusionPipeline, adapter_names: list[str]):
     global clip_loaded # pylint: disable=global-statement
     for adapter_name in adapter_names:
         # which clip to use

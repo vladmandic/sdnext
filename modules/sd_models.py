@@ -964,7 +964,7 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args: dict = None):
+def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
     - cls: can be pipeline class or a string from custom pipelines
@@ -978,13 +978,22 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
             args = {}
         if isinstance(cls, str):
             shared.log.debug(f'Pipeline switch: custom={cls}')
-            cls = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
+            cls_object = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
+            if not cls_object:
+                log.error(f"Pipeline switch: Failed to get class for '{cls}'")
+                if shared.sd_model is not None:
+                    return shared.sd_model
+                raise RuntimeError("Pipeline switch: No existing pipeline to fall back to")
+        else:
+            cls_object = cls
         if pipeline is None:
+            if shared.sd_model is None:
+                raise RuntimeError("Pipeline switch: No existing pipeline to use as default")
             pipeline = shared.sd_model
         new_pipe = None
-        signature = get_signature(cls)
+        signature = get_signature(cls_object)
         possible = signature.keys()
-        if not force and isinstance(pipeline, cls) and args == {}:
+        if not force and isinstance(pipeline, cls_object) and args == {}:
             return pipeline
         pipe_dict = {}
         components_used = []
@@ -1007,10 +1016,10 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
                     shared.log.warning(f'Pipeling switch: missing component={item} type={signature[item].annotation}')
                     pipe_dict[item] = None # try but not likely to work
                     components_missing.append(item)
-            new_pipe = cls(**pipe_dict)
+            new_pipe = cls_object(**pipe_dict)
             switch_mode = 'auto'
         elif 'tokenizer_2' in possible and hasattr(pipeline, 'tokenizer_2'):
-            new_pipe = cls(
+            new_pipe = cls_object(
                 vae=pipeline.vae,
                 text_encoder=pipeline.text_encoder,
                 text_encoder_2=pipeline.text_encoder_2,
@@ -1023,7 +1032,7 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
             move_model(new_pipe, pipeline.device)
             switch_mode = 'sdxl'
         elif 'tokenizer' in possible and hasattr(pipeline, 'tokenizer'):
-            new_pipe = cls(
+            new_pipe = cls_object(
                 vae=pipeline.vae,
                 text_encoder=pipeline.text_encoder,
                 tokenizer=pipeline.tokenizer,
@@ -1057,9 +1066,9 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
                 shared.log.debug(f'Pipeline switch: from={pipeline.__class__.__name__} to={new_pipe.__class__.__name__} mode={switch_mode}')
             return new_pipe
         else:
-            shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls.__name__} empty pipeline')
+            shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls_object.__name__} empty pipeline')
     except Exception as e:
-        shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls.__name__} {e}')
+        shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls if isinstance(cls, str) else cls.__name__} {e}')
         errors.display(e, 'Pipeline switch')
     return pipeline
 

@@ -243,13 +243,13 @@ def process_init(p: StableDiffusionProcessing):
     seed = get_fixed_seed(p.seed)
     subseed = get_fixed_seed(p.subseed)
     reset_prompts = False
-    if p.all_prompts is None:
+    if not p.all_prompts:
         p.all_prompts = p.prompt if isinstance(p.prompt, list) else p.batch_size * p.n_iter * [p.prompt]
         reset_prompts = True
-    if p.all_negative_prompts is None:
+    if not p.all_negative_prompts:
         p.all_negative_prompts = p.negative_prompt if isinstance(p.negative_prompt, list) else p.batch_size * p.n_iter * [p.negative_prompt]
         reset_prompts = True
-    if p.all_seeds is None:
+    if not p.all_seeds:
         reset_prompts = True
         if type(seed) == list:
             p.all_seeds = [int(s) for s in seed]
@@ -262,7 +262,7 @@ def process_init(p: StableDiffusionProcessing):
                     for i in range(len(p.all_prompts)):
                         seed = get_fixed_seed(p.seed)
                         p.all_seeds.append(int(seed) + (i if p.subseed_strength == 0 else 0))
-    if p.all_subseeds is None:
+    if not p.all_subseeds:
         if type(subseed) == list:
             p.all_subseeds = [int(s) for s in subseed]
         else:
@@ -270,8 +270,8 @@ def process_init(p: StableDiffusionProcessing):
     if reset_prompts:
         if not hasattr(p, 'keep_prompts'):
             p.all_prompts, p.all_negative_prompts = shared.prompt_styles.apply_styles_to_prompts(p.all_prompts, p.all_negative_prompts, p.styles, p.all_seeds)
-            p.prompts = p.all_prompts[p.iteration * p.batch_size:(p.iteration+1) * p.batch_size]
-            p.negative_prompts = p.all_negative_prompts[p.iteration * p.batch_size:(p.iteration+1) * p.batch_size]
+            p.prompts = p.all_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
+            p.negative_prompts = p.all_negative_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
         p.prompts, _ = extra_networks.parse_prompts(p.prompts)
 
 
@@ -427,13 +427,13 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 continue
 
             if not hasattr(p, 'keep_prompts'):
-                p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
-                p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
-            p.seeds = p.all_seeds[n * p.batch_size:(n+1) * p.batch_size]
-            p.subseeds = p.all_subseeds[n * p.batch_size:(n+1) * p.batch_size]
+                p.prompts = p.all_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
+                p.negative_prompts = p.all_negative_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
+            p.seeds = p.all_seeds[(n * p.batch_size):((n+1) * p.batch_size)]
+            p.subseeds = p.all_subseeds[(n * p.batch_size):((n+1) * p.batch_size)]
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.before_process_batch(p, batch_number=n, prompts=p.prompts, seeds=p.seeds, subseeds=p.subseeds)
-            if len(p.prompts) == 0:
+            if not p.prompts:
                 break
             p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -469,8 +469,8 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 p.scripts.postprocess_batch(p, samples, batch_number=n)
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
-                p.prompts = p.all_prompts[n * p.batch_size:(n+1) * p.batch_size]
-                p.negative_prompts = p.all_negative_prompts[n * p.batch_size:(n+1) * p.batch_size]
+                p.prompts = p.all_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
+                p.negative_prompts = p.all_negative_prompts[(n * p.batch_size):((n+1) * p.batch_size)]
                 batch_params = scripts_manager.PostprocessBatchListArgs(list(samples))
                 p.scripts.postprocess_batch_list(p, batch_params, batch_number=n)
                 samples = batch_params.images
