@@ -144,8 +144,10 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
                 try:
                     with open(file, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
+                        lines = [line.split('#')[0].strip('\n').strip() for line in lines]
+                        lines = [line for line in lines if len(line) > 0]
                         if len(lines) > 0:
-                            choice = random.choice(lines).strip(' \n')
+                            choice = random.choice(lines)
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)

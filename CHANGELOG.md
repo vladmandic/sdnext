@@ -4,6 +4,7 @@
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
+  - support comments in wildcard files, using `#`  
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
 - **Internal**
   - **cuda**: update to `torch==2.10.0`  
