@@ -21,6 +21,7 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
+  clearCache: undefined,
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
@@ -1023,7 +1024,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
 
 async function addCacheClearButton() {
   const div = document.createElement('div');
-  div.style.marginBlock = '0.5rem';
+  div.style.cssText = 'margin-top: 1.5rem; margin-bottom: 0.5rem;';
   const btn = document.createElement('button');
   btn.style.cssText = 'margin: auto; display: block;';
   btn.innerText = 'Clear Folder Thumbnails (double click)';
@@ -1038,6 +1039,7 @@ async function addCacheClearButton() {
   });
   div.append(btn);
   el.files.insertAdjacentElement('afterend', div);
+  el.clearCache = div;
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1096,6 +1098,9 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   currentGalleryFolder = evt.target.name;
+  if (!el.clearCache) {
+    addCacheClearButton();
+  }
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1206,7 +1211,6 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
-  addCacheClearButton();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
     galleryProgressBar.attachTo(progress);
