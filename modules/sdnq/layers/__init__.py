@@ -1,4 +1,3 @@
-import copy
 import torch
 
 
@@ -12,10 +11,10 @@ class SDNQLayer(torch.nn.Module):
         self.forward_func = forward_func
 
     def dequantize(self: torch.nn.Module):
-        if self.weight.__class__.__name__ == "SDNQTensor":
-            self.weight = torch.nn.Parameter(self.weight.dequantize(), requires_grad=True)
+        if self.weight.__class__.__name__ == "SDNQTensor": # pylint: disable=access-member-before-definition
+            self.weight = torch.nn.Parameter(self.weight.dequantize(), requires_grad=True) # pylint: disable=attribute-defined-outside-init
         elif hasattr(self, "sdnq_dequantizer"):
-            self.weight = torch.nn.Parameter(self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul), requires_grad=True)
+            self.weight = torch.nn.Parameter(self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul), requires_grad=True) # pylint: disable=attribute-defined-outside-init
             del self.sdnq_dequantizer, self.scale, self.zero_point, self.svd_up, self.svd_down
         self.__class__ = self.original_class
         del self.original_class, self.forward_func
