@@ -1,0 +1,20 @@
+[pull]
+  rebase = true
+[https]
+  postBuffer = 100000000
+[filter "lfs"]
+  clean = git-lfs clean -- %f
+  smudge = git-lfs smudge -- %f
+  process = git-lfs filter-process
+  required = true
+[init]
+  defaultBranch = master
+[color]
+  ui = auto
+[alias]
+  lg = log --color --abbrev-commit --graph --pretty=format:'%C(bold blue)%h%C(reset) %C(blue)%an%C(reset) %C(yellow)%ci %cr%C(reset) %C(green)%d%C(reset) %s'
+[core]
+  editor = code --wait
+  whitespace = trailing-space,space-before-tab,indent-with-non-tab,-tab-in-indent,cr-at-eol
+  autocrlf = input
+  eol = lf
