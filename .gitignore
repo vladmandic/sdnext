@@ -65,6 +65,7 @@ tunableop_results*.csv
 .*/
 
 # force included
+!/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
 !/models/Reference

@@ -1,0 +1,21 @@
+{
+  "hashes": {
+    "checkpoint/tempestByVlad_baseV01": {
+      "mtime": 1763424610.0,
+      "sha256": "8bfad1722243955b3f94103c69079c280d348b14729251e86824972c1063b616"
+    },
+    "checkpoint/lyriel_v16": {
+      "mtime": 1763424496.0,
+      "sha256": "ec6f68ea6388951d53d6c8178c22aecfd1b4fedfe31f5a5814ddd7638c4eff37"
+    },
+    "checkpoint/v1-5-pruned-fp16-emaonly": {
+      "mtime": 1768913681.028832,
+      "sha256": "92954befdb6aacf52f86095eba54ac9262459bc21f987c0e51350f3679c4e45a"
+    },
+    "checkpoint/juggernautXL_juggXIByRundiffusion": {
+      "mtime": 1768913991.4270966,
+      "sha256": "33e58e86686f6b386c526682b5da9228ead4f91d994abd4b053442dc5b42719e"
+    }
+  },
+  "hashes-addnet": {}
+}

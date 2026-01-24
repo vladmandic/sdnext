@@ -20,6 +20,8 @@
     **xpu**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
     **rocm/linux**: update to `torch==2.10.0`  
+  - relocate all json data files to `data/` folder  
+    existing data files are auto-migrated on startup  
   - further work on type consistency and type checking, thanks @awsr  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
   - update package requirements  

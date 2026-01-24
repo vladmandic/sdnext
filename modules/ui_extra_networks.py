@@ -453,7 +453,8 @@ class ExtraNetworksPage:
     def update_all_previews(self, items):
         global preview_map # pylint: disable=global-statement
         if preview_map is None:
-            preview_map = shared.readfile('html/previews.json', silent=True, as_type="dict")
+            preview_file = os.path.join('data', 'previews.json')
+            preview_map = shared.readfile(preview_file, silent=True, as_type="dict")
         t0 = time.time()
         reference_path = os.path.abspath(os.path.join('models', 'Reference'))
         possible_paths = list(set([os.path.dirname(item['filename']) for item in items] + [reference_path]))

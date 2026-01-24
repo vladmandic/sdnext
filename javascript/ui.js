@@ -574,7 +574,7 @@ function toggleCompact(val, old) {
 
 function previewTheme() {
   let name = gradioApp().getElementById('setting_gradio_theme').querySelectorAll('input')?.[0].value || '';
-  fetch(`${window.subpath}/file=html/themes.json`)
+  fetch(`${window.subpath}/file=data/themes.json`)
     .then((res) => {
       res.json()
         .then((themes) => {

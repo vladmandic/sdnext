@@ -28,7 +28,7 @@ sort_ordering = {
     "commits": (True, lambda x: x.get('commits', 0)),
     "issues": (True, lambda x: x.get('issues', 0)),
 }
-
+extensions_data_file = os.path.join("data", "extensions.json")
 
 re_snake_case = re.compile(r'_(?=[a-zA-z0-9])')
 re_camelCase = re.compile(r'(?<=[a-z])([A-Z])')
@@ -41,10 +41,9 @@ def get_installed(ext):
 
 def list_extensions():
     global extensions_list # pylint: disable=global-statement
-    fn = os.path.join(paths.script_path, "html", "extensions.json")
-    extensions_list = shared.readfile(fn, silent=True, as_type="list")
+    extensions_list = shared.readfile(extensions_data_file, silent=True, as_type="list")
     if len(extensions_list) == 0:
-        shared.log.info("Extension List: No information found. Refresh required.")
+        shared.log.info("Extension list: No information found. Refresh required.")
     found = []
     for ext in extensions.extensions:
         ext.read_info()
@@ -260,7 +259,7 @@ def refresh_extensions_list(search_text, sort_column):
         with urllib.request.urlopen(extensions_index, timeout=3.0, context=context) as response:
             text = response.read()
         extensions_list = json.loads(text)
-        with open(os.path.join(paths.script_path, "html", "extensions.json"), "w", encoding="utf-8") as outfile:
+        with open(extensions_data_file, "w", encoding="utf-8") as outfile:
             json_object = json.dumps(extensions_list, indent=2)
             outfile.write(json_object)
             shared.log.info(f'Updated extensions list: items={len(extensions_list)} url={extensions_index}')

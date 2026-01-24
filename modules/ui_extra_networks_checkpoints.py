@@ -43,11 +43,11 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             return []
         count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0 }
 
-        reference_base = readfile(os.path.join('html', 'reference.json'), as_type="dict")
-        reference_quant = readfile(os.path.join('html', 'reference-quant.json'), as_type="dict")
-        reference_distilled = readfile(os.path.join('html', 'reference-distilled.json'), as_type="dict")
-        reference_community = readfile(os.path.join('html', 'reference-community.json'), as_type="dict")
-        reference_cloud = readfile(os.path.join('html', 'reference-cloud.json'), as_type="dict")
+        reference_base = readfile(os.path.join('data', 'reference.json'), as_type="dict")
+        reference_quant = readfile(os.path.join('data', 'reference-quant.json'), as_type="dict")
+        reference_distilled = readfile(os.path.join('data', 'reference-distilled.json'), as_type="dict")
+        reference_community = readfile(os.path.join('data', 'reference-community.json'), as_type="dict")
+        reference_cloud = readfile(os.path.join('data', 'reference-cloud.json'), as_type="dict")
         shared.reference_models = {}
         shared.reference_models.update(reference_base)
         shared.reference_models.update(reference_quant)

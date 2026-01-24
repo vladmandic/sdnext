@@ -849,7 +849,7 @@ log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.g
 profiler = None
 import modules.styles
 prompt_styles = modules.styles.StyleDatabase(opts)
-reference_models = readfile(os.path.join('html', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
+reference_models = readfile(os.path.join('data', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
 
 log.debug('Initializing: devices')
