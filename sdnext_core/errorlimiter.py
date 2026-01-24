@@ -1,4 +1,9 @@
+from __future__ import annotations
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
@@ -20,13 +25,14 @@ class ErrorLimiter:
         cls._store[name] = limit
 
     @classmethod
-    def notify(cls, name: str):  # Can be manually triggered if execution is spread across multiple files
-        if name in cls._store.keys():
-            cls._store[name] = cls._store[name] - 1
-            if cls._store[name] <= 0:
-                raise ErrorLimiterTrigger(name)
-        else:
-            raise RuntimeError(f"ErrorLimiter for '{name}' was called before setup")
+    def notify(cls, name: str | Iterable[str]):  # Can be manually triggered if execution is spread across multiple files
+        if isinstance(name, str):
+            name = (name,)
+        for key in name:
+            if key in cls._store.keys():
+                cls._store[key] = cls._store[key] - 1
+                if cls._store[key] <= 0:
+                    raise ErrorLimiterTrigger(key)
 
     @classmethod
     def end(cls, name: str):
@@ -62,6 +68,6 @@ def limit_errors(name: str, limit: int = 5):
         ErrorLimiter.start(name, limit)
         yield lambda: ErrorLimiter.notify(name)
     except ErrorLimiterTrigger as e:
-        raise ErrorLimiterAbort(f"HALTING. Too many errors during {e.name}") from None
+        raise ErrorLimiterAbort(f"HALTING. Too many errors during '{e.name}'") from None
     finally:
         ErrorLimiter.end(name)

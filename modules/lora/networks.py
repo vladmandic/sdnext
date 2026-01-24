@@ -13,7 +13,7 @@ default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_
 
 def network_activate(include=[], exclude=[]):
     t0 = time.time()
-    with limit_errors("network_calc_weights"):
+    with limit_errors("network_activate:network_calc_weights"):
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -83,7 +83,7 @@ def network_deactivate(include=[], exclude=[]):
     if len(l.previously_loaded_networks) == 0:
         return
     t0 = time.time()
-    with limit_errors("network_calc_weights"):
+    with limit_errors("network_deactivate:network_calc_weights"):
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
