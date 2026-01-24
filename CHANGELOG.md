@@ -3,7 +3,7 @@
 ## Todo
 
 - update `rocm/windows`
- 
+
 ## Update for 2026-01-24
 
 - **Features**
@@ -23,7 +23,10 @@
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
   - further work on type consistency and type checking, thanks @awsr  
+  - log captured exceptions  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
+  - implement abort system on repeated errors, thanks @awsr  
+    currently used by lora and textual-inversion loaders  
   - update package requirements  
 - **Fixes**
   - add video ui elem_ids, thanks @ryanmeador  

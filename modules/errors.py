@@ -17,11 +17,18 @@ def install(suppress=[]):
 
 
 def display(e: Exception, task: str, suppress=[]):
-    log.error(f"{task or 'error'}: {type(e).__name__}")
     if isinstance(e, ErrorLimiterAbort):
         return
+    log.critical(f"{task or 'error'}: {type(e).__name__}")
+    """
+    trace = traceback.format_exc()
+    log.error(trace)
+    for line in traceback.format_tb(e.__traceback__):
+        log.error(repr(line))
     console = get_console()
     console.print_exception(show_locals=False, max_frames=16, extra_lines=1, suppress=suppress, theme="ansi_dark", word_wrap=False, width=console.width)
+    """
+    log.traceback(e, suppress=suppress)
 
 
 def display_once(e: Exception, task):

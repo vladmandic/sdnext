@@ -112,7 +112,7 @@ def install_traceback(suppress: list = []):
     width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
     if width is not None:
         width = int(width)
-    traceback_install(
+    log.excepthook = traceback_install(
         console=console,
         extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
         max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
@@ -168,7 +168,6 @@ def setup_logging():
         def get(self):
             return self.buffer
 
-
     class LogFilter(logging.Filter):
         def __init__(self):
             super().__init__()
@@ -215,6 +214,23 @@ def setup_logging():
     logging.Logger.trace = partialmethod(logging.Logger.log, logging.TRACE)
     logging.trace = partial(logging.log, logging.TRACE)
 
+    def exception_hook(e: Exception, suppress=[]):
+        from rich.traceback import Traceback
+        tb = Traceback.from_exception(type(e), e, e.__traceback__, show_locals=False, max_frames=16, extra_lines=1, suppress=suppress, theme="ansi_dark", word_wrap=False, width=console.width)
+        # print-to-console, does not get printed-to-file
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        log.excepthook(exc_type, exc_value, exc_traceback)
+        # print-to-file, temporarily disable-console-handler
+        for handler in log.handlers.copy():
+            if isinstance(handler, RichHandler):
+                log.removeHandler(handler)
+        with console.capture() as capture:
+            console.print(tb)
+        log.critical(capture.get())
+        log.addHandler(rh)
+
+    log.traceback = exception_hook
+
     level = logging.DEBUG if (args.debug or args.trace) else logging.INFO
     log.setLevel(logging.DEBUG) # log to file is always at level debug for facility `sd`
     log.print = rprint
@@ -240,8 +256,10 @@ def setup_logging():
     )
 
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(name)s | %(levelname)s | %(module)s | %(message)s', handlers=[logging.NullHandler()]) # redirect default logger to null
+
     pretty_install(console=console)
     install_traceback()
+
     while log.hasHandlers() and len(log.handlers) > 0:
         log.removeHandler(log.handlers[0])
 
@@ -288,7 +306,6 @@ def setup_logging():
     logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("ControlNet").handlers = log.handlers
     logging.getLogger("lycoris").handlers = log.handlers
-    # logging.getLogger("DeepSpeed").handlers = log.handlers
     ts('log', t_start)
 
 
