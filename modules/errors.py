@@ -1,6 +1,7 @@
 import logging
 import warnings
 from installer import get_log, get_console, setup_logging, install_traceback
+from sdnext_core.errorlimiter import ErrorLimiterAbort
 
 
 log = get_log()
@@ -17,6 +18,8 @@ def install(suppress=[]):
 
 def display(e: Exception, task: str, suppress=[]):
     log.error(f"{task or 'error'}: {type(e).__name__}")
+    if isinstance(e, ErrorLimiterAbort):
+        return
     console = get_console()
     console.print_exception(show_locals=False, max_frames=16, extra_lines=1, suppress=suppress, theme="ansi_dark", word_wrap=False, width=console.width)
 
