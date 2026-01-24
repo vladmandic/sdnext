@@ -96,21 +96,21 @@ class DeepDanbooru:
             x = torch.from_numpy(a).to(device=devices.device, dtype=devices.dtype)
             y = self.model(x)[0].detach().float().cpu().numpy()
         probability_dict = {}
-        for tag, probability in zip(self.model.tags, y):
+        for current, probability in zip(self.model.tags, y):
             if probability < general_threshold:
                 continue
-            if tag.startswith("rating:") and not include_rating:
+            if current.startswith("rating:") and not include_rating:
                 continue
-            probability_dict[tag] = probability
+            probability_dict[current] = probability
         if sort_alpha:
             tags = sorted(probability_dict)
         else:
             tags = [tag for tag, _ in sorted(probability_dict.items(), key=lambda x: -x[1])]
         res = []
         filtertags = {x.strip().replace(' ', '_') for x in exclude_tags.split(",")}
-        for tag in [x for x in tags if x not in filtertags]:
-            probability = probability_dict[tag]
-            tag_outformat = tag
+        for filtertag in [x for x in tags if x not in filtertags]:
+            probability = probability_dict[filtertag]
+            tag_outformat = filtertag
             if use_spaces:
                 tag_outformat = tag_outformat.replace('_', ' ')
             if escape_brackets:
@@ -156,7 +156,7 @@ def get_models() -> list:
     return ["DeepBooru"]
 
 
-def load_model(model_name: str = None) -> bool:
+def load_model(model_name: str = None) -> bool: # pylint: disable=unused-argument
     """Load the DeepBooru model."""
     try:
         model.load()
@@ -202,7 +202,7 @@ def tag(image, **kwargs) -> str:
 
 
 def batch(
-    model_name: str,
+    model_name: str, # pylint: disable=unused-argument
     batch_files: list,
     batch_folder: str,
     batch_str: str,
