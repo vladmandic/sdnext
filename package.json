@@ -1,6 +1,5 @@
 {
   "name": "@vladmandic/sdnext",
-  "version": "dev",
   "description": "SD.Next: All-in-one WebUI for AI generative image and video creation",
   "author": "Vladimir Mandic <mandic00@live.com>",
   "bugs": {
