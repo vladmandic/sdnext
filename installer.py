@@ -714,7 +714,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch-2.10.0+cu128 torchvision-0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -765,7 +765,6 @@ def install_rocm_zluda():
 
     if sys.platform == "win32":
         if args.use_zluda:
-            #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
 
             if args.device_id is not None:

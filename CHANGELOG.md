@@ -2,7 +2,6 @@
 
 ## Todo
 
-- figure out `rocm/linux` rdnb3 vs rdna4
 - update `rocm/windows`
  
 ## Update for 2026-01-23
@@ -13,12 +12,13 @@
   - support comments in wildcard files, using `#`  
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
 - **Internal**
+  - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
+    each major for the past year is now tagged for easier reference  
   - **cuda**: update to `torch==2.10.0`  
   - **xpu**: update to `torch==2.10.0`  
   - **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
-  - **rocm/linux**: update to `torch==2.10.0` 
-  - **rocm/windows**: tbd
-  - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
+  - **rocm/linux**: update to `torch==2.10.0`  
+    *note*: may cause slow first startup  
   - further work on type consistency and type checking, thanks @awsr  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
   - update package requirements  
