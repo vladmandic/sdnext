@@ -3,7 +3,7 @@ import re
 import time
 import torch
 import diffusers.models.lora
-from sdnext_core.errorlimiter import ErrorLimiter
+from modules.errorlimiter import ErrorLimiter
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 

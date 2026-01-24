@@ -1,7 +1,7 @@
 import logging
 import warnings
 from installer import get_log, get_console, setup_logging, install_traceback
-from sdnext_core.errorlimiter import ErrorLimiterAbort
+from modules.errorlimiter import ErrorLimiterAbort
 
 
 log = get_log()

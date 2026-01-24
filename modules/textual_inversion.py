@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
-from sdnext_core.errorlimiter import limit_errors
+from modules.errorlimiter import limit_errors
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
