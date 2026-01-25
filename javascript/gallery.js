@@ -1027,7 +1027,7 @@ function addCacheClearButton() { // Don't use async
   div.style.cssText = 'margin-top: 1.5rem; margin-bottom: 0.5rem;';
   const btn = document.createElement('button');
   btn.style.cssText = 'margin: auto; display: block;';
-  btn.innerText = 'Clear Folder Thumbnails (double click)';
+  btn.innerText = 'Clear Folder Thumbnails (double click/tap)';
   btn.addEventListener('dblclick', () => {
     if (!currentGalleryFolder) return;
     const controller = resetController('Clearing thumbnails');
