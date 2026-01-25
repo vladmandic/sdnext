@@ -285,7 +285,7 @@ def clean(response, question, prefill=None):
         response = response.strip()
     elif isinstance(response, dict):
         text_response = ""
-        if 'reasoning' in response and shared.opts.interrogate_vlm_keep_thinking:
+        if 'reasoning' in response and get_keep_thinking():
             r_text = response['reasoning']
             if isinstance(r_text, dict) and 'text' in r_text:
                 r_text = r_text['text']
@@ -321,7 +321,7 @@ def clean(response, question, prefill=None):
     response = response.replace('  ', ' ').replace('*  ', '- ').strip()
 
     # Handle prefill retention/removal
-    if shared.opts.interrogate_vlm_keep_prefill:
+    if get_keep_prefill():
         # Add prefill if it's missing from the cleaned response
         if len(prefill_text) > 0 and not response.startswith(prefill_text):
             sep = " "
@@ -336,19 +336,59 @@ def clean(response, question, prefill=None):
     return response
 
 
+def _get_overrides():
+    """Get generation overrides from VQA singleton if available."""
+    if _instance is not None and _instance._generation_overrides is not None:
+        return _instance._generation_overrides
+    return {}
+
+
+def get_keep_thinking():
+    """Check if thinking trace should be kept, with per-request override support."""
+    overrides = _get_overrides()
+    if overrides.get('keep_thinking') is not None:
+        return overrides['keep_thinking']
+    return get_keep_thinking()
+
+
+def get_keep_prefill():
+    """Check if prefill should be kept in output, with per-request override support."""
+    overrides = _get_overrides()
+    if overrides.get('keep_prefill') is not None:
+        return overrides['keep_prefill']
+    return get_keep_prefill()
+
+
 def get_kwargs():
+    """Build generation kwargs from settings with per-request overrides from VQA instance.
+
+    Checks the singleton VQA instance's _generation_overrides for per-request overrides.
+    Override keys: max_tokens, temperature, top_k, top_p, num_beams, do_sample
+    None values are ignored, allowing selective override.
+    """
+    # Get overrides from VQA singleton if available
+    overrides = _get_overrides()
+
+    # Get base values from settings, apply overrides if provided
+    max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.interrogate_vlm_max_length
+    do_sample = overrides.get('do_sample') if overrides.get('do_sample') is not None else shared.opts.interrogate_vlm_do_sample
+    num_beams = overrides.get('num_beams') if overrides.get('num_beams') is not None else shared.opts.interrogate_vlm_num_beams
+    temperature = overrides.get('temperature') if overrides.get('temperature') is not None else shared.opts.interrogate_vlm_temperature
+    top_k = overrides.get('top_k') if overrides.get('top_k') is not None else shared.opts.interrogate_vlm_top_k
+    top_p = overrides.get('top_p') if overrides.get('top_p') is not None else shared.opts.interrogate_vlm_top_p
+
     kwargs = {
-        'max_new_tokens': shared.opts.interrogate_vlm_max_length,
-        'do_sample': shared.opts.interrogate_vlm_do_sample,
+        'max_new_tokens': max_tokens,
+        'do_sample': do_sample,
     }
-    if shared.opts.interrogate_vlm_num_beams > 0:
-        kwargs['num_beams'] = shared.opts.interrogate_vlm_num_beams
-    if shared.opts.interrogate_vlm_temperature > 0:
-        kwargs['temperature'] = shared.opts.interrogate_vlm_temperature
-    if shared.opts.interrogate_vlm_top_k > 0:
-        kwargs['top_k'] = shared.opts.interrogate_vlm_top_k
-    if shared.opts.interrogate_vlm_top_p > 0:
-        kwargs['top_p'] = shared.opts.interrogate_vlm_top_p
+    if num_beams > 0:
+        kwargs['num_beams'] = num_beams
+    if temperature > 0:
+        kwargs['temperature'] = temperature
+    if top_k > 0:
+        kwargs['top_k'] = top_k
+    if top_p > 0:
+        kwargs['top_p'] = top_p
     return kwargs
 
 
@@ -361,6 +401,7 @@ class VQA:
         self.loaded: str = None
         self.last_annotated_image = None
         self.last_detection_data = None
+        self._generation_overrides = None  # Per-request generation parameter overrides
 
     def unload(self):
         """Release VLM model from GPU/memory."""
@@ -607,7 +648,7 @@ class VQA:
         # Note: <think> is in the prompt, not the response - only </think> appears in generated output
         if len(response) > 0:
             text = response[0]
-            if shared.opts.interrogate_vlm_keep_thinking:
+            if get_keep_thinking():
                 # Handle case where <think> is in prompt (not response) but </think> is in response
                 if '</think>' in text and '<think>' not in text:
                     text = 'Reasoning:\n' + text.replace('</think>', '\n\nAnswer:')
@@ -739,7 +780,7 @@ class VQA:
             debug(f'VQA interrogate: handler=gemma response_before_clean="{response}"')
 
         # Clean up thinking tags (if any remain)
-        if shared.opts.interrogate_vlm_keep_thinking:
+        if get_keep_thinking():
             response = response.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:')
         else:
             text = response
@@ -923,7 +964,7 @@ class VQA:
         # Clean up thinking tags
         if len(response) > 0:
             text = response[0]
-            if shared.opts.interrogate_vlm_keep_thinking:
+            if get_keep_thinking():
                 text = text.replace('<think>', 'Reasoning:\n').replace('</think>', '\n\nAnswer:')
             else:
                 while '</think>' in text:
@@ -1117,7 +1158,7 @@ class VQA:
                 if thinking_mode and 'reasoning' in result:
                     reasoning_text = result['reasoning'].get('text', '') if isinstance(result['reasoning'], dict) else str(result['reasoning'])
                     debug(f'VQA interrogate: handler=moondream reasoning_text="{reasoning_text[:100]}..."')
-                    if shared.opts.interrogate_vlm_keep_thinking:
+                    if get_keep_thinking():
                         response = f"Reasoning:\n{reasoning_text}\n\nAnswer:\n{response}"
                     # When keep_thinking is False, just use the answer (reasoning is discarded)
         return response
@@ -1217,17 +1258,31 @@ class VQA:
         response = return_dict["prediction"]  # the text format answer
         return response
 
-    def interrogate(self, question: str = '', system_prompt: str = None, prompt: str = None, image: Image.Image = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False, quiet: bool = False) -> str:
+    def interrogate(self, question: str = '', system_prompt: str = None, prompt: str = None, image: Image.Image = None, model_name: str = None, prefill: str = None, thinking_mode: bool = None, quiet: bool = False, generation_kwargs: dict = None) -> str:
         """
         Main entry point for VQA interrogation. Returns string answer.
         Detection data stored in self.last_detection_data for annotated image creation.
+
+        Args:
+            question: Question/task to perform
+            system_prompt: System prompt for the model
+            prompt: Additional prompt text
+            image: PIL Image to process
+            model_name: Model to use (defaults to settings)
+            prefill: Text to prefill the response with
+            thinking_mode: Enable thinking/reasoning mode (None = use settings)
+            quiet: Suppress logging
+            generation_kwargs: Optional dict with generation parameter overrides:
+                max_tokens, temperature, top_k, top_p, num_beams, do_sample, keep_thinking, keep_prefill
         """
         self.last_annotated_image = None
         self.last_detection_data = None
+        self._generation_overrides = generation_kwargs  # Set per-request overrides
         jobid = shared.state.begin('Interrogate LLM')
         t0 = time.time()
         model_name = model_name or shared.opts.interrogate_vlm_model
         prefill = vlm_prefill if prefill is None else prefill  # Use provided prefill when specified
+        thinking_mode = shared.opts.interrogate_vlm_thinking_mode if thinking_mode is None else thinking_mode  # Resolve from settings if not specified
         if isinstance(image, list):
             image = image[0] if len(image) > 0 else None
         if isinstance(image, dict) and 'name' in image:
@@ -1358,6 +1413,7 @@ class VQA:
         t1 = time.time()
         if not quiet:
             shared.log.debug(f'Interrogate: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
+        self._generation_overrides = None  # Clear per-request overrides
         shared.state.end(jobid)
         return answer
 
