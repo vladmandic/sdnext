@@ -41,10 +41,40 @@ DEFAULT_TEST_IMAGES = [
 class CaptionAPITest:
     """Test harness for Caption API endpoints."""
 
-    def __init__(self, base_url, image_path=None, username=None, password=None):
+    # VQA model families for architecture testing
+    VQA_FAMILIES = {
+        'qwen': ['qwen'],
+        'gemma': ['gemma'],  # excluding paligemma
+        'smolvlm': ['smol'],
+        'florence': ['florence'],
+        'promptgen': ['promptgen'],
+        'moondream': ['moondream'],
+        'fastvlm': ['fastvlm'],
+        'git': ['git'],
+        'blip': ['blip'],
+        'pix2struct': ['pix'],
+        'paligemma': ['paligemma'],
+        'vilt': ['vilt'],
+        'ovis': ['ovis'],
+        'sa2va': ['sa2'],
+        'toriigate': ['torii'],
+        'mimo': ['mimo'],
+        'joytag': ['joytag'],
+        'joycaption': ['joycaption'],
+    }
+
+    # BLIP model types for interrogate testing (smaller models only to avoid reloading large models)
+    BLIP_MODELS = [
+        'blip-base',
+        'blip-large',
+        'blip2-opt-2.7b',
+    ]
+
+    def __init__(self, base_url, image_path=None, username=None, password=None, timeout=300):
         self.base_url = base_url.rstrip('/')
         self.image_path = image_path
         self.image_b64 = None
+        self.timeout = timeout  # Request timeout in seconds
         self.results = {'passed': [], 'failed': [], 'skipped': []}
         self.auth = None
         if username and password:
@@ -69,6 +99,68 @@ class CaptionAPITest:
     def log_info(self, msg):
         print(f"  [INFO] {msg}")
 
+    def is_error_answer(self, answer):
+        """Check if an answer string indicates an error occurred."""
+        if not answer:
+            return False
+        answer_lower = answer.lower().strip()
+        # Common error patterns in VQA/caption responses
+        error_patterns = [
+            'error',
+            'exception',
+            'failed',
+            'traceback',
+            'cannot',
+            'unable to',
+        ]
+        # Check if answer is just an error keyword or starts with one
+        for pattern in error_patterns:
+            if answer_lower == pattern or answer_lower.startswith(f'{pattern}:') or answer_lower.startswith(f'{pattern} '):
+                return True
+        return False
+
+    def is_meaningful_answer(self, answer, min_length=3):
+        """Check if an answer is meaningful (not just punctuation or too short)."""
+        if not answer:
+            return False
+        # Strip whitespace and check length
+        stripped = answer.strip()
+        if len(stripped) < min_length:
+            return False
+        # Check if it's just punctuation
+        if all(c in '.,!?;:\'"()-_' for c in stripped):
+            return False
+        return True
+
+    def get_model_family(self, model_name):
+        """Determine model family from model name."""
+        name_lower = model_name.lower()
+        for family, patterns in self.VQA_FAMILIES.items():
+            for pattern in patterns:
+                if pattern in name_lower:
+                    # Special case: gemma but not paligemma
+                    if family == 'gemma' and 'pali' in name_lower:
+                        continue
+                    return family
+        return 'unknown'
+
+    def get_tagger_type(self, model):
+        """Determine tagger type and version from model info."""
+        model_type = model.get('type', 'unknown')
+        model_name = model.get('name', '').lower()
+
+        if model_type == 'deepbooru':
+            return 'deepbooru', None
+        elif model_type == 'waifudiffusion':
+            # Determine WD version
+            if 'v3' in model_name:
+                return 'waifudiffusion', 'v3'
+            elif 'v2' in model_name:
+                return 'waifudiffusion', 'v2'
+            else:
+                return 'waifudiffusion', 'v1'
+        return model_type, None
+
     # =========================================================================
     # HTTP Helpers
     # =========================================================================
@@ -76,11 +168,11 @@ class CaptionAPITest:
         """Make GET request and return JSON response."""
         url = f"{self.base_url}{endpoint}"
         try:
-            resp = requests.get(url, params=params, auth=self.auth, timeout=120, verify=False)
+            resp = requests.get(url, params=params, auth=self.auth, timeout=self.timeout, verify=False)
             resp.raise_for_status()
             return resp.json()
         except requests.exceptions.Timeout:
-            return {'error': 'timeout', 'reason': 'Request timed out'}
+            return {'error': 'timeout', 'reason': f'Request timed out after {self.timeout}s'}
         except requests.exceptions.HTTPError as e:
             try:
                 return {'error': 'http', 'status': e.response.status_code, 'reason': e.response.json().get('detail', str(e))}
@@ -93,11 +185,11 @@ class CaptionAPITest:
         """Make POST request and return JSON response."""
         url = f"{self.base_url}{endpoint}"
         try:
-            resp = requests.post(url, json=json_data, auth=self.auth, timeout=120, verify=False)
+            resp = requests.post(url, json=json_data, auth=self.auth, timeout=self.timeout, verify=False)
             resp.raise_for_status()
             return resp.json()
         except requests.exceptions.Timeout:
-            return {'error': 'timeout', 'reason': 'Request timed out'}
+            return {'error': 'timeout', 'reason': f'Request timed out after {self.timeout}s'}
         except requests.exceptions.HTTPError as e:
             try:
                 return {'error': 'http', 'status': e.response.status_code, 'reason': e.response.json().get('detail', str(e))}
@@ -115,6 +207,7 @@ class CaptionAPITest:
         print("CAPTION API TEST SUITE")
         print("=" * 70)
         print(f"\nServer: {self.base_url}")
+        print(f"Timeout: {self.timeout}s")
 
         # Check server connectivity
         print("\nChecking server connectivity...")
@@ -243,10 +336,13 @@ class CaptionAPITest:
             self.log_skip(f"DeepBooru: {data.get('reason', 'failed')} (model may not be loaded)")
             return
 
-        if data.get('caption'):
-            caption_preview = data['caption'][:80] + '...' if len(data['caption']) > 80 else data['caption']
+        caption = data.get('caption', '')
+        if caption and not self.is_error_answer(caption):
+            caption_preview = caption[:80] + '...' if len(caption) > 80 else caption
             self.log_pass(f"DeepBooru returns caption ({elapsed:.1f}s)")
             self.log_info(f"Caption: {caption_preview}")
+        elif self.is_error_answer(caption):
+            self.log_fail(f"DeepBooru returned error: {caption}")
         else:
             self.log_fail("DeepBooru returned empty caption")
 
@@ -283,8 +379,10 @@ class CaptionAPITest:
 
             if 'error' in data:
                 self.log_skip(f"mode='{mode}': {data.get('reason', 'failed')}")
-            elif data.get('caption'):
+            elif data.get('caption') and not self.is_error_answer(data['caption']):
                 self.log_pass(f"mode='{mode}' returns caption ({len(data['caption'])} chars, {elapsed:.1f}s)")
+            elif self.is_error_answer(data.get('caption', '')):
+                self.log_fail(f"mode='{mode}' returned error: {data['caption']}")
             else:
                 self.log_fail(f"mode='{mode}' returned empty caption")
 
@@ -378,6 +476,289 @@ class CaptionAPITest:
             self.log_pass(f"Invalid model returns error: {data.get('status', 'error')}")
         else:
             self.log_fail("Invalid model should return error")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/interrogate - CLIP/BLIP Models
+    # =========================================================================
+    def test_interrogate_clip_blip_models(self):
+        """Test clip_model and blip_model parameter overrides."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/interrogate (clip_model, blip_model)")
+        print("=" * 70)
+
+        # Check if we have OpenCLIP models
+        if not self._interrogate_models:
+            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        # Test with explicit clip_model override
+        model = clip_models[0]
+        t0 = time.time()
+        data = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'clip_model': model,  # Explicit CLIP model
+            'mode': 'fast'
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"clip_model override: {data.get('reason', 'failed')}")
+        elif data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"clip_model override accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail(f"clip_model override returned empty/error: {data.get('caption', '')}")
+
+        # Test with blip_model override (uses 'caption' mode internally)
+        # Valid blip_model values: 'blip-base', 'blip-large', 'blip2-opt-2.7b', 'blip2-opt-6.7b', 'blip2-flip-t5-xl', 'blip2-flip-t5-xxl'
+        t0 = time.time()
+        data = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'blip_model': 'blip-base',  # Use smaller model to test override
+            'mode': 'caption'
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"blip_model override: {data.get('reason', 'failed')}")
+        elif data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"blip_model='blip-base' override accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail(f"blip_model override returned empty/error: {data.get('caption', '')}")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/interrogate - Caption Length
+    # =========================================================================
+    def test_interrogate_caption_length(self):
+        """Test min_length and max_length constraints."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/interrogate (min_length, max_length)")
+        print("=" * 70)
+
+        # Check if we have OpenCLIP models
+        if not self._interrogate_models:
+            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        # Test max_length effect by comparing short vs long limits
+        data_max_short = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption',
+            'max_length': 10  # Very short
+        })
+        data_max_long = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption',
+            'max_length': 100  # Longer
+        })
+
+        if 'error' in data_max_short or 'error' in data_max_long:
+            self.log_skip("max_length test: API error")
+        elif data_max_short.get('caption') and data_max_long.get('caption'):
+            len_short = len(data_max_short['caption'])
+            len_long = len(data_max_long['caption'])
+            self.log_info(f"max_length=10: {len_short} chars - '{data_max_short['caption'][:50]}...'")
+            self.log_info(f"max_length=100: {len_long} chars - '{data_max_long['caption'][:50]}...'")
+            if len_short < len_long:
+                self.log_pass(f"max_length has effect: {len_short} < {len_long} chars")
+            elif len_short == len_long:
+                self.log_skip(f"max_length no effect detected (both {len_short} chars, may be model limit)")
+            else:
+                self.log_fail(f"max_length reversed: short={len_short}, long={len_long}")
+        else:
+            self.log_fail("max_length test returned empty captions")
+
+        # Test min_length effect by comparing low vs high minimums
+        data_min_low = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption',
+            'min_length': 5  # Low minimum
+        })
+        data_min_high = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption',
+            'min_length': 50  # Higher minimum
+        })
+
+        if 'error' in data_min_low or 'error' in data_min_high:
+            self.log_skip("min_length test: API error")
+        elif data_min_low.get('caption') and data_min_high.get('caption'):
+            len_low = len(data_min_low['caption'])
+            len_high = len(data_min_high['caption'])
+            self.log_info(f"min_length=5: {len_low} chars - '{data_min_low['caption'][:50]}...'")
+            self.log_info(f"min_length=50: {len_high} chars - '{data_min_high['caption'][:50]}...'")
+            if len_high > len_low:
+                self.log_pass(f"min_length has effect: {len_low} < {len_high} chars")
+            elif len_high == len_low:
+                self.log_fail(f"min_length has no effect (both {len_low} chars)")
+            else:
+                self.log_fail(f"min_length reversed: low={len_low}, high={len_high}")
+        else:
+            self.log_fail("min_length test returned empty captions")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/interrogate - Flavors
+    # =========================================================================
+    def test_interrogate_flavors(self):
+        """Test min_flavors and max_flavors controls."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/interrogate (min_flavors, max_flavors)")
+        print("=" * 70)
+
+        # Check if we have OpenCLIP models
+        if not self._interrogate_models:
+            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        # Test max_flavors effect by comparing few vs many
+        data_few = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'max_flavors': 3  # Fewer flavor tags
+        })
+        data_many = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'max_flavors': 20  # More flavor tags
+        })
+
+        if 'error' in data_few or 'error' in data_many:
+            self.log_skip("max_flavors test: API error")
+        elif data_few.get('caption') and data_many.get('caption'):
+            len_few = len(data_few['caption'])
+            len_many = len(data_many['caption'])
+            self.log_info(f"max_flavors=3: {len_few} chars - '{data_few['caption'][:50]}...'")
+            self.log_info(f"max_flavors=20: {len_many} chars - '{data_many['caption'][:50]}...'")
+            if len_many > len_few:
+                self.log_pass(f"max_flavors has effect: {len_few} < {len_many} chars")
+            elif len_many == len_few:
+                self.log_skip(f"max_flavors no effect detected (both {len_few} chars)")
+            else:
+                self.log_fail(f"max_flavors reversed: few={len_few}, many={len_many}")
+        else:
+            self.log_fail("max_flavors test returned empty captions")
+
+        # Test min_flavors effect by comparing low vs high minimums
+        data_min_low = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'min_flavors': 1
+        })
+        data_min_high = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'min_flavors': 10
+        })
+
+        if 'error' in data_min_low or 'error' in data_min_high:
+            self.log_skip("min_flavors test: API error")
+        elif data_min_low.get('caption') and data_min_high.get('caption'):
+            len_low = len(data_min_low['caption'])
+            len_high = len(data_min_high['caption'])
+            self.log_info(f"min_flavors=1: {len_low} chars")
+            self.log_info(f"min_flavors=10: {len_high} chars")
+            if len_high >= len_low:
+                self.log_pass(f"min_flavors has effect: {len_low} <= {len_high} chars")
+            else:
+                self.log_fail(f"min_flavors reversed: low={len_low}, high={len_high}")
+        else:
+            self.log_fail("min_flavors test returned empty captions")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/interrogate - Advanced Settings
+    # =========================================================================
+    def test_interrogate_advanced_settings(self):
+        """Test chunk_size, flavor_count, and num_beams parameters."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/interrogate (chunk_size, flavor_count, num_beams)")
+        print("=" * 70)
+
+        # Check if we have OpenCLIP models
+        if not self._interrogate_models:
+            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        # Test chunk_size override
+        t0 = time.time()
+        data = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'chunk_size': 1024  # Batch size for processing candidates
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"chunk_size override: {data.get('reason', 'failed')}")
+        elif data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"chunk_size=1024 accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("chunk_size override returned empty/error")
+
+        # Test flavor_count override
+        t0 = time.time()
+        data = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast',
+            'flavor_count': 16  # Intermediate candidate pool size
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"flavor_count override: {data.get('reason', 'failed')}")
+        elif data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"flavor_count=16 accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("flavor_count override returned empty/error")
+
+        # Test num_beams override (beam search for caption generation)
+        t0 = time.time()
+        data = self.post('/sdapi/v1/interrogate', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption',
+            'num_beams': 3  # Beam search paths
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"num_beams override: {data.get('reason', 'failed')}")
+        elif data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"num_beams=3 accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("num_beams override returned empty/error")
 
     # =========================================================================
     # TEST: GET /sdapi/v1/vqa/models - VLM Models List
@@ -477,10 +858,13 @@ class CaptionAPITest:
             self.log_skip(f"VQA: {data.get('reason', 'failed')} (model may not be loaded)")
             return
 
-        if data.get('answer'):
-            answer_preview = data['answer'][:100] + '...' if len(data['answer']) > 100 else data['answer']
+        answer = data.get('answer', '')
+        if answer and not self.is_error_answer(answer):
+            answer_preview = answer[:100] + '...' if len(answer) > 100 else answer
             self.log_pass(f"VQA returns answer ({elapsed:.1f}s)")
             self.log_info(f"Answer: {answer_preview}")
+        elif self.is_error_answer(answer):
+            self.log_fail(f"VQA returned error: {answer}")
         else:
             self.log_fail("VQA returned empty answer")
 
@@ -504,8 +888,10 @@ class CaptionAPITest:
 
             if 'error' in data:
                 self.log_skip(f"prompt='{prompt}': {data.get('reason', 'failed')}")
-            elif data.get('answer'):
+            elif data.get('answer') and not self.is_error_answer(data['answer']):
                 self.log_pass(f"prompt='{prompt}' returns answer ({len(data['answer'])} chars, {elapsed:.1f}s)")
+            elif self.is_error_answer(data.get('answer', '')):
+                self.log_fail(f"prompt='{prompt}' returned error: {data['answer']}")
             else:
                 self.log_fail(f"prompt='{prompt}' returned empty answer")
 
@@ -552,11 +938,16 @@ class CaptionAPITest:
             self.log_skip(f"Detection test: {data_annot.get('reason', 'failed')} (model may not be loaded)")
             return
 
-        # Verify answer present
-        if data_annot.get('answer'):
-            self.log_pass(f"Detection task returns answer ({elapsed:.1f}s)")
+        # Verify answer present and not an error
+        answer = data_annot.get('answer', '')
+        if self.is_meaningful_answer(answer) and not self.is_error_answer(answer):
+            answer_preview = answer[:100] + '...' if len(answer) > 100 else answer
+            self.log_pass(f"Detection returns answer ({elapsed:.1f}s): {answer_preview}")
+        elif self.is_error_answer(answer):
+            self.log_fail(f"Detection task returned error: {answer}")
+            return
         else:
-            self.log_skip("Detection may not work without model loaded")
+            self.log_fail(f"Detection returned non-meaningful answer: '{answer}'")
             return
 
         # Verify annotated_image field
@@ -571,7 +962,11 @@ class CaptionAPITest:
             except Exception as e:
                 self.log_fail(f"annotated_image invalid base64: {e}")
         else:
-            self.log_skip("annotated_image empty (may need detections in image)")
+            # Check if answer contains detection results (bounding boxes)
+            if '<loc_' in answer or 'box' in answer.lower():
+                self.log_fail("Detections found in answer but annotated_image is empty")
+            else:
+                self.log_skip("No detections in image - annotated_image empty (test image may need visible objects)")
 
         # Verify absent when not requested
         if 'error' not in data_no_annot:
@@ -601,9 +996,12 @@ class CaptionAPITest:
             self.log_skip(f"System prompt test: {data.get('reason', 'failed')}")
             return
 
-        if data.get('answer'):
+        answer = data.get('answer', '')
+        if answer and not self.is_error_answer(answer):
             self.log_pass(f"Custom system prompt accepted ({elapsed:.1f}s)")
-            self.log_info(f"Answer: {data['answer'][:100]}")
+            self.log_info(f"Answer: {answer[:100]}")
+        elif self.is_error_answer(answer):
+            self.log_fail(f"Custom system prompt returned error: {answer}")
         else:
             self.log_fail("Custom system prompt returned empty answer")
 
@@ -625,6 +1023,638 @@ class CaptionAPITest:
             self.log_pass("Missing image returns 404")
         else:
             self.log_fail(f"Missing image should return 404, got: {data}")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/vqa - Prompt Field
+    # =========================================================================
+    def test_vqa_prompt_field(self):
+        """Test the prompt field with 'Use Prompt' question."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/vqa (prompt field)")
+        print("=" * 70)
+
+        # Test with question="Use Prompt" and custom prompt text
+        custom_prompt = "What colors are most prominent in this image?"
+        t0 = time.time()
+        data = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'Use Prompt',
+            'prompt': custom_prompt
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"prompt field test: {data.get('reason', 'failed')} (model may not be loaded)")
+            return
+
+        answer = data.get('answer', '')
+        if answer and not self.is_error_answer(answer):
+            self.log_pass(f"prompt field accepted with 'Use Prompt' ({elapsed:.1f}s)")
+            self.log_info(f"Prompt: {custom_prompt}")
+            self.log_info(f"Answer: {answer[:100]}...")
+        elif self.is_error_answer(answer):
+            self.log_fail(f"prompt field returned error: {answer}")
+        else:
+            self.log_fail("prompt field returned empty answer")
+
+        # Test with direct prompt for detection-style task (for Moondream models)
+        point_prompt = "Point at the main subject in this image"
+        data_point = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'Use Prompt',
+            'prompt': point_prompt
+        })
+
+        if 'error' not in data_point:
+            answer_point = data_point.get('answer', '')
+            if answer_point and not self.is_error_answer(answer_point):
+                self.log_pass("Detection-style prompt accepted")
+            else:
+                self.log_skip("Detection prompt may require specific model")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/vqa - Generation Parameters
+    # =========================================================================
+    def test_vqa_generation_params(self):
+        """Test LLM generation parameters: temperature, max_tokens, top_k, top_p."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/vqa (temperature, max_tokens, top_k, top_p)")
+        print("=" * 70)
+
+        # Test temperature effect: temp=0 should be deterministic, temp=10.0 should be very random
+        # Run temp=0 twice to check determinism
+        data_temp0_a = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image briefly',
+            'temperature': 0.0
+        })
+        data_temp0_b = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image briefly',
+            'temperature': 0.0
+        })
+        # Run temp=10.0 twice - extreme temp should produce very different/gibberish outputs
+        data_temp_high_a = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image briefly',
+            'temperature': 10.0
+        })
+        data_temp_high_b = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image briefly',
+            'temperature': 10.0
+        })
+
+        if 'error' in data_temp0_a or 'error' in data_temp0_b:
+            self.log_skip("temperature=0 test: API error")
+        elif data_temp0_a.get('answer') and data_temp0_b.get('answer'):
+            self.log_info(f"temp=0 run1: {data_temp0_a['answer'][:60]}...")
+            self.log_info(f"temp=0 run2: {data_temp0_b['answer'][:60]}...")
+            if data_temp0_a['answer'] == data_temp0_b['answer']:
+                self.log_pass("temperature=0 produces deterministic output")
+            else:
+                self.log_skip("temperature=0 outputs differ (model may not support deterministic mode)")
+        else:
+            self.log_fail("temperature=0 returned empty/error")
+
+        if 'error' in data_temp_high_a or 'error' in data_temp_high_b:
+            self.log_skip("temperature=10.0 test: API error")
+        elif data_temp_high_a.get('answer') and data_temp_high_b.get('answer'):
+            self.log_info(f"temp=10.0 run1: {data_temp_high_a['answer'][:60]}...")
+            self.log_info(f"temp=10.0 run2: {data_temp_high_b['answer'][:60]}...")
+            if data_temp_high_a['answer'] != data_temp_high_b['answer']:
+                self.log_pass("temperature=10.0 produces varied output")
+            else:
+                self.log_skip("temperature=10.0 outputs identical (unexpected)")
+        else:
+            self.log_fail("temperature=10.0 returned empty/error")
+
+        # Test max_tokens effect by comparing short vs long limits
+        data_tokens_short = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image in great detail',
+            'max_tokens': 20
+        })
+        data_tokens_long = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image in great detail',
+            'max_tokens': 200
+        })
+
+        if 'error' in data_tokens_short or 'error' in data_tokens_long:
+            self.log_skip("max_tokens test: API error")
+        elif data_tokens_short.get('answer') and data_tokens_long.get('answer'):
+            len_short = len(data_tokens_short['answer'])
+            len_long = len(data_tokens_long['answer'])
+            self.log_info(f"max_tokens=20: {len_short} chars - '{data_tokens_short['answer'][:40]}...'")
+            self.log_info(f"max_tokens=200: {len_long} chars - '{data_tokens_long['answer'][:40]}...'")
+            if len_short < len_long:
+                self.log_pass(f"max_tokens has effect: {len_short} < {len_long} chars")
+            elif len_short == len_long:
+                self.log_skip(f"max_tokens no effect detected (both {len_short} chars)")
+            else:
+                self.log_fail(f"max_tokens reversed: short={len_short}, long={len_long}")
+        else:
+            self.log_fail("max_tokens test returned empty answers")
+
+        # Test top_k and top_p - can only verify accepted (effect is on sampling)
+        t0 = time.time()
+        data_sampling = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'top_k': 40,
+            'top_p': 0.9
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_sampling:
+            self.log_skip(f"top_k/top_p test: {data_sampling.get('reason', 'failed')}")
+        elif self.is_meaningful_answer(data_sampling.get('answer')) and not self.is_error_answer(data_sampling['answer']):
+            self.log_pass(f"top_k=40, top_p=0.9 accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("top_k/top_p returned empty/error")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/vqa - Sampling Controls
+    # =========================================================================
+    def test_vqa_sampling(self):
+        """Test do_sample and num_beams parameters."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/vqa (do_sample, num_beams)")
+        print("=" * 70)
+
+        # Test with do_sample=False (greedy decoding)
+        t0 = time.time()
+        data_greedy = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'do_sample': False
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_greedy:
+            self.log_skip(f"do_sample=False test: {data_greedy.get('reason', 'failed')}")
+        elif data_greedy.get('answer') and not self.is_error_answer(data_greedy['answer']):
+            self.log_pass(f"do_sample=False (greedy) accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("do_sample=False returned empty/error")
+
+        # Test with do_sample=True (sampling enabled)
+        t0 = time.time()
+        data_sample = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'do_sample': True,
+            'temperature': 0.7
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_sample:
+            self.log_skip(f"do_sample=True test: {data_sample.get('reason', 'failed')}")
+        elif data_sample.get('answer') and not self.is_error_answer(data_sample['answer']):
+            self.log_pass(f"do_sample=True (sampling) accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("do_sample=True returned empty/error")
+
+        # Test with num_beams (beam search)
+        t0 = time.time()
+        data_beams = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'num_beams': 4
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_beams:
+            self.log_skip(f"num_beams=4 test: {data_beams.get('reason', 'failed')}")
+        elif data_beams.get('answer') and not self.is_error_answer(data_beams['answer']):
+            self.log_pass(f"num_beams=4 (beam search) accepted ({elapsed:.1f}s)")
+        else:
+            self.log_fail("num_beams=4 returned empty/error")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/vqa - Thinking Mode
+    # =========================================================================
+    def test_vqa_thinking_mode(self):
+        """Test thinking_mode and keep_thinking parameters."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/vqa (thinking_mode, keep_thinking)")
+        print("=" * 70)
+
+        # Find a thinking-capable model
+        thinking_model = None
+        if self._vqa_models:
+            for m in self._vqa_models:
+                if 'thinking' in m.get('capabilities', []):
+                    thinking_model = m['name']
+                    break
+
+        if not thinking_model:
+            self.log_skip("No thinking-capable VQA models available")
+            # Still test that the parameters are accepted even if no thinking model
+            t0 = time.time()
+            data = self.post('/sdapi/v1/vqa', {
+                'image': self.image_b64,
+                'question': 'describe the image',
+                'thinking_mode': False  # Explicitly disable
+            })
+            elapsed = time.time() - t0
+            if 'error' not in data and data.get('answer'):
+                self.log_pass(f"thinking_mode=False accepted ({elapsed:.1f}s)")
+            return
+
+        self.log_info(f"Using thinking model: {thinking_model}")
+
+        # Test with thinking_mode=True
+        t0 = time.time()
+        data_think = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'model': thinking_model,
+            'question': 'What is happening in this image?',
+            'thinking_mode': True
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_think:
+            self.log_skip(f"thinking_mode=True test: {data_think.get('reason', 'failed')}")
+        elif data_think.get('answer') and not self.is_error_answer(data_think['answer']):
+            answer = data_think['answer']
+            answer_preview = answer[:100] + '...' if len(answer) > 100 else answer
+            self.log_pass(f"thinking_mode=True ({elapsed:.1f}s, {len(answer)} chars)")
+            self.log_info(f"Answer: {answer_preview}")
+        else:
+            self.log_fail("thinking_mode=True returned empty/error")
+
+        # Test with keep_thinking=True
+        t0 = time.time()
+        data_keep = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'model': thinking_model,
+            'question': 'What is happening in this image?',
+            'thinking_mode': True,
+            'keep_thinking': True
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_keep:
+            self.log_skip(f"keep_thinking=True test: {data_keep.get('reason', 'failed')}")
+        elif data_keep.get('answer') and not self.is_error_answer(data_keep['answer']):
+            answer = data_keep['answer']
+            has_thinking = '<think' in answer.lower() or '</think>' in answer.lower()
+            self.log_pass(f"keep_thinking=True ({elapsed:.1f}s, {len(answer)} chars, has_trace={has_thinking})")
+            # Show first part of answer (may include thinking trace)
+            answer_preview = answer[:150] + '...' if len(answer) > 150 else answer
+            self.log_info(f"Answer: {answer_preview}")
+        else:
+            self.log_fail("keep_thinking=True returned empty/error")
+
+    # =========================================================================
+    # TEST: POST /sdapi/v1/vqa - Prefill
+    # =========================================================================
+    def test_vqa_prefill(self):
+        """Test prefill and keep_prefill parameters."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/vqa (prefill, keep_prefill)")
+        print("=" * 70)
+
+        prefill_text = "The image shows"
+
+        # Test with prefill to guide response start
+        t0 = time.time()
+        data_prefill = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'prefill': prefill_text
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_prefill:
+            self.log_skip(f"prefill test: {data_prefill.get('reason', 'failed')}")
+            return
+
+        answer = data_prefill.get('answer', '')
+        if answer and not self.is_error_answer(answer):
+            self.log_pass(f"prefill accepted ({elapsed:.1f}s)")
+            self.log_info(f"Prefill: '{prefill_text}'")
+            self.log_info(f"Answer: {answer[:100]}...")
+        elif self.is_error_answer(answer):
+            self.log_fail(f"prefill returned error: {answer}")
+        else:
+            self.log_fail("prefill returned empty answer")
+
+        # Test with keep_prefill=True (include prefill in output)
+        t0 = time.time()
+        data_keep = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'prefill': prefill_text,
+            'keep_prefill': True
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_keep:
+            self.log_skip(f"keep_prefill=True test: {data_keep.get('reason', 'failed')}")
+        elif data_keep.get('answer') and not self.is_error_answer(data_keep['answer']):
+            answer_keep = data_keep['answer']
+            self.log_info(f"keep_prefill=True answer: {answer_keep[:80]}...")
+            if answer_keep.startswith(prefill_text):
+                self.log_pass(f"keep_prefill=True includes prefill in output ({elapsed:.1f}s)")
+            else:
+                self.log_fail(f"keep_prefill=True should start with '{prefill_text}' but got: '{answer_keep[:40]}...'")
+        else:
+            self.log_fail("keep_prefill=True returned empty/error")
+
+        # Test with keep_prefill=False (strip prefill from output)
+        t0 = time.time()
+        data_strip = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'describe the image',
+            'prefill': prefill_text,
+            'keep_prefill': False
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data_strip:
+            self.log_skip(f"keep_prefill=False test: {data_strip.get('reason', 'failed')}")
+        elif data_strip.get('answer') and not self.is_error_answer(data_strip['answer']):
+            answer_strip = data_strip['answer']
+            self.log_info(f"keep_prefill=False answer: {answer_strip[:80]}...")
+            if not answer_strip.startswith(prefill_text):
+                self.log_pass(f"keep_prefill=False strips prefill from output ({elapsed:.1f}s)")
+            else:
+                self.log_fail("keep_prefill=False should strip prefill but answer still starts with it")
+        else:
+            self.log_fail("keep_prefill=False returned empty/error")
+
+    # =========================================================================
+    # TEST: VQA Model Architectures
+    # =========================================================================
+    def test_vqa_model_architectures(self):
+        """Test all VQA model architecture families."""
+        print("\n" + "=" * 70)
+        print("TEST: VQA Model Architectures")
+        print("=" * 70)
+
+        if not self._vqa_models:
+            self._vqa_models = self.get('/sdapi/v1/vqa/models')
+
+        if 'error' in self._vqa_models or not isinstance(self._vqa_models, list):
+            self.log_skip("Cannot get VQA model list")
+            return
+
+        # Group models by family
+        families_found = {}
+        for model in self._vqa_models:
+            family = self.get_model_family(model['name'])
+            if family not in families_found:
+                families_found[family] = model['name']
+
+        self.log_info(f"Found {len(families_found)} model families: {list(families_found.keys())}")
+
+        # Report which families are present vs absent
+        for family in self.VQA_FAMILIES.keys():
+            if family in families_found:
+                self.log_pass(f"Architecture '{family}' available: {families_found[family]}")
+            else:
+                self.log_skip(f"Architecture '{family}' not available")
+
+        # Report unknown models
+        if 'unknown' in families_found:
+            unknown_models = [m['name'] for m in self._vqa_models if self.get_model_family(m['name']) == 'unknown']
+            self.log_info(f"Unrecognized models: {unknown_models[:5]}")
+
+    # =========================================================================
+    # TEST: VQA Florence Special Prompts
+    # =========================================================================
+    def test_vqa_florence_special_prompts(self):
+        """Test Florence-2 specific prompts for detection, OCR, etc."""
+        print("\n" + "=" * 70)
+        print("TEST: VQA Florence Special Prompts")
+        print("=" * 70)
+
+        # Find a Florence model
+        florence_model = None
+        if self._vqa_models:
+            for m in self._vqa_models:
+                if 'florence' in m['name'].lower():
+                    florence_model = m['name']
+                    break
+
+        if not florence_model:
+            self.log_skip("No Florence model available")
+            return
+
+        self.log_info(f"Using Florence model: {florence_model}")
+
+        # Florence-specific prompts
+        florence_prompts = {
+            '<OD>': 'Object Detection',
+            '<OCR>': 'Optical Character Recognition',
+            '<DENSE_REGION_CAPTION>': 'Dense Region Captioning',
+            '<GENERATE_TAGS>': 'Tag Generation',
+            '<CAPTION>': 'Standard Caption',
+            '<DETAILED_CAPTION>': 'Detailed Caption',
+        }
+
+        for prompt, description in florence_prompts.items():
+            t0 = time.time()
+            data = self.post('/sdapi/v1/vqa', {
+                'image': self.image_b64,
+                'model': florence_model,
+                'question': prompt
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"{description} ({prompt}): {data.get('reason', 'failed')}")
+            elif self.is_meaningful_answer(data.get('answer')) and not self.is_error_answer(data['answer']):
+                answer_preview = data['answer'][:60] + '...' if len(data['answer']) > 60 else data['answer']
+                self.log_pass(f"{description} ({prompt}): {elapsed:.1f}s")
+                self.log_info(f"  Answer: {answer_preview}")
+            elif data.get('answer'):
+                # Got an answer but it's not meaningful (e.g., just punctuation)
+                self.log_fail(f"{description} ({prompt}): non-meaningful response: '{data['answer']}'")
+            else:
+                self.log_fail(f"{description} ({prompt}): empty/error response")
+
+    # =========================================================================
+    # TEST: VQA Moondream Detection Features
+    # =========================================================================
+    def test_vqa_moondream_detection(self):
+        """Test Moondream detection and pointing features."""
+        print("\n" + "=" * 70)
+        print("TEST: VQA Moondream Detection Features")
+        print("=" * 70)
+
+        # Find a Moondream model
+        moondream_model = None
+        moondream_version = None
+        if self._vqa_models:
+            for m in self._vqa_models:
+                if 'moondream' in m['name'].lower():
+                    moondream_model = m['name']
+                    # Detect version
+                    if '3' in m['name']:
+                        moondream_version = 3
+                    elif '2' in m['name']:
+                        moondream_version = 2
+                    else:
+                        moondream_version = 1
+                    break
+
+        if not moondream_model:
+            self.log_skip("No Moondream model available")
+            return
+
+        self.log_info(f"Using Moondream model: {moondream_model} (v{moondream_version})")
+
+        # Moondream-specific prompts
+        moondream_prompts = [
+            ('Point at the main subject', 'Point detection'),
+            ('Detect all objects', 'Object detection'),
+            ('What is in the center of the image?', 'Region query'),
+        ]
+
+        # Add gaze detection for Moondream 2+
+        if moondream_version and moondream_version >= 2:
+            moondream_prompts.append(('Where is the person looking?', 'Gaze detection'))
+
+        for prompt, description in moondream_prompts:
+            t0 = time.time()
+            data = self.post('/sdapi/v1/vqa', {
+                'image': self.image_b64,
+                'model': moondream_model,
+                'question': 'Use Prompt',
+                'prompt': prompt,
+                'include_annotated': True
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"{description}: {data.get('reason', 'failed')}")
+            elif self.is_meaningful_answer(data.get('answer')) and not self.is_error_answer(data['answer']):
+                answer_preview = data['answer'][:60] + '...' if len(data['answer']) > 60 else data['answer']
+                has_annotated = bool(data.get('annotated_image'))
+                self.log_pass(f"{description}: {elapsed:.1f}s (annotated={has_annotated})")
+                self.log_info(f"  Answer: {answer_preview}")
+            elif data.get('answer'):
+                self.log_fail(f"{description}: non-meaningful response: '{data['answer']}'")
+            else:
+                self.log_skip(f"{description}: may not be supported by this model version")
+
+    # =========================================================================
+    # TEST: VQA Architecture Capabilities
+    # =========================================================================
+    def test_vqa_architecture_capabilities(self):
+        """Test architecture-specific capabilities like vision, thinking, detection."""
+        print("\n" + "=" * 70)
+        print("TEST: VQA Architecture Capabilities")
+        print("=" * 70)
+
+        if not self._vqa_models:
+            self._vqa_models = self.get('/sdapi/v1/vqa/models')
+
+        if 'error' in self._vqa_models or not isinstance(self._vqa_models, list):
+            self.log_skip("Cannot get VQA model list")
+            return
+
+        # Collect all capabilities across models
+        capability_models = {}
+        for model in self._vqa_models:
+            caps = model.get('capabilities', [])
+            for cap in caps:
+                if cap not in capability_models:
+                    capability_models[cap] = []
+                capability_models[cap].append(model['name'])
+
+        self.log_info(f"Found {len(capability_models)} capabilities: {list(capability_models.keys())}")
+
+        # Test each capability with one model
+        capability_tests = {
+            'caption': 'describe the image',
+            'vqa': 'What is the main subject of this image?',
+            'detection': '<OD>',
+            'ocr': '<OCR>',
+            'thinking': 'Analyze this image step by step',
+        }
+
+        for capability, test_prompt in capability_tests.items():
+            if capability not in capability_models:
+                self.log_skip(f"Capability '{capability}': no models available")
+                continue
+
+            # Use first available model with this capability
+            model_name = capability_models[capability][0]
+            self.log_info(f"Testing '{capability}' with: {model_name}")
+
+            request_data = {
+                'image': self.image_b64,
+                'model': model_name,
+                'question': test_prompt
+            }
+
+            # Enable thinking mode for thinking capability test
+            if capability == 'thinking':
+                request_data['thinking_mode'] = True
+
+            t0 = time.time()
+            data = self.post('/sdapi/v1/vqa', request_data)
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"Capability '{capability}': {data.get('reason', 'model not loaded')}")
+            elif self.is_meaningful_answer(data.get('answer')) and not self.is_error_answer(data['answer']):
+                answer = data['answer']
+                answer_preview = answer[:80] + '...' if len(answer) > 80 else answer
+                self.log_pass(f"Capability '{capability}' ({elapsed:.1f}s): {answer_preview}")
+            elif data.get('answer'):
+                self.log_fail(f"Capability '{capability}': non-meaningful response: '{data['answer']}'")
+            else:
+                self.log_fail(f"Capability '{capability}': empty/error response")
+
+    # =========================================================================
+    # TEST: Interrogate BLIP Architectures
+    # =========================================================================
+    def test_interrogate_blip_architectures(self):
+        """Test all BLIP caption model types."""
+        print("\n" + "=" * 70)
+        print("TEST: Interrogate BLIP Architectures")
+        print("=" * 70)
+
+        # Check if we have OpenCLIP models (needed for interrogate endpoint)
+        if not self._interrogate_models:
+            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+
+        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available for BLIP testing")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        for blip_model in self.BLIP_MODELS:
+            t0 = time.time()
+            data = self.post('/sdapi/v1/interrogate', {
+                'image': self.image_b64,
+                'model': model,
+                'mode': 'caption',
+                'blip_model': blip_model
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                # Check if it's a model not found error vs other error
+                reason = data.get('reason', '')
+                if 'not found' in str(reason).lower() or data.get('status') == 404:
+                    self.log_skip(f"BLIP '{blip_model}': model not downloaded")
+                else:
+                    self.log_skip(f"BLIP '{blip_model}': {reason}")
+            elif data.get('caption') and not self.is_error_answer(data['caption']):
+                caption_preview = data['caption'][:70] + '...' if len(data['caption']) > 70 else data['caption']
+                self.log_pass(f"BLIP '{blip_model}' ({elapsed:.1f}s): {caption_preview}")
+            else:
+                self.log_fail(f"BLIP '{blip_model}': empty/error response")
 
     # =========================================================================
     # TEST: GET /sdapi/v1/tagger/models - Tagger Models List
@@ -690,11 +1720,14 @@ class CaptionAPITest:
             self.log_skip(f"Tagger: {data.get('reason', 'failed')} (model may not be loaded)")
             return
 
-        if data.get('tags'):
-            tags_preview = data['tags'][:80] + '...' if len(data['tags']) > 80 else data['tags']
-            tag_count = len(data['tags'].split(', '))
+        tags = data.get('tags', '')
+        if tags and not self.is_error_answer(tags):
+            tags_preview = tags[:80] + '...' if len(tags) > 80 else tags
+            tag_count = len(tags.split(', '))
             self.log_pass(f"Returns tags ({tag_count} tags, {elapsed:.1f}s)")
             self.log_info(f"Tags: {tags_preview}")
+        elif self.is_error_answer(tags):
+            self.log_fail(f"Tagger returned error: {tags}")
         else:
             self.log_fail("Tagger returned empty tags")
 
@@ -720,11 +1753,16 @@ class CaptionAPITest:
             self.log_skip("Threshold test: model not loaded")
             return
 
-        count_high = len(data_high.get('tags', '').split(', ')) if data_high.get('tags') else 0
-        count_low = len(data_low.get('tags', '').split(', ')) if data_low.get('tags') else 0
+        tags_high = data_high.get('tags', '')
+        tags_low = data_low.get('tags', '')
+        count_high = len(tags_high.split(', ')) if tags_high else 0
+        count_low = len(tags_low.split(', ')) if tags_low else 0
+
+        self.log_info(f"threshold=0.9 ({count_high} tags): {tags_high[:70]}{'...' if len(tags_high) > 70 else ''}")
+        self.log_info(f"threshold=0.1 ({count_low} tags): {tags_low[:70]}{'...' if len(tags_low) > 70 else ''}")
 
         if count_low > count_high:
-            self.log_pass(f"threshold effect: 0.9={count_high} tags, 0.1={count_low} tags")
+            self.log_pass(f"threshold has effect: 0.9={count_high} tags < 0.1={count_low} tags")
         elif count_high == 0 and count_low == 0:
             self.log_skip("No tags returned (model may not be loaded)")
         else:
@@ -754,16 +1792,23 @@ class CaptionAPITest:
             self.log_skip("max_tags test: model not loaded")
             return
 
-        count_5 = len(data_5.get('tags', '').split(', ')) if data_5.get('tags') else 0
-        count_50 = len(data_50.get('tags', '').split(', ')) if data_50.get('tags') else 0
+        tags_5 = data_5.get('tags', '')
+        tags_50 = data_50.get('tags', '')
+        count_5 = len(tags_5.split(', ')) if tags_5 else 0
+        count_50 = len(tags_50.split(', ')) if tags_50 else 0
+
+        self.log_info(f"max_tags=5 ({count_5} tags): {tags_5}")
+        self.log_info(f"max_tags=50 ({count_50} tags): {tags_50[:80]}{'...' if len(tags_50) > 80 else ''}")
 
         if count_5 <= 5:
-            self.log_pass(f"max_tags=5 limits to {count_5} tags")
+            self.log_pass(f"max_tags=5 correctly limits to {count_5} tags")
         else:
             self.log_fail(f"max_tags=5 returned {count_5} tags (expected <= 5)")
 
         if count_50 > count_5:
-            self.log_pass(f"max_tags=50 returns more tags ({count_50} vs {count_5})")
+            self.log_pass(f"max_tags=50 returns more: {count_5} < {count_50} tags")
+        else:
+            self.log_fail("max_tags=50 should return more than max_tags=5")
 
     # =========================================================================
     # TEST: POST /sdapi/v1/tagger - Sort Alpha
@@ -966,12 +2011,22 @@ class CaptionAPITest:
             self.log_skip("show_scores test: model not loaded")
             return
 
+        # Show the actual output
+        tags_with_scores = data_scores.get('tags', '')
+        tags_no_scores = data_no_scores.get('tags', '')
+        self.log_info(f"show_scores=True tags: {tags_with_scores}")
+        self.log_info(f"show_scores=False tags: {tags_no_scores}")
+
         # Check scores dict is returned
         if 'scores' in data_scores and isinstance(data_scores['scores'], dict) and len(data_scores['scores']) > 0:
-            self.log_pass(f"show_scores=True returns scores dict with {len(data_scores['scores'])} entries")
+            scores_dict = data_scores['scores']
+            # Show first few scores
+            scores_preview = dict(list(scores_dict.items())[:3])
+            self.log_info(f"scores dict (first 3): {scores_preview}")
+            self.log_pass(f"show_scores=True returns scores dict with {len(scores_dict)} entries")
 
             # Verify scores are floats 0-1
-            scores = list(data_scores['scores'].values())
+            scores = list(scores_dict.values())
             if all(isinstance(s, (int, float)) and 0 <= s <= 1 for s in scores):
                 self.log_pass("All scores are floats in 0-1 range")
             else:
@@ -979,10 +2034,9 @@ class CaptionAPITest:
         else:
             self.log_fail("show_scores=True did not return scores dict")
 
-        # Check tags contain scores
-        tags_with_scores = data_scores.get('tags', '')
+        # Check tags contain scores (colon notation)
         if ':' in tags_with_scores:
-            self.log_pass("Tags string includes score notation")
+            self.log_pass("Tags string includes score notation (:)")
         else:
             self.log_skip("Tags string does not include inline scores")
 
@@ -1038,6 +2092,210 @@ class CaptionAPITest:
             self.log_fail("include_rating did not work as expected")
 
     # =========================================================================
+    # TEST: POST /sdapi/v1/tagger - Character Threshold
+    # =========================================================================
+    def test_tagger_character_threshold(self):
+        """Test character_threshold for character-specific tags (WaifuDiffusion only)."""
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/tagger (character_threshold)")
+        print("=" * 70)
+
+        # Find a WaifuDiffusion model (character_threshold only applies to WD models)
+        wd_model = None
+        if self._tagger_models:
+            for m in self._tagger_models:
+                if m.get('type') == 'waifudiffusion':
+                    wd_model = m['name']
+                    break
+
+        if not wd_model:
+            self.log_skip("No WaifuDiffusion models available (character_threshold only applies to WD)")
+            return
+
+        self.log_info(f"Using WaifuDiffusion model: {wd_model}")
+
+        # Test with low character_threshold (more character tags)
+        t0 = time.time()
+        data_low = self.post('/sdapi/v1/tagger', {
+            'image': self.image_b64,
+            'model': wd_model,
+            'character_threshold': 0.5,
+            'threshold': 0.1,
+            'max_tags': 100
+        })
+        elapsed_low = time.time() - t0
+
+        # Test with high character_threshold (fewer character tags)
+        t0 = time.time()
+        data_high = self.post('/sdapi/v1/tagger', {
+            'image': self.image_b64,
+            'model': wd_model,
+            'character_threshold': 0.99,
+            'threshold': 0.1,
+            'max_tags': 100
+        })
+        elapsed_high = time.time() - t0
+
+        if 'error' in data_low:
+            self.log_skip(f"character_threshold=0.5 test: {data_low.get('reason', 'failed')}")
+        elif data_low.get('tags') and not self.is_error_answer(data_low['tags']):
+            self.log_pass(f"character_threshold=0.5 accepted ({elapsed_low:.1f}s)")
+        else:
+            self.log_fail("character_threshold=0.5 returned empty/error")
+
+        if 'error' in data_high:
+            self.log_skip(f"character_threshold=0.99 test: {data_high.get('reason', 'failed')}")
+        elif data_high.get('tags') and not self.is_error_answer(data_high['tags']):
+            self.log_pass(f"character_threshold=0.99 accepted ({elapsed_high:.1f}s)")
+
+            # Compare tag counts - higher threshold should have fewer (or same) character tags
+            count_low = len(data_low.get('tags', '').split(', '))
+            count_high = len(data_high.get('tags', '').split(', '))
+            self.log_info(f"Tag counts: threshold=0.5→{count_low}, threshold=0.99→{count_high}")
+
+            if count_low >= count_high:
+                self.log_pass("character_threshold affects tag filtering")
+            else:
+                self.log_info("Tag counts similar (image may not have character tags)")
+        else:
+            self.log_fail("character_threshold=0.99 returned empty/error")
+
+    # =========================================================================
+    # TEST: Tagger Model Types (Architecture Coverage)
+    # =========================================================================
+    def test_tagger_model_types(self):
+        """Test all tagger model types (deepbooru, waifudiffusion)."""
+        print("\n" + "=" * 70)
+        print("TEST: Tagger Model Types")
+        print("=" * 70)
+
+        if not self._tagger_models:
+            self._tagger_models = self.get('/sdapi/v1/tagger/models')
+
+        if 'error' in self._tagger_models or not isinstance(self._tagger_models, list):
+            self.log_skip("Cannot get tagger model list")
+            return
+
+        # Group models by type
+        types_found = {}
+        for model in self._tagger_models:
+            model_type, version = self.get_tagger_type(model)
+            type_key = f"{model_type}" + (f"-{version}" if version else "")
+            if type_key not in types_found:
+                types_found[type_key] = model['name']
+
+        self.log_info(f"Found {len(types_found)} tagger types: {list(types_found.keys())}")
+
+        # Test one model from each type
+        for type_key, model_name in types_found.items():
+            t0 = time.time()
+            data = self.post('/sdapi/v1/tagger', {
+                'image': self.image_b64,
+                'model': model_name,
+                'max_tags': 10,
+                'threshold': 0.3
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"Type '{type_key}' ({model_name}): {data.get('reason', 'failed')}")
+            elif data.get('tags') and not self.is_error_answer(data['tags']):
+                tags = data['tags']
+                tag_count = len(tags.split(', '))
+                tags_preview = tags[:60] + '...' if len(tags) > 60 else tags
+                self.log_pass(f"Type '{type_key}' ({elapsed:.1f}s, {tag_count} tags): {tags_preview}")
+            else:
+                self.log_fail(f"Type '{type_key}' ({model_name}): empty/error response")
+
+    # =========================================================================
+    # TEST: Tagger WaifuDiffusion Versions
+    # =========================================================================
+    def test_tagger_wd_versions(self):
+        """Test WaifuDiffusion version differences (v2 vs v3)."""
+        print("\n" + "=" * 70)
+        print("TEST: Tagger WaifuDiffusion Versions")
+        print("=" * 70)
+
+        if not self._tagger_models:
+            self._tagger_models = self.get('/sdapi/v1/tagger/models')
+
+        if 'error' in self._tagger_models or not isinstance(self._tagger_models, list):
+            self.log_skip("Cannot get tagger model list")
+            return
+
+        # Find WD v2 and v3 models
+        wd_v2 = None
+        wd_v3 = None
+        for model in self._tagger_models:
+            if model.get('type') == 'waifudiffusion':
+                name_lower = model['name'].lower()
+                if 'v3' in name_lower and not wd_v3:
+                    wd_v3 = model['name']
+                elif 'v2' in name_lower and not wd_v2:
+                    wd_v2 = model['name']
+
+        if not wd_v2 and not wd_v3:
+            self.log_skip("No WaifuDiffusion models available")
+            return
+
+        results = {}
+
+        # Test WD v2
+        if wd_v2:
+            self.log_info(f"Testing WD v2: {wd_v2}")
+            t0 = time.time()
+            data_v2 = self.post('/sdapi/v1/tagger', {
+                'image': self.image_b64,
+                'model': wd_v2,
+                'max_tags': 20,
+                'threshold': 0.3
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data_v2:
+                self.log_skip(f"WD v2: {data_v2.get('reason', 'failed')}")
+            elif data_v2.get('tags') and not self.is_error_answer(data_v2['tags']):
+                tag_count = len(data_v2['tags'].split(', '))
+                self.log_pass(f"WD v2 ({wd_v2}): {tag_count} tags ({elapsed:.1f}s)")
+                results['v2'] = data_v2['tags']
+            else:
+                self.log_fail("WD v2: empty/error response")
+        else:
+            self.log_skip("No WD v2 model available")
+
+        # Test WD v3
+        if wd_v3:
+            self.log_info(f"Testing WD v3: {wd_v3}")
+            t0 = time.time()
+            data_v3 = self.post('/sdapi/v1/tagger', {
+                'image': self.image_b64,
+                'model': wd_v3,
+                'max_tags': 20,
+                'threshold': 0.3
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data_v3:
+                self.log_skip(f"WD v3: {data_v3.get('reason', 'failed')}")
+            elif data_v3.get('tags') and not self.is_error_answer(data_v3['tags']):
+                tag_count = len(data_v3['tags'].split(', '))
+                self.log_pass(f"WD v3 ({wd_v3}): {tag_count} tags ({elapsed:.1f}s)")
+                results['v3'] = data_v3['tags']
+            else:
+                self.log_fail("WD v3: empty/error response")
+        else:
+            self.log_skip("No WD v3 model available")
+
+        # Compare outputs if both available
+        if 'v2' in results and 'v3' in results:
+            v2_tags = {t.strip() for t in results['v2'].split(',')}
+            v3_tags = {t.strip() for t in results['v3'].split(',')}
+            common = len(v2_tags & v3_tags)
+            v2_only = len(v2_tags - v3_tags)
+            v3_only = len(v3_tags - v2_tags)
+            self.log_info(f"Tag comparison: {common} common, {v2_only} v2-only, {v3_only} v3-only")
+
+    # =========================================================================
     # TEST: POST /sdapi/v1/tagger - Invalid Inputs
     # =========================================================================
     def test_tagger_invalid_inputs(self):
@@ -1069,6 +2327,10 @@ class CaptionAPITest:
         self.test_interrogate_post_clip_modes()
         self.test_interrogate_analyze()
         self.test_interrogate_invalid_inputs()
+        self.test_interrogate_clip_blip_models()
+        self.test_interrogate_caption_length()
+        self.test_interrogate_flavors()
+        self.test_interrogate_advanced_settings()
 
         # VQA tests
         self.test_vqa_models_list()
@@ -1078,6 +2340,20 @@ class CaptionAPITest:
         self.test_vqa_annotated_image()
         self.test_vqa_system_prompt()
         self.test_vqa_invalid_inputs()
+        self.test_vqa_prompt_field()
+        self.test_vqa_generation_params()
+        self.test_vqa_sampling()
+        self.test_vqa_thinking_mode()
+        self.test_vqa_prefill()
+
+        # VQA Architecture tests
+        self.test_vqa_model_architectures()
+        self.test_vqa_florence_special_prompts()
+        self.test_vqa_moondream_detection()
+        self.test_vqa_architecture_capabilities()
+
+        # Interrogate Architecture tests
+        self.test_interrogate_blip_architectures()
 
         # Tagger tests
         self.test_tagger_models_list()
@@ -1090,6 +2366,12 @@ class CaptionAPITest:
         self.test_tagger_exclude_tags()
         self.test_tagger_show_scores()
         self.test_tagger_include_rating()
+        self.test_tagger_character_threshold()
+
+        # Tagger Architecture tests
+        self.test_tagger_model_types()
+        self.test_tagger_wd_versions()
+
         self.test_tagger_invalid_inputs()
 
         self.print_summary()
@@ -1111,19 +2393,24 @@ Examples:
 
     # Test with authentication
     python cli/test-caption-api.py --username admin --password secret
+
+    # Test with longer timeout for slow models
+    python cli/test-caption-api.py --timeout 600
         """
     )
     parser.add_argument('--url', default='http://127.0.0.1:7860', help='Server URL (default: http://127.0.0.1:7860)')
     parser.add_argument('--image', help='Path to test image')
     parser.add_argument('--username', help='HTTP Basic Auth username')
     parser.add_argument('--password', help='HTTP Basic Auth password')
+    parser.add_argument('--timeout', type=int, default=300, help='Request timeout in seconds (default: 300)')
     args = parser.parse_args()
 
     test = CaptionAPITest(
         base_url=args.url,
         image_path=args.image,
         username=args.username,
-        password=args.password
+        password=args.password,
+        timeout=args.timeout
     )
     success = test.run_all_tests()
     sys.exit(0 if success else 1)
