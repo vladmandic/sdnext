@@ -369,9 +369,9 @@ class ReqInterrogate(BaseModel):
     """
     image: str = Field(default="", title="Image", description="Image to interrogate. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
     model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Use 'deepdanbooru' or 'deepbooru' for anime tagging. Get available models from GET /sdapi/v1/interrogate.")
-    clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="OpenCLIP model for image encoding. Format: 'architecture/pretrained_dataset'.")
-    blip_model: str = Field(default="blip-large", title="BLIP Model", description="BLIP/BLIP2 captioning model for generating base captions. Options: blip-base, blip-large, blip2-opt-2.7b, blip2-opt-6.7b.")
-    mode: str = Field(default="best", title="Mode", description="Interrogation mode: 'best' (highest quality), 'fast' (quick results), 'classic' (traditional style), 'caption' (BLIP caption only), 'negative' (negative prompt generation).")
+    clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="CLIP model used for image-text similarity matching. Larger models (ViT-L, ViT-H) are more accurate but slower and use more VRAM.")
+    blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model used to generate the initial image caption. The caption model describes the image content which CLIP then enriches with style and flavor terms.")
+    mode: str = Field(default="best", title="Mode", description="Interrogation mode. Fast: Quick caption with minimal flavor terms. Classic: Standard interrogation with balanced quality and speed. Best: Most thorough analysis, slowest but highest quality. Negative: Generate terms to use as negative prompt.")
     analyze: bool = Field(default=False, title="Analyze", description="If True, returns detailed image analysis breakdown (medium, artist, movement, trending, flavor) in addition to caption.")
 
 InterrogateRequest = ReqInterrogate # alias for backwards compatibility
@@ -392,9 +392,9 @@ class ReqVQA(BaseModel):
     answer questions, or perform specialized tasks like object detection.
     """
     image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string containing the image data.")
-    model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="VLM model for Visual Language tasks. Use GET /sdapi/v1/vqa/models for full list. Popular options: Florence 2, Qwen VL, Gemma 3, Moondream. Models with thinking/reasoning support return detailed analysis.")
-    question: str = Field(default="describe the image", title="Question/Task", description="Question to ask the model or task to perform. Common tasks: 'Short Caption', 'Normal Caption', 'Long Caption'. Florence-2 supports: '<OD>' (object detection), '<OCR>' (text recognition). Moondream supports: 'Point at [object]', 'Detect all [objects]'.")
-    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt", description="System prompt controls behavior of the LLM. Processed first and has highest priority weighting. Use for response formatting rules, role definition, and style.")
+    model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="Select which model to use for Visual Language tasks. Use GET /sdapi/v1/vqa/models for full list. Models which support thinking mode are indicated in capabilities.")
+    question: str = Field(default="describe the image", title="Question/Task", description="Changes which task the model will perform. Regular text prompts can be used when the task is set to 'Use Prompt'. Common tasks: 'Short Caption', 'Normal Caption', 'Long Caption'. Florence-2 supports: '<OD>' (object detection), '<OCR>' (text recognition). Moondream supports: 'Point at [object]', 'Detect all [objects]'.")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt", description="System prompt controls behavior of the LLM. Processed first and persists throughout conversation. Has highest priority weighting and is always appended at the beginning of the sequence. Use for: Response formatting rules, role definition, style.")
     include_annotated: bool = Field(default=False, title="Include Annotated Image", description="If True and the task produces detection results (object detection, point detection, gaze), returns annotated image with bounding boxes/points drawn. Only applicable for detection tasks on models like Florence-2 and Moondream.")
     # LLM generation parameters (optional overrides)
     max_tokens: Optional[int] = Field(default=None, title="Max Tokens", description="Maximum number of tokens the model can generate in its response. The model is not aware of this limit during generation; it simply sets the hard limit for the length and will forcefully cut off the response when reached.")
@@ -439,16 +439,16 @@ class ItemTaggerModel(BaseModel):
 class ReqTagger(BaseModel):
     """Request model for image tagging."""
     image: str = Field(default="", title="Image", description="Image to tag. Must be a Base64 encoded string.")
-    model: str = Field(default="wd-eva02-large-tagger-v3", title="Model", description="Tagger model to use. WaifuDiffusion models (wd-*) or 'deepbooru'/'deepdanbooru'.")
-    threshold: float = Field(default=0.5, title="Threshold", description="General tag confidence threshold (0-1). Tags below this confidence are excluded.", ge=0.0, le=1.0)
-    character_threshold: float = Field(default=0.85, title="Character Threshold", description="Character tag confidence threshold (0-1). Higher values for more precise character identification. WaifuDiffusion only - ignored for DeepBooru.", ge=0.0, le=1.0)
-    max_tags: int = Field(default=74, title="Max Tags", description="Maximum number of tags to return.", ge=1, le=512)
-    include_rating: bool = Field(default=False, title="Include Rating", description="Include rating tags (safe, questionable, explicit) in results.")
-    sort_alpha: bool = Field(default=False, title="Sort Alphabetically", description="Sort tags alphabetically instead of by confidence.")
-    use_spaces: bool = Field(default=False, title="Use Spaces", description="Replace underscores with spaces in tag names.")
-    escape_brackets: bool = Field(default=True, title="Escape Brackets", description="Escape parentheses in tags for prompt compatibility.")
-    exclude_tags: str = Field(default="", title="Exclude Tags", description="Comma-separated list of tags to exclude from results.")
-    show_scores: bool = Field(default=False, title="Show Scores", description="Include confidence scores with each tag in the output.")
+    model: str = Field(default="wd-eva02-large-tagger-v3", title="Model", description="Model to use for image tagging. WaifuDiffusion models (wd-*): Modern taggers with separate general and character thresholds. DeepBooru: Legacy tagger, uses only general threshold.")
+    threshold: float = Field(default=0.5, title="Threshold", description="Confidence threshold for general tags (e.g., objects, actions, settings). Only tags with confidence above this threshold are included in the output. Higher values are more selective (fewer tags), lower values include more tags.", ge=0.0, le=1.0)
+    character_threshold: float = Field(default=0.85, title="Character Threshold", description="Confidence threshold for character-specific tags (e.g., character names, specific traits). Only tags with confidence above this threshold are included. Higher values are more selective, lower values include more potential matches. Not supported by DeepBooru models.", ge=0.0, le=1.0)
+    max_tags: int = Field(default=74, title="Max Tags", description="Maximum number of tags to include in the output. Limits the result length when an image has many detected features. Tags are sorted by confidence, so the most relevant ones are kept.", ge=1, le=512)
+    include_rating: bool = Field(default=False, title="Include Rating", description="Include content rating tags in the output (e.g., safe, questionable, explicit). Useful for filtering or categorizing images by their content rating.")
+    sort_alpha: bool = Field(default=False, title="Sort Alphabetically", description="Sort tags alphabetically instead of by confidence score. When disabled, tags are sorted by confidence (highest first). Alphabetical sorting makes it easier to find specific tags.")
+    use_spaces: bool = Field(default=False, title="Use Spaces", description="Replace underscores with spaces in tag output. Some prompt systems prefer spaces between words (e.g., 'long hair') while others use underscores (e.g., 'long_hair').")
+    escape_brackets: bool = Field(default=True, title="Escape Brackets", description="Escape parentheses and brackets in tags with backslashes. Required when tags contain characters that have special meaning in prompt syntax, such as ( ) [ ]. Enable this when using the output directly in prompts.")
+    exclude_tags: str = Field(default="", title="Exclude Tags", description="Comma-separated list of tags to exclude from the output. Useful for filtering out unwanted or redundant tags that appear frequently.")
+    show_scores: bool = Field(default=False, title="Show Scores", description="Display confidence scores alongside each tag. Shows how certain the model is about each tag (0.0 to 1.0). Useful for understanding which tags are most reliable.")
 
 class ResTagger(BaseModel):
     """Response model for image tagging results."""
