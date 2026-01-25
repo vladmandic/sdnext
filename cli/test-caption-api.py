@@ -3,7 +3,7 @@
 Caption API Test Suite
 
 Comprehensive tests for all Caption API endpoints and parameters:
-- GET/POST /sdapi/v1/interrogate (OpenCLiP/DeepBooru)
+- GET/POST /sdapi/v1/interrogate (OpenCLiP)
 - POST /sdapi/v1/vqa (VLM Captioning with annotated images)
 - GET /sdapi/v1/vqa/models, /sdapi/v1/vqa/prompts
 - POST /sdapi/v1/tagger
@@ -302,49 +302,13 @@ class CaptionAPITest:
             self.log_fail(f"Expected list, got {type(data)}")
             return
 
-        # Test 2: Contains deepdanbooru
-        if 'deepdanbooru' in data:
-            self.log_pass("Contains 'deepdanbooru'")
-        else:
-            self.log_fail("Missing 'deepdanbooru'")
-
-        # Test 3: Contains OpenCLIP models (format: arch/dataset)
+        # Test 2: Contains OpenCLIP models (format: arch/dataset)
         clip_models = [m for m in data if '/' in m]
         if clip_models:
             self.log_pass(f"Contains {len(clip_models)} OpenCLIP models")
             self.log_info(f"Examples: {clip_models[:3]}")
         else:
             self.log_skip("No OpenCLIP models found (may need to download)")
-
-    # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - DeepBooru
-    # =========================================================================
-    def test_interrogate_post_deepbooru(self):
-        """Test DeepBooru interrogation."""
-        print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (DeepBooru)")
-        print("=" * 70)
-
-        t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
-            'image': self.image_b64,
-            'model': 'deepdanbooru'
-        })
-        elapsed = time.time() - t0
-
-        if 'error' in data:
-            self.log_skip(f"DeepBooru: {data.get('reason', 'failed')} (model may not be loaded)")
-            return
-
-        caption = data.get('caption', '')
-        if caption and not self.is_error_answer(caption):
-            caption_preview = caption[:80] + '...' if len(caption) > 80 else caption
-            self.log_pass(f"DeepBooru returns caption ({elapsed:.1f}s)")
-            self.log_info(f"Caption: {caption_preview}")
-        elif self.is_error_answer(caption):
-            self.log_fail(f"DeepBooru returned error: {caption}")
-        else:
-            self.log_fail("DeepBooru returned empty caption")
 
     # =========================================================================
     # TEST: POST /sdapi/v1/interrogate - OpenCLIP Modes
@@ -2323,7 +2287,6 @@ class CaptionAPITest:
 
         # Interrogate tests
         self.test_interrogate_list_models()
-        self.test_interrogate_post_deepbooru()
         self.test_interrogate_post_clip_modes()
         self.test_interrogate_analyze()
         self.test_interrogate_invalid_inputs()
