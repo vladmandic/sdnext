@@ -348,7 +348,7 @@ def get_keep_thinking():
     overrides = _get_overrides()
     if overrides.get('keep_thinking') is not None:
         return overrides['keep_thinking']
-    return get_keep_thinking()
+    return shared.opts.interrogate_vlm_keep_thinking
 
 
 def get_keep_prefill():
@@ -356,7 +356,7 @@ def get_keep_prefill():
     overrides = _get_overrides()
     if overrides.get('keep_prefill') is not None:
         return overrides['keep_prefill']
-    return get_keep_prefill()
+    return shared.opts.interrogate_vlm_keep_prefill
 
 
 def get_kwargs():
@@ -1211,11 +1211,16 @@ class VQA:
         inputs = self.processor(text=task, images=image, return_tensors="pt")
         input_ids = inputs['input_ids'].to(devices.device)
         pixel_values = inputs['pixel_values'].to(devices.device, devices.dtype)
+        # Florence-2 requires beam search, not sampling - sampling causes probability tensor errors
+        overrides = _get_overrides()
+        max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.interrogate_vlm_max_length
         with devices.inference_context():
             generated_ids = self.model.generate(
                 input_ids=input_ids,
                 pixel_values=pixel_values,
-                **get_kwargs()
+                max_new_tokens=max_tokens,
+                num_beams=3,
+                do_sample=False,
             )
             generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
             response = self.processor.post_process_generation(generated_text, task="task", image_size=(image.width, image.height))
