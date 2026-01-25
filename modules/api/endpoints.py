@@ -78,16 +78,17 @@ def get_interrogate():
     Returns model identifiers for use with POST /sdapi/v1/interrogate.
 
     **Model Types:**
-    - `deepdanbooru`: Anime-style image tagger returning comma-separated tags
     - OpenCLIP models: Format `architecture/pretrained_dataset` (e.g., `ViT-L-14/openai`)
+
+    For anime-style tagging (WaifuDiffusion, DeepBooru), use `/sdapi/v1/tagger` instead.
 
     **Example Response:**
     ```json
-    ["deepdanbooru", "ViT-L-14/openai", "ViT-H-14/laion2b_s32b_b79k"]
+    ["ViT-L-14/openai", "ViT-H-14/laion2b_s32b_b79k"]
     ```
     """
     from modules.interrogate.openclip import refresh_clip_models
-    return ['deepdanbooru'] + refresh_clip_models()
+    return refresh_clip_models()
 
 def post_interrogate(req: models.ReqInterrogate):
     """

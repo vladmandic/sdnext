@@ -364,11 +364,11 @@ class ResStatus(BaseModel):
 class ReqInterrogate(BaseModel):
     """Request model for OpenCLIP/BLIP image interrogation.
 
-    Analyze image using CLIP model via OpenCLIP to generate prompts,
-    or use DeepDanbooru for anime-style tagging.
+    Analyze image using CLIP model via OpenCLIP to generate prompts.
+    For anime-style tagging, use /sdapi/v1/tagger with WaifuDiffusion or DeepBooru.
     """
     image: str = Field(default="", title="Image", description="Image to interrogate. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
-    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Use 'deepdanbooru' or 'deepbooru' for anime tagging. Get available models from GET /sdapi/v1/interrogate.")
+    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Get available models from GET /sdapi/v1/interrogate.")
     clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="CLIP model used for image-text similarity matching. Larger models (ViT-L, ViT-H) are more accurate but slower and use more VRAM.")
     blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model used to generate the initial image caption. The caption model describes the image content which CLIP then enriches with style and flavor terms.")
     mode: str = Field(default="best", title="Mode", description="Interrogation mode. Fast: Quick caption with minimal flavor terms. Classic: Standard interrogation with balanced quality and speed. Best: Most thorough analysis, slowest but highest quality. Negative: Generate terms to use as negative prompt.")
