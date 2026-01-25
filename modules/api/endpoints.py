@@ -124,8 +124,24 @@ def post_interrogate(req: models.ReqInterrogate):
         from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
         if req.model not in refresh_clip_models():
             raise HTTPException(status_code=404, detail="Model not found")
+        # Build clip overrides from request (only include non-None values)
+        clip_overrides = {}
+        if req.min_length is not None:
+            clip_overrides['min_length'] = req.min_length
+        if req.max_length is not None:
+            clip_overrides['max_length'] = req.max_length
+        if req.chunk_size is not None:
+            clip_overrides['chunk_size'] = req.chunk_size
+        if req.min_flavors is not None:
+            clip_overrides['min_flavors'] = req.min_flavors
+        if req.max_flavors is not None:
+            clip_overrides['max_flavors'] = req.max_flavors
+        if req.flavor_count is not None:
+            clip_overrides['flavor_count'] = req.flavor_count
+        if req.num_beams is not None:
+            clip_overrides['num_beams'] = req.num_beams
         try:
-            caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode)
+            caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
         except Exception as e:
             caption = str(e)
         if not req.analyze:
@@ -212,7 +228,7 @@ def post_vqa(req: models.ReqVQA):
     answer = vqa.interrogate(
         question=req.question,
         system_prompt=req.system,
-        prompt='',
+        prompt=req.prompt or '',
         image=image,
         model_name=req.model,
         prefill=req.prefill,
