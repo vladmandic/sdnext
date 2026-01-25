@@ -11,6 +11,25 @@ from modules import devices, shared, errors, sd_models
 debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
 debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
+# Per-request overrides for API calls
+_clip_overrides = None
+
+
+def get_clip_setting(name):
+    """Get CLIP setting with per-request override support.
+
+    Args:
+        name: Setting name without 'interrogate_clip_' prefix (e.g., 'min_flavors', 'max_length')
+
+    Returns:
+        Override value if set, otherwise the value from shared.opts
+    """
+    if _clip_overrides is not None:
+        value = _clip_overrides.get(name)
+        if value is not None:
+            return value
+    return getattr(shared.opts, f'interrogate_clip_{name}')
+
 
 def _apply_blip2_fix(model, processor):
     """Apply compatibility fix for BLIP2 models with newer transformers versions."""
@@ -70,11 +89,11 @@ class BatchWriter:
 
 def update_interrogate_params():
     if ci is not None:
-        ci.caption_max_length=shared.opts.interrogate_clip_max_length
-        ci.chunk_size=shared.opts.interrogate_clip_chunk_size
-        ci.flavor_intermediate_count=shared.opts.interrogate_clip_flavor_count
-        ci.clip_offload=shared.opts.interrogate_offload
-        ci.caption_offload=shared.opts.interrogate_offload
+        ci.caption_max_length = get_clip_setting('max_length')
+        ci.chunk_size = get_clip_setting('chunk_size')
+        ci.flavor_intermediate_count = get_clip_setting('flavor_count')
+        ci.clip_offload = shared.opts.interrogate_offload
+        ci.caption_offload = shared.opts.interrogate_offload
 
 
 def get_clip_models():
@@ -159,33 +178,42 @@ def interrogate(image, mode, caption=None):
         return ''
     image = image.convert("RGB")
     t0 = time.time()
-    debug_log(f'CLIP: mode="{mode}" image_size={image.size} caption={caption is not None} min_flavors={shared.opts.interrogate_clip_min_flavors} max_flavors={shared.opts.interrogate_clip_max_flavors}')
+    min_flavors = get_clip_setting('min_flavors')
+    max_flavors = get_clip_setting('max_flavors')
+    debug_log(f'CLIP: mode="{mode}" image_size={image.size} caption={caption is not None} min_flavors={min_flavors} max_flavors={max_flavors}')
     if mode == 'best':
-        prompt = ci.interrogate(image, caption=caption, min_flavors=shared.opts.interrogate_clip_min_flavors, max_flavors=shared.opts.interrogate_clip_max_flavors, )
+        prompt = ci.interrogate(image, caption=caption, min_flavors=min_flavors, max_flavors=max_flavors)
     elif mode == 'caption':
         prompt = ci.generate_caption(image) if caption is None else caption
     elif mode == 'classic':
-        prompt = ci.interrogate_classic(image, caption=caption, max_flavors=shared.opts.interrogate_clip_max_flavors)
+        prompt = ci.interrogate_classic(image, caption=caption, max_flavors=max_flavors)
     elif mode == 'fast':
-        prompt = ci.interrogate_fast(image, caption=caption, max_flavors=shared.opts.interrogate_clip_max_flavors)
+        prompt = ci.interrogate_fast(image, caption=caption, max_flavors=max_flavors)
     elif mode == 'negative':
-        prompt = ci.interrogate_negative(image, max_flavors=shared.opts.interrogate_clip_max_flavors)
+        prompt = ci.interrogate_negative(image, max_flavors=max_flavors)
     else:
         raise RuntimeError(f"Unknown mode {mode}")
     debug_log(f'CLIP: mode="{mode}" time={time.time()-t0:.2f} result="{prompt[:100]}..."' if len(prompt) > 100 else f'CLIP: mode="{mode}" time={time.time()-t0:.2f} result="{prompt}"')
     return prompt
 
 
-def interrogate_image(image, clip_model, blip_model, mode):
+def interrogate_image(image, clip_model, blip_model, mode, overrides=None):
+    global _clip_overrides  # pylint: disable=global-statement
     jobid = shared.state.begin('Interrogate CLiP')
     t0 = time.time()
     shared.log.info(f'CLIP: mode="{mode}" clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
+    if overrides:
+        debug_log(f'CLIP: overrides={overrides}')
     try:
+        # Set per-request overrides
+        _clip_overrides = overrides
         if shared.sd_loaded:
-            from modules.sd_models import apply_balanced_offload # prevent circular import
+            from modules.sd_models import apply_balanced_offload  # prevent circular import
             apply_balanced_offload(shared.sd_model)
             debug_log('CLIP: applied balanced offload to sd_model')
         load_interrogator(clip_model, blip_model)
+        # Apply overrides to loaded interrogator
+        update_interrogate_params()
         image = image.convert('RGB')
         prompt = interrogate(image, mode)
         devices.torch_gc()
@@ -194,6 +222,9 @@ def interrogate_image(image, clip_model, blip_model, mode):
         prompt = f"Exception {type(e)}"
         shared.log.error(f'CLIP: {e}')
         errors.display(e, 'Interrogate')
+    finally:
+        # Clear per-request overrides
+        _clip_overrides = None
     shared.state.end(jobid)
     return prompt
 
