@@ -1234,6 +1234,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   });
   intersectionObserver.observe(el.folders);
   monitorGalleries();
+  monitorOption('browser_gallery_advanced', updateGalleryAdvDisplay);
 }
 
 // register on startup
