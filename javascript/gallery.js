@@ -1022,7 +1022,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   });
 }
 
-async function addCacheClearButton() {
+function addCacheClearButton() { // Don't use async
   const div = document.createElement('div');
   div.style.cssText = 'margin-top: 1.5rem; margin-bottom: 0.5rem;';
   const btn = document.createElement('button');
@@ -1040,6 +1040,12 @@ async function addCacheClearButton() {
   div.append(btn);
   el.files.insertAdjacentElement('afterend', div);
   el.clearCache = div;
+}
+
+async function updateGalleryAdvDisplay(newval, oldval = undefined) {
+  if (el.clearCache) {
+    el.clearCache.style.display = newval ? 'block' : 'none';
+  }
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1101,6 +1107,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!el.clearCache) {
     addCacheClearButton();
   }
+  updateGalleryAdvDisplay(opts.browser_gallery_advanced);
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
