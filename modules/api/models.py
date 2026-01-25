@@ -362,31 +362,87 @@ class ResStatus(BaseModel):
     progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
 
 class ReqInterrogate(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    clip_model: str = Field(default="", title="CLiP Model", description="The interrogate model used.")
-    blip_model: str = Field(default="", title="BLiP Model", description="The interrogate model used.")
+    """Request model for OpenCLIP/BLIP image interrogation.
+
+    Analyze image using CLIP model via OpenCLIP to generate prompts,
+    or use DeepDanbooru for anime-style tagging.
+    """
+    image: str = Field(default="", title="Image", description="Image to interrogate. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
+    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Use 'deepdanbooru' or 'deepbooru' for anime tagging. Get available models from GET /sdapi/v1/interrogate.")
+    clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="OpenCLIP model for image encoding. Format: 'architecture/pretrained_dataset'.")
+    blip_model: str = Field(default="blip-large", title="BLIP Model", description="BLIP/BLIP2 captioning model for generating base captions. Options: blip-base, blip-large, blip2-opt-2.7b, blip2-opt-6.7b.")
+    mode: str = Field(default="best", title="Mode", description="Interrogation mode: 'best' (highest quality), 'fast' (quick results), 'classic' (traditional style), 'caption' (BLIP caption only), 'negative' (negative prompt generation).")
+    analyze: bool = Field(default=False, title="Analyze", description="If True, returns detailed image analysis breakdown (medium, artist, movement, trending, flavor) in addition to caption.")
 
 InterrogateRequest = ReqInterrogate # alias for backwards compatibility
 
 class ResInterrogate(BaseModel):
-    caption: Optional[str] = Field(default=None, title="Caption", description="The generated caption for the image.")
-    medium: Optional[str] = Field(default=None, title="Medium", description="Image medium.")
-    artist: Optional[str] = Field(default=None, title="Medium", description="Image artist.")
-    movement: Optional[str] = Field(default=None, title="Medium", description="Image movement.")
-    trending: Optional[str] = Field(default=None, title="Medium", description="Image trending.")
-    flavor: Optional[str] = Field(default=None, title="Medium", description="Image flavor.")
+    """Response model for image interrogation results."""
+    caption: Optional[str] = Field(default=None, title="Caption", description="Generated caption/prompt describing the image content and style.")
+    medium: Optional[str] = Field(default=None, title="Medium", description="Detected artistic medium (e.g., 'oil painting', 'digital art', 'photograph'). Only returned when analyze=True.")
+    artist: Optional[str] = Field(default=None, title="Artist", description="Detected similar artist style (e.g., 'by greg rutkowski'). Only returned when analyze=True.")
+    movement: Optional[str] = Field(default=None, title="Movement", description="Detected art movement (e.g., 'art nouveau', 'impressionism'). Only returned when analyze=True.")
+    trending: Optional[str] = Field(default=None, title="Trending", description="Trending/platform tags (e.g., 'trending on artstation'). Only returned when analyze=True.")
+    flavor: Optional[str] = Field(default=None, title="Flavor", description="Additional descriptive elements (e.g., 'cinematic lighting', 'highly detailed'). Only returned when analyze=True.")
 
 class ReqVQA(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
-    question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
-    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System prompt", description="Prompt to shape how the model interprets and responds to user prompts.")
+    """Request model for Vision-Language Model (VLM) captioning.
+
+    Analyze image using vision language model to generate captions,
+    answer questions, or perform specialized tasks like object detection.
+    """
+    image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string containing the image data.")
+    model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="VLM model for Visual Language tasks. Use GET /sdapi/v1/vqa/models for full list. Popular options: Florence 2, Qwen VL, Gemma 3, Moondream. Models with thinking/reasoning support return detailed analysis.")
+    question: str = Field(default="describe the image", title="Question/Task", description="Question to ask the model or task to perform. Common tasks: 'Short Caption', 'Normal Caption', 'Long Caption'. Florence-2 supports: '<OD>' (object detection), '<OCR>' (text recognition). Moondream supports: 'Point at [object]', 'Detect all [objects]'.")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt", description="System prompt controls behavior of the LLM. Processed first and has highest priority weighting. Use for response formatting rules, role definition, and style.")
+    include_annotated: bool = Field(default=False, title="Include Annotated Image", description="If True and the task produces detection results (object detection, point detection, gaze), returns annotated image with bounding boxes/points drawn. Only applicable for detection tasks on models like Florence-2 and Moondream.")
 
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
 class ResVQA(BaseModel):
-    answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
+    """Response model for VLM captioning results."""
+    answer: Optional[str] = Field(default=None, title="Answer", description="Generated caption, answer, or analysis from the VLM. Format depends on the question/task type.")
+    annotated_image: Optional[str] = Field(default=None, title="Annotated Image", description="Base64 encoded PNG image with detection results drawn (bounding boxes, points). Only returned when include_annotated=True and the task produces detection results.")
+
+class ItemVLMModel(BaseModel):
+    """VLM model information."""
+    name: str = Field(title="Name", description="Display name of the model")
+    repo: str = Field(title="Repository", description="HuggingFace repository ID")
+    prompts: List[str] = Field(title="Prompts", description="Available prompts/tasks for this model")
+    capabilities: List[str] = Field(title="Capabilities", description="Model capabilities: caption, vqa, detection, ocr, thinking")
+
+class ResVLMPrompts(BaseModel):
+    """Available VLM prompts grouped by category."""
+    common: Optional[List[str]] = Field(default=None, title="Common", description="Prompts available for all models: Use Prompt, Short/Normal/Long Caption")
+    florence: Optional[List[str]] = Field(default=None, title="Florence", description="Florence-2 specific: Phrase Grounding, Object Detection, OCR, etc.")
+    moondream: Optional[List[str]] = Field(default=None, title="Moondream", description="Moondream specific: Point at..., Detect all..., Detect Gaze")
+    moondream2_only: Optional[List[str]] = Field(default=None, title="Moondream 2 Only", description="Moondream 2 specific prompts (gaze detection)")
+    available: Optional[List[str]] = Field(default=None, title="Available", description="When filtered by model, the available prompts for that model")
+
+class ItemTaggerModel(BaseModel):
+    """Tagger model information."""
+    name: str = Field(title="Name", description="Model name")
+    type: str = Field(title="Type", description="Model type: waifudiffusion or deepbooru")
+
+class ReqTagger(BaseModel):
+    """Request model for image tagging."""
+    image: str = Field(default="", title="Image", description="Image to tag. Must be a Base64 encoded string.")
+    model: str = Field(default="wd-eva02-large-tagger-v3", title="Model", description="Tagger model to use. WaifuDiffusion models (wd-*) or 'deepbooru'/'deepdanbooru'.")
+    threshold: float = Field(default=0.5, title="Threshold", description="General tag confidence threshold (0-1). Tags below this confidence are excluded.", ge=0.0, le=1.0)
+    character_threshold: float = Field(default=0.85, title="Character Threshold", description="Character tag confidence threshold (0-1). Higher values for more precise character identification. WaifuDiffusion only - ignored for DeepBooru.", ge=0.0, le=1.0)
+    max_tags: int = Field(default=74, title="Max Tags", description="Maximum number of tags to return.", ge=1, le=512)
+    include_rating: bool = Field(default=False, title="Include Rating", description="Include rating tags (safe, questionable, explicit) in results.")
+    sort_alpha: bool = Field(default=False, title="Sort Alphabetically", description="Sort tags alphabetically instead of by confidence.")
+    use_spaces: bool = Field(default=False, title="Use Spaces", description="Replace underscores with spaces in tag names.")
+    escape_brackets: bool = Field(default=True, title="Escape Brackets", description="Escape parentheses in tags for prompt compatibility.")
+    exclude_tags: str = Field(default="", title="Exclude Tags", description="Comma-separated list of tags to exclude from results.")
+    show_scores: bool = Field(default=False, title="Show Scores", description="Include confidence scores with each tag in the output.")
+
+class ResTagger(BaseModel):
+    """Response model for image tagging results."""
+    tags: str = Field(title="Tags", description="Comma-separated list of detected tags")
+    scores: Optional[dict] = Field(default=None, title="Scores", description="Tag confidence scores (when show_scores=True)")
 
 class ResTrain(BaseModel):
     info: str = Field(title="Train info", description="Response string from train embedding task.")
