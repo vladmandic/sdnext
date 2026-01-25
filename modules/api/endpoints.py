@@ -188,8 +188,37 @@ def post_vqa(req: models.ReqVQA):
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
+
+    # Build generation kwargs from request parameters (None values are ignored)
+    generation_kwargs = {}
+    if req.max_tokens is not None:
+        generation_kwargs['max_tokens'] = req.max_tokens
+    if req.temperature is not None:
+        generation_kwargs['temperature'] = req.temperature
+    if req.top_k is not None:
+        generation_kwargs['top_k'] = req.top_k
+    if req.top_p is not None:
+        generation_kwargs['top_p'] = req.top_p
+    if req.num_beams is not None:
+        generation_kwargs['num_beams'] = req.num_beams
+    if req.do_sample is not None:
+        generation_kwargs['do_sample'] = req.do_sample
+    if req.keep_thinking is not None:
+        generation_kwargs['keep_thinking'] = req.keep_thinking
+    if req.keep_prefill is not None:
+        generation_kwargs['keep_prefill'] = req.keep_prefill
+
     from modules.interrogate import vqa
-    answer = vqa.interrogate(req.question, req.system, '', image, req.model)
+    answer = vqa.interrogate(
+        question=req.question,
+        system_prompt=req.system,
+        prompt='',
+        image=image,
+        model_name=req.model,
+        prefill=req.prefill,
+        thinking_mode=req.thinking_mode,
+        generation_kwargs=generation_kwargs if generation_kwargs else None
+    )
     # Return annotated image if requested and available
     annotated_b64 = None
     if req.include_annotated:
