@@ -2,9 +2,10 @@
 
 ## Todo
 
+- upstream `torch/rocm` slowdown
 - update `rocm/windows`
 
-## Update for 2026-01-24
+## Update for 2026-01-25
 
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
@@ -32,6 +33,7 @@
   - add video ui elem_ids, thanks @ryanmeador  
   - use base steps as-is for non sd/sdxl models  
   - ui css fixes for modernui  
+  - support lora inside prompt selector  
 
 ## Update for 2026-01-22
 
