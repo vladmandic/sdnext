@@ -5,7 +5,7 @@ import threading
 import re
 import gradio as gr
 from PIL import Image
-from modules import devices, paths, shared, errors, sd_models
+from modules import devices, shared, errors, sd_models
 
 
 debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
@@ -99,7 +99,7 @@ def load_interrogator(clip_model, blip_model):
     if ci is None:
         t0 = time.time()
         device = devices.get_optimal_device()
-        cache_path = os.path.join(paths.models_path, 'Interrogator')
+        cache_path = shared.opts.clip_models_path
         shared.log.info(f'CLIP load: clip="{clip_model}" blip="{blip_model}" device={device}')
         debug_log(f'CLIP load: cache_path="{cache_path}" max_length={shared.opts.interrogate_clip_max_length} chunk_size={shared.opts.interrogate_clip_chunk_size} flavor_count={shared.opts.interrogate_clip_flavor_count} offload={shared.opts.interrogate_offload}')
         interrogator_config = clip_interrogator.Config(
