@@ -87,7 +87,9 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Wan2.2-Animate-14B](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
 - [WAN2GP](https://github.com/deepbeepmeep/Wan2GP)  
 
-### Asyncio
+### Migration
+
+#### Asyncio
 
 - Policy system is deprecated and will be removed in **Python 3.16**
   - [Python 3.14 removals - asyncio](https://docs.python.org/3.14/whatsnew/3.14.html#id10)
