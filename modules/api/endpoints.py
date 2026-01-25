@@ -91,15 +91,10 @@ def get_interrogate():
 
 def post_interrogate(req: models.ReqInterrogate):
     """
-    Interrogate an image using OpenCLIP/BLIP or DeepDanbooru.
+    Interrogate an image using OpenCLIP/BLIP.
 
     Analyze image using CLIP model via OpenCLIP to generate Stable Diffusion prompts.
 
-    **DeepDanbooru Mode** (`model="deepdanbooru"`):
-    - Specialized for anime/illustration images
-    - Returns comma-separated tags with confidence
-
-    **OpenCLIP Mode** (any other model):
     - Uses CLIP for image-text matching, BLIP for captioning
     - **Modes:**
       - `best`: Highest quality, combines multiple techniques
@@ -109,6 +104,8 @@ def post_interrogate(req: models.ReqInterrogate):
       - `negative`: Generate negative prompt suggestions
     - Set `analyze=True` for detailed breakdown (medium, artist, movement, trending, flavor)
 
+    For anime/illustration tagging, use `/sdapi/v1/tagger` with WaifuDiffusion or DeepBooru models.
+
     **Error Codes:**
     - 404: Image not provided or model not found
     """
@@ -116,53 +113,47 @@ def post_interrogate(req: models.ReqInterrogate):
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    if req.model == "deepdanbooru" or req.model == 'deepbooru':
-        from modules.interrogate import deepbooru
-        caption = deepbooru.model.tag(image)
+    from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
+    if req.model not in refresh_clip_models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    # Build clip overrides from request (only include non-None values)
+    clip_overrides = {}
+    if req.min_length is not None:
+        clip_overrides['min_length'] = req.min_length
+    if req.max_length is not None:
+        clip_overrides['max_length'] = req.max_length
+    if req.chunk_size is not None:
+        clip_overrides['chunk_size'] = req.chunk_size
+    if req.min_flavors is not None:
+        clip_overrides['min_flavors'] = req.min_flavors
+    if req.max_flavors is not None:
+        clip_overrides['max_flavors'] = req.max_flavors
+    if req.flavor_count is not None:
+        clip_overrides['flavor_count'] = req.flavor_count
+    if req.num_beams is not None:
+        clip_overrides['num_beams'] = req.num_beams
+    try:
+        caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
+    except Exception as e:
+        caption = str(e)
+    if not req.analyze:
         return models.ResInterrogate(caption=caption)
-    else:
-        from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
-        if req.model not in refresh_clip_models():
-            raise HTTPException(status_code=404, detail="Model not found")
-        # Build clip overrides from request (only include non-None values)
-        clip_overrides = {}
-        if req.min_length is not None:
-            clip_overrides['min_length'] = req.min_length
-        if req.max_length is not None:
-            clip_overrides['max_length'] = req.max_length
-        if req.chunk_size is not None:
-            clip_overrides['chunk_size'] = req.chunk_size
-        if req.min_flavors is not None:
-            clip_overrides['min_flavors'] = req.min_flavors
-        if req.max_flavors is not None:
-            clip_overrides['max_flavors'] = req.max_flavors
-        if req.flavor_count is not None:
-            clip_overrides['flavor_count'] = req.flavor_count
-        if req.num_beams is not None:
-            clip_overrides['num_beams'] = req.num_beams
-        try:
-            caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
-        except Exception as e:
-            caption = str(e)
-        if not req.analyze:
-            return models.ResInterrogate(caption=caption)
-        else:
-            analyze_results = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
-            # Extract top-ranked item from each Gradio update dict
-            def get_top_item(result):
-                if isinstance(result, dict) and 'value' in result:
-                    value = result['value']
-                    if isinstance(value, dict) and value:
-                        return next(iter(value.keys()))  # First key = top ranked
-                    if isinstance(value, str):
-                        return value
-                return None
-            medium = get_top_item(analyze_results[0])
-            artist = get_top_item(analyze_results[1])
-            movement = get_top_item(analyze_results[2])
-            trending = get_top_item(analyze_results[3])
-            flavor = get_top_item(analyze_results[4])
-            return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
+    analyze_results = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
+    # Extract top-ranked item from each Gradio update dict
+    def get_top_item(result):
+        if isinstance(result, dict) and 'value' in result:
+            value = result['value']
+            if isinstance(value, dict) and value:
+                return next(iter(value.keys()))  # First key = top ranked
+            if isinstance(value, str):
+                return value
+        return None
+    medium = get_top_item(analyze_results[0])
+    artist = get_top_item(analyze_results[1])
+    movement = get_top_item(analyze_results[2])
+    trending = get_top_item(analyze_results[3])
+    flavor = get_top_item(analyze_results[4])
+    return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
 
 def post_vqa(req: models.ReqVQA):
     """
